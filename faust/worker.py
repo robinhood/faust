@@ -44,10 +44,9 @@ Example Usage:
 """
 import asyncio
 from collections import OrderedDict
-from typing import MutableMapping, Pattern, Sequence, List
+from typing import MutableMapping, Pattern, Sequence
 from itertools import count
 from . import constants
-from .consumer import Consumer
 from .stream import Stream
 from .types import Serializer, Task
 from .utils.service import Service

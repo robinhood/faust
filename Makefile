@@ -83,7 +83,7 @@ configcheck:
 	(cd "$(SPHINX_DIR)"; $(MAKE) configcheck)
 
 flakecheck:
-	$(FLAKE8) --ignore=X999 "$(PROJ)" "$(TESTDIR)"
+	$(FLAKE8) "$(PROJ)" "$(TESTDIR)"
 
 flakediag:
 	-$(MAKE) flakecheck

@@ -35,4 +35,4 @@ VERSION = version_info = version_info_t(
 del(_temp)
 del(re)
 
-__all__ = ['Event', 'Stream', 'Worker']
+__all__ = ['Event', 'Stream', 'Task', 'Worker']
