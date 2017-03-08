@@ -1,0 +1,10 @@
+:Version: 1.0.0
+:Web: http://faust.readthedocs.org/
+:Download: http://pypi.python.org/pypi/faust
+:Source: http://github.com/robinhoodmarkets/faust
+:Keywords: KEYWORDS
+
+About
+=====
+
+# I'm too lazy to edit the defaults.
