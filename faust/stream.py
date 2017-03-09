@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Callable, MutableMapping, cast
+from typing import Any, Callable, MutableMapping, Tuple, cast
 from .consumer import Consumer
 from .event import FieldDescriptor, from_tuple
 from .types import K, V, Message, Topic
@@ -26,9 +26,6 @@ class Stream(Service):
 
     _consumer: Consumer
 
-    #: This maintains the state of the stream (the K/V store).
-    _state: MutableMapping
-
     def __init__(self, name: str = None,
                  topic: Topic = None,
                  group_by: FieldDescriptor = None,
@@ -43,7 +40,10 @@ class Stream(Service):
         self.type = self.topic.type
         self._quick_deserialize_k = self.topic.key_serializer
         self._quick_deserialize_v = self.topic.value_serializer
-        self._state = {}
+        self.on_init()
+
+    def on_init(self) -> None:
+        ...
 
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
@@ -64,6 +64,10 @@ class Stream(Service):
                          partition: str,
                          message: Message) -> None:
         print('Received message: %r' % (message,))
+        k, v = self.to_KV(message)
+        await self.process(k, v)
+
+    def to_KV(self, message: Message) -> Tuple[K, V]:
         key = message.key
         if self._quick_deserialize_k:
             key = self._quick_deserialize_k(message.key)
@@ -71,11 +75,7 @@ class Stream(Service):
         if self._quick_deserialize_v:
             value = self._quick_deserialize_v(message.value)
         k = cast(K, key)
-        new_value = await self.process(
-            k,
-            cast(V, from_tuple(self.type, k, value)),
-        )
-        self._state[k] = new_value
+        return k, cast(V, from_tuple(self.type, k, value))
 
     def get_consumer(self) -> Consumer:
         return Consumer(
@@ -83,6 +83,22 @@ class Stream(Service):
             callback=self.on_message,
             loop=self.loop,
         )
+
+
+class Table(Stream):
+
+    #: This maintains the state of the stream (the K/V store).
+    _state: MutableMapping
+
+    def on_init(self) -> None:
+        self._state = {}
+
+    async def on_message(self,
+                         topic: str,
+                         partition: str,
+                         message: Message) -> None:
+        k, v = self.to_KV(message)
+        self._state[k] = await self.process(k, v)
 
     def __getitem__(self, key: Any) -> Any:
         return self._state[key]
