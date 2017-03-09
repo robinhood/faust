@@ -6,9 +6,6 @@
 import re
 from typing import NamedTuple
 
-from .types import Event, Task
-from .worker import Worker
-
 __version__ = '1.0.0'
 __author__ = 'Ask Solem'
 __contact__ = 'asksol@robinhood.com'
@@ -35,4 +32,10 @@ VERSION = version_info = version_info_t(
 del(_temp)
 del(re)
 
-__all__ = ['Event', 'Stream', 'Task', 'Worker']
+from .event import Event        # noqa: E402
+from .types import Task         # noqa: E402
+from .worker import Worker      # noqa: E402
+
+__all__ = [
+    'Event', 'Stream', 'Task', 'Worker',
+]

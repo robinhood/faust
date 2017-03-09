@@ -20,7 +20,7 @@ Example Usage:
 
     @forver.stream(all_events, group_by=Event.user)
     def suspicious_countries(it: StreamT) -> StreamT:
-        return (event for event if event.country in BLACKLIST)
+        return (await event for event in it if event.country in BLACKLIST)
 
     @faust.aggregate_count(withdrawals, timedelta(days=2))
     def user_withdrawals(withdrawal: Withdrawl) -> Tuple[str, Decimal]:
@@ -28,11 +28,11 @@ Example Usage:
 
     @faust.task()
     def suspicious_users() -> StreamT:
-        for event in (suspicious_countries.field.user &
-                      user_withdrawals.field.user):
-            if event.withdrawal.amount > 500:
-                yield
-
+        return (
+            await event for event in (suspicious_countries.field.user &
+                                      user_withdrawals.field.user)
+            if event.withdrawal.amount > 500
+        )
 
     async def main():
         worker = faust.Worker()
@@ -44,11 +44,11 @@ Example Usage:
 """
 import asyncio
 from collections import OrderedDict
-from typing import MutableMapping, Pattern, Sequence
+from typing import MutableMapping, Sequence
 from itertools import count
 from . import constants
 from .stream import Stream
-from .types import Serializer, Task
+from .types import Task, Topic
 from .utils.service import Service
 
 DEFAULT_SERVER = 'localhost:9092'
@@ -76,38 +76,10 @@ class Topology(Service):
         for _stream in self._streams.values():
             await _stream.stop()
 
-    def stream(
-            self, *topics: str,
-            key_serializer: Serializer = None,
-            value_serializer: Serializer = None) -> Stream:
-        return self._stream(
-            topics=topics,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-        )
-
-    def stream_from_pattern(
-            self, pattern: Pattern,
-            key_serializer: Serializer = None,
-            value_serializer: Serializer = None) -> Stream:
-        return self._stream(
-            pattern=pattern,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-        )
-
-    def _stream(
-            self, *,
-            topics: Sequence[str] = None,
-            pattern: Pattern = None,
-            key_serializer: Serializer = None,
-            value_serializer: Serializer = None) -> Stream:
+    def stream(self, topic: Topic,) -> Stream:
         stream = Stream(
             self._new_name(constants.SOURCE_NAME),
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-            topics=topics,
-            pattern=pattern,
+            topic=topic,
         )
         self.add_source(stream)
         return stream
@@ -115,7 +87,7 @@ class Topology(Service):
     def add_source(self, stream):
         assert stream.name
         if not stream.pattern:
-            assert stream.topics
+            assert stream.topic
         if stream.name in self._streams:
             raise ValueError(
                 'Stream with name {0.name!r} already exists.'.format(stream))

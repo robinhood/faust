@@ -1,28 +1,30 @@
 import aiokafka
 import asyncio
 import faust
-from typing import Pattern, Sequence
-from .types import ConsumerCallback
+from .types import ConsumerCallback, Topic
 from .utils.service import Service
 
 
 class Consumer(Service):
 
+    topic: Topic
     client_id = 'faust-{0}'.format(faust.__version__)
     _consumer: aiokafka.AIOKafkaConsumer
 
     def __init__(self,
                  *,
-                 topics: Sequence[str] = None,
-                 pattern: Pattern = None,
+                 topic: Topic = None,
                  callback: ConsumerCallback = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop)
         assert callback is not None
         self.callback = callback
+        self.topic = topic
+        if self.topic.topics and self.topic.pattern:
+            raise TypeError('Topic can specify either topics or pattern')
         self._consumer = aiokafka.AIOKafkaConsumer(
-            topics=topics,
-            pattern=pattern,
+            topics=self.topic.topics,
+            pattern=self.topic.pattern,
             loop=loop,
             client_id=self.client_id,
         )
