@@ -14,7 +14,3 @@ class Topic(NamedTuple):
     type: type
     key_serializer: Serializer
     value_serializer: Serializer
-
-
-class Task:
-    ...   # TODO

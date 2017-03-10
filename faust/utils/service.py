@@ -4,6 +4,8 @@ from typing import Callable, List
 
 class Service:
 
+    shutdown_timeout = 60.0
+
     _started: asyncio.Event
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
@@ -35,7 +37,8 @@ class Service:
         self._stopped.set()
         await self.on_stop()
         if self._polling_started:
-            await self._shutdown.wait()
+            await asyncio.wait_for(self._shutdown.wait(),  # type: ignore
+                                   timeout=self.shutdown_timeout)
         await self.on_shutdown()
 
     def __repr__(self) -> str:

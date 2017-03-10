@@ -1,5 +1,5 @@
 import re
-from typing import Pattern, Union
+from typing import Callable, Pattern, Union
 from .types import Serializer, Topic
 
 
@@ -17,3 +17,16 @@ def topic(*topics: str,
         key_serializer=key_serializer,
         value_serializer=value_serializer,
     )
+
+
+class Task:
+    ...  # XXX
+
+
+class task:  # XXX
+
+    def __init__(self) -> None:
+        ...
+
+    def __call__(self, fun: Callable) -> 'Task':
+        return Task(fun)

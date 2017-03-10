@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Callable, MutableMapping, Tuple, cast
+from typing import Any, Awaitable, Callable, MutableMapping, Tuple, cast
 from .consumer import Consumer
 from .event import FieldDescriptor, from_tuple
 from .types import K, V, Message, Topic
@@ -14,8 +14,8 @@ class stream:
         self.topic = topic
         self.group_by = group_by
 
-    def __call__(self, fun: Callable) -> 'GeneratorStream':
-        return GeneratorStream(
+    def __call__(self, fun: Callable) -> 'Stream':
+        return AsyncGeneratorStream(
             topic=self.topic,
             group_by=self.group_by,
             callback=fun,
@@ -110,7 +110,22 @@ class Table(Stream):
         del self._state[key]
 
 
-class GeneratorStream(Stream):
+class AsyncGeneratorStream(Stream):
+
+    queue: asyncio.Queue
+
+    def on_init(self) -> None:
+        self.queue = asyncio.Queue()
+        self.gen = self.callback(self)
+
+    async def __aiter__(self) -> 'AsyncGeneratorStream':
+        return self
+
+    async def __anext__(self) -> Awaitable:
+        return await self.queue.get()
+
+    async def send(self, value: V) -> None:
+        await self.queue.put(value)
 
     async def process(self, key: K, value: V) -> None:
-        self.callback.send(value)
+        self.send(value)
