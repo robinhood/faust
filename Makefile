@@ -83,7 +83,7 @@ configcheck:
 	(cd "$(SPHINX_DIR)"; $(MAKE) configcheck)
 
 flakecheck:
-	$(FLAKE8) "$(PROJ)" "$(TESTDIR)"
+	$(FLAKE8) "$(PROJ)" "$(TESTDIR)" examples/
 
 flakediag:
 	-$(MAKE) flakecheck
