@@ -3,6 +3,7 @@ from collections import OrderedDict
 from typing import Iterator, MutableMapping, Sequence
 from itertools import count
 from . import constants
+from .streams import Stream
 from .task import Task
 from .types import AppT
 
