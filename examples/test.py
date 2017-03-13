@@ -10,25 +10,26 @@ topic = faust.topic('foo.bar.baz', type=Event)
 
 
 @faust.stream(topic)
-async def stream(it):
+async def even(it: faust.Stream) -> faust.Stream:
     return (event async for event in it if not event.value % 2)
 
 
-async def slurp_stream():
-    while 1:
-        x = await stream.__anext__()
-        print('Stream received: %r' % (x,))
+async def slurp_stream(s: faust.Stream):
+    async for x in s:
+        print('Stream received: {0!r}'.format(x))
         await asyncio.sleep(0.2)
 
 
-async def producer():
+async def producer(s: faust.Stream):
     for i in range(100):
-        await stream.send(Event(i))
+        await s.send(Event(i))
         await asyncio.sleep(0.1)
 
 
 async def main():
-    await asyncio.gather(producer(), slurp_stream())
+    app = faust.App()
+    s = app.add_stream(even)
+    await asyncio.gather(producer(s), slurp_stream(s))
 
 
 if __name__ == '__main__':

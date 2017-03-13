@@ -31,6 +31,7 @@ class Stream(Service):
                  topic: Topic = None,
                  group_by: FieldDescriptor = None,
                  callback: Callable = None,
+                 app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop)
         self.name = name
@@ -51,7 +52,8 @@ class Stream(Service):
             'callback': self.callback,
             'loop': self.loop,
         }
-        return self.__class__(**defaults, **kwargs)
+        final = {**defaults, **kwargs}
+        return self.__class__(**final)
 
     def bind(self, app: AppT) -> 'Stream':
         stream = self.clone(name=app.new_stream_name(), app=app)

@@ -1,22 +1,31 @@
 import asyncio
 from collections import OrderedDict
-from typing import MutableMapping
+from typing import Iterator, MutableMapping, Sequence
 from itertools import count
 from . import constants
 from .task import Task
 from .types import AppT
 
-if 0:
-    from .stream import Stream
+DEFAULT_SERVER = 'localhost:9092'
 
 
 class App(AppT):
+    """Faust Application.
 
-    _index = count(0)
+    Keyword Arguments:
+        servers: List of server host/port pairs.
+            Default is ``["localhost:9092"]``.
+        loop: Provide specific asyncio event loop instance.
+    """
+
+    _index: Iterator[int] = count(0)
     _streams: MutableMapping[str, Stream]
 
-    def __init__(self, loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(self,
+                 servers: Sequence[str] = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
+        self.servers = servers or [DEFAULT_SERVER]
         self._streams = OrderedDict()
 
     def add_stream(self, stream: Stream) -> Stream:
@@ -35,8 +44,6 @@ class App(AppT):
 
     def add_source(self, stream: Stream) -> None:
         assert stream.name
-        if not stream.pattern:
-            assert stream.topic
         if stream.name in self._streams:
             raise ValueError(
                 'Stream with name {0.name!r} already exists.'.format(stream))

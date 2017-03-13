@@ -1,10 +1,15 @@
 import abc
+import asyncio
+import typing
 from typing import Any, Awaitable, Callable, NamedTuple, Pattern, Sequence
 from aiokafka.fetcher import ConsumerRecord as Message
 
-if 0:
+if typing.TYPE_CHECKING:
     from .streams import Stream
     from .task import Task
+else:
+    class Stream: ...  # noqa
+    class Task: ...    # noqa
 
 __all__ = ['K', 'V', 'Serializer']
 K = str
@@ -22,6 +27,8 @@ class Topic(NamedTuple):
 
 
 class AppT(metaclass=abc.ABCMeta):
+    servers: Sequence[str]
+    loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod
     def add_stream(self, stream: Stream) -> Stream:
