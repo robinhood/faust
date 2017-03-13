@@ -14,7 +14,6 @@ async def stream(it):
     return (event async for event in it if not event.value % 2)
 
 
-
 async def slurp_stream():
     while 1:
         x = await stream.__anext__()
@@ -22,12 +21,10 @@ async def slurp_stream():
         await asyncio.sleep(0.2)
 
 
-
 async def producer():
     for i in range(100):
         await stream.send(Event(i))
         await asyncio.sleep(0.1)
-
 
 
 async def main():

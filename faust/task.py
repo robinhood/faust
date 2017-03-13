@@ -20,7 +20,9 @@ def topic(*topics: str,
 
 
 class Task:
-    ...  # XXX
+
+    def __init__(self, callback: Callable) -> None:
+        self.callback = callback
 
 
 class task:  # XXX
@@ -29,4 +31,4 @@ class task:  # XXX
         ...
 
     def __call__(self, fun: Callable) -> 'Task':
-        return Task(fun)
+        return Task(callback=fun)

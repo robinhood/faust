@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import os
-
 from sphinx_celery import conf
 
 globals().update(conf.build_config(

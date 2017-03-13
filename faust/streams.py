@@ -2,7 +2,7 @@ import asyncio
 from typing import Any, Awaitable, Callable, MutableMapping, Tuple, cast
 from .consumer import Consumer
 from .event import FieldDescriptor, from_tuple
-from .types import K, V, Message, Topic
+from .types import AppT, K, V, Message, Topic
 from .utils.service import Service
 
 
@@ -24,6 +24,7 @@ class stream:
 
 class Stream(Service):
 
+    app: AppT
     _consumer: Consumer
 
     def __init__(self, name: str = None,
@@ -42,6 +43,21 @@ class Stream(Service):
         self._quick_deserialize_v = self.topic.value_serializer
         self.on_init()
 
+    def clone(self, **kwargs) -> 'Stream':
+        defaults = {
+            'name': self.name,
+            'topic': self.topic,
+            'group_by': self.group_by,
+            'callback': self.callback,
+            'loop': self.loop,
+        }
+        return self.__class__(**defaults, **kwargs)
+
+    def bind(self, app: AppT) -> 'Stream':
+        stream = self.clone(name=app.new_stream_name(), app=app)
+        app.add_source(stream)
+        return stream
+
     def on_init(self) -> None:
         ...
 
@@ -52,6 +68,8 @@ class Stream(Service):
         return value
 
     async def on_start(self) -> None:
+        if self.app is None:
+            raise RuntimeError('Cannot start stream not bound to app.')
         self._consumer = self.get_consumer()
         await self._consumer.start()
 
@@ -83,6 +101,9 @@ class Stream(Service):
             callback=self.on_message,
             loop=self.loop,
         )
+
+    def __copy__(self) -> 'Stream':
+        return self.clone()
 
 
 class Table(Stream):
