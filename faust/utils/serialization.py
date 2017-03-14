@@ -7,8 +7,6 @@ Supported serializers
 * **pickle**  - pickle with base64 encoding (not urlsafe)
 * **binary**  - base64 encoding (not urlsafe)
 * **text**    - text encoding, utf-16.
-* **gzip**    - Compression using :mod:`zlib`.
-* **bzip2**   - Compression using :mod:`bz2`.
 
 Serialization by name
 =====================
@@ -163,28 +161,14 @@ the extension with other Faust users.
 from base64 import b64encode, b64decode
 from functools import reduce
 from typing import (
-    Any, Dict, Mapping, MutableMapping, Optional, Union, Tuple, cast,
+    Any, Dict, MutableMapping, Optional, Union, Tuple, cast,
 )
-
-from faust.exceptions import ImproperlyConfigured
-
 from . import json as _json
 from .imports import load_extension_classes
-
 try:
     import cPickle as _pickle
 except ImportError:  # pragma: no cover
     import pickle as _pickle  # type: ignore
-
-try:
-    import zlib as _zlib
-except ImportError:  # pragma: no cover
-    _zlib = None  # noqa
-
-try:
-    import bz2 as _bz2
-except ImportError:  # pragma: no cover
-    _bz2 = None  # noqa
 
 #: Argument to loads/dumps can be str or Serializer instance.
 SerializerArg = Union['Serializer', str]
@@ -297,50 +281,6 @@ class text_encoding(Serializer):
         return s.encode(self.encoding)
 
 
-class gzip(Serializer):
-    """Gzip compress/decompress bytes."""
-
-    zlib = _zlib
-
-    def __init__(self, level: int = -1, **kwargs) -> None:
-        super(gzip, self).__init__(level=level, **kwargs)
-        self.level = level
-
-    def _dumps(self, s: Any) -> Any:
-        return self._ensure_zlib().compress(s, level=self.level)
-
-    def _loads(self, s: Any) -> Any:
-        return self._ensure_zlib().decompress(s)
-
-    def _ensure_zlib(self) -> Any:
-        if self.zlib is None:
-            raise ImproperlyConfigured(
-                'zlib module is not configured for this Python installation.')
-        return self.zlib
-
-
-class bzip2(Serializer):
-    """bzip2 compress/decompress bytes."""
-
-    bz2 = _bz2
-
-    def __init__(self, level: int = None, **kwargs) -> None:
-        self.level = level
-        super(bzip2, self).__init__(level=level, **kwargs)
-
-    def _dumps(self, s: Any) -> Any:
-        return self._ensure_bz2().compress(s, compresslevel=self.level)
-
-    def _loads(self, s: Any) -> Any:
-        return self._ensure_bz2().decompress(s)
-
-    def _ensure_bz2(self) -> Any:
-        if self.bz2 is None:
-            raise ImproperlyConfigured(
-                'bz2 module is not configured for this Python installation.')
-        return self.bz2
-
-
 def text(encoding: str = 'utf-16') -> Serializer:
     """Encode text to specific encoding."""
     return text_encoding(encoding=encoding) | binary()
@@ -352,8 +292,6 @@ serializers: MutableMapping[str, Serializer] = {
     'pickle': pickle(),
     'binary': binary(),
     'text': text(),
-    'gzip': gzip(),
-    'bzip2': bzip2(),
 }
 
 #: Cached extension classes.
