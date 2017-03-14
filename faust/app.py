@@ -1,15 +1,16 @@
-import aiokafka
 import asyncio
 from collections import OrderedDict
-from typing import Any, Awaitable, Iterator, MutableMapping, Sequence
+from typing import Any, Awaitable, Iterator, MutableMapping
 from itertools import count
 from . import constants
 from .event import Event
 from .streams import Stream
 from .task import Task
+from . import transport
+from .transport.base import Producer, Transport
 from .types import AppT, K, Topic
 
-DEFAULT_SERVER = 'localhost:9092'
+DEFAULT_URL = 'aiokafka://localhost:9092'
 
 
 class App(AppT):
@@ -23,14 +24,15 @@ class App(AppT):
 
     _index: Iterator[int] = count(0)
     _streams: MutableMapping[str, Stream]
-    _producer: aiokafka.AIOKafkaProducer = None
+    _producer: Producer = None
     _producer_started: bool = False
+    _transport: Transport = None
 
     def __init__(self,
-                 servers: Sequence[str] = None,
+                 url: str = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
-        self.servers = servers or [DEFAULT_SERVER]
+        self.url = url
         self._streams = OrderedDict()
 
     async def __aenter__(self) -> 'App':
@@ -61,10 +63,11 @@ class App(AppT):
             await producer.start()
             print('-STARTING PRODUCER')
 
+        keyb = key.encode() if key else None
+
         print('+SEND: {0!r} {1!r} {2!r}'.format(topic.topics[0], valueb, key))
         return await (producer.send_and_wait if wait else producer.send)(
-            topic.topics[0], valueb,
-            key=key,
+            topic.topics[0], keyb, valueb,
         )
         print('-SEND')
 
@@ -95,14 +98,20 @@ class App(AppT):
     def _new_name(self, prefix: str) -> str:
         return '{0}{1:010d}'.format(prefix, next(self._index))
 
-    def _new_producer(self) -> aiokafka.AIOKafkaProducer:
-        return aiokafka.AIOKafkaProducer(
-            loop=self.loop,
-            bootstrap_servers=self.servers[0],
-        )
+    def _new_producer(self) -> Producer:
+        return self.transport.create_producer()
+
+    def _create_transport(self) -> Transport:
+        return transport.from_url(self.url, loop=self.loop)
 
     @property
-    def producer(self) -> aiokafka.AIOKafkaProducer:
+    def producer(self) -> Producer:
         if self._producer is None:
             self._producer = self._new_producer()
         return self._producer
+
+    @property
+    def transport(self) -> Transport:
+        if self._transport is None:
+            self._transport = self._create_transport()
+        return self._transport

@@ -7,9 +7,11 @@ from aiokafka.fetcher import ConsumerRecord as Message
 if typing.TYPE_CHECKING:
     from .streams import Stream
     from .task import Task
+    from .transport.base import Transport
 else:
-    class Stream: ...  # noqa
-    class Task: ...    # noqa
+    class Stream: ...     # noqa
+    class Task: ...       # noqa
+    class Transport: ...  # noqa
 
 __all__ = ['K', 'V', 'Serializer']
 K = str
@@ -44,4 +46,9 @@ class AppT(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def new_stream_name(self) -> str:
+        ...
+
+    @abc.abstractmethod
+    @property
+    def transport(self) -> Transport:
         ...

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Awaitable, Callable, MutableMapping, Tuple, cast
-from .consumer import Consumer
 from .event import FieldDescriptor, from_tuple
+from .transport.base import Consumer
 from .types import AppT, K, V, Message, Topic
 from .utils.service import Service
 
@@ -98,10 +98,9 @@ class Stream(Service):
         return k, cast(V, from_tuple(self.type, k, value))
 
     def get_consumer(self) -> Consumer:
-        return Consumer(
+        return self.app.transport.create_consumer(
             topic=self.topic,
             callback=self.on_message,
-            loop=self.loop,
         )
 
     def __copy__(self) -> 'Stream':

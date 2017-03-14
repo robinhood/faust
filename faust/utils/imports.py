@@ -2,7 +2,7 @@
 import importlib
 import sys
 import warnings
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Iterable, Mapping, Tuple
 
 # - these are taken from kombu.utils.imports
 
@@ -17,7 +17,7 @@ def qualname(obj: Any) -> str:
 
 def symbol_by_name(
         name: str,
-        aliases: Dict[str, str] = {},
+        aliases: Mapping[str, str] = {},
         imp: Any = None,
         package: str = None,
         sep: str = '.',

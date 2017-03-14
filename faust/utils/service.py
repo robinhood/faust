@@ -19,6 +19,10 @@ class Service:
         self._shutdown = asyncio.Event()
         self._polling_started = False
         self._pollers = []
+        self.on_init()
+
+    def on_init(self) -> None:
+        ...
 
     async def on_start(self) -> None:
         ...
