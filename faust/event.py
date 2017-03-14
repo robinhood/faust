@@ -1,13 +1,27 @@
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 from typing import NamedTupleMeta  # type: ignore
+from .utils.serialization import dumps, loads
 from .types import K, V
+
+
+class EventInfo:
+
+    def __init__(self, serializer: str, typ: type) -> None:
+        self.serializer = serializer
+        self.type = typ
+
+    def dumps(self, event: 'Event'):
+        return dumps(self.serializer, event._asdict())
+
+    def loads(self, s: Any) -> 'Event':
+        return cast(Event, self.type(**loads(self.serializer, s)))
 
 
 class EventMeta(NamedTupleMeta):
 
-    def __new__(cls, typename, bases, ns, serializer=None):
+    def __new__(cls, typename, bases, ns, serializer: str = 'json'):
         tup = super().__new__(cls, typename, bases, ns)
-        tup.__serializer__ = serializer
+        tup.__info__ = EventInfo(serializer, tup)
         return tup
 
 
@@ -15,12 +29,14 @@ class Event(NamedTuple, metaclass=EventMeta):
     # we create a separate NamedTuple type for this, so that regular
     # namedtuples cannot be used in typechecking.
 
+    __info__: EventInfo  # type: ignore
+
     # bit of a hack since this attribute is "technically" internal.
     _root: bool = True  # type: ignore
 
 
 def from_tuple(typ: type, k: K, v: V) -> Event:
-    return typ(**v)
+    return typ.__info__.loads(v)
 
 
 class FieldDescriptor:

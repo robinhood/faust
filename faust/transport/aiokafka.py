@@ -10,8 +10,7 @@ class Consumer(base.Consumer):
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
         self._consumer = aiokafka.AIOKafkaConsumer(
-            topics=self.topic.topics,
-            pattern=self.topic.pattern,
+            *self.topic.topics or (),
             loop=self.loop,
             client_id=self.client_id,
             bootstrap_servers=transport.bootstrap_servers,
@@ -25,7 +24,8 @@ class Consumer(base.Consumer):
         await self._consumer.stop()
 
     async def drain_events(self, *, timeout: float = 10.0) -> None:
-        records = self._consumer.getmany(timeout_ms=timeout * 1000.0)
+        records = await self._consumer.getmany(
+            max_records=10, timeout_ms=timeout * 1000.0)
         callback = self.callback
         for tp, messages in records.items():
             for message in messages:
@@ -61,6 +61,7 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: bytes) -> Awaitable:
         return self._producer.send_and_wait(topic, value, key=key)
+
 
 class Transport(base.Transport):
     Consumer: type = Consumer

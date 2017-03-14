@@ -24,8 +24,8 @@ class stream:
 
 class Stream(Service):
 
-    app: AppT
-    _consumer: Consumer
+    app: AppT = None
+    _consumer: Consumer = None
 
     def __init__(self, name: str = None,
                  topic: Topic = None,
@@ -33,16 +33,15 @@ class Stream(Service):
                  callback: Callable = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        super().__init__(loop=loop)
+        self.app = app
         self.name = name
         self.topic = topic
         self.group_by = group_by
         self.callback = callback
-        self._consumer = None
         self.type = self.topic.type
         self._quick_deserialize_k = self.topic.key_serializer
         self._quick_deserialize_v = self.topic.value_serializer
-        self.on_init()
+        super().__init__(loop=loop)
 
     def clone(self, **kwargs) -> 'Stream':
         defaults = {
@@ -59,9 +58,6 @@ class Stream(Service):
         stream = self.clone(name=app.new_stream_name(), app=app)
         app.add_source(stream)
         return stream
-
-    def on_init(self) -> None:
-        ...
 
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
@@ -141,6 +137,7 @@ class AsyncGeneratorStream(Stream):
         self.gen = self.callback(self)
 
     async def __aiter__(self) -> 'AsyncGeneratorStream':
+        await self.maybe_start()
         return self
 
     async def __anext__(self) -> Awaitable:
@@ -150,4 +147,5 @@ class AsyncGeneratorStream(Stream):
         await self.queue.put(value)
 
     async def process(self, key: K, value: V) -> None:
-        self.send(value)
+        print('Received K=%r V=%r' % (key, value))
+        await self.send(value)

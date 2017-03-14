@@ -23,7 +23,6 @@ class Consumer(Service):
         if self.topic.topics and self.topic.pattern:
             raise TypeError('Topic can specify either topics or pattern')
         super().__init__(loop=self.transport.loop)
-_ConsumerT = Consumer
 
 
 class Producer(Service):
@@ -47,7 +46,11 @@ class Producer(Service):
             key: Optional[bytes],
             value: bytes) -> Awaitable:
         raise NotImplementedError()
+
+
+# We make aliases here, as mypy is confused by the class variables below.
 _ProducerT = Producer
+_ConsumerT = Consumer
 
 
 class Transport:

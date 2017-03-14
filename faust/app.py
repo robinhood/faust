@@ -1,11 +1,11 @@
 import asyncio
 from collections import OrderedDict
-from typing import Any, Awaitable, Iterator, MutableMapping
+from typing import Any, Awaitable, Callable, Iterator, MutableMapping
 from itertools import count
 from . import constants
 from .event import Event
+from .exceptions import ImproperlyConfigured
 from .streams import Stream
-from .task import Task
 from . import transport
 from .transport.base import Producer, Transport
 from .types import AppT, K, Topic
@@ -33,6 +33,8 @@ class App(AppT):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
         self.url = url
+        if self.url is None:
+            raise ImproperlyConfigured('URL must be specified!')
         self._streams = OrderedDict()
 
     async def __aenter__(self) -> 'App':
@@ -74,8 +76,8 @@ class App(AppT):
     def add_stream(self, stream: Stream) -> Stream:
         return stream.bind(self)
 
-    def add_task(self, task: Task) -> Stream:
-        ...
+    def add_task(self, task: Callable) -> Stream:
+        return asyncio.ensure_future(task)
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():

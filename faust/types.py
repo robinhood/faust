@@ -48,7 +48,7 @@ class AppT(metaclass=abc.ABCMeta):
     def new_stream_name(self) -> str:
         ...
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def transport(self) -> Transport:
         ...

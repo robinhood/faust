@@ -1,5 +1,8 @@
 import asyncio
 from typing import Callable, List
+from .log import get_logger
+
+logger = get_logger(__name__)
 
 
 class Service:
@@ -34,20 +37,27 @@ class Service:
         ...
 
     async def start(self) -> None:
-        await self.on_start()
+        logger.info('+Starting service %r', self)
+        assert not self._started.is_set()
         self._started.set()
+        await self.on_start()
+        logger.info('-Started service %r', self)
+
+    async def maybe_start(self) -> None:
+        if not self._started.is_set():
+            await self.start()
 
     async def stop(self) -> None:
+        logger.info('+Stopping service %r', self)
         self._stopped.set()
         await self.on_stop()
+        logger.info('-Stopped service %r', self)
+        logger.info('+Shutdown service %r', self)
         if self._polling_started:
             await asyncio.wait_for(self._shutdown.wait(),  # type: ignore
                                    timeout=self.shutdown_timeout)
         await self.on_shutdown()
-
-    def __repr__(self) -> str:
-        return '<{name}: {self.state}>'.format(
-            name=type(self).__name__, self=self)
+        logger.info('-Shutdown service %r', self)
 
     def add_poller(self, callback: Callable) -> None:
         if not self._polling_started:
@@ -66,6 +76,10 @@ class Service:
 
     def _restart_polling_callbacks(self) -> None:
         asyncio.ensure_future(self._call_polling_callbacks())
+
+    def __repr__(self) -> str:
+        return '<{name}: {self.state}>'.format(
+            name=type(self).__name__, self=self)
 
     @property
     def state(self) -> str:
