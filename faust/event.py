@@ -1,8 +1,17 @@
 from typing import Any, NamedTuple
+from typing import NamedTupleMeta  # type: ignore
 from .types import K, V
 
 
-class Event(NamedTuple):
+class EventMeta(NamedTupleMeta):
+
+    def __new__(cls, typename, bases, ns, serializer=None):
+        tup = super().__new__(cls, typename, bases, ns)
+        tup.__serializer__ = serializer
+        return tup
+
+
+class Event(NamedTuple, metaclass=EventMeta):
     # we create a separate NamedTuple type for this, so that regular
     # namedtuples cannot be used in typechecking.
 
