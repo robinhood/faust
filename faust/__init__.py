@@ -35,8 +35,8 @@ del(re)
 from .app import App                  # noqa: E402
 from .event import Event              # noqa: E402
 from .streams import Stream, stream   # noqa: E402
-from .task import Task, topic         # noqa: E402
+from .task import topic         # noqa: E402
 
 __all__ = [
-    'App', 'Event', 'Stream', 'Task', 'stream', 'topic',
+    'App', 'Event', 'Stream', 'stream', 'topic',
 ]

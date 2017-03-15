@@ -9,11 +9,12 @@ from .streams import Stream
 from . import transport
 from .transport.base import Producer, Transport
 from .types import AppT, K, Topic
+from .utils.service import Service
 
 DEFAULT_URL = 'aiokafka://localhost:9092'
 
 
-class App(AppT):
+class App(AppT, Service):
     """Faust Application.
 
     Keyword Arguments:
@@ -31,18 +32,11 @@ class App(AppT):
     def __init__(self,
                  url: str = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.loop = loop or asyncio.get_event_loop()
+        super().__init__(loop=loop or asyncio.get_event_loop())
         self.url = url
         if self.url is None:
             raise ImproperlyConfigured('URL must be specified!')
         self._streams = OrderedDict()
-
-    async def __aenter__(self) -> 'App':
-        return self
-
-    async def __aexit__(self, *exc_info) -> None:
-        if self._producer:
-            await self._producer.stop()
 
     async def send(self, topic: Topic, key: K, event: Event,
                    wait: bool = True) -> Awaitable:
@@ -77,7 +71,7 @@ class App(AppT):
         return stream.bind(self)
 
     def add_task(self, task: Callable) -> Stream:
-        return asyncio.ensure_future(task)
+        return asyncio.ensure_future(task, loop=self.loop)
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():
@@ -86,6 +80,8 @@ class App(AppT):
     async def on_stop(self) -> None:
         for _stream in self._streams.values():
             await _stream.stop()
+        if self._producer:
+            await self._producer.stop()
 
     def add_source(self, stream: Stream) -> None:
         assert stream.name

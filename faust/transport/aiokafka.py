@@ -1,5 +1,6 @@
 import aiokafka
 from typing import Awaitable, Optional, cast
+from ..types import Message
 from ..utils.objects import cached_property
 from . import base
 
@@ -29,7 +30,7 @@ class Consumer(base.Consumer):
         callback = self.callback
         for tp, messages in records.items():
             for message in messages:
-                await callback(tp.topic, tp.partition, message)
+                await callback(tp.topic, tp.partition, cast(Message, message))
 
 
 class Producer(base.Producer):

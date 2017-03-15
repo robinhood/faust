@@ -2,23 +2,23 @@ import abc
 import asyncio
 import typing
 from typing import Any, Awaitable, Callable, NamedTuple, Pattern, Sequence
-from aiokafka.fetcher import ConsumerRecord as Message
 
 if typing.TYPE_CHECKING:
     from .streams import Stream
-    from .task import Task
     from .transport.base import Transport
 else:
     class Stream: ...     # noqa
-    class Task: ...       # noqa
     class Transport: ...  # noqa
 
-__all__ = ['K', 'V', 'Serializer']
+__all__ = [
+    'K', 'V', 'Serializer',
+    'Topic', 'Message', 'ConsumerCallback',
+    'ServiceT', 'AppT',
+]
+
 K = str
 V = Any
 Serializer = Callable[[Any], Any]
-ConsumerCallback = Callable[[str, str, Message], Awaitable]
-
 
 class Topic(NamedTuple):
     topics: Sequence[str]
@@ -28,7 +28,72 @@ class Topic(NamedTuple):
     value_serializer: Serializer
 
 
-class AppT(metaclass=abc.ABCMeta):
+class Message(NamedTuple):
+    topic: str
+    partition: str
+    offset: int
+    timestamp: float
+    timestamp_type: str
+    key: bytes
+    value: bytes
+    checksum: bytes
+    serialized_key_size: int
+    serialized_value_size: int
+
+ConsumerCallback = Callable[[str, str, Message], Awaitable]
+
+class ServiceT(metaclass=abc.ABCMeta):
+
+    shutdown_timeout: float
+    loop: asyncio.AbstractEventLoop
+
+    @abc.abstractmethod
+    async def __aenter__(self) -> 'ServiceT':
+        ...
+
+    @abc.abstractmethod
+    async def __aexit__(*exc_info) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_init(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_stop(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_shutdown(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def maybe_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def stop(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def add_poller(self, callback: Callable) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def state(self) -> str:
+        ...
+
+
+class AppT(ServiceT):
     servers: Sequence[str]
     loop: asyncio.AbstractEventLoop
 
@@ -37,7 +102,7 @@ class AppT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def add_task(self, task: Task) -> Stream:
+    def add_task(self, task: Callable) -> Stream:
         ...
 
     @abc.abstractmethod

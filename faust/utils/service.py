@@ -1,11 +1,12 @@
 import asyncio
 from typing import Callable, List
 from .log import get_logger
+from ..types import ServiceT
 
 logger = get_logger(__name__)
 
 
-class Service:
+class Service(ServiceT):
 
     shutdown_timeout = 60.0
 
@@ -17,12 +18,19 @@ class Service:
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
-        self._started = asyncio.Event()
-        self._stopped = asyncio.Event()
-        self._shutdown = asyncio.Event()
+        self._started = asyncio.Event(loop=self.loop)
+        self._stopped = asyncio.Event(loop=self.loop)
+        self._shutdown = asyncio.Event(loop=self.loop)
         self._polling_started = False
         self._pollers = []
         self.on_init()
+
+    async def __aenter__(self) -> 'Service':
+        await self.start()
+        return self
+
+    async def __aexit__(self, *exc_info) -> None:
+        await self.stop()
 
     def on_init(self) -> None:
         ...
@@ -54,8 +62,10 @@ class Service:
         logger.info('-Stopped service %r', self)
         logger.info('+Shutdown service %r', self)
         if self._polling_started:
-            await asyncio.wait_for(self._shutdown.wait(),  # type: ignore
-                                   timeout=self.shutdown_timeout)
+            await asyncio.wait_for(  # type: ignore
+                self._shutdown.wait(), self.shutdown_timeout,
+                loop=self.loop,
+            )
         await self.on_shutdown()
         logger.info('-Shutdown service %r', self)
 
@@ -75,7 +85,10 @@ class Service:
             self.loop.call_soon(self._restart_polling_callbacks)
 
     def _restart_polling_callbacks(self) -> None:
-        asyncio.ensure_future(self._call_polling_callbacks())
+        asyncio.ensure_future(
+            self._call_polling_callbacks(),
+            loop=self.loop,
+        )
 
     def __repr__(self) -> str:
         return '<{name}: {self.state}>'.format(

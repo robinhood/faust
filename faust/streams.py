@@ -1,5 +1,7 @@
 import asyncio
-from typing import Any, Awaitable, Callable, MutableMapping, Tuple, cast
+from typing import (
+    Any, AsyncIterable, Awaitable, Callable, MutableMapping, Tuple, cast,
+)
 from .event import FieldDescriptor, from_tuple
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, Topic
@@ -43,6 +45,11 @@ class Stream(Service):
         self._quick_deserialize_v = self.topic.value_serializer
         super().__init__(loop=loop)
 
+    def bind(self, app: AppT) -> 'Stream':
+        stream = self.clone(name=app.new_stream_name(), app=app)
+        app.add_source(stream)
+        return stream
+
     def clone(self, **kwargs) -> 'Stream':
         defaults = {
             'name': self.name,
@@ -53,11 +60,6 @@ class Stream(Service):
         }
         final = {**defaults, **kwargs}
         return self.__class__(**final)
-
-    def bind(self, app: AppT) -> 'Stream':
-        stream = self.clone(name=app.new_stream_name(), app=app)
-        app.add_source(stream)
-        return stream
 
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
@@ -128,23 +130,47 @@ class Table(Stream):
         del self._state[key]
 
 
-class AsyncGeneratorStream(Stream):
+class AsyncInputStream(AsyncIterable):
 
     queue: asyncio.Queue
 
+    def __init__(self, stream: 'Stream', *,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        self.stream = stream
+        self.loop = loop or asyncio.get_event_loop()
+        self.queue = asyncio.Queue(loop=self.loop)
+
+    async def put(self, value: V) -> None:
+        await self.queue.put(value)
+
+    async def __aiter__(self) -> 'AsyncIterable':
+        return self
+
+    async def __anext__(self) -> Awaitable:
+        return await self.queue.get()
+
+
+class AsyncGeneratorStream(Stream):
+
+    inbox: AsyncInputStream
+    outbox: asyncio.Queue
+
     def on_init(self) -> None:
-        self.queue = asyncio.Queue()
-        self.gen = self.callback(self)
+        self.inbox = AsyncInputStream(self, loop=self.loop)
+        self.outbox = asyncio.Queue(loop=self.loop)
+        self.gen = self.callback(self.inbox)
 
     async def __aiter__(self) -> 'AsyncGeneratorStream':
         await self.maybe_start()
         return self
 
     async def __anext__(self) -> Awaitable:
-        return await self.queue.get()
+        return await self.outbox.get()
 
     async def send(self, value: V) -> None:
-        await self.queue.put(value)
+        await self.inbox.put(value)
+        new_value = await self.gen.__anext__()
+        await self.outbox.put(new_value)
 
     async def process(self, key: K, value: V) -> None:
         print('Received K=%r V=%r' % (key, value))

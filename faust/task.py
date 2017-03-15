@@ -17,18 +17,3 @@ def topic(*topics: str,
         key_serializer=key_serializer,
         value_serializer=value_serializer,
     )
-
-
-class Task:
-
-    def __init__(self, callback: Callable) -> None:
-        self.callback = callback
-
-
-class task:  # XXX
-
-    def __init__(self) -> None:
-        ...
-
-    def __call__(self, fun: Callable) -> 'Task':
-        return Task(callback=fun)

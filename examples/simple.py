@@ -1,6 +1,7 @@
 import asyncio
 import faust
 import logging
+import os
 import sys
 logging.basicConfig(level=logging.INFO)
 
@@ -14,34 +15,47 @@ topic = faust.topic('mytopic', type=Withdrawal)
 
 @faust.stream(topic)
 async def all_withdrawals(it):
-    return (event async for event in it)
+    async for event in it:
+        print('STREAM GENERATOR RECV FROM INBOX: %r' % (event,))
+        yield event
 
 
 async def find_large_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
+        print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
 
 
+app = faust.App('aiokafka://localhost:9092')
+
+
+async def produce():
+    for i in range(100):
+        await app.send(topic, None, Withdrawal(100.3 + i))
+    await app.send(topic, None, Withdrawal(999999.0))
+
+
+async def consume():
+    withdrawals = app.add_stream(all_withdrawals)
+    app.add_task(find_large_withdrawals(withdrawals))
+
+
+COMMANDS = {
+    'consume': consume,
+    'produce': produce,
+}
+
+
 async def main():
-    app = faust.App('aiokafka://localhost:9092')
-
-    async def produce():
-        print('----------------------NOW DO OURS-------------------')
-        for i in range(100):
-            await app.send(topic, None, Withdrawal(100.3 + i))
-        await app.producer.stop()
-
-    async def consume():
-        withdrawals = app.add_stream(all_withdrawals)
-        app.add_task(find_large_withdrawals(withdrawals))
-
-    if sys.argv[1] == 'produce':
-        await produce()
-    elif sys.argv[1] == 'consume':
-        await consume()
-    else:
-        print('Unknown command: {0!r}'.format(sys.argv[1]))
+    try:
+        await COMMANDS[sys.argv[1]]()
+    except KeyError as exc:
+        print('Unknown command: {0}'.format(exc))
+        raise SystemExit(os.EX_USAGE)
+    except IndexError:
+        print('Missing command. Try one of: {0}'.format(', '.join(COMMANDS)))
+        raise SystemExit(os.EX_USAGE)
 
 
 if __name__ == '__main__':
