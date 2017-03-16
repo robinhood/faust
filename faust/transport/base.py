@@ -1,28 +1,68 @@
 import asyncio
 import faust
-from typing import Awaitable, Optional, cast
+import weakref
+from itertools import count
+from typing import Awaitable, Callable, NamedTuple, Optional, List, cast
+from ..event import Event
 from ..types import ConsumerCallback, Topic
 from ..utils.service import Service
 
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 
 
+def _on_event_out_of_scope(event):
+    event.ack()
+
+
+class MessageTag(NamedTuple):
+    consumer_id: int
+    offset: int
+
+
+class EventRef(weakref.ref):
+
+    def __init__(self, event: Event,
+                 callback: Callable = None,
+                 tag: MessageTag = None) -> None:
+        super().__init__(event, callback)
+        self.tag = tag
+
+
 class Consumer(Service):
+    id: int
     topic: Topic
     client_id = CLIENT_ID
     transport: 'Transport'
+
+    #: This counter generates new consumer ids.
+    _consumer_ids = count(0)
+
+    _dirty_events = List[EventRef]
 
     def __init__(self, transport: 'Transport',
                  *,
                  topic: Topic = None,
                  callback: ConsumerCallback = None) -> None:
         assert callback is not None
+        self.id = next(self._consumer_ids)
         self.transport = transport
         self.callback = callback
         self.topic = topic
         if self.topic.topics and self.topic.pattern:
             raise TypeError('Topic can specify either topics or pattern')
+        self._dirty_events = []
         super().__init__(loop=self.transport.loop)
+
+    def track_event(self, event: Event, offset: int) -> None:
+        self._dirty_events.append(
+            EventRef(
+                event, self.on_event_ready,
+                tag=MessageTag(self.id, offset),
+            ),
+        )
+
+    def on_event_ready(self, ref: EventRef) -> None:
+        print('ACKED MESSAGE %r' % (ref.tag,))
 
 
 class Producer(Service):

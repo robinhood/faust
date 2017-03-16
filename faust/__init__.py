@@ -32,10 +32,9 @@ VERSION = version_info = version_info_t(
 del(_temp)
 del(re)
 
-from .app import App                  # noqa: E402
-from .event import Event              # noqa: E402
-from .streams import Stream, stream   # noqa: E402
-from .task import topic         # noqa: E402
+from .app import App                         # noqa: E402
+from .event import Event                     # noqa: E402
+from .streams import Stream, stream, topic   # noqa: E402
 
 __all__ = [
     'App', 'Event', 'Stream', 'stream', 'topic',

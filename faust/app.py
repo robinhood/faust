@@ -1,26 +1,34 @@
 import asyncio
 from collections import OrderedDict
-from typing import Any, Awaitable, Callable, Iterator, MutableMapping
+from typing import (
+    Any, Awaitable, Callable, Iterator, MutableMapping, Union,
+    cast,
+)
 from itertools import count
 from . import constants
+from . import transport
 from .event import Event
 from .exceptions import ImproperlyConfigured
-from .streams import Stream
-from . import transport
+from .streams import AsyncIterableStream, Stream
 from .transport.base import Producer, Transport
-from .types import AppT, K, Topic
+from .types import AppT, K, SerializerArg, Topic
+from .utils.log import get_logger
+from .utils.serialization import dumps
 from .utils.service import Service
 
 DEFAULT_URL = 'aiokafka://localhost:9092'
+
+logger = get_logger(__name__)
 
 
 class App(AppT, Service):
     """Faust Application.
 
     Keyword Arguments:
-        servers: List of server host/port pairs.
-            Default is ``["localhost:9092"]``.
-        loop: Provide specific asyncio event loop instance.
+        url (str):
+            Transport URL, for example: ``"aiokafka://localhost:9092"``.
+        loop (asyncio.AbstractEventLoop):
+            Provide specific asyncio event loop instance.
     """
 
     _index: Iterator[int] = count(0)
@@ -38,40 +46,76 @@ class App(AppT, Service):
             raise ImproperlyConfigured('URL must be specified!')
         self._streams = OrderedDict()
 
-    async def send(self, topic: Topic, key: K, event: Event,
-                   wait: bool = True) -> Awaitable:
-        if topic.key_serializer:
-            key = topic.key_serializer(key)
-        value: Any = event
-        if topic.value_serializer:
-            value = topic.value_serializer(value)
+    async def send(self, topic: Union[str, Topic], key: K, event: Event,
+                   *,
+                   wait: bool = True,
+                   key_serializer: SerializerArg = None) -> Awaitable:
+        """Send event to stream.
 
-        import json
-        value = json.dumps(value._asdict())
-        import base64
-        valueb = base64.b64encode(value.encode())
+        Arguments:
+            topic (Union[Topic, str]): Topic to send event to.
+            key (Any): Message key.
+            event (Event): Message value.
 
+        Keyword Arguments:
+            wait (bool): Wait for message to be published (default),
+                if unset the message will only be appended to the buffer.
+        """
+        if isinstance(topic, Topic):
+            topic = cast(Topic, topic)
+            key_serializer = key_serializer or topic.key_serializer
+            strtopic = topic.topics[0]
+        else:
+            strtopic = cast(str, topic)
+        if key_serializer:
+            key = dumps(key_serializer, key)
+        value: Any = event.META.dumps(event)
+
+        return await self._send(
+            strtopic,
+            key.encode() if key else None,
+            value.encode() if value else None,
+        )
+
+    async def _send(self, topic: str, key: bytes, value: bytes,
+                    *,
+                    wait: bool = True) -> Awaitable:
+        logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
-
         if not self._producer_started:
             self._producer_started = True
-            print('+STARTING PRODUCER')
             await producer.start()
-            print('-STARTING PRODUCER')
-
-        keyb = key.encode() if key else None
-
-        print('+SEND: {0!r} {1!r} {2!r}'.format(topic.topics[0], valueb, key))
         return await (producer.send_and_wait if wait else producer.send)(
-            topic.topics[0], keyb, valueb,
+            topic, key, value,
         )
-        print('-SEND')
 
     def add_stream(self, stream: Stream) -> Stream:
+        """Instantiate stream to be run within the context of this app.
+
+        Returns:
+            Stream: new instance of stream bound to this app.
+        """
         return stream.bind(self)
 
-    def add_task(self, task: Callable) -> Stream:
-        return asyncio.ensure_future(task, loop=self.loop)
+    def add_task(self, task: Callable) -> None:
+        """Start task.
+
+        Notes:
+            A task is simply any coroutine taking one or more streams
+            as argument and iterating over them, so currently `add_task`
+            is simply scheduling the coroutine to be executed in the event
+            loop.
+        """
+        asyncio.ensure_future(task, loop=self.loop)
+
+    def stream(self, topic: Topic, **kwargs) -> Stream:
+        """Create new stream from topic.
+
+        Returns:
+            faust.streams.AsyncIterableStream:
+                to iterate over events in the stream.
+        """
+        return self.add_stream(AsyncIterableStream(topic=topic, **kwargs))
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():
@@ -84,6 +128,7 @@ class App(AppT, Service):
             await self._producer.stop()
 
     def add_source(self, stream: Stream) -> None:
+        """Register existing stream."""
         assert stream.name
         if stream.name in self._streams:
             raise ValueError(
@@ -91,6 +136,7 @@ class App(AppT, Service):
         self._streams[stream.name] = stream
 
     def new_stream_name(self) -> str:
+        """Create a new name for a stream."""
         return self._new_name(constants.SOURCE_NAME)
 
     def _new_name(self, prefix: str) -> str:

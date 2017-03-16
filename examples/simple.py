@@ -15,9 +15,14 @@ topic = faust.topic('mytopic', type=Withdrawal)
 
 @faust.stream(topic)
 async def all_withdrawals(it):
-    async for event in it:
-        print('STREAM GENERATOR RECV FROM INBOX: %r' % (event,))
-        yield event
+    while 1:
+        eventA = await it.next()
+        try:
+            eventB = await asyncio.wait_for(it.next(), 2.0)
+        except asyncio.TimeoutError:
+            yield eventA
+        else:
+            yield Withdrawal(amount=eventA.amount + eventB.amount)
 
 
 async def find_large_withdrawals(withdrawals):

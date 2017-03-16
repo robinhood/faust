@@ -1,5 +1,4 @@
-from typing import Any, NamedTuple, cast
-from typing import NamedTupleMeta  # type: ignore
+from typing import Any, Iterable, Mapping, Tuple, cast
 from .utils.serialization import dumps, loads
 from .types import K, V
 
@@ -10,33 +9,42 @@ class EventInfo:
         self.serializer = serializer
         self.type = typ
 
-    def dumps(self, event: 'Event'):
-        return dumps(self.serializer, event._asdict())
+    def dumps(self, event: 'Event') -> Any:
+        return dumps(self.serializer, event._asdict())  # type: ignore
 
     def loads(self, s: Any) -> 'Event':
         return cast(Event, self.type(**loads(self.serializer, s)))
 
 
-class EventMeta(NamedTupleMeta):
+class Event:
 
-    def __new__(cls, typename, bases, ns, serializer: str = 'json'):
-        tup = super().__new__(cls, typename, bases, ns)
-        tup.__info__ = EventInfo(serializer, tup)
-        return tup
+    def __init__(self, **fields):
+        self.__dict__.update(fields)
 
+    def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.serializer = serializer
+        cls.META = EventInfo(serializer, cls)
 
-class Event(NamedTuple, metaclass=EventMeta):
-    # we create a separate NamedTuple type for this, so that regular
-    # namedtuples cannot be used in typechecking.
+    def _asdict(self) -> Mapping:
+        return dict(self._asitems())
 
-    __info__: EventInfo  # type: ignore
+    def _asitems(self) -> Iterable[Tuple[Any, Any]]:
+        for anno in self._iteranno():
+            for k in anno:
+                yield k, self.__dict__[k]
 
-    # bit of a hack since this attribute is "technically" internal.
-    _root: bool = True  # type: ignore
+    @classmethod
+    def _iteranno(cls) -> Iterable[Mapping]:
+        for cls in cls.__mro__:
+            try:
+                yield cls.__annotations__  # type: ignore
+            except AttributeError:
+                break
 
 
 def from_tuple(typ: type, k: K, v: V) -> Event:
-    return typ.__info__.loads(v)
+    return typ.META.loads(v)
 
 
 class FieldDescriptor:

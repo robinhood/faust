@@ -1,7 +1,9 @@
 import abc
 import asyncio
 import typing
-from typing import Any, Awaitable, Callable, NamedTuple, Pattern, Sequence
+from typing import (
+    Any, Awaitable, Callable, NamedTuple, Pattern, Sequence, Union,
+)
 
 if typing.TYPE_CHECKING:
     from .streams import Stream
@@ -11,21 +13,43 @@ else:
     class Transport: ...  # noqa
 
 __all__ = [
-    'K', 'V', 'Serializer',
+    'K', 'V', 'SerializerT', 'SerializerArg',
     'Topic', 'Message', 'ConsumerCallback',
     'ServiceT', 'AppT',
 ]
 
 K = str
 V = Any
-Serializer = Callable[[Any], Any]
+
+
+class SerializerT(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def dumps(self, obj: Any) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def loads(self, s: Any) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def clone(self, *children: 'SerializerT') -> 'SerializerT':
+        ...
+
+    @abc.abstractmethod
+    def __or__(self, other: Any) -> Any:
+        ...
+
+
+# `serializer` argument can be str or serializer instance.
+SerializerArg = Union[SerializerT, str]
+
 
 class Topic(NamedTuple):
     topics: Sequence[str]
     pattern: Pattern
     type: type
-    key_serializer: Serializer
-    value_serializer: Serializer
+    key_serializer: SerializerArg
 
 
 class Message(NamedTuple):
@@ -40,7 +64,9 @@ class Message(NamedTuple):
     serialized_key_size: int
     serialized_value_size: int
 
+
 ConsumerCallback = Callable[[str, str, Message], Awaitable]
+
 
 class ServiceT(metaclass=abc.ABCMeta):
 

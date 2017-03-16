@@ -160,21 +160,17 @@ the extension with other Faust users.
 """
 from base64 import b64encode, b64decode
 from functools import reduce
-from typing import (
-    Any, Dict, MutableMapping, Optional, Union, Tuple, cast,
-)
+from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 from . import json as _json
 from .imports import load_extension_classes
+from ..types import SerializerT, SerializerArg
 try:
     import cPickle as _pickle
 except ImportError:  # pragma: no cover
     import pickle as _pickle  # type: ignore
 
-#: Argument to loads/dumps can be str or Serializer instance.
-SerializerArg = Union['Serializer', str]
 
-
-class Serializer:
+class Serializer(SerializerT):
     """Base class for serializers."""
 
     #: children contains the serializers below us.
@@ -214,7 +210,7 @@ class Serializer:
         # send _loads to this instance, and all children in reverse order
         return reduce(lambda s, d: d._loads(s), reversed(self.nodes), s)
 
-    def clone(self, *children: 'Serializer') -> 'Serializer':
+    def clone(self, *children: 'SerializerT') -> 'Serializer':
         """Create a clone of this serializer, with optional children added."""
         return type(self)(children=self.children + children, **self.kwargs)
 

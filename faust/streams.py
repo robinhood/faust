@@ -1,11 +1,28 @@
 import asyncio
+import re
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, MutableMapping, Tuple, cast,
+    Any, AsyncIterable, Awaitable, Callable,
+    MutableMapping, Pattern, Tuple, Union, cast,
 )
 from .event import FieldDescriptor, from_tuple
 from .transport.base import Consumer
-from .types import AppT, K, V, Message, Topic
+from .types import AppT, K, V, Message, SerializerArg, Topic
+from .utils.serialization import loads
 from .utils.service import Service
+
+
+def topic(*topics: str,
+          pattern: Union[str, Pattern] = None,
+          type: type = None,
+          key_serializer: SerializerArg = None) -> Topic:
+    if isinstance(pattern, str):
+        pattern = re.compile(pattern)
+    return Topic(
+        topics=topics,
+        pattern=pattern,
+        type=type,
+        key_serializer=key_serializer,
+    )
 
 
 class stream:
@@ -41,8 +58,7 @@ class Stream(Service):
         self.group_by = group_by
         self.callback = callback
         self.type = self.topic.type
-        self._quick_deserialize_k = self.topic.key_serializer
-        self._quick_deserialize_v = self.topic.value_serializer
+        self._key_serializer = self.topic.key_serializer
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> 'Stream':
@@ -83,15 +99,14 @@ class Stream(Service):
                          message: Message) -> None:
         print('Received message: %r' % (message,))
         k, v = self.to_KV(message)
+        self._consumer.track_event(v, message.offset)
         await self.process(k, v)
 
     def to_KV(self, message: Message) -> Tuple[K, V]:
         key = message.key
-        if self._quick_deserialize_k:
-            key = self._quick_deserialize_k(message.key)
+        if self._key_serializer:
+            key = loads(self._key_serializer, message.key)
         value = message.value
-        if self._quick_deserialize_v:
-            value = self._quick_deserialize_v(message.value)
         k = cast(K, key)
         return k, cast(V, from_tuple(self.type, k, value))
 
@@ -130,6 +145,24 @@ class Table(Stream):
         del self._state[key]
 
 
+class AsyncIterableStream(Stream, AsyncIterable):
+    outbox: asyncio.Queue
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
+
+    async def __aiter__(self) -> 'AsyncIterableStream':
+        await self.maybe_start()
+        return self
+
+    async def __anext__(self) -> Awaitable:
+        return await self.outbox.get()
+
+    async def process(self, key: K, value: V) -> None:
+        await self.outbox.put(value)
+
+
 class AsyncInputStream(AsyncIterable):
 
     queue: asyncio.Queue
@@ -138,7 +171,10 @@ class AsyncInputStream(AsyncIterable):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.stream = stream
         self.loop = loop or asyncio.get_event_loop()
-        self.queue = asyncio.Queue(loop=self.loop)
+        self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
+
+    async def next(self) -> Any:
+        return await self.queue.get()
 
     async def put(self, value: V) -> None:
         await self.queue.put(value)
@@ -149,29 +185,35 @@ class AsyncInputStream(AsyncIterable):
     async def __anext__(self) -> Awaitable:
         return await self.queue.get()
 
+    async def join(self, timeout=None):
+        await asyncio.wait_for(self._join(), timeout, loop=self.loop)
 
-class AsyncGeneratorStream(Stream):
+    async def _join(self, interval=0.1):
+        while self.queue.qsize():
+            await asyncio.sleep(interval)
 
+
+class AsyncGeneratorStream(AsyncIterableStream):
     inbox: AsyncInputStream
-    outbox: asyncio.Queue
 
     def on_init(self) -> None:
         self.inbox = AsyncInputStream(self, loop=self.loop)
-        self.outbox = asyncio.Queue(loop=self.loop)
         self.gen = self.callback(self.inbox)
-
-    async def __aiter__(self) -> 'AsyncGeneratorStream':
-        await self.maybe_start()
-        return self
-
-    async def __anext__(self) -> Awaitable:
-        return await self.outbox.get()
 
     async def send(self, value: V) -> None:
         await self.inbox.put(value)
+        asyncio.ensure_future(self._drain_gen(), loop=self.loop)
+
+    async def _drain_gen(self) -> None:
         new_value = await self.gen.__anext__()
         await self.outbox.put(new_value)
 
     async def process(self, key: K, value: V) -> None:
-        print('Received K=%r V=%r' % (key, value))
         await self.send(value)
+
+    async def on_stop(self) -> None:
+        # stop consumer
+        super().on_stop()
+
+        # make sure everything in inqueue is processed.
+        await self.inbox.join()
