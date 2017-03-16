@@ -98,17 +98,19 @@ class Stream(Service):
                          partition: str,
                          message: Message) -> None:
         print('Received message: %r' % (message,))
-        k, v = self.to_KV(message)
+        k, v = self.to_KV(topic, partition, message)
         self._consumer.track_event(v, message.offset)
         await self.process(k, v)
 
-    def to_KV(self, message: Message) -> Tuple[K, V]:
+    def to_KV(self,
+              topic: str,
+              partition: str,
+              message: Message) -> Tuple[K, V]:
         key = message.key
         if self._key_serializer:
             key = loads(self._key_serializer, message.key)
-        value = message.value
         k = cast(K, key)
-        return k, cast(V, self.type.loads(value))
+        return k, cast(V, self.type.from_message(k, topic, partition, message))
 
     def get_consumer(self) -> Consumer:
         return self.app.transport.create_consumer(

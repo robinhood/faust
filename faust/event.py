@@ -1,12 +1,30 @@
-from typing import Any, Iterable, Mapping, Tuple
+from typing import Any, Iterable, Mapping, NamedTuple, Tuple
+from .types import K, Message
 from .utils.serialization import dumps, loads
 
 
+class Request(NamedTuple):
+    key: K
+    topic: str
+    partition: str
+    message: Message
+
+
 class Event:
+    req: Request = None
 
     @classmethod
-    def loads(cls, s: Any) -> 'Event':
-        return cls(**loads(cls.serializer, s))
+    def from_message(cls,
+                     key: K,
+                     topic: str,
+                     partition: str,
+                     message: Message) -> 'Event':
+        request = Request(key, topic, partition, message)
+        return cls.loads(message.value, req=request)
+
+    @classmethod
+    def loads(cls, s: Any, **kwargs) -> 'Event':
+        return cls(**kwargs, **loads(cls.serializer, s))
 
     def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
