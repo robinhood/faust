@@ -54,7 +54,7 @@ class Topic(NamedTuple):
 
 class Message(NamedTuple):
     topic: str
-    partition: str
+    partition: int
     offset: int
     timestamp: float
     timestamp_type: str

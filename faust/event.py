@@ -6,7 +6,7 @@ from .utils.serialization import dumps, loads
 class Request(NamedTuple):
     key: K
     topic: str
-    partition: str
+    partition: int
     message: Message
 
 
@@ -17,7 +17,7 @@ class Event:
     def from_message(cls,
                      key: K,
                      topic: str,
-                     partition: str,
+                     partition: int,
                      message: Message) -> 'Event':
         request = Request(key, topic, partition, message)
         return cls.loads(message.value, req=request)

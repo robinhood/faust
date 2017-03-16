@@ -95,7 +95,7 @@ class Stream(Service):
 
     async def on_message(self,
                          topic: str,
-                         partition: str,
+                         partition: int,
                          message: Message) -> None:
         print('Received message: %r' % (message,))
         k, v = self.to_KV(topic, partition, message)
@@ -104,7 +104,7 @@ class Stream(Service):
 
     def to_KV(self,
               topic: str,
-              partition: str,
+              partition: int,
               message: Message) -> Tuple[K, V]:
         key = message.key
         if self._key_serializer:
@@ -132,7 +132,7 @@ class Table(Stream):
 
     async def on_message(self,
                          topic: str,
-                         partition: str,
+                         partition: int,
                          message: Message) -> None:
         k, v = self.to_KV(message)
         self._state[k] = await self.process(k, v)
