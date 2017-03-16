@@ -31,10 +31,22 @@ class App(AppT, Service):
             Provide specific asyncio event loop instance.
     """
 
+    url: str
+    loop: asyncio.AbstractEventLoop
+
+    #: Used for generating new topic names.
     _index: Iterator[int] = count(0)
+
+    #: Mapping of active streams by name.
     _streams: MutableMapping[str, Stream]
+
+    #: Default producer instance.
     _producer: Producer = None
+
+    #: Set when producer is started.
     _producer_started: bool = False
+
+    #: Transport is created on demand: use `.transport`.
     _transport: Transport = None
 
     def __init__(self,
@@ -46,10 +58,11 @@ class App(AppT, Service):
             raise ImproperlyConfigured('URL must be specified!')
         self._streams = OrderedDict()
 
-    async def send(self, topic: Union[str, Topic], key: K, event: Event,
-                   *,
-                   wait: bool = True,
-                   key_serializer: SerializerArg = None) -> Awaitable:
+    async def send(
+            self, topic: Union[Topic, str], key: K, event: Event,
+            *,
+            wait: bool = True,
+            key_serializer: SerializerArg = None) -> Awaitable:
         """Send event to stream.
 
         Arguments:
@@ -69,7 +82,7 @@ class App(AppT, Service):
             strtopic = cast(str, topic)
         if key_serializer:
             key = dumps(key_serializer, key)
-        value: Any = event.META.dumps(event)
+        value: Any = event.dumps(event)
 
         return await self._send(
             strtopic,

@@ -1,30 +1,22 @@
-from typing import Any, Iterable, Mapping, Tuple, cast
+from typing import Any, Iterable, Mapping, Tuple
 from .utils.serialization import dumps, loads
-from .types import K, V
-
-
-class EventInfo:
-
-    def __init__(self, serializer: str, typ: type) -> None:
-        self.serializer = serializer
-        self.type = typ
-
-    def dumps(self, event: 'Event') -> Any:
-        return dumps(self.serializer, event._asdict())  # type: ignore
-
-    def loads(self, s: Any) -> 'Event':
-        return cast(Event, self.type(**loads(self.serializer, s)))
 
 
 class Event:
 
-    def __init__(self, **fields):
-        self.__dict__.update(fields)
+    @classmethod
+    def loads(cls, s: Any) -> 'Event':
+        return cls(**loads(cls.serializer, s))
 
     def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
         cls.serializer = serializer
-        cls.META = EventInfo(serializer, cls)
+
+    def __init__(self, **fields):
+        self.__dict__.update(fields)
+
+    def dumps(self) -> Any:
+        return dumps(self.serializer, self._asdict())
 
     def _asdict(self) -> Mapping:
         return dict(self._asitems())
@@ -42,9 +34,8 @@ class Event:
             except AttributeError:
                 break
 
-
-def from_tuple(typ: type, k: K, v: V) -> Event:
-    return typ.META.loads(v)
+    def __repr__(self) -> str:
+        return '<{}: {!r}>'.format(type(self).__name__, self.__dict__)
 
 
 class FieldDescriptor:

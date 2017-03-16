@@ -4,7 +4,7 @@ from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     MutableMapping, Pattern, Tuple, Union, cast,
 )
-from .event import FieldDescriptor, from_tuple
+from .event import FieldDescriptor
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, SerializerArg, Topic
 from .utils.serialization import loads
@@ -108,7 +108,7 @@ class Stream(Service):
             key = loads(self._key_serializer, message.key)
         value = message.value
         k = cast(K, key)
-        return k, cast(V, from_tuple(self.type, k, value))
+        return k, cast(V, self.type.loads(value))
 
     def get_consumer(self) -> Consumer:
         return self.app.transport.create_consumer(
