@@ -10,10 +10,6 @@ from ..utils.service import Service
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 
 
-def _on_event_out_of_scope(event):
-    event.ack()
-
-
 class MessageTag(NamedTuple):
     consumer_id: int
     offset: int
