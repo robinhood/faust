@@ -2,7 +2,9 @@ import asyncio
 import faust
 import weakref
 from itertools import count
-from typing import Awaitable, Callable, NamedTuple, Optional, List, cast
+from typing import (
+    Awaitable, Callable, Iterable, NamedTuple, Optional, List, cast,
+)
 from ..event import Event
 from ..types import ConsumerCallback, Topic
 from ..utils.service import Service
@@ -30,6 +32,8 @@ class Consumer(Service):
     client_id = CLIENT_ID
     transport: 'Transport'
 
+    commit_interval = 30.0
+
     #: This counter generates new consumer ids.
     _consumer_ids = count(0)
 
@@ -49,6 +53,9 @@ class Consumer(Service):
         self._dirty_events = []
         super().__init__(loop=self.transport.loop)
 
+    async def _commit(self, offset: int) -> None:
+        raise NotImplementedError()
+
     def track_event(self, event: Event, offset: int) -> None:
         self._dirty_events.append(
             EventRef(
@@ -59,6 +66,24 @@ class Consumer(Service):
 
     def on_event_ready(self, ref: EventRef) -> None:
         print('ACKED MESSAGE %r' % (ref.tag,))
+
+    async def register_timers(self) -> None:
+        asyncio.ensure_future(self._commit_handler(), loop=self.loop)
+
+    async def _commit_handler(self) -> None:
+        asyncio.sleep(self.commit_interval)
+        while 1:
+            offsets = list(self._current_offsets())
+            if offsets:
+                print('COMMITTING %r' % (offsets[-1],))
+                await self._commit(offsets[-1])
+            await asyncio.sleep(self.commit_interval)
+
+    def _current_offsets(self) -> Iterable[int]:
+        for ref in self._dirty_events:
+            if ref() is None:
+                yield ref.tag.offset
+            break
 
 
 class Producer(Service):

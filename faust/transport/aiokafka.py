@@ -14,11 +14,13 @@ class Consumer(base.Consumer):
             *self.topic.topics or (),
             loop=self.loop,
             client_id=self.client_id,
+            group_id='hello',
             bootstrap_servers=transport.bootstrap_servers,
         )
 
     async def on_start(self) -> None:
         await self._consumer.start()
+        await self.register_timers()
         self.add_poller(self.drain_events)
 
     async def on_stop(self) -> None:
@@ -31,6 +33,9 @@ class Consumer(base.Consumer):
         for tp, messages in records.items():
             for message in messages:
                 await callback(tp.topic, tp.partition, cast(Message, message))
+
+    async def _commit(self, offset: int) -> None:
+        await self._consumer.commit(offset)
 
 
 class Producer(base.Producer):
