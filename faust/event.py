@@ -133,11 +133,11 @@ class BoundEvent:
         self.obj = obj
 
         # mypy says 'type' objects don't have __annotations__
-        annotations: Mapping = self.event.__annotations__  # type: ignore
+        fields: FrozenSet[str] = self.event._fieldset  # type: ignore
 
         self.__dict__.update({
             field: self._make_field_descriptor(field)
-            for field in annotations.keys()
+            for field in fields
         })
 
     def _make_field_descriptor(self, field: str) -> FieldDescriptor:
