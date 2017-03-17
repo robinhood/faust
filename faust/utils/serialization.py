@@ -160,7 +160,7 @@ the extension with other Faust users.
 """
 from base64 import b64encode, b64decode
 from functools import reduce
-from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
+from typing import Any, AnyStr, Dict, MutableMapping, Optional, Tuple, cast
 from . import json as _json
 from .imports import load_extension_classes
 from ..types import SerializerT, SerializerArg
@@ -212,7 +212,8 @@ class Serializer(SerializerT):
 
     def clone(self, *children: 'SerializerT') -> 'Serializer':
         """Create a clone of this serializer, with optional children added."""
-        return type(self)(children=self.children + children, **self.kwargs)
+        new_children = self.children + children  # type: ignore
+        return type(self)(children=new_children, **self.kwargs)
 
     def __or__(self, other: Any) -> Any:
         # serializers can be chained together, e.g. binary() | json()
@@ -321,11 +322,11 @@ def get_serializer(name_or_ser: SerializerArg) -> Serializer:
     return cast(Serializer, name_or_ser)
 
 
-def dumps(serializer: Optional[SerializerArg], obj: Any) -> str:
+def dumps(serializer: Optional[SerializerArg], obj: Any) -> AnyStr:
     """Serialize object into string."""
     return get_serializer(serializer).dumps(obj) if serializer else obj
 
 
-def loads(serializer: Optional[SerializerArg], s: str) -> Any:
+def loads(serializer: Optional[SerializerArg], s: AnyStr) -> Any:
     """Deserialize from string."""
     return get_serializer(serializer).loads(s) if serializer else s

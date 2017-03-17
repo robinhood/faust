@@ -2,7 +2,7 @@ import asyncio
 import faust
 import weakref
 from itertools import count
-from typing import Awaitable, Callable, NamedTuple, Optional, List, cast
+from typing import Awaitable, Callable, Optional, List, cast
 from ..event import Event
 from ..types import ConsumerCallback, Topic
 from ..utils.service import Service
@@ -10,18 +10,13 @@ from ..utils.service import Service
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 
 
-class MessageTag(NamedTuple):
-    consumer_id: int
-    offset: int
-
-
 class EventRef(weakref.ref):
 
     def __init__(self, event: Event,
                  callback: Callable = None,
-                 tag: MessageTag = None) -> None:
+                 offset: int = None) -> None:
         super().__init__(event, callback)
-        self.tag = tag
+        self.offset = offset
 
 
 class Consumer(Service):
@@ -59,15 +54,11 @@ class Consumer(Service):
 
     def track_event(self, event: Event, offset: int) -> None:
         self._dirty_events.append(
-            EventRef(
-                event, self.on_event_ready,
-                tag=MessageTag(self.id, offset),
-            ),
-        )
+            EventRef(event, self.on_event_ready, offset=offset))
 
     def on_event_ready(self, ref: EventRef) -> None:
-        print('ACKED MESSAGE %r' % (ref.tag,))
-        self._acked.append(ref.tag)
+        print('ACKED MESSAGE %r' % (ref.offset,))
+        self._acked.append(ref.offset)
         self._acked.sort()
 
     async def register_timers(self) -> None:

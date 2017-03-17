@@ -1,7 +1,7 @@
 import asyncio
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Callable, Iterator, MutableMapping, Union,
+    Any, Awaitable, Generator, Iterator, MutableMapping, Union,
     cast,
 )
 from itertools import count
@@ -82,7 +82,7 @@ class App(AppT, Service):
             strtopic = cast(str, topic)
         if key_serializer:
             key = dumps(key_serializer, key)
-        value: Any = event.dumps(event)
+        value: Any = event.dumps()
 
         return await self._send(
             strtopic,
@@ -110,7 +110,7 @@ class App(AppT, Service):
         """
         return stream.bind(self)
 
-    def add_task(self, task: Callable) -> None:
+    def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
         """Start task.
 
         Notes:
@@ -119,7 +119,7 @@ class App(AppT, Service):
             is simply scheduling the coroutine to be executed in the event
             loop.
         """
-        asyncio.ensure_future(task, loop=self.loop)
+        return asyncio.ensure_future(task, loop=self.loop)
 
     def stream(self, topic: Topic, **kwargs) -> Stream:
         """Create new stream from topic.

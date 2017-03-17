@@ -1,4 +1,4 @@
-from typing import Any, FrozenSet, Iterable, Mapping, Tuple, cast
+from typing import Any, Dict, FrozenSet, Iterable, Mapping, Tuple, cast
 from .types import K, Message, Request
 from .utils.serialization import dumps, loads
 
@@ -19,25 +19,27 @@ class Event:
 
     @classmethod
     def loads(cls, s: Any, **kwargs) -> 'Event':
-        return cls(**kwargs, **loads(cls.serializer, s))
+        return cls(**kwargs, **loads(cls.serializer, s))  # type: ignore
 
     def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
-        super().__init_subclass__(**kwargs)
+        super().__init_subclass__(**kwargs)  # type: ignore
         cls.serializer = serializer
-        fields = {}
+        fields: Dict = {}
         wanted_baseclass = False
-        for cls in reversed(cls.__mro__):
+        for subcls in reversed(cls.__mro__):
             if wanted_baseclass:
                 try:
-                    fields.update(cls.__annotations__)
+                    annotations = subcls.__annotations__  # type: ignore
                 except AttributeError:
                     pass
+                else:
+                    fields.update(annotations)
             else:
-                wanted_baseclass = cls == Event
+                wanted_baseclass = subcls == Event
         cls._fields = cast(Mapping, fields)
         cls._fieldset = frozenset(fields)
 
-    def __init__(self, **fields):
+    def __init__(self, req=None, **fields):
         fieldset = frozenset(fields)
         missing = self._fieldset - fieldset
         if missing:
@@ -48,6 +50,7 @@ class Event:
             raise TypeError('{} got unexpected arguments: {}'.format(
                 type(self).__name__, ', '.join(sorted(extraneous))))
         self.__dict__.update(fields)
+        self.req = req
 
     def dumps(self) -> Any:
         return dumps(self.serializer, self._asdict())

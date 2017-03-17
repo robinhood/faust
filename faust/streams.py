@@ -134,7 +134,8 @@ class Stream(Service):
                 raise KeyDecodeError(exc)
         k = cast(K, key)
         try:
-            v = self.type.from_message(k, topic, partition, message)
+            v = self.type.from_message(  # type: ignore
+                k, topic, partition, message)
         except Exception as exc:
             raise ValueDecodeError(exc)
         return k, cast(V, v)
@@ -161,7 +162,7 @@ class Table(Stream):
                          topic: str,
                          partition: int,
                          message: Message) -> None:
-        k, v = self.to_KV(message)
+        k, v = self.to_KV(topic, partition, message)
         self._state[k] = await self.process(k, v)
 
     def __getitem__(self, key: Any) -> Any:

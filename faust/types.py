@@ -2,7 +2,7 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Awaitable, Callable, NamedTuple, Pattern, Sequence, Union,
+    Any, Awaitable, Callable, Generator, NamedTuple, Pattern, Sequence, Union,
 )
 
 if typing.TYPE_CHECKING:
@@ -72,7 +72,7 @@ class Request(NamedTuple):
     message: Message
 
 
-ConsumerCallback = Callable[[str, str, Message], Awaitable]
+ConsumerCallback = Callable[[str, int, Message], Awaitable]
 
 
 class ServiceT(metaclass=abc.ABCMeta):
@@ -135,7 +135,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_task(self, task: Callable) -> Stream:
+    def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
         ...
 
     @abc.abstractmethod
