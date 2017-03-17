@@ -2,9 +2,7 @@ import asyncio
 import faust
 import weakref
 from itertools import count
-from typing import (
-    Awaitable, Callable, Iterable, NamedTuple, Optional, List, cast,
-)
+from typing import Awaitable, Callable, NamedTuple, Optional, List, cast
 from ..event import Event
 from ..types import ConsumerCallback, Topic
 from ..utils.service import Service
@@ -37,7 +35,9 @@ class Consumer(Service):
     #: This counter generates new consumer ids.
     _consumer_ids = count(0)
 
-    _dirty_events = List[EventRef]
+    _dirty_events: List[EventRef] = None
+    _acked: List[int] = None
+    _current_offset: int = None
 
     def __init__(self, transport: 'Transport',
                  *,
@@ -51,6 +51,7 @@ class Consumer(Service):
         if self.topic.topics and self.topic.pattern:
             raise TypeError('Topic can specify either topics or pattern')
         self._dirty_events = []
+        self._acked = []
         super().__init__(loop=self.transport.loop)
 
     async def _commit(self, offset: int) -> None:
@@ -66,6 +67,8 @@ class Consumer(Service):
 
     def on_event_ready(self, ref: EventRef) -> None:
         print('ACKED MESSAGE %r' % (ref.tag,))
+        self._acked.append(ref.tag)
+        self._acked.sort()
 
     async def register_timers(self) -> None:
         asyncio.ensure_future(self._commit_handler(), loop=self.loop)
@@ -73,17 +76,26 @@ class Consumer(Service):
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)
         while 1:
-            offsets = list(self._current_offsets())
-            if offsets:
-                print('COMMITTING %r' % (offsets[-1],))
-                await self._commit(offsets[-1])
+            offset = self._current_offset()
+            if self._should_commit(offset):
+                self._current_offset = offset
+                await self._commit(offset)
             await asyncio.sleep(self.commit_interval)
 
-    def _current_offsets(self) -> Iterable[int]:
-        for ref in self._dirty_events:
-            if ref() is None:
-                yield ref.tag.offset
-            break
+    def _should_commit(self, offset) -> bool:
+        return (
+            self._current_offset is None or
+            (offset and offset > self._current_offset)
+        )
+
+    def _current_offset(self) -> int:
+        acked = self._acked
+        for i, offset in enumerate(acked):
+            if offset != acked[i - 1]:
+                break
+        else:
+            raise IndexError()
+        return offset
 
 
 class Producer(Service):
