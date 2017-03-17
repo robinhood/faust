@@ -42,11 +42,11 @@ class Event:
         missing = self._fieldset - fieldset
         if missing:
             raise TypeError('{} missing required arguments: {}'.format(
-                type(self).__class__, ', '.join(sorted(missing))))
+                type(self).__name__, ', '.join(sorted(missing))))
         extraneous = fieldset - self._fieldset
         if extraneous:
             raise TypeError('{} got unexpected arguments: {}'.format(
-                type(self).__class__, ', '.join(sorted(extraneous))))
+                type(self).__name__, ', '.join(sorted(extraneous))))
         self.__dict__.update(fields)
 
     def dumps(self) -> Any:
@@ -65,7 +65,7 @@ class Event:
 
 def _kvrepr(d: Mapping[str, Any],
             sep: str = ', ',
-            fmt: str = '{0}={!r}') -> str:
+            fmt: str = '{0}={1!r}') -> str:
     """Represent dict as `k='v'` pairs separated by comma."""
     return sep.join(
         fmt.format(k, v) for k, v in d.items()
