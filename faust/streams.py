@@ -5,10 +5,14 @@ from typing import (
     MutableMapping, Pattern, Tuple, Union, cast,
 )
 from .event import FieldDescriptor
+from .exceptions import KeyDecodeError, ValueDecodeError
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, SerializerArg, Topic
+from .utils.log import get_logger
 from .utils.serialization import loads
 from .utils.service import Service
+
+logger = get_logger(__name__)
 
 
 def topic(*topics: str,
@@ -98,9 +102,25 @@ class Stream(Service):
                          partition: int,
                          message: Message) -> None:
         print('Received message: %r' % (message,))
-        k, v = self.to_KV(topic, partition, message)
+        try:
+            k, v = self.to_KV(topic, partition, message)
+        except KeyDecodeError as exc:
+            self.on_key_decode_error(exc, topic, partition, message)
+        except ValueDecodeError as exc:
+            self.on_value_decode_error(exc, topic, partition, message)
         self._consumer.track_event(v, message.offset)
         await self.process(k, v)
+
+    def on_key_decode_error(
+            self, exc: Exception,
+            topic: str, partition: int, message: Message) -> None:
+        logger.error('Cannot decode key: %r: %r', message.key, exc)
+
+    def on_value_decode_error(
+            self, exc: Exception,
+            topic: str, partition: int, message: Message) -> None:
+        logger.error('Cannot decode value for key=%r (%r): %r',
+                     message.key, message.value, exc)
 
     def to_KV(self,
               topic: str,
@@ -108,9 +128,16 @@ class Stream(Service):
               message: Message) -> Tuple[K, V]:
         key = message.key
         if self._key_serializer:
-            key = loads(self._key_serializer, message.key)
+            try:
+                key = loads(self._key_serializer, message.key)
+            except Exception as exc:
+                raise KeyDecodeError(exc)
         k = cast(K, key)
-        return k, cast(V, self.type.from_message(k, topic, partition, message))
+        try:
+            v = self.type.from_message(k, topic, partition, message)
+        except Exception as exc:
+            raise ValueDecodeError(exc)
+        return k, cast(V, v)
 
     def get_consumer(self) -> Consumer:
         return self.app.transport.create_consumer(

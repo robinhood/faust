@@ -65,6 +65,13 @@ class Message(NamedTuple):
     serialized_value_size: int
 
 
+class Request(NamedTuple):
+    key: K
+    topic: str
+    partition: int
+    message: Message
+
+
 ConsumerCallback = Callable[[str, str, Message], Awaitable]
 
 
