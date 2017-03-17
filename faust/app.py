@@ -16,6 +16,8 @@ from .utils.log import get_logger
 from .utils.serialization import dumps
 from .utils.service import Service
 
+__foobar: Any   # flake8 thinks Any is unused for some reason
+
 DEFAULT_URL = 'aiokafka://localhost:9092'
 
 logger = get_logger(__name__)
