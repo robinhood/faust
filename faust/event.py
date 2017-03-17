@@ -2,11 +2,23 @@ from typing import Any, Dict, FrozenSet, Iterable, Mapping, Tuple, cast
 from .types import K, Message, Request
 from .utils.serialization import dumps, loads
 
+__foobar: Dict  # flake8 thinks Dict is unused for some reason
+
+
+def _itermro(cls: type, stop: type) -> Iterable[type]:
+    wanted = False
+    for subcls in reversed(cls.__mro__):
+        if wanted:
+            yield subcls
+        else:
+            wanted = subcls == stop
+
 
 class Event:
     req: Request = None
     _fields: Mapping[str, type]
     _fieldset = FrozenSet[str]
+    _optionalset = FrozenSet[str]
 
     @classmethod
     def from_message(cls,
@@ -25,23 +37,22 @@ class Event:
         super().__init_subclass__(**kwargs)  # type: ignore
         cls.serializer = serializer
         fields: Dict = {}
-        wanted_baseclass = False
-        for subcls in reversed(cls.__mro__):
-            if wanted_baseclass:
-                try:
-                    annotations = subcls.__annotations__  # type: ignore
-                except AttributeError:
-                    pass
-                else:
-                    fields.update(annotations)
+        optional: Dict = {}
+        for subcls in _itermro(cls, stop=Event):
+            optional.update(subcls.__dict__)
+            try:
+                annotations = subcls.__annotations__  # type: ignore
+            except AttributeError:
+                pass
             else:
-                wanted_baseclass = subcls == Event
+                fields.update(annotations)
         cls._fields = cast(Mapping, fields)
         cls._fieldset = frozenset(fields)
+        cls._optionalset = frozenset(optional)
 
     def __init__(self, req=None, **fields):
         fieldset = frozenset(fields)
-        missing = self._fieldset - fieldset
+        missing = self._fieldset - fieldset - self._optionalset
         if missing:
             raise TypeError('{} missing required arguments: {}'.format(
                 type(self).__name__, ', '.join(sorted(missing))))
