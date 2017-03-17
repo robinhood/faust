@@ -1,17 +1,12 @@
-from typing import Any, Iterable, Mapping, NamedTuple, Tuple
-from .types import K, Message
+from typing import Any, FrozenSet, Iterable, Mapping, Tuple, cast
+from .types import K, Message, Request
 from .utils.serialization import dumps, loads
-
-
-class Request(NamedTuple):
-    key: K
-    topic: str
-    partition: int
-    message: Message
 
 
 class Event:
     req: Request = None
+    _fields: Mapping[str, type]
+    _fieldset = FrozenSet[str]
 
     @classmethod
     def from_message(cls,
@@ -29,8 +24,29 @@ class Event:
     def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
         super().__init_subclass__(**kwargs)
         cls.serializer = serializer
+        fields = {}
+        wanted_baseclass = False
+        for cls in reversed(cls.__mro__):
+            if wanted_baseclass:
+                try:
+                    fields.update(cls.__annotations__)
+                except AttributeError:
+                    pass
+            else:
+                wanted_baseclass = cls == Event
+        cls._fields = cast(Mapping, fields)
+        cls._fieldset = frozenset(fields)
 
     def __init__(self, **fields):
+        fieldset = frozenset(fields)
+        missing = self._fieldset - fieldset
+        if missing:
+            raise TypeError('{} missing required arguments: {}'.format(
+                type(self).__class__, ', '.join(sorted(missing))))
+        extraneous = fieldset - self._fieldset
+        if extraneous:
+            raise TypeError('{} got unexpected arguments: {}'.format(
+                type(self).__class__, ', '.join(sorted(extraneous))))
         self.__dict__.update(fields)
 
     def dumps(self) -> Any:
@@ -40,20 +56,20 @@ class Event:
         return dict(self._asitems())
 
     def _asitems(self) -> Iterable[Tuple[Any, Any]]:
-        for anno in self._iteranno():
-            for k in anno:
-                yield k, self.__dict__[k]
-
-    @classmethod
-    def _iteranno(cls) -> Iterable[Mapping]:
-        for cls in cls.__mro__:
-            try:
-                yield cls.__annotations__  # type: ignore
-            except AttributeError:
-                break
+        for key in self._fields:
+            yield key, self.__dict__[key]
 
     def __repr__(self) -> str:
-        return '<{}: {!r}>'.format(type(self).__name__, self.__dict__)
+        return '<{}: {}>'.format(type(self).__name__, _kvrepr(self.__dict__))
+
+
+def _kvrepr(d: Mapping[str, Any],
+            sep: str = ', ',
+            fmt: str = '{0}={!r}') -> str:
+    """Represent dict as `k='v'` pairs separated by comma."""
+    return sep.join(
+        fmt.format(k, v) for k, v in d.items()
+    )
 
 
 class FieldDescriptor:
