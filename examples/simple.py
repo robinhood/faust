@@ -36,9 +36,13 @@ app = faust.App('aiokafka://localhost:9092')
 
 
 async def produce():
-    for i in range(100):
-        await app.send(topic, None, Withdrawal(100.3 + i))
-    await app.send(topic, None, Withdrawal(999999.0))
+    async with app:
+        for i in range(100):
+            print('+SEND %r' % (i,))
+            await app.send(topic, None, Withdrawal(amount=100.3 + i))
+            print('-SEND %r' % (i,))
+        await app.send(topic, None, Withdrawal(amount=999999.0))
+        await asyncio.sleep(30)
 
 
 async def consume():
@@ -66,5 +70,6 @@ async def main():
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
-    loop.run_forever()
+    if len(sys.argv) > 1 and sys.argv[1] == 'consume':
+        loop.run_forever()
     loop.close()
