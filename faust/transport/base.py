@@ -76,7 +76,7 @@ class Consumer(Service):
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)
         while 1:
-            offset = self._current_offset()
+            offset = self._new_offset()
             if self._should_commit(offset):
                 self._current_offset = offset
                 await self._commit(offset)
@@ -88,7 +88,7 @@ class Consumer(Service):
             (offset and offset > self._current_offset)
         )
 
-    def _current_offset(self) -> int:
+    def _new_offset(self) -> int:
         acked = self._acked
         for i, offset in enumerate(acked):
             if offset != acked[i - 1]:
