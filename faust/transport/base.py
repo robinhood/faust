@@ -67,10 +67,14 @@ class Consumer(Service):
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)
         while 1:
-            offset = self._new_offset()
-            if self._should_commit(offset):
-                self._current_offset = offset
-                await self._commit(offset)
+            try:
+                offset = self._new_offset()
+            except IndexError:
+                pass
+            else:
+                if self._should_commit(offset):
+                    self._current_offset = offset
+                    await self._commit(offset)
             await asyncio.sleep(self.commit_interval)
 
     def _should_commit(self, offset) -> bool:
