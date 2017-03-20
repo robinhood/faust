@@ -158,16 +158,13 @@ That's it! To install and use our new extension we do:
 At this point may want to publish this on PyPI to share
 the extension with other Faust users.
 """
+import pickle as _pickle
 from base64 import b64encode, b64decode
 from functools import reduce
 from typing import Any, AnyStr, Dict, MutableMapping, Optional, Tuple, cast
 from . import json as _json
 from .imports import load_extension_classes
 from ..types import SerializerT, SerializerArg
-try:
-    import cPickle as _pickle
-except ImportError:  # pragma: no cover
-    import pickle as _pickle  # type: ignore
 
 
 class Serializer(SerializerT):
