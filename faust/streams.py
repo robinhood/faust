@@ -31,16 +31,12 @@ def topic(*topics: str,
 
 class stream:
 
-    def __init__(self, topic: Topic,
-                 group_by: FieldDescriptor = None,
-                 **kwargs) -> None:
+    def __init__(self, topic: Topic, **kwargs) -> None:
         self.topic = topic
-        self.group_by = group_by
 
     def __call__(self, fun: Callable) -> 'Stream':
         return AsyncGeneratorStream(
             topic=self.topic,
-            group_by=self.group_by,
             callback=fun,
         )
 
@@ -52,14 +48,12 @@ class Stream(Service):
 
     def __init__(self, name: str = None,
                  topic: Topic = None,
-                 group_by: FieldDescriptor = None,
                  callback: Callable = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.name = name
         self.topic = topic
-        self.group_by = group_by
         self.callback = callback
         self.type = self.topic.type
         self._key_serializer = self.topic.key_serializer
@@ -74,7 +68,6 @@ class Stream(Service):
         return {
             'name': self.name,
             'topic': self.topic,
-            'group_by': self.group_by,
             'callback': self.callback,
             'loop': self.loop,
         }
