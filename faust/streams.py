@@ -56,7 +56,7 @@ class Stream(Service):
     topics: MutableSequence[Topic] = None
     name: str = None
     loop: asyncio.AbstractEventLoop = None
-    outbox: asyncio.Queue
+    outbox: asyncio.Queue = None
     _consumers: MutableMapping[Topic, Consumer] = None
     _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
     _coros: MutableMapping[Topic, CoroCallback] = None
@@ -75,7 +75,6 @@ class Stream(Service):
         self._callbacks = callbacks
         self._consumers = OrderedDict()
         self._coros = coros
-        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> 'Stream':
@@ -192,6 +191,9 @@ class Stream(Service):
 
 
 class AsyncIterableStream(Stream, AsyncIterable):
+
+    def on_init(self) -> None:
+        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
 
     async def __aiter__(self) -> 'Stream':
         await self.maybe_start()
