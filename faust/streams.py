@@ -29,27 +29,91 @@ def topic(*topics: str,
 
 class stream:
 
-    def __init__(self, *topics: Topic, **kwargs) -> None:
-        self.topics = topics
+    def __init__(self, topic: Topic,
+                 *,
+                 callbacks: Sequence[Callable] = None,
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs) -> None:
+        self.topic = topic
+        self.callbacks = callbacks
+        self.loop = loop or asyncio.get_event_loop()
 
     def __call__(self, fun: Callable) -> 'Stream':
-        return AsyncGeneratorStream(
-            topics=self.topics,
-            callback=fun,
+        return Stream(
+            topics=[self.topic],
+            callbacks={self.topic: self.callbacks},
+            coros={self.topic: GeneratorCallback(fun, loop=self.loop)},
+            loop=self.loop,
         )
 
 
-class Stream(Service):
+class AsyncInputStream(AsyncIterable):
+
+    queue: asyncio.Queue
+
+    def __init__(self, *,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        self.loop = loop or asyncio.get_event_loop()
+        self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
+
+    async def next(self) -> Any:
+        return await self.queue.get()
+
+    async def put(self, value: V) -> None:
+        await self.queue.put(value)
+
+    async def __aiter__(self) -> 'AsyncIterable':
+        return self
+
+    async def __anext__(self) -> Awaitable:
+        return await self.queue.get()
+
+    async def join(self, timeout=None):
+        await asyncio.wait_for(self._join(), timeout, loop=self.loop)
+
+    async def _join(self, interval=0.1):
+        while self.queue.qsize():
+            await asyncio.sleep(interval)
+
+
+class GeneratorCallback:
+    inbox: AsyncInputStream
+
+    def __init__(self, coro: Callable[[AsyncIterable], AsyncIterable],
+                 *, loop: asyncio.AbstractEventLoop = None) -> None:
+        self.loop = loop
+        self.inbox = AsyncInputStream(loop=self.loop)
+        self.coro = coro
+        self.gen = self.coro(self.inbox)
+
+    async def send(self, value: V, outbox: asyncio.Queue) -> None:
+        await self.inbox.put(value)
+        asyncio.ensure_future(self._drain_gen(outbox), loop=self.loop)
+
+    async def _drain_gen(self, outbox: asyncio.Queue) -> None:
+        new_value = await self.gen.__anext__()
+        await outbox.put(new_value)
+
+    async def join(self) -> None:
+        # make sure everything in inqueue is processed.
+        await self.inbox.join()
+
+
+class Stream(Service, AsyncIterable):
 
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
     loop: asyncio.AbstractEventLoop = None
+    outbox: asyncio.Queue
     _consumers: MutableMapping[Topic, Consumer] = None
+    _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
+    _coros: MutableMapping[Topic, GeneratorCallback] = None
 
     def __init__(self, name: str = None,
                  topics: Sequence[Topic] = None,
-                 callback: Callable = None,
+                 callbacks: MutableMapping[Topic, Sequence[Callable]] = None,
+                 coros: MutableMapping[Topic, GeneratorCallback] = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
@@ -57,8 +121,10 @@ class Stream(Service):
         if not isinstance(topics, MutableSequence):
             topics = list(topics)
         self.topics = cast(MutableSequence, topics)
-        self.callback = callback
+        self._callbacks = callbacks
         self._consumers = OrderedDict()
+        self._coros = coros
+        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> 'Stream':
@@ -70,7 +136,8 @@ class Stream(Service):
         return {
             'name': self.name,
             'topics': self.topics,
-            'callback': self.callback,
+            'callbacks': self._callbacks,
+            'coros': self._coros,
             'loop': self.loop,
         }
 
@@ -82,13 +149,22 @@ class Stream(Service):
         topics = [topic for node in nodes for topic in node.topics]
         return self.clone(topics=topics)
 
-    async def on_message(self, key: K, value: V) -> None:
+    async def on_message(self, topic: Topic, key: K, value: V) -> None:
+        callbacks = self._callbacks[topic]
+        if callbacks is not None:
+            for callback in callbacks:
+                res = callback(value)
+                if isinstance(res, Awaitable):
+                    value = await res
+                else:
+                    value = res
+        coro = self._coros[topic]
+        if coro is not None:
+            await coro.send(value, self.outbox)
         await self.process(key, value)
 
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
-        if self.callback is not None:
-            self.callback(key, value)
         return value
 
     async def subscribe(self, topic: Topic) -> None:
@@ -121,13 +197,13 @@ class Stream(Service):
             raise RuntimeError('Cannot start stream not bound to app.')
         for topic in self.topics:
             await self._subscribe(topic)
-        for consumer in self._consumers.values():
-            await consumer.start()
 
     async def on_stop(self) -> None:
         for consumer in reversed(list(self._consumers.values())):
             await consumer.stop()
         self._consumers.clear()
+        for coro in self._coros.values():
+            await coro.join()
 
     def on_key_decode_error(self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode key: %r: %r', message.key, exc)
@@ -150,6 +226,13 @@ class Stream(Service):
     def __copy__(self) -> 'Stream':
         return self.clone()
 
+    async def __aiter__(self) -> 'Stream':
+        await self.maybe_start()
+        return self
+
+    async def __anext__(self) -> Awaitable:
+        return await self.outbox.get()
+
 
 class Table(Stream):
 
@@ -159,7 +242,7 @@ class Table(Stream):
     def on_init(self) -> None:
         self._state = {}
 
-    async def on_message(self, key: K, value: V) -> None:
+    async def on_message(self, topic: Topic, key: K, value: V) -> None:
         self._state[key] = await self.process(key, value)
 
     def __getitem__(self, key: Any) -> Any:
@@ -170,77 +253,3 @@ class Table(Stream):
 
     def __delitem__(self, key: Any) -> None:
         del self._state[key]
-
-
-class AsyncIterableStream(Stream, AsyncIterable):
-    outbox: asyncio.Queue
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
-
-    async def __aiter__(self) -> 'AsyncIterableStream':
-        await self.maybe_start()
-        return self
-
-    async def __anext__(self) -> Awaitable:
-        return await self.outbox.get()
-
-    async def process(self, key: K, value: V) -> None:
-        await self.outbox.put(value)
-
-
-class AsyncInputStream(AsyncIterable):
-
-    queue: asyncio.Queue
-
-    def __init__(self, stream: 'Stream', *,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        self.stream = stream
-        self.loop = loop or asyncio.get_event_loop()
-        self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
-
-    async def next(self) -> Any:
-        return await self.queue.get()
-
-    async def put(self, value: V) -> None:
-        await self.queue.put(value)
-
-    async def __aiter__(self) -> 'AsyncIterable':
-        return self
-
-    async def __anext__(self) -> Awaitable:
-        return await self.queue.get()
-
-    async def join(self, timeout=None):
-        await asyncio.wait_for(self._join(), timeout, loop=self.loop)
-
-    async def _join(self, interval=0.1):
-        while self.queue.qsize():
-            await asyncio.sleep(interval)
-
-
-class AsyncGeneratorStream(AsyncIterableStream):
-    inbox: AsyncInputStream
-
-    def on_init(self) -> None:
-        self.inbox = AsyncInputStream(self, loop=self.loop)
-        self.gen = self.callback(self.inbox)
-
-    async def send(self, value: V) -> None:
-        await self.inbox.put(value)
-        asyncio.ensure_future(self._drain_gen(), loop=self.loop)
-
-    async def _drain_gen(self) -> None:
-        new_value = await self.gen.__anext__()
-        await self.outbox.put(new_value)
-
-    async def process(self, key: K, value: V) -> None:
-        await self.send(value)
-
-    async def on_stop(self) -> None:
-        # stop consumer
-        super().on_stop()
-
-        # make sure everything in inqueue is processed.
-        await self.inbox.join()

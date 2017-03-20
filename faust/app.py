@@ -9,7 +9,7 @@ from . import constants
 from . import transport
 from .event import Event
 from .exceptions import ImproperlyConfigured
-from .streams import AsyncIterableStream, Stream
+from .streams import Stream
 from .transport.base import Producer, Transport
 from .types import AppT, K, SerializerArg, Topic
 from .utils.log import get_logger
@@ -127,10 +127,10 @@ class App(AppT, Service):
         """Create new stream from topic.
 
         Returns:
-            faust.streams.AsyncIterableStream:
+            faust.streams.Stream:
                 to iterate over events in the stream.
         """
-        return self.add_stream(AsyncIterableStream(topic=topic, **kwargs))
+        return self.add_stream(Stream(topics=[topic], **kwargs))
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():

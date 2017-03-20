@@ -76,7 +76,7 @@ class Consumer(Service):
                 raise
             await self.on_value_decode_error(exc, message)
         self.track_event(v, message.offset)
-        await self.callback(k, v)
+        await self.callback(self.topic, k, v)
 
     def to_KV(self, message: Message) -> Tuple[K, V]:
         key = message.key
