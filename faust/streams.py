@@ -2,7 +2,7 @@ import asyncio
 import re
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Mapping,
+    Any, AsyncIterable, Awaitable, Callable, Dict, List, Mapping,
     MutableMapping, MutableSequence, Pattern, Sequence, Union, cast
 )
 from .transport.base import Consumer
@@ -146,8 +146,14 @@ class Stream(Service, AsyncIterable):
 
     def combine(self, *children: 'Stream', **kwargs):
         nodes = (self,) + children
-        topics = [topic for node in nodes for topic in node.topics]
-        return self.clone(topics=topics)
+        topics: List[Topic] = []
+        callbacks: Dict[Topic, Sequence[Callable]] = {}
+        coros: Dict[Topic, GeneratorCallback] = {}
+        for node in nodes:
+            topics.extend(node.topics)
+            callbacks.update(node._callbacks)
+            coros.update(node._coros)
+        return self.clone(topics=topics, callbacks=callbacks, coros=coros)
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:
         callbacks = self._callbacks[topic]
@@ -167,9 +173,14 @@ class Stream(Service, AsyncIterable):
         print('Received K/V: %r %r' % (key, value))
         return value
 
-    async def subscribe(self, topic: Topic) -> None:
+    async def subscribe(self, topic: Topic,
+                        *,
+                        callbacks: Sequence[Callable] = None,
+                        coro: Callable = None) -> None:
         if topic not in self.topics:
             self.topics.append(topic)
+        self._callbacks[topic] = callbacks
+        self._coros[topic] = GeneratorCallback(coro, loop=self.loop)
         await self._subscribe(topic)
 
     async def _subscribe(self, topic: Topic) -> None:
@@ -182,6 +193,8 @@ class Stream(Service, AsyncIterable):
             self.topics.remove(topic)
         except ValueError:
             pass
+        self._callbacks.pop(topic, None)
+        self._coros.pop(topic, None)
         await self._unsubscribe(topic)
 
     async def _unsubscribe(self, topic: Topic) -> None:
