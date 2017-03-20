@@ -21,12 +21,8 @@ class Event:
     _optionalset = FrozenSet[str]
 
     @classmethod
-    def from_message(cls,
-                     key: K,
-                     topic: str,
-                     partition: int,
-                     message: Message) -> 'Event':
-        request = Request(key, topic, partition, message)
+    def from_message(cls, key: K, message: Message) -> 'Event':
+        request = Request(key, message)
         return cls.loads(message.value, req=request)
 
     @classmethod

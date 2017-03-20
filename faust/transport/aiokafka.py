@@ -30,9 +30,9 @@ class Consumer(base.Consumer):
         records = await self._consumer.getmany(
             max_records=10, timeout_ms=timeout * 1000.0)
         callback = self.callback
-        for tp, messages in records.items():
+        for messages in records.values():
             for message in messages:
-                await callback(tp.topic, tp.partition, cast(Message, message))
+                await callback(cast(Message, message))
 
     async def _commit(self, offset: int) -> None:
         await self._consumer.commit(offset)

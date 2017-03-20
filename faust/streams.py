@@ -97,35 +97,25 @@ class Stream(Service):
         if self._consumer is not None:
             await self._consumer.stop()
 
-    async def on_message(self,
-                         topic: str,
-                         partition: int,
-                         message: Message) -> None:
+    async def on_message(self, message: Message) -> None:
         print('Received message: %r' % (message,))
         try:
-            k, v = self.to_KV(topic, partition, message)
+            k, v = self.to_KV(message)
         except KeyDecodeError as exc:
-            self.on_key_decode_error(exc, topic, partition, message)
+            self.on_key_decode_error(exc, message)
         except ValueDecodeError as exc:
-            self.on_value_decode_error(exc, topic, partition, message)
+            self.on_value_decode_error(exc, message)
         self._consumer.track_event(v, message.offset)
         await self.process(k, v)
 
-    def on_key_decode_error(
-            self, exc: Exception,
-            topic: str, partition: int, message: Message) -> None:
+    def on_key_decode_error(self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode key: %r: %r', message.key, exc)
 
-    def on_value_decode_error(
-            self, exc: Exception,
-            topic: str, partition: int, message: Message) -> None:
+    def on_value_decode_error(self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    def to_KV(self,
-              topic: str,
-              partition: int,
-              message: Message) -> Tuple[K, V]:
+    def to_KV(self, message: Message) -> Tuple[K, V]:
         key = message.key
         if self._key_serializer:
             try:
@@ -134,8 +124,7 @@ class Stream(Service):
                 raise KeyDecodeError(exc)
         k = cast(K, key)
         try:
-            v = self.type.from_message(  # type: ignore
-                k, topic, partition, message)
+            v = self.type.from_message(k, message)  # type: ignore
         except Exception as exc:
             raise ValueDecodeError(exc)
         return k, cast(V, v)
@@ -158,11 +147,8 @@ class Table(Stream):
     def on_init(self) -> None:
         self._state = {}
 
-    async def on_message(self,
-                         topic: str,
-                         partition: int,
-                         message: Message) -> None:
-        k, v = self.to_KV(topic, partition, message)
+    async def on_message(self, message: Message) -> None:
+        k, v = self.to_KV(message)
         self._state[k] = await self.process(k, v)
 
     def __getitem__(self, key: Any) -> Any:

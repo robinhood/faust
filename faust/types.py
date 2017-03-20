@@ -67,12 +67,10 @@ class Message(NamedTuple):
 
 class Request(NamedTuple):
     key: K
-    topic: str
-    partition: int
     message: Message
 
 
-ConsumerCallback = Callable[[str, int, Message], Awaitable]
+ConsumerCallback = Callable[[Message], Awaitable]
 
 
 class ServiceT(metaclass=abc.ABCMeta):
