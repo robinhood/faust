@@ -70,16 +70,17 @@ class Stream(Service):
         app.add_source(stream)
         return stream
 
-    def clone(self, **kwargs) -> 'Stream':
-        defaults = {
+    def info(self) -> Mapping[str, Any]:
+        return {
             'name': self.name,
             'topic': self.topic,
             'group_by': self.group_by,
             'callback': self.callback,
             'loop': self.loop,
         }
-        final = {**defaults, **kwargs}
-        return self.__class__(**final)
+
+    def clone(self, **kwargs) -> 'Stream':
+        return self.__class__(**{**self.info(), **kwargs})
 
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
