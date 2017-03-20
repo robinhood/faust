@@ -13,6 +13,8 @@ class Withdrawal(faust.Event, serializer='json'):
 topic = faust.topic('mytopic', type=Withdrawal)
 
 
+# -- Stream is coroutine
+
 @faust.stream(topic)
 async def all_withdrawals(it):
     while 1:
@@ -23,6 +25,30 @@ async def all_withdrawals(it):
             yield eventA
         else:
             yield Withdrawal(amount=eventA.amount + eventB.amount)
+
+
+# -- Stream returns generator expression
+
+#def dump_event(event):
+#    print('@@@@@@@ EVENT: %r' % (event,))
+#    return event
+
+
+#@faust.stream(topic)
+#def all_withdrawals(it):
+#    return (dump_event(event) for event in it)
+
+
+# --- Stream returns async generator expression
+
+#async def dump_event(event):
+#    print('@@@@ GOT EVENT: %r' % (event,))
+#    return event
+
+
+#@faust.stream(topic)
+#async def all_withdrawals(it):
+#    return (await dump_event(event) async for event in it)
 
 
 async def find_large_withdrawals(withdrawals):

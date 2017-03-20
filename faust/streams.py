@@ -7,7 +7,7 @@ from typing import (
 )
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, SerializerArg, Topic
-from .utils.coroutines import GeneratorCallback
+from .utils.coroutines import CoroCallback, wrap_callback
 from .utils.log import get_logger
 from .utils.service import Service
 
@@ -46,7 +46,7 @@ class stream:
         return AsyncIterableStream(
             topics=[self.topic],
             callbacks={self.topic: self.callbacks},
-            coros={self.topic: GeneratorCallback(fun, loop=self.loop)},
+            coros={self.topic: wrap_callback(fun, loop=self.loop)},
             loop=self.loop,
         )
 
@@ -59,12 +59,12 @@ class Stream(Service):
     outbox: asyncio.Queue
     _consumers: MutableMapping[Topic, Consumer] = None
     _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
-    _coros: MutableMapping[Topic, GeneratorCallback] = None
+    _coros: MutableMapping[Topic, CoroCallback] = None
 
     def __init__(self, name: str = None,
                  topics: Sequence[Topic] = None,
                  callbacks: MutableMapping[Topic, Sequence[Callable]] = None,
-                 coros: MutableMapping[Topic, GeneratorCallback] = None,
+                 coros: MutableMapping[Topic, CoroCallback] = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
@@ -99,7 +99,7 @@ class Stream(Service):
         nodes = (self,) + children
         topics: List[Topic] = []
         callbacks: Dict[Topic, Sequence[Callable]] = {}
-        coros: Dict[Topic, GeneratorCallback] = {}
+        coros: Dict[Topic, CoroCallback] = {}
         for node in nodes:
             topics.extend(node.topics)
             callbacks.update(node._callbacks)
@@ -131,7 +131,7 @@ class Stream(Service):
         if topic not in self.topics:
             self.topics.append(topic)
         self._callbacks[topic] = callbacks
-        self._coros[topic] = GeneratorCallback(coro, loop=self.loop)
+        self._coros[topic] = wrap_callback(coro, loop=self.loop)
         await self._subscribe(topic)
 
     async def _subscribe(self, topic: Topic) -> None:
