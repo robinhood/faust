@@ -2,9 +2,15 @@ import asyncio
 import faust
 import weakref
 from itertools import count
-from typing import Awaitable, Callable, Optional, List, cast
+from typing import Awaitable, Callable, Optional, List, Tuple, cast
 from ..event import Event
-from ..types import ConsumerCallback, Topic
+from ..exceptions import KeyDecodeError, ValueDecodeError
+from ..types import (
+    ConsumerCallback,
+    K, KeyDecodeErrorCallback, V, ValueDecodeErrorCallback,
+    Message, Topic,
+)
+from ..utils.serialization import loads
 from ..utils.service import Service
 
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
@@ -37,12 +43,18 @@ class Consumer(Service):
     def __init__(self, transport: 'Transport',
                  *,
                  topic: Topic = None,
+                 on_key_decode_error: KeyDecodeErrorCallback = None,
+                 on_value_decode_error: ValueDecodeErrorCallback = None,
                  callback: ConsumerCallback = None) -> None:
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
         self.callback = callback
         self.topic = topic
+        self.type = self.topic.type
+        self._key_serializer = self.topic.key_serializer
+        self.on_key_decode_error = on_key_decode_error
+        self.on_value_decode_error = on_value_decode_error
         if self.topic.topics and self.topic.pattern:
             raise TypeError('Topic can specify either topics or pattern')
         self._dirty_events = []
@@ -51,6 +63,34 @@ class Consumer(Service):
 
     async def _commit(self, offset: int) -> None:
         raise NotImplementedError()
+
+    async def on_message(self, message: Message) -> None:
+        try:
+            k, v = self.to_KV(message)
+        except KeyDecodeError as exc:
+            if not self.on_key_decode_error:
+                raise
+            await self.on_key_decode_error(exc, message)
+        except ValueDecodeError as exc:
+            if not self.on_value_decode_error:
+                raise
+            await self.on_value_decode_error(exc, message)
+        self.track_event(v, message.offset)
+        await self.callback(k, v)
+
+    def to_KV(self, message: Message) -> Tuple[K, V]:
+        key = message.key
+        if self._key_serializer:
+            try:
+                key = loads(self._key_serializer, message.key)
+            except Exception as exc:
+                raise KeyDecodeError(exc)
+        k = cast(K, key)
+        try:
+            v = self.type.from_message(k, message)  # type: ignore
+        except Exception as exc:
+            raise ValueDecodeError(exc)
+        return k, cast(V, v)
 
     def track_event(self, event: Event, offset: int) -> None:
         self._dirty_events.append(

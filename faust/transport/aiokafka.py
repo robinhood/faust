@@ -29,10 +29,10 @@ class Consumer(base.Consumer):
     async def drain_events(self, *, timeout: float = 10.0) -> None:
         records = await self._consumer.getmany(
             max_records=10, timeout_ms=timeout * 1000.0)
-        callback = self.callback
+        on_message = self.on_message
         for messages in records.values():
             for message in messages:
-                await callback(cast(Message, message))
+                await on_message(cast(Message, message))
 
     async def _commit(self, offset: int) -> None:
         await self._consumer.commit(offset)

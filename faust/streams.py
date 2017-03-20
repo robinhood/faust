@@ -1,15 +1,13 @@
 import asyncio
 import re
+from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable,
-    MutableMapping, Pattern, Tuple, Union, cast,
+    Any, AsyncIterable, Awaitable, Callable, Mapping,
+    MutableMapping, MutableSequence, Pattern, Sequence, Union, cast
 )
-from .event import FieldDescriptor
-from .exceptions import KeyDecodeError, ValueDecodeError
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, SerializerArg, Topic
 from .utils.log import get_logger
-from .utils.serialization import loads
 from .utils.service import Service
 
 logger = get_logger(__name__)
@@ -31,12 +29,12 @@ def topic(*topics: str,
 
 class stream:
 
-    def __init__(self, topic: Topic, **kwargs) -> None:
-        self.topic = topic
+    def __init__(self, *topics: Topic, **kwargs) -> None:
+        self.topics = topics
 
     def __call__(self, fun: Callable) -> 'Stream':
         return AsyncGeneratorStream(
-            topic=self.topic,
+            topics=self.topics,
             callback=fun,
         )
 
@@ -44,19 +42,23 @@ class stream:
 class Stream(Service):
 
     app: AppT = None
-    _consumer: Consumer = None
+    topics: MutableSequence[Topic] = None
+    name: str = None
+    loop: asyncio.AbstractEventLoop = None
+    _consumers: MutableMapping[Topic, Consumer] = None
 
     def __init__(self, name: str = None,
-                 topic: Topic = None,
+                 topics: Sequence[Topic] = None,
                  callback: Callable = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.name = name
-        self.topic = topic
+        if not isinstance(topics, MutableSequence):
+            topics = list(topics)
+        self.topics = cast(MutableSequence, topics)
         self.callback = callback
-        self.type = self.topic.type
-        self._key_serializer = self.topic.key_serializer
+        self._consumers = OrderedDict()
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> 'Stream':
@@ -67,7 +69,7 @@ class Stream(Service):
     def info(self) -> Mapping[str, Any]:
         return {
             'name': self.name,
-            'topic': self.topic,
+            'topics': self.topics,
             'callback': self.callback,
             'loop': self.loop,
         }
@@ -75,32 +77,57 @@ class Stream(Service):
     def clone(self, **kwargs) -> 'Stream':
         return self.__class__(**{**self.info(), **kwargs})
 
+    def combine(self, *children: 'Stream', **kwargs):
+        nodes = (self,) + children
+        topics = [topic for node in nodes for topic in node.topics]
+        return self.clone(topics=topics)
+
+    async def on_message(self, key: K, value: V) -> None:
+        await self.process(key, value)
+
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
         if self.callback is not None:
             self.callback(key, value)
         return value
 
+    async def subscribe(self, topic: Topic) -> None:
+        if topic not in self.topics:
+            self.topics.append(topic)
+        await self._subscribe(topic)
+
+    async def _subscribe(self, topic: Topic) -> None:
+        if topic not in self._consumers:
+            c = self._consumers[topic] = self.create_consumer_for_topic(topic)
+            await c.start()
+
+    async def unsubscribe(self, topic: Topic) -> None:
+        try:
+            self.topics.remove(topic)
+        except ValueError:
+            pass
+        await self._unsubscribe(topic)
+
+    async def _unsubscribe(self, topic: Topic) -> None:
+        try:
+            consumer = self._consumers.pop(topic)
+        except KeyError:
+            pass
+        else:
+            await consumer.stop()
+
     async def on_start(self) -> None:
         if self.app is None:
             raise RuntimeError('Cannot start stream not bound to app.')
-        self._consumer = self.get_consumer()
-        await self._consumer.start()
+        for topic in self.topics:
+            await self._subscribe(topic)
+        for consumer in self._consumers.values():
+            await consumer.start()
 
     async def on_stop(self) -> None:
-        if self._consumer is not None:
-            await self._consumer.stop()
-
-    async def on_message(self, message: Message) -> None:
-        print('Received message: %r' % (message,))
-        try:
-            k, v = self.to_KV(message)
-        except KeyDecodeError as exc:
-            self.on_key_decode_error(exc, message)
-        except ValueDecodeError as exc:
-            self.on_value_decode_error(exc, message)
-        self._consumer.track_event(v, message.offset)
-        await self.process(k, v)
+        for consumer in reversed(list(self._consumers.values())):
+            await consumer.stop()
+        self._consumers.clear()
 
     def on_key_decode_error(self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode key: %r: %r', message.key, exc)
@@ -109,25 +136,16 @@ class Stream(Service):
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    def to_KV(self, message: Message) -> Tuple[K, V]:
-        key = message.key
-        if self._key_serializer:
-            try:
-                key = loads(self._key_serializer, message.key)
-            except Exception as exc:
-                raise KeyDecodeError(exc)
-        k = cast(K, key)
-        try:
-            v = self.type.from_message(k, message)  # type: ignore
-        except Exception as exc:
-            raise ValueDecodeError(exc)
-        return k, cast(V, v)
-
-    def get_consumer(self) -> Consumer:
+    def create_consumer_for_topic(self, topic: Topic) -> Consumer:
         return self.app.transport.create_consumer(
-            topic=self.topic,
+            topic=topic,
             callback=self.on_message,
+            on_key_decode_error=self.on_key_decode_error,
+            on_value_decode_error=self.on_value_decode_error,
         )
+
+    def __and__(self, other: 'Stream') -> 'Stream':
+        return self.combine(self, other)
 
     def __copy__(self) -> 'Stream':
         return self.clone()
@@ -141,9 +159,8 @@ class Table(Stream):
     def on_init(self) -> None:
         self._state = {}
 
-    async def on_message(self, message: Message) -> None:
-        k, v = self.to_KV(message)
-        self._state[k] = await self.process(k, v)
+    async def on_message(self, key: K, value: V) -> None:
+        self._state[key] = await self.process(key, value)
 
     def __getitem__(self, key: Any) -> Any:
         return self._state[key]

@@ -70,7 +70,9 @@ class Request(NamedTuple):
     message: Message
 
 
-ConsumerCallback = Callable[[Message], Awaitable]
+ConsumerCallback = Callable[[K, V], Awaitable]
+KeyDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
+ValueDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
 
 
 class ServiceT(metaclass=abc.ABCMeta):
