@@ -33,6 +33,7 @@ class App(AppT, Service):
             Provide specific asyncio event loop instance.
     """
 
+    id: str
     url: str
     loop: asyncio.AbstractEventLoop
 
@@ -51,10 +52,12 @@ class App(AppT, Service):
     #: Transport is created on demand: use `.transport`.
     _transport: Transport = None
 
-    def __init__(self,
-                 url: str = None,
+    def __init__(self, id: str,
+                 *,
+                 url: str = 'aiokafka://localhost:9092',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
+        self.id = id
         self.url = url
         if self.url is None:
             raise ImproperlyConfigured('URL must be specified!')
@@ -161,7 +164,7 @@ class App(AppT, Service):
         return self.transport.create_producer()
 
     def _create_transport(self) -> Transport:
-        return transport.from_url(self.url, loop=self.loop)
+        return transport.from_url(self, self.url, loop=self.loop)
 
     @property
     def producer(self) -> Producer:

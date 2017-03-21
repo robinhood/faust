@@ -14,7 +14,7 @@ class Consumer(base.Consumer):
             *self.topic.topics or (),
             loop=self.loop,
             client_id=self.client_id,
-            group_id='hello',
+            group_id=self.transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
         )
 

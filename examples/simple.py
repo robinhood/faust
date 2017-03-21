@@ -58,7 +58,7 @@ async def find_large_withdrawals(withdrawals):
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
 
 
-app = faust.App('aiokafka://localhost:9092')
+app = faust.App('myid', url='aiokafka://localhost:9092')
 
 
 async def produce():

@@ -43,7 +43,7 @@ async def suspicious_users(
 
 
 async def main():
-    app = faust.App()
+    app = faust.App('myid')
 
     suspicious_users = app.add_stream(filter_suspicious_countries)
     user_withdrawals = app.add_stream(user_to_withdrawal_amount)

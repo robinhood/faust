@@ -6,7 +6,7 @@ from typing import Awaitable, Callable, Optional, List, Tuple, cast
 from ..event import Event
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
-    ConsumerCallback,
+    AppT, ConsumerCallback,
     K, KeyDecodeErrorCallback, V, ValueDecodeErrorCallback,
     Message, Topic,
 )
@@ -168,9 +168,9 @@ class Transport:
     url: str
     loop: asyncio.AbstractEventLoop
 
-    def __init__(self,
-                 url: str = None,
+    def __init__(self, app: AppT, url: str,
                  loop: asyncio.AbstractEventLoop = None) -> None:
+        self.app = app
         self.url = url
         self.loop = loop
 

@@ -127,7 +127,8 @@ class ServiceT(metaclass=abc.ABCMeta):
 
 
 class AppT(ServiceT):
-    servers: Sequence[str]
+    id: str
+    url: str
     loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod
