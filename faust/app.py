@@ -17,6 +17,8 @@ from .utils.log import get_logger
 from .utils.serialization import dumps
 from .utils.service import Service
 
+__all__ = ['App']
+
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
 DEFAULT_URL = 'aiokafka://localhost:9092'
@@ -164,9 +166,11 @@ class App(AppT, Service):
             await _stream.start()
 
     async def on_stop(self) -> None:
-        for _stream in reversed(self._streams.values()):  # stop all streams
+        # stop all streams
+        for _stream in reversed(list(self._streams.values())):
             await _stream.stop()
-        if self._producer:  # stop producer
+        # stop producer
+        if self._producer:
             await self._producer.stop()
 
     def add_source(self, stream: Stream) -> None:

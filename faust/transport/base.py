@@ -1,3 +1,4 @@
+"""Base message transport implementation."""
 import asyncio
 import weakref
 from itertools import count
@@ -12,8 +13,43 @@ from ..types import (
 from ..utils.serialization import loads
 from ..utils.service import Service
 
+__all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
+
+# The Transport is responsible for:
+#
+#  - Holds reference to the app that created it.
+#  - Creates new consumers/producers.
+#
+# The Consumer is responsible for:
+#
+#   - Holds reference to the transport that created it
+#   - ... and the app via ``self.transport.app``.
+#   - Has a callback that usually points back to ``Stream.on_message``.
+#   - Receives messages and calls the callback for every message received.
+#   - The messages are deserialized first, so the Consumer also handles that.
+#   - Keep track of the message and it's acked/unacked status.
+#   - If automatic acks are enabled the message is acked when the Event goes
+#     out of scope (like any variable using reference counting).
+#   - Commits the offset at an interval
+#      - The current offset is based on range of the messages acked.
+#
+# The Producer is responsible for:
+#
+#   - Holds reference to the transport that created it
+#   - ... and the app via ``self.transport.app``.
+#   - Sending messages.
+#
+# To see a reference transport implementation go to:
+#     faust/transport/aiokafka.py
+
 
 class EventRef(weakref.ref):
+    """Weak-reference to :class:`Event`.
+
+    Remembers the offset of the event, even after event out of scope.
+    """
+
+    # Used for tracking when events go out of scope.
 
     def __init__(self, event: Event,
                  callback: Callable = None,
@@ -23,6 +59,8 @@ class EventRef(weakref.ref):
 
 
 class Consumer(Service):
+    """Abstract Consumer."""
+
     id: int
     topic: Topic
     transport: 'Transport'
@@ -136,6 +174,8 @@ class Consumer(Service):
 
 
 class Producer(Service):
+    """Abstract Producer."""
+
     transport: 'Transport'
 
     def __init__(self, transport: 'Transport') -> None:
@@ -163,7 +203,12 @@ _ConsumerT = Consumer
 
 
 class Transport:
+    """Message transport implementation."""
+
+    #: Consumer subclass used for this transport.
     Consumer: type
+
+    #: Producer subclass used for this transport.
     Producer: type
 
     url: str
