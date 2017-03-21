@@ -29,25 +29,25 @@ async def all_withdrawals(it):
 
 # -- Stream returns generator expression
 
-#def dump_event(event):
+# def dump_event(event):
 #    print('@@@@@@@ EVENT: %r' % (event,))
 #    return event
 
 
-#@faust.stream(topic)
-#def all_withdrawals(it):
+# @faust.stream(topic)
+# def all_withdrawals(it):
 #    return (dump_event(event) for event in it)
 
 
 # --- Stream returns async generator expression
 
-#async def dump_event(event):
+# async def dump_event(event):
 #    print('@@@@ GOT EVENT: %r' % (event,))
 #    return event
 
 
-#@faust.stream(topic)
-#async def all_withdrawals(it):
+# @faust.stream(topic)
+# async def all_withdrawals(it):
 #    return (await dump_event(event) async for event in it)
 
 

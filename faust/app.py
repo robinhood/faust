@@ -9,7 +9,6 @@ from itertools import count
 from . import constants
 from . import transport
 from .event import Event
-from .exceptions import ImproperlyConfigured
 from .streams import Stream
 from .transport.base import Producer, Transport
 from .types import AppT, K, SerializerArg, Topic
