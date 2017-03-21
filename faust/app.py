@@ -70,8 +70,6 @@ class App(AppT, Service):
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
         self.url = url
-        if self.url is None:
-            raise ImproperlyConfigured('URL must be specified!')
         self._streams = OrderedDict()
 
     async def send(
