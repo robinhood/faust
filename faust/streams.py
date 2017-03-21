@@ -38,9 +38,9 @@ def topic(*topics: str,
         *topics: str:  List of topic names.
 
     Keyword Arguments:
-        pattern (Union[str, Pattern]): Regular expression to match,
-           used instead topics.
-        type (Type): Event type usef for messages in this topic.
+        pattern (Union[str, Pattern]): Regular expression to match.
+            You cannot specify both topics and a pattern.
+        type (Type): Event type used for messages in this topic.
         key_serializer (SerializerArg): Serializer name, or serializer object
             to use for keys from this topic.
 
