@@ -71,7 +71,7 @@ class cached_property(object):
                  fset: Callable = None,
                  fdel: Callable = None,
                  doc: str = None,
-                 class_attribute=None):
+                 class_attribute=None) -> None:
         self.__get = fget
         self.__set = fset
         self.__del = fdel
