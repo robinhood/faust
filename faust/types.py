@@ -143,26 +143,23 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
-class EventT(metaclass=abc.ABCMeta):
+class EventT:
+    # uses __init_subclass__ so cannot use ABCMeta
 
     req: Request
+    serializer: SerializerArg
 
-    @abc.abstractmethod
-    @classmethod
     def loads(cls, s: Any,
               *,
               default_serializer: SerializerArg = None,
               **kwargs) -> 'EventT':
         ...
 
-    @abc.abstractmethod
-    @classmethod
     def from_message(cls, key: K, message: Message,
                      *,
                      default_serializer: SerializerArg = None) -> 'EventT':
         ...
 
-    @abc.abstractmethod
     def dumps(self) -> Any:
         ...
 
@@ -287,12 +284,13 @@ class AppT(ServiceT):
 
 class StreamT(ServiceT):
 
-    app: AppT
-    topics: MutableSequence[Topic]
-    name: str
-    outbox: asyncio.Queue
+    app: AppT = None
+    topics: MutableSequence[Topic] = None
+    name: str = None
+    outbox: asyncio.Queue = None
+    join_strategy: 'JoinT' = None
 
-    children: List['StreamT']
+    children: List['StreamT'] = None
 
     @abc.abstractmethod
     def bind(self, app: AppT) -> 'StreamT':
@@ -335,6 +333,10 @@ class StreamT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def on_done(self, value: V = None) -> None:
+        ...
+
+    @abc.abstractmethod
     async def subscribe(self, topic: Topic,
                         *,
                         callbacks: Sequence[Callable] = None,
@@ -367,5 +369,5 @@ class JoinT(metaclass=abc.ABCMeta):
     stream: StreamT
 
     @abc.abstractmethod
-    def __call__(self, event: EventT) -> Optional[EventT]:
+    async def process(_self, event: EventT) -> Optional[EventT]:
         ...

@@ -10,7 +10,7 @@ class Join(JoinT):
         self.fields = {field.event: field for field in fields}
         self.stream = stream
 
-    def __call__(self, event: EventT) -> Optional[EventT]:
+    async def process(self, event: EventT) -> Optional[EventT]:
         raise NotImplementedError()
 
 

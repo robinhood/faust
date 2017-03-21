@@ -104,13 +104,6 @@ class stream:
 
 class Stream(StreamT, Service):
 
-    app: AppT = None
-    topics: MutableSequence[Topic] = None
-    name: str = None
-    outbox: asyncio.Queue = None
-
-    children: List[StreamT] = None
-
     _consumers: MutableMapping[Topic, ConsumerT] = None
     _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
     _coros: MutableMapping[Topic, CoroCallback] = None
@@ -120,6 +113,7 @@ class Stream(StreamT, Service):
                  callbacks: MutableMapping[Topic, Sequence[Callable]] = None,
                  coros: MutableMapping[Topic, CoroCallback] = None,
                  children: List[StreamT] = None,
+                 join_strategy: JoinT = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
@@ -130,6 +124,7 @@ class Stream(StreamT, Service):
         self._callbacks = callbacks
         self._consumers = OrderedDict()
         self._coros = coros
+        self.join_strategy = join_strategy
         self.children = children if children is not None else []
         super().__init__(loop=loop)
 
@@ -195,12 +190,21 @@ class Stream(StreamT, Service):
                     value = res
         coro = self._coros[topic]
         if coro is not None:
-            await coro.send(value, self.outbox)
+            await coro.send(value, self.on_done)
         await self.process(key, value)
 
     async def process(self, key: K, value: V) -> V:
         print('Received K/V: %r %r' % (key, value))
         return value
+
+    async def on_done(self, value: V = None) -> None:
+        join_strategy = self.join_strategy
+        if join_strategy:
+            value = await join_strategy.process(value)
+        if value is not None:
+            outbox = self.outbox
+            if outbox:
+                await outbox.put(value)
 
     async def subscribe(self, topic: Topic,
                         *,

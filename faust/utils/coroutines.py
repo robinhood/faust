@@ -1,7 +1,7 @@
 import asyncio
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
-    Coroutine, Generator, Iterable, Optional,
+    Coroutine, Generator, Iterable,
 )
 from ..types import V
 
@@ -58,18 +58,17 @@ class CoroCallback:
         self.inbox = inbox
         self.loop = loop
 
-    async def send(self, value: V, outbox: Optional[asyncio.Queue]) -> None:
+    async def send(self, value: V, callback: Callable) -> None:
         await self.inbox.put(value)
-        asyncio.ensure_future(self.drain(outbox), loop=self.loop)
+        asyncio.ensure_future(self.drain(callback), loop=self.loop)
 
     async def join(self) -> None:
         # make sure everything in inqueue is processed.
         await self.inbox.join()
 
-    async def drain(self, outbox: Optional[asyncio.Queue]) -> None:
+    async def drain(self, callback: Callable) -> None:
         new_value = await self._drain()
-        if outbox is not None:
-            await outbox.put(new_value)
+        await callback(new_value)
 
     async def _drain(self):
         raise NotImplementedError()
