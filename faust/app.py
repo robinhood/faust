@@ -19,8 +19,9 @@ from .utils.service import Service
 
 __foobar: Any   # flake8 thinks Any is unused for some reason
 
-CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 DEFAULT_URL = 'aiokafka://localhost:9092'
+CLIENT_ID = 'faust-{0}'.format(faust.__version__)
+COMMIT_INTERVAL = 30.0
 
 logger = get_logger(__name__)
 
@@ -59,10 +60,12 @@ class App(AppT, Service):
                  *,
                  url: str = 'aiokafka://localhost:9092',
                  client_id: str = CLIENT_ID,
+                 commit_interval: float = COMMIT_INTERVAL,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
         self.client_id = client_id
+        self.commit_interval = commit_interval
         self.url = url
         if self.url is None:
             raise ImproperlyConfigured('URL must be specified!')
@@ -169,7 +172,7 @@ class App(AppT, Service):
         return self.transport.create_producer()
 
     def _create_transport(self) -> Transport:
-        return transport.from_url(self, self.url, loop=self.loop)
+        return transport.from_url(self.url, self, loop=self.loop)
 
     @property
     def producer(self) -> Producer:

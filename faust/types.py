@@ -130,6 +130,7 @@ class AppT(ServiceT):
     id: str
     url: str
     client_id: str
+    commit_interval: float
     loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod

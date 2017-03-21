@@ -1,5 +1,4 @@
 import asyncio
-import faust
 import weakref
 from itertools import count
 from typing import Awaitable, Callable, Optional, List, Tuple, cast
@@ -28,7 +27,7 @@ class Consumer(Service):
     topic: Topic
     transport: 'Transport'
 
-    commit_interval = 30.0
+    commit_interval: float
 
     #: This counter generates new consumer ids.
     _consumer_ids = count(0)
@@ -40,9 +39,10 @@ class Consumer(Service):
     def __init__(self, transport: 'Transport',
                  *,
                  topic: Topic = None,
+                 callback: ConsumerCallback = None,
                  on_key_decode_error: KeyDecodeErrorCallback = None,
                  on_value_decode_error: ValueDecodeErrorCallback = None,
-                 callback: ConsumerCallback = None) -> None:
+                 commit_interval: float = None) -> None:
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
@@ -52,6 +52,8 @@ class Consumer(Service):
         self._key_serializer = self.topic.key_serializer
         self.on_key_decode_error = on_key_decode_error
         self.on_value_decode_error = on_value_decode_error
+        self.commit_interval = (
+            commit_interval or self.transport.app.commit_interval)
         if self.topic.topics and self.topic.pattern:
             raise TypeError('Topic can specify either topics or pattern')
         self._dirty_events = []
@@ -164,10 +166,10 @@ class Transport:
     url: str
     loop: asyncio.AbstractEventLoop
 
-    def __init__(self, app: AppT, url: str,
+    def __init__(self, url: str, app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.app = app
         self.url = url
+        self.app = app
         self.loop = loop
 
     def create_consumer(self, topic: Topic, callback: ConsumerCallback,

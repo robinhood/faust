@@ -1,4 +1,5 @@
 from typing import Mapping
+from ..types import AppT
 from ..utils.url import url_to_parts
 from ..utils.imports import symbol_by_name
 from .base import Transport
@@ -16,5 +17,5 @@ def by_url(url: str) -> type:
     return symbol_by_name(scheme, aliases=TRANSPORTS)
 
 
-def from_url(url: str, **kwargs) -> Transport:
-    return by_url(url)(url=url, **kwargs)
+def from_url(url: str, app: AppT, **kwargs) -> Transport:
+    return by_url(url)(url, app, **kwargs)
