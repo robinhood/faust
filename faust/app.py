@@ -17,7 +17,7 @@ from .utils.log import get_logger
 from .utils.serialization import dumps
 from .utils.service import Service
 
-__foobar: Any   # flake8 thinks Any is unused for some reason
+__flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
 DEFAULT_URL = 'aiokafka://localhost:9092'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
