@@ -1,3 +1,4 @@
+"""Streams."""
 import asyncio
 import re
 from collections import OrderedDict
@@ -16,13 +17,45 @@ __make_flake8_happy_Dict: Dict
 
 logger = get_logger(__name__)
 
+# NOTES:
+#   - The stream decorator only takes one Topic, but a Stream can
+#     consume from multiple Topics internally, this is especially useful when
+#     streams are combined.
+#   - The stream decorator returns an unbound stream:
+#      - unbound means the stream is not associated with an app, and cannot
+#        actually be started yet.
+#      - `s2 = app.add_stream(s)` binds the stream to the app, this clones the
+#        instance so the original stream can be bound multiple times.
+
 
 def topic(*topics: str,
           pattern: Union[str, Pattern] = None,
           type: Type = None,
           key_serializer: SerializerArg = None) -> Topic:
+    """Define new topic.
+
+    Arguments:
+        *topics: str:  List of topic names.
+
+    Keyword Arguments:
+        pattern (Union[str, Pattern]): Regular expression to match,
+           used instead topics.
+        type (Type): Event type usef for messages in this topic.
+        key_serializer (SerializerArg): Serializer name, or serializer object
+            to use for keys from this topic.
+
+    Raises:
+        TypeError: if both `topics` and `pattern` is provided.
+
+    Returns:
+        faust.typess.Topic: a named tuple.
+
+    """
+    if pattern and topics:
+        raise TypeError('Cannot specify both topics and pattern.')
     if isinstance(pattern, str):
         pattern = re.compile(pattern)
+
     return Topic(
         topics=topics,
         pattern=pattern,
@@ -32,6 +65,20 @@ def topic(*topics: str,
 
 
 class stream:
+    """Decorator for stream-expressions.
+
+    Arguments:
+        topic (Topic): Topic to subscribe to.
+
+    Keyword Arguments:
+        callbacks (Sequence[Callable]): Optional list of callbacks to execute
+            when a message is used.  The callbacks will be applied in order,
+            and the return value is chained.
+        loop (asyncio.AbstractEventLoop): Custom event loop instance.
+
+    Returns:
+        Stream: an unbound stream.
+    """
 
     def __init__(self, topic: Topic,
                  *,
@@ -52,11 +99,13 @@ class stream:
 
 
 class Stream(Service):
+
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
     loop: asyncio.AbstractEventLoop = None
     outbox: asyncio.Queue = None
+
     _consumers: MutableMapping[Topic, Consumer] = None
     _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
     _coros: MutableMapping[Topic, CoroCallback] = None
@@ -78,6 +127,7 @@ class Stream(Service):
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> 'Stream':
+        """Create a new clone of this stream that is bound to an app."""
         stream = self.clone(name=app.new_stream_name(), app=app)
         app.add_source(stream)
         return stream
