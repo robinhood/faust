@@ -58,6 +58,8 @@ class App(AppT, Service):
                  commit_interval: float = COMMIT_INTERVAL,
                  key_serializer: SerializerArg = None,
                  value_serializer: SerializerArg = 'json',
+                 num_standby_replicas: int = None,
+                 replication_factor: int = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
@@ -65,6 +67,8 @@ class App(AppT, Service):
         self.commit_interval = commit_interval
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
+        self.num_standby_replicas = num_standby_replicas
+        self.replication_factor = replication_factor
         self.url = url
         if self.url is None:
             raise ImproperlyConfigured('URL must be specified!')

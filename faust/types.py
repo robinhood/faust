@@ -133,6 +133,8 @@ class AppT(ServiceT):
     commit_interval: float
     key_serializer: SerializerArg
     value_serializer: SerializerArg
+    num_standby_replicas: int
+    replication_factor: int
     loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod
