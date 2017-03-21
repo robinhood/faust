@@ -18,7 +18,7 @@ __all__ = [
     'ServiceT', 'AppT',
 ]
 
-K = str
+K = Any
 V = Any
 
 
