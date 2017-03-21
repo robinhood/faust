@@ -6,6 +6,8 @@ from typing import (
     Any, AsyncIterable, Awaitable, Callable, Dict, List, Mapping,
     MutableMapping, MutableSequence, Pattern, Sequence, Type, Union, cast
 )
+from . import join
+from .event import FieldDescriptor
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, SerializerArg, Topic
 from .utils.coroutines import CoroCallback, wrap_callback
@@ -106,6 +108,8 @@ class Stream(Service):
     loop: asyncio.AbstractEventLoop = None
     outbox: asyncio.Queue = None
 
+    children: List['Stream'] = None
+
     _consumers: MutableMapping[Topic, Consumer] = None
     _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
     _coros: MutableMapping[Topic, CoroCallback] = None
@@ -114,6 +118,7 @@ class Stream(Service):
                  topics: Sequence[Topic] = None,
                  callbacks: MutableMapping[Topic, Sequence[Callable]] = None,
                  coros: MutableMapping[Topic, CoroCallback] = None,
+                 children: List['Stream'] = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
@@ -124,6 +129,7 @@ class Stream(Service):
         self._callbacks = callbacks
         self._consumers = OrderedDict()
         self._coros = coros
+        self.children = children if children is not None else []
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> 'Stream':
@@ -139,21 +145,42 @@ class Stream(Service):
             'callbacks': self._callbacks,
             'coros': self._coros,
             'loop': self.loop,
+            'children': self.children,
         }
 
     def clone(self, **kwargs) -> 'Stream':
         return self.__class__(**{**self.info(), **kwargs})
 
-    def combine(self, *children: 'Stream', **kwargs):
-        nodes = (self,) + children
+    def combine(self, *nodes: 'Stream', **kwargs):
+        all_nodes = (self,) + nodes
         topics: List[Topic] = []
         callbacks: Dict[Topic, Sequence[Callable]] = {}
         coros: Dict[Topic, CoroCallback] = {}
-        for node in nodes:
+        for node in all_nodes:
             topics.extend(node.topics)
             callbacks.update(node._callbacks)
             coros.update(node._coros)
-        return self.clone(topics=topics, callbacks=callbacks, coros=coros)
+        return self.clone(
+            topics=topics,
+            callbacks=callbacks,
+            coros=coros,
+            children=self.children + list(nodes),
+        )
+
+    def join(self, *fields: FieldDescriptor) -> 'Stream':
+        return self._join(join.RightJoin(stream=self, fields=fields))
+
+    def left_join(self, *fields: FieldDescriptor) -> 'Stream':
+        return self._join(join.LeftJoin(stream=self, fields=fields))
+
+    def inner_join(self, *fields: FieldDescriptor) -> 'Stream':
+        return self._join(join.InnerJoin(stream=self, fields=fields))
+
+    def outer_join(self, *fields: FieldDescriptor) -> 'Stream':
+        return self._join(join.OuterJoin(stream=self, fields=fields))
+
+    def _join(self, join_strategy: join.Join) -> 'Stream':
+        return self.clone(join_strategy=join_strategy)
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:
         callbacks = self._callbacks[topic]
