@@ -1,3 +1,4 @@
+"""Abstract types for static typing."""
 import abc
 import asyncio
 import typing
@@ -14,15 +15,24 @@ else:
 
 __all__ = [
     'K', 'V', 'SerializerT', 'SerializerArg',
-    'Topic', 'Message', 'ConsumerCallback',
+    'Topic', 'Message', 'Request', 'ConsumerCallback',
+    'KeyDecodeErrorCallback', 'ValueDecodeErrorCallback',
     'ServiceT', 'AppT',
 ]
 
+#: Shorthand for the type of a key (Any for now).
 K = Any
+
+#: Shorthand for the type of a value (Any for now).
 V = Any
 
 
 class SerializerT(metaclass=abc.ABCMeta):
+    """Abstract type for Serializer.
+
+    See Also:
+        :class:`faust.utils.serialization.Serializer`.
+    """
 
     @abc.abstractmethod
     def dumps(self, obj: Any) -> Any:
@@ -70,12 +80,25 @@ class Request(NamedTuple):
     message: Message
 
 
+#: Callback called by :class:`faust.transport.base.Consumer` whenever
+#: a message is received.
 ConsumerCallback = Callable[[Topic, K, V], Awaitable]
+
+#: Callback called by :class:`faust.transport.base.Consumer` whenever
+#: a message key cannot be decoded/deserialized.
 KeyDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
+
+#: Callback called by :class:`faust.transport.base.Consumer` whenever
+#: a message value cannot be decoded/deserialized.
 ValueDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
 
 
 class ServiceT(metaclass=abc.ABCMeta):
+    """Abstract type for an asynchronous service that can be started/stopped.
+
+    See Also:
+        :class:`faust.utils.service.Service`.
+    """
 
     shutdown_timeout: float
     loop: asyncio.AbstractEventLoop
@@ -127,6 +150,12 @@ class ServiceT(metaclass=abc.ABCMeta):
 
 
 class AppT(ServiceT):
+    """Abstract type for the Faust application.
+
+    See Also:
+        :class:`faust.App`.
+    """
+
     id: str
     url: str
     client_id: str
