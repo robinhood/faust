@@ -181,6 +181,7 @@ class Stream(StreamT, Service):
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:
         callbacks = self._callbacks[topic]
+        value = await self.process(key, value)
         if callbacks is not None:
             for callback in callbacks:
                 res = callback(value)
@@ -191,10 +192,8 @@ class Stream(StreamT, Service):
         coro = self._coros[topic]
         if coro is not None:
             await coro.send(value, self.on_done)
-        await self.process(key, value)
 
     async def process(self, key: K, value: V) -> V:
-        print('Received K/V: %r %r' % (key, value))
         return value
 
     async def on_done(self, value: V = None) -> None:
