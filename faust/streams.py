@@ -3,13 +3,15 @@ import asyncio
 import re
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Dict, List, Mapping,
-    MutableMapping, MutableSequence, Pattern, Sequence, Type, Union, cast
+    Any, AsyncIterable, Awaitable, Callable, Dict, List,
+    Mapping, MutableMapping, MutableSequence, Pattern,
+    Sequence, Tuple, Type, Union, cast
 )
 from . import join
-from .event import FieldDescriptor
-from .transport.base import Consumer
-from .types import AppT, K, V, Message, SerializerArg, Topic
+from .types import (
+    AppT, ConsumerT, FieldDescriptorT, JoinT, K, V,
+    Message, SerializerArg, StreamT, Topic,
+)
 from .utils.coroutines import CoroCallback, wrap_callback
 from .utils.log import get_logger
 from .utils.service import Service
@@ -50,7 +52,7 @@ def topic(*topics: str,
         TypeError: if both `topics` and `pattern` is provided.
 
     Returns:
-        faust.typess.Topic: a named tuple.
+        faust.types.Topic: a named tuple.
 
     """
     if pattern and topics:
@@ -91,7 +93,7 @@ class stream:
         self.callbacks = callbacks
         self.loop = loop or asyncio.get_event_loop()
 
-    def __call__(self, fun: Callable) -> 'Stream':
+    def __call__(self, fun: Callable) -> 'StreamT':
         return AsyncIterableStream(
             topics=[self.topic],
             callbacks={self.topic: self.callbacks},
@@ -100,17 +102,16 @@ class stream:
         )
 
 
-class Stream(Service):
+class Stream(StreamT, Service):
 
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
-    loop: asyncio.AbstractEventLoop = None
     outbox: asyncio.Queue = None
 
-    children: List['Stream'] = None
+    children: List[StreamT] = None
 
-    _consumers: MutableMapping[Topic, Consumer] = None
+    _consumers: MutableMapping[Topic, ConsumerT] = None
     _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
     _coros: MutableMapping[Topic, CoroCallback] = None
 
@@ -118,7 +119,7 @@ class Stream(Service):
                  topics: Sequence[Topic] = None,
                  callbacks: MutableMapping[Topic, Sequence[Callable]] = None,
                  coros: MutableMapping[Topic, CoroCallback] = None,
-                 children: List['Stream'] = None,
+                 children: List[StreamT] = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
@@ -132,7 +133,7 @@ class Stream(Service):
         self.children = children if children is not None else []
         super().__init__(loop=loop)
 
-    def bind(self, app: AppT) -> 'Stream':
+    def bind(self, app: AppT) -> StreamT:
         """Create a new clone of this stream that is bound to an app."""
         stream = self.clone(name=app.new_stream_name(), app=app)
         app.add_source(stream)
@@ -148,15 +149,16 @@ class Stream(Service):
             'children': self.children,
         }
 
-    def clone(self, **kwargs) -> 'Stream':
+    def clone(self, **kwargs) -> StreamT:
         return self.__class__(**{**self.info(), **kwargs})
 
-    def combine(self, *nodes: 'Stream', **kwargs):
-        all_nodes = (self,) + nodes
+    def combine(self, *nodes: StreamT, **kwargs):
+        all_nodes = cast(Tuple[StreamT, ...], (self,)) + nodes
         topics: List[Topic] = []
         callbacks: Dict[Topic, Sequence[Callable]] = {}
         coros: Dict[Topic, CoroCallback] = {}
         for node in all_nodes:
+            node = cast(Stream, node)
             topics.extend(node.topics)
             callbacks.update(node._callbacks)
             coros.update(node._coros)
@@ -167,19 +169,19 @@ class Stream(Service):
             children=self.children + list(nodes),
         )
 
-    def join(self, *fields: FieldDescriptor) -> 'Stream':
+    def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(join.RightJoin(stream=self, fields=fields))
 
-    def left_join(self, *fields: FieldDescriptor) -> 'Stream':
+    def left_join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(join.LeftJoin(stream=self, fields=fields))
 
-    def inner_join(self, *fields: FieldDescriptor) -> 'Stream':
+    def inner_join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(join.InnerJoin(stream=self, fields=fields))
 
-    def outer_join(self, *fields: FieldDescriptor) -> 'Stream':
+    def outer_join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(join.OuterJoin(stream=self, fields=fields))
 
-    def _join(self, join_strategy: join.Join) -> 'Stream':
+    def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:
@@ -212,7 +214,7 @@ class Stream(Service):
 
     async def _subscribe(self, topic: Topic) -> None:
         if topic not in self._consumers:
-            c = self._consumers[topic] = self.create_consumer_for_topic(topic)
+            c = self._consumers[topic] = self._create_consumer_for_topic(topic)
             await c.start()
 
     async def unsubscribe(self, topic: Topic) -> None:
@@ -252,7 +254,7 @@ class Stream(Service):
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    def create_consumer_for_topic(self, topic: Topic) -> Consumer:
+    def _create_consumer_for_topic(self, topic: Topic) -> ConsumerT:
         return self.app.transport.create_consumer(
             topic=topic,
             callback=self.on_message,
@@ -260,10 +262,10 @@ class Stream(Service):
             on_value_decode_error=self.on_value_decode_error,
         )
 
-    def __and__(self, other: 'Stream') -> 'Stream':
+    def __and__(self, other: StreamT) -> StreamT:
         return self.combine(self, other)
 
-    def __copy__(self) -> 'Stream':
+    def __copy__(self) -> StreamT:
         return self.clone()
 
 
@@ -272,7 +274,7 @@ class AsyncIterableStream(Stream, AsyncIterable):
     def on_init(self) -> None:
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
 
-    async def __aiter__(self) -> 'Stream':
+    async def __aiter__(self) -> 'AsyncIterableStream':
         await self.maybe_start()
         return self
 

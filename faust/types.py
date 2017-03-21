@@ -1,18 +1,11 @@
 """Abstract types for static typing."""
 import abc
 import asyncio
-import typing
 from typing import (
-    Any, Awaitable, Callable, Generator,
-    NamedTuple, Pattern, Sequence, Type, Union,
+    Any, Awaitable, Callable, Generator, List, Mapping,
+    MutableMapping, MutableSequence,
+    NamedTuple, Optional, Pattern, Sequence, Tuple, Type, Union,
 )
-
-if typing.TYPE_CHECKING:
-    from .streams import Stream
-    from .transport.base import Transport
-else:
-    class Stream: ...     # noqa
-    class Transport: ...  # noqa
 
 __all__ = [
     'K', 'V', 'SerializerT', 'SerializerArg',
@@ -102,7 +95,7 @@ class ServiceT(metaclass=abc.ABCMeta):
     """
 
     shutdown_timeout: float
-    loop: asyncio.AbstractEventLoop
+    loop: asyncio.AbstractEventLoop = None
 
     @abc.abstractmethod
     async def __aenter__(self) -> 'ServiceT':
@@ -150,6 +143,110 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
+class EventT(metaclass=abc.ABCMeta):
+
+    req: Request
+
+    @abc.abstractmethod
+    @classmethod
+    def loads(cls, s: Any,
+              *,
+              default_serializer: SerializerArg = None,
+              **kwargs) -> 'EventT':
+        ...
+
+    @abc.abstractmethod
+    @classmethod
+    def from_message(cls, key: K, message: Message,
+                     *,
+                     default_serializer: SerializerArg = None) -> 'EventT':
+        ...
+
+    @abc.abstractmethod
+    def dumps(self) -> Any:
+        ...
+
+
+class FieldDescriptorT(metaclass=abc.ABCMeta):
+    field: str
+    type: Type
+    event: Type
+    required: bool = True
+    default: Any = None  # noqa: E704
+
+
+class EventRefT(metaclass=abc.ABCMeta):
+    offset: int
+
+
+class ConsumerT(ServiceT):
+
+    id: int
+    topic: Topic
+    transport: 'TransportT'
+    commit_interval: float
+
+    @abc.abstractmethod
+    async def _commit(self, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def register_timers(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_message(self, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    def to_KV(self, message: Message) -> Tuple[K, V]:
+        ...
+
+    @abc.abstractmethod
+    def track_event(self, event: EventT, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_event_ready(self, ref: EventRefT) -> None:
+        ...
+
+
+class ProducerT(ServiceT):
+    transport: 'TransportT'
+
+    @abc.abstractmethod
+    async def send(
+            self,
+            topic: str,
+            key: Optional[bytes],
+            value: bytes) -> Awaitable:
+        ...
+
+    @abc.abstractmethod
+    async def send_and_wait(
+            self,
+            topic: str,
+            key: Optional[bytes],
+            value: bytes) -> Awaitable:
+        ...
+
+
+class TransportT(metaclass=abc.ABCMeta):
+    Consumer: Type
+    Producer: Type
+
+    app: 'AppT'
+    url: str
+    loop: asyncio.AbstractEventLoop
+
+    def create_consumer(self, topic: Topic, callback: ConsumerCallback,
+                        **kwargs) -> ConsumerT:
+        ...
+
+    def create_producer(self, **kwargs) -> ProducerT:
+        ...
+
+
 class AppT(ServiceT):
     """Abstract type for the Faust application.
 
@@ -165,10 +262,9 @@ class AppT(ServiceT):
     value_serializer: SerializerArg
     num_standby_replicas: int
     replication_factor: int
-    loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod
-    def add_stream(self, stream: Stream) -> Stream:
+    def add_stream(self, stream: 'StreamT') -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -176,7 +272,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_source(self, stream: Stream) -> None:
+    def add_source(self, stream: 'StreamT') -> None:
         ...
 
     @abc.abstractmethod
@@ -185,5 +281,91 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def transport(self) -> Transport:
+    def transport(self) -> TransportT:
+        ...
+
+
+class StreamT(ServiceT):
+
+    app: AppT
+    topics: MutableSequence[Topic]
+    name: str
+    outbox: asyncio.Queue
+
+    children: List['StreamT']
+
+    @abc.abstractmethod
+    def bind(self, app: AppT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def info(self) -> Mapping[str, Any]:
+        ...
+
+    @abc.abstractmethod
+    def clone(self, **kwargs) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def combine(self, *nodes: 'StreamT', **kwargs):
+        ...
+
+    @abc.abstractmethod
+    def join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def left_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def inner_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def outer_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    async def on_message(self, topic: Topic, key: K, value: V) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def process(self, key: K, value: V) -> V:
+        ...
+
+    @abc.abstractmethod
+    async def subscribe(self, topic: Topic,
+                        *,
+                        callbacks: Sequence[Callable] = None,
+                        coro: Callable = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def unsubscribe(self, topic: Topic) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_key_decode_error(self, exc: Exception, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_value_decode_error(self, exc: Exception, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    def __and__(self, other: 'StreamT') -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def __copy__(self) -> 'StreamT':
+        ...
+
+
+class JoinT(metaclass=abc.ABCMeta):
+    fields: MutableMapping[Type, FieldDescriptorT]
+    stream: StreamT
+
+    @abc.abstractmethod
+    def __call__(self, event: EventT) -> Optional[EventT]:
         ...

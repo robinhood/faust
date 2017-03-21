@@ -3,12 +3,11 @@ import asyncio
 import weakref
 from itertools import count
 from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
-from ..event import Event
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
-    AppT, ConsumerCallback,
+    AppT, ConsumerCallback, ConsumerT, EventT, EventRefT,
     K, KeyDecodeErrorCallback, V, ValueDecodeErrorCallback,
-    Message, Topic,
+    Message, ProducerT, Topic, TransportT,
 )
 from ..utils.serialization import loads
 from ..utils.service import Service
@@ -43,7 +42,7 @@ __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
 #     faust/transport/aiokafka.py
 
 
-class EventRef(weakref.ref):
+class EventRef(weakref.ref, EventRefT):
     """Weak-reference to :class:`Event`.
 
     Remembers the offset of the event, even after event out of scope.
@@ -51,30 +50,24 @@ class EventRef(weakref.ref):
 
     # Used for tracking when events go out of scope.
 
-    def __init__(self, event: Event,
+    def __init__(self, event: EventT,
                  callback: Callable = None,
                  offset: int = None) -> None:
         super().__init__(event, callback)
         self.offset = offset
 
 
-class Consumer(Service):
-    """Abstract Consumer."""
-
-    id: int
-    topic: Topic
-    transport: 'Transport'
-
-    commit_interval: float
+class Consumer(ConsumerT, Service):
+    """Base Consumer."""
 
     #: This counter generates new consumer ids.
     _consumer_ids = count(0)
 
-    _dirty_events: List[EventRef] = None
+    _dirty_events: List[EventRefT] = None
     _acked: List[int] = None
     _current_offset: int = None
 
-    def __init__(self, transport: 'Transport',
+    def __init__(self, transport: TransportT,
                  *,
                  topic: Topic = None,
                  callback: ConsumerCallback = None,
@@ -100,8 +93,8 @@ class Consumer(Service):
         self._acked = []
         super().__init__(loop=self.transport.loop)
 
-    async def _commit(self, offset: int) -> None:
-        raise NotImplementedError()
+    async def register_timers(self) -> None:
+        asyncio.ensure_future(self._commit_handler(), loop=self.loop)
 
     async def on_message(self, message: Message) -> None:
         try:
@@ -132,17 +125,14 @@ class Consumer(Service):
             raise ValueDecodeError(exc)
         return k, cast(V, v)
 
-    def track_event(self, event: Event, offset: int) -> None:
+    def track_event(self, event: EventT, offset: int) -> None:
         self._dirty_events.append(
             EventRef(event, self.on_event_ready, offset=offset))
 
-    def on_event_ready(self, ref: EventRef) -> None:
+    def on_event_ready(self, ref: EventRefT) -> None:
         print('ACKED MESSAGE %r' % (ref.offset,))
         self._acked.append(ref.offset)
         self._acked.sort()
-
-    async def register_timers(self) -> None:
-        asyncio.ensure_future(self._commit_handler(), loop=self.loop)
 
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)
@@ -173,12 +163,10 @@ class Consumer(Service):
         return offset
 
 
-class Producer(Service):
-    """Abstract Producer."""
+class Producer(ProducerT, Service):
+    """Base Producer."""
 
-    transport: 'Transport'
-
-    def __init__(self, transport: 'Transport') -> None:
+    def __init__(self, transport: TransportT) -> None:
         self.transport = transport
         super().__init__(loop=self.transport.loop)
 
@@ -197,12 +185,7 @@ class Producer(Service):
         raise NotImplementedError()
 
 
-# We make aliases here, as mypy is confused by the class variables below.
-_ProducerT = Producer
-_ConsumerT = Consumer
-
-
-class Transport:
+class Transport(TransportT):
     """Message transport implementation."""
 
     #: Consumer subclass used for this transport.
@@ -221,9 +204,9 @@ class Transport:
         self.loop = loop
 
     def create_consumer(self, topic: Topic, callback: ConsumerCallback,
-                        **kwargs) -> _ConsumerT:
-        return cast(_ConsumerT, self.Consumer(
+                        **kwargs) -> ConsumerT:
+        return cast(ConsumerT, self.Consumer(
             self, topic=topic, callback=callback, **kwargs))
 
-    def create_producer(self, **kwargs) -> _ProducerT:
-        return cast(_ProducerT, self.Producer(self, **kwargs))
+    def create_producer(self, **kwargs) -> ProducerT:
+        return cast(ProducerT, self.Producer(self, **kwargs))

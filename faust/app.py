@@ -9,10 +9,10 @@ from typing import (
 from itertools import count
 from . import constants
 from . import transport
-from .event import Event
 from .streams import Stream
-from .transport.base import Producer, Transport
-from .types import AppT, K, SerializerArg, Topic
+from .types import (
+    AppT, EventT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT,
+)
 from .utils.log import get_logger
 from .utils.serialization import dumps
 from .utils.service import Service
@@ -57,16 +57,16 @@ class App(AppT, Service):
     _index: Iterator[int] = count(0)
 
     #: Mapping of active streams by name.
-    _streams: MutableMapping[str, Stream]
+    _streams: MutableMapping[str, StreamT]
 
     #: Default producer instance.
-    _producer: Producer = None
+    _producer: ProducerT = None
 
     #: Set when producer is started.
     _producer_started: bool = False
 
     #: Transport is created on demand: use `.transport`.
-    _transport: Transport = None
+    _transport: TransportT = None
 
     def __init__(self, id: str,
                  *,
@@ -90,7 +90,7 @@ class App(AppT, Service):
         self._streams = OrderedDict()
 
     async def send(
-            self, topic: Union[Topic, str], key: K, event: Event,
+            self, topic: Union[Topic, str], key: K, event: EventT,
             *,
             wait: bool = True,
             key_serializer: SerializerArg = None) -> Awaitable:
@@ -133,7 +133,7 @@ class App(AppT, Service):
             topic, key, value,
         )
 
-    def add_stream(self, stream: Stream) -> Stream:
+    def add_stream(self, stream: StreamT) -> StreamT:
         """Instantiate stream to be run within the context of this app.
 
         Returns:
@@ -152,7 +152,7 @@ class App(AppT, Service):
         """
         return asyncio.ensure_future(task, loop=self.loop)
 
-    def stream(self, topic: Topic, **kwargs) -> Stream:
+    def stream(self, topic: Topic, **kwargs) -> StreamT:
         """Create new stream from topic.
 
         Returns:
@@ -173,7 +173,7 @@ class App(AppT, Service):
         if self._producer:
             await self._producer.stop()
 
-    def add_source(self, stream: Stream) -> None:
+    def add_source(self, stream: StreamT) -> None:
         """Register existing stream."""
         assert stream.name
         if stream.name in self._streams:
@@ -188,20 +188,20 @@ class App(AppT, Service):
     def _new_name(self, prefix: str) -> str:
         return '{0}{1:010d}'.format(prefix, next(self._index))
 
-    def _new_producer(self) -> Producer:
+    def _new_producer(self) -> ProducerT:
         return self.transport.create_producer()
 
-    def _create_transport(self) -> Transport:
+    def _create_transport(self) -> TransportT:
         return transport.from_url(self.url, self, loop=self.loop)
 
     @property
-    def producer(self) -> Producer:
+    def producer(self) -> ProducerT:
         if self._producer is None:
             self._producer = self._new_producer()
         return self._producer
 
     @property
-    def transport(self) -> Transport:
+    def transport(self) -> TransportT:
         if self._transport is None:
             self._transport = self._create_transport()
         return self._transport

@@ -1,6 +1,6 @@
 """Events: Describing how messages are serialized/deserialized."""
 from typing import Any, Dict, FrozenSet, Iterable, Mapping, Tuple, Type, cast
-from .types import K, Message, Request, SerializerArg
+from .types import EventT, FieldDescriptorT, K, Message, Request, SerializerArg
 from .utils.objects import iter_mro_reversed
 from .utils.serialization import dumps, loads
 
@@ -11,8 +11,7 @@ __flake8_ignore_this_Dict: Dict  # XXX
 
 # NOTES:
 # - Events are described in the same notation as named tuples in Python 3.6.
-#   To accomplish this ``__init_subclass__`` defined in :pep:`487` is used,
-#   which means it does not use a custom metaclass.
+#   To accomplish this ``__init_subclass__`` defined in :pep:`487` is used.
 #
 # - Sometimes field descriptions are passed around as arguments to functions,
 #   for example when joining a stream together, we need to specify the fields
@@ -53,7 +52,7 @@ __flake8_ignore_this_Dict: Dict  # XXX
 #       42
 
 
-class Event:
+class Event(EventT):
     """Describes how messages in a topic is serialized.
 
     Examples:
@@ -224,7 +223,7 @@ def _kvrepr(d: Mapping[str, Any],
     )
 
 
-class FieldDescriptor:
+class FieldDescriptor(FieldDescriptorT):
     """Describes a field.
 
     Used for every field in Event so that they can be used in join's
@@ -250,6 +249,8 @@ class FieldDescriptor:
 
     field: str
     type: Type
+    event: Type
+    required: bool = True
     default: Any = None  # noqa: E704
 
     def __init__(self,

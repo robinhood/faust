@@ -2,7 +2,7 @@
 import importlib
 import sys
 import warnings
-from typing import Any, Iterable, Mapping, Tuple
+from typing import Any, Iterable, Mapping, Tuple, Type
 
 # - these are taken from kombu.utils.imports
 
@@ -92,7 +92,7 @@ def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
         yield ep.name, ':'.join([ep.module_name, ep.attrs[0]])
 
 
-def load_extension_classes(namespace: str) -> Iterable[Tuple[str, type]]:
+def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
     for name, class_name in load_extension_class_names(namespace):
         try:
             cls = symbol_by_name(class_name)
