@@ -265,8 +265,11 @@ class FieldDescriptor:
         self.default = default
 
     def __get__(self, instance: Any, owner: Type) -> Any:
+        # class attribute accessed
         if instance is None:
             return self
+
+        # instance attribute accessed
         try:
             return instance.__dict__[self.field]
         except KeyError:
