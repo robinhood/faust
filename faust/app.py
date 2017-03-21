@@ -1,3 +1,4 @@
+"""Applications."""
 import asyncio
 import faust
 from collections import OrderedDict
@@ -159,13 +160,13 @@ class App(AppT, Service):
         return self.add_stream(Stream(topics=[topic], **kwargs))
 
     async def on_start(self) -> None:
-        for _stream in self._streams.values():
+        for _stream in self._streams.values():  # start all streams
             await _stream.start()
 
     async def on_stop(self) -> None:
-        for _stream in self._streams.values():
+        for _stream in reversed(self._streams.values()):  # stop all streams
             await _stream.stop()
-        if self._producer:
+        if self._producer:  # stop producer
             await self._producer.stop()
 
     def add_source(self, stream: Stream) -> None:
