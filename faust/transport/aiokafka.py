@@ -13,7 +13,7 @@ class Consumer(base.Consumer):
         self._consumer = aiokafka.AIOKafkaConsumer(
             *self.topic.topics or (),
             loop=self.loop,
-            client_id=self.client_id,
+            client_id=self.transport.app.client_id,
             group_id=self.transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
         )
@@ -46,6 +46,7 @@ class Producer(base.Producer):
         self._producer = aiokafka.AIOKafkaProducer(
             loop=self.loop,
             bootstrap_servers=transport.bootstrap_servers,
+            client_id=self.transport.app.client_id,
         )
 
     async def on_start(self) -> None:

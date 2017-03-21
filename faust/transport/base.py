@@ -13,8 +13,6 @@ from ..types import (
 from ..utils.serialization import loads
 from ..utils.service import Service
 
-CLIENT_ID = 'faust-{0}'.format(faust.__version__)
-
 
 class EventRef(weakref.ref):
 
@@ -28,7 +26,6 @@ class EventRef(weakref.ref):
 class Consumer(Service):
     id: int
     topic: Topic
-    client_id = CLIENT_ID
     transport: 'Transport'
 
     commit_interval = 30.0
@@ -134,7 +131,6 @@ class Consumer(Service):
 
 
 class Producer(Service):
-    client_id = CLIENT_ID
     transport: 'Transport'
 
     def __init__(self, transport: 'Transport') -> None:

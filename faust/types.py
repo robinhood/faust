@@ -129,6 +129,7 @@ class ServiceT(metaclass=abc.ABCMeta):
 class AppT(ServiceT):
     id: str
     url: str
+    client_id: str
     loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod

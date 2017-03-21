@@ -1,4 +1,5 @@
 import asyncio
+import faust
 from collections import OrderedDict
 from typing import (
     Any, Awaitable, Generator, Iterator, MutableMapping, Union,
@@ -18,6 +19,7 @@ from .utils.service import Service
 
 __foobar: Any   # flake8 thinks Any is unused for some reason
 
+CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 DEFAULT_URL = 'aiokafka://localhost:9092'
 
 logger = get_logger(__name__)
@@ -35,6 +37,7 @@ class App(AppT, Service):
 
     id: str
     url: str
+    client_id: str
     loop: asyncio.AbstractEventLoop
 
     #: Used for generating new topic names.
@@ -55,9 +58,11 @@ class App(AppT, Service):
     def __init__(self, id: str,
                  *,
                  url: str = 'aiokafka://localhost:9092',
+                 client_id: str = CLIENT_ID,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
+        self.client_id = client_id
         self.url = url
         if self.url is None:
             raise ImproperlyConfigured('URL must be specified!')
