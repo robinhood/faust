@@ -29,9 +29,24 @@ logger = get_logger(__name__)
 class App(AppT, Service):
     """Faust Application.
 
+    Arguments:
+        id (str): Application ID.
+
     Keyword Arguments:
         url (str):
-            Transport URL, for example: ``"aiokafka://localhost:9092"``.
+            Transport URL.  Default: ``"aiokafka://localhost:9092"``.
+        client_id (str):  Client id used for producer/consumer.
+        commit_interval (float): How often we commit offset when automatic
+            commit is enabled.  Default ``30.0``.
+        key_serializer (SerializerArg): Default serializer for Topics
+            that do not have an explicit serializer set.
+            Default: :const:`None`.
+        value_serializer (SerializerArg): Default serializer for event types
+            that do not have an explicit serializer set.  Default: ``"json"``.
+        num_standby_replicas (int): The number of standby replicas for each
+            task.  Default: ``0``.
+        replication_factor (int): The replication factor for changelog topics
+            and repartition topics created by the application.  Default: ``1``.
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
@@ -58,8 +73,8 @@ class App(AppT, Service):
                  commit_interval: float = COMMIT_INTERVAL,
                  key_serializer: SerializerArg = None,
                  value_serializer: SerializerArg = 'json',
-                 num_standby_replicas: int = None,
-                 replication_factor: int = None,
+                 num_standby_replicas: int = 0,
+                 replication_factor: int = 1,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
