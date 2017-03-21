@@ -7,7 +7,7 @@ from typing import (
     Mapping, MutableMapping, MutableSequence, Pattern,
     Sequence, Tuple, Type, Union, cast
 )
-from . import join
+from . import joins
 from .types import (
     AppT, ConsumerT, FieldDescriptorT, JoinT, K, V,
     Message, SerializerArg, StreamT, Topic,
@@ -165,16 +165,16 @@ class Stream(StreamT, Service):
         )
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
-        return self._join(join.RightJoin(stream=self, fields=fields))
+        return self._join(joins.RightJoin(stream=self, fields=fields))
 
     def left_join(self, *fields: FieldDescriptorT) -> StreamT:
-        return self._join(join.LeftJoin(stream=self, fields=fields))
+        return self._join(joins.LeftJoin(stream=self, fields=fields))
 
     def inner_join(self, *fields: FieldDescriptorT) -> StreamT:
-        return self._join(join.InnerJoin(stream=self, fields=fields))
+        return self._join(joins.InnerJoin(stream=self, fields=fields))
 
     def outer_join(self, *fields: FieldDescriptorT) -> StreamT:
-        return self._join(join.OuterJoin(stream=self, fields=fields))
+        return self._join(joins.OuterJoin(stream=self, fields=fields))
 
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
