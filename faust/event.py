@@ -1,72 +1,4 @@
-"""Event: Describing how messages are serialized/deserialized.
-
-Classes defined in this module
-
-- :class:`Event`
-
-    Events are described in the same notation as named tuples in Python 3.6:
-
-    .. code-block:: python
-
-        class Point(Event):
-            x: int
-            y: int
-
-    To accomplish this ``__init_subclass__`` defined in :pep:`487` is used,
-    and this also means it does not use a custom metaclass.
-
-- :class:`FieldDescriptor`
-
-    Sometimes field descriptions are passed around as arguments to functions,
-    for example when joining a stream together we need to specify the fields
-    to use as the basis for the join.
-
-    When accessed on the Event class, the attributes are actually field
-    descriptors that return information about the field:
-
-    .. code-block: python
-
-        >>> Point.x
-        <FieldDescriptor: Point.x: int>
-
-    This field descriptor holds information about the name of the field, the
-    value type of the field, and also what Event subclass it belongs to.
-
-    FieldDescriptor is also an actual Python descriptor:  In Python object
-    attributes can override what happens when they are get/set/deleted:
-
-    .. code-block:: python
-
-        class MyDescriptor:
-
-            def __get__(self, instance, cls):
-                if instance is None:
-                    print('ACCESS ON CLASS ATTRIBUTE')
-                    return self
-                print('ACCESS ON INSTANCE')
-                return 42
-
-        class Example:
-
-            foo = MyDescriptor()
-
-    The above descriptor only overrides getting, so is executed when you access
-    the attribute:
-
-    .. code-block:: pycon
-
-        >>> Example.foo
-        ACCESS ON CLASS ATTRIBUTE
-        <__main__.MyDescriptor at 0x1049caac8>
-
-        >>> x = Example()
-        >>> x.foo
-        ACCESS ON INSTANCE
-        42
-
-    In addition to getting, ``__set__`` and ``__del__`` may also be
-    implemented by a descriptor.
-"""
+"""Events: Describing how messages are serialized/deserialized."""
 from typing import Any, Dict, FrozenSet, Iterable, Mapping, Tuple, Type, cast
 from .types import K, Message, Request, SerializerArg
 from .utils.objects import iter_mro_reversed
@@ -76,6 +8,49 @@ __all__ = ['Event', 'FieldDescriptor']
 
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
+
+# NOTES:
+# - Events are described in the same notation as named tuples in Python 3.6.
+#   To accomplish this ``__init_subclass__`` defined in :pep:`487` is used,
+#   which means it does not use a custom metaclass.
+#
+# - Sometimes field descriptions are passed around as arguments to functions,
+#   for example when joining a stream together, we need to specify the fields
+#   to use as the basis for the join.
+#
+#   When accessed on the Event class, the attributes are actually field
+#   descriptors that return information about the field:
+#       >>> Point.x
+#       <FieldDescriptor: Point.x: int>
+#
+#   This field descriptor holds information about the name of the field, the
+#   value type of the field, and also what Event subclass it belongs to.
+#
+#   FieldDescriptor is also an actual Python descriptor:  In Python object
+#   attributes can override what happens when they are get/set/deleted:
+#
+#       class MyDescriptor:
+#
+#           def __get__(self, instance, cls):
+#               if instance is None:
+#                   print('ACCESS ON CLASS ATTRIBUTE')
+#                   return self
+#               print('ACCESS ON INSTANCE')
+#               return 42
+#
+#       class Example:
+#           foo = MyDescriptor()
+#
+#   The above descriptor only overrides getting, so is executed when you access
+#   the attribute:
+#       >>> Example.foo
+#       ACCESS ON CLASS ATTRIBUTE
+#       <__main__.MyDescriptor at 0x1049caac8>
+#
+#       >>> x = Example()
+#       >>> x.foo
+#       ACCESS ON INSTANCE
+#       42
 
 
 class Event:
