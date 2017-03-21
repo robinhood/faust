@@ -36,11 +36,6 @@ class App(AppT, Service):
             Provide specific asyncio event loop instance.
     """
 
-    id: str
-    url: str
-    client_id: str
-    loop: asyncio.AbstractEventLoop
-
     #: Used for generating new topic names.
     _index: Iterator[int] = count(0)
 
@@ -61,11 +56,15 @@ class App(AppT, Service):
                  url: str = 'aiokafka://localhost:9092',
                  client_id: str = CLIENT_ID,
                  commit_interval: float = COMMIT_INTERVAL,
+                 key_serializer: SerializerArg = None,
+                 value_serializer: SerializerArg = 'json',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
         self.client_id = client_id
         self.commit_interval = commit_interval
+        self.key_serializer = key_serializer
+        self.value_serializer = value_serializer
         self.url = url
         if self.url is None:
             raise ImproperlyConfigured('URL must be specified!')

@@ -49,9 +49,11 @@ class Consumer(Service):
         self.callback = callback
         self.topic = topic
         self.type = self.topic.type
-        self._key_serializer = self.topic.key_serializer
         self.on_key_decode_error = on_key_decode_error
         self.on_value_decode_error = on_value_decode_error
+        self._key_serializer = (
+            self.topic.key_serializer or self.transport.app.key_serializer)
+        self._value_serializer = self.transport.app.value_serializer
         self.commit_interval = (
             commit_interval or self.transport.app.commit_interval)
         if self.topic.topics and self.topic.pattern:
@@ -86,7 +88,8 @@ class Consumer(Service):
                 raise KeyDecodeError(exc)
         k = cast(K, key)
         try:
-            v = self.type.from_message(k, message)  # type: ignore
+            v = self.type.from_message(  # type: ignore
+                k, message, default_serializer=self._value_serializer)
         except Exception as exc:
             raise ValueDecodeError(exc)
         return k, cast(V, v)

@@ -1,5 +1,5 @@
 from typing import Any, Dict, FrozenSet, Iterable, Mapping, Tuple, Type, cast
-from .types import K, Message, Request
+from .types import K, Message, Request, SerializerArg
 from .utils.serialization import dumps, loads
 
 __foobar: Dict  # flake8 thinks Dict is unused for some reason
@@ -21,13 +21,23 @@ class Event:
     _optionalset = FrozenSet[str]
 
     @classmethod
-    def from_message(cls, key: K, message: Message) -> 'Event':
+    def from_message(cls, key: K, message: Message,
+                     *,
+                     default_serializer: SerializerArg = None) -> 'Event':
         request = Request(key, message)
-        return cls.loads(message.value, req=request)
+        return cls.loads(
+            message.value,
+            default_serializer=default_serializer,
+            req=request,
+        )
 
     @classmethod
-    def loads(cls, s: Any, **kwargs) -> 'Event':
-        return cls(**kwargs, **loads(cls.serializer, s))  # type: ignore
+    def loads(cls, s: Any,
+              *,
+              default_serializer: SerializerArg = None,
+              **kwargs) -> 'Event':
+        return cls(**kwargs,  # type: ignore
+                   **loads(cls.serializer or default_serializer, s))
 
     def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
         super().__init_subclass__(**kwargs)  # type: ignore

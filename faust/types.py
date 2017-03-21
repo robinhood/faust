@@ -131,6 +131,8 @@ class AppT(ServiceT):
     url: str
     client_id: str
     commit_interval: float
+    key_serializer: SerializerArg
+    value_serializer: SerializerArg
     loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod
