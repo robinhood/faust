@@ -3,7 +3,7 @@ import re
 from collections import OrderedDict
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Dict, List, Mapping,
-    MutableMapping, MutableSequence, Pattern, Sequence, Union, cast
+    MutableMapping, MutableSequence, Pattern, Sequence, Type, Union, cast
 )
 from .transport.base import Consumer
 from .types import AppT, K, V, Message, SerializerArg, Topic
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 def topic(*topics: str,
           pattern: Union[str, Pattern] = None,
-          type: type = None,
+          type: Type = None,
           key_serializer: SerializerArg = None) -> Topic:
     if isinstance(pattern, str):
         pattern = re.compile(pattern)

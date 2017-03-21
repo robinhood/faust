@@ -2,7 +2,7 @@
 import asyncio
 import weakref
 from itertools import count
-from typing import Awaitable, Callable, Optional, List, Tuple, cast
+from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
 from ..event import Event
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
@@ -206,10 +206,10 @@ class Transport:
     """Message transport implementation."""
 
     #: Consumer subclass used for this transport.
-    Consumer: type
+    Consumer: Type
 
     #: Producer subclass used for this transport.
-    Producer: type
+    Producer: Type
 
     url: str
     loop: asyncio.AbstractEventLoop

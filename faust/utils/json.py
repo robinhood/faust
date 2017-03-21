@@ -3,7 +3,7 @@ import datetime
 import math
 import uuid
 from decimal import Decimal
-from typing import Any, Optional, cast
+from typing import Any, Optional, Type, cast
 
 DEFAULT_TEXTUAL_TYPES = [Decimal, uuid.UUID]
 
@@ -83,7 +83,7 @@ class JSONEncoder(json.JSONEncoder):
             return super(JSONEncoder, self).default(o)
 
 
-def dumps(obj: Any, cls: type = JSONEncoder, **kwargs) -> str:
+def dumps(obj: Any, cls: Type = JSONEncoder, **kwargs) -> str:
     """Serialize to json.  See :func:`json.dumps`."""
     return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 

@@ -1,5 +1,6 @@
+"""Message transport using :pypi:`aiokafka`."""
 import aiokafka
-from typing import Awaitable, Optional, cast
+from typing import Awaitable, Optional, Type, cast
 from ..types import Message
 from ..utils.objects import cached_property
 from . import base
@@ -13,8 +14,8 @@ class Consumer(base.Consumer):
         self._consumer = aiokafka.AIOKafkaConsumer(
             *self.topic.topics or (),
             loop=self.loop,
-            client_id=self.transport.app.client_id,
-            group_id=self.transport.app.id,
+            client_id=transport.app.client_id,
+            group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
         )
 
@@ -46,7 +47,7 @@ class Producer(base.Producer):
         self._producer = aiokafka.AIOKafkaProducer(
             loop=self.loop,
             bootstrap_servers=transport.bootstrap_servers,
-            client_id=self.transport.app.client_id,
+            client_id=transport.app.client_id,
         )
 
     async def on_start(self) -> None:
@@ -71,8 +72,8 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
-    Consumer: type = Consumer
-    Producer: type = Producer
+    Consumer: Type = Consumer
+    Producer: Type = Producer
 
     @cached_property
     def bootstrap_servers(self):

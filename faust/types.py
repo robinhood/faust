@@ -3,7 +3,8 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Awaitable, Callable, Generator, NamedTuple, Pattern, Sequence, Union,
+    Any, Awaitable, Callable, Generator,
+    NamedTuple, Pattern, Sequence, Type, Union,
 )
 
 if typing.TYPE_CHECKING:
@@ -58,7 +59,7 @@ SerializerArg = Union[SerializerT, str]
 class Topic(NamedTuple):
     topics: Sequence[str]
     pattern: Pattern
-    type: type
+    type: Type
     key_serializer: SerializerArg
 
 
