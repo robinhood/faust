@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.joins``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.joins
 
-.. automodule:: faust
+.. automodule:: faust.joins
     :members:
     :undoc-members:

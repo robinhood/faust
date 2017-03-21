@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.utils.log``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.utils.log
 
-.. automodule:: faust
+.. automodule:: faust.utils.log
     :members:
     :undoc-members:

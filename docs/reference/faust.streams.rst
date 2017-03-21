@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.streams``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.streams
 
-.. automodule:: faust
+.. automodule:: faust.streams
     :members:
     :undoc-members:

@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.constants``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.constants
 
-.. automodule:: faust
+.. automodule:: faust.constants
     :members:
     :undoc-members:

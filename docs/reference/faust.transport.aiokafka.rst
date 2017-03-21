@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.transport.aiokafka``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.transport.aiokafka
 
-.. automodule:: faust
+.. automodule:: faust.transport.aiokafka
     :members:
     :undoc-members:

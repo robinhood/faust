@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.exceptions``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.exceptions
 
-.. automodule:: faust
+.. automodule:: faust.exceptions
     :members:
     :undoc-members:

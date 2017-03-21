@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.transport``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.transport
 
-.. automodule:: faust
+.. automodule:: faust.transport
     :members:
     :undoc-members:

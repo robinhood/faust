@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.app``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.app
 
-.. automodule:: faust
+.. automodule:: faust.app
     :members:
     :undoc-members:

@@ -1,11 +1,11 @@
 =====================================================
- ``faust``
+ ``faust.utils.coroutines``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust
+.. currentmodule:: faust.utils.coroutines
 
-.. automodule:: faust
+.. automodule:: faust.utils.coroutines
     :members:
     :undoc-members:
