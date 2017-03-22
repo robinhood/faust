@@ -2,7 +2,7 @@ import asyncio
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Coroutine, Generator,
 )
-from ..types import CoroCallbackT, InputStreamT, V
+from ..types import CoroCallbackT, EventT, InputStreamT
 
 
 class InputStream(InputStreamT):
@@ -11,7 +11,7 @@ class InputStream(InputStreamT):
         self.loop = loop
         self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
 
-    async def put(self, value: V) -> None:
+    async def put(self, value: EventT) -> None:
         await self.queue.put(value)
 
     async def next(self) -> Any:
@@ -56,7 +56,7 @@ class CoroCallback(CoroCallbackT):
         self.inbox = inbox
         self.loop = loop
 
-    async def send(self, value: V, callback: Callable) -> None:
+    async def send(self, value: EventT, callback: Callable) -> None:
         await self.inbox.put(value)
         asyncio.ensure_future(self.drain(callback), loop=self.loop)
 

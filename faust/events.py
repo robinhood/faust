@@ -240,9 +240,9 @@ class Event(EventT):
         self.req = req
 
     def derive(self, *events: EventT, **fields) -> EventT:
-        data = self._asdict()
+        data = cast(Dict, self._asdict())
         for event in events:
-            data.update(event._asdict())
+            data.update(cast(Event, event)._asdict())
         return type(self)(req=self.req, **{**data, **fields})
 
     async def forward(self, topic: Union[str, Topic]) -> None:

@@ -23,7 +23,7 @@ __all__ = ['App']
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
 DEFAULT_URL = 'kafka://localhost:9092'
-DEFAULT_STREAM_CLS = 'faust.streams:AsyncIterableStream'
+DEFAULT_STREAM_CLS = 'faust.Stream'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
 
@@ -168,7 +168,7 @@ class App(AppT, Service):
                 this stream.
 
         Returns:
-            faust.streams.AsyncIterableStream:
+            faust.Stream:
                 to iterate over events in the stream.
         """
         return cast(StreamT, self.Stream).from_topic(

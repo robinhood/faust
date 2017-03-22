@@ -29,7 +29,7 @@ async def combine_withdrawals(it):
 
 async def find_large_withdrawals(app):
     withdrawals = app.stream(topic, combine_withdrawals)
-    async for withdrawal in withdrawals.through('foo'):
+    async for withdrawal in await withdrawals.through('foo'):
         print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))

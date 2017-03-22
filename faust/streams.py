@@ -10,14 +10,14 @@ from typing import (
 from . import joins
 from . import primitives
 from .types import (
-    AppT, ConsumerT, CoroCallbackT, EventT, FieldDescriptorT, JoinT, K, V,
+    AppT, ConsumerT, CoroCallbackT, EventT, FieldDescriptorT, JoinT, K,
     Message, SerializerArg, StreamT, Topic,
 )
 from .utils.coroutines import wrap_callback
 from .utils.log import get_logger
 from .utils.service import Service
 
-__all__ = ['AsyncIterableStream', 'Stream', 'topic']
+__all__ = ['Stream', 'topic']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_Dict: Dict
@@ -170,6 +170,7 @@ class Stream(StreamT, Service):
         self._coroutines = coroutines or {}
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
+        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> StreamT:
@@ -208,8 +209,8 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
-    def through(self, topic: Union[str, Topic]) -> Iterable[EventT]:
-        return primitives.through(self, topic)
+    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[EventT]:
+        return await primitives.through(self, topic)
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -226,7 +227,7 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    async def on_message(self, topic: Topic, key: K, value: V) -> None:
+    async def on_message(self, topic: Topic, key: K, value: EventT) -> None:
         processors = self._processors.get(topic)
         value = await self.process(key, value)
         if processors is not None:
@@ -240,10 +241,10 @@ class Stream(StreamT, Service):
         if coroutine is not None:
             await coroutine.send(value, self.on_done)
 
-    async def process(self, key: K, value: V) -> V:
+    async def process(self, key: K, value: EventT) -> EventT:
         return value
 
-    async def on_done(self, value: V = None) -> None:
+    async def on_done(self, value: EventT = None) -> None:
         join_strategy = self.join_strategy
         if join_strategy:
             value = await join_strategy.process(value)
@@ -320,15 +321,15 @@ class Stream(StreamT, Service):
     def __copy__(self) -> StreamT:
         return self.clone()
 
+    def __iter__(self) -> Any:
+        return self
 
-class AsyncIterableStream(Stream, AsyncIterable):
+    def __next__(self) -> EventT:
+        raise NotImplementedError('Stream are asynchronous use __aiter__')
 
-    def on_init(self) -> None:
-        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
-
-    async def __aiter__(self) -> 'AsyncIterableStream':
+    async def __aiter__(self) -> StreamT:
         await self.maybe_start()
         return self
 
-    async def __anext__(self) -> Awaitable:
+    async def __anext__(self) -> EventT:
         return await self.outbox.get()

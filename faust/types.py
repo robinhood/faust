@@ -77,7 +77,7 @@ class Request(NamedTuple):
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
-ConsumerCallback = Callable[[Topic, K, V], Awaitable]
+ConsumerCallback = Callable[[Topic, K, 'EventT'], Awaitable]
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message key cannot be decoded/deserialized.
@@ -203,7 +203,7 @@ class InputStreamT(Iterable, AsyncIterable):
     queue: asyncio.Queue
 
     @abc.abstractmethod
-    async def put(self, value: V) -> None:
+    async def put(self, value: EventT) -> None:
         ...
 
     @abc.abstractmethod
@@ -222,7 +222,7 @@ class CoroCallbackT:
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
-    async def send(self, value: V, callback: Callable) -> None:
+    async def send(self, value: EventT, callback: Callable) -> None:
         ...
 
     async def join(self) -> None:
@@ -256,7 +256,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def to_KV(self, message: Message) -> Tuple[K, V]:
+    def to_KV(self, message: Message) -> Tuple[K, EventT]:
         ...
 
     @abc.abstractmethod
@@ -355,7 +355,7 @@ class AppT(ServiceT):
         ...
 
 
-class StreamT(ServiceT):
+class StreamT(ServiceT, AsyncIterable, Iterable):
 
     app: AppT = None
     topics: MutableSequence[Topic] = None
@@ -403,6 +403,10 @@ class StreamT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[EventT]:
+        ...
+
+    @abc.abstractmethod
     def join(self, *fields: FieldDescriptorT) -> 'StreamT':
         ...
 
@@ -419,15 +423,15 @@ class StreamT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_message(self, topic: Topic, key: K, value: V) -> None:
+    async def on_message(self, topic: Topic, key: K, value: EventT) -> None:
         ...
 
     @abc.abstractmethod
-    async def process(self, key: K, value: V) -> V:
+    async def process(self, key: K, value: EventT) -> EventT:
         ...
 
     @abc.abstractmethod
-    async def on_done(self, value: V = None) -> None:
+    async def on_done(self, value: EventT = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -442,11 +446,13 @@ class StreamT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def on_key_decode_error(self, exc: Exception, message: Message) -> None:
+    async def on_key_decode_error(
+            self, exc: Exception, message: Message) -> None:
         ...
 
     @abc.abstractmethod
-    def on_value_decode_error(self, exc: Exception, message: Message) -> None:
+    async def on_value_decode_error(
+            self, exc: Exception, message: Message) -> None:
         ...
 
     @abc.abstractmethod
@@ -455,6 +461,22 @@ class StreamT(ServiceT):
 
     @abc.abstractmethod
     def __copy__(self) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def __iter__(self) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def __next__(self) -> EventT:
+        ...
+
+    @abc.abstractmethod
+    async def __aiter__(self) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    async def __anext__(self) -> EventT:
         ...
 
 

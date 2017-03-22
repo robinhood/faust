@@ -6,7 +6,7 @@ from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
     AppT, ConsumerCallback, ConsumerT, EventT, EventRefT,
-    K, KeyDecodeErrorCallback, V, ValueDecodeErrorCallback,
+    K, KeyDecodeErrorCallback, ValueDecodeErrorCallback,
     Message, ProducerT, Topic, TransportT,
 )
 from ..utils.serialization import loads
@@ -112,7 +112,7 @@ class Consumer(ConsumerT, Service):
         self.track_event(v, message.offset)
         await self.callback(self.topic, k, v)
 
-    def to_KV(self, message: Message) -> Tuple[K, V]:
+    def to_KV(self, message: Message) -> Tuple[K, EventT]:
         key = message.key
         if self._key_serializer:
             try:
@@ -127,7 +127,7 @@ class Consumer(ConsumerT, Service):
             )
         except Exception as exc:
             raise ValueDecodeError(exc)
-        return k, cast(V, v)
+        return k, v
 
     def track_event(self, event: EventT, offset: int) -> None:
         self._dirty_events.append(
