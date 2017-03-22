@@ -9,6 +9,7 @@ __all__ = ['TRANSPORTS', 'by_url', 'from_url']
 #: This contains a mapping of transport aliases to class path.
 TRANSPORTS: Mapping[str, str] = {
     'aiokafka': 'faust.transport.aiokafka:Transport'
+    'kafka': 'faust.transport.aiokafka:Transport',
 }
 
 

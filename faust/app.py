@@ -22,7 +22,7 @@ __all__ = ['App']
 
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
-DEFAULT_URL = 'aiokafka://localhost:9092'
+DEFAULT_URL = 'kafka://localhost:9092'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
 

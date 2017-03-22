@@ -15,7 +15,6 @@ topic = faust.topic('mytopic', type=Withdrawal)
 
 # -- Stream is coroutine
 
-@faust.stream(topic)
 async def all_withdrawals(it):
     while 1:
         eventA = await it.next()
@@ -51,14 +50,7 @@ async def all_withdrawals(it):
 #    return (await dump_event(event) async for event in it)
 
 
-async def find_large_withdrawals(withdrawals):
-    async for withdrawal in withdrawals:
-        print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
-        if withdrawal.amount > 9999.0:
-            print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
-
-
-app = faust.App('myid', url='aiokafka://localhost:9092')
+app = faust.App('myid', url='kafka://localhost:9092')
 
 
 async def produce():
@@ -73,6 +65,7 @@ async def produce():
 
 async def consume():
     withdrawals = app.add_stream(all_withdrawals)
+    withdrawals = app.stream(topic, all_withdrawals)
     app.add_task(find_large_withdrawals(withdrawals))
 
 
