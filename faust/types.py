@@ -352,7 +352,7 @@ class StreamT(ServiceT):
     @abc.abstractmethod
     async def subscribe(self, topic: Topic,
                         *,
-                        callbacks: Sequence[Callable] = None,
+                        processors: Sequence[Callable] = None,
                         coro: Callable = None) -> None:
         ...
 

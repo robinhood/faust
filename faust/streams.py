@@ -22,14 +22,71 @@ __make_flake8_happy_Dict: Dict
 logger = get_logger(__name__)
 
 # NOTES:
-#   - The stream decorator only takes one Topic, but a Stream can
-#     consume from multiple Topics internally, this is especially useful when
-#     streams are combined.
-#   - The stream decorator returns an unbound stream:
-#      - unbound means the stream is not associated with an app, and cannot
-#        actually be started yet.
-#      - `s2 = app.add_stream(s)` binds the stream to the app, this clones the
-#        instance so the original stream can be bound multiple times.
+#   - Users define an Event subclass that define how messages in a topic is
+#     serialized/deserialized.
+#
+#       class Withdrawal(Event, serializer='json'):
+#           account_id: str
+#           amount: float
+#
+#   - Users create a topic description: Topic, that describes a list of
+#     topics and the Event class used to serialize/deserialize messages:
+#
+#       # topic is a shortcut function that returns type faust.types.Topic
+#       withdrawals = faust.topic('withdrawal.ach', 'withdrawal.paypal',
+#                                 type=Withdrawal)
+#
+#   - A Stream can subscribe to multiple Topic descriptions, and it can have
+#     a chain of processors for each topic:
+#
+#        class Stream:
+#            topics: Sequence[Topic]
+#            _processors: MutableMapping[Topic, Callable]
+#
+#   - A processor can either be a regular callable, or an async callable:
+#
+#       def processor1(event: Event) -> Event:
+#           return Event.amount * 2
+#
+#       async def processor2(event: Event) -> Event:
+#           await verify_event(event)
+#           return event
+#
+#       s = Stream(
+#           topics=[withdrawals],
+#           processors={
+#               withdrawals: [processor1, processor2],
+#           },
+#       )
+#
+#   - The Stream above is currently not associated with an App, and cannot
+#     be started yet.  To do so you need to bind it to an app:
+#
+#        bound_s = s.bind(app)
+#
+#   - Users will usually not instantiate Stream directly, instead they will
+#     use the app to create streams, this will also take care of binding:
+#
+#       s = app.stream(withdrawals)
+#
+#   - In this app.stream signature you see that the stream only accepts a
+#     single Topic description
+#
+#   - The fact that a Stream can consume from multiple Topic description is
+#     an internal detail for the implementation of joins:
+#
+#      # Two streams can be combined:
+#      combined_s = (s1 & s2)
+#      # Iterating over this stream will give events from both streams:
+#      for event in combined_s:
+#          ...
+#
+#      A combined stream can also specify a join strategy that decides how
+#      events from the combined streams are joined together into a single
+#      event:
+#
+#      for event in (s1 & s2).join(Withdrawal.account_id, Account.id):
+#          ...
 
 
 def topic(*topics: str,
@@ -75,9 +132,9 @@ class stream:
         topic (Topic): Topic to subscribe to.
 
     Keyword Arguments:
-        callbacks (Sequence[Callable]): Optional list of callbacks to execute
-            when a message is used.  The callbacks will be applied in order,
-            and the return value is chained.
+        processors (Sequence[Callable]): Optional list of processor callbacks
+            to execute when a message is used.  The processors will be applied
+            in order, and the return value is chained.
         loop (asyncio.AbstractEventLoop): Custom event loop instance.
 
     Returns:
@@ -86,17 +143,17 @@ class stream:
 
     def __init__(self, topic: Topic,
                  *,
-                 callbacks: Sequence[Callable] = None,
+                 processors: Sequence[Callable] = None,
                  loop: asyncio.AbstractEventLoop = None,
                  **kwargs) -> None:
         self.topic = topic
-        self.callbacks = callbacks
+        self.processors = processors
         self.loop = loop or asyncio.get_event_loop()
 
     def __call__(self, fun: Callable) -> 'StreamT':
         return AsyncIterableStream(
             topics=[self.topic],
-            callbacks={self.topic: self.callbacks},
+            processors={self.topic: self.processors},
             coros={self.topic: wrap_callback(fun, loop=self.loop)},
             loop=self.loop,
         )
@@ -105,12 +162,12 @@ class stream:
 class Stream(StreamT, Service):
 
     _consumers: MutableMapping[Topic, ConsumerT] = None
-    _callbacks: MutableMapping[Topic, Sequence[Callable]] = None
+    _processors: MutableMapping[Topic, Sequence[Callable]] = None
     _coros: MutableMapping[Topic, CoroCallback] = None
 
     def __init__(self, name: str = None,
                  topics: Sequence[Topic] = None,
-                 callbacks: MutableMapping[Topic, Sequence[Callable]] = None,
+                 processors: MutableMapping[Topic, Sequence[Callable]] = None,
                  coros: MutableMapping[Topic, CoroCallback] = None,
                  children: List[StreamT] = None,
                  join_strategy: JoinT = None,
@@ -121,7 +178,7 @@ class Stream(StreamT, Service):
         if not isinstance(topics, MutableSequence):
             topics = list(topics)
         self.topics = cast(MutableSequence, topics)
-        self._callbacks = callbacks
+        self._processors = processors
         self._consumers = OrderedDict()
         self._coros = coros
         self.join_strategy = join_strategy
@@ -138,7 +195,7 @@ class Stream(StreamT, Service):
         return {
             'name': self.name,
             'topics': self.topics,
-            'callbacks': self._callbacks,
+            'processors': self._processors,
             'coros': self._coros,
             'loop': self.loop,
             'children': self.children,
@@ -150,16 +207,16 @@ class Stream(StreamT, Service):
     def combine(self, *nodes: StreamT, **kwargs):
         all_nodes = cast(Tuple[StreamT, ...], (self,)) + nodes
         topics: List[Topic] = []
-        callbacks: Dict[Topic, Sequence[Callable]] = {}
+        processors: Dict[Topic, Sequence[Callable]] = {}
         coros: Dict[Topic, CoroCallback] = {}
         for node in all_nodes:
             node = cast(Stream, node)
             topics.extend(node.topics)
-            callbacks.update(node._callbacks)
+            processors.update(node._processors)
             coros.update(node._coros)
         return self.clone(
             topics=topics,
-            callbacks=callbacks,
+            processors=processors,
             coros=coros,
             children=self.children + list(nodes),
         )
@@ -180,11 +237,11 @@ class Stream(StreamT, Service):
         return self.clone(join_strategy=join_strategy)
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:
-        callbacks = self._callbacks[topic]
+        processors = self._processors[topic]
         value = await self.process(key, value)
-        if callbacks is not None:
-            for callback in callbacks:
-                res = callback(value)
+        if processors is not None:
+            for processor in processors:
+                res = processor(value)
                 if isinstance(res, Awaitable):
                     value = await res
                 else:
@@ -207,11 +264,11 @@ class Stream(StreamT, Service):
 
     async def subscribe(self, topic: Topic,
                         *,
-                        callbacks: Sequence[Callable] = None,
+                        processors: Sequence[Callable] = None,
                         coro: Callable = None) -> None:
         if topic not in self.topics:
             self.topics.append(topic)
-        self._callbacks[topic] = callbacks
+        self._processors[topic] = processors
         self._coros[topic] = wrap_callback(coro, loop=self.loop)
         await self._subscribe(topic)
 
@@ -225,7 +282,7 @@ class Stream(StreamT, Service):
             self.topics.remove(topic)
         except ValueError:
             pass
-        self._callbacks.pop(topic, None)
+        self._processors.pop(topic, None)
         self._coros.pop(topic, None)
         await self._unsubscribe(topic)
 
