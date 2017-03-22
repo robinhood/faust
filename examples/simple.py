@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 logging.basicConfig(level=logging.INFO)
+from faust.primitives import through
 
 
 class Withdrawal(faust.Event, serializer='json'):
@@ -23,12 +24,12 @@ async def combine_withdrawals(it):
         except asyncio.TimeoutError:
             yield eventA
         else:
-            yield Withdrawal(amount=eventA.amount + eventB.amount)
+            yield eventA.derive(amount=eventA.amount + eventB.amount)
 
 
 async def find_large_withdrawals(app):
     withdrawals = app.stream(topic, combine_withdrawals)
-    async for withdrawal in withdrawals:
+    async for withdrawal in withdrawals.through('foo'):
         print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))

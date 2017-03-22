@@ -1,7 +1,10 @@
 """Events: Describing how messages are serialized/deserialized."""
-from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, cast
+from typing import (
+    Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, Union, cast,
+)
 from .types import (
-    EventOptions, EventT, FieldDescriptorT, K, Message, Request, SerializerArg,
+    AppT, EventOptions, EventT, FieldDescriptorT, K,
+    Message, Request, SerializerArg, Topic,
 )
 from .utils.objects import annotations
 from .utils.serialization import dumps, loads
@@ -137,7 +140,7 @@ class Event(EventT):
                    **loads(cls._options.serializer or default_serializer, s))
 
     @classmethod
-    def from_message(cls, key: K, message: Message,
+    def from_message(cls, key: K, message: Message, app: AppT,
                      *,
                      default_serializer: SerializerArg = None) -> 'Event':
         """Create event from message.
@@ -155,7 +158,7 @@ class Event(EventT):
         return cls.loads(
             message.value,
             default_serializer=default_serializer,
-            req=Request(key, message),
+            req=Request(app, key, message),
         )
 
     @classmethod
@@ -235,6 +238,15 @@ class Event(EventT):
         # Req is only set by the Consumer, when the event originates
         # from message received.
         self.req = req
+
+    def derive(self, *events: EventT, **fields) -> EventT:
+        data = self._asdict()
+        for event in events:
+            data.update(event._asdict())
+        return type(self)(req=self.req, **{**data, **fields})
+
+    async def forward(self, topic: Union[str, Topic]) -> None:
+        await self.req.app.send(topic, self.req.key, self)
 
     def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""

@@ -63,6 +63,7 @@ class Consumer(ConsumerT, Service):
     #: This counter generates new consumer ids.
     _consumer_ids = count(0)
 
+    _app: AppT
     _dirty_events: List[EventRefT] = None
     _acked: List[int] = None
     _current_offset: int = None
@@ -77,16 +78,17 @@ class Consumer(ConsumerT, Service):
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
+        self._app = self.transport.app
         self.callback = callback
         self.topic = topic
         self.type = self.topic.type
         self.on_key_decode_error = on_key_decode_error
         self.on_value_decode_error = on_value_decode_error
         self._key_serializer = (
-            self.topic.key_serializer or self.transport.app.key_serializer)
-        self._value_serializer = self.transport.app.value_serializer
+            self.topic.key_serializer or self._app.key_serializer)
+        self._value_serializer = self._app.value_serializer
         self.commit_interval = (
-            commit_interval or self.transport.app.commit_interval)
+            commit_interval or self._app.commit_interval)
         if self.topic.topics and self.topic.pattern:
             raise TypeError('Topic can specify either topics or pattern')
         self._dirty_events = []
@@ -120,7 +122,9 @@ class Consumer(ConsumerT, Service):
         k = cast(K, key)
         try:
             v = self.type.from_message(  # type: ignore
-                k, message, default_serializer=self._value_serializer)
+                k, message, self._app,
+                default_serializer=self._value_serializer,
+            )
         except Exception as exc:
             raise ValueDecodeError(exc)
         return k, cast(V, v)
@@ -193,9 +197,6 @@ class Transport(TransportT):
 
     #: Producer subclass used for this transport.
     Producer: Type
-
-    url: str
-    loop: asyncio.AbstractEventLoop
 
     def __init__(self, url: str, app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:

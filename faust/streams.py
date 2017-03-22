@@ -3,13 +3,14 @@ import asyncio
 import re
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Dict, List,
+    Any, AsyncIterable, Awaitable, Callable, Dict, Iterable, List,
     Mapping, MutableMapping, MutableSequence, Pattern,
     Sequence, Tuple, Type, Union, cast
 )
 from . import joins
+from . import primitives
 from .types import (
-    AppT, ConsumerT, CoroCallbackT, FieldDescriptorT, JoinT, K, V,
+    AppT, ConsumerT, CoroCallbackT, EventT, FieldDescriptorT, JoinT, K, V,
     Message, SerializerArg, StreamT, Topic,
 )
 from .utils.coroutines import wrap_callback
@@ -207,6 +208,9 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
+    def through(self, topic: Union[str, Topic]) -> Iterable[EventT]:
+        return primitives.through(self, topic)
+
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
 
@@ -293,10 +297,12 @@ class Stream(StreamT, Service):
         for coroutine in self._coroutines.values():
             await coroutine.join()
 
-    def on_key_decode_error(self, exc: Exception, message: Message) -> None:
+    async def on_key_decode_error(
+            self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode key: %r: %r', message.key, exc)
 
-    def on_value_decode_error(self, exc: Exception, message: Message) -> None:
+    async def on_value_decode_error(
+            self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 

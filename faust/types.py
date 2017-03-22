@@ -70,6 +70,7 @@ class Message(NamedTuple):
 
 
 class Request(NamedTuple):
+    app: 'AppT'
     key: K
     message: Message
 
@@ -175,12 +176,18 @@ class EventT:
               **kwargs) -> 'EventT':
         ...
 
-    def from_message(cls, key: K, message: Message,
+    def from_message(cls, key: K, message: Message, app: 'AppT',
                      *,
                      default_serializer: SerializerArg = None) -> 'EventT':
         ...
 
     def dumps(self) -> bytes:
+        ...
+
+    def derive(self, *events: 'EventT', **fields) -> 'EventT':
+        ...
+
+    async def forward(self, topic: Union[str, Topic]) -> None:
         ...
 
 
