@@ -1,1 +1,2 @@
 aiokafka
+avro-python3
