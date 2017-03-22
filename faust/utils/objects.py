@@ -1,7 +1,58 @@
 """Object utilities."""
-from typing import Any, Callable, Iterable, Type, cast
+from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Type, cast
 
-__all__ = ['iter_mro_reversed', 'cached_property']
+__flake8_Dict_is_used: Dict   # silence flake8 bug
+
+__all__ = [
+    'FieldMapping', 'DefaultsMapping',
+    'annotations', 'iter_mro_reversed', 'cached_property',
+]
+
+FieldMapping = Mapping[str, Type]
+DefaultsMapping = Mapping[str, Any]
+
+
+def annotations(cls: Type,
+                *,
+                stop: Type = object) -> Tuple[FieldMapping, DefaultsMapping]:
+    """Get class field definition in MRO order.
+
+    Arguments:
+        cls: Class to get field information from.
+        stop: Base class to stop at (default is ``object``).
+
+    Returns:
+        Tuple[FieldMapping, DefaultsMapping]: Tuple with two dictionaries,
+            the first containing a map of field names to their types,
+            the second containing a map of field names to their default
+            value.  If a field is not in the second map, it means the field
+            is required.
+
+    Examples:
+        >>> class Point:
+        ...    x: float
+        ...    y: float
+
+        >>> class 3DPoint(Point):
+        ...     z: float = 0.0
+
+        >>> fields, defaults = annotations(3DPoint)
+        >>> fields
+        {'x': float, 'y': float, 'z': 'float'}
+        >>> defaults
+        {'z': 0.0}
+    """
+    fields: Dict[str, Type] = {}
+    defaults: Dict[str, Any] = {}  # noqa: E704 (flake8 bug)
+    for subcls in iter_mro_reversed(cls, stop=stop):
+        defaults.update(subcls.__dict__)
+        try:
+            annotations = subcls.__annotations__  # type: ignore
+        except AttributeError:
+            pass
+        else:
+            fields.update(annotations)
+    return fields, defaults
 
 
 def iter_mro_reversed(cls: Type, stop: Type) -> Iterable[Type]:

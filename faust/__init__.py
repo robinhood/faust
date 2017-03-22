@@ -34,9 +34,9 @@ del(re)
 
 from .app import App                         # noqa: E402
 from .events import Event                    # noqa: E402
-from .streams import Stream, stream, topic   # noqa: E402
+from .streams import Stream, topic           # noqa: E402
 from .tables import Table                    # noqa: E402
 
 __all__ = [
-    'App', 'Event', 'Stream', 'Table', 'stream', 'topic',
+    'App', 'Event', 'Stream', 'Table', 'topic',
 ]

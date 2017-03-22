@@ -3,7 +3,7 @@ from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, cast
 from .types import (
     EventOptions, EventT, FieldDescriptorT, K, Message, Request, SerializerArg,
 )
-from .utils.objects import iter_mro_reversed
+from .utils.objects import annotations
 from .utils.serialization import dumps, loads
 
 __all__ = ['Event', 'FieldDescriptor']
@@ -186,9 +186,10 @@ class Event(EventT):
         # Can set serializer using:
         #    class X(Event, serializer='avro'):
         #        ...
-        custom_options = getattr(cls, '_options', object()).__dict__
+        custom_options = getattr(cls, '_options', None)
         options = EventOptions()
-        options.__dict__.update(custom_options)
+        if custom_options:
+            options.__dict__.update(custom_options.__dict__)
         if serializer is not None:
             options.serializer = serializer
         if namespace is not None:
@@ -196,24 +197,15 @@ class Event(EventT):
 
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
-        fields: Dict[str, Type] = {}
-        optional: Dict[str, Any] = {}
-        for subcls in iter_mro_reversed(cls, stop=Event):
-            optional.update(subcls.__dict__)
-            try:
-                annotations = subcls.__annotations__  # type: ignore
-            except AttributeError:
-                pass
-            else:
-                fields.update(annotations)
+        fields, defaults = annotations(cls, stop=Event)
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
-        options.optionalset = frozenset(optional)
+        options.optionalset = frozenset(defaults)
 
         # Add FieldDescriptor's for every field.
         for field, typ in fields.items():
             try:
-                default, required = optional[field], False
+                default, required = defaults[field], False
             except KeyError:
                 default, required = None, True
             setattr(cls, field, FieldDescriptor(

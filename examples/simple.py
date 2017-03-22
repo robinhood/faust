@@ -15,7 +15,7 @@ topic = faust.topic('mytopic', type=Withdrawal)
 
 # -- Stream is coroutine
 
-async def all_withdrawals(it):
+async def combine_withdrawals(it):
     while 1:
         eventA = await it.next()
         try:
@@ -26,35 +26,13 @@ async def all_withdrawals(it):
             yield Withdrawal(amount=eventA.amount + eventB.amount)
 
 
-async def find_large_withdrawals(withdrawals):
+async def find_large_withdrawals(app):
+    withdrawals = app.stream(topic, combine_withdrawals)
     async for withdrawal in withdrawals:
         print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
 
-
-# -- Stream returns generator expression
-
-# def dump_event(event):
-#    print('@@@@@@@ EVENT: %r' % (event,))
-#    return event
-
-
-# @faust.stream(topic)
-# def all_withdrawals(it):
-#    return (dump_event(event) for event in it)
-
-
-# --- Stream returns async generator expression
-
-# async def dump_event(event):
-#    print('@@@@ GOT EVENT: %r' % (event,))
-#    return event
-
-
-# @faust.stream(topic)
-# async def all_withdrawals(it):
-#    return (await dump_event(event) async for event in it)
 
 app = faust.App('myid', url='kafka://localhost:9092')
 
@@ -70,9 +48,7 @@ async def produce():
 
 
 async def consume():
-    withdrawals = app.add_stream(all_withdrawals)
-    withdrawals = app.stream(topic, all_withdrawals)
-    app.add_task(find_large_withdrawals(withdrawals))
+    app.add_task(find_large_withdrawals(app))
 
 
 COMMANDS = {

@@ -283,11 +283,12 @@ class AppT(ServiceT):
     replication_factor: int
 
     @abc.abstractmethod
-    def add_stream(self, stream: 'StreamT') -> 'StreamT':
+    def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
         ...
 
     @abc.abstractmethod
-    def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
+    def stream(self, topic: Topic,
+               coroutine: Callable = None, **kwargs) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -296,6 +297,14 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def new_stream_name(self) -> str:
+        ...
+
+    @abc.abstractmethod
+    async def send(
+            self, topic: Union[Topic, str], key: K, event: EventT,
+            *,
+            wait: bool = True,
+            key_serializer: SerializerArg = None) -> Awaitable:
         ...
 
     @property

@@ -3,7 +3,7 @@ import asyncio
 import faust
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Generator, Iterator, MutableMapping, Union, Type,
+    Any, Awaitable, Callable, Generator, Iterator, MutableMapping, Union, Type,
     cast,
 )
 from itertools import count
@@ -13,6 +13,7 @@ from .types import (
     AppT, EventT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT,
 )
 from .utils.compat import want_bytes
+from .utils.coroutines import wrap_callback
 from .utils.imports import symbol_by_name
 from .utils.log import get_logger
 from .utils.serialization import dumps
@@ -23,7 +24,7 @@ __all__ = ['App']
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
 DEFAULT_URL = 'kafka://localhost:9092'
-DEFAULT_STREAM_CLS = 'faust.streams:Stream'
+DEFAULT_STREAM_CLS = 'faust.streams:AsyncIterableStream'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
 
@@ -142,14 +143,6 @@ class App(AppT, Service):
             topic, key, value,
         )
 
-    def add_stream(self, stream: StreamT) -> StreamT:
-        """Instantiate stream to be run within the context of this app.
-
-        Returns:
-            Stream: new instance of stream bound to this app.
-        """
-        return stream.bind(self)
-
     def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
         """Start task.
 
@@ -161,14 +154,26 @@ class App(AppT, Service):
         """
         return asyncio.ensure_future(task, loop=self.loop)
 
-    def stream(self, topic: Topic, **kwargs) -> StreamT:
+    def stream(self, topic: Topic,
+               coroutine: Callable = None, **kwargs) -> StreamT:
         """Create new stream from topic.
+
+        Arguments:
+            topic (Topic): Topic description to consume from.
+
+        Keyword Arguments:
+            coroutine (Callable): Coroutine to filter events in this stream.
 
         Returns:
             faust.streams.Stream:
                 to iterate over events in the stream.
         """
-        return self.add_stream(self.Stream(topics=[topic], **kwargs))
+        return self.Stream(
+            topics=[topic],
+            coros=({topic: wrap_callback(coroutine, loop=self.loop)}
+                   if coroutine else None),
+            loop=self.loop,
+            **kwargs).bind(self)
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():  # start all streams

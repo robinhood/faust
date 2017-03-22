@@ -16,6 +16,8 @@ from .utils.coroutines import CoroCallback, wrap_callback
 from .utils.log import get_logger
 from .utils.service import Service
 
+__all__ = ['AsyncIterableStream', 'Stream', 'topic']
+
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_Dict: Dict
 
@@ -125,40 +127,6 @@ def topic(*topics: str,
     )
 
 
-class stream:
-    """Decorator for stream-expressions.
-
-    Arguments:
-        topic (Topic): Topic to subscribe to.
-
-    Keyword Arguments:
-        processors (Sequence[Callable]): Optional list of processor callbacks
-            to execute when a message is used.  The processors will be applied
-            in order, and the return value is chained.
-        loop (asyncio.AbstractEventLoop): Custom event loop instance.
-
-    Returns:
-        Stream: an unbound stream.
-    """
-
-    def __init__(self, topic: Topic,
-                 *,
-                 processors: Sequence[Callable] = None,
-                 loop: asyncio.AbstractEventLoop = None,
-                 **kwargs) -> None:
-        self.topic = topic
-        self.processors = processors
-        self.loop = loop or asyncio.get_event_loop()
-
-    def __call__(self, fun: Callable) -> 'StreamT':
-        return AsyncIterableStream(
-            topics=[self.topic],
-            processors={self.topic: self.processors},
-            coros={self.topic: wrap_callback(fun, loop=self.loop)},
-            loop=self.loop,
-        )
-
-
 class Stream(StreamT, Service):
 
     _consumers: MutableMapping[Topic, ConsumerT] = None
@@ -178,9 +146,9 @@ class Stream(StreamT, Service):
         if not isinstance(topics, MutableSequence):
             topics = list(topics)
         self.topics = cast(MutableSequence, topics)
-        self._processors = processors
+        self._processors = processors or {}
         self._consumers = OrderedDict()
-        self._coros = coros
+        self._coros = coros or {}
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         super().__init__(loop=loop)
@@ -237,7 +205,7 @@ class Stream(StreamT, Service):
         return self.clone(join_strategy=join_strategy)
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:
-        processors = self._processors[topic]
+        processors = self._processors.get(topic)
         value = await self.process(key, value)
         if processors is not None:
             for processor in processors:
@@ -246,7 +214,7 @@ class Stream(StreamT, Service):
                     value = await res
                 else:
                     value = res
-        coro = self._coros[topic]
+        coro = self._coros.get(topic)
         if coro is not None:
             await coro.send(value, self.on_done)
 
