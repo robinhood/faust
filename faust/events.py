@@ -3,7 +3,7 @@ from typing import (
     Any, Dict, FrozenSet, Iterable, Mapping, Sequence, Tuple, Type, cast,
 )
 from .types import (
-    EventMeta, EventT, FieldDescriptorT, K, Message, Request, SerializerArg,
+    EventOptions, EventT, FieldDescriptorT, K, Message, Request, SerializerArg,
 )
 from .utils.objects import iter_mro_reversed
 from .utils.serialization import dumps, loads
@@ -145,7 +145,7 @@ class Event(EventT):
         """
         # the double starargs means dicts are merged
         return cls(**kwargs,  # type: ignore
-                   **loads(cls.META.serializer or default_serializer, s))
+                   **loads(cls._options.serializer or default_serializer, s))
 
     @classmethod
     def from_message(cls, key: K, message: Message,
@@ -172,7 +172,7 @@ class Event(EventT):
     @classmethod
     def as_schema(cls) -> Mapping:
         return {
-            'namespace': cls.META.namespace,
+            'namespace': cls._options.namespace,
             'type': 'record',
             'name': cls.__name__,
             'fields': cls._schema_fields(),
@@ -196,7 +196,13 @@ class Event(EventT):
 
         # Can set serializer using:
         #    class X(Event, serializer='avro')
-        cls.META = EventMeta(serializer, namespace)
+        custom_options = getattr(cls, '_options', object()).__dict__
+        cls._options = EventOptions()
+        cls._options.__dict__.update(custom_options)
+        if serializer is not None:
+            cls._options.serializer = serializer
+        if namespace is not None:
+            cls._options.namespace = namespace
 
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
@@ -247,7 +253,7 @@ class Event(EventT):
 
     def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""
-        return dumps(self.META.serializer, self._asdict())
+        return dumps(self._options.serializer, self._asdict())
 
     def _asdict(self) -> Mapping[str, Any]:
         # Convert known fields to mapping of ``{field: value}``.

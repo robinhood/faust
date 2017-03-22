@@ -143,7 +143,7 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
-class EventMeta(NamedTuple):
+class EventOptions:
     serializer: SerializerArg
     namespace: str
 
@@ -153,7 +153,7 @@ class EventT:
 
     req: Request
 
-    META: EventMeta
+    _options: EventOptions
 
     @classmethod
     def as_schema(cls) -> Mapping:
