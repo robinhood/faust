@@ -9,7 +9,7 @@ class Table(Stream):
     _state: MutableMapping
 
     def on_init(self) -> None:
-        assert not self._coros  # Table cannot have generator callback.
+        assert not self._coroutines  # Table cannot have generator callback.
         self._state = {}
 
     async def on_message(self, topic: Topic, key: K, value: V) -> None:

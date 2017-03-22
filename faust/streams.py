@@ -9,10 +9,10 @@ from typing import (
 )
 from . import joins
 from .types import (
-    AppT, ConsumerT, FieldDescriptorT, JoinT, K, V,
+    AppT, ConsumerT, CoroCallbackT, FieldDescriptorT, JoinT, K, V,
     Message, SerializerArg, StreamT, Topic,
 )
-from .utils.coroutines import CoroCallback, wrap_callback
+from .utils.coroutines import wrap_callback
 from .utils.log import get_logger
 from .utils.service import Service
 
@@ -131,12 +131,30 @@ class Stream(StreamT, Service):
 
     _consumers: MutableMapping[Topic, ConsumerT] = None
     _processors: MutableMapping[Topic, Sequence[Callable]] = None
-    _coros: MutableMapping[Topic, CoroCallback] = None
+    _coroutines: MutableMapping[Topic, CoroCallbackT] = None
+
+    @classmethod
+    def from_topic(cls, topic: Topic,
+                   *,
+                   coroutine: Callable = None,
+                   processors: Sequence[Callable] = None,
+                   loop: asyncio.AbstractEventLoop = None,
+                   **kwargs) -> StreamT:
+        return cls(
+            topics=[topic],
+            coroutines={
+                topic: wrap_callback(coroutine, loop=loop),
+            } if coroutine else None,
+            processors={
+                topic: processors,
+            } if processors else None,
+            loop=loop,
+            **kwargs)
 
     def __init__(self, name: str = None,
                  topics: Sequence[Topic] = None,
                  processors: MutableMapping[Topic, Sequence[Callable]] = None,
-                 coros: MutableMapping[Topic, CoroCallback] = None,
+                 coroutines: MutableMapping[Topic, CoroCallbackT] = None,
                  children: List[StreamT] = None,
                  join_strategy: JoinT = None,
                  app: AppT = None,
@@ -148,7 +166,7 @@ class Stream(StreamT, Service):
         self.topics = cast(MutableSequence, topics)
         self._processors = processors or {}
         self._consumers = OrderedDict()
-        self._coros = coros or {}
+        self._coroutines = coroutines or {}
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         super().__init__(loop=loop)
@@ -164,7 +182,7 @@ class Stream(StreamT, Service):
             'name': self.name,
             'topics': self.topics,
             'processors': self._processors,
-            'coros': self._coros,
+            'coroutines': self._coroutines,
             'loop': self.loop,
             'children': self.children,
         }
@@ -176,16 +194,16 @@ class Stream(StreamT, Service):
         all_nodes = cast(Tuple[StreamT, ...], (self,)) + nodes
         topics: List[Topic] = []
         processors: Dict[Topic, Sequence[Callable]] = {}
-        coros: Dict[Topic, CoroCallback] = {}
+        coroutines: Dict[Topic, CoroCallbackT] = {}
         for node in all_nodes:
             node = cast(Stream, node)
             topics.extend(node.topics)
             processors.update(node._processors)
-            coros.update(node._coros)
+            coroutines.update(node._coroutines)
         return self.clone(
             topics=topics,
             processors=processors,
-            coros=coros,
+            coroutines=coroutines,
             children=self.children + list(nodes),
         )
 
@@ -214,9 +232,9 @@ class Stream(StreamT, Service):
                     value = await res
                 else:
                     value = res
-        coro = self._coros.get(topic)
-        if coro is not None:
-            await coro.send(value, self.on_done)
+        coroutine = self._coroutines.get(topic)
+        if coroutine is not None:
+            await coroutine.send(value, self.on_done)
 
     async def process(self, key: K, value: V) -> V:
         return value
@@ -233,11 +251,11 @@ class Stream(StreamT, Service):
     async def subscribe(self, topic: Topic,
                         *,
                         processors: Sequence[Callable] = None,
-                        coro: Callable = None) -> None:
+                        coroutine: Callable = None) -> None:
         if topic not in self.topics:
             self.topics.append(topic)
         self._processors[topic] = processors
-        self._coros[topic] = wrap_callback(coro, loop=self.loop)
+        self._coroutines[topic] = wrap_callback(coroutine, loop=self.loop)
         await self._subscribe(topic)
 
     async def _subscribe(self, topic: Topic) -> None:
@@ -251,7 +269,7 @@ class Stream(StreamT, Service):
         except ValueError:
             pass
         self._processors.pop(topic, None)
-        self._coros.pop(topic, None)
+        self._coroutines.pop(topic, None)
         await self._unsubscribe(topic)
 
     async def _unsubscribe(self, topic: Topic) -> None:
@@ -272,8 +290,8 @@ class Stream(StreamT, Service):
         for consumer in reversed(list(self._consumers.values())):
             await consumer.stop()
         self._consumers.clear()
-        for coro in self._coros.values():
-            await coro.join()
+        for coroutine in self._coroutines.values():
+            await coroutine.join()
 
     def on_key_decode_error(self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode key: %r: %r', message.key, exc)

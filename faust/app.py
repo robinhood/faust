@@ -3,8 +3,8 @@ import asyncio
 import faust
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Callable, Generator, Iterator, MutableMapping, Union, Type,
-    cast,
+    Any, Awaitable, Callable, Generator, Iterator,
+    MutableMapping, Sequence, Union, Type, cast,
 )
 from itertools import count
 from . import constants
@@ -13,7 +13,6 @@ from .types import (
     AppT, EventT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT,
 )
 from .utils.compat import want_bytes
-from .utils.coroutines import wrap_callback
 from .utils.imports import symbol_by_name
 from .utils.log import get_logger
 from .utils.serialization import dumps
@@ -155,7 +154,9 @@ class App(AppT, Service):
         return asyncio.ensure_future(task, loop=self.loop)
 
     def stream(self, topic: Topic,
-               coroutine: Callable = None, **kwargs) -> StreamT:
+               coroutine: Callable = None,
+               processors: Sequence[Callable] = None,
+               **kwargs) -> StreamT:
         """Create new stream from topic.
 
         Arguments:
@@ -163,17 +164,19 @@ class App(AppT, Service):
 
         Keyword Arguments:
             coroutine (Callable): Coroutine to filter events in this stream.
+            processors (Sequence[Callable]): List of processors for events in
+                this stream.
 
         Returns:
-            faust.streams.Stream:
+            faust.streams.AsyncIterableStream:
                 to iterate over events in the stream.
         """
-        return self.Stream(
-            topics=[topic],
-            coros=({topic: wrap_callback(coroutine, loop=self.loop)}
-                   if coroutine else None),
-            loop=self.loop,
-            **kwargs).bind(self)
+        return cast(StreamT, self.Stream).from_topic(
+            topic,
+            coroutine=coroutine,
+            processors=processors,
+            **kwargs
+        ).bind(self)
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():  # start all streams

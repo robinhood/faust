@@ -2,8 +2,8 @@
 import abc
 import asyncio
 from typing import (
-    Any, Awaitable, Callable, FrozenSet, Generator, List, Mapping,
-    MutableMapping, MutableSequence,
+    Any, AsyncIterable, Awaitable, Callable, FrozenSet, Generator,
+    Iterable, List, Mapping, MutableMapping, MutableSequence,
     NamedTuple, Optional, Pattern, Sequence, Tuple, Type, Union,
 )
 
@@ -184,12 +184,45 @@ class EventT:
         ...
 
 
-class FieldDescriptorT(metaclass=abc.ABCMeta):
+class FieldDescriptorT:
     field: str
     type: Type
     event: Type
     required: bool = True
     default: Any = None  # noqa: E704
+
+
+class InputStreamT(Iterable, AsyncIterable):
+    queue: asyncio.Queue
+
+    @abc.abstractmethod
+    async def put(self, value: V) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def next(self) -> Any:
+        ...
+
+    @abc.abstractmethod
+    async def join(self, timeout: float = None):
+        ...
+
+
+class CoroCallbackT:
+
+    def __init__(self, inbox: InputStreamT,
+                 *,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
+
+    async def send(self, value: V, callback: Callable) -> None:
+        ...
+
+    async def join(self) -> None:
+        ...
+
+    async def drain(self, callback: Callable) -> None:
+        ...
 
 
 class EventRefT(metaclass=abc.ABCMeta):
@@ -288,7 +321,9 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def stream(self, topic: Topic,
-               coroutine: Callable = None, **kwargs) -> 'StreamT':
+               coroutine: Callable = None,
+               processors: Sequence[Callable] = None,
+               **kwargs) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -322,6 +357,27 @@ class StreamT(ServiceT):
     join_strategy: 'JoinT' = None
 
     children: List['StreamT'] = None
+
+    @classmethod
+    @abc.abstractmethod
+    def from_topic(cls, topic: Topic,
+                   *,
+                   coroutine: Callable = None,
+                   processors: Sequence[Callable] = None,
+                   loop: asyncio.AbstractEventLoop = None,
+                   **kwargs) -> 'StreamT':
+        ...
+
+    def __init__(self, name: str = None,
+                 topics: Sequence[Topic] = None,
+                 processors: MutableMapping[Topic, Sequence[Callable]] = None,
+                 coroutines: MutableMapping[Topic, CoroCallbackT] = None,
+                 children: List['StreamT'] = None,
+                 join_strategy: 'JoinT' = None,
+                 app: AppT = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        # need this to initialize Service.__init__ (!)
+        super().__init__(loop=loop)  # type: ignore
 
     @abc.abstractmethod
     def bind(self, app: AppT) -> 'StreamT':
@@ -371,7 +427,7 @@ class StreamT(ServiceT):
     async def subscribe(self, topic: Topic,
                         *,
                         processors: Sequence[Callable] = None,
-                        coro: Callable = None) -> None:
+                        coroutine: Callable = None) -> None:
         ...
 
     @abc.abstractmethod

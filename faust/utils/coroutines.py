@@ -1,13 +1,11 @@
 import asyncio
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable,
-    Coroutine, Generator, Iterable,
+    Any, AsyncIterable, Awaitable, Callable, Coroutine, Generator,
 )
-from ..types import V
+from ..types import CoroCallbackT, InputStreamT, V
 
 
-class InputStream(Iterable, AsyncIterable):
-    queue: asyncio.Queue
+class InputStream(InputStreamT):
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
@@ -29,10 +27,10 @@ class InputStream(Iterable, AsyncIterable):
         #           yield event1 + event2
         return await self.queue.get()
 
-    async def join(self, timeout=None):
+    async def join(self, timeout: float = None):
         await asyncio.wait_for(self._join(), timeout, loop=self.loop)
 
-    async def _join(self, interval=0.1):
+    async def _join(self, interval: float = 0.1):
         while self.queue.qsize():
             await asyncio.sleep(interval)
 
@@ -49,10 +47,10 @@ class InputStream(Iterable, AsyncIterable):
         return await self.queue.get()
 
 
-class CoroCallback:
-    inbox: InputStream
+class CoroCallback(CoroCallbackT):
+    inbox: InputStreamT
 
-    def __init__(self, inbox: InputStream,
+    def __init__(self, inbox: InputStreamT,
                  *,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.inbox = inbox
@@ -77,7 +75,7 @@ class CoroCallback:
 class GeneratorCoroCallback(CoroCallback):
     gen: Generator
 
-    def __init__(self, gen: Generator, inbox: InputStream,
+    def __init__(self, gen: Generator, inbox: InputStreamT,
                  **kwargs) -> None:
         self.gen = gen
         super().__init__(inbox, **kwargs)
@@ -89,7 +87,7 @@ class GeneratorCoroCallback(CoroCallback):
 class AsyncCoroCallback(CoroCallback):
     gen: AsyncIterable
 
-    def __init__(self, gen: AsyncIterable, inbox: InputStream,
+    def __init__(self, gen: AsyncIterable, inbox: InputStreamT,
                  **kwargs) -> None:
         self.gen = gen
         super().__init__(inbox, **kwargs)
@@ -103,7 +101,7 @@ class AsyncGeneratorCoroCallback(CoroCallback):
     gen: AsyncIterable
     gen_started = False
 
-    def __init__(self, coro: Coroutine, inbox: InputStream,
+    def __init__(self, coro: Coroutine, inbox: InputStreamT,
                  **kwargs) -> None:
         self.coro = coro
         self.gen = None
@@ -118,7 +116,7 @@ class AsyncGeneratorCoroCallback(CoroCallback):
 def wrap_callback(
         fun: Callable,
         *,
-        loop: asyncio.AbstractEventLoop = None) -> CoroCallback:
+        loop: asyncio.AbstractEventLoop = None) -> CoroCallbackT:
     loop = loop or asyncio.get_event_loop()
     inbox = InputStream(loop=loop)
     gen = fun(inbox)
