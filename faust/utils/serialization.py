@@ -6,7 +6,6 @@ Supported serializers
 * **json**    - json with utf-8 encoding.
 * **pickle**  - pickle with base64 encoding (not urlsafe)
 * **binary**  - base64 encoding (not urlsafe)
-* **text**    - text encoding, utf-16.
 
 Serialization by name
 =====================
@@ -56,10 +55,10 @@ and ``_dumps()``:
 
     class raw_msgpack(Serializer):
 
-        def _dumps(self, obj):
+        def _dumps(self, obj: Any) -> bytes:
             return msgpack.dumps(obj)
 
-        def _loads(self, s):
+        def _loads(self, s: bytes) -> Any:
             return msgpack.loads(s)
 
 Our serializer now encodes/decodes to raw msgpack format, but we
@@ -70,7 +69,7 @@ we use the ``|`` operator to form a combined serializer:
 
 .. code-block:: python
 
-    def msgpack():
+    def msgpack() -> Serializer:
         return raw_msgpack() | binary()
 
     serializers['msgpack'] = msgpack()
@@ -136,17 +135,15 @@ that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 .. code-block:: python
 
-    from __future__ import absolute_import, unicode_literals
-
     from faust.utils.serialization import Serializer, binary
 
     class raw_msgpack(Serializer):
 
-        def _dumps(self, obj):
+        def _dumps(self, obj: Any) -> bytes:
             return msgpack.dumps(s)
 
 
-    def msgpack():
+    def msgpack() -> Serializer:
         return raw_msgpack() | binary()
 
 That's it! To install and use our new extension we do:
@@ -161,7 +158,7 @@ the extension with other Faust users.
 import pickle as _pickle
 from base64 import b64encode, b64decode
 from functools import reduce
-from typing import Any, AnyStr, Dict, MutableMapping, Optional, Tuple, cast
+from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 from . import json as _json
 from .compat import want_bytes, want_str
 from .imports import load_extension_classes
@@ -190,20 +187,20 @@ class Serializer(SerializerT):
         self.nodes = (self,) + self.children
         self.kwargs = kwargs
 
-    def _loads(self, s: Any) -> Any:
+    def _loads(self, s: bytes) -> Any:
         # subclasses must implement this method.
         raise NotImplementedError()
 
-    def _dumps(self, s: Any) -> Any:
+    def _dumps(self, s: Any) -> bytes:
         # subclasses must implement this method.
-        return NotImplementedError()
+        raise NotImplementedError()
 
-    def dumps(self, obj: Any) -> Any:
+    def dumps(self, obj: Any) -> bytes:
         """Serialize object ``obj``."""
         # send _dumps to this instance, and all children.
         return reduce(lambda obj, e: e._dumps(obj), self.nodes, obj)
 
-    def loads(self, s: Any) -> Any:
+    def loads(self, s: bytes) -> Any:
         """Deserialize object from string."""
         # send _loads to this instance, and all children in reverse order
         return reduce(lambda s, d: d._loads(s), reversed(self.nodes), s)
@@ -230,20 +227,20 @@ class Serializer(SerializerT):
 class json(Serializer):
     """:mod:`json` serializer."""
 
-    def _loads(self, s: Any) -> Any:
-        return _json.loads(s)
+    def _loads(self, s: bytes) -> Any:
+        return _json.loads(want_str(s))
 
-    def _dumps(self, s: Any) -> Any:
-        return _json.dumps(s)
+    def _dumps(self, s: Any) -> bytes:
+        return want_bytes(_json.dumps(s))
 
 
 class raw_pickle(Serializer):
     """:mod:`pickle` serializer with no encoding."""
 
-    def _loads(self, s: Any) -> Any:
+    def _loads(self, s: bytes) -> Any:
         return _pickle.loads(s)
 
-    def _dumps(self, obj: Any) -> Any:
+    def _dumps(self, obj: Any) -> bytes:
         return _pickle.dumps(obj)
 
 
@@ -255,30 +252,11 @@ def pickle() -> Serializer:
 class binary(Serializer):
     """Serializer for binary content (uses Base64 encoding)."""
 
-    def _loads(self, s: Any) -> Any:
+    def _loads(self, s: bytes) -> Any:
         return b64decode(s)
 
-    def _dumps(self, s: Any) -> Any:
+    def _dumps(self, s: bytes) -> bytes:
         return b64encode(want_bytes(s))
-
-
-class text_encoding(Serializer):
-    """Encode/decode text."""
-
-    def __init__(self, encoding: str, **kwargs) -> None:
-        self.encoding = encoding
-        super(text_encoding, self).__init__(encoding=encoding, **kwargs)
-
-    def _loads(self, s: Any) -> Any:
-        return s.decode(self.encoding)
-
-    def _dumps(self, s: Any) -> Any:
-        return want_str(s).encode(self.encoding)
-
-
-def text(encoding: str = 'utf-16') -> Serializer:
-    """Encode text to specific encoding."""
-    return text_encoding(encoding=encoding) | binary()
 
 
 #: Serializer registry, mapping of name to :class:`Serializer` instance.
@@ -286,7 +264,6 @@ serializers: MutableMapping[str, Serializer] = {
     'json': json(),
     'pickle': pickle(),
     'binary': binary(),
-    'text': text(),
 }
 
 #: Cached extension classes.
@@ -320,11 +297,11 @@ def get_serializer(name_or_ser: SerializerArg) -> Serializer:
     return cast(Serializer, name_or_ser)
 
 
-def dumps(serializer: Optional[SerializerArg], obj: Any) -> AnyStr:
+def dumps(serializer: Optional[SerializerArg], obj: Any) -> bytes:
     """Serialize object into string."""
     return get_serializer(serializer).dumps(obj) if serializer else obj
 
 
-def loads(serializer: Optional[SerializerArg], s: AnyStr) -> Any:
+def loads(serializer: Optional[SerializerArg], s: bytes) -> Any:
     """Deserialize from string."""
     return get_serializer(serializer).loads(s) if serializer else s

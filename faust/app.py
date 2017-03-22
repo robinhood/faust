@@ -13,6 +13,7 @@ from .streams import Stream
 from .types import (
     AppT, EventT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT,
 )
+from .utils.compat import want_bytes
 from .utils.log import get_logger
 from .utils.serialization import dumps
 from .utils.service import Service
@@ -105,20 +106,24 @@ class App(AppT, Service):
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
         """
+        key_bytes: bytes = None
         if isinstance(topic, Topic):
             topic = cast(Topic, topic)
             key_serializer = key_serializer or topic.key_serializer
             strtopic = topic.topics[0]
         else:
             strtopic = cast(str, topic)
-        if key_serializer:
-            key = dumps(key_serializer, key)
-        value: Any = event.dumps()
+        if key is not None:
+            if key_serializer:
+                key_bytes = dumps(key_serializer, key)
+            else:
+                key_bytes = want_bytes(key)
+        value: bytes = event.dumps()
 
         return await self._send(
             strtopic,
-            key.encode() if key else None,
-            value.encode() if value else None,
+            key_bytes,
+            value,
             wait=wait,
         )
 

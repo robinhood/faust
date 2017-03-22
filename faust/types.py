@@ -29,11 +29,11 @@ class SerializerT(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def dumps(self, obj: Any) -> Any:
+    def dumps(self, obj: Any) -> bytes:
         ...
 
     @abc.abstractmethod
-    def loads(self, s: Any) -> Any:
+    def loads(self, s: bytes) -> Any:
         ...
 
     @abc.abstractmethod
@@ -149,7 +149,7 @@ class EventT:
     req: Request
     serializer: SerializerArg
 
-    def loads(cls, s: Any,
+    def loads(cls, s: bytes,
               *,
               default_serializer: SerializerArg = None,
               **kwargs) -> 'EventT':
@@ -160,7 +160,7 @@ class EventT:
                      default_serializer: SerializerArg = None) -> 'EventT':
         ...
 
-    def dumps(self) -> Any:
+    def dumps(self) -> bytes:
         ...
 
 

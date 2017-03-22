@@ -101,7 +101,7 @@ class Event(EventT):
     _optionalset = FrozenSet[str]
 
     @classmethod
-    def loads(cls, s: Any,
+    def loads(cls, s: bytes,
               *,
               default_serializer: SerializerArg = None,
               **kwargs) -> 'Event':
@@ -197,7 +197,7 @@ class Event(EventT):
         # from message received.
         self.req = req
 
-    def dumps(self) -> Any:
+    def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""
         return dumps(self.serializer, self._asdict())
 

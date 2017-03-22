@@ -35,11 +35,11 @@ async def test_send(app):
     setup_producer(app)
     await app.send(test_topic, 'key', event, wait=True)
     app.producer.send_and_wait.assert_called_with(
-        test_topic.topics[0], b'key', event.dumps().encode(),
+        test_topic.topics[0], b'key', event.dumps(),
     )
     app.producer.send.assert_not_called()
     await app.send(test_topic, 'key', event, wait=False)
     app.producer.send.assert_called_with(
-        test_topic.topics[0], b'key', event.dumps().encode(),
+        test_topic.topics[0], b'key', event.dumps(),
     )
 
