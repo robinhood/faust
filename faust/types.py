@@ -2,7 +2,7 @@
 import abc
 import asyncio
 from typing import (
-    Any, Awaitable, Callable, Generator, List, Mapping,
+    Any, Awaitable, Callable, FrozenSet, Generator, List, Mapping,
     MutableMapping, MutableSequence,
     NamedTuple, Optional, Pattern, Sequence, Tuple, Type, Union,
 )
@@ -146,6 +146,15 @@ class ServiceT(metaclass=abc.ABCMeta):
 class EventOptions:
     serializer: SerializerArg
     namespace: str
+
+    # Index: Flattened view of __annotations__ in MRO order.
+    fields: Mapping[str, Type]
+
+    # Index: Set of required field names, for fast argument checking.
+    fieldset: FrozenSet[str]
+
+    # Index: Set of optional field names, for fast argument checking.
+    optionalset: FrozenSet[str]
 
 
 class EventT:

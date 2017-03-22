@@ -1,7 +1,5 @@
 """Events: Describing how messages are serialized/deserialized."""
-from typing import (
-    Any, Dict, FrozenSet, Iterable, Mapping, Sequence, Tuple, Type, cast,
-)
+from typing import Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, cast
 from .types import (
     EventOptions, EventT, FieldDescriptorT, K, Message, Request, SerializerArg,
 )
@@ -120,15 +118,6 @@ class Event(EventT):
     #: the :class:`Request` it originated from.
     req: Request = None
 
-    # Index: Flattened view of __annotations__ in MRO order.
-    _fields: Mapping[str, Type]
-
-    # Index: Set of required field names, for fast argument checking.
-    _fieldset = FrozenSet[str]
-
-    # Index: Set of optional field names, for fast argument checking.
-    _optionalset = FrozenSet[str]
-
     @classmethod
     def loads(cls, s: bytes,
               *,
@@ -182,7 +171,7 @@ class Event(EventT):
     def _schema_fields(cls) -> Sequence[Mapping]:
         return [
             {'name': key, 'type': to_avro_type(typ)}
-            for key, typ in cls._fields.items()
+            for key, typ in cls._options.fields.items()
         ]
 
     def __init_subclass__(cls,
@@ -195,19 +184,20 @@ class Event(EventT):
         super().__init_subclass__(**kwargs)  # type: ignore
 
         # Can set serializer using:
-        #    class X(Event, serializer='avro')
+        #    class X(Event, serializer='avro'):
+        #        ...
         custom_options = getattr(cls, '_options', object()).__dict__
-        cls._options = EventOptions()
-        cls._options.__dict__.update(custom_options)
+        options = EventOptions()
+        options.__dict__.update(custom_options)
         if serializer is not None:
-            cls._options.serializer = serializer
+            options.serializer = serializer
         if namespace is not None:
-            cls._options.namespace = namespace
+            options.namespace = namespace
 
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
-        fields: Dict = {}
-        optional: Dict = {}
+        fields: Dict[str, Type] = {}
+        optional: Dict[str, Any] = {}
         for subcls in iter_mro_reversed(cls, stop=Event):
             optional.update(subcls.__dict__)
             try:
@@ -216,12 +206,12 @@ class Event(EventT):
                 pass
             else:
                 fields.update(annotations)
-        cls._fields = cast(Mapping, fields)
-        cls._fieldset = frozenset(fields)
-        cls._optionalset = frozenset(optional)
+        options.fields = cast(Mapping, fields)
+        options.fieldset = frozenset(fields)
+        options.optionalset = frozenset(optional)
 
         # Add FieldDescriptor's for every field.
-        for field, typ in cls._fields.items():
+        for field, typ in fields.items():
             try:
                 default, required = optional[field], False
             except KeyError:
@@ -229,17 +219,20 @@ class Event(EventT):
             setattr(cls, field, FieldDescriptor(
                 field, typ, cls, required, default))
 
+        cls._options = options
+
     def __init__(self, req=None, **fields):
         fieldset = frozenset(fields)
+        options = self._options
 
         # Check all required arguments.
-        missing = self._fieldset - fieldset - self._optionalset
+        missing = options.fieldset - fieldset - options.optionalset
         if missing:
             raise TypeError('{} missing required arguments: {}'.format(
                 type(self).__name__, ', '.join(sorted(missing))))
 
         # Check for unknown arguments.
-        extraneous = fieldset - self._fieldset
+        extraneous = fieldset - options.fieldset
         if extraneous:
             raise TypeError('{} got unexpected arguments: {}'.format(
                 type(self).__name__, ', '.join(sorted(extraneous))))
@@ -261,7 +254,7 @@ class Event(EventT):
 
     def _asitems(self) -> Iterable[Tuple[Any, Any]]:
         # Iterate over known fields as items-tuples.
-        for key in self._fields:
+        for key in self._options.fields:
             yield key, self.__dict__[key]
 
     def __repr__(self) -> str:
