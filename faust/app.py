@@ -3,17 +3,17 @@ import asyncio
 import faust
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Generator, Iterator, MutableMapping, Union,
+    Any, Awaitable, Generator, Iterator, MutableMapping, Union, Type,
     cast,
 )
 from itertools import count
 from . import constants
 from . import transport
-from .streams import Stream
 from .types import (
     AppT, EventT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT,
 )
 from .utils.compat import want_bytes
+from .utils.imports import symbol_by_name
 from .utils.log import get_logger
 from .utils.serialization import dumps
 from .utils.service import Service
@@ -23,6 +23,7 @@ __all__ = ['App']
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
 DEFAULT_URL = 'kafka://localhost:9092'
+DEFAULT_STREAM_CLS = 'faust.streams:Stream'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
 
@@ -78,6 +79,7 @@ class App(AppT, Service):
                  value_serializer: SerializerArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
+                 stream_cls: Union[Type, str] = DEFAULT_STREAM_CLS,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
@@ -88,6 +90,7 @@ class App(AppT, Service):
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
         self.url = url
+        self.Stream = symbol_by_name(stream_cls)
         self._streams = OrderedDict()
 
     async def send(
@@ -165,7 +168,7 @@ class App(AppT, Service):
             faust.streams.Stream:
                 to iterate over events in the stream.
         """
-        return self.add_stream(Stream(topics=[topic], **kwargs))
+        return self.add_stream(self.Stream(topics=[topic], **kwargs))
 
     async def on_start(self) -> None:
         for _stream in self._streams.values():  # start all streams

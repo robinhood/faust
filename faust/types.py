@@ -251,6 +251,8 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
+    Stream: Type
+
     id: str
     url: str
     client_id: str
