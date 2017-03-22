@@ -42,4 +42,3 @@ async def test_send(app):
     app.producer.send.assert_called_with(
         test_topic.topics[0], b'key', event.dumps(),
     )
-

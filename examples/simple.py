@@ -26,6 +26,13 @@ async def all_withdrawals(it):
             yield Withdrawal(amount=eventA.amount + eventB.amount)
 
 
+async def find_large_withdrawals(withdrawals):
+    async for withdrawal in withdrawals:
+        print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
+        if withdrawal.amount > 9999.0:
+            print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
+
+
 # -- Stream returns generator expression
 
 # def dump_event(event):
@@ -48,7 +55,6 @@ async def all_withdrawals(it):
 # @faust.stream(topic)
 # async def all_withdrawals(it):
 #    return (await dump_event(event) async for event in it)
-
 
 app = faust.App('myid', url='kafka://localhost:9092')
 
