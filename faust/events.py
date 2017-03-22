@@ -1,6 +1,10 @@
 """Events: Describing how messages are serialized/deserialized."""
-from typing import Any, Dict, FrozenSet, Iterable, Mapping, Tuple, Type, cast
-from .types import EventT, FieldDescriptorT, K, Message, Request, SerializerArg
+from typing import (
+    Any, Dict, FrozenSet, Iterable, Mapping, Sequence, Tuple, Type, cast,
+)
+from .types import (
+    EventMeta, EventT, FieldDescriptorT, K, Message, Request, SerializerArg,
+)
 from .utils.objects import iter_mro_reversed
 from .utils.serialization import dumps, loads
 
@@ -8,6 +12,31 @@ __all__ = ['Event', 'FieldDescriptor']
 
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
+
+AVRO_FAST_TYPE: Mapping[Any, str] = {
+    int: "int",
+    float: "float",
+    bool: "boolean",
+    str: "string",
+    list: "array",
+    Sequence: "array",
+    Tuple: "array",
+    Mapping: "map",
+    Dict: "map",
+}
+
+
+def to_avro_type(typ: Type) -> str:
+    try:
+        return AVRO_FAST_TYPE[typ]
+    except KeyError:
+        pass
+    if issubclass(typ, Sequence):
+        return 'array'
+    elif issubclass(typ, Mapping):
+        return 'map'
+    raise TypeError('Cannot convert type {!r} to Avro'.format(typ))
+
 
 # NOTES:
 # - Events are described in the same notation as named tuples in Python 3.6.
@@ -116,7 +145,7 @@ class Event(EventT):
         """
         # the double starargs means dicts are merged
         return cls(**kwargs,  # type: ignore
-                   **loads(cls.serializer or default_serializer, s))
+                   **loads(cls.META.serializer or default_serializer, s))
 
     @classmethod
     def from_message(cls, key: K, message: Message,
@@ -140,7 +169,26 @@ class Event(EventT):
             req=Request(key, message),
         )
 
-    def __init_subclass__(cls, serializer: str = None, **kwargs) -> None:
+    @classmethod
+    def as_schema(cls) -> Mapping:
+        return {
+            'namespace': cls.META.namespace,
+            'type': 'record',
+            'name': cls.__name__,
+            'fields': cls._schema_fields(),
+        }
+
+    @classmethod
+    def _schema_fields(cls) -> Sequence[Mapping]:
+        return [
+            {'name': key, 'type': to_avro_type(typ)}
+            for key, typ in cls._fields.items()
+        ]
+
+    def __init_subclass__(cls,
+                          serializer: str = None,
+                          namespace: str = None,
+                          **kwargs) -> None:
         # Python 3.6 added the new __init_subclass__ function to make it
         # possible to initialize subclasses without using metaclasses
         # (:pep:`487`).
@@ -148,7 +196,7 @@ class Event(EventT):
 
         # Can set serializer using:
         #    class X(Event, serializer='avro')
-        cls.serializer = serializer
+        cls.META = EventMeta(serializer, namespace)
 
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
@@ -199,7 +247,7 @@ class Event(EventT):
 
     def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""
-        return dumps(self.serializer, self._asdict())
+        return dumps(self.META.serializer, self._asdict())
 
     def _asdict(self) -> Mapping[str, Any]:
         # Convert known fields to mapping of ``{field: value}``.

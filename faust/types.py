@@ -143,12 +143,23 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
+class EventMeta(NamedTuple):
+    serializer: SerializerArg
+    namespace: str
+
+
 class EventT:
     # uses __init_subclass__ so cannot use ABCMeta
 
     req: Request
-    serializer: SerializerArg
 
+    META: EventMeta
+
+    @classmethod
+    def as_schema(cls) -> Mapping:
+        ...
+
+    @classmethod
     def loads(cls, s: bytes,
               *,
               default_serializer: SerializerArg = None,
