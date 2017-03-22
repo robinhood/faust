@@ -2,7 +2,8 @@
 *.pyc
 *$py.class
 *~
-.*.sw[pon]
+.swp
+.*.sw*
 dist/
 *.egg-info
 *.egg
@@ -25,3 +26,5 @@ celery/tests/cover/
 .ve*
 cover/
 .vagrant/
+.cache/
+.hypothesis/

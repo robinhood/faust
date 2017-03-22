@@ -163,6 +163,7 @@ from base64 import b64encode, b64decode
 from functools import reduce
 from typing import Any, AnyStr, Dict, MutableMapping, Optional, Tuple, cast
 from . import json as _json
+from .compat import want_bytes, want_str
 from .imports import load_extension_classes
 from ..types import SerializerT, SerializerArg
 
@@ -258,7 +259,7 @@ class binary(Serializer):
         return b64decode(s)
 
     def _dumps(self, s: Any) -> Any:
-        return b64encode(s)
+        return b64encode(want_bytes(s))
 
 
 class text_encoding(Serializer):
@@ -272,7 +273,7 @@ class text_encoding(Serializer):
         return s.decode(self.encoding)
 
     def _dumps(self, s: Any) -> Any:
-        return s.encode(self.encoding)
+        return want_str(s).encode(self.encoding)
 
 
 def text(encoding: str = 'utf-16') -> Serializer:

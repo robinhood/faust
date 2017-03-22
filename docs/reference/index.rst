@@ -22,6 +22,7 @@
     faust.transport.base
     faust.transport.aiokafka
     faust.types
+    faust.utils.compat
     faust.utils.coroutines
     faust.utils.imports
     faust.utils.json
