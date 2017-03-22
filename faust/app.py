@@ -119,6 +119,7 @@ class App(AppT, Service):
             strtopic,
             key.encode() if key else None,
             value.encode() if value else None,
+            wait=wait,
         )
 
     async def _send(self, topic: str, key: bytes, value: bytes,
@@ -200,8 +201,16 @@ class App(AppT, Service):
             self._producer = self._new_producer()
         return self._producer
 
+    @producer.setter
+    def producer(self, producer: ProducerT) -> None:
+        self._producer = producer
+
     @property
     def transport(self) -> TransportT:
         if self._transport is None:
             self._transport = self._create_transport()
         return self._transport
+
+    @transport.setter
+    def transport(self, transport: TransportT) -> None:
+        self._transport = transport

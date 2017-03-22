@@ -11,5 +11,3 @@ def want_bytes(s):
 def want_str(s):
     """Convert bytes to string."""
     return s.decode() if isinstance(s, bytes) else s
-
-
