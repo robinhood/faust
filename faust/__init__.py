@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Stream processing"""
-# :copyright: (c) 2016, Ask Solem.
+# :copyright: (c) 2017, Robinhood Markets
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
 import re
