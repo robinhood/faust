@@ -1,7 +1,7 @@
 import asyncio
 import pytest
 from case import Mock
-from faust.utils.service import Service
+from faust.utils.services import Service
 
 
 class S(Service):

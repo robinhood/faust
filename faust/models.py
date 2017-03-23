@@ -1,4 +1,4 @@
-"""Describing how messages are serialized/deserialized."""
+"""Serializing/deserializing message keys and values."""
 from typing import (
     Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, Union, cast,
 )
@@ -7,37 +7,13 @@ from .types import (
     AppT, CodecArg, Event, FieldDescriptorT, K,
     Message, ModelOptions, ModelT, Request, Topic,
 )
+from .utils.avro.utils import to_avro_type
 from .utils.objects import annotations
 
 __all__ = ['Model', 'Record', 'FieldDescriptor']
 
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
-
-AVRO_FAST_TYPE: Mapping[Any, str] = {
-    int: 'int',
-    float: 'float',
-    bool: 'boolean',
-    str: 'string',
-    list: 'array',
-    Sequence: 'array',
-    Tuple: 'array',
-    Mapping: 'map',
-    Dict: 'map',
-}
-
-
-def to_avro_type(typ: Type) -> str:
-    try:
-        return AVRO_FAST_TYPE[typ]
-    except KeyError:
-        pass
-    if issubclass(typ, Sequence):
-        return 'array'
-    elif issubclass(typ, Mapping):
-        return 'map'
-    raise TypeError('Cannot convert type {!r} to Avro'.format(typ))
-
 
 # NOTES:
 # - Records are described in the same notation as named tuples in Python 3.6.

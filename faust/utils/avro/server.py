@@ -1,21 +1,22 @@
+"""Avro schema registry service client (HTTP)."""
 import asyncio
 import aiohttp
 from collections import defaultdict
 from http import HTTPStatus
-from typing import DefaultDict, Dict, Mapping, Optional, Tuple, cast
+from typing import DefaultDict, Dict, Mapping, Optional, Sequence, Tuple, cast
 from avro.schema import Parse, Schema
 from .. import json
-from ..log import get_logger
+from ..logging import get_logger
 
 __all__ = ['ClientError', 'SchemaRegistryClient']
 
 logger = get_logger(__name__)
 
-ACCEPT = """\
-application/vnd.schemaregistry.v1+json, \
-application/vnd.schemaregistry+json, \
-application/json\
-"""
+ACCEPT_TYPES: Sequence[str] = [
+    'application/vnd.schemaregistry.v1+json',
+    'application/vnd.schemaregistry+json',
+    'application/json',
+]
 
 
 class ClientError(Exception):
@@ -24,7 +25,6 @@ class ClientError(Exception):
 
 class SchemaRegistryClient:
     valid_levels = {'NONE', 'FULL', 'FORWARD', 'BACKWARD'}
-
     content_type = 'application/vnd.schemaregistry.v1+json'
 
     url: str
@@ -35,9 +35,9 @@ class SchemaRegistryClient:
     subject_to_schema_versions: DefaultDict[str, Dict[Schema, str]]
     #: id => avro_schema
     id_to_schema: DefaultDict[int, Dict]
-
     loop: asyncio.AbstractEventLoop
 
+    _accept_types: str
     _session: aiohttp.ClientSession
 
     def __init__(self,
@@ -45,6 +45,7 @@ class SchemaRegistryClient:
                  *,
                  max_schemas_per_subject: int = 1000,
                  session: aiohttp.ClientSession = None,
+                 accept: Sequence[str] = ACCEPT_TYPES,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = url.rstrip('/')
         self.max_schemas_per_subject = max_schemas_per_subject
@@ -52,6 +53,7 @@ class SchemaRegistryClient:
         self.id_to_schema = defaultdict(dict)
         self.subject_to_schema_versions = defaultdict(dict)
         self.loop = loop
+        self._accept_types = ', '.join(accept)
         self._session = session
 
     async def register(self, subject: str, schema: Schema) -> int:
@@ -202,7 +204,7 @@ class SchemaRegistryClient:
             unknown_error_message: str = 'Unknown error') -> Mapping:
         error: str = None
         _body: bytes = None
-        _headers: Dict[str, str] = {'Accept': ACCEPT}
+        _headers: Dict[str, str] = {'Accept': self._accept_types}
         if body:
             _body = json.dumps(body).encode('utf-8')
             _headers.update({

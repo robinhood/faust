@@ -1,6 +1,9 @@
+"""Streaming primitives."""
 import faust
 from typing import AsyncIterable, List, Optional, Union, cast
 from .types import Event, StreamT, Topic
+
+__all__ = ['through']
 
 
 async def through(

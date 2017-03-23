@@ -8,10 +8,14 @@ from typing import (
 )
 
 __all__ = [
-    'K', 'V', 'CodecT', 'CodecArg',
-    'Topic', 'Message', 'Request', 'ConsumerCallback',
-    'KeyDecodeErrorCallback', 'ValueDecodeErrorCallback',
-    'ServiceT', 'AppT',
+    'K', 'CodecT', 'CodecArg', 'Topic', 'Message', 'Request',
+    'ServiceT', 'ModelOptions', 'ModelT', 'V', 'Event',
+    'Processor', 'TopicProcessorSequence', 'StreamProcessorMap',
+    'StreamCoroutineMap', 'ConsumerCallback', 'KeyDecodeErrorCallback',
+    'ValueDecodeErrorCallback', 'FieldDescriptorT', 'InputStreamT',
+    'StreamCoroutineCallback', 'CoroCallbackT', 'StreamCoroutine',
+    'EventRefT', 'ConsumerT', 'ProducerT', 'TransportT', 'TaskArg',
+    'AppT', 'StreamT', 'JoinT',
 ]
 
 
@@ -80,7 +84,7 @@ class ServiceT(metaclass=abc.ABCMeta):
     """Abstract type for an asynchronous service that can be started/stopped.
 
     See Also:
-        :class:`faust.utils.service.Service`.
+        :class:`faust.utils.services.Service`.
     """
 
     shutdown_timeout: float

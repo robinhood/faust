@@ -1,6 +1,9 @@
+"""Tables (changelog stream)."""
 from typing import Any, MutableMapping
 from .streams import Stream
 from .types import Event, K, Topic
+
+__all__ = ['Table']
 
 
 class Table(Stream):

@@ -1,7 +1,7 @@
 """Transport registry."""
 from typing import Mapping, Type
 from ..types import AppT, TransportT
-from ..utils.url import url_to_parts
+from ..utils.urls import url_to_parts
 from ..utils.imports import symbol_by_name
 
 __all__ = ['TRANSPORTS', 'by_url', 'from_url']

@@ -6,7 +6,10 @@ from typing import Any, Iterable, Mapping, Tuple, Type, Union
 
 # - these are taken from kombu.utils.imports
 
-__all__ = ['symbol_by_name', 'qualname']
+__all__ = [
+    'qualname', 'symbol_by_name',
+    'load_extension_class_names', 'load_extension_classes',
+]
 
 
 def qualname(obj: Any) -> str:

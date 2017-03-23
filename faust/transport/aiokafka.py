@@ -2,9 +2,11 @@
 import aiokafka
 from typing import Awaitable, Optional, Type, cast
 from ..types import Message
-from ..utils.async import done_future
+from ..utils.futures import done_future
 from ..utils.objects import cached_property
 from . import base
+
+__all__ = ['Consumer', 'Producer', 'Transport']
 
 
 class Consumer(base.Consumer):

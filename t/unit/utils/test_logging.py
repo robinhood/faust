@@ -1,4 +1,4 @@
-from faust.utils.log import get_logger
+from faust.utils.logging import get_logger
 
 
 def test_get_logger():

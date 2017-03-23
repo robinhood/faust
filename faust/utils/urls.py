@@ -1,7 +1,12 @@
-"""URL Utilities."""
+"""URL utilities."""
 from functools import partial
 from typing import Any, Dict, Mapping, NamedTuple
 from urllib.parse import parse_qsl, quote, unquote, urlparse
+
+__all__ = [
+    'urlparts', 'parse_url', 'url_to_parts', 'as_url',
+    'sanitize_url', 'maybe_sanitize_url',
+]
 
 safequote = partial(quote, safe='')
 

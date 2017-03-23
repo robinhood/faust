@@ -27,7 +27,7 @@
     faust.utils.coroutines
     faust.utils.imports
     faust.utils.json
-    faust.utils.log
+    faust.utils.logging
     faust.utils.objects
-    faust.utils.service
-    faust.utils.url
+    faust.utils.services
+    faust.utils.urls

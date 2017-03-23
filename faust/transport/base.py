@@ -10,7 +10,7 @@ from ..types import (
     K, KeyDecodeErrorCallback, ValueDecodeErrorCallback,
     Message, ProducerT, Topic, TransportT,
 )
-from ..utils.service import Service
+from ..utils.services import Service
 
 __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
 

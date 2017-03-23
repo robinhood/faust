@@ -165,6 +165,10 @@ from .utils import json as _json
 from .utils.compat import want_bytes, want_str
 from .utils.imports import load_extension_classes
 
+__all__ = [
+    'Codec', 'register', 'get_codec', 'dumps', 'loads',
+]
+
 
 class Codec(CodecT):
     """Base class for codecs."""

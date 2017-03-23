@@ -1,5 +1,5 @@
 import pytest
-from faust.utils.url import as_url, parse_url, maybe_sanitize_url
+from faust.utils.urls import as_url, parse_url, maybe_sanitize_url
 
 
 def test_parse_url():

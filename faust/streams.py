@@ -15,8 +15,8 @@ from .types import (
     StreamProcessorMap, StreamT, Topic, V,
 )
 from .utils.coroutines import wrap_callback
-from .utils.log import get_logger
-from .utils.service import Service
+from .utils.logging import get_logger
+from .utils.services import Service
 
 __all__ = ['Stream', 'topic']
 

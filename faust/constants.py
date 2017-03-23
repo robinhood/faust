@@ -1,3 +1,5 @@
+"""Constants."""
+
 # Copied from Java Kafka Streams.
 BRANCH_NAME = 'KSTREAM-BRANCH-'
 BRANCHCHILD_NAME = 'KSTREAM-BRANCHCHILD-'

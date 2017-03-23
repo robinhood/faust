@@ -1,7 +1,10 @@
+"""Async I/O services that can be started/stopped/shutdown."""
 import asyncio
 from typing import Awaitable, Callable, List
-from .log import get_logger
+from .logging import get_logger
 from ..types import ServiceT
+
+__all__ = ['Poller', 'Service']
 
 Poller = Callable[[], Awaitable[None]]
 logger = get_logger(__name__)

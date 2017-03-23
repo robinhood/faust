@@ -3,7 +3,7 @@ import asyncio
 import faust
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Callable, Dict, Generator, Iterator,
+    Any, Awaitable, Callable, Dict, Iterator,
     MutableMapping, Sequence, Union, Type, cast,
 )
 from itertools import count
@@ -12,12 +12,12 @@ from . import transport
 from .codecs import dumps
 from .types import (
     AppT, CodecArg, K, ModelT, Processor, ProducerT,
-    StreamCoroutine, StreamT, Topic, TransportT, V,
+    StreamCoroutine, StreamT, TaskArg, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
-from .utils.log import get_logger
-from .utils.service import Service
+from .utils.logging import get_logger
+from .utils.services import Service
 
 __all__ = ['App']
 
@@ -150,7 +150,7 @@ class App(AppT, Service):
             topic, key, value,
         )
 
-    def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
+    def add_task(self, task: TaskArg) -> asyncio.Future:
         """Start task.
 
         Notes:
@@ -164,7 +164,7 @@ class App(AppT, Service):
             self._install_loop_handlers()
         return asyncio.ensure_future(self._execute_task(task), loop=self.loop)
 
-    async def _execute_task(self, task: Union[Generator, Awaitable]) -> None:
+    async def _execute_task(self, task: TaskArg) -> None:
         await asyncio.ensure_future(task, loop=self.loop)
 
     def _install_loop_handlers(self):

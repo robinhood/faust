@@ -1,4 +1,10 @@
-"""Exceptions."""
+"""Faust exceptions."""
+
+__all__ = [
+    'ImproperlyConfigured',
+    'KeyDecodeError',
+    'ValueDecodeError',
+]
 
 
 class ImproperlyConfigured(Exception):

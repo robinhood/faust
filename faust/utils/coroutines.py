@@ -1,9 +1,35 @@
+"""Coroutine utilities."""
 import asyncio
 from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
 from ..types import (
     CoroCallbackT, Event, InputStreamT,
     StreamCoroutine, StreamCoroutineCallback,
 )
+
+__all__ = [
+    'InputStream', 'CoroCallback',
+    'GeneratorCoroCallback', 'AsyncCoroCallback', 'AsyncGeneratorCoroCallback',
+    'wrap_callback',
+]
+
+# This implements the Stream(coroutine=x) stuff where the stream can be
+# processsed by a generator like:
+#
+#   def filter_large_withdrawals(it):
+#       return (e for e in it if e.amount > 999.0)
+#
+# or an async generator like:
+#
+#   async def filter_large_withdrawals(it):
+#       return (e async for e in it if e.amount > 999.0)
+#
+# or an async coroutine like:
+#
+#   async def filter_large_withdrawals(it):
+#       while 1:
+#         event1 = it.next()
+#         event2 = it.next()
+#         yield event1.derive(amount=event1.amount + event2.amount)
 
 
 class InputStream(InputStreamT):
@@ -20,7 +46,6 @@ class InputStream(InputStreamT):
         # this convenience method for generators that want to take
         # multiple events at once.
         # Example:
-        #   @stream(Topic('foo'))
         #   def s(it):
         #       while 1:
         #           event1 = await it.next()
