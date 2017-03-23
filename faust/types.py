@@ -3,8 +3,8 @@ import abc
 import asyncio
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
-    Iterable, List, Mapping, MutableMapping, MutableSequence,
-    NamedTuple, Optional, Pattern, Sequence, Tuple, Type, TypeVar, Union,
+    Iterable, List, Mapping, MutableMapping, MutableSequence, NamedTuple,
+    NewType, Optional, Pattern, Sequence, Tuple, Type, TypeVar, Union,
 )
 
 __all__ = [
@@ -74,19 +74,6 @@ class Request(NamedTuple):
     app: 'AppT'
     key: K
     message: Message
-
-
-#: Callback called by :class:`faust.transport.base.Consumer` whenever
-#: a message is received.
-ConsumerCallback = Callable[[Topic, 'K', 'ModelT'], Awaitable]
-
-#: Callback called by :class:`faust.transport.base.Consumer` whenever
-#: a message key cannot be decoded/deserialized.
-KeyDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
-
-#: Callback called by :class:`faust.transport.base.Consumer` whenever
-#: a message value cannot be decoded/deserialized.
-ValueDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
 
 
 class ServiceT(metaclass=abc.ABCMeta):
@@ -198,10 +185,26 @@ class ModelT:
 
 #: Shorthand for the type of a value
 V = ModelT
-Processor = Callable[[V], V]
+
+#: An event is a ModelT that was received as a message.
+Event = NewType('Event', ModelT)
+
+Processor = Callable[[Event], Event]
 TopicProcessorSequence = Sequence[Processor]
 StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
 StreamCoroutineMap = MutableMapping[Topic, 'CoroCallbackT']
+
+#: Callback called by :class:`faust.transport.base.Consumer` whenever
+#: a message is received.
+ConsumerCallback = Callable[[Topic, K, Event], Awaitable]
+
+#: Callback called by :class:`faust.transport.base.Consumer` whenever
+#: a message key cannot be decoded/deserialized.
+KeyDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
+
+#: Callback called by :class:`faust.transport.base.Consumer` whenever
+#: a message value cannot be decoded/deserialized.
+ValueDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
 
 
 class FieldDescriptorT:
@@ -216,7 +219,7 @@ class InputStreamT(Iterable, AsyncIterable):
     queue: asyncio.Queue
 
     @abc.abstractmethod
-    async def put(self, value: V) -> None:
+    async def put(self, value: Event) -> None:
         ...
 
     @abc.abstractmethod
@@ -228,7 +231,7 @@ class InputStreamT(Iterable, AsyncIterable):
         ...
 
 
-StreamCoroutineCallback = Callable[[V], Awaitable[None]]
+StreamCoroutineCallback = Callable[[Event], Awaitable[None]]
 
 
 class CoroCallbackT:
@@ -238,7 +241,9 @@ class CoroCallbackT:
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
-    async def send(self, value: V, callback: StreamCoroutineCallback) -> None:
+    async def send(self,
+                   value: Event,
+                   callback: StreamCoroutineCallback) -> None:
         ...
 
     async def join(self) -> None:
@@ -249,9 +254,9 @@ class CoroCallbackT:
 
 
 StreamCoroutine = Union[
-    Callable[[InputStreamT], Coroutine[V, None, None]],
-    Callable[[InputStreamT], AsyncIterable[V]],
-    Callable[[InputStreamT], Generator[V, None, None]],
+    Callable[[InputStreamT], Coroutine[Event, None, None]],
+    Callable[[InputStreamT], AsyncIterable[Event]],
+    Callable[[InputStreamT], Generator[Event, None, None]],
 ]
 
 
@@ -283,7 +288,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def track_event(self, event: V, offset: int) -> None:
+    def track_event(self, event: Event, offset: int) -> None:
         ...
 
     @abc.abstractmethod
@@ -449,15 +454,15 @@ class StreamT(AsyncIterable[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_message(self, topic: Topic, key: K, value: V) -> None:
+    async def on_message(self, topic: Topic, key: K, value: Event) -> None:
         ...
 
     @abc.abstractmethod
-    async def process(self, key: K, value: V) -> V:
+    async def process(self, key: K, value: Event) -> Event:
         ...
 
     @abc.abstractmethod
-    async def on_done(self, value: V = None) -> None:
+    async def on_done(self, value: Event = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -494,7 +499,7 @@ class StreamT(AsyncIterable[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def __next__(self) -> V:
+    def __next__(self) -> Event:
         ...
 
     @abc.abstractmethod
@@ -511,5 +516,5 @@ class JoinT(metaclass=abc.ABCMeta):
     stream: StreamT
 
     @abc.abstractmethod
-    async def process(_self, event: V) -> Optional[V]:
+    async def process(_self, event: Event) -> Optional[Event]:
         ...

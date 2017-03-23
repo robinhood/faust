@@ -1,5 +1,5 @@
 from typing import Optional, Tuple
-from .types import FieldDescriptorT, JoinT, StreamT, V
+from .types import Event, FieldDescriptorT, JoinT, StreamT
 
 
 class Join(JoinT):
@@ -10,7 +10,7 @@ class Join(JoinT):
         self.fields = {field.event: field for field in fields}
         self.stream = stream
 
-    async def process(self, event: V) -> Optional[V]:
+    async def process(self, event: Event) -> Optional[Event]:
         raise NotImplementedError()
 
 

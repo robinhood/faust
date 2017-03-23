@@ -1,7 +1,8 @@
 import asyncio
 from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
 from ..types import (
-    CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback, V,
+    CoroCallbackT, Event, InputStreamT,
+    StreamCoroutine, StreamCoroutineCallback,
 )
 
 
@@ -11,7 +12,7 @@ class InputStream(InputStreamT):
         self.loop = loop
         self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
 
-    async def put(self, value: V) -> None:
+    async def put(self, value: Event) -> None:
         await self.queue.put(value)
 
     async def next(self) -> Any:
@@ -56,7 +57,9 @@ class CoroCallback(CoroCallbackT):
         self.inbox = inbox
         self.loop = loop
 
-    async def send(self, value: V, callback: StreamCoroutineCallback) -> None:
+    async def send(self,
+                   value: Event,
+                   callback: StreamCoroutineCallback) -> None:
         await self.inbox.put(value)
         asyncio.ensure_future(self.drain(callback), loop=self.loop)
 
@@ -73,10 +76,10 @@ class CoroCallback(CoroCallbackT):
 
 
 class GeneratorCoroCallback(CoroCallback):
-    gen: Generator[V, None, None]
+    gen: Generator[Event, None, None]
 
     def __init__(self,
-                 gen: Generator[V, None, None],
+                 gen: Generator[Event, None, None],
                  inbox: InputStreamT,
                  **kwargs) -> None:
         self.gen = gen
@@ -87,10 +90,10 @@ class GeneratorCoroCallback(CoroCallback):
 
 
 class AsyncCoroCallback(CoroCallback):
-    gen: AsyncIterable[V]
+    gen: AsyncIterable[Event]
 
     def __init__(self,
-                 gen: AsyncIterable[V],
+                 gen: AsyncIterable[Event],
                  inbox: InputStreamT,
                  **kwargs) -> None:
         self.gen = gen
@@ -101,12 +104,12 @@ class AsyncCoroCallback(CoroCallback):
 
 
 class AsyncGeneratorCoroCallback(CoroCallback):
-    coro: Coroutine[V, None, None]
-    gen: AsyncIterable[V]
+    coro: Coroutine[Event, None, None]
+    gen: AsyncIterable[Event]
     gen_started = False
 
     def __init__(self,
-                 coro: Coroutine[V, None, None],
+                 coro: Coroutine[Event, None, None],
                  inbox: InputStreamT,
                  **kwargs) -> None:
         self.coro = coro

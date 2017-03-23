@@ -4,7 +4,7 @@ from typing import (
 )
 from .codecs import dumps, loads
 from .types import (
-    AppT, CodecArg, FieldDescriptorT, K,
+    AppT, CodecArg, Event, FieldDescriptorT, K,
     Message, ModelOptions, ModelT, Request, Topic,
 )
 from .utils.objects import annotations
@@ -116,7 +116,7 @@ class Model(ModelT):
     def from_message(
             cls, key: K, message: Message, app: AppT,
             *,
-            default_serializer: CodecArg = None) -> ModelT:
+            default_serializer: CodecArg = None) -> Event:
         """Create event from message.
 
         The Consumer uses this to convert a message to an event.
@@ -129,11 +129,11 @@ class Model(ModelT):
             default_serializer (CodecArg): Default serializer to use
                 if no custom serializer was set for this Event subclass.
         """
-        return cls.loads(
+        return cast(Event, cls.loads(
             message.value,
             default_serializer=default_serializer,
             req=Request(app, key, message),
-        )
+        ))
 
     @classmethod
     def as_schema(cls) -> Mapping:

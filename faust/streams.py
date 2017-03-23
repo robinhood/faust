@@ -10,7 +10,7 @@ from typing import (
 from . import joins
 from . import primitives
 from .types import (
-    AppT, CodecArg, ConsumerT, CoroCallbackT, FieldDescriptorT,
+    AppT, CodecArg, ConsumerT, CoroCallbackT, Event, FieldDescriptorT,
     JoinT, K, Message, Processor, StreamCoroutine, StreamCoroutineMap,
     StreamProcessorMap, StreamT, Topic, V,
 )
@@ -50,12 +50,13 @@ logger = get_logger(__name__)
 #
 #   - A processor can either be a regular callable, or an async callable:
 #
-#       # NOTE: V is an abbreviation for ModelT (Record/etc.).
+#       # NOTE: Event is the type of  a ModelT (Record/etc.) that was
+#       #       received as a message
 #
-#       def processor1(event: V) -> V:
+#       def processor1(event: Event) -> Event:
 #           return event.amount * 2
 #
-#       async def processor2(event: V) -> V:
+#       async def processor2(event: Event) -> Event:
 #           await verify_event(event)
 #           return event
 #
@@ -231,7 +232,7 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    async def on_message(self, topic: Topic, key: K, value: V) -> None:
+    async def on_message(self, topic: Topic, key: K, value: Event) -> None:
         processors = self._processors.get(topic)
         value = await self.process(key, value)
         if processors is not None:
@@ -245,10 +246,10 @@ class Stream(StreamT, Service):
         if coroutine is not None:
             await coroutine.send(value, self.on_done)
 
-    async def process(self, key: K, value: V) -> V:
+    async def process(self, key: K, value: Event) -> Event:
         return value
 
-    async def on_done(self, value: V = None) -> None:
+    async def on_done(self, value: Event = None) -> None:
         join_strategy = self.join_strategy
         if join_strategy:
             value = await join_strategy.process(value)
@@ -328,12 +329,12 @@ class Stream(StreamT, Service):
     def __iter__(self) -> Any:
         return self
 
-    def __next__(self) -> V:
+    def __next__(self) -> Event:
         raise NotImplementedError('Stream are asynchronous use __aiter__')
 
     async def __aiter__(self) -> StreamT:
         await self.maybe_start()
         return self
 
-    async def __anext__(self) -> V:
+    async def __anext__(self) -> Event:
         return await self.outbox.get()

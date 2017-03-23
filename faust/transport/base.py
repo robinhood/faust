@@ -6,9 +6,9 @@ from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
 from ..codecs import loads
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
-    AppT, ConsumerCallback, ConsumerT, EventRefT,
+    AppT, ConsumerCallback, ConsumerT, Event, EventRefT,
     K, KeyDecodeErrorCallback, ValueDecodeErrorCallback,
-    Message, ProducerT, Topic, TransportT, V,
+    Message, ProducerT, Topic, TransportT,
 )
 from ..utils.service import Service
 
@@ -50,7 +50,7 @@ class EventRef(weakref.ref, EventRefT):
 
     # Used for tracking when events go out of scope.
 
-    def __init__(self, event: V,
+    def __init__(self, event: Event,
                  callback: Callable = None,
                  offset: int = None) -> None:
         super().__init__(event, callback)
@@ -112,7 +112,7 @@ class Consumer(ConsumerT, Service):
         self.track_event(v, message.offset)
         await self.callback(self.topic, k, v)
 
-    def to_KV(self, message: Message) -> Tuple[K, V]:
+    def to_KV(self, message: Message) -> Tuple[K, Event]:
         key = message.key
         if self._key_serializer:
             try:
@@ -129,7 +129,7 @@ class Consumer(ConsumerT, Service):
             raise ValueDecodeError(exc)
         return k, v
 
-    def track_event(self, event: V, offset: int) -> None:
+    def track_event(self, event: Event, offset: int) -> None:
         self._dirty_events.append(
             EventRef(event, self.on_event_ready, offset=offset))
 

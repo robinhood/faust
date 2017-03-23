@@ -1,9 +1,10 @@
 import faust
 from typing import AsyncIterable, List, Optional, Union, cast
-from .types import StreamT, Topic, V
+from .types import Event, StreamT, Topic
 
 
-async def through(s: StreamT, topic: Union[Topic, str]) -> AsyncIterable[V]:
+async def through(
+        s: StreamT, topic: Union[Topic, str]) -> AsyncIterable[Event]:
     if isinstance(topic, str):
         topic = faust.topic(topic)
     topic = cast(Topic, topic)
@@ -13,7 +14,7 @@ async def through(s: StreamT, topic: Union[Topic, str]) -> AsyncIterable[V]:
 
 async def _do_through(topic: Topic,
                       new_stream: List[Optional[StreamT]],
-                      event: V):
+                      event: Event):
     if new_stream[0] is None:
         new_stream[0] = event.req.app.stream(topic)
     await event.forward(topic)
