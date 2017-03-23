@@ -64,7 +64,7 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: bytes) -> Awaitable:
         await self._producer.send(topic, value, key=key)
-        return done_future(loop=self.loop)  # interface excepts Awaitable
+        return done_future(loop=self.loop)  # interface expects Awaitable
 
     async def send_and_wait(
             self,
