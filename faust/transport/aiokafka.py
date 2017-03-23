@@ -2,6 +2,7 @@
 import aiokafka
 from typing import Awaitable, Optional, Type, cast
 from ..types import Message
+from ..utils.async import done_future
 from ..utils.objects import cached_property
 from . import base
 
@@ -62,14 +63,15 @@ class Producer(base.Producer):
             topic: str,
             key: Optional[bytes],
             value: bytes) -> Awaitable:
-        return self._producer.send(topic, value, key=key)
+        await self._producer.send(topic, value, key=key)
+        return done_future(loop=self.loop)  # interface excepts Awaitable
 
     async def send_and_wait(
             self,
             topic: str,
             key: Optional[bytes],
             value: bytes) -> Awaitable:
-        return self._producer.send_and_wait(topic, value, key=key)
+        return await self._producer.send_and_wait(topic, value, key=key)
 
 
 class Transport(base.Transport):
