@@ -14,11 +14,8 @@ __all__ = [
     'ServiceT', 'AppT',
 ]
 
-#: Shorthand for the type of a key (Any for now).
-K = Any
-
-#: Shorthand for the type of a value (Any for now).
-V = Any
+#: Shorthand for the type of a key
+K = Optional[Union[bytes, 'MessageTypeT']]
 
 
 class SerializerT(metaclass=abc.ABCMeta):
@@ -77,7 +74,7 @@ class Request(NamedTuple):
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
-ConsumerCallback = Callable[[Topic, K, 'EventT'], Awaitable]
+ConsumerCallback = Callable[[Topic, 'K', 'MessageTypeT'], Awaitable]
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message key cannot be decoded/deserialized.
@@ -144,7 +141,7 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
-class EventOptions:
+class MessageTypeOptions:
     serializer: SerializerArg
     namespace: str
 
@@ -157,38 +154,46 @@ class EventOptions:
     # Index: Set of optional field names, for fast argument checking.
     optionalset: FrozenSet[str]
 
+    defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
-class EventT:
+
+class MessageTypeT:
     # uses __init_subclass__ so cannot use ABCMeta
 
     req: Request
 
-    _options: EventOptions
+    _options: MessageTypeOptions
 
     @classmethod
     def as_schema(cls) -> Mapping:
         ...
 
     @classmethod
-    def loads(cls, s: bytes,
-              *,
-              default_serializer: SerializerArg = None,
-              **kwargs) -> 'EventT':
+    def loads(
+            cls, s: bytes,
+            *,
+            default_serializer: SerializerArg = None,
+            **kwargs) -> 'MessageTypeT':
         ...
 
-    def from_message(cls, key: K, message: Message, app: 'AppT',
-                     *,
-                     default_serializer: SerializerArg = None) -> 'EventT':
+    def from_message(
+            cls, key: 'K', message: Message, app: 'AppT',
+            *,
+            default_serializer: SerializerArg = None) -> 'MessageTypeT':
         ...
 
     def dumps(self) -> bytes:
         ...
 
-    def derive(self, *events: 'EventT', **fields) -> 'EventT':
+    def derive(self, *events: 'MessageTypeT', **fields) -> 'MessageTypeT':
         ...
 
     async def forward(self, topic: Union[str, Topic]) -> None:
         ...
+
+
+#: Shorthand for the type of a value
+V = MessageTypeT
 
 
 class FieldDescriptorT:
@@ -203,7 +208,7 @@ class InputStreamT(Iterable, AsyncIterable):
     queue: asyncio.Queue
 
     @abc.abstractmethod
-    async def put(self, value: EventT) -> None:
+    async def put(self, value: V) -> None:
         ...
 
     @abc.abstractmethod
@@ -222,7 +227,7 @@ class CoroCallbackT:
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
-    async def send(self, value: EventT, callback: Callable) -> None:
+    async def send(self, value: V, callback: Callable) -> None:
         ...
 
     async def join(self) -> None:
@@ -256,11 +261,11 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def to_KV(self, message: Message) -> Tuple[K, EventT]:
+    def to_KV(self, message: Message) -> Tuple[K, V]:
         ...
 
     @abc.abstractmethod
-    def track_event(self, event: EventT, offset: int) -> None:
+    def track_event(self, event: V, offset: int) -> None:
         ...
 
     @abc.abstractmethod
@@ -343,7 +348,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def send(
-            self, topic: Union[Topic, str], key: K, event: EventT,
+            self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True,
             key_serializer: SerializerArg = None) -> Awaitable:
@@ -403,7 +408,7 @@ class StreamT(ServiceT, AsyncIterable, Iterable):
         ...
 
     @abc.abstractmethod
-    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[EventT]:
+    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[V]:
         ...
 
     @abc.abstractmethod
@@ -423,15 +428,15 @@ class StreamT(ServiceT, AsyncIterable, Iterable):
         ...
 
     @abc.abstractmethod
-    async def on_message(self, topic: Topic, key: K, value: EventT) -> None:
+    async def on_message(self, topic: Topic, key: K, value: V) -> None:
         ...
 
     @abc.abstractmethod
-    async def process(self, key: K, value: EventT) -> EventT:
+    async def process(self, key: K, value: V) -> V:
         ...
 
     @abc.abstractmethod
-    async def on_done(self, value: EventT = None) -> None:
+    async def on_done(self, value: V = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -468,7 +473,7 @@ class StreamT(ServiceT, AsyncIterable, Iterable):
         ...
 
     @abc.abstractmethod
-    def __next__(self) -> EventT:
+    def __next__(self) -> V:
         ...
 
     @abc.abstractmethod
@@ -476,7 +481,7 @@ class StreamT(ServiceT, AsyncIterable, Iterable):
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> EventT:
+    async def __anext__(self) -> V:
         ...
 
 
@@ -485,5 +490,5 @@ class JoinT(metaclass=abc.ABCMeta):
     stream: StreamT
 
     @abc.abstractmethod
-    async def process(_self, event: EventT) -> Optional[EventT]:
+    async def process(_self, event: V) -> Optional[V]:
         ...

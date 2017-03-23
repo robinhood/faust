@@ -10,7 +10,7 @@ from itertools import count
 from . import constants
 from . import transport
 from .types import (
-    AppT, EventT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT,
+    AppT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
@@ -94,7 +94,7 @@ class App(AppT, Service):
         self._streams = OrderedDict()
 
     async def send(
-            self, topic: Union[Topic, str], key: K, event: EventT,
+            self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True,
             key_serializer: SerializerArg = None) -> Awaitable:
@@ -102,8 +102,8 @@ class App(AppT, Service):
 
         Arguments:
             topic (Union[Topic, str]): Topic to send event to.
-            key (Any): Message key.
-            event (Event): Message value.
+            key (K): Message key.
+            value (V): Message value.
 
         Keyword Arguments:
             wait (bool): Wait for message to be published (default),
@@ -121,12 +121,12 @@ class App(AppT, Service):
                 key_bytes = dumps(key_serializer, key)
             else:
                 key_bytes = want_bytes(key)
-        value: bytes = event.dumps()
+        value_bytes: bytes = value.dumps()
 
         return await self._send(
             strtopic,
             key_bytes,
-            value,
+            value_bytes,
             wait=wait,
         )
 

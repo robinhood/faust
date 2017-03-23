@@ -1,6 +1,6 @@
 from typing import Any, MutableMapping
 from .streams import Stream
-from .types import EventT, K, Topic
+from .types import K, Topic, V
 
 
 class Table(Stream):
@@ -12,7 +12,7 @@ class Table(Stream):
         assert not self._coroutines  # Table cannot have generator callback.
         self._state = {}
 
-    async def on_message(self, topic: Topic, key: K, value: EventT) -> None:
+    async def on_message(self, topic: Topic, key: K, value: V) -> None:
         self._state[key] = await self.process(key, value)
 
     def __getitem__(self, key: Any) -> Any:

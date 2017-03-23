@@ -3,15 +3,15 @@ import asyncio
 import re
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Dict, Iterable, List,
+    Any, AsyncIterable, Awaitable, Callable, Dict, List,
     Mapping, MutableMapping, MutableSequence, Pattern,
     Sequence, Tuple, Type, Union, cast
 )
 from . import joins
 from . import primitives
 from .types import (
-    AppT, ConsumerT, CoroCallbackT, EventT, FieldDescriptorT, JoinT, K,
-    Message, SerializerArg, StreamT, Topic,
+    AppT, ConsumerT, CoroCallbackT, FieldDescriptorT, JoinT, K,
+    Message, SerializerArg, StreamT, Topic, V,
 )
 from .utils.coroutines import wrap_callback
 from .utils.log import get_logger
@@ -25,15 +25,15 @@ __make_flake8_happy_Dict: Dict
 logger = get_logger(__name__)
 
 # NOTES:
-#   - Users define an Event subclass that define how messages in a topic is
+#   - Users define an Record subclass that define how messages in a topic is
 #     serialized/deserialized.
 #
-#       class Withdrawal(Event, serializer='json'):
+#       class Withdrawal(Record, serializer='json'):
 #           account_id: str
 #           amount: float
 #
 #   - Users create a topic description: Topic, that describes a list of
-#     topics and the Event class used to serialize/deserialize messages:
+#     topics and the Record class used to serialize/deserialize messages:
 #
 #       # topic is a shortcut function that returns type faust.types.Topic
 #       withdrawals = faust.topic('withdrawal.ach', 'withdrawal.paypal',
@@ -48,10 +48,12 @@ logger = get_logger(__name__)
 #
 #   - A processor can either be a regular callable, or an async callable:
 #
-#       def processor1(event: Event) -> Event:
-#           return Event.amount * 2
+#       # NOTE: V is an abbreviation for MessageType/Record/etc.
 #
-#       async def processor2(event: Event) -> Event:
+#       def processor1(event: V) -> V:
+#           return event.amount * 2
+#
+#       async def processor2(event: V) -> V:
 #           await verify_event(event)
 #           return event
 #
@@ -104,7 +106,7 @@ def topic(*topics: str,
     Keyword Arguments:
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
-        type (Type): Event type used for messages in this topic.
+        type (Type): MessageType/V used for messages in this topic.
         key_serializer (SerializerArg): Serializer name, or serializer object
             to use for keys from this topic.
 
@@ -209,7 +211,7 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
-    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[EventT]:
+    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[V]:
         return await primitives.through(self, topic)
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
@@ -227,7 +229,7 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    async def on_message(self, topic: Topic, key: K, value: EventT) -> None:
+    async def on_message(self, topic: Topic, key: K, value: V) -> None:
         processors = self._processors.get(topic)
         value = await self.process(key, value)
         if processors is not None:
@@ -241,10 +243,10 @@ class Stream(StreamT, Service):
         if coroutine is not None:
             await coroutine.send(value, self.on_done)
 
-    async def process(self, key: K, value: EventT) -> EventT:
+    async def process(self, key: K, value: V) -> V:
         return value
 
-    async def on_done(self, value: EventT = None) -> None:
+    async def on_done(self, value: V = None) -> None:
         join_strategy = self.join_strategy
         if join_strategy:
             value = await join_strategy.process(value)
@@ -324,12 +326,12 @@ class Stream(StreamT, Service):
     def __iter__(self) -> Any:
         return self
 
-    def __next__(self) -> EventT:
+    def __next__(self) -> V:
         raise NotImplementedError('Stream are asynchronous use __aiter__')
 
     async def __aiter__(self) -> StreamT:
         await self.maybe_start()
         return self
 
-    async def __anext__(self) -> EventT:
+    async def __anext__(self) -> V:
         return await self.outbox.get()

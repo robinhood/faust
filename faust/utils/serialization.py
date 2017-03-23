@@ -79,8 +79,8 @@ our serializer, and we can use it to define event types:
 
 .. code-block:: pycon
 
-    >>> from faust import Event
-    >>> class Point(Event, serializer='msgpack'):
+    >>> from faust import Record
+    >>> class Point(Record, serializer='msgpack'):
     ...     x: int
     ...     y: int
 

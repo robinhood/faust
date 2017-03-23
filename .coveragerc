@@ -1,8 +1,8 @@
 [run]
 branch = 1
 cover_pylib = 0
-include = *forever/*
-omit = forever.tests.*
+include = *faust/*
+omit = t.*
 
 [report]
 omit =

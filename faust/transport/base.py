@@ -5,9 +5,9 @@ from itertools import count
 from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
-    AppT, ConsumerCallback, ConsumerT, EventT, EventRefT,
+    AppT, ConsumerCallback, ConsumerT, EventRefT,
     K, KeyDecodeErrorCallback, ValueDecodeErrorCallback,
-    Message, ProducerT, Topic, TransportT,
+    Message, ProducerT, Topic, TransportT, V,
 )
 from ..utils.serialization import loads
 from ..utils.service import Service
@@ -43,14 +43,14 @@ __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
 
 
 class EventRef(weakref.ref, EventRefT):
-    """Weak-reference to :class:`Event`.
+    """Weak-reference to :class:`MessageType`.
 
     Remembers the offset of the event, even after event out of scope.
     """
 
     # Used for tracking when events go out of scope.
 
-    def __init__(self, event: EventT,
+    def __init__(self, event: V,
                  callback: Callable = None,
                  offset: int = None) -> None:
         super().__init__(event, callback)
@@ -112,7 +112,7 @@ class Consumer(ConsumerT, Service):
         self.track_event(v, message.offset)
         await self.callback(self.topic, k, v)
 
-    def to_KV(self, message: Message) -> Tuple[K, EventT]:
+    def to_KV(self, message: Message) -> Tuple[K, V]:
         key = message.key
         if self._key_serializer:
             try:
@@ -129,7 +129,7 @@ class Consumer(ConsumerT, Service):
             raise ValueDecodeError(exc)
         return k, v
 
-    def track_event(self, event: EventT, offset: int) -> None:
+    def track_event(self, event: V, offset: int) -> None:
         self._dirty_events.append(
             EventRef(event, self.on_event_ready, offset=offset))
 

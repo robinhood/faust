@@ -2,7 +2,7 @@ import asyncio
 import faust
 
 
-class Event(faust.Event):
+class Event(faust.Record):
     value: int
 
 

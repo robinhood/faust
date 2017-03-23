@@ -7,13 +7,13 @@ from decimal import Decimal
 BLACKLIST = {'KP'}
 
 
-class Event(faust.Event):
+class Event(faust.Record):
     account: str
     user: str
     country: str
 
 
-class Withdrawal(faust.Event):
+class Withdrawal(faust.Record):
     amount: Decimal
 
 
