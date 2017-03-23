@@ -3,8 +3,8 @@ import abc
 import asyncio
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
-    Iterable, List, Mapping, MutableMapping, MutableSequence,
-    NamedTuple, Optional, Pattern, Sequence, Tuple, Type, Union,
+    Generic, Iterable, List, Mapping, MutableMapping, MutableSequence,
+    NamedTuple, Optional, Pattern, Sequence, Tuple, Type, TypeVar, Union,
 )
 
 __all__ = [
@@ -13,6 +13,10 @@ __all__ = [
     'KeyDecodeErrorCallback', 'ValueDecodeErrorCallback',
     'ServiceT', 'AppT',
 ]
+
+
+# Used for typing StreamT[Withdrawal]
+_T = TypeVar('_T')
 
 #: Shorthand for the type of a key
 K = Optional[Union[bytes, 'MessageTypeT']]
@@ -377,7 +381,7 @@ class AppT(ServiceT):
         ...
 
 
-class StreamT(ServiceT, AsyncIterable, Iterable):
+class StreamT(AsyncIterable, Generic[_T], ServiceT):
 
     app: AppT = None
     topics: MutableSequence[Topic] = None
