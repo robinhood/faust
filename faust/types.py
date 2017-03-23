@@ -249,9 +249,9 @@ class CoroCallbackT:
 
 
 StreamCoroutine = Union[
-    Callable[[InputStreamT], Coroutine[None, None, V]],
+    Callable[[InputStreamT], Coroutine[V, None, None]],
     Callable[[InputStreamT], AsyncIterable[V]],
-    Callable[[InputStreamT], Generator[None, None, V]],
+    Callable[[InputStreamT], Generator[V, None, None]],
 ]
 
 
