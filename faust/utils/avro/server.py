@@ -201,11 +201,10 @@ class SchemaRegistryClient:
             headers: Mapping[str, str] = None,
             unknown_error_message: str = 'Unknown error') -> Mapping:
         error: str = None
-        _headers: Dict[str, str] = {
-            'Accept': ACCEPT,
-        }
+        _body: bytes = None
+        _headers: Dict[str, str] = {'Accept': ACCEPT}
         if body:
-            body = json.dumps(body).encode('utf-8')
+            _body = json.dumps(body).encode('utf-8')
             _headers.update({
                 'Content-Length': str(len(body)),
                 'Content-Type': self.content_type,
@@ -214,7 +213,7 @@ class SchemaRegistryClient:
 
         response = await self.session.request(
             method.lower(),
-            body=body,
+            body=_body,
             headers=_headers,
         )
         if response.ok:
