@@ -1,9 +1,9 @@
 import asyncio
 import pytest
 from case import Mock
+from faust import codecs
 from faust import App, Record, topic
 from faust.types import MessageTypeT
-from faust.utils import serialization
 from faust.utils.compat import want_bytes
 
 test_topic = topic('test')
@@ -59,7 +59,7 @@ async def test_send(key, wait, topic, expected_topic, key_serializer, app):
         if isinstance(key, MessageTypeT):
             expected_key = key.dumps()
         elif key_serializer:
-            expected_key = serialization.dumps(key_serializer, key)
+            expected_key = codecs.dumps(key_serializer, key)
         else:
             expected_key = want_bytes(key)
     else:
@@ -76,7 +76,7 @@ def test_add_task(app, patching):
         ...
 
     app.add_task(foo)
-    ensure_future.assert_called_with(foo, loop=app.loop)
+    ensure_future.assert_called()
 
 
 def test_stream(app):
