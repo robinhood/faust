@@ -4,16 +4,16 @@ import pytest
 from typing import Mapping
 from hypothesis import given
 from hypothesis.strategies import binary, dictionaries, text
-from faust.utils.compat import want_str
-from faust.utils.serialization import (
-    Serializer, get_serializer, loads, dumps, json, binary as _binary,
+from faust.codecs import (
+    Codec, get_codec, loads, dumps, json, binary as _binary,
 )
+from faust.utils.compat import want_str
 
 DATA = {'a': 1, 'b': 'string'}
 
 
 def test_interface():
-    s = Serializer()
+    s = Codec()
     with pytest.raises(NotImplementedError):
         s._loads(b'foo')
     with pytest.raises(NotImplementedError):
@@ -21,9 +21,9 @@ def test_interface():
     assert s.__or__(1) is NotImplemented
 
 
-@pytest.mark.parametrize('serializer', ['json', 'pickle'])
-def test_json_subset(serializer: str) -> None:
-    assert loads(serializer, dumps(serializer, DATA)) == DATA
+@pytest.mark.parametrize('codec', ['json', 'pickle'])
+def test_json_subset(codec: str) -> None:
+    assert loads(codec, dumps(codec, DATA)) == DATA
 
 
 @given(binary())
@@ -41,6 +41,6 @@ def test_combinators(input: Mapping[str, str]) -> None:
     assert _json.loads(want_str(base64.b64decode(d))) == input
 
 
-def test_get_serializer():
-    assert get_serializer('json|binary')
-    assert get_serializer(Serializer) is Serializer
+def test_get_codec():
+    assert get_codec('json|binary')
+    assert get_codec(Codec) is Codec

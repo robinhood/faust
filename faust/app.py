@@ -9,14 +9,14 @@ from typing import (
 from itertools import count
 from . import constants
 from . import transport
+from .codecs import dumps
 from .types import (
-    AppT, K, MessageTypeT, Processor, ProducerT, SerializerArg,
+    AppT, CodecArg, K, MessageTypeT, Processor, ProducerT,
     StreamCoroutine, StreamT, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
 from .utils.log import get_logger
-from .utils.serialization import dumps
 from .utils.service import Service
 
 __all__ = ['App']
@@ -45,10 +45,10 @@ class App(AppT, Service):
         client_id (str):  Client id used for producer/consumer.
         commit_interval (float): How often we commit offset when automatic
             commit is enabled.  Default ``30.0``.
-        key_serializer (SerializerArg): Default serializer for Topics
+        key_serializer (CodecArg): Default serializer for Topics
             that do not have an explicit serializer set.
             Default: :const:`None`.
-        value_serializer (SerializerArg): Default serializer for event types
+        value_serializer (CodecArg): Default serializer for event types
             that do not have an explicit serializer set.  Default: ``"json"``.
         num_standby_replicas (int): The number of standby replicas for each
             task.  Default: ``0``.
@@ -80,8 +80,8 @@ class App(AppT, Service):
                  url: str = 'aiokafka://localhost:9092',
                  client_id: str = CLIENT_ID,
                  commit_interval: float = COMMIT_INTERVAL,
-                 key_serializer: SerializerArg = None,
-                 value_serializer: SerializerArg = 'json',
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
                  stream_cls: Union[Type, str] = DEFAULT_STREAM_CLS,
@@ -103,7 +103,7 @@ class App(AppT, Service):
             self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True,
-            key_serializer: SerializerArg = None) -> Awaitable:
+            key_serializer: CodecArg = None) -> Awaitable:
         """Send event to stream.
 
         Arguments:
@@ -165,7 +165,7 @@ class App(AppT, Service):
         return asyncio.ensure_future(self._execute_task(task), loop=self.loop)
 
     async def _execute_task(self, task: Union[Generator, Awaitable]) -> None:
-        await task
+        await asyncio.ensure_future(task, loop=self.loop)
 
     def _install_loop_handlers(self):
         self._old_exception_handler = (
@@ -179,7 +179,6 @@ class App(AppT, Service):
                            context: Dict) -> None:
         print('LOOP RAISED EXCEPTION: %r' % (context,))
         self._old_exception_handler(loop, context)
-
 
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,

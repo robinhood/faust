@@ -1,7 +1,7 @@
 """Serialization utilities.
 
-Supported serializers
-=====================
+Supported codecs
+================
 
 * **json**    - json with utf-8 encoding.
 * **pickle**  - pickle with base64 encoding (not urlsafe)
@@ -10,14 +10,15 @@ Supported serializers
 Serialization by name
 =====================
 
-The func:`dumps` function takes a serializer name and the object to serialize:
+The func:`dumps` function takes a codec name and the object to encode,
+the return value is bytes:
 
 .. code-block:: pycon
 
     >>> s = dumps('json', obj)
 
-For the reverse direction, the func:`loads` function takes a serializer
-name and a serialized payload:
+For the reverse direction, the func:`loads` function takes a codec
+name and a encoded payload to decode (bytes):
 
 .. code-block:: pycon
 
@@ -30,30 +31,30 @@ where json is combined with gzip compression:
 
     >>> obj = loads('json|gzip', s)
 
-Serializer registry
-===================
+Codec registry
+==============
 
-Serializers are configured by name and this module maintains
-a mapping from name to :class:`Serializer` instance: the :attr:`serializers`
+Codecs are configured by name and this module maintains
+a mapping from name to :class:`Codec` instance: the :attr:`codecs`
 attribute.
 
-You can add a new serializer to this mapping by:
+You can add a new codec to this mapping by:
 
 .. code-block:: pycon
 
-    >>> from faust.utils import serialization
-    >>> serialization.serializers['custom'] = custom_serializer()
+    >>> from faust import codecs
+    >>> codecs.register(custom, custom_serializer())
 
-A serializer subclass requires two methods to be implemented: ``_loads()``
+A codec subclass requires two methods to be implemented: ``_loads()``
 and ``_dumps()``:
 
 .. code-block:: python
 
     import msgpack
 
-    from faust.utils.serialization import Serializer, binary, serializers
+    from faust import codecs
 
-    class raw_msgpack(Serializer):
+    class raw_msgpack(codecs.Codec):
 
         def _dumps(self, obj: Any) -> bytes:
             return msgpack.dumps(obj)
@@ -61,21 +62,21 @@ and ``_dumps()``:
         def _loads(self, s: bytes) -> Any:
             return msgpack.loads(s)
 
-Our serializer now encodes/decodes to raw msgpack format, but we
+Our codec now encodes/decodes to raw msgpack format, but we
 may also need to transfer this payload on a transport not
-handling binary data well.  Serializers can be chained together,
+handling binary data well.  Codecs may be chained together,
 so to add a text encoding like base64, which we use in this case,
-we use the ``|`` operator to form a combined serializer:
+we use the ``|`` operator to form a combined codec:
 
 .. code-block:: python
 
-    def msgpack() -> Serializer:
-        return raw_msgpack() | binary()
+    def msgpack() -> codecs.Codec:
+        return raw_msgpack() | codecs.binary()
 
-    serializers['msgpack'] = msgpack()
+    codecs.register('msgpack', msgpack())
 
 At this point we monkey-patched Faust to support
-our serializer, and we can use it to define event types:
+our codec, and we can use it to define records:
 
 .. code-block:: pycon
 
@@ -87,7 +88,7 @@ our serializer, and we can use it to define event types:
 The problem with monkey-patching is that we must make sure the patching
 happens before we use the feature.
 
-Faust also supports registering *serializer extensions*
+Faust also supports registering *codec extensions*
 using setuptools entrypoints, so instead we can create an installable msgpack
 extension.
 
@@ -120,7 +121,7 @@ package and should look like the following example:
         install_requires=['msgpack-python'],
         tests_require=[],
         entry_points={
-            'faust.serializers': [
+            'faust.codecs': [
                 'msgpack = faust_msgpack:msgpack',
             ],
         },
@@ -128,23 +129,23 @@ package and should look like the following example:
 
 The most important part being the ``entry_points`` key which tells
 Faust how to load our plugin. We have set the name of our
-serializer to ``msgpack`` and the path to the serializer class
+codec to ``msgpack`` and the path to the codec class
 to be ``faust_msgpack:msgpack``. This will be imported by Faust
 as ``from faust_msgpack import msgpack``, so we need to define
 that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 .. code-block:: python
 
-    from faust.utils.serialization import Serializer, binary
+    from faust import codecs
 
-    class raw_msgpack(Serializer):
+    class raw_msgpack(codecs.Codec):
 
         def _dumps(self, obj: Any) -> bytes:
             return msgpack.dumps(s)
 
 
-    def msgpack() -> Serializer:
-        return raw_msgpack() | binary()
+    def msgpack() -> codecs.Codec:
+        return raw_msgpack() | codecs.binary()
 
 That's it! To install and use our new extension we do:
 
@@ -159,21 +160,21 @@ import pickle as _pickle
 from base64 import b64encode, b64decode
 from functools import reduce
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
-from . import json as _json
-from .compat import want_bytes, want_str
-from .imports import load_extension_classes
-from ..types import SerializerT, SerializerArg
+from .types import CodecT, CodecArg
+from .utils import json as _json
+from .utils.compat import want_bytes, want_str
+from .utils.imports import load_extension_classes
 
 
-class Serializer(SerializerT):
-    """Base class for serializers."""
+class Codec(CodecT):
+    """Base class for codecs."""
 
-    #: children contains the serializers below us.
-    children: Tuple['Serializer', ...]
+    #: children contains the codecs below us.
+    children: Tuple[CodecT, ...]
 
-    #: cached version of children with this serializer first.
+    #: cached version of children including this codec as the first node.
     # could use chain below, but seems premature so just copying the list.
-    nodes: Tuple['Serializer', ...]
+    nodes: Tuple[CodecT, ...]
 
     #: subclasses can support keyword arguments,
     #: the base implementation of :meth:`clone` uses this to
@@ -181,10 +182,10 @@ class Serializer(SerializerT):
     kwargs: Dict
 
     def __init__(self,
-                 children: Tuple['Serializer', ...] = None,
+                 children: Tuple[CodecT, ...] = None,
                  **kwargs) -> None:
         self.children = children or ()
-        self.nodes = (self,) + self.children
+        self.nodes = (self,) + self.children  # type: ignore
         self.kwargs = kwargs
 
     def _loads(self, s: bytes) -> Any:
@@ -196,35 +197,40 @@ class Serializer(SerializerT):
         raise NotImplementedError()
 
     def dumps(self, obj: Any) -> bytes:
-        """Serialize object ``obj``."""
+        """Encode object ``obj``."""
         # send _dumps to this instance, and all children.
-        return reduce(lambda obj, e: e._dumps(obj), self.nodes, obj)
+        return reduce(
+            lambda obj, e: cast(Codec, e)._dumps(obj),
+            self.nodes, obj)
 
     def loads(self, s: bytes) -> Any:
-        """Deserialize object from string."""
+        """Decode object from string."""
         # send _loads to this instance, and all children in reverse order
-        return reduce(lambda s, d: d._loads(s), reversed(self.nodes), s)
+        return reduce(
+            lambda s, d: cast(Codec, d)._loads(s),
+            reversed(self.nodes), s)
 
-    def clone(self, *children: 'SerializerT') -> 'Serializer':
-        """Create a clone of this serializer, with optional children added."""
+    def clone(self, *children: CodecT) -> CodecT:
+        """Create a clone of this codec, with optional children added."""
         new_children = self.children + children  # type: ignore
         return type(self)(children=new_children, **self.kwargs)
 
     def __or__(self, other: Any) -> Any:
-        # serializers can be chained together, e.g. binary() | json()
-        if isinstance(other, Serializer):
+        # codecs can be chained together, e.g. binary() | json()
+        if isinstance(other, CodecT):
             return self.clone(other)
         return NotImplemented
 
     def __repr__(self) -> str:
         return ' | '.join(
-            '{0}({1})'.format(type(n).__name__,
-                              ', '.join(map(repr, n.kwargs.values())))
+            '{0}({1})'.format(
+                type(n).__name__,
+                ', '.join(map(repr, cast(Codec, n).kwargs.values())))
             for n in self.nodes
         )
 
 
-class json(Serializer):
+class json(Codec):
     """:mod:`json` serializer."""
 
     def _loads(self, s: bytes) -> Any:
@@ -234,7 +240,7 @@ class json(Serializer):
         return want_bytes(_json.dumps(s))
 
 
-class raw_pickle(Serializer):
+class raw_pickle(Codec):
     """:mod:`pickle` serializer with no encoding."""
 
     def _loads(self, s: bytes) -> Any:
@@ -244,13 +250,13 @@ class raw_pickle(Serializer):
         return _pickle.dumps(obj)
 
 
-def pickle() -> Serializer:
+def pickle() -> Codec:
     """:mod:`pickle` serializer with base64 encoding."""
     return raw_pickle() | binary()
 
 
-class binary(Serializer):
-    """Serializer for binary content (uses Base64 encoding)."""
+class binary(Codec):
+    """Codec for binary content (uses Base64 encoding)."""
 
     def _loads(self, s: bytes) -> Any:
         return b64decode(s)
@@ -259,8 +265,8 @@ class binary(Serializer):
         return b64encode(want_bytes(s))
 
 
-#: Serializer registry, mapping of name to :class:`Serializer` instance.
-serializers: MutableMapping[str, Serializer] = {
+#: Codec registry, mapping of name to :class:`Codec` instance.
+codecs: MutableMapping[str, CodecT] = {
     'json': json(),
     'pickle': pickle(),
     'binary': binary(),
@@ -272,36 +278,40 @@ serializers: MutableMapping[str, Serializer] = {
 _extensions_finalized: MutableMapping[str, bool] = {}
 
 
+def register(name: str, codec: CodecT) -> None:
+    codecs[name] = codec
+
+
 def _maybe_load_extension_classes(
-        namespace: str = 'mazecache.serializers') -> None:
+        namespace: str = 'faust.codecs') -> None:
     if namespace not in _extensions_finalized:
-        serializers.update({
+        codecs.update({
             name: cls()
             for name, cls in load_extension_classes(namespace)
         })
 
 
 def _reduce_node(a, b):
-    return serializers.get(a, a) | serializers[b]  # type: ignore
+    return codecs.get(a, a) | codecs[b]  # type: ignore
 
 
-def get_serializer(name_or_ser: SerializerArg) -> Serializer:
-    """Get serializer by name."""
+def get_codec(name_or_codec: CodecArg) -> CodecT:
+    """Get codec by name."""
     _maybe_load_extension_classes()
-    if isinstance(name_or_ser, str):
-        if '|' in name_or_ser:
-            nodes = cast(str, name_or_ser).split('|')
+    if isinstance(name_or_codec, str):
+        if '|' in name_or_codec:
+            nodes = cast(str, name_or_codec).split('|')
             # simple reduce operation, OR (|) them all together:
-            return cast(Serializer, reduce(_reduce_node, nodes))
-        return serializers[cast(str, name_or_ser)]
-    return cast(Serializer, name_or_ser)
+            return cast(Codec, reduce(_reduce_node, nodes))
+        return codecs[cast(str, name_or_codec)]
+    return cast(Codec, name_or_codec)
 
 
-def dumps(serializer: Optional[SerializerArg], obj: Any) -> bytes:
-    """Serialize object into string."""
-    return get_serializer(serializer).dumps(obj) if serializer else obj
+def dumps(codec: Optional[CodecArg], obj: Any) -> bytes:
+    """Encode object into bytes."""
+    return get_codec(codec).dumps(obj) if codec else obj
 
 
-def loads(serializer: Optional[SerializerArg], s: bytes) -> Any:
-    """Deserialize from string."""
-    return get_serializer(serializer).loads(s) if serializer else s
+def loads(codec: Optional[CodecArg], s: bytes) -> Any:
+    """Decode object from bytes."""
+    return get_codec(codec).loads(s) if codec else s

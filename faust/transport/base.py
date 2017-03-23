@@ -3,13 +3,13 @@ import asyncio
 import weakref
 from itertools import count
 from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
+from ..codecs import loads
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
     AppT, ConsumerCallback, ConsumerT, EventRefT,
     K, KeyDecodeErrorCallback, ValueDecodeErrorCallback,
     Message, ProducerT, Topic, TransportT, V,
 )
-from ..utils.serialization import loads
 from ..utils.service import Service
 
 __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']

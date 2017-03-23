@@ -12,6 +12,7 @@
 
     faust
     faust.app
+    faust.codecs
     faust.constants
     faust.events
     faust.exceptions
@@ -28,6 +29,5 @@
     faust.utils.json
     faust.utils.log
     faust.utils.objects
-    faust.utils.serialization
     faust.utils.service
     faust.utils.url

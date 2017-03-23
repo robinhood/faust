@@ -8,7 +8,7 @@ from typing import (
 )
 
 __all__ = [
-    'K', 'V', 'SerializerT', 'SerializerArg',
+    'K', 'V', 'CodecT', 'CodecArg',
     'Topic', 'Message', 'Request', 'ConsumerCallback',
     'KeyDecodeErrorCallback', 'ValueDecodeErrorCallback',
     'ServiceT', 'AppT',
@@ -22,11 +22,11 @@ _T = TypeVar('_T')
 K = Optional[Union[bytes, 'MessageTypeT']]
 
 
-class SerializerT(metaclass=abc.ABCMeta):
-    """Abstract type for Serializer.
+class CodecT(metaclass=abc.ABCMeta):
+    """Abstract type for an encoder/decoder.
 
     See Also:
-        :class:`faust.utils.serialization.Serializer`.
+        :class:`faust.codecs.Codec`.
     """
 
     @abc.abstractmethod
@@ -38,7 +38,7 @@ class SerializerT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def clone(self, *children: 'SerializerT') -> 'SerializerT':
+    def clone(self, *children: 'CodecT') -> 'CodecT':
         ...
 
     @abc.abstractmethod
@@ -46,15 +46,15 @@ class SerializerT(metaclass=abc.ABCMeta):
         ...
 
 
-# `serializer` argument can be str or serializer instance.
-SerializerArg = Union[SerializerT, str]
+# `serializer` argument can be str or Codec instance.
+CodecArg = Union[CodecT, str]
 
 
 class Topic(NamedTuple):
     topics: Sequence[str]
     pattern: Pattern
     type: Type
-    key_serializer: SerializerArg
+    key_serializer: CodecArg
 
 
 class Message(NamedTuple):
@@ -146,7 +146,7 @@ class ServiceT(metaclass=abc.ABCMeta):
 
 
 class MessageTypeOptions:
-    serializer: SerializerArg
+    serializer: CodecArg
     namespace: str
 
     # Index: Flattened view of __annotations__ in MRO order.
@@ -176,14 +176,14 @@ class MessageTypeT:
     def loads(
             cls, s: bytes,
             *,
-            default_serializer: SerializerArg = None,
+            default_serializer: CodecArg = None,
             **kwargs) -> 'MessageTypeT':
         ...
 
     def from_message(
             cls, key: 'K', message: Message, app: 'AppT',
             *,
-            default_serializer: SerializerArg = None) -> 'MessageTypeT':
+            default_serializer: CodecArg = None) -> 'MessageTypeT':
         ...
 
     def dumps(self) -> bytes:
@@ -343,8 +343,8 @@ class AppT(ServiceT):
     url: str
     client_id: str
     commit_interval: float
-    key_serializer: SerializerArg
-    value_serializer: SerializerArg
+    key_serializer: CodecArg
+    value_serializer: CodecArg
     num_standby_replicas: int
     replication_factor: int
 
@@ -372,7 +372,7 @@ class AppT(ServiceT):
             self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True,
-            key_serializer: SerializerArg = None) -> Awaitable:
+            key_serializer: CodecArg = None) -> Awaitable:
         ...
 
     @property

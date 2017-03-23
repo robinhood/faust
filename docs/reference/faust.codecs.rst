@@ -1,11 +1,11 @@
 =====================================================
- ``faust.utils.serialization``
+ ``faust.codecs``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.utils.serialization
+.. currentmodule:: faust.codecs
 
-.. automodule:: faust.utils.serialization
+.. automodule:: faust.codecs
     :members:
     :undoc-members:

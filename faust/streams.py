@@ -10,9 +10,9 @@ from typing import (
 from . import joins
 from . import primitives
 from .types import (
-    AppT, ConsumerT, CoroCallbackT, FieldDescriptorT, JoinT, K,
-    Message, Processor, SerializerArg,
-    StreamCoroutine, StreamCoroutineMap, StreamProcessorMap, StreamT, Topic, V,
+    AppT, CodecArg, ConsumerT, CoroCallbackT, FieldDescriptorT,
+    JoinT, K, Message, Processor, StreamCoroutine, StreamCoroutineMap,
+    StreamProcessorMap, StreamT, Topic, V,
 )
 from .utils.coroutines import wrap_callback
 from .utils.log import get_logger
@@ -99,7 +99,7 @@ logger = get_logger(__name__)
 def topic(*topics: str,
           pattern: Union[str, Pattern] = None,
           type: Type = None,
-          key_serializer: SerializerArg = None) -> Topic:
+          key_serializer: CodecArg = None) -> Topic:
     """Define new topic.
 
     Arguments:
@@ -109,7 +109,7 @@ def topic(*topics: str,
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
         type (Type): MessageType/V used for messages in this topic.
-        key_serializer (SerializerArg): Serializer name, or serializer object
+        key_serializer (CodecArg): Serializer name, or serializer object
             to use for keys from this topic.
 
     Raises:

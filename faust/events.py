@@ -2,12 +2,12 @@
 from typing import (
     Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, Union, cast,
 )
+from .codecs import dumps, loads
 from .types import (
-    AppT, MessageTypeOptions, MessageTypeT, FieldDescriptorT, K,
-    Message, Request, SerializerArg, Topic,
+    AppT, CodecArg, MessageTypeOptions, MessageTypeT,
+    FieldDescriptorT, K, Message, Request, Topic,
 )
 from .utils.objects import annotations
-from .utils.serialization import dumps, loads
 
 __all__ = ['MessageType', 'Record', 'FieldDescriptor']
 
@@ -97,12 +97,12 @@ class MessageType(MessageTypeT):
     def loads(
             cls, s: bytes,
             *,
-            default_serializer: SerializerArg = None,
+            default_serializer: CodecArg = None,
             **kwargs) -> MessageTypeT:
         """Deserialize event from bytes.
 
         Keyword Arguments:
-            default_serializer (SerializerArg): Default serializer to use
+            default_serializer (CodecArg): Default serializer to use
                 if no custom serializer was set for this Event subclass.
             **kwargs: Additional attributes to set on the event object.
                 Note, these are regarded as defaults, and any fields also
@@ -116,7 +116,7 @@ class MessageType(MessageTypeT):
     def from_message(
             cls, key: K, message: Message, app: AppT,
             *,
-            default_serializer: SerializerArg = None) -> MessageTypeT:
+            default_serializer: CodecArg = None) -> MessageTypeT:
         """Create event from message.
 
         The Consumer uses this to convert a message to an event.
@@ -126,7 +126,7 @@ class MessageType(MessageTypeT):
             message (Message): Message object holding serialized event.
 
         Keyword Arguments:
-            default_serializer (SerializerArg): Default serializer to use
+            default_serializer (CodecArg): Default serializer to use
                 if no custom serializer was set for this Event subclass.
         """
         return cls.loads(
