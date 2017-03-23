@@ -3,7 +3,7 @@ import abc
 import asyncio
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
-    Generic, Iterable, List, Mapping, MutableMapping, MutableSequence,
+    Iterable, List, Mapping, MutableMapping, MutableSequence,
     NamedTuple, Optional, Pattern, Sequence, Tuple, Type, TypeVar, Union,
 )
 
