@@ -381,7 +381,7 @@ class AppT(ServiceT):
         ...
 
 
-class StreamT(AsyncIterable, Generic[_T], ServiceT):
+class StreamT(AsyncIterable[_T], ServiceT):
 
     app: AppT = None
     topics: MutableSequence[Topic] = None
