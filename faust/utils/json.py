@@ -7,10 +7,10 @@ from typing import Any, Optional, Type, cast
 
 DEFAULT_TEXTUAL_TYPES = [Decimal, uuid.UUID]
 
-try:
+try:  # pragma: no cover
     from django.utils.functional import Promise
     DJANGO_TEXTUAL_TYPES = [Promise]
-except ImportError:
+except ImportError:  # pragma: no cover
     DJANGO_TEXTUAL_TYPES = []
 
 TEXTUAL_TYPES = tuple(DEFAULT_TEXTUAL_TYPES + DJANGO_TEXTUAL_TYPES)

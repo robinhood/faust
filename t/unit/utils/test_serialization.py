@@ -5,9 +5,20 @@ from typing import Mapping
 from hypothesis import given
 from hypothesis.strategies import binary, dictionaries, text
 from faust.utils.compat import want_str
-from faust.utils.serialization import loads, dumps, json, binary as _binary
+from faust.utils.serialization import (
+    Serializer, get_serializer, loads, dumps, json, binary as _binary,
+)
 
 DATA = {'a': 1, 'b': 'string'}
+
+
+def test_interface():
+    s = Serializer()
+    with pytest.raises(NotImplementedError):
+        s._loads(b'foo')
+    with pytest.raises(NotImplementedError):
+        s.dumps(10)
+    assert s.__or__(1) is NotImplemented
 
 
 @pytest.mark.parametrize('serializer', ['json', 'pickle'])
@@ -28,3 +39,8 @@ def test_combinators(input: Mapping[str, str]) -> None:
     d = s.dumps(input)
     assert isinstance(d, bytes)
     assert _json.loads(want_str(base64.b64decode(d))) == input
+
+
+def test_get_serializer():
+    assert get_serializer('json|binary')
+    assert get_serializer(Serializer) is Serializer

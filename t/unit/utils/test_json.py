@@ -1,10 +1,12 @@
 import math
 import pytest
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from six import text_type
+from uuid import uuid4
 from hypothesis import assume, given, reject
 from hypothesis.strategies import decimals, text
-from faust.utils.json import str_to_decimal
+from faust.utils.json import JSONEncoder, str_to_decimal
 
 
 @given(text())
@@ -24,6 +26,10 @@ def test_str_to_decimal_decimals(x):
     assume(not math.isnan(x))
     assume(not math.isinf(x))
     assert str_to_decimal(str(x)) == x
+
+
+def test_str_to_decimal_None():
+    assert str_to_decimal(None) is None
 
 
 def test_str():
@@ -50,3 +56,13 @@ def test_Inf():
 def test_negative_Inf():
     with pytest.raises(ValueError):
         str_to_decimal('-Inf')
+
+
+def test_JSONEncoder():
+    encoder = JSONEncoder()
+    assert encoder.default(date(2016, 3, 2))
+    assert encoder.default(datetime.utcnow())
+    assert encoder.default(datetime.now(timezone.utc))
+    assert encoder.default(uuid4())
+    with pytest.raises(TypeError):
+        encoder.default(object())

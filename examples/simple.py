@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 logging.basicConfig(level=logging.INFO)
-from faust.primitives import through
 
 
 class Withdrawal(faust.Record, serializer='json'):

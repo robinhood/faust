@@ -71,8 +71,10 @@ async def test_send(key, wait, topic, expected_topic, key_serializer, app):
 
 def test_add_task(app, patching):
     ensure_future = patching('asyncio.ensure_future')
+
     async def foo():
         ...
+
     app.add_task(foo)
     ensure_future.assert_called_with(foo, loop=app.loop)
 
@@ -84,8 +86,10 @@ def test_stream(app):
 
 
 def test_stream_with_coroutine(app):
+
     async def coro(it):
         ...
+
     s = app.stream(test_topic, coro)
     assert s.topics == [test_topic]
     assert s._coroutines[test_topic]
@@ -139,5 +143,3 @@ def test_create_transport(app, patching):
     from_url.assert_called_with(app.url, app, loop=app.loop)
     app.transport = 10
     assert app.transport == 10
-
-
