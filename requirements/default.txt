@@ -1,2 +1,3 @@
 aiokafka
+aiohttp
 avro-python3
