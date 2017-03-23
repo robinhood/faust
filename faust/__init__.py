@@ -7,7 +7,7 @@ import re
 from typing import NamedTuple
 
 __version__ = '1.0.0'
-__author__ = 'Ask Solem'
+__author__ = 'Robinhood Markets'
 __contact__ = 'asksol@robinhood.com'
 __homepage__ = 'https://github.com/robinhoodmarkets/faust'
 __docformat__ = 'restructuredtext'
