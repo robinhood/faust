@@ -270,7 +270,7 @@ class Record(MessageType):
     def _contribute_to_options(cls, options: MessageTypeOptions):
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
-        fields, defaults = annotations(cls, stop=MessageType)
+        fields, defaults = annotations(cls, stop=Record)
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.optionalset = frozenset(defaults)

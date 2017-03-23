@@ -1,14 +1,19 @@
 import asyncio
 import pytest
 from case import Mock
-from faust import App, Event, topic
+from faust import App, Record, topic
+from faust.types import MessageTypeT
 from faust.utils import serialization
 from faust.utils.compat import want_bytes
 
 test_topic = topic('test')
 
 
-class Record(Event, serializer='json'):
+class Key(Record, serializer='json'):
+    value: int
+
+
+class Value(Record, serializer='json'):
     amount: float
 
 
@@ -34,13 +39,14 @@ def setup_producer(app):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('key,wait,topic,expected_topic,key_serializer', [
     ('key', True, test_topic, test_topic.topics[0], None),
+    (Key(value=10), True, test_topic, test_topic.topics[0], None),
     ({'key': 'k'}, True, test_topic, test_topic.topics[0], 'json'),
     (None, True, 'topic', 'topic', None),
     (b'key', False, test_topic, test_topic.topics[0], None),
     ('key', False, 'topic', 'topic', None),
 ])
 async def test_send(key, wait, topic, expected_topic, key_serializer, app):
-    event = Record(amount=0.0)
+    event = Value(amount=0.0)
     setup_producer(app)
     await app.send(topic, key, event, key_serializer=key_serializer, wait=wait)
     # do it twice so producer_started is also True
@@ -49,10 +55,13 @@ async def test_send(key, wait, topic, expected_topic, key_serializer, app):
         app.producer.send_and_wait
         if wait else app.producer.send
     )
-    if key_serializer:
-        expected_key = serialization.dumps(key_serializer, key)
-    elif key:
-        expected_key = want_bytes(key)
+    if key is not None:
+        if isinstance(key, MessageTypeT):
+            expected_key = key.dumps()
+        elif key_serializer:
+            expected_key = serialization.dumps(key_serializer, key)
+        else:
+            expected_key = want_bytes(key)
     else:
         expected_key = None
     expected_sender.assert_called_with(

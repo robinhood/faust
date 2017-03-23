@@ -10,7 +10,8 @@ from itertools import count
 from . import constants
 from . import transport
 from .types import (
-    AppT, K, ProducerT, SerializerArg, StreamT, Topic, TransportT, V,
+    AppT, K, MessageTypeT, ProducerT, SerializerArg,
+    StreamT, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
@@ -117,7 +118,9 @@ class App(AppT, Service):
         else:
             strtopic = cast(str, topic)
         if key is not None:
-            if key_serializer:
+            if isinstance(key, MessageTypeT):
+                key_bytes = key.dumps()
+            elif key_serializer:
                 key_bytes = dumps(key_serializer, key)
             else:
                 key_bytes = want_bytes(key)
