@@ -1,8 +1,9 @@
 import asyncio
-from typing import Callable, List
+from typing import Awaitable, Callable, List
 from .log import get_logger
 from ..types import ServiceT
 
+Poller = Callable[[], Awaitable[None]]
 logger = get_logger(__name__)
 
 
@@ -69,7 +70,7 @@ class Service(ServiceT):
         await self.on_shutdown()
         logger.info('-Shutdown service %r', self)
 
-    def add_poller(self, callback: Callable) -> None:
+    def add_poller(self, callback: Poller) -> None:
         if not self._polling_started:
             self._polling_started = True
             self._restart_polling_callbacks()

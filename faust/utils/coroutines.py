@@ -1,8 +1,8 @@
 import asyncio
-from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Coroutine, Generator,
+from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
+from ..types import (
+    CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback, V,
 )
-from ..types import CoroCallbackT, InputStreamT, V
 
 
 class InputStream(InputStreamT):
@@ -56,7 +56,7 @@ class CoroCallback(CoroCallbackT):
         self.inbox = inbox
         self.loop = loop
 
-    async def send(self, value: V, callback: Callable) -> None:
+    async def send(self, value: V, callback: StreamCoroutineCallback) -> None:
         await self.inbox.put(value)
         asyncio.ensure_future(self.drain(callback), loop=self.loop)
 
@@ -64,7 +64,7 @@ class CoroCallback(CoroCallbackT):
         # make sure everything in inqueue is processed.
         await self.inbox.join()
 
-    async def drain(self, callback: Callable) -> None:
+    async def drain(self, callback: StreamCoroutineCallback) -> None:
         new_value = await self._drain()
         await callback(new_value)
 
@@ -114,7 +114,7 @@ class AsyncGeneratorCoroCallback(CoroCallback):
 
 
 def wrap_callback(
-        fun: Callable,
+        fun: StreamCoroutine,
         *,
         loop: asyncio.AbstractEventLoop = None) -> CoroCallbackT:
     loop = loop or asyncio.get_event_loop()

@@ -2,7 +2,7 @@
 import abc
 import asyncio
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, FrozenSet, Generator,
+    Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
     Iterable, List, Mapping, MutableMapping, MutableSequence,
     NamedTuple, Optional, Pattern, Sequence, Tuple, Type, Union,
 )
@@ -132,7 +132,7 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def add_poller(self, callback: Callable) -> None:
+    def add_poller(self, callback: Callable[[], Awaitable[None]]) -> None:
         ...
 
     @property
@@ -194,6 +194,10 @@ class MessageTypeT:
 
 #: Shorthand for the type of a value
 V = MessageTypeT
+Processor = Callable[[V], V]
+TopicProcessorSequence = Sequence[Processor]
+StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
+StreamCoroutineMap = MutableMapping[Topic, 'CoroCallbackT']
 
 
 class FieldDescriptorT:
@@ -220,6 +224,9 @@ class InputStreamT(Iterable, AsyncIterable):
         ...
 
 
+StreamCoroutineCallback = Callable[[V], Awaitable[None]]
+
+
 class CoroCallbackT:
 
     def __init__(self, inbox: InputStreamT,
@@ -227,14 +234,21 @@ class CoroCallbackT:
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
-    async def send(self, value: V, callback: Callable) -> None:
+    async def send(self, value: V, callback: StreamCoroutineCallback) -> None:
         ...
 
     async def join(self) -> None:
         ...
 
-    async def drain(self, callback: Callable) -> None:
+    async def drain(self, callback: StreamCoroutineCallback) -> None:
         ...
+
+
+StreamCoroutine = Union[
+    Callable[[InputStreamT], Coroutine],
+    Callable[[InputStreamT], AsyncIterable],
+    Callable[[InputStreamT], Generator],
+]
 
 
 class EventRefT(metaclass=abc.ABCMeta):
@@ -309,6 +323,9 @@ class TransportT(metaclass=abc.ABCMeta):
         ...
 
 
+TaskArg = Union[Generator, Awaitable]
+
+
 class AppT(ServiceT):
     """Abstract type for the Faust application.
 
@@ -328,13 +345,13 @@ class AppT(ServiceT):
     replication_factor: int
 
     @abc.abstractmethod
-    def add_task(self, task: Union[Generator, Awaitable]) -> asyncio.Future:
+    def add_task(self, task: TaskArg) -> asyncio.Future:
         ...
 
     @abc.abstractmethod
     def stream(self, topic: Topic,
-               coroutine: Callable = None,
-               processors: Sequence[Callable] = None,
+               coroutine: StreamCoroutine = None,
+               processors: TopicProcessorSequence = None,
                **kwargs) -> 'StreamT':
         ...
 
@@ -374,16 +391,16 @@ class StreamT(ServiceT, AsyncIterable, Iterable):
     @abc.abstractmethod
     def from_topic(cls, topic: Topic,
                    *,
-                   coroutine: Callable = None,
-                   processors: Sequence[Callable] = None,
+                   coroutine: StreamCoroutine = None,
+                   processors: TopicProcessorSequence = None,
                    loop: asyncio.AbstractEventLoop = None,
                    **kwargs) -> 'StreamT':
         ...
 
     def __init__(self, name: str = None,
                  topics: Sequence[Topic] = None,
-                 processors: MutableMapping[Topic, Sequence[Callable]] = None,
-                 coroutines: MutableMapping[Topic, CoroCallbackT] = None,
+                 processors: StreamProcessorMap = None,
+                 coroutines: StreamCoroutineMap = None,
                  children: List['StreamT'] = None,
                  join_strategy: 'JoinT' = None,
                  app: AppT = None,
@@ -442,8 +459,8 @@ class StreamT(ServiceT, AsyncIterable, Iterable):
     @abc.abstractmethod
     async def subscribe(self, topic: Topic,
                         *,
-                        processors: Sequence[Callable] = None,
-                        coroutine: Callable = None) -> None:
+                        processors: TopicProcessorSequence = None,
+                        coroutine: StreamCoroutine = None) -> None:
         ...
 
     @abc.abstractmethod

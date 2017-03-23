@@ -3,7 +3,7 @@ import asyncio
 import re
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Dict, List,
+    Any, AsyncIterable, Awaitable, Dict, List,
     Mapping, MutableMapping, MutableSequence, Pattern,
     Sequence, Tuple, Type, Union, cast
 )
@@ -11,7 +11,8 @@ from . import joins
 from . import primitives
 from .types import (
     AppT, ConsumerT, CoroCallbackT, FieldDescriptorT, JoinT, K,
-    Message, SerializerArg, StreamT, Topic, V,
+    Message, Processor, SerializerArg,
+    StreamCoroutine, StreamCoroutineMap, StreamProcessorMap, StreamT, Topic, V,
 )
 from .utils.coroutines import wrap_callback
 from .utils.log import get_logger
@@ -21,6 +22,7 @@ __all__ = ['Stream', 'topic']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_Dict: Dict
+__make_flake8_happy_CoroCallbackT: CoroCallbackT
 
 logger = get_logger(__name__)
 
@@ -44,7 +46,7 @@ logger = get_logger(__name__)
 #
 #        class Stream:
 #            topics: Sequence[Topic]
-#            _processors: MutableMapping[Topic, Callable]
+#            _processors: MutableMapping[Topic, Callable[[V], V]]
 #
 #   - A processor can either be a regular callable, or an async callable:
 #
@@ -133,14 +135,14 @@ def topic(*topics: str,
 class Stream(StreamT, Service):
 
     _consumers: MutableMapping[Topic, ConsumerT] = None
-    _processors: MutableMapping[Topic, Sequence[Callable]] = None
-    _coroutines: MutableMapping[Topic, CoroCallbackT] = None
+    _processors: StreamProcessorMap = None
+    _coroutines: StreamCoroutineMap = None
 
     @classmethod
     def from_topic(cls, topic: Topic,
                    *,
-                   coroutine: Callable = None,
-                   processors: Sequence[Callable] = None,
+                   coroutine: StreamCoroutine = None,
+                   processors: Sequence[Processor] = None,
                    loop: asyncio.AbstractEventLoop = None,
                    **kwargs) -> StreamT:
         return cls(
@@ -156,8 +158,8 @@ class Stream(StreamT, Service):
 
     def __init__(self, name: str = None,
                  topics: Sequence[Topic] = None,
-                 processors: MutableMapping[Topic, Sequence[Callable]] = None,
-                 coroutines: MutableMapping[Topic, CoroCallbackT] = None,
+                 processors: StreamProcessorMap = None,
+                 coroutines: StreamCoroutineMap = None,
                  children: List[StreamT] = None,
                  join_strategy: JoinT = None,
                  app: AppT = None,
@@ -197,7 +199,7 @@ class Stream(StreamT, Service):
     def combine(self, *nodes: StreamT, **kwargs):
         all_nodes = cast(Tuple[StreamT, ...], (self,)) + nodes
         topics: List[Topic] = []
-        processors: Dict[Topic, Sequence[Callable]] = {}
+        processors: Dict[Topic, Sequence[Processor]] = {}
         coroutines: Dict[Topic, CoroCallbackT] = {}
         for node in all_nodes:
             node = cast(Stream, node)
@@ -257,8 +259,8 @@ class Stream(StreamT, Service):
 
     async def subscribe(self, topic: Topic,
                         *,
-                        processors: Sequence[Callable] = None,
-                        coroutine: Callable = None) -> None:
+                        processors: Sequence[Processor] = None,
+                        coroutine: StreamCoroutine = None) -> None:
         if topic not in self.topics:
             self.topics.append(topic)
         self._processors[topic] = processors

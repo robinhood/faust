@@ -8,6 +8,7 @@ from . import base
 
 class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
+    fetch_timeout: float = 10.0
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
@@ -27,9 +28,9 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await self._consumer.stop()
 
-    async def drain_events(self, *, timeout: float = 10.0) -> None:
+    async def drain_events(self) -> None:
         records = await self._consumer.getmany(
-            max_records=10, timeout_ms=timeout * 1000.0)
+            max_records=10, timeout_ms=self.fetch_timeout * 1000.0)
         on_message = self.on_message
         for messages in records.values():
             for message in messages:

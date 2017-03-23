@@ -3,15 +3,15 @@ import asyncio
 import faust
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Callable, Generator, Iterator,
+    Any, Awaitable, Generator, Iterator,
     MutableMapping, Sequence, Union, Type, cast,
 )
 from itertools import count
 from . import constants
 from . import transport
 from .types import (
-    AppT, K, MessageTypeT, ProducerT, SerializerArg,
-    StreamT, Topic, TransportT, V,
+    AppT, K, MessageTypeT, Processor, ProducerT, SerializerArg,
+    StreamCoroutine, StreamT, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
@@ -157,8 +157,8 @@ class App(AppT, Service):
         return asyncio.ensure_future(task, loop=self.loop)
 
     def stream(self, topic: Topic,
-               coroutine: Callable = None,
-               processors: Sequence[Callable] = None,
+               coroutine: StreamCoroutine = None,
+               processors: Sequence[Processor] = None,
                **kwargs) -> StreamT:
         """Create new stream from topic.
 
