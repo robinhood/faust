@@ -3,7 +3,7 @@ import asyncio
 import faust
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Generator, Iterator,
+    Any, Awaitable, Callable, Dict, Generator, Iterator,
     MutableMapping, Sequence, Union, Type, cast,
 )
 from itertools import count
@@ -27,6 +27,8 @@ DEFAULT_URL = 'kafka://localhost:9092'
 DEFAULT_STREAM_CLS = 'faust.Stream'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
+
+ExceptionHandler = Callable[[asyncio.AbstractEventLoop, Dict], None]
 
 logger = get_logger(__name__)
 
@@ -71,6 +73,8 @@ class App(AppT, Service):
     #: Transport is created on demand: use `.transport`.
     _transport: TransportT = None
 
+    _exception_handler_installed = False
+
     def __init__(self, id: str,
                  *,
                  url: str = 'aiokafka://localhost:9092',
@@ -93,6 +97,7 @@ class App(AppT, Service):
         self.url = url
         self.Stream = symbol_by_name(stream_cls)
         self._streams = OrderedDict()
+        self._old_exception_handler: ExceptionHandler = None
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -154,7 +159,27 @@ class App(AppT, Service):
             is simply scheduling the coroutine to be executed in the event
             loop.
         """
-        return asyncio.ensure_future(task, loop=self.loop)
+        if not self._exception_handler_installed:
+            self._exception_handler_installed = True
+            self._install_loop_handlers()
+        return asyncio.ensure_future(self._execute_task(task), loop=self.loop)
+
+    async def _execute_task(self, task: Union[Generator, Awaitable]) -> None:
+        await task
+
+    def _install_loop_handlers(self):
+        self._old_exception_handler = (
+            self.loop.get_exception_handler() or
+            self.loop.default_exception_handler
+        )
+        self.loop.set_exception_handler(self._on_loop_exception)
+
+    def _on_loop_exception(self,
+                           loop: asyncio.AbstractEventLoop,
+                           context: Dict) -> None:
+        print('LOOP RAISED EXCEPTION: %r' % (context,))
+        self._old_exception_handler(loop, context)
+
 
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
