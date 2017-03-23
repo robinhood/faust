@@ -1,5 +1,7 @@
 import asyncio
-from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
+from typing import (
+    Any, AsyncGenerator, AsyncIterable, Awaitable, Coroutine, Generator,
+)
 from ..types import (
     CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback, V,
 )
@@ -101,12 +103,12 @@ class AsyncCoroCallback(CoroCallback):
 
 
 class AsyncGeneratorCoroCallback(CoroCallback):
-    coro: Coroutine[V, None, None]
+    coro: AsyncGenerator[V, None]
     gen: AsyncIterable[V]
     gen_started = False
 
     def __init__(self,
-                 coro: Coroutine[V, None, None],
+                 coro: AsyncGenerator[V, None],
                  inbox: InputStreamT,
                  **kwargs) -> None:
         self.coro = coro

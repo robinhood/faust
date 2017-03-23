@@ -2,9 +2,10 @@
 import abc
 import asyncio
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
-    Generic, Iterable, List, Mapping, MutableMapping, MutableSequence,
-    NamedTuple, Optional, Pattern, Sequence, Tuple, Type, TypeVar, Union,
+    Any, AsyncGenerator, AsyncIterable, Awaitable, Callable,
+    FrozenSet, Generator, Iterable, List, Mapping, MutableMapping,
+    MutableSequence, NamedTuple, Optional, Pattern, Sequence, Tuple, Type,
+    TypeVar, Union,
 )
 
 __all__ = [
@@ -249,7 +250,7 @@ class CoroCallbackT:
 
 
 StreamCoroutine = Union[
-    Callable[[InputStreamT], Coroutine[V, None, None]],
+    Callable[[InputStreamT], AsyncGenerator[V, None]],
     Callable[[InputStreamT], AsyncIterable[V]],
     Callable[[InputStreamT], Generator[V, None, None]],
 ]
