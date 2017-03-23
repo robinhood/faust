@@ -11,7 +11,7 @@ from . import constants
 from . import transport
 from .codecs import dumps
 from .types import (
-    AppT, CodecArg, K, MessageTypeT, Processor, ProducerT,
+    AppT, CodecArg, K, ModelT, Processor, ProducerT,
     StreamCoroutine, StreamT, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
@@ -123,7 +123,7 @@ class App(AppT, Service):
         else:
             strtopic = cast(str, topic)
         if key is not None:
-            if isinstance(key, MessageTypeT):
+            if isinstance(key, ModelT):
                 key_bytes = key.dumps()
             elif key_serializer:
                 key_bytes = dumps(key_serializer, key)

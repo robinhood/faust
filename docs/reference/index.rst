@@ -14,9 +14,9 @@
     faust.app
     faust.codecs
     faust.constants
-    faust.events
     faust.exceptions
     faust.joins
+    faust.models
     faust.streams
     faust.tables
     faust.transport

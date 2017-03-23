@@ -4,12 +4,12 @@ from typing import (
 )
 from .codecs import dumps, loads
 from .types import (
-    AppT, CodecArg, MessageTypeOptions, MessageTypeT,
-    FieldDescriptorT, K, Message, Request, Topic,
+    AppT, CodecArg, FieldDescriptorT, K,
+    Message, ModelOptions, ModelT, Request, Topic,
 )
 from .utils.objects import annotations
 
-__all__ = ['MessageType', 'Record', 'FieldDescriptor']
+__all__ = ['Model', 'Record', 'FieldDescriptor']
 
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
@@ -82,7 +82,7 @@ def to_avro_type(typ: Type) -> str:
 #       42
 
 
-class MessageType(MessageTypeT):
+class Model(ModelT):
     """Describes how messages in a topic is serialized."""
 
     __abstract__ = True
@@ -98,7 +98,7 @@ class MessageType(MessageTypeT):
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None,
-            **kwargs) -> MessageTypeT:
+            **kwargs) -> ModelT:
         """Deserialize event from bytes.
 
         Keyword Arguments:
@@ -116,7 +116,7 @@ class MessageType(MessageTypeT):
     def from_message(
             cls, key: K, message: Message, app: AppT,
             *,
-            default_serializer: CodecArg = None) -> MessageTypeT:
+            default_serializer: CodecArg = None) -> ModelT:
         """Create event from message.
 
         The Consumer uses this to convert a message to an event.
@@ -164,7 +164,7 @@ class MessageType(MessageTypeT):
         #    class X(Event, serializer='avro'):
         #        ...
         custom_options = getattr(cls, '_options', None)
-        options = MessageTypeOptions()
+        options = ModelOptions()
         if custom_options:
             options.__dict__.update(custom_options.__dict__)
         if serializer is not None:
@@ -182,12 +182,12 @@ class MessageType(MessageTypeT):
 
     @classmethod
     def _contribute_to_options(
-            cls, options: MessageTypeOptions) -> None:
+            cls, options: ModelOptions) -> None:
         raise NotImplementedError()
 
     @classmethod
     def _contribute_field_descriptors(
-            cls, options: MessageTypeOptions) -> None:
+            cls, options: ModelOptions) -> None:
         raise NotImplementedError()
 
     def __init__(self, req=None, **fields):
@@ -198,12 +198,10 @@ class MessageType(MessageTypeT):
         # Set fields from keyword arguments.
         self._init_fields(fields)
 
-    def derive(self, *events: MessageTypeT, **fields) -> MessageTypeT:
-        return self._derive(events, fields)
+    def derive(self, *objects: ModelT, **fields) -> ModelT:
+        return self._derive(objects, fields)
 
-    def _derive(self,
-                events: Tuple[MessageTypeT, ...],
-                fields: Dict) -> MessageTypeT:
+    def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         raise NotImplementedError()
 
     async def forward(self, topic: Union[str, Topic]) -> None:
@@ -223,8 +221,8 @@ class MessageType(MessageTypeT):
         return '<{}: {}>'.format(type(self).__name__, self._humanize())
 
 
-class Record(MessageType):
-    """Describes a message type that is a record (Mapping).
+class Record(Model):
+    """Describes a model type that is a record (Mapping).
 
     Examples:
         >>> class LogEvent(Record, serializer='json'):
@@ -267,7 +265,7 @@ class Record(MessageType):
         ]
 
     @classmethod
-    def _contribute_to_options(cls, options: MessageTypeOptions):
+    def _contribute_to_options(cls, options: ModelOptions):
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
         fields, defaults = annotations(cls, stop=Record)
@@ -277,8 +275,7 @@ class Record(MessageType):
         options.defaults = defaults
 
     @classmethod
-    def _contribute_field_descriptors(
-            cls, options: MessageTypeOptions) -> None:
+    def _contribute_field_descriptors(cls, options: ModelOptions) -> None:
         fields = options.fields
         defaults = options.defaults
         for field, typ in fields.items():
@@ -308,12 +305,10 @@ class Record(MessageType):
         # Fast: This sets attributes from kwargs.
         self.__dict__.update(fields)
 
-    def _derive(self,
-                events: Tuple[MessageTypeT, ...],
-                fields: Dict) -> MessageTypeT:
+    def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         data = cast(Dict, self._to_representation())
-        for event in events:
-            data.update(cast(Record, event)._to_representation())
+        for obj in objects:
+            data.update(cast(Record, obj)._to_representation())
         return type(self)(req=self.req, **{**data, **fields})
 
     def _to_representation(self) -> Mapping[str, Any]:

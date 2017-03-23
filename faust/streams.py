@@ -50,7 +50,7 @@ logger = get_logger(__name__)
 #
 #   - A processor can either be a regular callable, or an async callable:
 #
-#       # NOTE: V is an abbreviation for MessageType/Record/etc.
+#       # NOTE: V is an abbreviation for ModelT (Record/etc.).
 #
 #       def processor1(event: V) -> V:
 #           return event.amount * 2
@@ -108,7 +108,7 @@ def topic(*topics: str,
     Keyword Arguments:
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
-        type (Type): MessageType/V used for messages in this topic.
+        type (Type): Model/V used for messages in this topic.
         key_serializer (CodecArg): Serializer name, or serializer object
             to use for keys from this topic.
 

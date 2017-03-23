@@ -43,7 +43,7 @@ __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
 
 
 class EventRef(weakref.ref, EventRefT):
-    """Weak-reference to :class:`MessageType`.
+    """Weak-reference to :class:`ModelT`.
 
     Remembers the offset of the event, even after event out of scope.
     """

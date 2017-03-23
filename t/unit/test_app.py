@@ -3,7 +3,7 @@ import pytest
 from case import Mock
 from faust import codecs
 from faust import App, Record, topic
-from faust.types import MessageTypeT
+from faust.types import ModelT
 from faust.utils.compat import want_bytes
 
 test_topic = topic('test')
@@ -56,7 +56,7 @@ async def test_send(key, wait, topic, expected_topic, key_serializer, app):
         if wait else app.producer.send
     )
     if key is not None:
-        if isinstance(key, MessageTypeT):
+        if isinstance(key, ModelT):
             expected_key = key.dumps()
         elif key_serializer:
             expected_key = codecs.dumps(key_serializer, key)

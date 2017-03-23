@@ -19,7 +19,7 @@ __all__ = [
 _T = TypeVar('_T')
 
 #: Shorthand for the type of a key
-K = Optional[Union[bytes, 'MessageTypeT']]
+K = Optional[Union[bytes, 'ModelT']]
 
 
 class CodecT(metaclass=abc.ABCMeta):
@@ -78,7 +78,7 @@ class Request(NamedTuple):
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
-ConsumerCallback = Callable[[Topic, 'K', 'MessageTypeT'], Awaitable]
+ConsumerCallback = Callable[[Topic, 'K', 'ModelT'], Awaitable]
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message key cannot be decoded/deserialized.
@@ -145,7 +145,7 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
-class MessageTypeOptions:
+class ModelOptions:
     serializer: CodecArg
     namespace: str
 
@@ -161,12 +161,12 @@ class MessageTypeOptions:
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
 
-class MessageTypeT:
+class ModelT:
     # uses __init_subclass__ so cannot use ABCMeta
 
     req: Request
 
-    _options: MessageTypeOptions
+    _options: ModelOptions
 
     @classmethod
     def as_schema(cls) -> Mapping:
@@ -177,19 +177,19 @@ class MessageTypeT:
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None,
-            **kwargs) -> 'MessageTypeT':
+            **kwargs) -> 'ModelT':
         ...
 
     def from_message(
             cls, key: 'K', message: Message, app: 'AppT',
             *,
-            default_serializer: CodecArg = None) -> 'MessageTypeT':
+            default_serializer: CodecArg = None) -> 'ModelT':
         ...
 
     def dumps(self) -> bytes:
         ...
 
-    def derive(self, *events: 'MessageTypeT', **fields) -> 'MessageTypeT':
+    def derive(self, *objects: 'ModelT', **fields) -> 'ModelT':
         ...
 
     async def forward(self, topic: Union[str, Topic]) -> None:
@@ -197,7 +197,7 @@ class MessageTypeT:
 
 
 #: Shorthand for the type of a value
-V = MessageTypeT
+V = ModelT
 Processor = Callable[[V], V]
 TopicProcessorSequence = Sequence[Processor]
 StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
