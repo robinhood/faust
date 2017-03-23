@@ -249,9 +249,9 @@ class CoroCallbackT:
 
 
 StreamCoroutine = Union[
-    Callable[[InputStreamT], Coroutine],
-    Callable[[InputStreamT], AsyncIterable],
-    Callable[[InputStreamT], Generator],
+    Callable[[InputStreamT], Coroutine[None, None, V]],
+    Callable[[InputStreamT], AsyncIterable[V]],
+    Callable[[InputStreamT], Generator[None, None, V]],
 ]
 
 
@@ -502,7 +502,7 @@ class StreamT(AsyncIterable[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> V:
+    async def __anext__(self) -> Any:
         ...
 
 

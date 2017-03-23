@@ -73,9 +73,11 @@ class CoroCallback(CoroCallbackT):
 
 
 class GeneratorCoroCallback(CoroCallback):
-    gen: Generator
+    gen: Generator[None, None, V]
 
-    def __init__(self, gen: Generator, inbox: InputStreamT,
+    def __init__(self,
+                 gen: Generator[None, None, V],
+                 inbox: InputStreamT,
                  **kwargs) -> None:
         self.gen = gen
         super().__init__(inbox, **kwargs)
@@ -85,9 +87,11 @@ class GeneratorCoroCallback(CoroCallback):
 
 
 class AsyncCoroCallback(CoroCallback):
-    gen: AsyncIterable
+    gen: AsyncIterable[V]
 
-    def __init__(self, gen: AsyncIterable, inbox: InputStreamT,
+    def __init__(self,
+                 gen: AsyncIterable[V],
+                 inbox: InputStreamT,
                  **kwargs) -> None:
         self.gen = gen
         super().__init__(inbox, **kwargs)
@@ -97,11 +101,13 @@ class AsyncCoroCallback(CoroCallback):
 
 
 class AsyncGeneratorCoroCallback(CoroCallback):
-    coro: Coroutine
-    gen: AsyncIterable
+    coro: Coroutine[None, None, V]
+    gen: AsyncIterable[V]
     gen_started = False
 
-    def __init__(self, coro: Coroutine, inbox: InputStreamT,
+    def __init__(self,
+                 coro: Coroutine[None, None, V],
+                 inbox: InputStreamT,
                  **kwargs) -> None:
         self.coro = coro
         self.gen = None
