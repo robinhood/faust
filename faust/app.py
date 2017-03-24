@@ -1,10 +1,10 @@
 """Applications."""
 import asyncio
 import faust
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from typing import (
-    Any, Awaitable, Callable, Dict, Iterator,
-    MutableMapping, Optional, Sequence, Union, Type, cast,
+    Any, Awaitable, Iterator, MutableMapping,
+    Optional, Sequence, Union, Type, cast,
 )
 from itertools import count
 from . import constants
@@ -28,9 +28,24 @@ DEFAULT_STREAM_CLS = 'faust.Stream'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
 
-ExceptionHandler = Callable[[asyncio.AbstractEventLoop, Dict], None]
-
 logger = get_logger(__name__)
+
+
+class TaskExceptionHandler:
+
+    app: AppT
+
+    def __init__(self, app: AppT) -> None:
+        self.app = app
+
+    async def __aenter__(self) -> 'TaskExceptionHandler':
+        return self
+
+    def __aexit__(
+            self, typ: Type, exc: Exception, tb: Any) -> None:
+        if typ is not None:
+            logger.exception('Task raised exception: %r', exc)
+            # XXX Rollback automatic acks.
 
 
 class App(AppT, Service):
@@ -57,12 +72,16 @@ class App(AppT, Service):
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
+    TaskExceptionHandler: Type = TaskExceptionHandler
 
     #: Used for generating new topic names.
     _index: Iterator[int] = count(0)
 
     #: Mapping of active streams by name.
     _streams: MutableMapping[str, StreamT]
+
+    #: List of tasks
+    _tasks: deque
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
@@ -72,8 +91,6 @@ class App(AppT, Service):
 
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
-
-    _exception_handler_installed = False
 
     def __init__(self, id: str,
                  *,
@@ -97,7 +114,7 @@ class App(AppT, Service):
         self.url = url
         self.Stream = symbol_by_name(stream_cls)
         self._streams = OrderedDict()
-        self._old_exception_handler: Optional[ExceptionHandler] = None
+        self._tasks = deque()
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -151,30 +168,18 @@ class App(AppT, Service):
         """Start task.
 
         Notes:
-            A task is simply any coroutine taking one or more streams
-            as argument and iterating over them, so currently `add_task`
-            is simply scheduling the coroutine to be executed in the event
-            loop.
+            A task is simply any coroutine iterating over a stream.
         """
-        if not self._exception_handler_installed:
-            self._exception_handler_installed = True
-            self._install_loop_handlers()
-        return asyncio.ensure_future(self._execute_task(task), loop=self.loop)
+        fut = self._start_task(task)
+        self._tasks.append(fut)
+        return fut
+
+    async def _start_task(self, task):
+        await self._execute_task(task)
 
     async def _execute_task(self, task: TaskArg) -> None:
-        await asyncio.ensure_future(task, loop=self.loop)
-
-    def _install_loop_handlers(self) -> None:
-        loop = self.loop
-        _e: ExceptionHandler = loop.get_exception_handler()  # type: ignore
-        self._old_exception_handler = _e or loop.default_exception_handler
-        loop.set_exception_handler(self._on_loop_exception)
-
-    def _on_loop_exception(self,
-                           loop: asyncio.AbstractEventLoop,
-                           context: Dict) -> None:
-        print('LOOP RAISED EXCEPTION: %r' % (context,))
-        self._old_exception_handler(loop, context)
+        async with self.TaskExceptionHandler(self):
+            await asyncio.ensure_future(task, loop=self.loop)
 
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
@@ -204,6 +209,8 @@ class App(AppT, Service):
     async def on_start(self) -> None:
         for _stream in self._streams.values():  # start all streams
             await _stream.start()
+        while self._tasks:
+            await asyncio.ensure_future(self._tasks.popleft(), loop=self.loop)
 
     async def on_stop(self) -> None:
         # stop all streams

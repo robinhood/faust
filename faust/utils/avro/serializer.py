@@ -2,7 +2,7 @@
 import io
 from functools import partial
 from struct import pack, unpack
-from typing import Any, Callable, Mapping, MutableMapping, Type
+from typing import Any, Mapping, MutableMapping, Type
 from avro.io import BinaryDecoder, BinaryEncoder, DatumReader, DatumWriter
 from avro.schema import Schema
 from .server import RegistryClient

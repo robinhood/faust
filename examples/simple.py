@@ -49,6 +49,8 @@ async def produce():
 
 async def consume():
     app.add_task(find_large_withdrawals(app))
+    worker = faust.Worker(app)
+    await worker.start()
 
 
 COMMANDS = {
