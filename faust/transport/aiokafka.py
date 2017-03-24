@@ -1,5 +1,6 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
+import asyncio
 from typing import Awaitable, Optional, Type, cast
 from ..types import Message
 from ..utils.futures import done_future
@@ -12,6 +13,7 @@ __all__ = ['Consumer', 'Producer', 'Transport']
 class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
+    wait_for_shutdown = False
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
@@ -26,18 +28,24 @@ class Consumer(base.Consumer):
     async def on_start(self) -> None:
         await self._consumer.start()
         await self.register_timers()
-        self.add_poller(self.drain_events)
+        asyncio.ensure_future(self._drain_messages(), loop=self.loop)
 
     async def on_stop(self) -> None:
         await self._consumer.stop()
 
-    async def drain_events(self) -> None:
-        records = await self._consumer.getmany(
-            max_records=10, timeout_ms=self.fetch_timeout * 1000.0)
-        on_message = self.on_message
-        for messages in records.values():
-            for message in messages:
-                await on_message(cast(Message, message))
+    async def _drain_messages(self) -> None:
+        try:
+            while not self.should_stop:
+                records = await self._consumer.getmany(
+                    max_records=10, timeout_ms=self.fetch_timeout * 1000.0)
+                if self.should_stop:
+                    break
+                on_message = self.on_message
+                for messages in records.values():
+                    for message in messages:
+                        await on_message(cast(Message, message))
+        finally:
+            self.set_shutdown()
 
     async def _commit(self, offset: int) -> None:
         await self._consumer.commit(offset)

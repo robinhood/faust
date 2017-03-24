@@ -88,6 +88,7 @@ class ServiceT(metaclass=abc.ABCMeta):
     """
 
     shutdown_timeout: float
+    wait_for_shutdown = False
     loop: asyncio.AbstractEventLoop = None
 
     @abc.abstractmethod
@@ -127,7 +128,12 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def add_poller(self, callback: Callable[[], Awaitable[None]]) -> None:
+    def set_shutdown(self) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def should_stop(self) -> bool:
         ...
 
     @property

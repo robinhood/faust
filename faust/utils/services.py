@@ -1,32 +1,27 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import asyncio
-from typing import Awaitable, Callable, List
 from .logging import get_logger
 from ..types import ServiceT
 
-__all__ = ['Poller', 'Service']
+__all__ = ['Service']
 
-Poller = Callable[[], Awaitable[None]]
 logger = get_logger(__name__)
 
 
 class Service(ServiceT):
 
+    wait_for_shutdown = False
     shutdown_timeout = 60.0
 
     _started: asyncio.Event
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
-    _polling_started: bool
-    _pollers: List
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
         self._started = asyncio.Event(loop=self.loop)
         self._stopped = asyncio.Event(loop=self.loop)
         self._shutdown = asyncio.Event(loop=self.loop)
-        self._polling_started = False
-        self._pollers = []
         self.on_init()
 
     async def __aenter__(self) -> 'Service':
@@ -65,7 +60,7 @@ class Service(ServiceT):
         await self.on_stop()
         logger.info('-Stopped service %r', self)
         logger.info('+Shutdown service %r', self)
-        if self._polling_started:
+        if self.wait_for_shutdown:
             await asyncio.wait_for(  # type: ignore
                 self._shutdown.wait(), self.shutdown_timeout,
                 loop=self.loop,
@@ -73,30 +68,16 @@ class Service(ServiceT):
         await self.on_shutdown()
         logger.info('-Shutdown service %r', self)
 
-    def add_poller(self, callback: Poller) -> None:
-        if not self._polling_started:
-            self._polling_started = True
-            self._restart_polling_callbacks()
-        self._pollers.append(callback)
-
-    async def _call_polling_callbacks(self) -> None:
-        if self._stopped.is_set():
-            self._shutdown.set()
-        else:
-            for poller in self._pollers:
-                await poller()
-            # we add this to the loop so this call is not recursive.
-            self.loop.call_soon(self._restart_polling_callbacks)
-
-    def _restart_polling_callbacks(self) -> None:
-        asyncio.ensure_future(
-            self._call_polling_callbacks(),
-            loop=self.loop,
-        )
+    def set_shutdown(self) -> None:
+        self._shutdown.set()
 
     def __repr__(self) -> str:
         return '<{name}: {self.state}>'.format(
             name=type(self).__name__, self=self)
+
+    @property
+    def should_stop(self) -> bool:
+        return self._stopped.is_set()
 
     @property
     def state(self) -> str:
