@@ -1,11 +1,17 @@
 """Abstract types for static typing."""
 import abc
 import asyncio
+import typing
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
     Iterable, List, Mapping, MutableMapping, MutableSequence, NamedTuple,
-    NewType, Optional, Pattern, Sequence, Tuple, Type, TypeVar, Union,
+    NewType, Optional, Pattern, Sequence, Type, TypeVar, Union,
 )
+
+if typing.TYPE_CHECKING:  # pragma: no cover
+    from avro.schema import Schema
+else:
+    class Schema: ...   # noqa
 
 __all__ = [
     'K', 'CodecT', 'CodecArg', 'Topic', 'Message', 'Request',
@@ -15,7 +21,7 @@ __all__ = [
     'ValueDecodeErrorCallback', 'FieldDescriptorT', 'InputStreamT',
     'StreamCoroutineCallback', 'CoroCallbackT', 'StreamCoroutine',
     'EventRefT', 'ConsumerT', 'ProducerT', 'TransportT', 'TaskArg',
-    'AppT', 'StreamT', 'JoinT',
+    'AppT', 'StreamT', 'JoinT', 'AsyncSerializerT',
 ]
 
 
@@ -57,8 +63,8 @@ CodecArg = Optional[Union[CodecT, str]]
 class Topic(NamedTuple):
     topics: Sequence[str]
     pattern: Pattern
-    type: Type
-    key_serializer: CodecArg
+    key_type: Type
+    value_type: Type
 
 
 class Message(NamedTuple):
@@ -170,17 +176,15 @@ class ModelT:
         ...
 
     @classmethod
+    def as_avro_schema(cls) -> Schema:
+        ...
+
+    @classmethod
     def loads(
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None,
-            **kwargs: Any) -> 'ModelT':
-        ...
-
-    def from_message(
-            cls, key: 'K', message: Message, app: 'AppT',
-            *,
-            default_serializer: CodecArg = None) -> 'ModelT':
+            req: Request = None) -> 'ModelT':
         ...
 
     def dumps(self) -> bytes:
@@ -190,6 +194,9 @@ class ModelT:
         ...
 
     async def forward(self, topic: Union[str, Topic]) -> None:
+        ...
+
+    def to_representation(self) -> Any:
         ...
 
 
@@ -294,10 +301,6 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def to_KV(self, message: Message) -> Tuple[K, V]:
-        ...
-
-    @abc.abstractmethod
     def track_event(self, event: Event, offset: int) -> None:
         ...
 
@@ -362,6 +365,7 @@ class AppT(ServiceT):
     value_serializer: CodecArg
     num_standby_replicas: int
     replication_factor: int
+    avro_registry_url: str
 
     @abc.abstractmethod
     def add_task(self, task: TaskArg) -> asyncio.Future:
@@ -386,8 +390,23 @@ class AppT(ServiceT):
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
             *,
-            wait: bool = True,
-            key_serializer: CodecArg = None) -> Awaitable:
+            wait: bool = True) -> Awaitable:
+        ...
+
+    @abc.abstractmethod
+    async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
+        ...
+
+    @abc.abstractmethod
+    async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
+        ...
+
+    @abc.abstractmethod
+    async def dumps_key(self, topic: str, key: K) -> bytes:
+        ...
+
+    @abc.abstractmethod
+    async def dumps_value(self, topic: str, value: V) -> bytes:
         ...
 
     @property
@@ -527,4 +546,17 @@ class JoinT(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def process(_self, event: Event) -> Optional[Event]:
+        ...
+
+
+class AsyncSerializerT:
+    app: AppT
+
+    async def loads(self, s: bytes) -> Any:
+        ...
+
+    async def dumps_key(self, topic: str, s: ModelT) -> bytes:
+        ...
+
+    async def dumps_value(self, topic: str, s: ModelT) -> bytes:
         ...

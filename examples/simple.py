@@ -10,7 +10,7 @@ class Withdrawal(faust.Record, serializer='json'):
     amount: float
 
 
-topic = faust.topic('mytopic', type=Withdrawal)
+topic = faust.topic('mytopic', value_type=Withdrawal)
 
 
 # -- Stream is coroutine

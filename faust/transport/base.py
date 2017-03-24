@@ -2,12 +2,10 @@
 import asyncio
 import weakref
 from itertools import count
-from typing import Any, Awaitable, Callable, Optional, List, Tuple, Type, cast
-from ..codecs import loads
-from ..exceptions import KeyDecodeError, ValueDecodeError
+from typing import Any, Awaitable, Callable, Optional, List, Type, cast
 from ..types import (
     AppT, ConsumerCallback, ConsumerT, Event, EventRefT,
-    K, KeyDecodeErrorCallback, ValueDecodeErrorCallback,
+    KeyDecodeErrorCallback, ValueDecodeErrorCallback,
     Message, ProducerT, Topic, TransportT,
 )
 from ..utils.services import Service
@@ -81,12 +79,12 @@ class Consumer(ConsumerT, Service):
         self._app = self.transport.app
         self.callback = callback
         self.topic = topic
-        self.type = self.topic.type
+        self.key_type = self.topic.key_type
+        self.value_type = self.topic.value_type
         self.on_key_decode_error = on_key_decode_error
         self.on_value_decode_error = on_value_decode_error
-        self._key_serializer = (
-            self.topic.key_serializer or self._app.key_serializer)
-        self._value_serializer = self._app.value_serializer
+        self._loads_key = self._app.loads_key
+        self._loads_value = self._app.loads_value
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
         if self.topic.topics and self.topic.pattern:
@@ -100,34 +98,21 @@ class Consumer(ConsumerT, Service):
 
     async def on_message(self, message: Message) -> None:
         try:
-            k, v = self.to_KV(message)
-        except KeyDecodeError as exc:
+            k = await self._loads_key(self.key_type, message.key)
+        except Exception as exc:
             if not self.on_key_decode_error:
                 raise
             await self.on_key_decode_error(exc, message)
-        except ValueDecodeError as exc:
-            if not self.on_value_decode_error:
-                raise
-            await self.on_value_decode_error(exc, message)
-        self.track_event(v, message.offset)
-        await self.callback(self.topic, k, v)
-
-    def to_KV(self, message: Message) -> Tuple[K, Event]:
-        key = message.key
-        if self._key_serializer:
+        else:
             try:
-                key = loads(self._key_serializer, message.key)
+                v = await self._loads_value(self.value_type, k, message)
             except Exception as exc:
-                raise KeyDecodeError(exc)
-        k = cast(K, key)
-        try:
-            v = self.type.from_message(  # type: ignore
-                k, message, self._app,
-                default_serializer=self._value_serializer,
-            )
-        except Exception as exc:
-            raise ValueDecodeError(exc)
-        return k, v
+                if not self.on_value_decode_error:
+                    raise
+                await self.on_value_decode_error(exc, message)
+            else:
+                self.track_event(v, message.offset)
+                await self.callback(self.topic, k, v)
 
     def track_event(self, event: Event, offset: int) -> None:
         self._dirty_events.append(

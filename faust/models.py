@@ -2,10 +2,11 @@
 from typing import (
     Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, Union, cast,
 )
+from avro import schema
 from .codecs import dumps, loads
 from .types import (
-    AppT, CodecArg, Event, FieldDescriptorT, K,
-    Message, ModelOptions, ModelT, Request, Topic,
+    CodecArg, FieldDescriptorT,
+    ModelOptions, ModelT, Request, Topic,
 )
 from .utils.avro.utils import to_avro_type
 from .utils.objects import annotations
@@ -68,13 +69,14 @@ class Model(ModelT):
     req: Request = None
 
     _schema_type: str = None
+    _schema_cache: schema.Schema = None   # XXX ClassVar
 
     @classmethod
     def loads(
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None,
-            **kwargs: Any) -> ModelT:
+            req: Request = None) -> ModelT:
         """Deserialize event from bytes.
 
         Keyword Arguments:
@@ -85,31 +87,10 @@ class Model(ModelT):
                 present in the message takes precedence.
         """
         # the double starargs means dicts are merged
-        return cls(**kwargs,  # type: ignore
-                   **loads(cls._options.serializer or default_serializer, s))
-
-    @classmethod
-    def from_message(
-            cls, key: K, message: Message, app: AppT,
-            *,
-            default_serializer: CodecArg = None) -> Event:
-        """Create event from message.
-
-        The Consumer uses this to convert a message to an event.
-
-        Arguments:
-            key (K): Deserialized key.
-            message (Message): Message object holding serialized event.
-
-        Keyword Arguments:
-            default_serializer (CodecArg): Default serializer to use
-                if no custom serializer was set for this Event subclass.
-        """
-        return cast(Event, cls.loads(
-            message.value,
-            default_serializer=default_serializer,
-            req=Request(app, key, message),
-        ))
+        return cls(  # type: ignore
+            loads(cls._options.serializer or default_serializer, s),
+            req=req,
+        )
 
     @classmethod
     def as_schema(cls) -> Mapping:
@@ -119,6 +100,17 @@ class Model(ModelT):
             'name': cls.__name__,
             'fields': cls._schema_fields(),
         }
+
+    @classmethod
+    def as_avro_schema(cls) -> schema.Schema:
+        if cls._schema_cache is None:
+            cls._schema_cache = cls._as_avro_schema()
+        return cls._schema_cache
+
+    @classmethod
+    def _as_avro_schema(cls) -> schema.Schema:
+        names = schema.Names()
+        return schema.SchemaFromJSONData(cls.as_schema(), names)
 
     @classmethod
     def _schema_fields(cls) -> Any:
@@ -166,13 +158,20 @@ class Model(ModelT):
             cls, options: ModelOptions) -> None:
         raise NotImplementedError()
 
-    def __init__(self, req=None, **fields):
+    def __init__(self, _data: Any = None, *, req=None, **fields: Any) -> None:
         # Req is only set by the Consumer, when the event originates
         # from message received.
         self.req = req
 
-        # Set fields from keyword arguments.
-        self._init_fields(fields)
+        if _data:
+            assert not fields
+            self._init_fields(_data, using_args=True)
+        else:
+            # Set fields from keyword arguments.
+            self._init_fields(fields, using_args=False)
+
+    def _init_fields(self, fields: Any, using_args: bool) -> None:
+        raise NotImplementedError()
 
     def derive(self, *objects: ModelT, **fields) -> ModelT:
         return self._derive(objects, fields)
@@ -185,9 +184,9 @@ class Model(ModelT):
 
     def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""
-        return dumps(self._options.serializer, self._to_representation())
+        return dumps(self._options.serializer, self.to_representation())
 
-    def _to_representation(self) -> Any:
+    def to_representation(self) -> Any:
         raise NotImplementedError()
 
     def _humanize(self) -> str:
@@ -262,7 +261,7 @@ class Record(Model):
             setattr(cls, field, FieldDescriptor(
                 field, typ, cls, required, default))
 
-    def _init_fields(self, fields):
+    def _init_fields(self, fields, using_args):
         fieldset = frozenset(fields)
         options = self._options
 
@@ -282,12 +281,12 @@ class Record(Model):
         self.__dict__.update(fields)
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
-        data = cast(Dict, self._to_representation())
+        data = cast(Dict, self.to_representation())
         for obj in objects:
-            data.update(cast(Record, obj)._to_representation())
+            data.update(cast(Record, obj).to_representation())
         return type(self)(req=self.req, **{**data, **fields})
 
-    def _to_representation(self) -> Mapping[str, Any]:
+    def to_representation(self) -> Mapping[str, Any]:
         # Convert known fields to mapping of ``{field: value}``.
         return dict(self._asitems())
 

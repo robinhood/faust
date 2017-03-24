@@ -22,7 +22,7 @@ class MessageSerializer:
     Reader: Type = DatumReader
     Writer: Type = DatumWriter
 
-    _id_to_decoder: MutableMapping[int, partial[bytes]]
+    _id_to_decoder: MutableMapping[int, partial]
     _id_to_writer: MutableMapping[int, DatumWriter]
 
     def __init__(self, registry_client: RegistryClient) -> None:

@@ -1,18 +1,21 @@
 """Applications."""
 import asyncio
 import faust
+import sys
 from collections import OrderedDict, deque
 from typing import (
-    Any, Awaitable, Iterator, MutableMapping,
+    Any, Awaitable, Iterator, Mapping, MutableMapping,
     Optional, Sequence, Union, Type, cast,
 )
 from itertools import count
 from . import constants
 from . import transport
-from .codecs import dumps
+from .codecs import loads
+from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, K, ModelT, Processor, ProducerT,
-    StreamCoroutine, StreamT, TaskArg, Topic, TransportT, V,
+    AppT, AsyncSerializerT, CodecArg, Event, K, Message, ModelT,
+    Processor, ProducerT, Request, StreamCoroutine, StreamT, TaskArg,
+    Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
@@ -92,6 +95,11 @@ class App(AppT, Service):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
+    _serializer_override_classes: Mapping[CodecArg, Union[Type, str]] = {
+        'avro': 'faust.utils.avro.faust:AvroSerializer',
+    }
+    _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
+
     def __init__(self, id: str,
                  *,
                  url: str = 'aiokafka://localhost:9092',
@@ -101,26 +109,28 @@ class App(AppT, Service):
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
+                 avro_registry_url: str = None,
                  stream_cls: Union[Type, str] = DEFAULT_STREAM_CLS,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
+        self.url = url
         self.client_id = client_id
         self.commit_interval = commit_interval
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
-        self.url = url
+        self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(stream_cls)
         self._streams = OrderedDict()
         self._tasks = deque()
+        self._serializer_override = {}
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
             *,
-            wait: bool = True,
-            key_serializer: CodecArg = None) -> Awaitable:
+            wait: bool = True) -> Awaitable:
         """Send event to stream.
 
         Arguments:
@@ -132,27 +142,16 @@ class App(AppT, Service):
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
         """
-        key_bytes: Optional[bytes] = None
         if isinstance(topic, Topic):
-            key_serializer = key_serializer or topic.key_serializer
             strtopic = topic.topics[0]
-        if key is not None:
-            if isinstance(key, ModelT):
-                key_bytes = key.dumps()
-            elif key_serializer is not None:
-                key_bytes = dumps(key_serializer, key)
-            else:
-                key_bytes = want_bytes(key)
-        value_bytes: bytes = value.dumps()
-
         return await self._send(
             strtopic,
-            key_bytes,
-            value_bytes,
+            (await self.dumps_key(strtopic, key) if key is not None else None),
+            (await self.dumps_value(strtopic, value)),
             wait=wait,
         )
 
-    async def _send(self, topic: str, key: bytes, value: bytes,
+    async def _send(self, topic: str, key: Optional[bytes], value: bytes,
                     *,
                     wait: bool = True) -> Awaitable:
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
@@ -163,6 +162,69 @@ class App(AppT, Service):
         return await (producer.send_and_wait if wait else producer.send)(
             topic, key, value,
         )
+
+    async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
+        if key is None or typ is None:
+            return key
+        try:
+            typ_serializer = typ._options.serializer  # type: ignore
+            serializer = typ_serializer or self.key_serializer
+            try:
+                ser = self._get_serializer(serializer)
+            except KeyError:
+                obj = loads(serializer, key)
+            else:
+                obj = await ser.loads(key)
+            return typ(obj)
+        except Exception as exc:
+            raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
+
+    async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
+        try:
+            obj: Any = None
+            typ_serializer = typ._options.serializer  # type: ignore
+            serializer = typ_serializer or self.value_serializer
+            try:
+                ser = self._get_serializer(serializer)
+            except KeyError:
+                obj = loads(serializer, message.value)
+            else:
+                obj = await ser.loads(message.value)
+            return cast(Event, typ(obj, req=Request(self, key, message)))
+        except Exception as exc:
+            raise ValueDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
+
+    async def dumps_key(self, topic: str, key: K) -> bytes:
+        if isinstance(key, ModelT):
+            try:
+                ser = self._get_serializer(key._options.serializer)
+            except KeyError:
+                return key.dumps()
+            else:
+                return await ser.dumps_key(topic, key)
+        return want_bytes(key)
+
+    async def dumps_value(self, topic: str, value: V) -> bytes:
+        try:
+            ser = self._get_serializer(value._options.serializer)
+        except KeyError:
+            return value.dumps()
+        else:
+            return await ser.dumps_value(topic, value)
+
+    def _get_serializer(self, name: CodecArg) -> AsyncSerializerT:
+        # Caches overridden AsyncSerializer
+        # e.g. the avro serializer communicates with a Schema registry
+        # server, so it needs to be async.
+        # See app.dumps_key, .dumps_value, .loads_key, .loads_value,
+        # and the AsyncSerializer implementation in
+        #   faust/utils/avro/faust.py
+        try:
+            return self._serializer_override[name]
+        except KeyError:
+            ser = self._serializer_override[name] = (
+                symbol_by_name(self._serializer_override_classes[name])(self))
+            return ser
 
     def add_task(self, task: TaskArg) -> asyncio.Future:
         """Start task.

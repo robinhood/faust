@@ -99,7 +99,8 @@ logger = get_logger(__name__)
 
 def topic(*topics: str,
           pattern: Union[str, Pattern] = None,
-          type: Type = None,
+          key_type: Type = None,
+          value_type: Type = None,
           key_serializer: CodecArg = None) -> Topic:
     """Define new topic.
 
@@ -109,9 +110,8 @@ def topic(*topics: str,
     Keyword Arguments:
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
-        type (Type): Model/V used for messages in this topic.
-        key_serializer (CodecArg): Serializer name, or serializer object
-            to use for keys from this topic.
+        key_type (Type): Model used for keys in this topic.
+        value_type (Type): Model used for values in this topic.
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
@@ -128,8 +128,8 @@ def topic(*topics: str,
     return Topic(
         topics=topics,
         pattern=pattern,
-        type=type,
-        key_serializer=key_serializer,
+        key_type=key_type,
+        value_type=value_type,
     )
 
 
