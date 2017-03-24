@@ -8,7 +8,7 @@ from avro.schema import Parse, Schema
 from .. import json
 from ..logging import get_logger
 
-__all__ = ['ClientError', 'SchemaRegistryClient']
+__all__ = ['ClientError', 'RegistryClient']
 
 logger = get_logger(__name__)
 
@@ -23,7 +23,7 @@ class ClientError(Exception):
     ...
 
 
-class SchemaRegistryClient:
+class RegistryClient:
     valid_levels = {'NONE', 'FULL', 'FORWARD', 'BACKWARD'}
     content_type = 'application/vnd.schemaregistry.v1+json'
 
