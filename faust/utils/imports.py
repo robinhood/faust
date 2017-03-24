@@ -25,7 +25,7 @@ def symbol_by_name(
         package: str = None,
         sep: str = '.',
         default: Any = None,
-        **kwargs) -> Any:
+        **kwargs: Any) -> Any:
     """Get symbol by qualified name.
 
     The name should be the full dot-separated path to the class::

@@ -74,7 +74,7 @@ class Model(ModelT):
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None,
-            **kwargs) -> ModelT:
+            **kwargs: Any) -> ModelT:
         """Deserialize event from bytes.
 
         Keyword Arguments:
@@ -127,7 +127,7 @@ class Model(ModelT):
     def __init_subclass__(cls,
                           serializer: str = None,
                           namespace: str = None,
-                          **kwargs) -> None:
+                          **kwargs: Any) -> None:
         if cls.__abstract__:
             cls.__abstract__ = False
             return

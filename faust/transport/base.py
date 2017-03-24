@@ -2,7 +2,7 @@
 import asyncio
 import weakref
 from itertools import count
-from typing import Awaitable, Callable, Optional, List, Tuple, Type, cast
+from typing import Any, Awaitable, Callable, Optional, List, Tuple, Type, cast
 from ..codecs import loads
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import (
@@ -205,9 +205,9 @@ class Transport(TransportT):
         self.loop = loop
 
     def create_consumer(self, topic: Topic, callback: ConsumerCallback,
-                        **kwargs) -> ConsumerT:
+                        **kwargs: Any) -> ConsumerT:
         return cast(ConsumerT, self.Consumer(
             self, topic=topic, callback=callback, **kwargs))
 
-    def create_producer(self, **kwargs) -> ProducerT:
+    def create_producer(self, **kwargs: Any) -> ProducerT:
         return cast(ProducerT, self.Producer(self, **kwargs))

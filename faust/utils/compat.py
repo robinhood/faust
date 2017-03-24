@@ -1,13 +1,18 @@
 """Compatibility utilities."""
+from typing import AnyStr
 
 __all__ = ['want_bytes', 'want_str']
 
 
-def want_bytes(s):
+def want_bytes(s: AnyStr) -> bytes:
     """Convert string to bytes."""
-    return s.encode() if isinstance(s, str) else s
+    if isinstance(s, str):
+        return s.encode()
+    return s
 
 
-def want_str(s):
+def want_str(s: AnyStr) -> str:
     """Convert bytes to string."""
-    return s.decode() if isinstance(s, bytes) else s
+    if isinstance(s, bytes):
+        return s.decode()
+    return s

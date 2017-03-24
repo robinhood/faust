@@ -3,7 +3,7 @@ import datetime
 import math
 import uuid
 from decimal import Decimal
-from typing import Any, Optional, Type, cast
+from typing import Any, Optional, Tuple, Type, cast
 
 DEFAULT_TEXTUAL_TYPES = [Decimal, uuid.UUID]
 
@@ -67,9 +67,10 @@ class JSONEncoder(json.JSONEncoder):
     information.
     """
 
-    def default(self, o,
-                dates=(datetime.date, datetime.time),
-                textual=TEXTUAL_TYPES):
+    def default(self, o: Any,
+                *,
+                dates: Tuple[type, ...] = (datetime.date, datetime.time),
+                textual: Tuple[type, ...] = TEXTUAL_TYPES) -> Any:
         if isinstance(o, dates):
             if not isinstance(o, (datetime.datetime, datetime.time)):
                 o = datetime.datetime(o.year, o.month, o.day, 0, 0, 0, 0)
@@ -83,11 +84,11 @@ class JSONEncoder(json.JSONEncoder):
             return super(JSONEncoder, self).default(o)
 
 
-def dumps(obj: Any, cls: Type = JSONEncoder, **kwargs) -> str:
+def dumps(obj: Any, cls: Type = JSONEncoder, **kwargs: Any) -> str:
     """Serialize to json.  See :func:`json.dumps`."""
     return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 
 
-def loads(s: str, **kwargs) -> Any:
+def loads(s: str, **kwargs: Any) -> Any:
     """Deserialize json string.  See :func:`json.loads`."""
     return json.loads(s, **kwargs)

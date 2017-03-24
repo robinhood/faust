@@ -1,5 +1,5 @@
 """Transport registry."""
-from typing import Mapping, Type
+from typing import Any, Mapping, Type
 from ..types import AppT, TransportT
 from ..utils.urls import url_to_parts
 from ..utils.imports import symbol_by_name
@@ -20,6 +20,6 @@ def by_url(url: str) -> Type:
     return symbol_by_name(scheme, aliases=TRANSPORTS)
 
 
-def from_url(url: str, app: AppT, **kwargs) -> TransportT:
+def from_url(url: str, app: AppT, **kwargs: Any) -> TransportT:
     """Factory: Instantiate transport class associated with URL."""
     return by_url(url)(url, app, **kwargs)

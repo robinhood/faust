@@ -145,7 +145,7 @@ class Stream(StreamT, Service):
                    coroutine: StreamCoroutine = None,
                    processors: Sequence[Processor] = None,
                    loop: asyncio.AbstractEventLoop = None,
-                   **kwargs) -> StreamT:
+                   **kwargs: Any) -> StreamT:
         return cls(
             topics=[topic],
             coroutines={
@@ -194,10 +194,10 @@ class Stream(StreamT, Service):
             'children': self.children,
         }
 
-    def clone(self, **kwargs) -> StreamT:
+    def clone(self, **kwargs: Any) -> StreamT:
         return self.__class__(**{**self.info(), **kwargs})
 
-    def combine(self, *nodes: StreamT, **kwargs):
+    def combine(self, *nodes: StreamT, **kwargs: Any) -> StreamT:
         all_nodes = cast(Tuple[StreamT, ...], (self,)) + nodes
         topics: List[Topic] = []
         processors: Dict[Topic, Sequence[Processor]] = {}
@@ -278,8 +278,8 @@ class Stream(StreamT, Service):
             self.topics.remove(topic)
         except ValueError:
             pass
-        self._processors.pop(topic, None)
-        self._coroutines.pop(topic, None)
+        self._processors.pop(topic, None)  # type: ignore
+        self._coroutines.pop(topic, None)  # type: ignore
         await self._unsubscribe(topic)
 
     async def _unsubscribe(self, topic: Topic) -> None:
@@ -337,4 +337,4 @@ class Stream(StreamT, Service):
         return self
 
     async def __anext__(self) -> Event:
-        return await self.outbox.get()
+        return cast(Event, await self.outbox.get())

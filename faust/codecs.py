@@ -159,7 +159,7 @@ the extension with other Faust users.
 import pickle as _pickle
 from base64 import b64encode, b64decode
 from functools import reduce
-from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
+from typing import Any, Dict, MutableMapping, Optional, Tuple, Union, cast
 from .types import CodecT, CodecArg
 from .utils import json as _json
 from .utils.compat import want_bytes, want_str
@@ -187,7 +187,7 @@ class Codec(CodecT):
 
     def __init__(self,
                  children: Tuple[CodecT, ...] = None,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         self.children = children or ()
         self.nodes = (self,) + self.children  # type: ignore
         self.kwargs = kwargs
@@ -216,7 +216,7 @@ class Codec(CodecT):
 
     def clone(self, *children: CodecT) -> CodecT:
         """Create a clone of this codec, with optional children added."""
-        new_children = self.children + children  # type: ignore
+        new_children = self.children + children
         return type(self)(children=new_children, **self.kwargs)
 
     def __or__(self, other: Any) -> Any:
@@ -295,8 +295,8 @@ def _maybe_load_extension_classes(
         })
 
 
-def _reduce_node(a, b):
-    return codecs.get(a, a) | codecs[b]  # type: ignore
+def _reduce_node(a: Union[str, CodecT], b: str) -> CodecT:
+    return codecs.get(a, a) | codecs[b]
 
 
 def get_codec(name_or_codec: CodecArg) -> CodecT:

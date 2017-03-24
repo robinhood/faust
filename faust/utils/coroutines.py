@@ -106,7 +106,7 @@ class GeneratorCoroCallback(CoroCallback):
     def __init__(self,
                  gen: Generator[Event, None, None],
                  inbox: InputStreamT,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         self.gen = gen
         super().__init__(inbox, **kwargs)
 
@@ -120,7 +120,7 @@ class AsyncCoroCallback(CoroCallback):
     def __init__(self,
                  gen: AsyncIterable[Event],
                  inbox: InputStreamT,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         self.gen = gen
         super().__init__(inbox, **kwargs)
 
@@ -136,7 +136,7 @@ class AsyncGeneratorCoroCallback(CoroCallback):
     def __init__(self,
                  coro: Coroutine[Event, None, None],
                  inbox: InputStreamT,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         self.coro = coro
         self.gen = None
         super().__init__(inbox, **kwargs)

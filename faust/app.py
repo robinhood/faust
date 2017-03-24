@@ -4,7 +4,7 @@ import faust
 from collections import OrderedDict
 from typing import (
     Any, Awaitable, Callable, Dict, Iterator,
-    MutableMapping, Sequence, Union, Type, cast,
+    MutableMapping, Optional, Sequence, Union, Type, cast,
 )
 from itertools import count
 from . import constants
@@ -65,13 +65,13 @@ class App(AppT, Service):
     _streams: MutableMapping[str, StreamT]
 
     #: Default producer instance.
-    _producer: ProducerT = None
+    _producer: Optional[ProducerT] = None
 
     #: Set when producer is started.
     _producer_started: bool = False
 
     #: Transport is created on demand: use `.transport`.
-    _transport: TransportT = None
+    _transport: Optional[TransportT] = None
 
     _exception_handler_installed = False
 
@@ -97,7 +97,7 @@ class App(AppT, Service):
         self.url = url
         self.Stream = symbol_by_name(stream_cls)
         self._streams = OrderedDict()
-        self._old_exception_handler: ExceptionHandler = None
+        self._old_exception_handler: Optional[ExceptionHandler] = None
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -115,17 +115,14 @@ class App(AppT, Service):
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
         """
-        key_bytes: bytes = None
+        key_bytes: Optional[bytes] = None
         if isinstance(topic, Topic):
-            topic = cast(Topic, topic)
             key_serializer = key_serializer or topic.key_serializer
             strtopic = topic.topics[0]
-        else:
-            strtopic = cast(str, topic)
         if key is not None:
             if isinstance(key, ModelT):
                 key_bytes = key.dumps()
-            elif key_serializer:
+            elif key_serializer is not None:
                 key_bytes = dumps(key_serializer, key)
             else:
                 key_bytes = want_bytes(key)
@@ -167,12 +164,11 @@ class App(AppT, Service):
     async def _execute_task(self, task: TaskArg) -> None:
         await asyncio.ensure_future(task, loop=self.loop)
 
-    def _install_loop_handlers(self):
-        self._old_exception_handler = (
-            self.loop.get_exception_handler() or
-            self.loop.default_exception_handler
-        )
-        self.loop.set_exception_handler(self._on_loop_exception)
+    def _install_loop_handlers(self) -> None:
+        loop = self.loop
+        _e: ExceptionHandler = loop.get_exception_handler()  # type: ignore
+        self._old_exception_handler = _e or loop.default_exception_handler
+        loop.set_exception_handler(self._on_loop_exception)
 
     def _on_loop_exception(self,
                            loop: asyncio.AbstractEventLoop,
@@ -183,7 +179,7 @@ class App(AppT, Service):
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
                processors: Sequence[Processor] = None,
-               **kwargs) -> StreamT:
+               **kwargs: Any) -> StreamT:
         """Create new stream from topic.
 
         Arguments:
@@ -214,7 +210,7 @@ class App(AppT, Service):
         for _stream in reversed(list(self._streams.values())):
             await _stream.stop()
         # stop producer
-        if self._producer:
+        if self._producer is not None:
             await self._producer.stop()
 
     def add_source(self, stream: StreamT) -> None:
@@ -242,7 +238,7 @@ class App(AppT, Service):
     def producer(self) -> ProducerT:
         if self._producer is None:
             self._producer = self._new_producer()
-        return self._producer
+        return cast(ProducerT, self._producer)
 
     @producer.setter
     def producer(self, producer: ProducerT) -> None:
@@ -252,7 +248,7 @@ class App(AppT, Service):
     def transport(self) -> TransportT:
         if self._transport is None:
             self._transport = self._create_transport()
-        return self._transport
+        return cast(TransportT, self._transport)
 
     @transport.setter
     def transport(self, transport: TransportT) -> None:

@@ -51,7 +51,7 @@ class CodecT(metaclass=abc.ABCMeta):
 
 
 # `serializer` argument can be str or Codec instance.
-CodecArg = Union[CodecT, str]
+CodecArg = Optional[Union[CodecT, str]]
 
 
 class Topic(NamedTuple):
@@ -174,7 +174,7 @@ class ModelT:
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None,
-            **kwargs) -> 'ModelT':
+            **kwargs: Any) -> 'ModelT':
         ...
 
     def from_message(
@@ -335,10 +335,10 @@ class TransportT(metaclass=abc.ABCMeta):
     loop: asyncio.AbstractEventLoop
 
     def create_consumer(self, topic: Topic, callback: ConsumerCallback,
-                        **kwargs) -> ConsumerT:
+                        **kwargs: Any) -> ConsumerT:
         ...
 
-    def create_producer(self, **kwargs) -> ProducerT:
+    def create_producer(self, **kwargs: Any) -> ProducerT:
         ...
 
 
@@ -371,7 +371,7 @@ class AppT(ServiceT):
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
                processors: TopicProcessorSequence = None,
-               **kwargs) -> 'StreamT':
+               **kwargs: Any) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -413,7 +413,7 @@ class StreamT(AsyncIterable[_T], ServiceT):
                    coroutine: StreamCoroutine = None,
                    processors: TopicProcessorSequence = None,
                    loop: asyncio.AbstractEventLoop = None,
-                   **kwargs) -> 'StreamT':
+                   **kwargs: Any) -> 'StreamT':
         ...
 
     def __init__(self, name: str = None,
@@ -436,11 +436,11 @@ class StreamT(AsyncIterable[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def clone(self, **kwargs) -> 'StreamT':
+    def clone(self, **kwargs: Any) -> 'StreamT':
         ...
 
     @abc.abstractmethod
-    def combine(self, *nodes: 'StreamT', **kwargs):
+    def combine(self, *nodes: 'StreamT', **kwargs: Any):
         ...
 
     @abc.abstractmethod

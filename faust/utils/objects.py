@@ -118,11 +118,11 @@ class cached_property(object):
     """
 
     def __init__(self,
-                 fget: Callable = None,
+                 fget: Callable,
                  fset: Callable = None,
                  fdel: Callable = None,
                  doc: str = None,
-                 class_attribute=None) -> None:
+                 class_attribute: str = None) -> None:
         self.__get = fget
         self.__set = fset
         self.__del = fdel
