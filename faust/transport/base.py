@@ -50,9 +50,11 @@ class EventRef(weakref.ref, EventRefT):
 
     def __init__(self, event: Event,
                  callback: Callable = None,
-                 offset: int = None) -> None:
+                 offset: int = None,
+                 consumer_id: int = None) -> None:
         super().__init__(event, callback)
         self.offset = offset
+        self.consumer_id = consumer_id
 
 
 class Consumer(ConsumerT, Service):
@@ -85,6 +87,8 @@ class Consumer(ConsumerT, Service):
         self.on_value_decode_error = on_value_decode_error
         self._loads_key = self._app.loads_key
         self._loads_value = self._app.loads_value
+        self._on_event_in = self._app.on_event_in
+        self._on_event_out = self._app.on_event_out
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
         if self.topic.topics and self.topic.pattern:
@@ -115,13 +119,23 @@ class Consumer(ConsumerT, Service):
                 await self.callback(self.topic, k, v)
 
     def track_event(self, event: Event, offset: int) -> None:
+        _id = self.id
+        # keep weak reference to event, to be notified when out of scope.
         self._dirty_events.append(
-            EventRef(event, self.on_event_ready, offset=offset))
+            EventRef(event, self.on_event_ready,
+                     offset=offset, consumer_id=self.id))
+        # call sensors
+        asyncio.ensure_future(
+            self._on_event_in(_id, offset, event),
+            loop=self.loop)
 
     def on_event_ready(self, ref: EventRefT) -> None:
         print('ACKED MESSAGE %r' % (ref.offset,))
         self._acked.append(ref.offset)
         self._acked.sort()
+        asyncio.ensure_future(
+            self._on_event_out(ref.consumer_id, ref.offset, None),
+            loop=self.loop)
 
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)

@@ -55,18 +55,19 @@ class Service(ServiceT):
             await self.start()
 
     async def stop(self) -> None:
-        logger.info('+Stopping service %r', self)
-        self._stopped.set()
-        await self.on_stop()
-        logger.info('-Stopped service %r', self)
-        logger.info('+Shutdown service %r', self)
-        if self.wait_for_shutdown:
-            await asyncio.wait_for(  # type: ignore
-                self._shutdown.wait(), self.shutdown_timeout,
-                loop=self.loop,
-            )
-        await self.on_shutdown()
-        logger.info('-Shutdown service %r', self)
+        if not self._stopped.is_set():
+            logger.info('+Stopping service %r', self)
+            self._stopped.set()
+            await self.on_stop()
+            logger.info('-Stopped service %r', self)
+            logger.info('+Shutdown service %r', self)
+            if self.wait_for_shutdown:
+                await asyncio.wait_for(  # type: ignore
+                    self._shutdown.wait(), self.shutdown_timeout,
+                    loop=self.loop,
+                )
+            await self.on_shutdown()
+            logger.info('-Shutdown service %r', self)
 
     def set_shutdown(self) -> None:
         self._shutdown.set()
@@ -74,6 +75,10 @@ class Service(ServiceT):
     def __repr__(self) -> str:
         return '<{name}: {self.state}>'.format(
             name=type(self).__name__, self=self)
+
+    @property
+    def started(self) -> bool:
+        return self._started.is_set()
 
     @property
     def should_stop(self) -> bool:

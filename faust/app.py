@@ -5,7 +5,7 @@ import sys
 from collections import OrderedDict, deque
 from typing import (
     Any, Awaitable, Iterator, Mapping, MutableMapping,
-    Optional, Sequence, Union, Type, cast,
+    Optional, Sequence, Set, Union, Type, cast,
 )
 from itertools import count
 from . import constants
@@ -14,8 +14,8 @@ from .codecs import loads
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
     AppT, AsyncSerializerT, CodecArg, Event, K, Message, ModelT,
-    Processor, ProducerT, Request, StreamCoroutine, StreamT, TaskArg,
-    Topic, TransportT, V,
+    Processor, ProducerT, Request, SensorT, StreamCoroutine, StreamT,
+    TaskArg, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
 from .utils.imports import symbol_by_name
@@ -95,6 +95,9 @@ class App(AppT, Service):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
+    #: List of active sensors
+    _sensors: Set[SensorT] = None
+
     _serializer_override_classes: Mapping[CodecArg, Union[Type, str]] = {
         'avro': 'faust.utils.avro.faust:AvroSerializer',
     }
@@ -126,6 +129,7 @@ class App(AppT, Service):
         self._streams = OrderedDict()
         self._tasks = deque()
         self._serializer_override = {}
+        self._sensors = set()
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -232,6 +236,7 @@ class App(AppT, Service):
         Notes:
             A task is simply any coroutine iterating over a stream.
         """
+        assert not self.started
         fut = self._start_task(task)
         self._tasks.append(fut)
         return fut
@@ -268,9 +273,26 @@ class App(AppT, Service):
             **kwargs
         ).bind(self)
 
+    def add_sensor(self, sensor: SensorT) -> None:
+        assert not self.started
+        self._sensors.add(sensor)
+
+    def remove_sensor(self, sensor: 'SensorT') -> None:
+        self._sensors.remove(sensor)
+
+    async def on_event_in(
+            self, consumer_id: int, offset: int, event: Event) -> None:
+        for _sensor in self._sensors:
+            await _sensor.on_event_in(consumer_id, offset, event)
+
+    async def on_event_out(
+            self, consumer_id: int, offset: int, event: Event = None) -> None:
+        for _sensor in self._sensors:
+            await _sensor.on_event_out(consumer_id, offset, event)
+
     async def on_start(self) -> None:
         for _stream in self._streams.values():  # start all streams
-            await _stream.start()
+            await _stream.maybe_start()
         while self._tasks:
             await asyncio.ensure_future(self._tasks.popleft(), loop=self.loop)
 

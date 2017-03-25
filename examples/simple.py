@@ -3,6 +3,7 @@ import faust
 import logging
 import os
 import sys
+from faust.sensors import Sensor
 logging.basicConfig(level=logging.INFO)
 
 
@@ -50,6 +51,7 @@ async def produce():
 async def consume():
     app.add_task(find_large_withdrawals(app))
     worker = faust.Worker(app)
+    worker.sensors.add(Sensor())
     await worker.start()
 
 

@@ -21,7 +21,7 @@ __all__ = [
     'ValueDecodeErrorCallback', 'FieldDescriptorT', 'InputStreamT',
     'StreamCoroutineCallback', 'CoroCallbackT', 'StreamCoroutine',
     'EventRefT', 'ConsumerT', 'ProducerT', 'TransportT', 'TaskArg',
-    'AppT', 'StreamT', 'JoinT', 'AsyncSerializerT',
+    'AppT', 'StreamT', 'JoinT', 'AsyncSerializerT', 'SensorT',
 ]
 
 
@@ -139,6 +139,11 @@ class ServiceT(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
+    def started(self) -> bool:
+        ...
+
+    @property
+    @abc.abstractmethod
     def should_stop(self) -> bool:
         ...
 
@@ -149,8 +154,8 @@ class ServiceT(metaclass=abc.ABCMeta):
 
 
 class ModelOptions:
-    serializer: CodecArg
-    namespace: str
+    serializer: CodecArg = None
+    namespace: str = None
 
     # Index: Flattened view of __annotations__ in MRO order.
     fields: Mapping[str, Type]
@@ -278,6 +283,7 @@ StreamCoroutine = Union[
 
 
 class EventRefT(metaclass=abc.ABCMeta):
+    consumer_id: int
     offset: int
 
 
@@ -372,6 +378,14 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def add_sensor(self, sensor: 'SensorT') -> None:
+        ...
+
+    @abc.abstractmethod
+    def remove_sensor(self, sensor: 'SensorT') -> None:
+        ...
+
+    @abc.abstractmethod
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
                processors: TopicProcessorSequence = None,
@@ -407,6 +421,16 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def dumps_value(self, topic: str, value: V) -> bytes:
+        ...
+
+    @abc.abstractmethod
+    async def on_event_in(
+            self, consumer_id: int, offset: int, event: Event) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_event_out(
+            self, consumer_id: int, offset: int, event: Event = None) -> None:
         ...
 
     @property
@@ -559,4 +583,17 @@ class AsyncSerializerT:
         ...
 
     async def dumps_value(self, topic: str, s: ModelT) -> bytes:
+        ...
+
+
+class SensorT(ServiceT):
+
+    @abc.abstractmethod
+    async def on_event_in(
+            self, consumer_id: int, offset: int, event: Event) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_event_out(
+            self, consumer_id: int, offset: int, event: Event = None) -> None:
         ...
