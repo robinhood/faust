@@ -21,7 +21,7 @@ def setup_logging(
         logformat: str = None) -> None:
     stream: IO = None
     if isinstance(loglevel, str):
-        loglevel = logging.getLevelName(loglevel)
+        loglevel = logging.getLevelName(loglevel)  # type: ignore
     if not isinstance(logfile, str):
         stream, logfile = logfile, None
     _setup_logging(
@@ -31,9 +31,10 @@ def setup_logging(
         format=logformat or DEFAULT_FORMAT,
     )
 
+
 def _setup_logging(**kwargs: Any) -> None:
     # stupid logging just have to crash if both stream/loglevel
     # set EVEN IF ONE OF THEM IS SET TO NONE AAAAAAAAAAAAAAAAAAAAAHG
     if 'stream' in kwargs:
         del kwargs['filename']
-    return logging.basicConfig(**kwargs)
+    logging.basicConfig(**kwargs)

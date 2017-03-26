@@ -1,6 +1,7 @@
 """Serializing/deserializing message keys and values."""
 from typing import (
-    Any, Dict, Iterable, Mapping, Sequence, Tuple, Type, Union, cast,
+    Any, Dict, Iterable, List, Mapping, MutableSequence,
+    Sequence, Tuple, Type, Union, cast,
 )
 from avro import schema
 from .codecs import dumps, loads
@@ -163,7 +164,7 @@ class Model(ModelT):
         # from message received.
         self.req = req
 
-        if _data:
+        if _data is not None:
             assert not fields
             self._init_fields(_data, using_args=True)
         else:
@@ -374,3 +375,69 @@ class FieldDescriptor(FieldDescriptorT):
             type=self.type.__name__,
             default='' if self.required else ' = {!r}'.format(self.default),
         )
+
+
+class ArrayType(type):
+
+    __fields__: Tuple[Type, ...] = None
+    __descr__: List[FieldDescriptor]
+
+    def __getitem__(cls, fields: Any) -> type:
+        if cls.__fields__ is None:
+            return type('Array', (cls,), {'__fields__': fields})
+        return cls.__descr__[fields]
+
+    def __repr__(cls):
+        return 'Array:{}[{}]'.format(cls.__name__, ', '.join(
+            t.__name__ for t in cls.__fields__))
+
+
+class Array(Model, metaclass=ArrayType):
+    __abstract__ = True
+    _schema_type = 'array'
+
+    __values__: List[Any]
+
+    @classmethod
+    def _contribute_to_options(cls, options: ModelOptions):
+        # Find attributes and their types, and create indexes for these
+        # for performance at runtime.
+        options.fields = cls.__fields__
+        options.fieldset = frozenset()
+        options.optionalset = frozenset()
+        options.defaults = {}
+
+    @classmethod
+    def _contribute_field_descriptors(cls, options: ModelOptions) -> None:
+        cls.__descr__ = [
+            FieldDescriptor('Array{}Value'.format(i + 1), typ, cls, True, None)
+            for i, typ in enumerate(cls.__fields__)
+        ]
+
+    @classmethod
+    def _schema_fields(cls) -> Sequence[Mapping]:
+        return [
+            {'name': d.field, 'type': to_avro_type(d.type)}
+            for d in cls.__descr__
+        ]
+
+    def to_representation(self) -> List[Any]:
+        return self.__values__
+
+    def __init__(self, s: Sequence[Any]) -> None:
+        if isinstance(s, MutableSequence):
+            self.__values__ = cast(List, s)
+        else:
+            self.__values__ = list(s)
+
+    def __getitem__(self, index: int) -> Any:
+        return self.__values__[index]
+
+    def __setitem__(self, index: int, value: Any) -> None:
+        self.__values__[index] = value
+
+    def __delitem__(self, index: int) -> None:
+        del self.__values__[index]
+
+    def __repr__(self) -> str:
+        return repr(self.__values__)
