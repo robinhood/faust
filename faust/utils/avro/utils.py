@@ -1,5 +1,6 @@
 """Avro utilities."""
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
+from faust.types import ModelT
 
 __all__ = ['to_avro_type']
 
@@ -27,4 +28,6 @@ def to_avro_type(typ: Type) -> str:
         return 'array'
     elif issubclass(typ, Mapping):
         return 'map'
+    elif issubclass(typ, ModelT):
+        return typ.as_schema()
     raise TypeError('Cannot convert type {!r} to Avro'.format(typ))

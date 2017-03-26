@@ -1,7 +1,7 @@
 """Serializing/deserializing message keys and values."""
 from typing import (
     Any, Dict, Iterable, List, Mapping, MutableSequence,
-    Sequence, Tuple, Type, Union, cast,
+    Set, Sequence, Tuple, Type, Union, cast,
 )
 from avro import schema
 from .codecs import dumps, loads
@@ -87,7 +87,6 @@ class Model(ModelT):
                 Note, these are regarded as defaults, and any fields also
                 present in the message takes precedence.
         """
-        # the double starargs means dicts are merged
         return cls(  # type: ignore
             loads(cls._options.serializer or default_serializer, s),
             req=req,
@@ -157,21 +156,6 @@ class Model(ModelT):
     @classmethod
     def _contribute_field_descriptors(
             cls, options: ModelOptions) -> None:
-        raise NotImplementedError()
-
-    def __init__(self, _data: Any = None, *, req=None, **fields: Any) -> None:
-        # Req is only set by the Consumer, when the event originates
-        # from message received.
-        self.req = req
-
-        if _data is not None:
-            assert not fields
-            self._init_fields(_data, using_args=True)
-        else:
-            # Set fields from keyword arguments.
-            self._init_fields(fields, using_args=False)
-
-    def _init_fields(self, fields: Any, using_args: bool) -> None:
         raise NotImplementedError()
 
     def derive(self, *objects: ModelT, **fields) -> ModelT:
@@ -249,6 +233,11 @@ class Record(Model):
         options.fieldset = frozenset(fields)
         options.optionalset = frozenset(defaults)
         options.defaults = defaults
+        options.models = {
+            field: typ for field, typ in fields.items()
+            if issubclass(typ, ModelT)
+        }
+        options.modelset = set(options.models)
 
     @classmethod
     def _contribute_field_descriptors(cls, options: ModelOptions) -> None:
@@ -261,6 +250,18 @@ class Record(Model):
                 default, required = None, True
             setattr(cls, field, FieldDescriptor(
                 field, typ, cls, required, default))
+
+    def __init__(self, _data: Any = None, *, req=None, **fields: Any) -> None:
+        # Req is only set by the Consumer, when the event originates
+        # from message received.
+        self.req = req
+
+        if _data is not None:
+            assert not fields
+            self._init_fields(_data, using_args=True)
+        else:
+            # Set fields from keyword arguments.
+            self._init_fields(fields, using_args=False)
 
     def _init_fields(self, fields, using_args):
         fieldset = frozenset(fields)
@@ -281,6 +282,16 @@ class Record(Model):
         # Fast: This sets attributes from kwargs.
         self.__dict__.update(fields)
 
+        # then reconstruct child models
+        for _field, _typ in self._options.models.items():
+            try:
+                _data = fields[_field]
+            except KeyError:
+                pass
+            else:
+                if not isinstance(_data, ModelT):
+                    self.__dict__[_field] = _typ(_data)
+
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         data = cast(Dict, self.to_representation())
         for obj in objects:
@@ -293,19 +304,27 @@ class Record(Model):
 
     def _asitems(self) -> Iterable[Tuple[Any, Any]]:
         # Iterate over known fields as items-tuples.
+        modelset = self._options.modelset
         for key in self._options.fields:
-            yield key, self.__dict__[key]
+            value = self.__dict__[key]
+            if key in modelset:
+                value = value.to_representation()
+            yield key, value
 
     def _humanize(self) -> str:
-        return _kvrepr(self.__dict__)
+        return _kvrepr(self.__dict__, skip={'req'})
 
 
 def _kvrepr(d: Mapping[str, Any],
+            *,
+            skip: Set[str] = None,
             sep: str = ', ',
             fmt: str = '{0}={1!r}') -> str:
     """Represent dict as `k='v'` pairs separated by comma."""
+    skip = skip or set()
     return sep.join(
         fmt.format(k, v) for k, v in d.items()
+        if k not in skip
     )
 
 
@@ -421,14 +440,17 @@ class Array(Model, metaclass=ArrayType):
             for d in cls.__descr__
         ]
 
-    def to_representation(self) -> List[Any]:
-        return self.__values__
-
-    def __init__(self, s: Sequence[Any]) -> None:
+    def __init__(self, s: Sequence[Any], *, req: Request = None) -> None:
+        # Req is only set by the Consumer, when the event originates
+        # from message received.
+        self.req = req
         if isinstance(s, MutableSequence):
             self.__values__ = cast(List, s)
         else:
             self.__values__ = list(s)
+
+    def to_representation(self) -> List[Any]:
+        return self.__values__
 
     def __getitem__(self, index: int) -> Any:
         return self.__values__[index]
