@@ -8,7 +8,7 @@ from typing import NamedTuple
 
 __version__ = '1.0.0'
 __author__ = 'Robinhood Markets'
-__contact__ = 'asksol@robinhood.com'
+__contact__ = 'opensource@robinhood.com'
 __homepage__ = 'https://github.com/robinhoodmarkets/faust'
 __docformat__ = 'restructuredtext'
 
