@@ -294,7 +294,8 @@ class App(AppT, Service):
         for _stream in self._streams.values():  # start all streams
             await _stream.maybe_start()
         while self._tasks:
-            await asyncio.ensure_future(self._tasks.popleft(), loop=self.loop)
+            task = self._tasks.popleft()
+            asyncio.ensure_future(task, loop=self.loop)
 
     async def on_stop(self) -> None:
         # stop all streams
