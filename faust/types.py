@@ -378,8 +378,8 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
 
-    @abc.abstractmethod
     @classmethod
+    @abc.abstractmethod
     def current_app(cls):
         ...
 
