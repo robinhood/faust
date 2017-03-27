@@ -258,7 +258,7 @@ class App(AppT, Service):
         try:
             await task
         except Exception as exc:
-            self._call_task_consumer_error_handlers(exc)
+            await self._call_task_consumer_error_handlers(exc)
 
     async def _call_task_consumer_error_handlers(self, exc: Exception) -> None:
         task = asyncio.Task.current_task(loop=self.loop)
