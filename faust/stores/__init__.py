@@ -1,4 +1,10 @@
 """Storage registry."""
-from .stores import from_url
+from ..utils.imports import FactoryMapping
 
-__all__ = ['from_url']
+__all__ = ['by_name', 'by_url']
+
+STORES = FactoryMapping(
+    memory='faust.stores.memory:Store',
+)
+by_name = STORES.by_name
+by_url = STORES.by_url

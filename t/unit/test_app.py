@@ -137,9 +137,10 @@ def test_new_producer(app):
 
 
 def test_create_transport(app, patching):
-    from_url = patching('faust.transport.from_url')
-    assert app._create_transport() is from_url.return_value
-    assert app.transport is from_url.return_value
-    from_url.assert_called_with(app.url, app, loop=app.loop)
+    by_url = patching('faust.transport.by_url')
+    assert app._create_transport() is by_url.return_value.return_value
+    assert app.transport is by_url.return_value.return_value
+    by_url.assert_called_with(app.url)
+    by_url.return_value.assert_called_with(app.url, app, loop=app.loop)
     app.transport = 10
     assert app.transport == 10

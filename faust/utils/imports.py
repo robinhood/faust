@@ -3,16 +3,38 @@ import importlib
 import sys
 import warnings
 from typing import Any, Iterable, Mapping, Tuple, Type, Union
+from .collections import FastUserDict
+from .objects import cached_property
+from .urls import url_to_parts
 
 # - these are taken from kombu.utils.imports
 
 __all__ = [
-    'SymbolArg', 'qualname', 'symbol_by_name',
+    'FactoryMapping', 'SymbolArg', 'qualname', 'symbol_by_name',
     'load_extension_class_names', 'load_extension_classes',
 ]
 
 
 SymbolArg = Union[str, Type]
+
+
+class FactoryMapping(FastUserDict):
+    aliases: Mapping[str, str]
+
+    def __init__(self, *args: Mapping, **kwargs: str) -> None:
+        self.aliases = dict(*args, **kwargs)
+
+    def by_url(self, url: str) -> Type:
+        """Get class associated with URL (scheme is used as alias key)."""
+        # we remove anything after ; so urlparse can recognize the url.
+        return self.by_name(url_to_parts(url.split(';', 1)[0]).scheme)
+
+    def by_name(self, name: SymbolArg) -> Any:
+        return symbol_by_name(name, aliases=self.aliases)
+
+    @cached_property
+    def data(self):
+        return self.aliases
 
 
 def qualname(obj: Any) -> str:

@@ -326,7 +326,7 @@ class App(AppT, Service):
         return self.transport.create_producer()
 
     def _create_transport(self) -> TransportT:
-        return transport.from_url(self.url, self, loop=self.loop)
+        return transport.by_url(self.url)(self.url, self, loop=self.loop)
 
     @property
     def producer(self) -> ProducerT:

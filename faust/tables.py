@@ -29,8 +29,6 @@ class table:
 class Table(Stream, FastUserDict):
     StateStore: Type = None
 
-    mapper: KVMapper
-
     _store: str
 
     def __init__(self, *,
@@ -49,7 +47,8 @@ class Table(Stream, FastUserDict):
         if self.StateStore is None:
             self.data = self.StateStore(url=None, app=app)
         else:
-            self.data = stores.from_url(self._store or self.app.store, app)
+            url = self._store or self.app.store
+            self.data = stores.by_url(url)(url, app, loop=self.loop)
 
     async def on_done(self, value: Event = None) -> None:
         k: K = value.req.key
