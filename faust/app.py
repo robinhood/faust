@@ -2,6 +2,7 @@
 import asyncio
 import faust
 import sys
+import weakref
 from collections import OrderedDict, deque
 from typing import (
     Any, Awaitable, Iterator, Mapping, MutableMapping,
@@ -34,7 +35,7 @@ APP_REPR = """
 <{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
 """.strip()
 
-TASK_TO_APP = {}
+TASK_TO_APP: MutableMapping[asyncio.Task, AppT] = weakref.WeakKeyDictionary()
 
 logger = get_logger(__name__)
 
