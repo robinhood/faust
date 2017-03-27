@@ -1,14 +1,20 @@
 - HTTP Table view
     Forward request to node with key
 
+    https://cwiki.apache.org/confluence/display/KAFKA/KIP-67%3A+Queryable+state+for+Kafka+Streams
+
 - group_by
 
 - Joins
-
-- .to
 
 - Window
 
 - Aggregate
 
     Depends on Window
+
+- Fault tolerance
+
+- Deployment
+
+- Tests
