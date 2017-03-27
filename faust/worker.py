@@ -26,7 +26,7 @@ class Worker(Service):
     def execute_from_commandline(self, *coroutines):
         asyncio.gather(
             *[asyncio.ensure_future(coro, loop=self.loop)
-             for coro in coroutines],
+              for coro in coroutines],
             loop=self.loop)
         self.loop.run_until_complete(self.start())
         try:
