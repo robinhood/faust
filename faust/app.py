@@ -30,6 +30,11 @@ DEFAULT_URL = 'kafka://localhost:9092'
 DEFAULT_STREAM_CLS = 'faust.Stream'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
+APP_REPR = """
+<{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
+""".strip()
+
+TASK_TO_APP = {}
 
 logger = get_logger(__name__)
 
@@ -77,6 +82,8 @@ class App(AppT, Service):
     """
     TaskExceptionHandler: Type = TaskExceptionHandler
 
+    tasks_running = 0
+
     #: Used for generating new topic names.
     _index: Iterator[int] = count(0)
 
@@ -102,6 +109,10 @@ class App(AppT, Service):
         'avro': 'faust.utils.avro.faust:AvroSerializer',
     }
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
+
+    @classmethod
+    def current_app(self) -> AppT:
+        return TASK_TO_APP[asyncio.Task.current_task(loop=self.loop)]
 
     def __init__(self, id: str,
                  *,
@@ -243,12 +254,18 @@ class App(AppT, Service):
         self._tasks.append(fut)
         return fut
 
-    async def _start_task(self, task):
-        await self._execute_task(task)
+    async def _start_task(self, task: TaskArg) -> None:
+        task = asyncio.Task(task, loop=self.loop)
+        TASK_TO_APP[task] = self
+        self.tasks_running += 1
+        try:
+            await self._execute_task(task)
+        finally:
+            self.tasks_running -= 1
 
     async def _execute_task(self, task: TaskArg) -> None:
         async with self.TaskExceptionHandler(self):
-            await asyncio.ensure_future(task, loop=self.loop)
+            await task
 
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
@@ -327,6 +344,14 @@ class App(AppT, Service):
 
     def _create_transport(self) -> TransportT:
         return transport.by_url(self.url)(self.url, self, loop=self.loop)
+
+    def __repr__(self) -> str:
+        return APP_REPR.format(
+            name=type(self).__name__,
+            self=self,
+            tasks=self.tasks_running,
+            streams=len(self._streams),
+        )
 
     @property
     def producer(self) -> ProducerT:

@@ -379,6 +379,11 @@ class AppT(ServiceT):
     store: str
 
     @abc.abstractmethod
+    @classmethod
+    def current_app(cls):
+        ...
+
+    @abc.abstractmethod
     def add_task(self, task: TaskArg) -> asyncio.Future:
         ...
 

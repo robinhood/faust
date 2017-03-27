@@ -28,6 +28,7 @@ async def combine_withdrawals(it):
 
 async def find_large_withdrawals(app):
     withdrawals = app.stream(topic, combine_withdrawals)
+    print('CURRENT_APP IS: %r' % (app.current_app(),))
     async for withdrawal in withdrawals:
         print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
