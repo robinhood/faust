@@ -153,6 +153,10 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
 
+class StoreT(MutableMapping):
+    ...
+
+
 class ModelOptions:
     serializer: CodecArg = None
     namespace: str = None
@@ -372,6 +376,7 @@ class AppT(ServiceT):
     num_standby_replicas: int
     replication_factor: int
     avro_registry_url: str
+    store: str
 
     @abc.abstractmethod
     def add_task(self, task: TaskArg) -> asyncio.Future:

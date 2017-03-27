@@ -1,4 +1,4 @@
 """Transport registry."""
-from .transports import TRANSPORTS, from_url
+from .transports import from_url
 
-__all__ = ['TRANSPORTS', 'from_url']
+__all__ = ['from_url']

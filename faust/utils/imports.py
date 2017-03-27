@@ -7,9 +7,12 @@ from typing import Any, Iterable, Mapping, Tuple, Type, Union
 # - these are taken from kombu.utils.imports
 
 __all__ = [
-    'qualname', 'symbol_by_name',
+    'SymbolArg', 'qualname', 'symbol_by_name',
     'load_extension_class_names', 'load_extension_classes',
 ]
+
+
+SymbolArg = Union[str, Type]
 
 
 def qualname(obj: Any) -> str:
@@ -19,7 +22,7 @@ def qualname(obj: Any) -> str:
 
 
 def symbol_by_name(
-        name: Union[str, Type],
+        name: SymbolArg,
         aliases: Mapping[str, str] = {},
         imp: Any = None,
         package: str = None,

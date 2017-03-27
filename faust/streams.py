@@ -157,7 +157,8 @@ class Stream(StreamT, Service):
             loop=loop,
             **kwargs)
 
-    def __init__(self, name: str = None,
+    def __init__(self, *,
+                 name: str = None,
                  topics: Sequence[Topic] = None,
                  processors: StreamProcessorMap = None,
                  coroutines: StreamCoroutineMap = None,
@@ -182,7 +183,11 @@ class Stream(StreamT, Service):
         """Create a new clone of this stream that is bound to an app."""
         stream = self.clone(name=app.new_stream_name(), app=app)
         app.add_source(stream)
+        self.on_bind(app)
         return stream
+
+    def on_bind(self, app: AppT) -> None:
+        ...
 
     def info(self) -> Mapping[str, Any]:
         return {

@@ -18,7 +18,7 @@ from .types import (
     TaskArg, Topic, TransportT, V,
 )
 from .utils.compat import want_bytes
-from .utils.imports import symbol_by_name
+from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.services import Service
 
@@ -98,7 +98,7 @@ class App(AppT, Service):
     #: List of active sensors
     _sensors: Set[SensorT] = None
 
-    _serializer_override_classes: Mapping[CodecArg, Union[Type, str]] = {
+    _serializer_override_classes: Mapping[CodecArg, SymbolArg] = {
         'avro': 'faust.utils.avro.faust:AvroSerializer',
     }
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
@@ -113,7 +113,8 @@ class App(AppT, Service):
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
                  avro_registry_url: str = None,
-                 stream_cls: Union[Type, str] = DEFAULT_STREAM_CLS,
+                 stream_cls: SymbolArg = DEFAULT_STREAM_CLS,
+                 store: str = 'memory://',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         super().__init__(loop=loop or asyncio.get_event_loop())
         self.id = id
@@ -126,6 +127,7 @@ class App(AppT, Service):
         self.replication_factor = replication_factor
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(stream_cls)
+        self.store = store
         self._streams = OrderedDict()
         self._tasks = deque()
         self._serializer_override = {}

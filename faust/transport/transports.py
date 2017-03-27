@@ -2,9 +2,9 @@
 from typing import Any, Mapping, Type
 from ..types import AppT, TransportT
 from ..utils.urls import url_to_parts
-from ..utils.imports import symbol_by_name
+from ..utils.imports import SymbolArg, symbol_by_name
 
-__all__ = ['TRANSPORTS', 'by_url', 'from_url']
+__all__ = ['TRANSPORTS', 'by_name', 'by_url', 'from_url']
 
 #: This contains a mapping of transport aliases to class path.
 TRANSPORTS: Mapping[str, str] = {
@@ -16,8 +16,11 @@ TRANSPORTS: Mapping[str, str] = {
 def by_url(url: str) -> Type:
     """Get the transport class associated with URL."""
     # we remove anything after ; so urlparse can recognize the url.
-    scheme = url_to_parts(url.split(';', 1)[0]).scheme
-    return symbol_by_name(scheme, aliases=TRANSPORTS)
+    return by_name(url_to_parts(url.split(';', 1)[0]).scheme)
+
+
+def by_name(name: SymbolArg) -> TransportT:
+    return symbol_by_name(name, aliases=TRANSPORTS)
 
 
 def from_url(url: str, app: AppT, **kwargs: Any) -> TransportT:
