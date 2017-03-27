@@ -245,6 +245,8 @@ class Stream(StreamT, Service):
         coroutine = self._coroutines.get(topic)
         if coroutine is not None:
             await coroutine.send(value, self.on_done)
+        else:
+            await self.on_done(value)
 
     async def process(self, key: K, value: Event) -> Event:
         return value
