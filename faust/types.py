@@ -5,7 +5,7 @@ import typing
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Coroutine, FrozenSet, Generator,
     Iterable, List, Mapping, MutableMapping, MutableSequence, NamedTuple,
-    NewType, Optional, Pattern, Sequence, Type, TypeVar, Union,
+    NewType, Optional, Pattern, Set, Sequence, Type, TypeVar, Union,
 )
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -377,6 +377,9 @@ class AppT(ServiceT):
     replication_factor: int
     avro_registry_url: str
     store: str
+
+    tasks_running: int
+    task_to_consumers: MutableMapping[asyncio.Task, Set[ConsumerT]]
 
     @classmethod
     @abc.abstractmethod

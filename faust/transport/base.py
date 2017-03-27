@@ -68,10 +68,13 @@ class Consumer(ConsumerT, Service):
     _acked: List[int] = None
     _current_offset: int = None
 
+    _commit_handler_fut: asyncio.Future = None
+
     def __init__(self, transport: TransportT,
                  *,
                  topic: Topic = None,
                  callback: ConsumerCallback = None,
+                 autoack: bool = True,
                  on_key_decode_error: KeyDecodeErrorCallback = None,
                  on_value_decode_error: ValueDecodeErrorCallback = None,
                  commit_interval: float = None) -> None:
@@ -79,8 +82,9 @@ class Consumer(ConsumerT, Service):
         self.id = next(self._consumer_ids)
         self.transport = transport
         self._app = self.transport.app
-        self.callback = callback
         self.topic = topic
+        self.callback = callback
+        self.autoack = autoack
         self.key_type = self.topic.key_type
         self.value_type = self.topic.value_type
         self.on_key_decode_error = on_key_decode_error
@@ -95,10 +99,12 @@ class Consumer(ConsumerT, Service):
             raise TypeError('Topic can specify either topics or pattern')
         self._dirty_events = []
         self._acked = []
+        self._commit_mutex = asyncio.Lock(loop=self.loop)
         super().__init__(loop=self.transport.loop)
 
     async def register_timers(self) -> None:
-        asyncio.ensure_future(self._commit_handler(), loop=self.loop)
+        self._commit_handler_fut = asyncio.ensure_future(
+            self._commit_handler(), loop=self.loop)
 
     async def on_message(self, message: Message) -> None:
         try:
@@ -130,16 +136,25 @@ class Consumer(ConsumerT, Service):
             loop=self.loop)
 
     def on_event_ready(self, ref: EventRefT) -> None:
-        print('ACKED MESSAGE %r' % (ref.offset,))
-        self._acked.append(ref.offset)
-        self._acked.sort()
+        if self.autoack:
+            self._acked.append(ref.offset)
+            self._acked.sort()
         asyncio.ensure_future(
             self._on_event_out(ref.consumer_id, ref.offset, None),
             loop=self.loop)
 
+    async def start(self) -> None:
+        self._app.register_consumer(self)
+        await super().start()
+
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)
         while 1:
+            await self.maybe_commit()
+            await asyncio.sleep(self.commit_interval)
+
+    async def maybe_commit(self) -> bool:
+        async with self._commit_mutex:
             try:
                 offset = self._new_offset()
             except IndexError:
@@ -148,7 +163,10 @@ class Consumer(ConsumerT, Service):
                 if self._should_commit(offset):
                     self._current_offset = offset
                     await self._commit(offset)
-            await asyncio.sleep(self.commit_interval)
+
+    async def on_task_error(self, exc: Exception) -> None:
+        if self.autoack:
+            await self.maybe_commit()
 
     def _should_commit(self, offset) -> bool:
         return (

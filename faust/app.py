@@ -14,7 +14,7 @@ from . import transport
 from .codecs import loads
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, AsyncSerializerT, CodecArg, Event, K, Message, ModelT,
+    AppT, AsyncSerializerT, CodecArg, ConsumerT, Event, K, Message, ModelT,
     Processor, ProducerT, Request, SensorT, StreamCoroutine, StreamT,
     TaskArg, Topic, TransportT, V,
 )
@@ -38,23 +38,6 @@ APP_REPR = """
 TASK_TO_APP: MutableMapping[asyncio.Task, AppT] = weakref.WeakKeyDictionary()
 
 logger = get_logger(__name__)
-
-
-class TaskExceptionHandler:
-
-    app: AppT
-
-    def __init__(self, app: AppT) -> None:
-        self.app = app
-
-    async def __aenter__(self) -> 'TaskExceptionHandler':
-        return self
-
-    def __aexit__(
-            self, typ: Type, exc: Exception, tb: Any) -> None:
-        if typ is not None:
-            logger.exception('Task raised exception: %r', exc)
-            # XXX Rollback automatic acks.
 
 
 class App(AppT, Service):
@@ -81,9 +64,6 @@ class App(AppT, Service):
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
-    TaskExceptionHandler: Type = TaskExceptionHandler
-
-    tasks_running = 0
 
     #: Used for generating new topic names.
     _index: Iterator[int] = count(0)
@@ -144,6 +124,16 @@ class App(AppT, Service):
         self._tasks = deque()
         self._serializer_override = {}
         self._sensors = set()
+        self.task_to_consumers = weakref.WeakKeyDictionary()
+        self.tasks_running = 0
+
+    def register_consumer(self, consumer: ConsumerT) -> None:
+        task = asyncio.Task.current_task(loop=self.loop)
+        try:
+            consumers = self.task_to_consumers[task]
+        except KeyError:
+            consumers = self.task_to_consumers[task] = weakref.WeakSet()
+        consumers.add(consumer)
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -265,8 +255,23 @@ class App(AppT, Service):
             self.tasks_running -= 1
 
     async def _execute_task(self, task: TaskArg) -> None:
-        async with self.TaskExceptionHandler(self):
+        try:
             await task
+        except Exception as exc:
+            self._call_task_consumer_error_handlers(exc)
+
+    async def _call_task_consumer_error_handlers(self, exc: Exception) -> None:
+        task = asyncio.Task.current_task(loop=self.loop)
+        try:
+            consumers = self.task_to_consumers[task]
+        except KeyError:
+            pass
+        else:
+            for consumer in consumers:
+                try:
+                    await consumer.on_task_error(exc)
+                except Exception as exc:
+                    logger.exception('Consumer error callback raised: %r', exc)
 
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
