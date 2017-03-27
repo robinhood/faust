@@ -143,6 +143,7 @@ class AsyncGeneratorCoroCallback(CoroCallback):
 
     async def _drain(self):
         if not self.gen_started:
+            self.gen_started = True
             self.gen = await self.coro
         return await self.gen.__anext__()
 
