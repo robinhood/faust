@@ -23,6 +23,19 @@ class Worker(Service):
         self.logformat = logformat
         super().__init__(loop=loop)
 
+    def execute_from_commandline(self, *coroutines):
+        asyncio.gather(
+            *[asyncio.ensure_future(coro, loop=self.loop)
+             for coro in coroutines],
+            loop=self.loop)
+        self.loop.run_until_complete(self.start())
+        try:
+            self.loop.run_forever()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.loop.close()
+
     async def on_start(self) -> None:
         if self.loglevel:
             setup_logging(
