@@ -1,6 +1,5 @@
 import asyncio
 import faust
-import logging
 import os
 import sys
 from faust.sensors import Sensor

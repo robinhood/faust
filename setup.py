@@ -16,6 +16,11 @@ except (AttributeError, ImportError):
         return 'Python'
 
 NAME = 'faust'
+EXTENSIONS = {
+    'debug',
+    'fast',
+    'uvloop',
+}
 
 E_UNSUPPORTED_PYTHON = '%s 1.0 requires %%s %%s or later!' % (NAME,)
 
@@ -90,6 +95,17 @@ def _reqs(*f):
 def reqs(*f):
     return [req for subreq in _reqs(*f) for req in subreq]
 
+
+def extras(*p):
+    """Parse requirement in the requirements/extras/ directory."""
+    return reqs('extras', *p)
+
+
+def extras_require():
+    """Get map of all extra requirements."""
+    return {x: extras(x + '.txt') for x in EXTENSIONS}
+
+
 # -*- Long Description -*-
 
 
@@ -114,6 +130,7 @@ setup(
     zip_safe=False,
     install_requires=reqs('default.txt'),
     tests_require=reqs('test.txt'),
+    extras_require=extras_require(),
     classifiers=classifiers,
     long_description=long_description,
 )

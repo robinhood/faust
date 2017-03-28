@@ -3,7 +3,6 @@ from typing import Any, IO, Sequence, Set, Union, cast
 from .utils.compat import DummyContext
 from .utils.logging import setup_logging
 from .utils.services import Service
-from .utils.imports import SymbolArg, symbol_by_name
 from .types import AppT, ServiceT, SensorT
 
 
@@ -33,7 +32,7 @@ class Worker(Service):
         with self._monitor():
             asyncio.gather(
                 *[asyncio.ensure_future(coro, loop=self.loop)
-                for coro in coroutines],
+                  for coro in coroutines],
                 loop=self.loop)
             self.loop.run_until_complete(self.start())
             try:
