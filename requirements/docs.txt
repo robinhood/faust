@@ -1,1 +1,2 @@
 sphinx_celery>=1.1
+sphinxcontrib-asyncio
