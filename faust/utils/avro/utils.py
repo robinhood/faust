@@ -29,5 +29,5 @@ def to_avro_type(typ: Type) -> str:
     elif issubclass(typ, Mapping):
         return 'map'
     elif issubclass(typ, ModelT):
-        return typ.as_schema()
+        return typ.as_schema()  # type: ignore
     raise TypeError('Cannot convert type {!r} to Avro'.format(typ))

@@ -22,7 +22,7 @@ class FactoryMapping(FastUserDict):
     aliases: Mapping[str, str]
 
     def __init__(self, *args: Mapping, **kwargs: str) -> None:
-        self.aliases = dict(*args, **kwargs)
+        self.aliases = dict(*args, **kwargs)  # type: ignore
 
     def by_url(self, url: str) -> Type:
         """Get class associated with URL (scheme is used as alias key)."""

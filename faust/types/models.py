@@ -24,6 +24,13 @@ class ModelOptions:
     # Index: Set of optional field names, for fast argument checking.
     optionalset: FrozenSet[str]
 
+    # Index: Mapping of fields that are ModelT
+    models: Mapping[str, Type]
+
+    # Index: Set of field names that are ModelT
+    modelset: FrozenSet[str]
+
+    #: Mapping of field names to default value.
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
 

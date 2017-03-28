@@ -236,7 +236,7 @@ class Record(Model):
             field: typ for field, typ in fields.items()
             if issubclass(typ, ModelT)
         }
-        options.modelset = set(options.models)
+        options.modelset = frozenset(options.models)
 
     @classmethod
     def _contribute_field_descriptors(cls, options: ModelOptions) -> None:

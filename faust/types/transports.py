@@ -61,6 +61,10 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def on_task_error(self, exc: Exception) -> None:
+        ...
+
+    @abc.abstractmethod
     def track_event(self, event: Event, offset: int) -> None:
         ...
 

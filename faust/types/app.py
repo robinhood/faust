@@ -61,6 +61,10 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def register_consumer(self, consumer: ConsumerT) -> None:
+        ...
+
+    @abc.abstractmethod
     def add_task(self, task: TaskArg) -> asyncio.Future:
         ...
 

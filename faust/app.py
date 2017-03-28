@@ -9,6 +9,7 @@ from typing import (
     Optional, Sequence, Set, Union, Type, cast,
 )
 from itertools import count
+from weakref import WeakKeyDictionary, WeakSet  # type: ignore
 from . import constants
 from . import transport
 from .codecs import loads
@@ -37,7 +38,7 @@ APP_REPR = """
 <{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
 """.strip()
 
-TASK_TO_APP: MutableMapping[asyncio.Task, AppT] = weakref.WeakKeyDictionary()
+TASK_TO_APP: MutableMapping[asyncio.Task, AppT] = WeakKeyDictionary()
 
 logger = get_logger(__name__)
 
@@ -132,10 +133,10 @@ class App(AppT, Service):
     def register_consumer(self, consumer: ConsumerT) -> None:
         task = asyncio.Task.current_task(loop=self.loop)
         try:
-            consumers = self.task_to_consumers[task]
+            c = self.task_to_consumers[task]
         except KeyError:
-            consumers = self.task_to_consumers[task] = weakref.WeakSet()
-        consumers.add(consumer)
+            c = self.task_to_consumers[task] = WeakSet()
+        c.add(consumer)
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -215,12 +216,14 @@ class App(AppT, Service):
         return want_bytes(key)
 
     async def dumps_value(self, topic: str, value: V) -> bytes:
-        try:
-            ser = self._get_serializer(value._options.serializer)
-        except KeyError:
-            return value.dumps()
-        else:
-            return await ser.dumps_value(topic, value)
+        if isinstance(value, ModelT):
+            try:
+                ser = self._get_serializer(value._options.serializer)
+            except KeyError:
+                return value.dumps()
+            else:
+                return await ser.dumps_value(topic, value)
+        return value
 
     def _get_serializer(self, name: CodecArg) -> AsyncSerializerT:
         # Caches overridden AsyncSerializer
