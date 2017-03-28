@@ -3,8 +3,9 @@ import pytest
 from case import Mock
 from faust import codecs
 from faust import App, Record, topic
-from faust.types import ModelT
+from faust.types.models import ModelT
 from faust.utils.compat import want_bytes
+from faust.utils.futures import done_future
 
 test_topic = topic('test')
 
@@ -22,12 +23,6 @@ def app():
     instance = App('testid')
     instance.producer = Mock(name='producer')
     return instance
-
-
-def done_future(result=True):
-    f = asyncio.Future()
-    f.set_result(result)
-    return f
 
 
 def setup_producer(app):

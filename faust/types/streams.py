@@ -1,6 +1,6 @@
 import abc
 import asyncio
-import faust
+import typing
 from typing import (
     Any, AsyncIterable, Callable, List, Mapping,
     MutableMapping, MutableSequence, Sequence, TypeVar, Union,
@@ -10,6 +10,13 @@ from .coroutines import CoroCallbackT, StreamCoroutine
 from .models import Event, FieldDescriptorT
 from .services import ServiceT
 from .tuples import Message, Topic
+
+if typing.TYPE_CHECKING:
+    from .app import AppT
+    from .join import JoinT
+else:
+    class AppT: ...   # noqa
+    class JoinT: ...  # noqa
 
 __all__ = [
     'Processor',
@@ -30,11 +37,11 @@ StreamCoroutineMap = MutableMapping[Topic, CoroCallbackT]
 
 class StreamT(AsyncIterable[_T], ServiceT):
 
-    app: 'faust.types.AppT' = None
+    app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
     outbox: asyncio.Queue = None
-    join_strategy: 'faust.types.JoinT' = None
+    join_strategy: JoinT = None
 
     children: List['StreamT'] = None
 
@@ -53,14 +60,14 @@ class StreamT(AsyncIterable[_T], ServiceT):
                  processors: StreamProcessorMap = None,
                  coroutines: StreamCoroutineMap = None,
                  children: List['StreamT'] = None,
-                 join_strategy: 'faust.types.JoinT' = None,
-                 app: 'faust.types.AppT' = None,
+                 join_strategy: JoinT = None,
+                 app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         # need this to initialize Service.__init__ (!)
         super().__init__(loop=loop)  # type: ignore
 
     @abc.abstractmethod
-    def bind(self, app: 'faust.types.AppT') -> 'StreamT':
+    def bind(self, app: AppT) -> 'StreamT':
         ...
 
     @abc.abstractmethod

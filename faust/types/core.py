@@ -1,4 +1,3 @@
-import faust
 import typing
 from typing import Optional, Union
 

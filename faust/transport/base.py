@@ -3,10 +3,11 @@ import asyncio
 import weakref
 from itertools import count
 from typing import Any, Awaitable, Callable, Optional, List, Type, cast
-from ..types import (
-    AppT, ConsumerCallback, ConsumerT, Event, EventRefT,
+from ..types import AppT, Topic, Message
+from ..types.models import Event
+from ..types.transports import (
+    ConsumerCallback, ConsumerT, EventRefT, ProducerT, TransportT,
     KeyDecodeErrorCallback, ValueDecodeErrorCallback,
-    Message, ProducerT, Topic, TransportT,
 )
 from ..utils.services import Service
 

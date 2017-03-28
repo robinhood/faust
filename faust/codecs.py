@@ -160,7 +160,7 @@ import pickle as _pickle
 from base64 import b64encode, b64decode
 from functools import reduce
 from typing import Any, Dict, MutableMapping, Optional, Tuple, Union, cast
-from .types import CodecT, CodecArg
+from .types.codecs import CodecT, CodecArg
 from .utils import json as _json
 from .utils.compat import want_bytes, want_str
 from .utils.imports import load_extension_classes

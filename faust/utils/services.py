@@ -1,7 +1,7 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import asyncio
 from .logging import get_logger
-from ..types import ServiceT
+from ..types.services import ServiceT
 
 __all__ = ['Service']
 

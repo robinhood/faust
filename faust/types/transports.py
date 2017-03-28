@@ -1,11 +1,16 @@
 import abc
 import asyncio
-import faust
+import typing
 from typing import Any, Callable, Awaitable, Optional, Type
 from .core import K
 from .models import Event
 from .services import ServiceT
 from .tuples import Message, Topic
+
+if typing.TYPE_CHECKING:
+    from .app import AppT
+else:
+    class AppT: ...  # noqa
 
 __all__ = [
     'ConsumerCallback',
@@ -88,7 +93,7 @@ class TransportT(metaclass=abc.ABCMeta):
     Consumer: Type
     Producer: Type
 
-    app: 'faust.types.AppT'
+    app: AppT
     url: str
     loop: asyncio.AbstractEventLoop
 

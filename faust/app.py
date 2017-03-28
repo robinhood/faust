@@ -13,11 +13,13 @@ from . import constants
 from . import transport
 from .codecs import loads
 from .exceptions import KeyDecodeError, ValueDecodeError
-from .types import (
-    AppT, AsyncSerializerT, CodecArg, ConsumerT, Event, K, Message, ModelT,
-    Processor, ProducerT, Request, SensorT, StreamCoroutine, StreamT,
-    TaskArg, Topic, TransportT, V,
-)
+from .types import CodecArg, K, Message, Request, Topic, V
+from .types.app import AppT, AsyncSerializerT, TaskArg
+from .types.coroutines import StreamCoroutine
+from .types.models import Event, ModelT
+from .types.sensors import SensorT
+from .types.streams import Processor, StreamT
+from .types.transports import ConsumerT, ProducerT, TransportT
 from .utils.compat import want_bytes
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger

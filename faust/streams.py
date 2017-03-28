@@ -9,10 +9,14 @@ from typing import (
 )
 from . import joins
 from . import primitives
-from .types import (
-    AppT, CodecArg, ConsumerT, CoroCallbackT, Event, FieldDescriptorT,
-    JoinT, K, Message, Processor, StreamCoroutine, StreamCoroutineMap,
-    StreamProcessorMap, StreamT, Topic, V,
+from .types import AppT, CodecArg, K, Message, Topic, V
+from .types.transports import ConsumerT
+from .types.coroutines import CoroCallbackT
+from .types.joins import JoinT
+from .types.models import Event, FieldDescriptorT
+from .types.streams import (
+    Processor, StreamCoroutine, StreamCoroutineMap,
+    StreamProcessorMap, StreamT,
 )
 from .utils.coroutines import wrap_callback
 from .utils.logging import get_logger

@@ -5,10 +5,9 @@ from typing import (
 )
 from avro import schema
 from .codecs import dumps, loads
-from .types import (
-    CodecArg, FieldDescriptorT,
-    ModelOptions, ModelT, Request, Topic,
-)
+from .types.codecs import CodecArg
+from .types.models import FieldDescriptorT, ModelT, ModelOptions
+from .types.tuples import Request, Topic
 from .utils.avro.utils import to_avro_type
 from .utils.objects import annotations
 

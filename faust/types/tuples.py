@@ -1,6 +1,11 @@
-import faust
+import typing
 from typing import NamedTuple, Pattern, Sequence, Type
 from .core import K
+
+if typing.TYPE_CHECKING:
+    from .app import AppT
+else:
+    class AppT: ...  # noqa
 
 __all__ = ['Topic', 'Message', 'Request']
 
@@ -26,6 +31,6 @@ class Message(NamedTuple):
 
 
 class Request(NamedTuple):
-    app: 'faust.types.AppT'
+    app: AppT
     key: K
     message: Message

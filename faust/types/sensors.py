@@ -1,3 +1,8 @@
+import abc
+from .models import Event
+from .services import ServiceT
+
+
 class SensorT(ServiceT):
 
     @abc.abstractmethod
