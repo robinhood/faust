@@ -50,4 +50,15 @@ __all__ = [
     'Worker',
     'table',
     'topic',
+    'use_uvloop',
 ]
+
+
+def use_uvloop() -> None:
+    try:
+        import uvloop
+    except ImportError:
+        pass
+    else:
+        import asyncio
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())

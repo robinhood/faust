@@ -2,10 +2,8 @@ import asyncio
 import faust
 from time import monotonic
 from uuid import uuid4
-import uvloop
 
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
+faust.use_uvloop()
 app = faust.App('faustbench')
 
 
@@ -39,5 +37,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    worker = faust.Worker(app, loglevel='INFO')
+    worker = faust.Worker(app, loglevel='INFO', debug=True)
     worker.execute_from_commandline(main())
