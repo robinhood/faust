@@ -2,6 +2,9 @@ import asyncio
 import faust
 from time import monotonic
 from uuid import uuid4
+import uvloop
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 app = faust.App('faustbench')
 

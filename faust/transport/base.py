@@ -163,6 +163,8 @@ class Consumer(ConsumerT, Service):
                 if self._should_commit(offset):
                     self._current_offset = offset
                     await self._commit(offset)
+                    return True
+        return False
 
     async def on_task_error(self, exc: Exception) -> None:
         if self.autoack:

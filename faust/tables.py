@@ -52,7 +52,7 @@ class Table(Stream, FastUserDict):
 
     async def on_done(self, value: Event = None) -> None:
         k: K = value.req.key
-        v: V = value
+        v: Event = value
         if self.mapper is not None:
             k, v = self.mapper(k, v)
         self[k] = v
