@@ -2,7 +2,6 @@
 import asyncio
 import faust
 import sys
-import weakref
 from collections import OrderedDict, deque
 from typing import (
     Any, Awaitable, Iterator, Mapping, MutableMapping,
@@ -38,7 +37,8 @@ APP_REPR = """
 <{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
 """.strip()
 
-TASK_TO_APP: MutableMapping[asyncio.Task, AppT] = WeakKeyDictionary()
+# type: ignore
+TASK_TO_APP: WeakKeyDictionary = WeakKeyDictionary()
 
 logger = get_logger(__name__)
 
@@ -127,7 +127,7 @@ class App(AppT, Service):
         self._tasks = deque()
         self._serializer_override = {}
         self._sensors = set()
-        self.task_to_consumers = weakref.WeakKeyDictionary()
+        self.task_to_consumers = WeakKeyDictionary()
         self.tasks_running = 0
 
     def register_consumer(self, consumer: ConsumerT) -> None:
@@ -239,7 +239,7 @@ class App(AppT, Service):
                 symbol_by_name(self._serializer_override_classes[name])(self))
             return ser
 
-    def add_task(self, task: TaskArg) -> asyncio.Future:
+    def add_task(self, task: TaskArg) -> Awaitable:
         """Start task.
 
         Notes:
@@ -251,15 +251,15 @@ class App(AppT, Service):
         return fut
 
     async def _start_task(self, task: TaskArg) -> None:
-        task = asyncio.Task(task, loop=self.loop)
-        TASK_TO_APP[task] = self
+        _task = asyncio.Task(task, loop=self.loop)
+        TASK_TO_APP[_task] = self
         self.tasks_running += 1
         try:
-            await self._execute_task(task)
+            await self._execute_task(_task)
         finally:
             self.tasks_running -= 1
 
-    async def _execute_task(self, task: TaskArg) -> None:
+    async def _execute_task(self, task: asyncio.Task) -> None:
         try:
             await task
         except Exception as exc:

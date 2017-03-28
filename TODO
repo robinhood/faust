@@ -18,3 +18,15 @@
 - Deployment
 
 - Tests
+
+
+- Typing:
+
+    - WeakKeyDictionary not supported by mypy
+    - WeakSet missing from mypy
+    - Typing of:
+
+        - aiokafka
+        - aiohttp
+        - avro-python3
+

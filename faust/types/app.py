@@ -1,9 +1,6 @@
 import abc
-import asyncio
-from typing import (
-    Any, Awaitable, Generator,
-    MutableMapping, Optional, Set, Type, Union,
-)
+import weakref
+from typing import Any, Awaitable, Generator, Optional, Type, Union
 from .codecs import CodecArg
 from .core import K, V
 from .coroutines import StreamCoroutine
@@ -16,7 +13,7 @@ from .tuples import Message, Topic
 
 __all__ = ['TaskArg', 'AsyncSerializerT', 'AppT']
 
-TaskArg = Union[Generator, Awaitable]
+TaskArg = Generator
 
 
 class AsyncSerializerT:
@@ -53,7 +50,7 @@ class AppT(ServiceT):
     store: str
 
     tasks_running: int
-    task_to_consumers: MutableMapping[asyncio.Task, Set[ConsumerT]]
+    task_to_consumers: weakref.WeakKeyDictionary
 
     @classmethod
     @abc.abstractmethod
@@ -65,7 +62,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_task(self, task: TaskArg) -> asyncio.Future:
+    def add_task(self, task: TaskArg) -> Awaitable:
         ...
 
     @abc.abstractmethod
