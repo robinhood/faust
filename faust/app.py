@@ -191,6 +191,8 @@ class App(AppT, Service):
             raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
     async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
+        if value is None:
+            return value
         try:
             obj: Any = None
             typ_serializer = typ._options.serializer  # type: ignore
