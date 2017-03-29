@@ -52,21 +52,26 @@ class Worker(Service):
 
     async def _stop_on_signal(self):
         await self.stop()
+        self.loop.close()
         raise SystemExit()
 
     def execute_from_commandline(self, *coroutines):
+        self.loop.run_until_complete(
+            self._execute_from_commandline(*coroutines))
+
+    async def _execute_from_commandline(self, *coroutines) -> None:
         with self._monitor():
             self.install_signal_handlers()
-            asyncio.gather(
+            await asyncio.gather(
                 *[asyncio.ensure_future(coro, loop=self.loop)
                   for coro in coroutines],
                 loop=self.loop)
-            asyncio.ensure_future(self._stats(), loop=self.loop)
-            self.loop.run_until_complete(self.start())
-            self.loop.run_until_complete(self.wait_until_stopped())
+            await self.start()
+            await asyncio.ensure_future(self._stats(), loop=self.loop)
+            await self.wait_until_stopped()
 
     async def _stats(self) -> None:
-        while 1:
+        while not self.should_stop:
             await asyncio.sleep(5)
             if len(self.services) == 1:
                 print(self.services[0])
