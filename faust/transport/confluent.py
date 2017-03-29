@@ -66,8 +66,7 @@ class Consumer(base.Consumer):
             self.set_shutdown()
 
     async def _commit(self, offset: int) -> None:
-        ...
-        #await self._consumer.commit(offset)
+        await self._consumer.commit(offset)
 
 
 class Producer(base.Producer):
@@ -78,7 +77,7 @@ class Producer(base.Producer):
         print('+PRODUCER')
         self._producer = confluent_kafka.Producer({
             'bootstrap.servers': transport.bootstrap_servers,
-            #'client.id': transport.app.client_id,
+            #  'client.id': transport.app.client_id,
         })
         print('-PRODUCER')
 

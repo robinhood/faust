@@ -138,4 +138,4 @@ distcheck: lint test clean
 dist: readme contrib clean-dist build
 
 typecheck:
-	$(PYTHON) -m mypy --fast-parser --python-version=3.6 --ignore-missing-imports $(PROJ)
+	$(PYTHON) -m mypy $(PROJ)

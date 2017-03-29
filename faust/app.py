@@ -38,7 +38,6 @@ APP_REPR = """
 <{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
 """.strip()
 
-# type: ignore
 TASK_TO_APP: WeakKeyDictionary = WeakKeyDictionary()
 
 logger = get_logger(__name__)

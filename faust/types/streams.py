@@ -2,7 +2,7 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, Callable, List, Mapping,
+    Any, AsyncIterator, Callable, List, Mapping,
     MutableMapping, MutableSequence, Sequence, TypeVar, Union,
 )
 from .core import K, V
@@ -35,7 +35,7 @@ StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
 StreamCoroutineMap = MutableMapping[Topic, CoroCallbackT]
 
 
-class StreamT(AsyncIterable[_T], ServiceT):
+class StreamT(AsyncIterator[_T], ServiceT):
 
     app: AppT = None
     topics: MutableSequence[Topic] = None
@@ -83,7 +83,7 @@ class StreamT(AsyncIterable[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[V]:
+    async def through(self, topic: Union[str, Topic]) -> AsyncIterator[V]:
         ...
 
     @abc.abstractmethod
@@ -152,7 +152,7 @@ class StreamT(AsyncIterable[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def __aiter__(self) -> 'StreamT':
+    async def __aiter__(self):
         ...
 
     @abc.abstractmethod

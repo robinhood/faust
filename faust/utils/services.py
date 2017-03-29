@@ -66,7 +66,7 @@ class Service(ServiceT):
             logger.info('-Stopped service %r', self)
             logger.info('+Shutdown service %r', self)
             if self.wait_for_shutdown:
-                await asyncio.wait_for(  # type: ignore
+                await asyncio.wait_for(
                     self._shutdown.wait(), self.shutdown_timeout,
                     loop=self.loop,
                 )

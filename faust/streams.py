@@ -4,13 +4,13 @@ import re
 import reprlib
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterable, Awaitable, Dict, List,
+    Any, AsyncIterator, Awaitable, Dict, List,
     Mapping, MutableMapping, MutableSequence, Pattern,
     Sequence, Tuple, Type, Union, cast
 )
 from . import joins
 from . import primitives
-from .types import AppT, CodecArg, K, Message, Topic, V
+from .types import AppT, CodecArg, K, Message, Topic
 from .types.transports import ConsumerT
 from .types.coroutines import CoroCallbackT
 from .types.joins import JoinT
@@ -224,8 +224,8 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
-    async def through(self, topic: Union[str, Topic]) -> AsyncIterable[V]:
-        return await primitives.through(self, topic)
+    async def through(self, topic: Union[str, Topic]) -> AsyncIterator[Event]:
+        return primitives.through(self, topic)
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -290,8 +290,8 @@ class Stream(StreamT, Service):
             self.topics.remove(topic)
         except ValueError:
             pass
-        self._processors.pop(topic, None)  # type: ignore
-        self._coroutines.pop(topic, None)  # type: ignore
+        self._processors.pop(topic, None)
+        self._coroutines.pop(topic, None)
         await self._unsubscribe(topic)
 
     async def _unsubscribe(self, topic: Topic) -> None:
@@ -344,7 +344,7 @@ class Stream(StreamT, Service):
     def __next__(self) -> Event:
         raise NotImplementedError('Stream are asynchronous use __aiter__')
 
-    async def __aiter__(self) -> StreamT:
+    async def __aiter__(self):
         await self.maybe_start()
         return self
 

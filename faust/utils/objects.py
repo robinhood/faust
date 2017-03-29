@@ -47,7 +47,7 @@ def annotations(cls: Type,
     for subcls in iter_mro_reversed(cls, stop=stop):
         defaults.update(subcls.__dict__)
         try:
-            annotations = subcls.__annotations__  # type: ignore
+            annotations = subcls.__annotations__
         except AttributeError:
             pass
         else:
