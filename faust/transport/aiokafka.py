@@ -85,6 +85,14 @@ class Transport(base.Transport):
     Consumer: Type = Consumer
     Producer: Type = Producer
 
+    default_port = 9092
+
     @cached_property
     def bootstrap_servers(self):
-        return self.url.split('://', 1)[1]  # just remove the scheme
+        # remove the scheme
+        servers = self.url.split('://', 1)[1]
+        # add default ports
+        return ';'.join(
+            (host if ':' in host else '{}:{}'.format(host, self.default_port))
+            for host in servers.split(';')
+        )
