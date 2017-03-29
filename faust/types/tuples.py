@@ -16,7 +16,7 @@ class Topic(NamedTuple):
     key_type: Type
     value_type: Type
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # type: ignore
         return '<{}: {}>'.format(
             type(self).__name__,
             (self.pattern.pattern if self.pattern

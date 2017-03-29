@@ -12,12 +12,11 @@ class _TupleAsListRepr(reprlib.Repr):
 
     def repr_tuple(self, x: Tuple, level: int) -> str:
         return self.repr_list(x, level)
-_repr = _TupleAsListRepr().repr
-
+_repr = _TupleAsListRepr().repr  # noqa: E305
 
 
 class Worker(Service):
-    debug: False
+    debug: bool
     sensors: Set[SensorT]
     services: Sequence[ServiceT]
     loglevel: Union[str, int]

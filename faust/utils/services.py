@@ -78,7 +78,7 @@ class Service(ServiceT):
         await self.stop()
         for ev in (self._started, self._stopped, self._shutdown):
             ev.clear()
-        await self.on_init()
+        self.on_init()
         await self.start()
 
     async def wait_until_stopped(self) -> None:
