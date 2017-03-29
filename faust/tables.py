@@ -1,12 +1,11 @@
 """Tables (changelog stream)."""
-from typing import Any, Callable, Tuple, Type
+from typing import Any, Callable, ClassVar, Tuple, Type
 from . import stores
 from .streams import Stream
 from .types import AppT, Event, K
 from .utils.collections import FastUserDict
 
 __all__ = ['Table', 'table']
-
 
 KVMapper = Callable[[K, Event], Tuple[K, Event]]
 
@@ -27,7 +26,7 @@ class table:
 
 
 class Table(Stream, FastUserDict):
-    StateStore: Type = None
+    StateStore: ClassVar[Type] = None
 
     _store: str
 
@@ -44,7 +43,7 @@ class Table(Stream, FastUserDict):
         self.data = self.StateStore()
 
     def on_bind(self, app: AppT) -> None:
-        if self.StateStore is None:
+        if self.StateStore is not None:
             self.data = self.StateStore(url=None, app=app)
         else:
             url = self._store or self.app.store

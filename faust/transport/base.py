@@ -2,7 +2,10 @@
 import asyncio
 import weakref
 from itertools import count
-from typing import Any, Awaitable, Callable, Optional, List, Type, cast
+from typing import (
+    Any, Awaitable, Callable, ClassVar,
+    Iterator, Optional, List, Type, cast,
+)
 from ..types import AppT, Topic, Message
 from ..types.models import Event
 from ..types.transports import (
@@ -62,7 +65,7 @@ class Consumer(ConsumerT, Service):
     """Base Consumer."""
 
     #: This counter generates new consumer ids.
-    _consumer_ids = count(0)
+    _consumer_ids: ClassVar[Iterator[int]] = count(0)
 
     _app: AppT
     _dirty_events: List[EventRefT] = None
@@ -213,10 +216,10 @@ class Transport(TransportT):
     """Message transport implementation."""
 
     #: Consumer subclass used for this transport.
-    Consumer: Type
+    Consumer: ClassVar[Type]
 
     #: Producer subclass used for this transport.
-    Producer: Type
+    Producer: ClassVar[Type]
 
     def __init__(self, url: str, app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:

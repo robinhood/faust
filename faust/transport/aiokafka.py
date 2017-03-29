@@ -1,7 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 import asyncio
-from typing import Awaitable, Optional, Type, cast
+from typing import Awaitable, ClassVar, Optional, Type, cast
 from ..types import Message
 from ..utils.futures import done_future
 from ..utils.objects import cached_property
@@ -82,8 +82,8 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
-    Consumer: Type = Consumer
-    Producer: Type = Producer
+    Consumer: ClassVar[Type] = Consumer
+    Producer: ClassVar[Type] = Producer
 
     default_port = 9092
 

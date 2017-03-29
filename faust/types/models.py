@@ -1,5 +1,5 @@
 import typing
-from typing import Any, FrozenSet, Mapping, NewType, Type, Union
+from typing import Any, ClassVar, FrozenSet, Mapping, NewType, Type, Union
 from .codecs import CodecArg
 from .tuples import Request, Topic
 
@@ -39,7 +39,7 @@ class ModelT:
 
     req: Request
 
-    _options: ModelOptions
+    _options: ClassVar[ModelOptions]
 
     @classmethod
     def as_schema(cls) -> Mapping:

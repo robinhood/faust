@@ -4,7 +4,7 @@ import faust
 import sys
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Iterator, Mapping, MutableMapping,
+    Any, Awaitable, ClassVar, Iterator, Mapping, MutableMapping,
     Optional, Sequence, Set, Union, Type, cast,
 )
 from itertools import count
@@ -69,7 +69,7 @@ class App(AppT, Service):
     """
 
     #: Used for generating new topic names.
-    _index: Iterator[int] = count(0)
+    _index: ClassVar[Iterator[int]] = count(0)
 
     #: Mapping of active streams by name.
     _streams: MutableMapping[str, StreamT]

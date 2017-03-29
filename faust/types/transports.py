@@ -1,7 +1,7 @@
 import abc
 import asyncio
 import typing
-from typing import Any, Callable, Awaitable, Optional, Type
+from typing import Any, Callable, ClassVar, Awaitable, Optional, Type
 from .core import K
 from .models import Event
 from .services import ServiceT
@@ -94,8 +94,8 @@ class ProducerT(ServiceT):
 
 
 class TransportT(metaclass=abc.ABCMeta):
-    Consumer: Type
-    Producer: Type
+    Consumer: ClassVar[Type]
+    Producer: ClassVar[Type]
 
     app: AppT
     url: str

@@ -1,6 +1,7 @@
 """Serializing/deserializing message keys and values."""
 from typing import (
-    Any, Dict, Iterable, Mapping, Set, Sequence, Tuple, Type, Union, cast,
+    Any, ClassVar, Dict, Iterable, Mapping,
+    Set, Sequence, Tuple, Type, Union, cast,
 )
 from avro import schema
 from .codecs import dumps, loads
@@ -61,14 +62,13 @@ __flake8_ignore_this_Dict: Dict  # XXX
 class Model(ModelT):
     """Describes how messages in a topic is serialized."""
 
-    __abstract__ = True
+    __abstract__: ClassVar[bool] = True
+    _schema_type: ClassVar[str] = None
+    _schema_cache: ClassVar[schema.Schema] = None
 
     #: When an Event is received as a message, this field is populated with
     #: the :class:`Request` it originated from.
     req: Request = None
-
-    _schema_type: str = None
-    _schema_cache: schema.Schema = None   # XXX ClassVar
 
     @classmethod
     def loads(
@@ -118,13 +118,24 @@ class Model(ModelT):
                           serializer: str = None,
                           namespace: str = None,
                           **kwargs: Any) -> None:
-        if cls.__abstract__:
-            cls.__abstract__ = False
-            return
         # Python 3.6 added the new __init_subclass__ function to make it
         # possible to initialize subclasses without using metaclasses
         # (:pep:`487`).
         super().__init_subclass__(**kwargs)  # type: ignore
+
+        # mypy does not recognize `__init_subclass__` as a classmethod
+        # and so thinks we are mutating a ClassVar when setting
+        #   cls.__abstract__ = False
+        # To fix this we simply delegate to a _init_subclass classmethod.
+        cls._init_subclass(serializer, namespace)
+
+    @classmethod
+    def _init_subclass(cls,
+                       serializer: str = None,
+                       namespace: str = None) -> None:
+        if cls.__abstract__:
+            cls.__abstract__ = False
+            return
 
         # Can set serializer using:
         #    class X(Event, serializer='avro'):
@@ -213,7 +224,7 @@ class Record(Model):
         >>> LogEvent.severity
         >>> <FieldDescriptor: LogEvent.severity (str)>
     """
-    _schema_type = 'record'
+    _schema_type: ClassVar[str] = 'record'
 
     @classmethod
     def _schema_fields(cls) -> Sequence[Mapping]:
