@@ -48,5 +48,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    worker = faust.Worker(app, loglevel='INFO', debug=True)
+    worker = faust.Worker(app, loglevel='INFO')
     worker.execute_from_commandline(main())

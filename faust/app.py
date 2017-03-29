@@ -2,7 +2,7 @@
 import asyncio
 import faust
 import sys
-from collections import OrderedDict, deque
+from collections import OrderedDict
 from typing import (
     Any, Awaitable, Iterator, Mapping, MutableMapping,
     Optional, Sequence, Set, Union, Type, cast,
@@ -13,14 +13,15 @@ from . import constants
 from . import transport
 from .codecs import loads
 from .exceptions import KeyDecodeError, ValueDecodeError
-from .types import CodecArg, K, Message, Request, Topic, V
-from .types.app import AppT, AsyncSerializerT, TaskArg
+from .types import CodecArg, K, Message, Request, TaskArg, Topic, V
+from .types.app import AppT, AsyncSerializerT
 from .types.coroutines import StreamCoroutine
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
 from .types.streams import Processor, StreamT
 from .types.transports import ConsumerT, ProducerT, TransportT
 from .utils.compat import want_bytes
+from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.services import Service
@@ -74,8 +75,8 @@ class App(AppT, Service):
     #: Mapping of active streams by name.
     _streams: MutableMapping[str, StreamT]
 
-    #: List of tasks
-    _tasks: deque
+    #: Pool group of running tasks.
+    _tasks: Group
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
@@ -124,11 +125,18 @@ class App(AppT, Service):
         self.Stream = symbol_by_name(stream_cls)
         self.store = store
         self._streams = OrderedDict()
-        self._tasks = deque()
+        self._tasks = self._new_group(
+            on_task_started=self._on_task_started,
+            on_task_error=self._on_task_error,
+            on_task_stopped=self._on_task_stopped,
+            loop=self.loop,
+        )
         self._serializer_override = {}
         self._sensors = set()
         self.task_to_consumers = WeakKeyDictionary()
-        self.tasks_running = 0
+
+    def _new_group(self, **kwargs: Any) -> Group:
+        return Group(**kwargs)
 
     def register_consumer(self, consumer: ConsumerT) -> None:
         task = asyncio.Task.current_task(loop=self.loop)
@@ -191,8 +199,8 @@ class App(AppT, Service):
             raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
     async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
-        if value is None:
-            return value
+        if message.value is None:
+            return None
         try:
             obj: Any = None
             typ_serializer = typ._options.serializer  # type: ignore
@@ -247,28 +255,16 @@ class App(AppT, Service):
         Notes:
             A task is simply any coroutine iterating over a stream.
         """
-        assert not self.started
-        fut = self._start_task(task)
-        self._tasks.append(fut)
-        return fut
+        return self._tasks.spawn(task)
 
-    async def _start_task(self, task: TaskArg) -> None:
-        _task = asyncio.Task(task, loop=self.loop)
-        TASK_TO_APP[_task] = self
-        self.tasks_running += 1
-        try:
-            await self._execute_task(_task)
-        finally:
-            self.tasks_running -= 1
+    async def _on_task_started(self, task: asyncio.Task) -> None:
+        TASK_TO_APP[task] = self
 
-    async def _execute_task(self, task: asyncio.Task) -> None:
-        try:
-            await task
-        except Exception as exc:
-            await self._call_task_consumer_error_handlers(exc)
+    async def _on_task_error(self, task: asyncio.Task, exc: Exception) -> None:
+        await self._call_task_consumer_error_handlers(task, exc)
 
-    async def _call_task_consumer_error_handlers(self, exc: Exception) -> None:
-        task = asyncio.Task.current_task(loop=self.loop)
+    async def _call_task_consumer_error_handlers(
+            self, task: asyncio.Task, exc: Exception) -> None:
         try:
             consumers = self.task_to_consumers[task]
         except KeyError:
@@ -279,6 +275,9 @@ class App(AppT, Service):
                     await consumer.on_task_error(exc)
                 except Exception as exc:
                     logger.exception('Consumer error callback raised: %r', exc)
+
+    async def _on_task_stopped(self, task: asyncio.Task) -> None:
+        ...
 
     def stream(self, topic: Topic,
                coroutine: StreamCoroutine = None,
@@ -325,9 +324,8 @@ class App(AppT, Service):
     async def on_start(self) -> None:
         for _stream in self._streams.values():  # start all streams
             await _stream.maybe_start()
-        while self._tasks:
-            task = self._tasks.popleft()
-            asyncio.ensure_future(task, loop=self.loop)
+        await self._tasks.start()
+        await self._tasks.joinall()
 
     async def on_stop(self) -> None:
         # stop all streams
@@ -385,3 +383,7 @@ class App(AppT, Service):
     @transport.setter
     def transport(self, transport: TransportT) -> None:
         self._transport = transport
+
+    @property
+    def tasks_running(self) -> int:
+        return len(self._tasks)

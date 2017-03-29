@@ -1,7 +1,7 @@
 """Abstract types for static typing."""
-from .app import TaskArg, AsyncSerializerT, AppT
+from .app import AsyncSerializerT, AppT
 from .codecs import CodecArg, CodecT
-from .core import K, V
+from .core import K, V, TaskArg
 from .coroutines import (
     InputStreamT,
     StreamCoroutineCallback,

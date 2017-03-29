@@ -1,8 +1,8 @@
 import abc
 import weakref
-from typing import Any, Awaitable, Generator, Optional, Type, Union
+from typing import Any, Awaitable, Optional, Type, Union
 from .codecs import CodecArg
-from .core import K, V
+from .core import K, V, TaskArg
 from .coroutines import StreamCoroutine
 from .models import ModelT, Event
 from .services import ServiceT
@@ -11,9 +11,7 @@ from .streams import StreamT, TopicProcessorSequence
 from .transports import ConsumerT, TransportT
 from .tuples import Message, Topic
 
-__all__ = ['TaskArg', 'AsyncSerializerT', 'AppT']
-
-TaskArg = Generator
+__all__ = ['AsyncSerializerT', 'AppT']
 
 
 class AsyncSerializerT:
@@ -49,7 +47,6 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
 
-    tasks_running: int
     task_to_consumers: weakref.WeakKeyDictionary
 
     @classmethod
@@ -124,4 +121,9 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def transport(self) -> TransportT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def tasks_running(self) -> int:
         ...
