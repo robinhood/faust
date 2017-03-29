@@ -1,7 +1,7 @@
 import asyncio
 import reprlib
 import signal
-from typing import Any, IO, Sequence, Set, Tuple, Union, cast
+from typing import Any, IO, Sequence, Set, Tuple, Union
 from .utils.compat import DummyContext
 from .utils.logging import setup_logging
 from .utils.services import Service
@@ -11,6 +11,10 @@ try:  # pragma: no cover
     from setproctitle import setproctitle
 except ImportError:  # pragma: no cover
     def setproctitle(title: str) -> None: ...  # noqa
+
+__all__ = ['Worker']
+
+PSIDENT = '[Faust:Worker]'
 
 
 class _TupleAsListRepr(reprlib.Repr):
@@ -110,16 +114,16 @@ class Worker(Service):
             await sensor.maybe_start()
 
     async def on_start(self) -> None:
-        setproctitle('[Faust:Worker] starting')
+        self._setproctitle('starting')
         for service in self.services:
             for sensor in self.sensors:
                 if isinstance(service, AppT):
-                    cast(AppT, service).add_sensor(sensor)
-            setproctitle('[Faust:Worker] running')
+                    service.add_sensor(sensor)
+            self._setproctitle('running')
             await service.maybe_start()
 
     async def on_stop(self) -> None:
-        setproctitle('[Faust:Worker] stopping')
+        self._setproctitle('stopping')
         for service in reversed(self.services):
             await service.stop()
         for sensor in self.sensors:
@@ -127,3 +131,6 @@ class Worker(Service):
 
     def _repr_info(self) -> str:
         return _repr(self.services)
+
+    def _setproctitle(self, info: str) -> None:
+        setproctitle('{} {}'.format(PSIDENT, info))

@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 from case import Mock
 from faust import codecs

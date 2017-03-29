@@ -16,7 +16,5 @@ globals().update(conf.build_config(
     include_intersphinx={'python', 'sphinx'},
     # django_settings='testproj.settings',
     # path_additions=[os.path.join(os.pardir, 'testproj')],
-     apicheck_ignore_modules=[
-       'faust.transport.transports',
-     ],
+    apicheck_ignore_modules=[],
 ))

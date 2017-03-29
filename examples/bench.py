@@ -3,7 +3,7 @@ import faust
 from time import monotonic
 from uuid import uuid4
 
-#faust.use_uvloop()
+faust.use_uvloop()
 group = str(uuid4())
 app = faust.App('faustbench-{}'.format(group), url='aiokafka://localhost')
 
@@ -34,6 +34,7 @@ async def process_requests(app, n=1000):
     s = app.stream(request_topic)
     async for request in s:
         i += 1
+        assert request.id
         if not i % n:
             if time_start is None:
                 time_start = monotonic()
