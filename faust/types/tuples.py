@@ -16,6 +16,13 @@ class Topic(NamedTuple):
     key_type: Type
     value_type: Type
 
+    def __repr__(self) -> str:
+        return '<{}: {}>'.format(
+            type(self).__name__,
+            (self.pattern.pattern if self.pattern
+             else ', '.join(map(repr, self.topics))),
+        )
+
 
 class Message(NamedTuple):
     topic: str
