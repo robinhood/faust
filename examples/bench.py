@@ -5,7 +5,7 @@ from uuid import uuid4
 
 faust.use_uvloop()
 group = str(uuid4())
-app = faust.App('faustbench-{}'.format(group))
+app = faust.App('faustbench-{}'.format(group), url='aiokafka://localhost')
 
 
 class Request(faust.Record, serializer='json'):
@@ -43,8 +43,8 @@ async def process_requests(app, n=1000):
 
 
 async def main():
-    app.add_task(send_requests(app))
     app.add_task(process_requests(app))
+    app.add_task(send_requests(app))
 
 
 if __name__ == '__main__':
