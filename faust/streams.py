@@ -1,6 +1,7 @@
 """Streams."""
 import asyncio
 import re
+import reprlib
 from collections import OrderedDict
 from typing import (
     Any, AsyncIterable, Awaitable, Dict, List,
@@ -349,3 +350,10 @@ class Stream(StreamT, Service):
 
     async def __anext__(self) -> Event:
         return cast(Event, await self.outbox.get())
+
+    def _repr_info(self) -> str:
+        if self.children:
+            return reprlib.repr(self.children)
+        elif len(self.topics) == 1:
+            return reprlib.repr(self.topics[0])
+        return reprlib.repr(self.topics)

@@ -12,6 +12,7 @@ class Service(ServiceT):
 
     wait_for_shutdown = False
     shutdown_timeout = 60.0
+    restart_count = 0
 
     _started: asyncio.Event
     _stopped: asyncio.Event
@@ -43,6 +44,9 @@ class Service(ServiceT):
     async def on_shutdown(self) -> None:
         ...
 
+    async def on_restart(self) -> None:
+        ...
+
     async def start(self) -> None:
         logger.info('+Starting service %r', self)
         assert not self._started.is_set()
@@ -69,12 +73,30 @@ class Service(ServiceT):
             await self.on_shutdown()
             logger.info('-Shutdown service %r', self)
 
+    async def restart(self) -> None:
+        self.restart_count += 1
+        await self.stop()
+        for ev in (self._started, self._stopped, self._shutdown):
+            ev.clear()
+        await self.on_init()
+        await self.start()
+
+    async def wait_until_stopped(self) -> None:
+        await self._stopped.wait()
+
     def set_shutdown(self) -> None:
         self._shutdown.set()
 
     def __repr__(self) -> str:
-        return '<{name}: {self.state}>'.format(
-            name=type(self).__name__, self=self)
+        info = self._repr_info()
+        return '<{name}: {self.state}{info}>'.format(
+            name=type(self).__name__,
+            self=self,
+            info=' ' + info if info else '',
+        )
+
+    def _repr_info(self) -> str:
+        return ''
 
     @property
     def started(self) -> bool:

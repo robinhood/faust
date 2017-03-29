@@ -14,6 +14,7 @@ class ServiceT(metaclass=abc.ABCMeta):
     shutdown_timeout: float
     wait_for_shutdown = False
     loop: asyncio.AbstractEventLoop = None
+    restart_count: int = 0
 
     @abc.abstractmethod
     async def __aenter__(self) -> 'ServiceT':
@@ -52,7 +53,19 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
+    async def restart(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def wait_until_stopped(self) -> None:
+        ...
+
+    @abc.abstractmethod
     def set_shutdown(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def _repr_info(self) -> str:
         ...
 
     @property
