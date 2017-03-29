@@ -3,7 +3,7 @@ import faust
 from time import monotonic
 from uuid import uuid4
 
-faust.use_uvloop()
+#faust.use_uvloop()
 group = str(uuid4())
 app = faust.App('faustbench-{}'.format(group), url='aiokafka://localhost')
 

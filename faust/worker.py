@@ -7,6 +7,11 @@ from .utils.logging import setup_logging
 from .utils.services import Service
 from .types import AppT, ServiceT, SensorT
 
+try:  # pragma: no cover
+    from setproctitle import setproctitle
+except ImportError:  # pragma: no cover
+    def setproctitle(title: str) -> None: ...  # noqa
+
 
 class _TupleAsListRepr(reprlib.Repr):
 
@@ -60,6 +65,7 @@ class Worker(Service):
             self._execute_from_commandline(*coroutines))
 
     async def _execute_from_commandline(self, *coroutines) -> None:
+        setproctitle('[Faust:Worker] init')
         with self._monitor():
             self.install_signal_handlers()
             await asyncio.gather(
@@ -104,13 +110,16 @@ class Worker(Service):
             await sensor.maybe_start()
 
     async def on_start(self) -> None:
+        setproctitle('[Faust:Worker] starting')
         for service in self.services:
             for sensor in self.sensors:
                 if isinstance(service, AppT):
                     cast(AppT, service).add_sensor(sensor)
+            setproctitle('[Faust:Worker] running')
             await service.maybe_start()
 
     async def on_stop(self) -> None:
+        setproctitle('[Faust:Worker] stopping')
         for service in reversed(self.services):
             await service.stop()
         for sensor in self.sensors:

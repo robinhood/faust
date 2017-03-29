@@ -1,3 +1,4 @@
 fastavro
 cchardet
 aiodns
+setproctitle
