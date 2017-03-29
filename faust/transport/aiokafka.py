@@ -34,16 +34,13 @@ class Consumer(base.Consumer):
         await self._consumer.stop()
 
     async def _drain_messages(self) -> None:
+        on_message = self.on_message
+        getone = self._consumer._fetcher.next_record
+        should_stop = self._stopped.is_set
         try:
-            while not self.should_stop:
-                records = await self._consumer.getmany(
-                    max_records=10, timeout_ms=self.fetch_timeout * 1000.0)
-                if self.should_stop:
-                    break
-                on_message = self.on_message
-                for messages in records.values():
-                    for message in messages:
-                        await on_message(cast(Message, message))
+            while not should_stop():
+                message = await getone(())
+                await on_message(cast(Message, message))
         finally:
             self.set_shutdown()
 
