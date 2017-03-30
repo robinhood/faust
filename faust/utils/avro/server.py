@@ -2,7 +2,6 @@
 import asyncio
 import aiohttp
 from collections import defaultdict
-from http import HTTPStatus
 from typing import DefaultDict, Dict, Mapping, Optional, Sequence, Tuple, cast
 from avro.schema import Parse, Schema
 from .. import json
@@ -17,6 +16,12 @@ ACCEPT_TYPES: Sequence[str] = [
     'application/vnd.schemaregistry+json',
     'application/json',
 ]
+
+STATUS_TO_ERROR: Mapping[int, str] = {
+    404: 'Not Found',
+    409: 'Incompatible Avro schema',
+    422: 'Invalid Avro schema'
+}
 
 
 class ClientError(Exception):
@@ -202,7 +207,6 @@ class RegistryClient:
             body: Mapping = None,
             headers: Mapping[str, str] = None,
             unknown_error_message: str = 'Unknown error') -> Mapping:
-        error: str = None
         _body: bytes = None
         _headers: Dict[str, str] = {'Accept': self._accept_types}
         if body:
@@ -220,14 +224,9 @@ class RegistryClient:
         )
         if response.ok:
             return response.json()
-        elif response.status_code == HTTPStatus.NOT_FOUND:
-            error = 'Not Found'
-        elif response.status_code == 409:
-            error = 'Incompatible Avro schema'
-        elif response.status_code == 422:
-            error = 'Invalid Avro schema'
-        else:
-            error = unknown_error_message
+
+        error = STATUS_TO_ERROR.get(
+            response.status_code, unknown_error_message)
         message = '{}: code={!r} url={!r} body={!r}'.format(
             error, response.status_code, url, body)
         logger.error(message)
