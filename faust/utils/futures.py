@@ -44,11 +44,8 @@ class Group(Service, Sized):
         super().__init__(loop=loop)
 
     def spawn(self, task: TaskArg) -> Awaitable:
-        """Start task.
-
-        Notes:
-            A task is simply any coroutine iterating over a stream.
-        """
+        # Note: This does not actually start the task,
+        #       and `await group.start()` needs to be called.
         fut = self._start_task(task)
         self._starting.append(fut)
         return fut

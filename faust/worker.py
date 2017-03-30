@@ -61,12 +61,19 @@ class Worker(Service):
 
     async def _stop_on_signal(self):
         await self.stop()
+        self.loop.stop()
+        while self.loop.is_running():
+            await asyncio.sleep(1.0, loop=self.loop)
         self.loop.close()
         raise SystemExit()
 
     def execute_from_commandline(self, *coroutines):
-        self.loop.run_until_complete(
-            self._execute_from_commandline(*coroutines))
+        try:
+            self.loop.run_until_complete(
+                self._execute_from_commandline(*coroutines))
+        except RuntimeError as exc:
+            if 'Event loop stopped before Future completed' not in str(exc):
+                raise
 
     async def _execute_from_commandline(self, *coroutines) -> None:
         setproctitle('[Faust:Worker] init')

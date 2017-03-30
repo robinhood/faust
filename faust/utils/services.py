@@ -8,29 +8,11 @@ __all__ = ['Service']
 logger = get_logger(__name__)
 
 
-class Service(ServiceT):
+class ServiceBase(ServiceT):
 
     wait_for_shutdown = False
     shutdown_timeout = 60.0
     restart_count = 0
-
-    _started: asyncio.Event
-    _stopped: asyncio.Event
-    _shutdown: asyncio.Event
-
-    def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
-        self.loop = loop or asyncio.get_event_loop()
-        self._started = asyncio.Event(loop=self.loop)
-        self._stopped = asyncio.Event(loop=self.loop)
-        self._shutdown = asyncio.Event(loop=self.loop)
-        self.on_init()
-
-    async def __aenter__(self) -> 'Service':
-        await self.start()
-        return self
-
-    async def __aexit__(self, *exc_info) -> None:
-        await self.stop()
 
     def on_init(self) -> None:
         ...
@@ -46,6 +28,38 @@ class Service(ServiceT):
 
     async def on_restart(self) -> None:
         ...
+
+    async def __aenter__(self) -> ServiceT:
+        await self.start()
+        return self
+
+    async def __aexit__(self, *exc_info) -> None:
+        await self.stop()
+
+    def __repr__(self) -> str:
+        info = self._repr_info()
+        return '<{name}: {self.state}{info}>'.format(
+            name=type(self).__name__,
+            self=self,
+            info=' ' + info if info else '',
+        )
+
+    def _repr_info(self) -> str:
+        return ''
+
+
+class Service(ServiceBase):
+
+    _started: asyncio.Event
+    _stopped: asyncio.Event
+    _shutdown: asyncio.Event
+
+    def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
+        self.loop = loop or asyncio.get_event_loop()
+        self._started = asyncio.Event(loop=self.loop)
+        self._stopped = asyncio.Event(loop=self.loop)
+        self._shutdown = asyncio.Event(loop=self.loop)
+        self.on_init()
 
     async def start(self) -> None:
         logger.info('+Starting service %r', self)
@@ -87,17 +101,6 @@ class Service(ServiceT):
     def set_shutdown(self) -> None:
         self._shutdown.set()
 
-    def __repr__(self) -> str:
-        info = self._repr_info()
-        return '<{name}: {self.state}{info}>'.format(
-            name=type(self).__name__,
-            self=self,
-            info=' ' + info if info else '',
-        )
-
-    def _repr_info(self) -> str:
-        return ''
-
     @property
     def started(self) -> bool:
         return self._started.is_set()
@@ -115,3 +118,38 @@ class Service(ServiceT):
         if not self._shutdown.is_set():
             return 'stopping'
         return 'shutdown'
+
+
+class ServiceProxy(ServiceBase):
+
+    _service: ServiceT
+
+    async def start(self) -> None:
+        await self._service.start()
+
+    async def maybe_start(self) -> None:
+        await self._service.maybe_start()
+
+    async def stop(self) -> None:
+        await self._service.stop()
+
+    async def restart(self) -> None:
+        await self._service.restart()
+
+    async def wait_until_stopped(self) -> None:
+        await self._service.wait_until_stopped()
+
+    def set_shutdown(self) -> None:
+        self._service.set_shutdown()
+
+    @property
+    def started(self) -> bool:
+        return self._service.started
+
+    @property
+    def should_stop(self) -> bool:
+        return self._service.should_stop
+
+    @property
+    def state(self) -> str:
+        return self._service.state

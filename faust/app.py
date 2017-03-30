@@ -4,7 +4,7 @@ import faust
 import sys
 from collections import OrderedDict
 from typing import (
-    Any, Awaitable, ClassVar, Iterator, Mapping, MutableMapping,
+    Any, Awaitable, Callable, ClassVar, Iterator, Mapping, MutableMapping,
     Optional, Sequence, Set, Union, Type, cast,
 )
 from itertools import count
@@ -24,7 +24,8 @@ from .utils.compat import want_bytes
 from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
-from .utils.services import Service
+from .utils.objects import cached_property
+from .utils.services import Service, ServiceProxy
 
 __all__ = ['App']
 
@@ -43,7 +44,41 @@ TASK_TO_APP: WeakKeyDictionary = WeakKeyDictionary()
 logger = get_logger(__name__)
 
 
-class App(AppT, Service):
+class AppService(Service):
+
+    def __init__(self, app: 'App') -> None:
+        self.app: App = app
+        super().__init__(loop=self.app.loop)
+
+    async def on_start(self) -> None:
+        await self._start_streams()
+        await self._start_tasks()
+
+    async def _start_streams(self) -> None:
+        for _stream in self.app._streams.values():
+            await _stream.maybe_start()
+
+    async def _start_tasks(self) -> None:
+        await self.app._tasks.start()
+        # wait for tasks to finish, this may run forever since
+        # stream processing tasks do not end (them infinite!)
+        await self.app._tasks.joinall()
+
+    async def on_stop(self) -> None:
+        await self._stop_streams()
+        await self._stop_producer()
+
+    async def _stop_streams(self) -> None:
+        # stop all streams in reversed order.
+        for _stream in reversed(list(self.app._streams.values())):
+            await _stream.stop()
+
+    async def _stop_producer(self) -> None:
+        if self.app._producer is not None:
+            await self.app._producer.stop()
+
+
+class App(AppT, ServiceProxy):
     """Faust Application.
 
     Arguments:
@@ -74,8 +109,9 @@ class App(AppT, Service):
     #: Mapping of active streams by name.
     _streams: MutableMapping[str, StreamT]
 
-    #: Pool group of running tasks.
-    _tasks: Group
+    #: Group creates the event loop, so we instantiate it lazily
+    #: only when something accesses ._tasks
+    _tasks_group: Group = None
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
@@ -86,13 +122,13 @@ class App(AppT, Service):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
-    #: List of active sensors
-    _sensors: Set[SensorT] = None
-
     _serializer_override_classes: Mapping[CodecArg, SymbolArg] = {
         'avro': 'faust.utils.avro.faust:AvroSerializer',
     }
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
+
+    #: Set of active sensors
+    _sensors: Set[SensorT] = None
 
     @classmethod
     def current_app(self) -> AppT:
@@ -111,7 +147,7 @@ class App(AppT, Service):
                  stream_cls: SymbolArg = DEFAULT_STREAM_CLS,
                  store: str = 'memory://',
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        super().__init__(loop=loop or asyncio.get_event_loop())
+        self.loop = loop
         self.id = id
         self.url = url
         self.client_id = client_id
@@ -124,18 +160,10 @@ class App(AppT, Service):
         self.Stream = symbol_by_name(stream_cls)
         self.store = store
         self._streams = OrderedDict()
-        self._tasks = self._new_group(
-            on_task_started=self._on_task_started,
-            on_task_error=self._on_task_error,
-            on_task_stopped=self._on_task_stopped,
-            loop=self.loop,
-        )
+        self._tasks_group = None
         self._serializer_override = {}
         self._sensors = set()
         self.task_to_consumers = WeakKeyDictionary()
-
-    def _new_group(self, **kwargs: Any) -> Group:
-        return Group(**kwargs)
 
     def register_consumer(self, consumer: ConsumerT) -> None:
         task = asyncio.Task.current_task(loop=self.loop)
@@ -256,8 +284,10 @@ class App(AppT, Service):
         """
         return self._tasks.spawn(task)
 
-    async def _on_task_started(self, task: asyncio.Task) -> None:
-        TASK_TO_APP[task] = self
+    async def _on_task_started(
+            self, task: asyncio.Task,
+            *, _set: Callable = TASK_TO_APP.__setitem__) -> None:
+        _set(task, self)  # add to TASK_TO_APP mapping
 
     async def _on_task_error(self, task: asyncio.Task, exc: Exception) -> None:
         await self._call_task_consumer_error_handlers(task, exc)
@@ -304,10 +334,9 @@ class App(AppT, Service):
         ).bind(self)
 
     def add_sensor(self, sensor: SensorT) -> None:
-        assert not self.started
         self._sensors.add(sensor)
 
-    def remove_sensor(self, sensor: 'SensorT') -> None:
+    def remove_sensor(self, sensor: SensorT) -> None:
         self._sensors.remove(sensor)
 
     async def on_event_in(
@@ -319,20 +348,6 @@ class App(AppT, Service):
             self, consumer_id: int, offset: int, event: Event = None) -> None:
         for _sensor in self._sensors:
             await _sensor.on_event_out(consumer_id, offset, event)
-
-    async def on_start(self) -> None:
-        for _stream in self._streams.values():  # start all streams
-            await _stream.maybe_start()
-        await self._tasks.start()
-        await self._tasks.joinall()
-
-    async def on_stop(self) -> None:
-        # stop all streams
-        for _stream in reversed(list(self._streams.values())):
-            await _stream.stop()
-        # stop producer
-        if self._producer is not None:
-            await self._producer.stop()
 
     def add_source(self, stream: StreamT) -> None:
         """Register existing stream."""
@@ -355,12 +370,24 @@ class App(AppT, Service):
     def _create_transport(self) -> TransportT:
         return transport.by_url(self.url)(self.url, self, loop=self.loop)
 
+    def _new_group(self, **kwargs: Any) -> Group:
+        return Group(**kwargs)
+
     def __repr__(self) -> str:
         return APP_REPR.format(
             name=type(self).__name__,
             self=self,
             tasks=self.tasks_running,
             streams=len(self._streams),
+        )
+
+    @cached_property
+    def _tasks(self) -> Group:
+        return self._new_group(
+            on_task_started=self._on_task_started,
+            on_task_error=self._on_task_error,
+            on_task_stopped=self._on_task_stopped,
+            loop=self.loop,
         )
 
     @property
@@ -386,3 +413,7 @@ class App(AppT, Service):
     @property
     def tasks_running(self) -> int:
         return len(self._tasks)
+
+    @cached_property
+    def _service(self):
+        return AppService(self)
