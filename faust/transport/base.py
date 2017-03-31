@@ -6,11 +6,10 @@ from typing import (
     Any, Awaitable, Callable, ClassVar,
     Iterator, Optional, List, Type, cast,
 )
-from ..types import AppT, Topic, Message
+from ..types import AppT
 from ..types.models import Event
 from ..types.transports import (
     ConsumerCallback, ConsumerT, EventRefT, ProducerT, TransportT,
-    KeyDecodeErrorCallback, ValueDecodeErrorCallback,
 )
 from ..utils.services import Service
 
@@ -76,31 +75,19 @@ class Consumer(ConsumerT, Service):
 
     def __init__(self, transport: TransportT,
                  *,
-                 topic: Topic = None,
                  callback: ConsumerCallback = None,
                  autoack: bool = True,
-                 on_key_decode_error: KeyDecodeErrorCallback = None,
-                 on_value_decode_error: ValueDecodeErrorCallback = None,
                  commit_interval: float = None) -> None:
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
         self._app = self.transport.app
-        self.topic = topic
         self.callback = callback
         self.autoack = autoack
-        self.key_type = self.topic.key_type
-        self.value_type = self.topic.value_type
-        self.on_key_decode_error = on_key_decode_error
-        self.on_value_decode_error = on_value_decode_error
-        self._loads_key = self._app.loads_key
-        self._loads_value = self._app.loads_value
         self._on_event_in = self._app.on_event_in
         self._on_event_out = self._app.on_event_out
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
-        if self.topic.topics and self.topic.pattern:
-            raise TypeError('Topic can specify either topics or pattern')
         self._dirty_events = []
         self._acked = []
         self._commit_mutex = asyncio.Lock(loop=self.loop)
@@ -109,24 +96,6 @@ class Consumer(ConsumerT, Service):
     async def register_timers(self) -> None:
         self._commit_handler_fut = asyncio.ensure_future(
             self._commit_handler(), loop=self.loop)
-
-    async def on_message(self, message: Message) -> None:
-        try:
-            k = await self._loads_key(self.key_type, message.key)
-        except Exception as exc:
-            if not self.on_key_decode_error:
-                raise
-            await self.on_key_decode_error(exc, message)
-        else:
-            try:
-                v = await self._loads_value(self.value_type, k, message)
-            except Exception as exc:
-                if not self.on_value_decode_error:
-                    raise
-                await self.on_value_decode_error(exc, message)
-            else:
-                self.track_event(v, message.offset)
-                await self.callback(self.topic, k, v)
 
     def track_event(self, event: Event, offset: int) -> None:
         _id = self.id
@@ -227,10 +196,10 @@ class Transport(TransportT):
         self.app = app
         self.loop = loop
 
-    def create_consumer(self, topic: Topic, callback: ConsumerCallback,
+    def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
         return cast(ConsumerT, self.Consumer(
-            self, topic=topic, callback=callback, **kwargs))
+            self, callback=callback, **kwargs))
 
     def create_producer(self, **kwargs: Any) -> ProducerT:
         return cast(ProducerT, self.Producer(self, **kwargs))

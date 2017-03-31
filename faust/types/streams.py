@@ -103,10 +103,6 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_message(self, topic: Topic, key: K, value: Event) -> None:
-        ...
-
-    @abc.abstractmethod
     async def process(self, key: K, value: Event) -> Event:
         ...
 

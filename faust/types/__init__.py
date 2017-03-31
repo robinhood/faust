@@ -22,8 +22,6 @@ from .streams import (
 )
 from .transports import (
     ConsumerCallback,
-    KeyDecodeErrorCallback,
-    ValueDecodeErrorCallback,
     EventRefT,
     ConsumerT,
     ProducerT,
@@ -55,8 +53,7 @@ __all__ = [
     'StreamProcessorMap', 'StreamCoroutineMap',
     'StreamT',
 
-    'ConsumerCallback', 'KeyDecodeErrorCallback', 'ValueDecodeErrorCallback',
-    'EventRefT', 'ConsumerT', 'ProducerT', 'TransportT',
+    'ConsumerCallback', 'EventRefT', 'ConsumerT', 'ProducerT', 'TransportT',
 
     'Topic', 'Message', 'Request',
 ]

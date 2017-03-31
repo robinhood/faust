@@ -2,7 +2,6 @@ import abc
 import asyncio
 import typing
 from typing import Any, Callable, ClassVar, Awaitable, Optional, Type
-from .core import K
 from .models import Event
 from .services import ServiceT
 from .tuples import Message, Topic
@@ -14,8 +13,6 @@ else:
 
 __all__ = [
     'ConsumerCallback',
-    'KeyDecodeErrorCallback',
-    'ValueDecodeErrorCallback',
     'EventRefT',
     'ConsumerT',
     'ProducerT',
@@ -25,15 +22,7 @@ __all__ = [
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
-ConsumerCallback = Callable[[Topic, K, Event], Awaitable]
-
-#: Callback called by :class:`faust.transport.base.Consumer` whenever
-#: a message key cannot be decoded/deserialized.
-KeyDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
-
-#: Callback called by :class:`faust.transport.base.Consumer` whenever
-#: a message value cannot be decoded/deserialized.
-ValueDecodeErrorCallback = Callable[[Exception, Message], Awaitable]
+ConsumerCallback = Callable[['ConsumerT', Message], Awaitable]
 
 
 class EventRefT(metaclass=abc.ABCMeta):
@@ -49,15 +38,15 @@ class ConsumerT(ServiceT):
     commit_interval: float
 
     @abc.abstractmethod
+    async def subscribe(self, pattern: str) -> None:
+        ...
+
+    @abc.abstractmethod
     async def _commit(self, offset: int) -> None:
         ...
 
     @abc.abstractmethod
     async def register_timers(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_message(self, message: Message) -> None:
         ...
 
     @abc.abstractmethod
@@ -101,7 +90,7 @@ class TransportT(metaclass=abc.ABCMeta):
     url: str
     loop: asyncio.AbstractEventLoop
 
-    def create_consumer(self, topic: Topic, callback: ConsumerCallback,
+    def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
         ...
 

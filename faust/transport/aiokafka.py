@@ -18,7 +18,6 @@ class Consumer(base.Consumer):
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
         self._consumer = aiokafka.AIOKafkaConsumer(
-            *self.topic.topics or (),
             loop=self.loop,
             client_id=transport.app.client_id,
             group_id=transport.app.id,
@@ -30,17 +29,21 @@ class Consumer(base.Consumer):
         await self.register_timers()
         asyncio.ensure_future(self._drain_messages(), loop=self.loop)
 
+    async def subscribe(self, pattern: str) -> None:
+        # XXX pattern does not work :/
+        self._consumer.subscribe(topics=pattern.split('|'))
+
     async def on_stop(self) -> None:
         await self._consumer.stop()
 
     async def _drain_messages(self) -> None:
-        on_message = self.on_message
+        callback = self.callback
         getone = self._consumer._fetcher.next_record
         should_stop = self._stopped.is_set
         try:
             while not should_stop():
                 message = await getone(())
-                await on_message(cast(Message, message))
+                await callback(self, cast(Message, message))
         finally:
             self.set_shutdown()
 

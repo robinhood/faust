@@ -11,7 +11,7 @@ from typing import (
 from . import joins
 from . import primitives
 from .types import AppT, CodecArg, K, Message, Topic
-from .types.transports import ConsumerT
+from .types.transports import ConsumerCallback, ConsumerT
 from .types.coroutines import CoroCallbackT
 from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
@@ -182,6 +182,7 @@ class Stream(StreamT, Service):
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
+        self._on_message: ConsumerCallback = None
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> StreamT:
@@ -242,21 +243,49 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    async def on_message(self, topic: Topic, key: K, value: Event) -> None:
-        processors = self._processors.get(topic)
-        value = await self.process(key, value)
-        if processors is not None:
-            for processor in processors:
-                res = processor(value)
-                if isinstance(res, Awaitable):
-                    value = await res
+    def _compile_message_handler(self) -> ConsumerCallback:
+        # topic str -> Topic description
+        get_topic = self._topicmap.__getitem__
+        # Topic description -> processors
+        get_processors = self._processors.get
+        # Topic description -> special coroutine
+        get_coroutines = self._coroutines.get
+        # deserializing keys/values
+        loads_key = self.app.loads_key
+        loads_value = self.app.loads_value
+        # .process() coroutine
+        process = self.process
+        # .on_done callback
+        on_done = self.on_done
+
+        async def on_message(consumer: ConsumerT, message: Message) -> None:
+            topic = get_topic(message.topic)
+            try:
+                k = await loads_key(topic.key_type, message.key)
+            except Exception as exc:
+                await self.on_key_decode_error(exc, message)
+            else:
+                try:
+                    v = await loads_value(topic.value_type, k, message)
+                except Exception as exc:
+                    await self.on_value_decode_error(exc, message)
                 else:
-                    value = res
-        coroutine = self._coroutines.get(topic)
-        if coroutine is not None:
-            await coroutine.send(value, self.on_done)
-        else:
-            await self.on_done(value)
+                    consumer.track_event(v, message.offset)
+            processors = get_processors(topic)
+            v = await process(k, v)
+            if processors is not None:
+                for processor in processors:
+                    res = processor(v)
+                    if isinstance(res, Awaitable):
+                        v = await res
+                    else:
+                        v = res
+            coroutine = get_coroutines(topic)
+            if coroutine is not None:
+                await coroutine.send(v, self.on_done)
+            else:
+                await on_done(v)
+        return on_message
 
     async def process(self, key: K, value: Event) -> Event:
         return value
@@ -278,12 +307,7 @@ class Stream(StreamT, Service):
             self.topics.append(topic)
         self._processors[topic] = processors
         self._coroutines[topic] = wrap_callback(coroutine, loop=self.loop)
-        await self._subscribe(topic)
-
-    async def _subscribe(self, topic: Topic) -> None:
-        if topic not in self._consumers:
-            c = self._consumers[topic] = self._create_consumer_for_topic(topic)
-            await c.start()
+        await self._update_subscription()
 
     async def unsubscribe(self, topic: Topic) -> None:
         try:
@@ -292,21 +316,20 @@ class Stream(StreamT, Service):
             pass
         self._processors.pop(topic, None)
         self._coroutines.pop(topic, None)
-        await self._unsubscribe(topic)
-
-    async def _unsubscribe(self, topic: Topic) -> None:
-        try:
-            consumer = self._consumers.pop(topic)
-        except KeyError:
-            pass
-        else:
-            await consumer.stop()
+        await self._update_subscription()
 
     async def on_start(self) -> None:
         if self.app is None:
             raise RuntimeError('Cannot start stream not bound to app.')
-        for topic in self.topics:
-            await self._subscribe(topic)
+        self._compile_pattern()
+        self._on_message = self._compile_message_handler()
+        self._consumer = self._create_consumer()
+        await self._consumer.subscribe(self._pattern)
+        await self._consumer.start()
+
+    async def _update_subscription(self):
+        self._compile_pattern()
+        await self._consumer.subscribe(self._pattern)
 
     async def on_stop(self) -> None:
         for consumer in reversed(list(self._consumers.values())):
@@ -324,13 +347,22 @@ class Stream(StreamT, Service):
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    def _create_consumer_for_topic(self, topic: Topic) -> ConsumerT:
-        return self.app.transport.create_consumer(
-            topic=topic,
-            callback=self.on_message,
-            on_key_decode_error=self.on_key_decode_error,
-            on_value_decode_error=self.on_value_decode_error,
-        )
+    def _create_consumer(self) -> ConsumerT:
+        return self.app.transport.create_consumer(callback=self._on_message)
+
+    def _compile_pattern(self):
+        self._topicmap = self._build_topicmap(self.topics)
+        self._pattern = '|'.join(self._topicmap)
+
+    def _build_topicmap(
+            self, topics: Sequence[Topic]) -> Mapping[str, Topic]:
+        return {
+            s: topic
+            for topic in topics for s in self._subtopics_for(topic)
+        }
+
+    def _subtopics_for(self, topic: Topic) -> Sequence[str]:
+        return topic.pattern.pattern if topic.pattern else topic.topics
 
     def __and__(self, other: StreamT) -> StreamT:
         return self.combine(self, other)

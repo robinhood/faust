@@ -15,6 +15,9 @@
 
 - Fault tolerance
 
+    - Rebalance listener:
+        https://github.com/apache/kafka/blob/4b3ea062be515bc173f6c788c4c1e14f77935aef/streams/src/main/java/org/apache/kafka/streams/processor/internals/StreamThread.java#L1264-L1342
+
 - Deployment
 
 - Tests
