@@ -19,15 +19,22 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
     def __init__(self, consumer: ConsumerT) -> None:
         self.consumer: ConsumerT = consumer
 
+    def on_partitions_assigned(self,
+                               assigned: Sequence[_TopicPartition]) -> None:
+        # have to cast to Consumer since ConsumerT interface does not
+        # have this attribute (mypy currently thinks a Callable instance
+        # variable is an instance method).  Furthermore we have to cast
+        # the Kafka TopicPartition namedtuples to our description,
+        # that way they are typed and decoupled from the actual client
+        # implementation.
+        return cast(Consumer, self.consumer)._on_partitions_assigned(
+            cast(Sequence[TopicPartition], assigned))
+
     def on_partitions_revoked(self,
                               revoked: Sequence[_TopicPartition]) -> None:
-        return self.consumer.on_partitions_revoked(
+        # see comment in on_partitions_assigned
+        return cast(Consumer, self.consumer)._on_partitions_revoked(
             cast(Sequence[TopicPartition], revoked))
-
-    def _on_partitions_assigned(self,
-                                assigned: Sequence[_TopicPartition]) -> None:
-        return self.consumer.on_partitions_assigned(
-            cast(Sequence[TopicPartition], assigned))
 
 
 class Consumer(base.Consumer):

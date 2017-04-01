@@ -331,12 +331,12 @@ class Stream(StreamT, Service):
         self._compile_pattern()
         await self._consumer.subscribe(self._pattern)
 
-    def _on_partitions_revoked(self,
-                               revoked: Sequence[TopicPartition]) -> None:
-        ...
-
     def _on_partitions_assigned(self,
                                 assigned: Sequence[TopicPartition]) -> None:
+        ...
+
+    def _on_partitions_revoked(self,
+                               revoked: Sequence[TopicPartition]) -> None:
         ...
 
     async def on_stop(self) -> None:
