@@ -5,7 +5,6 @@ import warnings
 from typing import Any, Iterable, Mapping, Tuple, Type, Union
 from .collections import FastUserDict
 from .objects import cached_property
-from .urls import url_to_parts
 
 # - these are taken from kombu.utils.imports
 
@@ -27,7 +26,7 @@ class FactoryMapping(FastUserDict):
     def by_url(self, url: str) -> Type:
         """Get class associated with URL (scheme is used as alias key)."""
         # we remove anything after ; so urlparse can recognize the url.
-        return self.by_name(url_to_parts(url.split(';', 1)[0]).scheme)
+        return self.by_name(url.partition('://')[0])
 
     def by_name(self, name: SymbolArg) -> Any:
         return symbol_by_name(name, aliases=self.aliases)

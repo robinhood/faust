@@ -30,4 +30,3 @@
     faust.utils.logging
     faust.utils.objects
     faust.utils.services
-    faust.utils.urls
