@@ -4,9 +4,9 @@ import weakref
 from itertools import count
 from typing import (
     Any, Awaitable, Callable, ClassVar,
-    Iterator, Optional, List, Type, cast,
+    Iterator, Optional, List, Sequence, Type, cast,
 )
-from ..types import AppT
+from ..types import AppT, TopicPartition
 from ..types.models import Event
 from ..types.transports import (
     ConsumerCallback, ConsumerT, EventRefT, ProducerT, TransportT,
@@ -42,6 +42,9 @@ __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
 # To see a reference transport implementation go to:
 #     faust/transport/aiokafka.py
 
+PartitionsRevokedCallback = Callable[[Sequence[TopicPartition]], None]
+PartitionsAssignedCallback = Callable[[Sequence[TopicPartition]], None]
+
 
 class EventRef(weakref.ref, EventRefT):
     """Weak-reference to :class:`ModelT`.
@@ -63,6 +66,8 @@ class EventRef(weakref.ref, EventRefT):
 class Consumer(ConsumerT, Service):
     """Base Consumer."""
 
+    RebalanceListener: ClassVar[Type]
+
     #: This counter generates new consumer ids.
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
 
@@ -76,6 +81,8 @@ class Consumer(ConsumerT, Service):
     def __init__(self, transport: TransportT,
                  *,
                  callback: ConsumerCallback = None,
+                 on_partitions_revoked: PartitionsRevokedCallback = None,
+                 on_partitions_assigned: PartitionsAssignedCallback = None,
                  autoack: bool = True,
                  commit_interval: float = None) -> None:
         assert callback is not None
@@ -86,11 +93,14 @@ class Consumer(ConsumerT, Service):
         self.autoack = autoack
         self._on_event_in = self._app.on_event_in
         self._on_event_out = self._app.on_event_out
+        self._on_partitions_revoked = on_partitions_revoked
+        self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
         self._dirty_events = []
         self._acked = []
         self._commit_mutex = asyncio.Lock(loop=self.loop)
+        self._rebalance_listener = self.RebalanceListener(self)
         super().__init__(loop=self.transport.loop)
 
     async def register_timers(self) -> None:

@@ -10,7 +10,7 @@ from typing import (
 )
 from . import joins
 from . import primitives
-from .types import AppT, CodecArg, K, Message, Topic
+from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
 from .types.transports import ConsumerCallback, ConsumerT
 from .types.coroutines import CoroCallbackT
 from .types.joins import JoinT
@@ -331,6 +331,14 @@ class Stream(StreamT, Service):
         self._compile_pattern()
         await self._consumer.subscribe(self._pattern)
 
+    def _on_partitions_revoked(self,
+                               revoked: Sequence[TopicPartition]) -> None:
+        ...
+
+    def _on_partitions_assigned(self,
+                                assigned: Sequence[TopicPartition]) -> None:
+        ...
+
     async def on_stop(self) -> None:
         for consumer in reversed(list(self._consumers.values())):
             await consumer.stop()
@@ -348,7 +356,11 @@ class Stream(StreamT, Service):
                      message.key, message.value, exc)
 
     def _create_consumer(self) -> ConsumerT:
-        return self.app.transport.create_consumer(callback=self._on_message)
+        return self.app.transport.create_consumer(
+            callback=self._on_message,
+            on_partitions_revoked=self._on_partitions_revoked,
+            on_partitions_assigned=self._on_partitions_assigned
+        )
 
     def _compile_pattern(self):
         self._topicmap = self._build_topicmap(self.topics)

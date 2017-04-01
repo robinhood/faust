@@ -1,8 +1,11 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 import asyncio
-from typing import Awaitable, ClassVar, Optional, Type, cast
-from ..types import Message
+from kafka.consumer import subscription_state
+from kafka.structs import TopicPartition as _TopicPartition
+from typing import Awaitable, ClassVar, Optional, Sequence, Type, cast
+from ..types import Message, TopicPartition
+from ..types.transports import ConsumerT
 from ..utils.futures import done_future
 from ..utils.objects import cached_property
 from . import base
@@ -10,7 +13,25 @@ from . import base
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 
+class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
+    # kafka's ridiculous class based callback interface makes this hacky.
+
+    def __init__(self, consumer: ConsumerT) -> None:
+        self.consumer: ConsumerT = consumer
+
+    def on_partitions_revoked(self,
+                              revoked: Sequence[_TopicPartition]) -> None:
+        return self.consumer.on_partitions_revoked(
+            cast(Sequence[TopicPartition], revoked))
+
+    def _on_partitions_assigned(self,
+                                assigned: Sequence[_TopicPartition]) -> None:
+        return self.consumer.on_partitions_assigned(
+            cast(Sequence[TopicPartition], assigned))
+
+
 class Consumer(base.Consumer):
+    RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = False
@@ -31,7 +52,10 @@ class Consumer(base.Consumer):
 
     async def subscribe(self, pattern: str) -> None:
         # XXX pattern does not work :/
-        self._consumer.subscribe(topics=pattern.split('|'))
+        self._consumer.subscribe(
+            topics=pattern.split('|'),
+            listener=self._rebalance_listener,
+        )
 
     async def on_stop(self) -> None:
         await self._consumer.stop()

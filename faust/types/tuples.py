@@ -7,7 +7,7 @@ if typing.TYPE_CHECKING:
 else:
     class AppT: ...  # noqa
 
-__all__ = ['Topic', 'Message', 'Request']
+__all__ = ['Topic', 'TopicPartition', 'Message', 'Request']
 
 
 class Topic(NamedTuple):
@@ -15,6 +15,11 @@ class Topic(NamedTuple):
     pattern: Pattern
     key_type: Type
     value_type: Type
+
+
+class TopicPartition(NamedTuple):
+    topic: str
+    partition: int
 
 
 class Message(NamedTuple):

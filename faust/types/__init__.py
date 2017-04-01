@@ -27,7 +27,7 @@ from .transports import (
     ProducerT,
     TransportT,
 )
-from .tuples import Topic, Message, Request
+from .tuples import Topic, TopicPartition, Message, Request
 
 __all__ = [
     'TaskArg', 'AsyncSerializerT', 'AppT',
@@ -55,5 +55,5 @@ __all__ = [
 
     'ConsumerCallback', 'EventRefT', 'ConsumerT', 'ProducerT', 'TransportT',
 
-    'Topic', 'Message', 'Request',
+    'Topic', 'TopicPartition', 'Message', 'Request',
 ]
