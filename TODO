@@ -24,8 +24,6 @@
 
 
 - Typing:
-
-    - WeakKeyDictionary not supported by mypy
     - WeakSet missing from mypy
     - Typing of:
 

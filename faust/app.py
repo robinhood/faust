@@ -2,6 +2,7 @@
 import asyncio
 import faust
 import sys
+import typing
 from collections import OrderedDict
 from typing import (
     Any, Awaitable, Callable, ClassVar, Iterator, Mapping, MutableMapping,
@@ -39,7 +40,10 @@ APP_REPR = """
 <{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
 """.strip()
 
-TASK_TO_APP: WeakKeyDictionary = WeakKeyDictionary()
+if typing.TYPE_CHECKING:
+    # TODO mypy does not recognize WeakKeyDictionary as a MutableMapping
+    TASK_TO_APP: WeakKeyDictionary[asyncio.Task, AppT]
+TASK_TO_APP = WeakKeyDictionary()
 
 logger = get_logger(__name__)
 

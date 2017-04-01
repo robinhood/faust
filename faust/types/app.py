@@ -1,6 +1,8 @@
 import abc
-import weakref
-from typing import Any, Awaitable, Optional, Type, Union
+import asyncio
+import typing
+from typing import Any, Awaitable, Optional, Set, Type, Union
+from weakref import WeakKeyDictionary
 from .codecs import CodecArg
 from .core import K, V, TaskArg
 from .coroutines import StreamCoroutine
@@ -47,7 +49,8 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
 
-    task_to_consumers: weakref.WeakKeyDictionary
+    if typing.TYPE_CHECKING:
+        task_to_consumers: WeakKeyDictionary[asyncio.Task, Set[ConsumerT]]
 
     @classmethod
     @abc.abstractmethod
