@@ -1,10 +1,11 @@
 """Streams."""
 import asyncio
+import faust
 import re
 import reprlib
 from collections import OrderedDict
 from typing import (
-    Any, AsyncIterator, Awaitable, Dict, List,
+    Any, AsyncIterator, Awaitable, Callable, Dict, List,
     Mapping, MutableMapping, MutableSequence, Pattern,
     Sequence, Tuple, Type, Union, cast
 )
@@ -85,7 +86,7 @@ logger = get_logger(__name__)
 #   - In this app.stream signature you see that the stream only accepts a
 #     single Topic description
 #
-#   - The fact that a Stream can consume from multiple Topic description is
+#   - The fact that a Stream can consume from multiple Topic descriptions is
 #     an internal detail for the implementation of joins:
 #
 #      # Two streams can be combined:
@@ -168,6 +169,7 @@ class Stream(StreamT, Service):
                  processors: StreamProcessorMap = None,
                  coroutines: StreamCoroutineMap = None,
                  children: List[StreamT] = None,
+                 on_start: Callable = None,
                  join_strategy: JoinT = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -179,6 +181,7 @@ class Stream(StreamT, Service):
         self._processors = processors or {}
         self._consumers = OrderedDict()
         self._coroutines = coroutines or {}
+        self._on_start = on_start
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
@@ -195,12 +198,21 @@ class Stream(StreamT, Service):
     def on_bind(self, app: AppT) -> None:
         ...
 
+    def add_processor(self, topic: Topic, processor: Processor) -> None:
+        try:
+            procs = self._processors[topic]
+        except KeyError:
+            procs = self._processors[topic] = []
+        procs.append(processor)
+
     def info(self) -> Mapping[str, Any]:
         return {
+            'app': self.app,
             'name': self.name,
             'topics': self.topics,
             'processors': self._processors,
             'coroutines': self._coroutines,
+            'on_start': self._on_start,
             'loop': self.loop,
             'children': self.children,
         }
@@ -225,8 +237,15 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
-    async def through(self, topic: Union[str, Topic]) -> AsyncIterator[Event]:
-        return primitives.through(self, topic)
+    def through(self, topic: Union[str, Topic]) -> StreamT:
+        if isinstance(topic, str):
+            topic = faust.topic(topic)
+
+        async def forwarder(event: Event) -> Event:
+            await event.forward(topic)
+            return event
+        self.add_processor(topic, forwarder)
+        return self.clone(topics=[topic], on_start=self.start)
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -259,6 +278,7 @@ class Stream(StreamT, Service):
         on_done = self.on_done
 
         async def on_message(consumer: ConsumerT, message: Message) -> None:
+            k = v = None
             topic = get_topic(message.topic)
             try:
                 k = await loads_key(topic.key_type, message.key)
@@ -321,6 +341,8 @@ class Stream(StreamT, Service):
     async def on_start(self) -> None:
         if self.app is None:
             raise RuntimeError('Cannot start stream not bound to app.')
+        if self._on_start:
+            await self._on_start()
         self._compile_pattern()
         self._on_message = self._compile_message_handler()
         self._consumer = self._create_consumer()
