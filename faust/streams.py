@@ -10,7 +10,6 @@ from typing import (
     Sequence, Tuple, Type, Union, cast
 )
 from . import joins
-from . import primitives
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
 from .types.transports import ConsumerCallback, ConsumerT
 from .types.coroutines import CoroCallbackT
@@ -20,6 +19,7 @@ from .types.streams import (
     Processor, StreamCoroutine, StreamCoroutineMap,
     StreamProcessorMap, StreamT,
 )
+from .utils.aiter import aenumerate
 from .utils.coroutines import wrap_callback
 from .utils.logging import get_logger
 from .utils.services import Service
@@ -246,6 +246,10 @@ class Stream(StreamT, Service):
             return event
         self.add_processor(topic, forwarder)
         return self.clone(topics=[topic], on_start=self.start)
+
+    def enumerate(self,
+                  start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
+        return aenumerate(self, start)
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))

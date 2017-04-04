@@ -29,7 +29,7 @@ request_topic = faust.topic(topic, value_type=Request)
 
 
 async def send_requests(app, n=1000):
-    while 1:
+    for i in range(10):
         time_start = monotonic()
         for i in range(n):
             await app.send(request_topic, key=None, value=Request(
@@ -37,26 +37,27 @@ async def send_requests(app, n=1000):
                 time_start=monotonic(),
             ), wait=True)
         print('PRODUCED {}: {}'.format(n, monotonic() - time_start))
-        asyncio.sleep(1)
 
 
 async def process_requests(app, n=1000):
-    i, time_start = 0, None
+    i, j, time_start = 0, 0, None
     s = app.stream(request_topic)
-    async for request in s:
+    async for i, request in s.enumerate():
         i += 1
+        if time_start is None:
+            time_start = monotonic()
         assert request.id
         if not i % n:
-            if time_start is None:
-                time_start = monotonic()
-            else:
-                print('CONSUMED {}: {}'.format(n, monotonic() - time_start))
-                time_start = monotonic()
+            print('CONSUMED {}: {}'.format(n, monotonic() - time_start))
+            time_start = monotonic()
+            j += 1
+            if j > 10:
+                break
 
 
 async def main():
+    await send_requests(app)
     app.add_task(process_requests(app))
-    app.add_task(send_requests(app))
 
 
 if __name__ == '__main__':
