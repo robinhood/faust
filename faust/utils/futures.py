@@ -1,24 +1,15 @@
 """Async I/O Future utilities."""
 import asyncio
 from collections import Sized, deque
-from typing import Any, AsyncIterator, Awaitable, Callable
+from typing import Any, Awaitable, Callable
 from .services import Service
 from ..types import TaskArg
 
-__all__ = ['Group', 'anext', 'done_future']
+__all__ = ['Group', 'done_future']
 
 TaskStartedHandler = Callable[[asyncio.Task], Awaitable]
 TaskStoppedHandler = Callable[[asyncio.Task], Awaitable]
 TaskErrorHandler = Callable[[asyncio.Task, Exception], Awaitable]
-
-
-def anext(it: AsyncIterator, *default: Any) -> Any:
-    if default:
-        try:
-            return it.__anext__()
-        except StopAsyncIteration:
-            return default[0]
-    return it.__anext__()
 
 
 def done_future(result: Any = None, *,
