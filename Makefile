@@ -1,6 +1,6 @@
 PROJ=faust
 PGPIDENT="Celery Security Team"
-PYTHON=python
+PYTHON=python3.6
 PYTEST=py.test
 GIT=git
 TOX=tox
@@ -139,3 +139,13 @@ dist: readme contrib clean-dist build
 
 typecheck:
 	$(PYTHON) -m mypy $(PROJ)
+
+.PHONY: requirements
+requirements:
+	pip install --upgrade pip;\
+	for f in `ls requirements/` ; do pip install -r requirements/$$f ; done
+
+.PHONY: clean-requirements
+clean-requirements:
+	pip freeze | xargs pip uninstall -y
+	$(MAKE) requirements
