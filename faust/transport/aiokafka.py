@@ -61,7 +61,7 @@ class Consumer(base.Consumer):
         # XXX pattern does not work :/
         self._consumer.subscribe(
             topics=pattern.split('|'),
-            listener=self._rebalance_listener,
+            #listener=self._rebalance_listener,
         )
 
     async def on_stop(self) -> None:
