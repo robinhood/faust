@@ -13,7 +13,7 @@ from weakref import WeakKeyDictionary, WeakSet  # type: ignore
 from . import constants
 from . import transport
 from .codecs import loads
-from .exceptions import KeyDecodeError, ValueDecodeError
+from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
 from .types import CodecArg, K, Message, Request, TaskArg, Topic, V
 from .types.app import AppT, AsyncSerializerT
 from .types.coroutines import StreamCoroutine
@@ -63,6 +63,9 @@ class AppService(Service):
             await _stream.maybe_start()
 
     async def _start_tasks(self) -> None:
+        if not len(self.app._tasks):
+            raise ImproperlyConfigured(
+                'Attempting to start app that has no tasks')
         await self.app._tasks.start()
         # wait for tasks to finish, this may run forever since
         # stream processing tasks do not end (them infinite!)
