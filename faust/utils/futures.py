@@ -95,4 +95,8 @@ class Group(Service, Sized):
                 await asyncio.sleep(1.0)
 
     def __len__(self) -> int:
-        return self._size
+        return len(self._starting) + self._size
+
+    def _repr_info(self) -> str:
+        return 'starting={!r} running={!r}'.format(
+            self._starting, self._running)
