@@ -173,6 +173,7 @@ class Stream(StreamT, Service):
                  join_strategy: JoinT = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
+        # WARNING: App might be None here, only use the app in .bind, .on_bind
         self.app = app
         self.name = name
         if not isinstance(topics, MutableSequence):
@@ -196,10 +197,15 @@ class Stream(StreamT, Service):
 
     def bind(self, app: AppT) -> StreamT:
         """Create a new clone of this stream that is bound to an app."""
-        stream = self.clone(name=app.new_stream_name(), app=app)
-        app.add_source(stream)
+        return self.clone()._bind(app)
+
+    def _bind(self, app: AppT) -> StreamT:
+        """Bind this stream to specific app."""
+        self.app = app
+        self.name = app.new_stream_name()
+        app.add_source(self)
         self.on_bind(app)
-        return stream
+        return self
 
     def on_bind(self, app: AppT) -> None:
         ...
@@ -224,7 +230,10 @@ class Stream(StreamT, Service):
         }
 
     def clone(self, **kwargs: Any) -> StreamT:
-        return self.__class__(**{**self.info(), **kwargs})
+        s = self.__class__(**{**self.info(), **kwargs})
+        if self.app:
+            return s._bind(self.app)  # bind new stream to app
+        return s
 
     def combine(self, *nodes: StreamT, **kwargs: Any) -> StreamT:
         all_nodes = cast(Tuple[StreamT, ...], (self,)) + nodes
@@ -245,14 +254,35 @@ class Stream(StreamT, Service):
 
     def through(self, topic: Union[str, Topic]) -> StreamT:
         if isinstance(topic, str):
-            topic = faust.topic(topic)
+            # find out the key_type/value_type from topic in this stream
+            # make sure it's the same for all topics.
+            key_type, value_type = self._get_uniform_topic_type()
+            topic = faust.topic(
+                topic,
+                key_type=key_type,
+                value_type=value_type,
+            )
         topic = cast(Topic, topic)
 
         async def forwarder(event: Event) -> Event:
             await event.forward(topic)
             return event
-        self.add_processor(topic, forwarder)
+        for _topic in self.topics:
+            self.add_processor(_topic, forwarder)
         return self.clone(topics=[topic], on_start=self.start)
+
+    def _get_uniform_topic_type(self):
+        key_type: Type = None
+        value_type: Type = None
+        for topic in self.topics:
+            if key_type is None:
+                key_type = topic.key_type
+            else:
+                assert topic.key_type is key_type
+            if value_type is None:
+                value_type = topic.value_type
+                assert topic.value_type is value_type
+        return key_type, value_type
 
     def enumerate(self,
                   start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
@@ -407,7 +437,6 @@ class Stream(StreamT, Service):
 
 
 class StreamManager(StreamManagerT, Service):
-    consumer: ConsumerT
 
     #: Fast index to see if stream is registered.
     _streams: Set[StreamT]
