@@ -9,17 +9,31 @@ class Withdrawal(faust.Record, serializer='json'):
     amount: float
 
 
-topic = faust.topic('f-simple', value_type=Withdrawal)
+topic = faust.topic('mytopic', value_type=Withdrawal)
+
+
+# -- Stream is coroutine
+
+async def combine_withdrawals(it):
+    while 1:
+        eventA = await it.next()
+        try:
+            eventB = await asyncio.wait_for(it.next(), 2.0)
+        except asyncio.TimeoutError:
+            yield eventA
+        else:
+            yield eventA.derive(amount=eventA.amount + eventB.amount)
 
 
 async def find_large_withdrawals(app):
-    async for withdrawal in app.stream(topic):
-        print('Withdrawal: %r' % (withdrawal,))
+    withdrawals = app.stream(topic, combine_withdrawals)
+    async for withdrawal in withdrawals.through('foo'):
+        print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
 
 
-app = faust.App('f-simple', url='kafka://localhost:9092')
+app = faust.App('myid', url='kafka://localhost:9092')
 
 
 async def _publish_withdrawals():
