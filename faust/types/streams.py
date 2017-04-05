@@ -73,6 +73,10 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
+    def _bind(self, app: AppT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
     def info(self) -> Mapping[str, Any]:
         ...
 
