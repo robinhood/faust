@@ -14,6 +14,7 @@ from . import constants
 from . import transport
 from .codecs import loads
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
+from .streams import StreamManager
 from .types import CodecArg, K, Message, Request, TaskArg, Topic, V
 from .types.app import AppT, AsyncSerializerT
 from .types.coroutines import StreamCoroutine
@@ -56,6 +57,7 @@ class AppService(Service):
 
     async def on_start(self) -> None:
         await self._start_streams()
+        await self.app.streams.start()
         await self._start_tasks()
 
     async def _start_streams(self) -> None:
@@ -74,6 +76,7 @@ class AppService(Service):
     async def on_stop(self) -> None:
         await self._stop_streams()
         await self._stop_producer()
+        await self.app.streams.stop()
 
     async def _stop_streams(self) -> None:
         # stop all streams in reversed order.
@@ -171,6 +174,7 @@ class App(AppT, ServiceProxy):
         self._serializer_override = {}
         self._sensors = set()
         self.task_to_consumers = WeakKeyDictionary()
+        self.streams = StreamManager(app=self)
 
     def register_consumer(self, consumer: ConsumerT) -> None:
         task = asyncio.Task.current_task(loop=self.loop)
@@ -346,15 +350,21 @@ class App(AppT, ServiceProxy):
     def remove_sensor(self, sensor: SensorT) -> None:
         self._sensors.remove(sensor)
 
-    async def on_event_in(
-            self, consumer_id: int, offset: int, event: Event) -> None:
+    async def on_message_in(
+            self,
+            consumer_id: int,
+            offset: int,
+            message: Message) -> None:
         for _sensor in self._sensors:
-            await _sensor.on_event_in(consumer_id, offset, event)
+            await _sensor.on_message_in(consumer_id, offset, message)
 
-    async def on_event_out(
-            self, consumer_id: int, offset: int, event: Event = None) -> None:
+    async def on_message_out(
+            self,
+            consumer_id: int,
+            offset: int,
+            message: Message = None) -> None:
         for _sensor in self._sensors:
-            await _sensor.on_event_out(consumer_id, offset, event)
+            await _sensor.on_message_out(consumer_id, offset, message)
 
     def add_source(self, stream: StreamT) -> None:
         """Register existing stream."""
@@ -363,6 +373,7 @@ class App(AppT, ServiceProxy):
             raise ValueError(
                 'Stream with name {0.name!r} already exists.'.format(stream))
         self._streams[stream.name] = stream
+        self.streams.add_stream(stream)
 
     def new_stream_name(self) -> str:
         """Create a new name for a stream."""

@@ -2,7 +2,6 @@ import abc
 import asyncio
 import typing
 from typing import Any, Callable, ClassVar, Awaitable, Optional, Type
-from .models import Event
 from .services import ServiceT
 from .tuples import Message, Topic
 
@@ -13,7 +12,7 @@ else:
 
 __all__ = [
     'ConsumerCallback',
-    'EventRefT',
+    'MessageRefT',
     'ConsumerT',
     'ProducerT',
     'TransportT',
@@ -25,7 +24,7 @@ __all__ = [
 ConsumerCallback = Callable[['ConsumerT', Message], Awaitable]
 
 
-class EventRefT(metaclass=abc.ABCMeta):
+class MessageRefT(metaclass=abc.ABCMeta):
     consumer_id: int
     offset: int
 
@@ -54,11 +53,11 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def track_event(self, event: Event, offset: int) -> None:
+    def track_message(self, message: Message, offset: int) -> None:
         ...
 
     @abc.abstractmethod
-    def on_event_ready(self, ref: EventRefT) -> None:
+    def on_message_ready(self, ref: MessageRefT) -> None:
         ...
 
 

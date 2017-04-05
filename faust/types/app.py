@@ -9,7 +9,7 @@ from .coroutines import StreamCoroutine
 from .models import ModelT, Event
 from .services import ServiceT
 from .sensors import SensorT
-from .streams import StreamT, TopicProcessorSequence
+from .streams import StreamT, StreamManagerT, TopicProcessorSequence
 from .transports import ConsumerT, TransportT
 from .tuples import Message, Topic
 
@@ -48,6 +48,8 @@ class AppT(ServiceT):
     replication_factor: int
     avro_registry_url: str
     store: str
+
+    streams: StreamManagerT
 
     if typing.TYPE_CHECKING:
         task_to_consumers: WeakKeyDictionary[asyncio.Task, Set[ConsumerT]]
@@ -112,13 +114,19 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_event_in(
-            self, consumer_id: int, offset: int, event: Event) -> None:
+    async def on_message_in(
+            self,
+            consumer_id: int,
+            offset: int,
+            message: Message) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_event_out(
-            self, consumer_id: int, offset: int, event: Event = None) -> None:
+    async def on_message_out(
+            self,
+            consumer_id: int,
+            offset: int,
+            message: Message = None) -> None:
         ...
 
     @property

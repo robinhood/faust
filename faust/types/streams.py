@@ -2,13 +2,14 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterator, Callable, List, Mapping,
+    Any, AsyncIterator, Awaitable, Callable, List, Mapping,
     MutableMapping, MutableSequence, Sequence, TypeVar, Union,
 )
-from .core import K, V
+from .core import K
 from .coroutines import CoroCallbackT, StreamCoroutine
 from .models import Event, FieldDescriptorT
 from .services import ServiceT
+from .transports import ConsumerT
 from .tuples import Message, Topic
 
 if typing.TYPE_CHECKING:
@@ -24,12 +25,13 @@ __all__ = [
     'StreamProcessorMap',
     'StreamCoroutineMap',
     'StreamT',
+    'StreamManagerT',
 ]
 
 # Used for typing StreamT[Withdrawal]
 _T = TypeVar('_T')
 
-Processor = Callable[[Event], Event]
+Processor = Callable[[Event], Union[Event, Awaitable[Event]]]
 TopicProcessorSequence = Sequence[Processor]
 StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
 StreamCoroutineMap = MutableMapping[Topic, CoroCallbackT]
@@ -83,7 +85,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def through(self, topic: Union[str, Topic]) -> AsyncIterator[V]:
+    def through(self, topic: Union[str, Topic]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -153,4 +155,17 @@ class StreamT(AsyncIterator[_T], ServiceT):
 
     @abc.abstractmethod
     async def __anext__(self) -> Any:
+        ...
+
+
+class StreamManagerT(ServiceT):
+
+    consumer: ConsumerT
+
+    @abc.abstractmethod
+    def add_stream(self, stream: StreamT):
+        ...
+
+    @abc.abstractmethod
+    async def update(self):
         ...

@@ -6,14 +6,13 @@ from typing import (
     Any, Awaitable, Callable, ClassVar,
     Iterator, Optional, List, Sequence, Type, cast,
 )
-from ..types import AppT, TopicPartition
-from ..types.models import Event
+from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
-    ConsumerCallback, ConsumerT, EventRefT, ProducerT, TransportT,
+    ConsumerCallback, ConsumerT, MessageRefT, ProducerT, TransportT,
 )
 from ..utils.services import Service
 
-__all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
+__all__ = ['MessageRef', 'Consumer', 'Producer', 'Transport']
 
 # The Transport is responsible for:
 #
@@ -24,12 +23,16 @@ __all__ = ['EventRef', 'Consumer', 'Producer', 'Transport']
 #
 #   - Holds reference to the transport that created it
 #   - ... and the app via ``self.transport.app``.
-#   - Has a callback that usually points back to ``Stream.on_message``.
+#   - Has a callback that usually points back to ``StreamManager.on_message``.
 #   - Receives messages and calls the callback for every message received.
-#   - The messages are deserialized first, so the Consumer also handles that.
-#   - Keep track of the message and it's acked/unacked status.
-#   - If automatic acks are enabled the message is acked when the Event goes
+#   - Keeps track of the message and it's acked/unacked status.
+#   - If automatic acks are enabled the message is acked when the Message goes
 #     out of scope (like any variable using reference counting).
+#   - The StreamManager forwards the message to all Streams that subscribes
+#     to the topic the message was sent to.
+#      - Each individual Stream will deserialize the message and create
+#        one Event instance per stream.  The message goes out of scope (and so
+#        acked), when all events referencing the message is also out of scope.
 #   - Commits the offset at an interval
 #      - The current offset is based on range of the messages acked.
 #
@@ -46,19 +49,19 @@ PartitionsRevokedCallback = Callable[[Sequence[TopicPartition]], None]
 PartitionsAssignedCallback = Callable[[Sequence[TopicPartition]], None]
 
 
-class EventRef(weakref.ref, EventRefT):
-    """Weak-reference to :class:`ModelT`.
+class MessageRef(weakref.ref, MessageRefT):
+    """Weak-reference to :class:`~faust.types.Message`.
 
-    Remembers the offset of the event, even after event out of scope.
+    Remembers the offset of the message, even after message is out of scope.
     """
 
-    # Used for tracking when events go out of scope.
+    # Used for tracking when messages go out of scope.
 
-    def __init__(self, event: Event,
+    def __init__(self, message: Message,
                  callback: Callable = None,
                  offset: int = None,
                  consumer_id: int = None) -> None:
-        super().__init__(event, callback)
+        super().__init__(message, callback)
         self.offset = offset
         self.consumer_id = consumer_id
 
@@ -72,7 +75,7 @@ class Consumer(ConsumerT, Service):
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
 
     _app: AppT
-    _dirty_events: List[EventRefT] = None
+    _dirty_messages: List[MessageRefT] = None
     _acked: List[int] = None
     _current_offset: int = None
 
@@ -91,13 +94,13 @@ class Consumer(ConsumerT, Service):
         self._app = self.transport.app
         self.callback = callback
         self.autoack = autoack
-        self._on_event_in = self._app.on_event_in
-        self._on_event_out = self._app.on_event_out
+        self._on_message_in = self._app.on_message_in
+        self._on_message_out = self._app.on_message_out
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
-        self._dirty_events = []
+        self._dirty_messages = []
         self._acked = []
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
@@ -107,23 +110,23 @@ class Consumer(ConsumerT, Service):
         self._commit_handler_fut = asyncio.ensure_future(
             self._commit_handler(), loop=self.loop)
 
-    def track_event(self, event: Event, offset: int) -> None:
+    def track_message(self, message: Message, offset: int) -> None:
         _id = self.id
-        # keep weak reference to event, to be notified when out of scope.
-        self._dirty_events.append(
-            EventRef(event, self.on_event_ready,
-                     offset=offset, consumer_id=self.id))
+        # keep weak reference to message, to be notified when out of scope.
+        self._dirty_messages.append(
+            MessageRef(message, self.on_message_ready,
+                       offset=offset, consumer_id=self.id))
         # call sensors
         asyncio.ensure_future(
-            self._on_event_in(_id, offset, event),
+            self._on_message_in(_id, offset, message),
             loop=self.loop)
 
-    def on_event_ready(self, ref: EventRefT) -> None:
+    def on_message_ready(self, ref: MessageRefT) -> None:
         if self.autoack:
             self._acked.append(ref.offset)
             self._acked.sort()
         asyncio.ensure_future(
-            self._on_event_out(ref.consumer_id, ref.offset, None),
+            self._on_message_out(ref.consumer_id, ref.offset, None),
             loop=self.loop)
 
     async def start(self) -> None:

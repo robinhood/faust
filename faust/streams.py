@@ -3,11 +3,11 @@ import asyncio
 import faust
 import re
 import reprlib
-from collections import OrderedDict
+from collections import defaultdict
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Dict, List,
     Mapping, MutableMapping, MutableSequence, Pattern,
-    Sequence, Tuple, Type, Union, cast
+    Set, Sequence, Tuple, Type, Union, cast
 )
 from . import joins
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
@@ -17,7 +17,7 @@ from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
 from .types.streams import (
     Processor, StreamCoroutine, StreamCoroutineMap,
-    StreamProcessorMap, StreamT,
+    StreamProcessorMap, StreamT, StreamManagerT,
 )
 from .utils.aiter import aenumerate
 from .utils.coroutines import wrap_callback
@@ -141,9 +141,9 @@ def topic(*topics: str,
 
 class Stream(StreamT, Service):
 
-    _consumers: MutableMapping[Topic, ConsumerT] = None
-    _processors: StreamProcessorMap = None
+    _processors: MutableMapping[Topic, MutableSequence[Processor]] = None
     _coroutines: StreamCoroutineMap = None
+    _topicmap: MutableMapping[str, Topic] = None
 
     @classmethod
     def from_topic(cls, topic: Topic,
@@ -178,14 +178,20 @@ class Stream(StreamT, Service):
         if not isinstance(topics, MutableSequence):
             topics = list(topics)
         self.topics = cast(MutableSequence, topics)
-        self._processors = processors or {}
-        self._consumers = OrderedDict()
+        self._processors = {}
+        if processors:
+            # Convert immutable processor list to mutable lists.
+            for _topic, _processors in processors.items():
+                if not isinstance(_processors, MutableSequence):
+                    _processors = list(_processors)
+                self._processors[_topic] = _processors
         self._coroutines = coroutines or {}
         self._on_start = on_start
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         self._on_message: ConsumerCallback = None
+        self._topicmap = self._build_topicmap(self.topics)
         super().__init__(loop=loop)
 
     def bind(self, app: AppT) -> StreamT:
@@ -240,6 +246,7 @@ class Stream(StreamT, Service):
     def through(self, topic: Union[str, Topic]) -> StreamT:
         if isinstance(topic, str):
             topic = faust.topic(topic)
+        topic = cast(Topic, topic)
 
         async def forwarder(event: Event) -> Event:
             await event.forward(topic)
@@ -293,8 +300,6 @@ class Stream(StreamT, Service):
                     v = await loads_value(topic.value_type, k, message)
                 except Exception as exc:
                     await self.on_value_decode_error(exc, message)
-                else:
-                    consumer.track_event(v, message.offset)
             processors = get_processors(topic)
             v = await process(k, v)
             if processors is not None:
@@ -329,9 +334,11 @@ class Stream(StreamT, Service):
                         coroutine: StreamCoroutine = None) -> None:
         if topic not in self.topics:
             self.topics.append(topic)
+        if not isinstance(processors, MutableSequence):
+            processors = list(processors)
         self._processors[topic] = processors
         self._coroutines[topic] = wrap_callback(coroutine, loop=self.loop)
-        await self._update_subscription()
+        await self.app.streams.update()
 
     async def unsubscribe(self, topic: Topic) -> None:
         try:
@@ -340,35 +347,16 @@ class Stream(StreamT, Service):
             pass
         self._processors.pop(topic, None)
         self._coroutines.pop(topic, None)
-        await self._update_subscription()
+        await self.app.streams.update()
 
     async def on_start(self) -> None:
         if self.app is None:
             raise RuntimeError('Cannot start stream not bound to app.')
+        self._on_message = self._compile_message_handler()
         if self._on_start:
             await self._on_start()
-        self._compile_pattern()
-        self._on_message = self._compile_message_handler()
-        self._consumer = self._create_consumer()
-        await self._consumer.subscribe(self._pattern)
-        await self._consumer.start()
-
-    async def _update_subscription(self):
-        self._compile_pattern()
-        await self._consumer.subscribe(self._pattern)
-
-    def _on_partitions_assigned(self,
-                                assigned: Sequence[TopicPartition]) -> None:
-        ...
-
-    def _on_partitions_revoked(self,
-                               revoked: Sequence[TopicPartition]) -> None:
-        ...
 
     async def on_stop(self) -> None:
-        for consumer in reversed(list(self._consumers.values())):
-            await consumer.stop()
-        self._consumers.clear()
         for coroutine in self._coroutines.values():
             await coroutine.join()
 
@@ -381,27 +369,6 @@ class Stream(StreamT, Service):
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    def _create_consumer(self) -> ConsumerT:
-        return self.app.transport.create_consumer(
-            callback=self._on_message,
-            on_partitions_revoked=self._on_partitions_revoked,
-            on_partitions_assigned=self._on_partitions_assigned
-        )
-
-    def _compile_pattern(self):
-        self._topicmap = self._build_topicmap(self.topics)
-        self._pattern = '|'.join(self._topicmap)
-
-    def _build_topicmap(
-            self, topics: Sequence[Topic]) -> Mapping[str, Topic]:
-        return {
-            s: topic
-            for topic in topics for s in self._subtopics_for(topic)
-        }
-
-    def _subtopics_for(self, topic: Topic) -> Sequence[str]:
-        return topic.pattern.pattern if topic.pattern else topic.topics
-
     def __and__(self, other: StreamT) -> StreamT:
         return self.combine(self, other)
 
@@ -412,7 +379,7 @@ class Stream(StreamT, Service):
         return self
 
     def __next__(self) -> Event:
-        raise NotImplementedError('Stream are asynchronous use __aiter__')
+        raise NotImplementedError('Streams are asynchronous: use __aiter__')
 
     async def __aiter__(self):
         await self.maybe_start()
@@ -421,9 +388,95 @@ class Stream(StreamT, Service):
     async def __anext__(self) -> Event:
         return cast(Event, await self.outbox.get())
 
+    def _build_topicmap(
+            self, topics: Sequence[Topic]) -> MutableMapping[str, Topic]:
+        return {
+            s: topic
+            for topic in topics for s in self._subtopics_for(topic)
+        }
+
+    def _subtopics_for(self, topic: Topic) -> Sequence[str]:
+        return topic.pattern.pattern if topic.pattern else topic.topics
+
     def _repr_info(self) -> str:
         if self.children:
             return reprlib.repr(self.children)
         elif len(self.topics) == 1:
             return reprlib.repr(self.topics[0])
         return reprlib.repr(self.topics)
+
+
+class StreamManager(StreamManagerT, Service):
+    consumer: ConsumerT
+
+    #: Fast index to see if stream is registered.
+    _streams: Set[StreamT]
+
+    #: Map str topic to set of streams that should get a copy
+    #: of each message sent to that topic.
+    _topicmap: MutableMapping[str, Set[StreamT]]
+
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        self.app = app
+        self.consumer = None
+        self._streams = set()
+        self._topicmap = defaultdict(set)
+        super().__init__(**kwargs)
+
+    def add_stream(self, stream: StreamT):
+        if stream in self._streams:
+            raise ValueError('Stream already registered with app')
+        self._streams.add(stream)
+
+    async def update(self):
+        self._compile_pattern()
+        await self.consumer.subscribe(self._pattern)
+
+    def _compile_message_handler(self) -> ConsumerCallback:
+        # topic str -> list of Stream
+        get_streams_for_topic = self._topicmap.__getitem__
+
+        async def on_message(consumer: ConsumerT, message: Message) -> None:
+            for stream in get_streams_for_topic(message.topic):
+                await stream._on_message(consumer, message)  # type: ignore
+        return on_message
+
+    async def on_start(self) -> None:
+        asyncio.ensure_future(self._delayed_start(), loop=self.loop)
+
+    async def _delayed_start(self) -> None:
+        # wait for tasks to start streams
+        await asyncio.sleep(2.0, loop=self.loop)
+
+        # then register topics etc.
+        self._compile_pattern()
+        self._on_message = self._compile_message_handler()
+        self.consumer = self._create_consumer()
+        await self.consumer.subscribe(self._pattern)
+        await self.consumer.start()
+
+    async def on_stop(self) -> None:
+        if self.consumer:
+            await self.consumer.stop()
+
+    def _create_consumer(self) -> ConsumerT:
+        return self.app.transport.create_consumer(
+            callback=self._on_message,
+            on_partitions_revoked=self._on_partitions_revoked,
+            on_partitions_assigned=self._on_partitions_assigned
+        )
+
+    def _compile_pattern(self):
+        self._topicmap.clear()
+        for stream in self._streams:
+            for topic in stream._topicmap:
+                self._topicmap[topic].add(stream)
+        self._pattern = '|'.join(self._topicmap)
+
+    def _on_partitions_assigned(self,
+                                assigned: Sequence[TopicPartition]) -> None:
+        ...
+
+    def _on_partitions_revoked(self,
+                               revoked: Sequence[TopicPartition]) -> None:
+        ...

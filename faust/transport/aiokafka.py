@@ -70,11 +70,13 @@ class Consumer(base.Consumer):
     async def _drain_messages(self) -> None:
         callback = self.callback
         getone = self._consumer._fetcher.next_record
+        track_message = self.track_message
         should_stop = self._stopped.is_set
         try:
             while not should_stop():
-                message = await getone(())
-                await callback(self, cast(Message, message))
+                message = Message.from_message(await getone(()))
+                track_message(message, message.offset)
+                await callback(self, message)
         finally:
             self.set_shutdown()
 
