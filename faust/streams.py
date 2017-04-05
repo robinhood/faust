@@ -210,7 +210,17 @@ class Stream(StreamT, Service):
     def on_bind(self, app: AppT) -> None:
         ...
 
-    def add_processor(self, topic: Topic, processor: Processor) -> None:
+    def add_processor(self, processor: Processor,
+                      *,
+                      topics: Sequence[Topic] = None) -> None:
+        # adds to all topics by default.
+        if topics is None:
+            topics = self.topics
+        for topic in topics:
+            self._add_processor_to_topic(topic, processor)
+
+    def _add_processor_to_topic(self,
+                                topic: Topic, processor: Processor) -> None:
         try:
             procs = self._processors[topic]
         except KeyError:
@@ -267,8 +277,7 @@ class Stream(StreamT, Service):
         async def forwarder(event: Event) -> Event:
             await event.forward(topic)
             return event
-        for _topic in self.topics:
-            self.add_processor(_topic, forwarder)
+        self.add_processor(forwarder)
         return self.clone(topics=[topic], on_start=self.start)
 
     def _get_uniform_topic_type(self):

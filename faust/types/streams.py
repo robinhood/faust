@@ -77,6 +77,12 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
+    def add_processor(self, processor: Processor,
+                      *,
+                      topics: Sequence[Topic] = None) -> None:
+        ...
+
+    @abc.abstractmethod
     def info(self) -> Mapping[str, Any]:
         ...
 
