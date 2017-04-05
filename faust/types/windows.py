@@ -29,6 +29,8 @@ class WindowT(metaclass=abc.ABCMeta):
 
 
 class WindowStoreT(metaclass=abc.ABCMeta):
+    window_strategy: WindowT
+
     def get(self, key: K, timestamp: float) -> List[WindowedEvent]:
         """Get windowed events for this key for the given timestamp.
            In the case of aggregates, this returns all key-value pairs for

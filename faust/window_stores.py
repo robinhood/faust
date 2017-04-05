@@ -7,10 +7,10 @@ class AggregationWindowStore(WindowStoreT):
     """Events could fall into 1 or many discrete time windows
     """
     _store: MutableMapping[Tuple[K, WindowRange], WindowedEvent]
-    window_strategy: WindowT
 
-    def __init__(self) -> None:
+    def __init__(self, window_strategy: WindowT) -> None:
         self._store = {}
+        self.window_strategy = window_strategy
 
     def get(self, key: K, timestamp: float) -> List[WindowedEvent]:
         windows = self.window_strategy.windows(timestamp)
@@ -28,10 +28,10 @@ class AggregationWindowStore(WindowStoreT):
 
 class SlidingJoinWindowStore(WindowStoreT):
     _store: MutableMapping[K, List[Event]]
-    window_strategy: WindowT
 
-    def __init__(self) -> None:
+    def __init__(self, window_strategy) -> None:
         self._store = defaultdict(List)
+        self.window_strategy = window_strategy
 
     def get(self, key: K, timestamp: float) -> List[WindowedEvent]:
         window = self.window_strategy.windows(timestamp)[0]
