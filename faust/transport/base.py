@@ -129,10 +129,6 @@ class Consumer(ConsumerT, Service):
             self._on_message_out(ref.consumer_id, ref.offset, None),
             loop=self.loop)
 
-    async def start(self) -> None:
-        self._app.register_consumer(self)
-        await super().start()
-
     async def _commit_handler(self) -> None:
         asyncio.sleep(self.commit_interval)
         while 1:

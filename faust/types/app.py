@@ -1,8 +1,5 @@
 import abc
-import asyncio
-import typing
-from typing import Any, Awaitable, Optional, Set, Type, Union
-from weakref import WeakKeyDictionary
+from typing import Any, Awaitable, Optional, Type, Union
 from .codecs import CodecArg
 from .core import K, V, TaskArg
 from .coroutines import StreamCoroutine
@@ -10,7 +7,7 @@ from .models import ModelT, Event
 from .services import ServiceT
 from .sensors import SensorT
 from .streams import StreamT, StreamManagerT, TopicProcessorSequence
-from .transports import ConsumerT, TransportT
+from .transports import TransportT
 from .tuples import Message, Topic
 
 __all__ = ['AsyncSerializerT', 'AppT']
@@ -51,16 +48,9 @@ class AppT(ServiceT):
 
     streams: StreamManagerT
 
-    if typing.TYPE_CHECKING:
-        task_to_consumers: WeakKeyDictionary[asyncio.Task, Set[ConsumerT]]
-
     @classmethod
     @abc.abstractmethod
     def current_app(cls):
-        ...
-
-    @abc.abstractmethod
-    def register_consumer(self, consumer: ConsumerT) -> None:
         ...
 
     @abc.abstractmethod

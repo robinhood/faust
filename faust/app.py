@@ -9,7 +9,7 @@ from typing import (
     Optional, Sequence, Set, Union, Type, cast,
 )
 from itertools import count
-from weakref import WeakKeyDictionary, WeakSet  # type: ignore
+from weakref import WeakKeyDictionary
 from . import constants
 from . import transport
 from .codecs import loads
@@ -21,7 +21,7 @@ from .types.coroutines import StreamCoroutine
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
 from .types.streams import Processor, StreamT
-from .types.transports import ConsumerT, ProducerT, TransportT
+from .types.transports import ProducerT, TransportT
 from .utils.compat import want_bytes
 from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
@@ -173,16 +173,7 @@ class App(AppT, ServiceProxy):
         self._tasks_group = None
         self._serializer_override = {}
         self._sensors = set()
-        self.task_to_consumers = WeakKeyDictionary()
         self.streams = StreamManager(app=self)
-
-    def register_consumer(self, consumer: ConsumerT) -> None:
-        task = asyncio.Task.current_task(loop=self.loop)
-        try:
-            c = self.task_to_consumers[task]
-        except KeyError:
-            c = self.task_to_consumers[task] = WeakSet()
-        c.add(consumer)
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -301,20 +292,10 @@ class App(AppT, ServiceProxy):
         _set(task, self)  # add to TASK_TO_APP mapping
 
     async def _on_task_error(self, task: asyncio.Task, exc: Exception) -> None:
-        await self._call_task_consumer_error_handlers(task, exc)
-
-    async def _call_task_consumer_error_handlers(
-            self, task: asyncio.Task, exc: Exception) -> None:
         try:
-            consumers = self.task_to_consumers[task]
-        except KeyError:
-            pass
-        else:
-            for consumer in consumers:
-                try:
-                    await consumer.on_task_error(exc)
-                except Exception as exc:
-                    logger.exception('Consumer error callback raised: %r', exc)
+            await self.streams.consumer.on_task_error(exc)
+        except Exception as exc:
+            logger.exception('Consumer error callback raised: %r', exc)
 
     async def _on_task_stopped(self, task: asyncio.Task) -> None:
         ...
