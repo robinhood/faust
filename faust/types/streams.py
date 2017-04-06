@@ -99,6 +99,10 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
+    def derive_topic(self, name: str) -> Topic:
+        ...
+
+    @abc.abstractmethod
     def join(self, *fields: FieldDescriptorT) -> 'StreamT':
         ...
 

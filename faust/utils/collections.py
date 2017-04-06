@@ -3,6 +3,8 @@ from typing import (
 )
 from collections import UserDict
 
+__all__ = ['FastUserDict', 'ManagedUserDict']
+
 
 class FastUserDict(UserDict):
 
@@ -27,7 +29,10 @@ class FastUserDict(UserDict):
 
     # Rest is fast versions of generic slow MutableMapping methods.
 
-    def update(self, *args, **kwargs) -> None:
+    def __contains__(self, key: Any) -> bool:
+        return key in self.data
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
         self.data.update(*args, **kwargs)
 
     def clear(self) -> None:
@@ -41,3 +46,42 @@ class FastUserDict(UserDict):
 
     def values(self) -> ValuesView:
         return self.data.values()
+
+
+class ManagedUserDict(FastUserDict):
+
+    def on_key_get(self, key: Any) -> None:
+        ...
+
+    def on_key_set(self, key: Any, value: Any) -> None:
+        ...
+
+    def on_key_del(self, key: Any) -> None:
+        ...
+
+    def on_clear(self) -> None:
+        ...
+
+    def __getitem__(self, key: Any) -> Any:
+        self.on_key_get(key)
+        return self.data[key]
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self.on_key_set(key, value)
+        self.data[key] = value
+
+    def __delitem__(self, key: Any) -> None:
+        self.on_key_del(key)
+        del self.data[key]
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        for d in args:
+            for key, value in d.items():
+                self.on_key_set(key, value)
+        for key, value in kwargs.items():
+            self.on_key_set(key, value)
+        self.data.update(*args, **kwargs)
+
+    def clear(self) -> None:
+        self.on_clear()
+        self.data.clear()

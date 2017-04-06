@@ -1,40 +1,24 @@
 """Tables (changelog stream)."""
-from typing import Any, Callable, ClassVar, Tuple, Type
+from typing import Any, ClassVar, Type
 from . import stores
 from .streams import Stream
-from .types import AppT, Event, K
-from .utils.collections import FastUserDict
+from .types import AppT, Event, Topic
+from .utils.collections import ManagedUserDict
 
-__all__ = ['Table', 'table']
-
-KVMapper = Callable[[K, Event], Tuple[K, Event]]
+__all__ = ['Table']
 
 
-class table:
-
-    def __init__(self, *,
-                 store: str = None,
-                 **kwargs: Any) -> None:
-        self.store = store
-        self.kwargs = kwargs
-
-    def __call__(self, fun: KVMapper) -> 'Table':
-        return Table(
-            store=self.store,
-            mapper=fun,
-            **self.kwargs)
-
-
-class Table(Stream, FastUserDict):
+class Table(Stream, ManagedUserDict):
     StateStore: ClassVar[Type] = None
 
+    changelog_topic: Topic
     _store: str
 
-    def __init__(self, *,
+    def __init__(self, store_name: str,
+                 *,
                  store: str = None,
-                 mapper: KVMapper = None,
                  **kwargs: Any) -> None:
-        self.mapper = mapper
+        self.store_name = store_name
         self._store = store
         super().__init__(**kwargs)
 
@@ -48,11 +32,19 @@ class Table(Stream, FastUserDict):
         else:
             url = self._store or self.app.store
             self.data = stores.by_url(url)(url, app, loop=self.loop)
+        self.changelog_topic = self.derive_topic(self._changelog_topic_name())
+
+    def on_key_set(self, key: Any, value: Any) -> None:
+        self.app.send(self.changelog_topic, key=key, value=value)
+
+    def on_key_del(self, key: Any) -> None:
+        self.app.send(self.changelog_topic, key=key, value=None)
 
     async def on_done(self, value: Event = None) -> None:
-        k: K = value.req.key
+        k = value.req.key
         v: Event = value
-        if self.mapper is not None:
-            k, v = self.mapper(k, v)
         self[k] = v
         super().on_done(value)  # <-- original value
+
+    def _changelog_topic_name(self):
+        return '{0.app.id}-{0.store_name}-changelog'

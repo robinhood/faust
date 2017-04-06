@@ -264,14 +264,7 @@ class Stream(StreamT, Service):
 
     def through(self, topic: Union[str, Topic]) -> StreamT:
         if isinstance(topic, str):
-            # find out the key_type/value_type from topic in this stream
-            # make sure it's the same for all topics.
-            key_type, value_type = self._get_uniform_topic_type()
-            topic = faust.topic(
-                topic,
-                key_type=key_type,
-                value_type=value_type,
-            )
+            topic = self.derive_topic(topic)
         topic = cast(Topic, topic)
 
         async def forwarder(event: Event) -> Event:
@@ -279,6 +272,16 @@ class Stream(StreamT, Service):
             return event
         self.add_processor(forwarder)
         return self.clone(topics=[topic], on_start=self.start)
+
+    def derive_topic(self, name: str) -> Topic:
+        # find out the key_type/value_type from topic in this stream
+        # make sure it's the same for all topics.
+        key_type, value_type = self._get_uniform_topic_type()
+        return faust.topic(
+            name,
+            key_type=key_type,
+            value_type=value_type,
+        )
 
     def _get_uniform_topic_type(self):
         key_type: Type = None

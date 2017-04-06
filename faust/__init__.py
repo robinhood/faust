@@ -36,7 +36,7 @@ from .app import App                         # noqa: E402
 from .models import Record                   # noqa: E402
 from .sensors import Sensor                  # noqa: E402
 from .streams import Stream, topic           # noqa: E402
-from .tables import Table, table             # noqa: E402
+from .tables import Table                    # noqa: E402
 from .types import Event                     # noqa: E402
 from .worker import Worker                   # noqa: E402
 
@@ -48,7 +48,6 @@ __all__ = [
     'Stream',
     'Table',
     'Worker',
-    'table',
     'topic',
     'use_uvloop',
 ]
