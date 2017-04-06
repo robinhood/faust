@@ -13,7 +13,11 @@ class FastUserDict(UserDict):
     # Mypy forces us to redefine these, for some reason:
 
     def __getitem__(self, key: Any) -> Any:
-        return self.data[key]
+        if not hasattr(self, '__missing__'):
+            return self.data[key]
+        if key in self.data:
+            return self.data[key]
+        return self.__missing__(key)  # type: ignore
 
     def __setitem__(self, key: Any, value: Any) -> None:
         self.data[key] = value
@@ -64,7 +68,7 @@ class ManagedUserDict(FastUserDict):
 
     def __getitem__(self, key: Any) -> Any:
         self.on_key_get(key)
-        return self.data[key]
+        return super().__getitem__(key)
 
     def __setitem__(self, key: Any, value: Any) -> None:
         self.on_key_set(key, value)

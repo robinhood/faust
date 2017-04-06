@@ -146,14 +146,14 @@ class Stream(StreamT, Service):
     _topicmap: MutableMapping[str, Topic] = None
 
     @classmethod
-    def from_topic(cls, topic: Topic,
+    def from_topic(cls, topic: Topic = None,
                    *,
                    coroutine: StreamCoroutine = None,
                    processors: Sequence[Processor] = None,
                    loop: asyncio.AbstractEventLoop = None,
                    **kwargs: Any) -> StreamT:
         return cls(
-            topics=[topic],
+            topics=[topic] if topic is not None else [],
             coroutines={
                 topic: wrap_callback(coroutine, loop=loop),
             } if coroutine else None,
@@ -192,8 +192,11 @@ class Stream(StreamT, Service):
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         self._on_message: ConsumerCallback = None
-        self._topicmap = self._build_topicmap(self.topics)
-        super().__init__(loop=loop)
+        if self.topics:
+            self._topicmap = self._build_topicmap(self.topics)
+        else:
+            self._topicmap = {}
+        Service.__init__(self, loop=loop)
 
     def bind(self, app: AppT) -> StreamT:
         """Create a new clone of this stream that is bound to an app."""

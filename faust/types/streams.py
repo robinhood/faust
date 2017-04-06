@@ -65,8 +65,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
                  join_strategy: JoinT = None,
                  app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        # need this to initialize Service.__init__ (!)
-        super().__init__(loop=loop)  # type: ignore
+        ...
 
     @abc.abstractmethod
     def bind(self, app: AppT) -> 'StreamT':

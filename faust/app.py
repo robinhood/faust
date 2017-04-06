@@ -3,10 +3,10 @@ import asyncio
 import faust
 import sys
 import typing
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Iterator, Mapping, MutableMapping,
-    Optional, Sequence, Set, Union, Type, cast,
+    Any, Awaitable, Callable, ClassVar, Deque, Iterator, Mapping,
+    MutableMapping, Optional, Sequence, Set, Union, Tuple, Type, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
@@ -21,6 +21,7 @@ from .types.coroutines import StreamCoroutine
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
 from .types.streams import Processor, StreamT
+from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
 from .utils.compat import want_bytes
 from .utils.futures import Group
@@ -35,6 +36,7 @@ __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
 DEFAULT_URL = 'kafka://localhost:9092'
 DEFAULT_STREAM_CLS = 'faust.Stream'
+DEFAULT_TABLE_CLS = 'faust.Table'
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
 COMMIT_INTERVAL = 30.0
 APP_REPR = """
@@ -119,6 +121,9 @@ class App(AppT, ServiceProxy):
     #: Mapping of active streams by name.
     _streams: MutableMapping[str, StreamT]
 
+    #: Mapping of active tables by name.
+    _tables: MutableMapping[str, TableT]
+
     #: Group creates the event loop, so we instantiate it lazily
     #: only when something accesses ._tasks
     _tasks_group: Group = None
@@ -136,6 +141,8 @@ class App(AppT, ServiceProxy):
         'avro': 'faust.utils.avro.faust:AvroSerializer',
     }
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
+
+    _message_buffer: Deque[Tuple[Union[Topic, str], K, V]]
 
     #: Set of active sensors
     _sensors: Set[SensorT] = None
@@ -155,6 +162,7 @@ class App(AppT, ServiceProxy):
                  replication_factor: int = 1,
                  avro_registry_url: str = None,
                  stream_cls: SymbolArg = DEFAULT_STREAM_CLS,
+                 table_cls: SymbolArg = DEFAULT_TABLE_CLS,
                  store: str = 'memory://',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
@@ -168,8 +176,11 @@ class App(AppT, ServiceProxy):
         self.replication_factor = replication_factor
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(stream_cls)
+        self.Table = symbol_by_name(table_cls)
         self.store = store
         self._streams = OrderedDict()
+        self._tables = OrderedDict()
+        self._message_buffer = deque()
         self._tasks_group = None
         self._serializer_override = {}
         self._sensors = set()
@@ -198,6 +209,9 @@ class App(AppT, ServiceProxy):
             (await self.dumps_value(strtopic, value)),
             wait=wait,
         )
+
+    def send_soon(self, topic: Union[Topic, str], key: K, value: V) -> None:
+        self._message_buffer.append((topic, key, value))
 
     async def _send(self, topic: str, key: Optional[bytes], value: bytes,
                     *,
@@ -325,6 +339,23 @@ class App(AppT, ServiceProxy):
             **kwargs
         ).bind(self)
 
+    def table(self, table_name: str,
+              *,
+              default: Callable[[], Any] = None,
+              topic: Topic = None,
+              coroutine: StreamCoroutine = None,
+              processors: Sequence[Processor] = None,
+              **kwargs: Any) -> TableT:
+        Table = cast(TableT, self.Table)
+        return cast(TableT, Table.from_topic(
+            topic,
+            table_name=table_name,
+            default=default,
+            coroutine=coroutine,
+            processors=processors,
+            **kwargs
+        ).bind(self))
+
     def add_sensor(self, sensor: SensorT) -> None:
         self._sensors.add(sensor)
 
@@ -355,6 +386,15 @@ class App(AppT, ServiceProxy):
                 'Stream with name {0.name!r} already exists.'.format(stream))
         self._streams[stream.name] = stream
         self.streams.add_stream(stream)
+
+    def add_table(self, table: TableT) -> None:
+        """Register existing table."""
+        assert table.table_name
+        if table.table_name in self._tables:
+            raise ValueError(
+                'Table with name {0.table_name!r} already exists'.format(
+                    table))
+        self._tables[table.table_name] = table
 
     def new_stream_name(self) -> str:
         """Create a new name for a stream."""

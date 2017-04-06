@@ -7,6 +7,7 @@ from .models import ModelT, Event
 from .services import ServiceT
 from .sensors import SensorT
 from .streams import StreamT, StreamManagerT, TopicProcessorSequence
+from .tables import TableT
 from .transports import TransportT
 from .tuples import Message, Topic
 
@@ -34,6 +35,7 @@ class AppT(ServiceT):
     """
 
     Stream: Type
+    Table: Type
 
     id: str
     url: str
@@ -77,6 +79,10 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def add_table(self, table: TableT) -> None:
+        ...
+
+    @abc.abstractmethod
     def new_stream_name(self) -> str:
         ...
 
@@ -85,6 +91,11 @@ class AppT(ServiceT):
             self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True) -> Awaitable:
+        ...
+
+    @abc.abstractmethod
+    def send_soon(
+            self, topic: Union[Topic, str], key: K, value: V) -> None:
         ...
 
     @abc.abstractmethod
