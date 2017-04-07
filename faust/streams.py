@@ -265,6 +265,10 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
+    async def items(self) -> StreamT:
+        async for event in self:
+            yield event.req.key, event
+
     def through(self, topic: Union[str, Topic]) -> StreamT:
         if isinstance(topic, str):
             topic = self.derive_topic(topic)
