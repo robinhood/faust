@@ -29,7 +29,12 @@ KStream
 
 - ``.forEach()``
 
-    in KS foreach is the same as map, but ends the processing chain.
+    In KS ``forEach`` is the same as ``map``, but ends the processing chain.
+
+- ``.peek()``
+
+    In KS ``peek`` is the same as ``map``, but documents that the
+    action may have a side effect.
 
 - ``.mapValues()``:
 
@@ -65,7 +70,7 @@ KStream
 
 - ``.branch()``
 
-    This is a special case of `filter` in KS, in faust just
+    This is a special case of `filter` in KS, in Faust just
     write code and forward events as appropriate:
 
     .. code-block:: python
@@ -135,7 +140,7 @@ KStream
 - ``.process()``
 
     Process in KS calls a Processor and is usually used to also call periodic
-    actions (punctucation).  In Faust you'd rather create a background task:
+    actions (punctuation).  In Faust you'd rather create a background task:
 
     .. code-block:: python
 
