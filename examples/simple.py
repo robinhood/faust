@@ -15,8 +15,8 @@ topic = faust.topic('f-simple', value_type=Withdrawal)
 
 async def find_large_withdrawals(app):
     user_to_total = app.table('user_to_total', default=int)
-    async for withdrawal in app.stream(topic):
-        print('Withdrawal: %r' % (withdrawal,))
+    async for key, withdrawal in app.stream(topic).items():
+        print('%r Withdrawal: %r' % (key, withdrawal,))
         user_to_total[withdrawal.user] += withdrawal.amount
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
@@ -29,9 +29,9 @@ app = faust.App('f-simple', url='kafka://localhost:9092')
 async def _publish_withdrawals():
     for i in range(100):
         print('+SEND %r' % (i,))
-        await app.send(topic, None, Withdrawal(user='foo', amount=100.3 + i))
+        await app.send(topic, b'K', Withdrawal(user='foo', amount=100.3 + i))
         print('-SEND %r' % (i,))
-    await app.send(topic, None, Withdrawal(user='foo', amount=999999.0))
+    await app.send(topic, b'K', Withdrawal(user='foo', amount=999999.0))
     await asyncio.sleep(30)
 
 
