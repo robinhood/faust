@@ -173,10 +173,14 @@ KStream
             def add(self, amount):
                 self.pending.append(amount)
 
+            def start(self):
+                asyncio.ensure_future(self._flush_events())
+
         app = faust.App('transfer-demo')
 
         async def task(app);
             buffer = TransferBuffer()
+            buffer.start()
             async for transfer in app.stream(transfer_topic):
                 buffer.add(transfer.amount)
 
