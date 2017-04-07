@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, List, Mapping,
-    MutableMapping, MutableSequence, Sequence, TypeVar, Union,
+    MutableMapping, MutableSequence, Sequence, Tuple, TypeVar, Union,
 )
 from .core import K
 from .coroutines import CoroCallbackT, StreamCoroutine
@@ -94,6 +94,10 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
+    def tee(self, n: int = 2) -> Tuple['StreamT', ...]:
+        ...
+
+    @abc.abstractmethod
     def through(self, topic: Union[str, Topic]) -> 'StreamT':
         ...
 
@@ -115,6 +119,10 @@ class StreamT(AsyncIterator[_T], ServiceT):
 
     @abc.abstractmethod
     def outer_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    async def put_event(self, value: Event) -> None:
         ...
 
     @abc.abstractmethod

@@ -21,7 +21,7 @@ __all__ = [
 
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
-ConsumerCallback = Callable[['ConsumerT', Message], Awaitable]
+ConsumerCallback = Callable[[Message], Awaitable]
 
 
 class MessageRefT(metaclass=abc.ABCMeta):

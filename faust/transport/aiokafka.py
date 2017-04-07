@@ -76,7 +76,7 @@ class Consumer(base.Consumer):
             while not should_stop():
                 message = Message.from_message(await getone(()))
                 track_message(message, message.offset)
-                await callback(self, message)
+                await callback(message)
         finally:
             self.set_shutdown()
 

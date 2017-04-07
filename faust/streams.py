@@ -172,6 +172,7 @@ class Stream(StreamT, Service):
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
                  app: AppT = None,
+                 active: bool = True,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         # WARNING: App might be None here, only use the app in .bind, .on_bind
         self.app = app
@@ -179,6 +180,7 @@ class Stream(StreamT, Service):
         if not isinstance(topics, MutableSequence):
             topics = list(topics)
         self.topics = cast(MutableSequence, topics)
+        self.active = active
         self._processors = {}
         if processors:
             # Convert immutable processor list to mutable lists.
@@ -191,11 +193,11 @@ class Stream(StreamT, Service):
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
-        self._on_message: ConsumerCallback = None
         if self.topics:
             self._topicmap = self._build_topicmap(self.topics)
         else:
             self._topicmap = {}
+        self._on_message = self._compile_message_handler()
         Service.__init__(self, loop=loop)
 
     def bind(self, app: AppT) -> StreamT:
@@ -240,6 +242,7 @@ class Stream(StreamT, Service):
             'on_start': self._on_start,
             'loop': self.loop,
             'children': self.children,
+            'active': self.active,
         }
 
     def clone(self, **kwargs: Any) -> StreamT:
@@ -265,9 +268,22 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
-    async def items(self) -> StreamT:
+    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
         async for event in self:
             yield event.req.key, event
+
+    def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
+        streams = [
+            self.clone(active=False, on_start=self.maybe_start)
+            for _ in range(n)
+        ]
+
+        async def forwarder(event: Event) -> Event:
+            for stream in streams:
+                await stream.put_event(event)
+            return event
+        self.add_processor(forwarder)
+        return tuple(streams)
 
     def through(self, topic: Union[str, Topic]) -> StreamT:
         if isinstance(topic, str):
@@ -278,7 +294,7 @@ class Stream(StreamT, Service):
             await event.forward(topic)
             return event
         self.add_processor(forwarder)
-        return self.clone(topics=[topic], on_start=self.start)
+        return self.clone(topics=[topic], on_start=self.maybe_start)
 
     def derive_topic(self, name: str) -> Topic:
         # find out the key_type/value_type from topic in this stream
@@ -337,7 +353,7 @@ class Stream(StreamT, Service):
         # .on_done callback
         on_done = self.on_done
 
-        async def on_message(consumer: ConsumerT, message: Message) -> None:
+        async def on_message(message: Message) -> None:
             k = v = None
             topic = get_topic(message.topic)
             try:
@@ -360,10 +376,27 @@ class Stream(StreamT, Service):
                         v = res
             coroutine = get_coroutines(topic)
             if coroutine is not None:
-                await coroutine.send(v, self.on_done)
+                await coroutine.send(v, on_done)
             else:
                 await on_done(v)
         return on_message
+
+    async def put_event(self, value: Event) -> None:
+        topic = self._topicmap[value.req.message.topic]
+        processors = self._processors.get(topic)
+        value = await self.process(value.req.key, value)
+        if processors is not None:
+            for processor in processors:
+                res = processor(value)
+                if isinstance(res, Awaitable):
+                    value = await res
+                else:
+                    value = res
+        coroutine = self._coroutines.get(topic)
+        if coroutine is not None:
+            await coroutine.send(value, self.on_done)
+        else:
+            await self.on_done(value)
 
     async def process(self, key: K, value: Event) -> Event:
         return value
@@ -401,7 +434,6 @@ class Stream(StreamT, Service):
     async def on_start(self) -> None:
         if self.app is None:
             raise RuntimeError('Cannot start stream not bound to app.')
-        self._on_message = self._compile_message_handler()
         if self._on_start:
             await self._on_start()
 
@@ -484,9 +516,9 @@ class StreamManager(StreamManagerT, Service):
         # topic str -> list of Stream
         get_streams_for_topic = self._topicmap.__getitem__
 
-        async def on_message(consumer: ConsumerT, message: Message) -> None:
+        async def on_message(message: Message) -> None:
             for stream in get_streams_for_topic(message.topic):
-                await stream._on_message(consumer, message)  # type: ignore
+                await stream._on_message(message)  # type: ignore
         return on_message
 
     async def on_start(self) -> None:
@@ -517,8 +549,9 @@ class StreamManager(StreamManagerT, Service):
     def _compile_pattern(self):
         self._topicmap.clear()
         for stream in self._streams:
-            for topic in stream._topicmap:
-                self._topicmap[topic].add(stream)
+            if stream.active:
+                for topic in stream._topicmap:
+                    self._topicmap[topic].add(stream)
         self._pattern = '|'.join(self._topicmap)
 
     def _on_partitions_assigned(self,
