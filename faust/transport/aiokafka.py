@@ -53,6 +53,7 @@ class Consumer(base.Consumer):
         )
 
     async def on_start(self) -> None:
+        self.beacon.add(self._consumer)
         await self._consumer.start()
         await self.register_timers()
         asyncio.ensure_future(self._drain_messages(), loop=self.loop)
@@ -96,6 +97,7 @@ class Producer(base.Producer):
         )
 
     async def on_start(self) -> None:
+        self.beacon.add(self._producer)
         await self._producer.start()
 
     async def on_stop(self) -> None:

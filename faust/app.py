@@ -17,6 +17,7 @@ from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
 from .streams import StreamManager
 from .types import CodecArg, K, Message, Request, TaskArg, Topic, V
 from .types.app import AppT, AsyncSerializerT
+from .types.collections import NodeT
 from .types.coroutines import StreamCoroutine
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
@@ -53,11 +54,12 @@ logger = get_logger(__name__)
 
 class AppService(Service):
 
-    def __init__(self, app: 'App') -> None:
+    def __init__(self, app: 'App', **kwargs) -> None:
         self.app: App = app
-        super().__init__(loop=self.app.loop)
+        super().__init__(loop=self.app.loop, **kwargs)
 
     async def on_start(self) -> None:
+        self.app.streams.beacon = self.beacon.new(self.app.streams)
         await self._start_streams()
         await self.app.streams.start()
         await self._start_tasks()
@@ -336,6 +338,7 @@ class App(AppT, ServiceProxy):
             topic,
             coroutine=coroutine,
             processors=processors,
+            beacon=self.beacon,
             **kwargs
         ).bind(self)
 
@@ -353,10 +356,13 @@ class App(AppT, ServiceProxy):
             default=default,
             coroutine=coroutine,
             processors=processors,
+            beacon=self.beacon,
             **kwargs
         ).bind(self))
 
     def add_sensor(self, sensor: SensorT) -> None:
+        # connect beacons
+        sensor.beacon = self.beacon.new(sensor)
         self._sensors.add(sensor)
 
     def remove_sensor(self, sensor: SensorT) -> None:
@@ -403,14 +409,16 @@ class App(AppT, ServiceProxy):
     def _new_name(self, prefix: str) -> str:
         return '{0}{1:010d}'.format(prefix, next(self._index))
 
-    def _new_producer(self) -> ProducerT:
-        return self.transport.create_producer()
+    def _new_producer(self, beacon: NodeT = None) -> ProducerT:
+        return self.transport.create_producer(
+            beacon=beacon or self.beacon,
+        )
 
     def _create_transport(self) -> TransportT:
         return transport.by_url(self.url)(self.url, self, loop=self.loop)
 
     def _new_group(self, **kwargs: Any) -> Group:
-        return Group(**kwargs)
+        return Group(beacon=self.beacon, **kwargs)
 
     def __repr__(self) -> str:
         return APP_REPR.format(
@@ -456,3 +464,7 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _service(self):
         return AppService(self)
+
+    @property
+    def beacon(self):
+        return self._service.beacon

@@ -27,6 +27,7 @@ class Consumer(base.Consumer):
         print('-CONSUMER')
 
     async def on_start(self) -> None:
+        self.beacon.add(self._consumer)
         print('+SUBSCRIBE: %r' % (self.topic.topics,))
         self._consumer.subscribe(list(self.topic.topics))
         print('-SUBSCRIBE')

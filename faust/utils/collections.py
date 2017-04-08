@@ -1,9 +1,55 @@
 from typing import (
-    Any, ItemsView, Iterator, KeysView, MutableMapping, ValuesView, cast,
+    Any, ItemsView, Iterator, KeysView, List,
+    MutableMapping, ValuesView, cast,
 )
-from collections import UserDict
+from collections import UserDict, deque
+from ..types.collections import NodeT
+from .graphs import DependencyGraph
 
-__all__ = ['FastUserDict', 'ManagedUserDict']
+__all__ = ['Node', 'FastUserDict', 'ManagedUserDict']
+
+
+class Node(NodeT):
+
+    @classmethod
+    def _new_node(cls, data: Any, **kwargs: Any) -> NodeT:
+        return cls(data, **kwargs)  # type: ignore
+
+    def __init__(self, data: Any,
+                 *,
+                 root: NodeT = None,
+                 prev: NodeT = None,
+                 children: List[NodeT] = None) -> None:
+        self.data = data
+        self.root = root
+        self.prev = prev
+        self.children = children or []
+
+    def new(self, data: Any) -> NodeT:
+        node = self._new_node(
+            data,
+            root=self.root if self.root is not None else self,
+            prev=self,
+        )
+        self.children.append(node)
+        return node
+
+    def add(self, data: Any) -> None:
+        self.children.append(data)
+
+    def as_graph(self) -> DependencyGraph:
+        graph = DependencyGraph()
+        stack = deque([self])
+        while stack:
+            node = stack.popleft()
+            for child in node.children:
+                graph.add_arc(node.data)
+                if isinstance(child, NodeT):
+                    stack.append(child)
+                    graph.add_edge(node.data, child.data)
+                else:
+                    graph.add_edge(node.data, child)
+        return graph
 
 
 class FastUserDict(UserDict):

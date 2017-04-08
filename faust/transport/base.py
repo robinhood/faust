@@ -87,7 +87,8 @@ class Consumer(ConsumerT, Service):
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
                  autoack: bool = True,
-                 commit_interval: float = None) -> None:
+                 commit_interval: float = None,
+                 **kwargs) -> None:
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
@@ -104,7 +105,7 @@ class Consumer(ConsumerT, Service):
         self._acked = []
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
-        super().__init__(loop=self.transport.loop)
+        super().__init__(loop=self.transport.loop, **kwargs)
 
     async def register_timers(self) -> None:
         self._commit_handler_fut = asyncio.ensure_future(
@@ -171,9 +172,9 @@ class Consumer(ConsumerT, Service):
 class Producer(ProducerT, Service):
     """Base Producer."""
 
-    def __init__(self, transport: TransportT) -> None:
+    def __init__(self, transport: TransportT, **kwargs) -> None:
         self.transport = transport
-        super().__init__(loop=self.transport.loop)
+        super().__init__(loop=self.transport.loop, **kwargs)
 
     async def send(
             self,

@@ -1,5 +1,6 @@
 import abc
 import asyncio
+from .collections import NodeT
 
 __all__ = ['ServiceT']
 
@@ -15,6 +16,7 @@ class ServiceT(metaclass=abc.ABCMeta):
     wait_for_shutdown = False
     loop: asyncio.AbstractEventLoop = None
     restart_count: int = 0
+    beacon: NodeT
 
     @abc.abstractmethod
     async def __aenter__(self) -> 'ServiceT':

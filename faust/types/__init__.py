@@ -1,6 +1,7 @@
 """Abstract types for static typing."""
 from .app import AsyncSerializerT, AppT
 from .codecs import CodecArg, CodecT
+from .collections import NodeT
 from .core import K, V, TaskArg
 from .coroutines import (
     InputStreamT,
@@ -33,6 +34,8 @@ __all__ = [
     'TaskArg', 'AsyncSerializerT', 'AppT',
 
     'CodecArg', 'CodecT',
+
+    'NodeT',
 
     'K', 'V',
 

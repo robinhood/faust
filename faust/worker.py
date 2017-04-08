@@ -37,14 +37,15 @@ class Worker(Service):
                  loglevel: Union[str, int] = None,
                  logfile: Union[str, IO] = None,
                  logformat: str = None,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
         self.services = services
         self.sensors = set(sensors or [])
         self.debug = debug
         self.loglevel = loglevel
         self.logfile = logfile
         self.logformat = logformat
-        super().__init__(loop=loop)
+        super().__init__(loop=loop, **kwargs)
 
     def install_signal_handlers(self):
         self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)

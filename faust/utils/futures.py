@@ -34,14 +34,15 @@ class Group(Service, Sized):
                  on_task_started: TaskStartedHandler = None,
                  on_task_error: TaskErrorHandler = None,
                  on_task_stopped: TaskStoppedHandler = None,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
         self._on_task_started = on_task_started
         self._on_task_error = on_task_error
         self._on_task_stopped = on_task_stopped
         self._starting = deque()
         self._running = deque()
         self._size = 0
-        super().__init__(loop=loop)
+        super().__init__(loop=loop, **kwargs)
 
     def spawn(self, task: TaskArg) -> Awaitable:
         # Note: This does not actually start the task,
@@ -71,6 +72,7 @@ class Group(Service, Sized):
 
     async def on_start(self) -> None:
         for task in self._starting:
+            self.beacon.add(task)
             asyncio.ensure_future(task, loop=self.loop)
         self._starting.clear()
 

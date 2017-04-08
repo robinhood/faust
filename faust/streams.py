@@ -11,7 +11,7 @@ from typing import (
 )
 from . import joins
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
-from .types.transports import ConsumerCallback, ConsumerT
+from .types.collections import NodeT
 from .types.coroutines import CoroCallbackT
 from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
@@ -19,6 +19,7 @@ from .types.streams import (
     Processor, StreamCoroutine, StreamCoroutineMap,
     StreamProcessorMap, StreamT, StreamManagerT,
 )
+from .types.transports import ConsumerCallback, ConsumerT
 from .utils.aiter import aenumerate
 from .utils.coroutines import wrap_callback
 from .utils.logging import get_logger
@@ -173,6 +174,7 @@ class Stream(StreamT, Service):
                  join_strategy: JoinT = None,
                  app: AppT = None,
                  active: bool = True,
+                 beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         # WARNING: App might be None here, only use the app in .bind, .on_bind
         self.app = app
@@ -197,8 +199,7 @@ class Stream(StreamT, Service):
             self._topicmap = self._build_topicmap(self.topics)
         else:
             self._topicmap = {}
-        self._on_message = self._compile_message_handler()
-        Service.__init__(self, loop=loop)
+        Service.__init__(self, loop=loop, beacon=beacon)
 
     def bind(self, app: AppT) -> StreamT:
         """Create a new clone of this stream that is bound to an app."""
@@ -210,6 +211,7 @@ class Stream(StreamT, Service):
         self.name = app.new_stream_name()
         app.add_source(self)
         self.on_bind(app)
+        self._on_message = self._compile_message_handler()
         return self
 
     def on_bind(self, app: AppT) -> None:
@@ -243,6 +245,7 @@ class Stream(StreamT, Service):
             'loop': self.loop,
             'children': self.children,
             'active': self.active,
+            'beacon': self.beacon,
         }
 
     def clone(self, **kwargs: Any) -> StreamT:
@@ -488,6 +491,11 @@ class Stream(StreamT, Service):
 
 
 class StreamManager(StreamManagerT, Service):
+    """Manages the Streams that make up an app.
+
+    - Consumes messages from topic using a single consumer.
+    - Forwards messages to all streams subscribing to a topic.
+    """
 
     #: Fast index to see if stream is registered.
     _streams: Set[StreamT]
@@ -522,7 +530,8 @@ class StreamManager(StreamManagerT, Service):
         return on_message
 
     async def on_start(self) -> None:
-        asyncio.ensure_future(self._delayed_start(), loop=self.loop)
+        asyncio.ensure_future(
+            self._delayed_start(), loop=self.loop)
 
     async def _delayed_start(self) -> None:
         # wait for tasks to start streams
@@ -543,7 +552,8 @@ class StreamManager(StreamManagerT, Service):
         return self.app.transport.create_consumer(
             callback=self._on_message,
             on_partitions_revoked=self._on_partitions_revoked,
-            on_partitions_assigned=self._on_partitions_assigned
+            on_partitions_assigned=self._on_partitions_assigned,
+            beacon=self.beacon,
         )
 
     def _compile_pattern(self):

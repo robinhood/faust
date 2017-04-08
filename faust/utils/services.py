@@ -1,7 +1,9 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import asyncio
 from .logging import get_logger
+from ..types.collections import NodeT
 from ..types.services import ServiceT
+from .collections import Node
 
 __all__ = ['Service']
 
@@ -54,11 +56,14 @@ class Service(ServiceBase):
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
 
-    def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(self, *,
+                 beacon: NodeT = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
         self._started = asyncio.Event(loop=self.loop)
         self._stopped = asyncio.Event(loop=self.loop)
         self._shutdown = asyncio.Event(loop=self.loop)
+        self.beacon = Node(self) if beacon is None else beacon.new(self)
         self.on_init()
 
     async def start(self) -> None:

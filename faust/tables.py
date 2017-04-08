@@ -9,7 +9,7 @@ from .utils.collections import ManagedUserDict
 __all__ = ['Table']
 
 
-class Table(TableT, Stream, ManagedUserDict):
+class Table(Stream, TableT, ManagedUserDict):
     _store: str
 
     def __init__(self, *,
@@ -63,3 +63,6 @@ class Table(TableT, Stream, ManagedUserDict):
 
     def _changelog_topic_name(self) -> str:
         return '{0.app.id}-{0.table_name}-changelog'
+
+    def __repr__(self) -> str:
+        return Stream.__repr__(self)
