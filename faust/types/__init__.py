@@ -23,7 +23,7 @@ from .transports import (
     TransportT,
 )
 from .tuples import Topic, TopicPartition, Message, Request
-from .windows import WindowT, WindowStoreT, WindowRange, WindowedEvent
+from .windows import WindowT, WindowRange
 
 __all__ = [
     'AsyncSerializerT', 'AppT',
