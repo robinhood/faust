@@ -1,10 +1,11 @@
 """Tables (changelog stream)."""
-from typing import Any, Callable, Mapping, cast
+from typing import Any, Callable, Mapping, Tuple, cast
 from . import stores
 from .streams import Stream
 from .types import AppT, Event
 from .types.stores import StoreT
 from .types.tables import TableT
+from .types.windows import WindowT, WindowRange
 from .utils.collections import ManagedUserDict
 
 __all__ = ['Table']
@@ -63,7 +64,6 @@ class Table(Stream, TableT, ManagedUserDict):
         self.app.send_soon(self.changelog_topic, key=key, value=None)
 
     async def on_done(self, value: Event = None) -> None:
-        self[value.req.key] = value
         super().on_done(value)  # <-- original value
 
     def _changelog_topic_name(self) -> str:
@@ -77,3 +77,13 @@ class Table(Stream, TableT, ManagedUserDict):
         return '{}: {}@{}'.format(
             type(self).__name__, self.table_name, self._store,
         )
+
+
+# TODO: on_key_set and on_key_del need to push to specific partitions
+# from the
+class WindowedTable(Table):
+    _window: WindowT
+
+    def __init__(self, *, window: WindowT, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._window = window

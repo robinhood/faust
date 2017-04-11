@@ -12,6 +12,7 @@ from typing import (
 from . import _constants
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
+from .tables import Table, WindowedTable
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
 from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
@@ -20,6 +21,7 @@ from .types.streams import (
     StreamProcessorMap, StreamT, StreamManagerT,
 )
 from .types.transports import ConsumerCallback, ConsumerT
+from .types.windows import WindowT
 from .utils.aiter import aenumerate
 from .utils.logging import get_logger
 from .utils.services import Service, ServiceT
@@ -377,6 +379,40 @@ class Stream(StreamT, Service):
         if isinstance(key, FieldDescriptorT):
             return getattr(event, key.field)
         return await _maybe_async(key(event))
+
+    def aggregate(self, table_name: str,
+                  operator: Callable[[Event, Event], Event],
+                  window: WindowT=None) -> Table:
+        if window is None:
+            return self._aggregate(table_name, operator)
+        else:
+            return self._aggregate_windowed(table_name, operator, window)
+
+    def _aggregate(self, table_name: str,
+                   operator: Callable[[Event, Event], Event]
+                   ) -> Table:
+        table = Table(table_name=table_name, on_start=self.start)
+
+        async def aggregator(event: Event) -> Event:
+            k: K = event.req.key
+            table[k] = operator(table[k], event)
+            return event
+        self.add_processor(aggregator)
+        return table
+
+    def _aggregate_windowed(self, table_name: str,
+                            operator: Callable[[Event, Event], Event],
+                            window: WindowT):
+        table = WindowedTable(window=window, table_name=table_name,
+                              on_start=self.start)
+
+        async def aggregator(event: Event) -> Event:
+            for window_range in window.windows(event.req.message.timestamp):
+                k = (event.req.key, window_range)
+                table[k] = operator(table[k], event)
+            return event
+        self.add_processor(aggregator)
+        return table
 
     def derive_topic(self, name: str) -> Topic:
         # find out the key_type/value_type from topic in this stream
