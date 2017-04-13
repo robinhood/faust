@@ -91,6 +91,13 @@ class AppService(Service):
         if self.app._producer is not None:
             await self.app._producer.stop()
 
+    @property
+    def label(self) -> str:
+        return '{name}: {app.id}@{app.url}'.format(
+            name=type(self.app).__name__,
+            app=self.app,
+        )
+
 
 class App(AppT, ServiceProxy):
     """Faust Application.

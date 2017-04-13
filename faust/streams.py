@@ -199,7 +199,7 @@ class Stream(StreamT, Service):
             self._topicmap = self._build_topicmap(self.topics)
         else:
             self._topicmap = {}
-        Service.__init__(self, loop=loop, beacon=beacon)
+        Service.__init__(self, loop=loop, beacon=None)
 
     def bind(self, app: AppT) -> StreamT:
         """Create a new clone of this stream that is bound to an app."""
@@ -212,6 +212,12 @@ class Stream(StreamT, Service):
         app.add_source(self)
         self.on_bind(app)
         self._on_message = self._compile_message_handler()
+        # attach beacon to current Faust task, or attach it to app.
+        task = asyncio.Task.current_task(loop=self.loop)
+        if task is not None and hasattr(task, '_beacon'):
+            self.beacon = task._beacon.new(self)  # type: ignore
+        else:
+            self.beacon = self.app.beacon.new(self)
         return self
 
     def on_bind(self, app: AppT) -> None:
@@ -480,7 +486,7 @@ class Stream(StreamT, Service):
         }
 
     def _subtopics_for(self, topic: Topic) -> Sequence[str]:
-        return topic.pattern.pattern if topic.pattern else topic.topics
+        return [topic.pattern.pattern] if topic.pattern else topic.topics
 
     def _repr_info(self) -> str:
         if self.children:
@@ -488,6 +494,13 @@ class Stream(StreamT, Service):
         elif len(self.topics) == 1:
             return reprlib.repr(self.topics[0])
         return reprlib.repr(self.topics)
+
+    @property
+    def label(self) -> str:
+        return '{}: {}'.format(
+            type(self).__name__,
+            ', '.join(self._topicmap),
+        )
 
 
 class StreamManager(StreamManagerT, Service):
@@ -515,6 +528,7 @@ class StreamManager(StreamManagerT, Service):
         if stream in self._streams:
             raise ValueError('Stream already registered with app')
         self._streams.add(stream)
+        self.beacon.add(stream)  # connect to beacon
 
     async def update(self):
         self._compile_pattern()
@@ -571,3 +585,8 @@ class StreamManager(StreamManagerT, Service):
     def _on_partitions_revoked(self,
                                revoked: Sequence[TopicPartition]) -> None:
         ...
+
+    @property
+    def label(self) -> str:
+        return '{}({})'.format(
+            type(self).__name__, len(self._streams))

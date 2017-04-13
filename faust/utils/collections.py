@@ -45,7 +45,7 @@ class Node(NodeT):
             for child in node.children:
                 graph.add_arc(node.data)
                 if isinstance(child, NodeT):
-                    stack.append(child)
+                    stack.append(cast(Node, child))
                     graph.add_edge(node.data, child.data)
                 else:
                     graph.add_edge(node.data, child)

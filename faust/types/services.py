@@ -84,3 +84,8 @@ class ServiceT(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def state(self) -> str:
         ...
+
+    @property
+    @abc.abstractmethod
+    def label(self) -> str:
+        ...

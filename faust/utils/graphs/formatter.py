@@ -29,7 +29,14 @@ class DOT:
 def _label(s: Any) -> str:
     if isinstance(s, str):
         return s
-    return str(getattr(s, 'name', None) or type(s).__name__)
+    return str(
+        getattr(s, 'label', None) or
+        getattr(s, 'name', None) or
+        getattr(s, '__qualname__', None) or
+        getattr(s, '__name__', None) or
+        getattr(type(s), '__qualname__', None) or
+        type(s).__name__
+    )
 
 
 class GraphFormatter(object):

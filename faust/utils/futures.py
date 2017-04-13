@@ -47,12 +47,13 @@ class Group(Service, Sized):
     def spawn(self, task: TaskArg) -> Awaitable:
         # Note: This does not actually start the task,
         #       and `await group.start()` needs to be called.
-        fut = self._start_task(task)
+        fut = self._start_task(task, self.beacon.new(task))
         self._starting.append(fut)
         return fut
 
-    async def _start_task(self, task: TaskArg) -> None:
+    async def _start_task(self, task: TaskArg, beacon) -> None:
         _task = asyncio.Task(task, loop=self.loop)
+        _task._beacon = beacon  # type: ignore
         self._running.append(_task)
         self._size += 1
         if self._on_task_started is not None:
@@ -72,7 +73,6 @@ class Group(Service, Sized):
 
     async def on_start(self) -> None:
         for task in self._starting:
-            self.beacon.add(task)
             asyncio.ensure_future(task, loop=self.loop)
         self._starting.clear()
 

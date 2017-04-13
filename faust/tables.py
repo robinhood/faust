@@ -15,7 +15,7 @@ class Table(Stream, TableT, ManagedUserDict):
     def __init__(self, *,
                  table_name: str = None,
                  default: Callable[[], Any] = None,
-                 store: str = None,
+                 store: str = 'memory://',
                  **kwargs: Any) -> None:
         self.table_name = table_name
         self.default = default
@@ -66,3 +66,9 @@ class Table(Stream, TableT, ManagedUserDict):
 
     def __repr__(self) -> str:
         return Stream.__repr__(self)
+
+    @property
+    def label(self) -> str:
+        return '{}: {}@{}'.format(
+            type(self).__name__, self.table_name, self._store,
+        )

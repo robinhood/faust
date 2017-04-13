@@ -124,6 +124,10 @@ class Service(ServiceBase):
             return 'stopping'
         return 'shutdown'
 
+    @property
+    def label(self):
+        return type(self).__name__
+
 
 class ServiceProxy(ServiceBase):
 
@@ -158,3 +162,7 @@ class ServiceProxy(ServiceBase):
     @property
     def state(self) -> str:
         return self._service.state
+
+    @property
+    def label(self) -> str:
+        return self._service.label
