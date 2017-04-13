@@ -60,7 +60,7 @@ class ModelT:
     def dumps(self) -> bytes:
         ...
 
-    def derive(self, *objects: 'ModelT', **fields) -> 'ModelT':
+    def derive(self, *objects: 'ModelT', **fields: Any) -> 'ModelT':
         ...
 
     async def forward(self, topic: Union[str, Topic]) -> None:

@@ -39,6 +39,7 @@ StreamCoroutineMap = MutableMapping[Topic, CoroCallbackT]
 
 class StreamT(AsyncIterator[_T], ServiceT):
 
+    active: bool = True
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
@@ -49,7 +50,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
 
     @classmethod
     @abc.abstractmethod
-    def from_topic(cls, topic: Topic,
+    def from_topic(cls, topic: Topic = None,
                    *,
                    coroutine: StreamCoroutine = None,
                    processors: TopicProcessorSequence = None,
@@ -90,7 +91,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def combine(self, *nodes: 'StreamT', **kwargs: Any):
+    def combine(self, *nodes: 'StreamT', **kwargs: Any) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -171,7 +172,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator:
         ...
 
     @abc.abstractmethod
@@ -184,9 +185,9 @@ class StreamManagerT(ServiceT):
     consumer: ConsumerT
 
     @abc.abstractmethod
-    def add_stream(self, stream: StreamT):
+    def add_stream(self, stream: StreamT) -> None:
         ...
 
     @abc.abstractmethod
-    async def update(self):
+    async def update(self) -> None:
         ...

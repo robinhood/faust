@@ -1,7 +1,7 @@
 import asyncio
 import reprlib
 import signal
-from typing import Any, IO, Sequence, Set, Tuple, Union
+from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
 from .utils.compat import DummyContext
 from .utils.logging import setup_logging
 from .utils.services import Service
@@ -47,10 +47,10 @@ class Worker(Service):
         self.logformat = logformat
         super().__init__(loop=loop, **kwargs)
 
-    def install_signal_handlers(self):
+    def install_signal_handlers(self) -> None:
         self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
 
-    def _on_sigint(self):
+    def _on_sigint(self) -> None:
         print('-INT- -INT- -INT- -INT- -INT- -INT-')
         try:
             self.loop.run_until_complete(
@@ -60,7 +60,7 @@ class Worker(Service):
             # the "Task exception was never retrieved" warning.
             pass
 
-    async def _stop_on_signal(self):
+    async def _stop_on_signal(self) -> None:
         await self.stop()
         self.loop.stop()
         while self.loop.is_running():
@@ -68,7 +68,7 @@ class Worker(Service):
         self.loop.close()
         raise SystemExit()
 
-    def execute_from_commandline(self, *coroutines):
+    def execute_from_commandline(self, *coroutines: Coroutine) -> None:
         try:
             self.loop.run_until_complete(
                 self._execute_from_commandline(*coroutines))
@@ -76,7 +76,7 @@ class Worker(Service):
             if 'Event loop stopped before Future completed' not in str(exc):
                 raise
 
-    async def _execute_from_commandline(self, *coroutines) -> None:
+    async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
         setproctitle('[Faust:Worker] init')
         with self._monitor():
             self.install_signal_handlers()

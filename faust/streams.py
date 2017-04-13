@@ -145,6 +145,7 @@ class Stream(StreamT, Service):
     _processors: MutableMapping[Topic, MutableSequence[Processor]] = None
     _coroutines: StreamCoroutineMap = None
     _topicmap: MutableMapping[str, Topic] = None
+    _anext_started: bool = False
 
     @classmethod
     def from_topic(cls, topic: Topic = None,
@@ -181,7 +182,7 @@ class Stream(StreamT, Service):
         self.name = name
         if not isinstance(topics, MutableSequence):
             topics = list(topics)
-        self.topics = cast(MutableSequence, topics)
+        self.topics = topics
         self.active = active
         self._processors = {}
         if processors:
@@ -297,7 +298,7 @@ class Stream(StreamT, Service):
     def through(self, topic: Union[str, Topic]) -> StreamT:
         if isinstance(topic, str):
             topic = self.derive_topic(topic)
-        topic = cast(Topic, topic)
+        topic = topic
 
         async def forwarder(event: Event) -> Event:
             await event.forward(topic)
@@ -315,7 +316,7 @@ class Stream(StreamT, Service):
             value_type=value_type,
         )
 
-    def _get_uniform_topic_type(self):
+    def _get_uniform_topic_type(self) -> Tuple[Type, Type]:
         key_type: Type = None
         value_type: Type = None
         for topic in self.topics:
@@ -471,11 +472,13 @@ class Stream(StreamT, Service):
     def __next__(self) -> Event:
         raise NotImplementedError('Streams are asynchronous: use __aiter__')
 
-    async def __aiter__(self):
-        await self.maybe_start()
+    def __aiter__(self) -> AsyncIterator:
         return self
 
     async def __anext__(self) -> Event:
+        if not self._anext_started:
+            self._anext_started = True
+            await self.maybe_start()
         return cast(Event, await self.outbox.get())
 
     def _build_topicmap(
@@ -524,13 +527,13 @@ class StreamManager(StreamManagerT, Service):
         self._topicmap = defaultdict(set)
         super().__init__(**kwargs)
 
-    def add_stream(self, stream: StreamT):
+    def add_stream(self, stream: StreamT) -> None:
         if stream in self._streams:
             raise ValueError('Stream already registered with app')
         self._streams.add(stream)
         self.beacon.add(stream)  # connect to beacon
 
-    async def update(self):
+    async def update(self) -> None:
         self._compile_pattern()
         await self.consumer.subscribe(self._pattern)
 
@@ -570,9 +573,9 @@ class StreamManager(StreamManagerT, Service):
             beacon=self.beacon,
         )
 
-    def _compile_pattern(self):
+    def _compile_pattern(self) -> None:
         self._topicmap.clear()
-        for stream in self._streams:
+        for stream in cast(List[Stream], self._streams):
             if stream.active:
                 for topic in stream._topicmap:
                     self._topicmap[topic].add(stream)

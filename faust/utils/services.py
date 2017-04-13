@@ -1,5 +1,7 @@
 """Async I/O services that can be started/stopped/shutdown."""
+import abc
 import asyncio
+from typing import Any
 from .logging import get_logger
 from ..types.collections import NodeT
 from ..types.services import ServiceT
@@ -35,7 +37,7 @@ class ServiceBase(ServiceT):
         await self.start()
         return self
 
-    async def __aexit__(self, *exc_info) -> None:
+    async def __aexit__(self, *exc_info: Any) -> None:
         await self.stop()
 
     def __repr__(self) -> str:
@@ -55,6 +57,7 @@ class Service(ServiceBase):
     _started: asyncio.Event
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
+    _beacon: NodeT
 
     def __init__(self, *,
                  beacon: NodeT = None,
@@ -63,7 +66,7 @@ class Service(ServiceBase):
         self._started = asyncio.Event(loop=self.loop)
         self._stopped = asyncio.Event(loop=self.loop)
         self._shutdown = asyncio.Event(loop=self.loop)
-        self.beacon = Node(self) if beacon is None else beacon.new(self)
+        self._beacon = Node(self) if beacon is None else beacon.new(self)
         self.on_init()
 
     async def start(self) -> None:
@@ -125,13 +128,24 @@ class Service(ServiceBase):
         return 'shutdown'
 
     @property
-    def label(self):
+    def label(self) -> str:
         return type(self).__name__
+
+    @property
+    def beacon(self) -> NodeT:
+        return self._beacon
+
+    @beacon.setter
+    def beacon(self, beacon: NodeT) -> None:
+        self._beacon = beacon
 
 
 class ServiceProxy(ServiceBase):
 
-    _service: ServiceT
+    @property
+    @abc.abstractmethod
+    def _service(self) -> ServiceT:
+        ...
 
     async def start(self) -> None:
         await self._service.start()
@@ -166,3 +180,11 @@ class ServiceProxy(ServiceBase):
     @property
     def label(self) -> str:
         return self._service.label
+
+    @property
+    def beacon(self) -> NodeT:
+        return self._service.beacon
+
+    @beacon.setter
+    def beacon(self, beacon: NodeT) -> None:
+        self._service.beacon = beacon

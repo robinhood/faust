@@ -167,7 +167,7 @@ class Model(ModelT):
             cls, options: ModelOptions) -> None:
         raise NotImplementedError()
 
-    def derive(self, *objects: ModelT, **fields) -> ModelT:
+    def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         return self._derive(objects, fields)
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
@@ -234,7 +234,7 @@ class Record(Model):
         ]
 
     @classmethod
-    def _contribute_to_options(cls, options: ModelOptions):
+    def _contribute_to_options(cls, options: ModelOptions) -> None:
         # Find attributes and their types, and create indexes for these
         # for performance at runtime.
         fields, defaults = annotations(cls, stop=Record)
@@ -260,7 +260,10 @@ class Record(Model):
             setattr(cls, field, FieldDescriptor(
                 field, typ, cls, required, default))
 
-    def __init__(self, _data: Any = None, *, req=None, **fields: Any) -> None:
+    def __init__(self, _data: Any = None,
+                 *,
+                 req: Request = None,
+                 **fields: Any) -> None:
         # Req is only set by the Consumer, when the event originates
         # from message received.
         self.req = req
@@ -272,7 +275,7 @@ class Record(Model):
             # Set fields from keyword arguments.
             self._init_fields(fields, using_args=False)
 
-    def _init_fields(self, fields, using_args):
+    def _init_fields(self, fields: Mapping, using_args: bool) -> None:
         fieldset = frozenset(fields)
         options = self._options
 

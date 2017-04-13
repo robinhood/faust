@@ -107,7 +107,7 @@ class Producer(base.Producer):
             self,
             topic: str,
             key: Optional[bytes],
-            value: bytes) -> Awaitable:
+            value: Optional[bytes]) -> Awaitable:
         await self._producer.send(topic, value, key=key)
         return done_future(loop=self.loop)  # interface expects Awaitable
 
@@ -115,7 +115,7 @@ class Producer(base.Producer):
             self,
             topic: str,
             key: Optional[bytes],
-            value: bytes) -> Awaitable:
+            value: Optional[bytes]) -> Awaitable:
         return await self._producer.send_and_wait(topic, value, key=key)
 
 
@@ -126,7 +126,7 @@ class Transport(base.Transport):
     default_port = 9092
 
     @cached_property
-    def bootstrap_servers(self):
+    def bootstrap_servers(self) -> str:
         # remove the scheme
         servers = self.url.split('://', 1)[1]
         # add default ports

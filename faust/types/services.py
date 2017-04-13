@@ -16,7 +16,6 @@ class ServiceT(metaclass=abc.ABCMeta):
     wait_for_shutdown = False
     loop: asyncio.AbstractEventLoop = None
     restart_count: int = 0
-    beacon: NodeT
 
     @abc.abstractmethod
     async def __aenter__(self) -> 'ServiceT':
@@ -88,4 +87,12 @@ class ServiceT(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def label(self) -> str:
+        ...
+
+    @property
+    def beacon(self) -> NodeT:
+        ...
+
+    @beacon.setter
+    def beacon(self, beacon: NodeT) -> None:
         ...

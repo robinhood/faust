@@ -296,7 +296,7 @@ def _maybe_load_extension_classes(
 
 
 def _reduce_node(a: Any, b: Any) -> Any:
-    return cast(CodecT, codecs.get(a, a)) | cast(CodecT, codecs[b])
+    return cast(CodecT, codecs.get(a, a)) | codecs[b]
 
 
 def get_codec(name_or_codec: CodecArg) -> CodecT:
@@ -304,10 +304,10 @@ def get_codec(name_or_codec: CodecArg) -> CodecT:
     _maybe_load_extension_classes()
     if isinstance(name_or_codec, str):
         if '|' in name_or_codec:
-            nodes = cast(str, name_or_codec).split('|')
+            nodes = name_or_codec.split('|')
             # simple reduce operation, OR (|) them all together:
             return cast(Codec, reduce(_reduce_node, nodes))
-        return codecs[cast(str, name_or_codec)]
+        return codecs[name_or_codec]
     return cast(Codec, name_or_codec)
 
 

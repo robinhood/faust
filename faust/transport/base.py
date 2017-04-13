@@ -88,7 +88,7 @@ class Consumer(ConsumerT, Service):
                  on_partitions_assigned: PartitionsAssignedCallback = None,
                  autoack: bool = True,
                  commit_interval: float = None,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
@@ -153,10 +153,10 @@ class Consumer(ConsumerT, Service):
         if self.autoack:
             await self.maybe_commit()
 
-    def _should_commit(self, offset) -> bool:
+    def _should_commit(self, offset: int) -> bool:
         return (
             self._current_offset is None or
-            (offset and offset > self._current_offset)
+            (bool(offset) and offset > self._current_offset)
         )
 
     def _new_offset(self) -> int:
@@ -172,7 +172,7 @@ class Consumer(ConsumerT, Service):
 class Producer(ProducerT, Service):
     """Base Producer."""
 
-    def __init__(self, transport: TransportT, **kwargs) -> None:
+    def __init__(self, transport: TransportT, **kwargs: Any) -> None:
         self.transport = transport
         super().__init__(loop=self.transport.loop, **kwargs)
 
@@ -180,14 +180,14 @@ class Producer(ProducerT, Service):
             self,
             topic: str,
             key: Optional[bytes],
-            value: bytes) -> Awaitable:
+            value: Optional[bytes]) -> Awaitable:
         raise NotImplementedError()
 
     async def send_and_wait(
             self,
             topic: str,
             key: Optional[bytes],
-            value: bytes) -> Awaitable:
+            value: Optional[bytes]) -> Awaitable:
         raise NotImplementedError()
 
 

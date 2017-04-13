@@ -6,7 +6,7 @@ __all__ = ['DummyContext', 'want_bytes', 'want_str']
 
 class DummyContext:
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         ...
 
     async def __aenter__(self) -> 'DummyContext':
@@ -18,7 +18,7 @@ class DummyContext:
     def __enter__(self) -> 'DummyContext':
         return self
 
-    def __exit__(self, *exc_info) -> Any:
+    def __exit__(self, *exc_info: Any) -> Any:
         ...
 
 

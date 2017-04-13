@@ -21,6 +21,7 @@ from .types.collections import NodeT
 from .types.coroutines import StreamCoroutine
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
+from .types.services import ServiceT
 from .types.streams import Processor, StreamT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
@@ -54,7 +55,7 @@ logger = get_logger(__name__)
 
 class AppService(Service):
 
-    def __init__(self, app: 'App', **kwargs) -> None:
+    def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
         super().__init__(loop=self.app.loop, **kwargs)
 
@@ -190,7 +191,6 @@ class App(AppT, ServiceProxy):
         self._streams = OrderedDict()
         self._tables = OrderedDict()
         self._message_buffer = deque()
-        self._tasks_group = None
         self._serializer_override = {}
         self._sensors = set()
         self.streams = StreamManager(app=self)
@@ -222,7 +222,10 @@ class App(AppT, ServiceProxy):
     def send_soon(self, topic: Union[Topic, str], key: K, value: V) -> None:
         self._message_buffer.append((topic, key, value))
 
-    async def _send(self, topic: str, key: Optional[bytes], value: bytes,
+    async def _send(self,
+                    topic: str,
+                    key: Optional[bytes],
+                    value: Optional[bytes],
                     *,
                     wait: bool = True) -> Awaitable:
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
@@ -246,7 +249,7 @@ class App(AppT, ServiceProxy):
                 obj = loads(serializer, key)
             else:
                 obj = await ser.loads(key)
-            return typ(obj)
+            return cast(K, typ(obj))
         except Exception as exc:
             raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
@@ -267,7 +270,7 @@ class App(AppT, ServiceProxy):
         except Exception as exc:
             raise ValueDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
-    async def dumps_key(self, topic: str, key: K) -> bytes:
+    async def dumps_key(self, topic: str, key: K) -> Optional[bytes]:
         if isinstance(key, ModelT):
             try:
                 ser = self._get_serializer(key._options.serializer)
@@ -275,9 +278,9 @@ class App(AppT, ServiceProxy):
                 return key.dumps()
             else:
                 return await ser.dumps_key(topic, key)
-        return want_bytes(key)
+        return want_bytes(key) if key is not None else key
 
-    async def dumps_value(self, topic: str, value: V) -> bytes:
+    async def dumps_value(self, topic: str, value: V) -> Optional[bytes]:
         if isinstance(value, ModelT):
             try:
                 ser = self._get_serializer(value._options.serializer)
@@ -299,7 +302,7 @@ class App(AppT, ServiceProxy):
         except KeyError:
             ser = self._serializer_override[name] = (
                 symbol_by_name(self._serializer_override_classes[name])(self))
-            return ser
+            return cast(AsyncSerializerT, ser)
 
     def add_task(self, task: TaskArg) -> Awaitable:
         """Start task.
@@ -307,7 +310,7 @@ class App(AppT, ServiceProxy):
         Notes:
             A task is simply any coroutine iterating over a stream.
         """
-        return self._tasks.spawn(task)
+        return self._tasks.add(task)
 
     async def _on_task_started(
             self, task: asyncio.Task,
@@ -422,7 +425,8 @@ class App(AppT, ServiceProxy):
         )
 
     def _create_transport(self) -> TransportT:
-        return transport.by_url(self.url)(self.url, self, loop=self.loop)
+        return cast(TransportT,
+                    transport.by_url(self.url)(self.url, self, loop=self.loop))
 
     def _new_group(self, **kwargs: Any) -> Group:
         return Group(beacon=self.beacon, **kwargs)
@@ -448,7 +452,7 @@ class App(AppT, ServiceProxy):
     def producer(self) -> ProducerT:
         if self._producer is None:
             self._producer = self._new_producer()
-        return cast(ProducerT, self._producer)
+        return self._producer
 
     @producer.setter
     def producer(self, producer: ProducerT) -> None:
@@ -458,7 +462,7 @@ class App(AppT, ServiceProxy):
     def transport(self) -> TransportT:
         if self._transport is None:
             self._transport = self._create_transport()
-        return cast(TransportT, self._transport)
+        return self._transport
 
     @transport.setter
     def transport(self, transport: TransportT) -> None:
@@ -469,9 +473,5 @@ class App(AppT, ServiceProxy):
         return len(self._tasks)
 
     @cached_property
-    def _service(self):
+    def _service(self) -> ServiceT:
         return AppService(self)
-
-    @property
-    def beacon(self):
-        return self._service.beacon

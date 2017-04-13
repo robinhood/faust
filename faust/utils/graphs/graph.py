@@ -1,10 +1,10 @@
+from functools import partial
 from typing import (
-    Any, ItemsView, Iterable, Iterator, IO,
-    List, MutableMapping, Set, Sequence, cast,
+    Any, Callable, ItemsView, Iterable, Iterator, IO,
+    List, Mapping, MutableMapping, Set, Sequence, cast,
 )
 from collections import Counter
 from .formatter import GraphFormatter
-from ..compat import want_str
 
 _flake8_List_is_used: List
 _flake8_Set_is_used: Set
@@ -18,7 +18,7 @@ class Graph:
     ...
 
 
-class DependencyGraph(Graph, Iterable):
+class DependencyGraph(Graph, Mapping):
     """A directed acyclic graph of objects and their dependencies.
 
     Supports a robust topological sort
@@ -134,7 +134,7 @@ class DependencyGraph(Graph, Iterable):
         stack: List = []
         low: List = []
 
-        def visit(node):
+        def visit(node: Any) -> None:
             if node in low:
                 return
             num = len(low)
@@ -168,23 +168,21 @@ class DependencyGraph(Graph, Iterable):
         """
         seen: Set = set()
         draw = formatter or self.formatter
+        write = partial(print, file=fh)
 
-        def P(s):
-            print(want_str(s), file=fh)
-
-        def if_not_seen(fun, obj):
+        def if_not_seen(fun: Callable[[Any], str], obj: Any) -> None:
             if draw.label(obj) not in seen:
-                P(fun(obj))
+                write(fun(obj))
                 seen.add(draw.label(obj))
 
-        P(draw.head())
+        write(draw.head())
         for obj, adjacent in self.items():
             if not adjacent:
                 if_not_seen(draw.terminal_node, obj)
             for req in adjacent:
                 if_not_seen(draw.node, obj)
-                P(draw.edge(obj, req))
-        P(draw.tail())
+                write(draw.edge(obj, req))
+        write(draw.tail())
 
     def __iter__(self) -> Iterator:
         return iter(self.adjacent)

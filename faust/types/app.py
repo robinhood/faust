@@ -52,7 +52,7 @@ class AppT(ServiceT):
 
     @classmethod
     @abc.abstractmethod
-    def current_app(cls):
+    def current_app(cls) -> 'AppT':
         ...
 
     @abc.abstractmethod
@@ -107,11 +107,11 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def dumps_key(self, topic: str, key: K) -> bytes:
+    async def dumps_key(self, topic: str, key: K) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod
-    async def dumps_value(self, topic: str, value: V) -> bytes:
+    async def dumps_value(self, topic: str, value: V) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod

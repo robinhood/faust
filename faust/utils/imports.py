@@ -2,7 +2,7 @@
 import importlib
 import sys
 import warnings
-from typing import Any, Iterable, Mapping, Tuple, Type, Union
+from typing import Any, Iterable, Mapping, MutableMapping, Tuple, Type, Union
 from .collections import FastUserDict
 from .objects import cached_property
 
@@ -18,7 +18,7 @@ SymbolArg = Union[str, Type]
 
 
 class FactoryMapping(FastUserDict):
-    aliases: Mapping[str, str]
+    aliases: MutableMapping[str, str]
 
     def __init__(self, *args: Mapping, **kwargs: str) -> None:
         self.aliases = dict(*args, **kwargs)  # type: ignore
@@ -32,7 +32,7 @@ class FactoryMapping(FastUserDict):
         return symbol_by_name(name, aliases=self.aliases)
 
     @cached_property
-    def data(self):
+    def data(self) -> MutableMapping:  # type: ignore
         return self.aliases
 
 

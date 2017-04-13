@@ -67,7 +67,7 @@ class InputStream(InputStreamT):
     def __next__(self) -> Any:
         return self.queue._get()
 
-    async def __aiter__(self) -> 'AsyncIterable':
+    def __aiter__(self) -> 'AsyncIterable':
         return self
 
     async def __anext__(self) -> Awaitable:
@@ -97,7 +97,7 @@ class CoroCallback(CoroCallbackT):
         new_value = await self._drain()
         await callback(new_value)
 
-    async def _drain(self):
+    async def _drain(self) -> Any:
         raise NotImplementedError()
 
 
@@ -111,7 +111,7 @@ class GeneratorCoroCallback(CoroCallback):
         self.gen = gen
         super().__init__(inbox, **kwargs)
 
-    async def _drain(self):
+    async def _drain(self) -> Any:
         return self.gen.__next__()
 
 
@@ -125,7 +125,7 @@ class AsyncCoroCallback(CoroCallback):
         self.gen = gen
         super().__init__(inbox, **kwargs)
 
-    async def _drain(self):
+    async def _drain(self) -> Any:
         return await self.gen.__anext__()
 
 
@@ -142,7 +142,7 @@ class AsyncGeneratorCoroCallback(CoroCallback):
         self.gen = None
         super().__init__(inbox, **kwargs)
 
-    async def _drain(self):
+    async def _drain(self) -> Any:
         if not self.gen_started:
             self.gen_started = True
             self.gen = await self.coro
