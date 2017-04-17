@@ -175,12 +175,21 @@ class Model(ModelT):
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         raise NotImplementedError()
 
-    async def forward(self, topic: Union[str, Topic],
-                      *,
-                      key: Any = SENTINEL) -> None:
+    async def send(self, topic: Union[str, Topic],
+                   *,
+                   key: Any = SENTINEL) -> None:
+        """Serialize and send event to topic."""
         if key is SENTINEL:
             key = self.req.key
         await self.req.app.send(topic, key, self)
+
+    async def forward(self, topic: Union[str, Topic],
+                      *,
+                      key: Any = SENTINEL) -> None:
+        """Forward original message (will not be reserialized)."""
+        if key is SENTINEL:
+            key = self.req.key
+        await self.req.app.send(topic, key, self.req.message.value)
 
     def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""
