@@ -63,7 +63,9 @@ class ModelT:
     def derive(self, *objects: 'ModelT', **fields: Any) -> 'ModelT':
         ...
 
-    async def forward(self, topic: Union[str, Topic]) -> None:
+    async def forward(self, topic: Union[str, Topic],
+                      *,
+                      key: Any = None) -> None:
         ...
 
     def to_representation(self) -> Any:

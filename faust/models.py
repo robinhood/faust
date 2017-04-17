@@ -13,6 +13,8 @@ from .utils.objects import annotations
 
 __all__ = ['Model', 'Record', 'FieldDescriptor']
 
+SENTINEL = object()
+
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
 
@@ -173,8 +175,12 @@ class Model(ModelT):
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         raise NotImplementedError()
 
-    async def forward(self, topic: Union[str, Topic]) -> None:
-        await self.req.app.send(topic, self.req.key, self)
+    async def forward(self, topic: Union[str, Topic],
+                      *,
+                      key: Any = SENTINEL) -> None:
+        if key is SENTINEL:
+            key = self.req.key
+        await self.req.app.send(topic, key, self)
 
     def dumps(self) -> bytes:
         """Serialize event to the target serialization format."""

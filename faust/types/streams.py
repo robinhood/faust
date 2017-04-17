@@ -24,6 +24,7 @@ __all__ = [
     'TopicProcessorSequence',
     'StreamProcessorMap',
     'StreamCoroutineMap',
+    'GroupByKeyArg',
     'StreamT',
     'StreamManagerT',
 ]
@@ -35,6 +36,12 @@ Processor = Callable[[Event], Union[Event, Awaitable[Event]]]
 TopicProcessorSequence = Sequence[Processor]
 StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
 StreamCoroutineMap = MutableMapping[Topic, CoroCallbackT]
+
+
+GroupByKeyArg = Union[
+    FieldDescriptorT,
+    Callable[[Event], K],
+]
 
 
 class StreamT(AsyncIterator[_T], ServiceT):
@@ -100,6 +107,10 @@ class StreamT(AsyncIterator[_T], ServiceT):
 
     @abc.abstractmethod
     def through(self, topic: Union[str, Topic]) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def group_by(self, key: GroupByKeyArg) -> 'StreamT':
         ...
 
     @abc.abstractmethod

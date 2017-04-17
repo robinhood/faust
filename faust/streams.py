@@ -9,6 +9,7 @@ from typing import (
     Mapping, MutableMapping, MutableSequence, Pattern,
     Set, Sequence, Tuple, Type, Union, cast
 )
+from . import constants
 from . import joins
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
 from .types.collections import NodeT
@@ -16,7 +17,7 @@ from .types.coroutines import CoroCallbackT
 from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
 from .types.streams import (
-    Processor, StreamCoroutine, StreamCoroutineMap,
+    GroupByKeyArg, Processor, StreamCoroutine, StreamCoroutineMap,
     StreamProcessorMap, StreamT, StreamManagerT,
 )
 from .types.transports import ConsumerCallback, ConsumerT
@@ -138,6 +139,12 @@ def topic(*topics: str,
         key_type=key_type,
         value_type=value_type,
     )
+
+
+async def _maybe_async(res: Any) -> Any:
+    if isinstance(res, Awaitable):
+        return await res
+    return res
 
 
 class Stream(StreamT, Service):
@@ -288,11 +295,11 @@ class Stream(StreamT, Service):
             for _ in range(n)
         ]
 
-        async def forwarder(event: Event) -> Event:
+        async def forward(event: Event) -> Event:
             for stream in streams:
                 await stream.put_event(event)
             return event
-        self.add_processor(forwarder)
+        self.add_processor(forward)
         return tuple(streams)
 
     def through(self, topic: Union[str, Topic]) -> StreamT:
@@ -300,11 +307,57 @@ class Stream(StreamT, Service):
             topic = self.derive_topic(topic)
         topic = topic
 
-        async def forwarder(event: Event) -> Event:
+        async def forward(event: Event) -> Event:
             await event.forward(topic)
             return event
-        self.add_processor(forwarder)
+        self.add_processor(forward)
         return self.clone(topics=[topic], on_start=self.maybe_start)
+
+    def group_by(self, key: GroupByKeyArg) -> StreamT:
+        """Create new stream that repartitions the stream using a new key.
+
+        The key argument decides how the new key is generated, it can be
+        a field descriptor, a callable, or an async callable.
+
+        Examples:
+            >>> s.group_by(Withdrawal.account_id)
+
+            >>> s.group_by(lambda event: Event.account_id)
+
+            >>> s.group_by(lambda event: event.req.key + '-foo')
+        """
+        suffix = constants.REPARTITION_TOPIC_SUFFIX
+        new_topics = [
+            self._topic_from_topic_with_suffix(t, suffix)
+            for t in self.topics
+        ]
+        format_key = self._format_key
+
+        async def repartition(event: Event) -> Event:
+            new_key = await format_key(key, event)
+            await event.forward(
+                event.req.message.topic + suffix,
+                key=new_key,
+            )
+            return event
+        self.add_processor(repartition)
+        return self.clone(topics=new_topics, on_start=self.maybe_start)
+
+    def _topic_from_topic_with_suffix(
+            self, topic: Topic, suffix: str) -> Topic:
+        if topic.pattern:
+            raise ValueError('Cannot add suffix to Topic with pattern')
+        return Topic(
+            topics=[t + suffix for t in topic.topics],
+            pattern=topic.pattern,
+            key_type=topic.key_type,
+            value_type=topic.value_type,
+        )
+
+    async def _format_key(self, key: GroupByKeyArg, event: Event):
+        if isinstance(key, FieldDescriptorT):
+            return getattr(event, key.field)
+        return await _maybe_async(key(event))
 
     def derive_topic(self, name: str) -> Topic:
         # find out the key_type/value_type from topic in this stream
@@ -379,11 +432,7 @@ class Stream(StreamT, Service):
             v = await process(k, v)
             if processors is not None:
                 for processor in processors:
-                    res = processor(v)
-                    if isinstance(res, Awaitable):
-                        v = await res
-                    else:
-                        v = res
+                    v = await _maybe_async(processor(v))
             coroutine = get_coroutines(topic)
             if coroutine is not None:
                 await coroutine.send(v, on_done)
@@ -397,11 +446,7 @@ class Stream(StreamT, Service):
         value = await self.process(value.req.key, value)
         if processors is not None:
             for processor in processors:
-                res = processor(value)
-                if isinstance(res, Awaitable):
-                    value = await res
-                else:
-                    value = res
+                value = await _maybe_async(processor(value))
         coroutine = self._coroutines.get(topic)
         if coroutine is not None:
             await coroutine.send(value, self.on_done)
