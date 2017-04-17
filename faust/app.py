@@ -1,6 +1,7 @@
 """Applications."""
 import asyncio
 import faust
+import io
 import sys
 import typing
 from collections import OrderedDict, deque
@@ -31,6 +32,8 @@ from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import cached_property
 from .utils.services import Service, ServiceProxy
+from .web.base import Web
+from .web.site import create_site
 
 __all__ = ['App']
 
@@ -61,6 +64,7 @@ class AppService(Service):
 
     async def on_start(self) -> None:
         self.app.streams.beacon = self.beacon.new(self.app.streams)
+        await self._start_web()
         await self._start_streams()
         await self.app.streams.start()
         await self._start_tasks()
@@ -78,9 +82,13 @@ class AppService(Service):
         # stream processing tasks do not end (them infinite!)
         await self.app._tasks.joinall()
 
+    async def _start_web(self) -> None:
+        await self.app._website.start()
+
     async def on_stop(self) -> None:
         await self._stop_streams()
         await self._stop_producer()
+        await self._stop_web()
         await self.app.streams.stop()
 
     async def _stop_streams(self) -> None:
@@ -91,6 +99,9 @@ class AppService(Service):
     async def _stop_producer(self) -> None:
         if self.app._producer is not None:
             await self.app._producer.stop()
+
+    async def _stop_web(self) -> None:
+        await self.app._website.stop()
 
     @property
     def label(self) -> str:
@@ -431,6 +442,11 @@ class App(AppT, ServiceProxy):
     def _new_group(self, **kwargs: Any) -> Group:
         return Group(beacon=self.beacon, **kwargs)
 
+    def render_graph(self) -> str:
+        o = io.StringIO()
+        self.beacon.as_graph().to_dot(o)
+        return o.getvalue()
+
     def __repr__(self) -> str:
         return APP_REPR.format(
             name=type(self).__name__,
@@ -475,3 +491,7 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _service(self) -> ServiceT:
         return AppService(self)
+
+    @cached_property
+    def _website(self) -> Web:
+        return create_site(self)

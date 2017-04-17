@@ -33,9 +33,7 @@ app = faust.App('f-simple', url='kafka://localhost:9092')
 
 async def _dump_beacon(app):
     await asyncio.sleep(4)
-    o = io.StringIO()
-    app.beacon.as_graph().to_dot(o)
-    print(o.getvalue())
+    print(app.render_graph())
 
 
 async def _publish_withdrawals():

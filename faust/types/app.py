@@ -130,6 +130,10 @@ class AppT(ServiceT):
             message: Message = None) -> None:
         ...
 
+    @abc.abstractmethod
+    def render_graph(self) -> str:
+        ...
+
     @property
     @abc.abstractmethod
     def transport(self) -> TransportT:
