@@ -25,7 +25,7 @@ used by KafkaStreams works as follows:
 1. Check all repartition source topics and use internal topic manager to make
    sure they have been created with the right number of partitions.
 
-2. Using customized partition grouper (`DefaultPartitionGrouper <https://github.com/apache/kafka/blob/4b3ea062be515bc173f6c788c4c1e14f77935aef/streams/src/main/java/org/apache/kafka/streams/processor/DefaultPartitionGrouper.java>`_
+2. Using customized partition grouper (`DefaultPartitionGrouper <https://github.com/apache/kafka/blob/4b3ea062be515bc173f6c788c4c1e14f77935aef/streams/src/main/java/org/apache/kafka/streams/processor/DefaultPartitionGrouper.java>`_)
    to generate tasks along with their assigned partitions; also make sure that
    the task's corresponding changelog topics have been created with the right
    number of partitions.
