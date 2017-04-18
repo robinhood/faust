@@ -331,7 +331,7 @@ class Stream(StreamT, Service):
         Examples:
             >>> s.group_by(Withdrawal.account_id)
 
-            >>> s.group_by(lambda event: Event.account_id,
+            >>> s.group_by(lambda event: event.account_id,
             ...            name='event.account_id')
 
             >>> s.group_by(lambda event: event.req.key + '-foo',
