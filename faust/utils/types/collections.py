@@ -24,6 +24,9 @@ class NodeT(abc.ABC):
     def add(self, data: Any) -> None:
         ...
 
+    def reattach(self, parent: 'NodeT') -> 'NodeT':
+        ...
+
     @abc.abstractmethod
     def as_graph(self) -> DependencyGraphT:
         ...

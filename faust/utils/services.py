@@ -1,7 +1,8 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import abc
 import asyncio
-from typing import Any
+import weakref
+from typing import Any, MutableSequence, Sequence, cast
 from .collections import Node
 from .logging import get_logger
 from .types.collections import NodeT
@@ -17,21 +18,6 @@ class ServiceBase(ServiceT):
     wait_for_shutdown = False
     shutdown_timeout = 60.0
     restart_count = 0
-
-    def on_init(self) -> None:
-        ...
-
-    async def on_start(self) -> None:
-        ...
-
-    async def on_stop(self) -> None:
-        ...
-
-    async def on_shutdown(self) -> None:
-        ...
-
-    async def on_restart(self) -> None:
-        ...
 
     async def __aenter__(self) -> ServiceT:
         await self.start()
@@ -58,6 +44,7 @@ class Service(ServiceBase):
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
     _beacon: NodeT
+    _children: MutableSequence[Any]
 
     def __init__(self, *,
                  beacon: NodeT = None,
@@ -67,14 +54,54 @@ class Service(ServiceBase):
         self._stopped = asyncio.Event(loop=self.loop)
         self._shutdown = asyncio.Event(loop=self.loop)
         self._beacon = Node(self) if beacon is None else beacon.new(self)
+        self._children = []
         self.on_init()
+
+    def add_dependency(self, service: ServiceT) -> ServiceT:
+        if service.beacon.root is None:
+            service.beacon.reattach(self.beacon)
+        self._children.append(weakref.ref(service))
+        return service
+
+    def on_init(self) -> None:
+        ...
+
+    def on_init_dependencies(self) -> Sequence[ServiceT]:
+        return []
+
+    async def on_first_start(self) -> None:
+        ...
+
+    async def on_start(self) -> None:
+        ...
+
+    async def on_started(self) -> None:
+        ...
+
+    async def on_stop(self) -> None:
+        ...
+
+    async def on_shutdown(self) -> None:
+        ...
+
+    async def on_restart(self) -> None:
+        ...
 
     async def start(self) -> None:
         logger.info('+Starting service %r', self)
         assert not self._started.is_set()
         self._started.set()
+        if not self.restart_count:
+            self._children.extend(
+                map(weakref.ref, self.on_init_dependencies()))
+            await self.on_first_start()
         await self.on_start()
+        for childref in self._children:
+            child = childref()
+            if child is not None:
+                await cast(ServiceT, child).maybe_start()
         logger.info('-Started service %r', self)
+        await self.on_started()
 
     async def maybe_start(self) -> None:
         if not self._started.is_set():
@@ -85,6 +112,10 @@ class Service(ServiceBase):
             logger.info('+Stopping service %r', self)
             self._stopped.set()
             await self.on_stop()
+            for childref in reversed(self._children):
+                child = childref()
+                if child is not None:
+                    await cast(ServiceT, child).stop()
             logger.info('-Stopped service %r', self)
             logger.info('+Shutdown service %r', self)
             if self.wait_for_shutdown:
@@ -146,6 +177,9 @@ class ServiceProxy(ServiceBase):
     @abc.abstractmethod
     def _service(self) -> ServiceT:
         ...
+
+    def add_dependency(self, service: ServiceT) -> ServiceT:
+        return self._service.add_dependency(service)
 
     async def start(self) -> None:
         await self._service.start()

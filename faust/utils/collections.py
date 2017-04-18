@@ -35,6 +35,11 @@ class Node(NodeT):
         self.children.append(node)
         return node
 
+    def reattach(self, parent: NodeT) -> NodeT:
+        self.root, self.prev = parent.root, parent
+        parent.add(self)
+        return self
+
     def add(self, data: Any) -> None:
         self.children.append(data)
 

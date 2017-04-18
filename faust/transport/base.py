@@ -66,7 +66,7 @@ class MessageRef(weakref.ref, MessageRefT):
         self.consumer_id = consumer_id
 
 
-class Consumer(ConsumerT, Service):
+class Consumer(Service, ConsumerT):
     """Base Consumer."""
 
     RebalanceListener: ClassVar[Type]
@@ -169,7 +169,7 @@ class Consumer(ConsumerT, Service):
         return offset
 
 
-class Producer(ProducerT, Service):
+class Producer(Service, ProducerT):
     """Base Producer."""
 
     def __init__(self, transport: TransportT, **kwargs: Any) -> None:

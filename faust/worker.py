@@ -4,7 +4,7 @@ import signal
 from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
-from .utils.logging import setup_logging
+from .utils.logging import get_logger, setup_logging
 from .utils.services import Service, ServiceT
 
 try:  # pragma: no cover
@@ -15,6 +15,8 @@ except ImportError:  # pragma: no cover
 __all__ = ['Worker']
 
 PSIDENT = '[Faust:Worker]'
+
+logger = get_logger(__name__)
 
 
 class _TupleAsListRepr(reprlib.Repr):
@@ -61,11 +63,15 @@ class Worker(Service):
             pass
 
     async def _stop_on_signal(self) -> None:
+        logger.info('Worker: Stopping on signal received...')
         await self.stop()
-        self.loop.stop()
         while self.loop.is_running():
+            logger.info('Worker: Waiting for event loop to shutdown...')
+            self.loop.stop()
             await asyncio.sleep(1.0, loop=self.loop)
+        logger.info('Worker: Closing event loop')
         self.loop.close()
+        logger.info('Worker: exiting')
         raise SystemExit()
 
     def execute_from_commandline(self, *coroutines: Coroutine) -> None:
@@ -106,10 +112,12 @@ class Worker(Service):
                 return aiomonitor.start_monitor(loop=self.loop)
         return DummyContext()
 
-    async def start(self) -> None:
-        if not self.restart_count:
-            await self.on_first_start()
-        await super().start()
+    def on_init_dependencies(self) -> Sequence[ServiceT]:
+        for service in self.services:
+            if isinstance(service, AppT):
+                for sensor in self.sensors:
+                    service.add_sensor(sensor)
+        return self.services
 
     async def on_first_start(self) -> None:
         if self.loglevel:
@@ -121,19 +129,7 @@ class Worker(Service):
         for sensor in self.sensors:
             await sensor.maybe_start()
 
-    async def on_start(self) -> None:
-        self._setproctitle('starting')
-        for service in self.services:
-            for sensor in self.sensors:
-                if isinstance(service, AppT):
-                    service.add_sensor(sensor)
-            self._setproctitle('running')
-            await service.maybe_start()
-
     async def on_stop(self) -> None:
-        self._setproctitle('stopping')
-        for service in reversed(self.services):
-            await service.stop()
         for sensor in self.sensors:
             await sensor.stop()
 

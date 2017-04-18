@@ -34,7 +34,6 @@ from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.types.collections import NodeT
 from .utils.types.coroutines import StreamCoroutine
 from .web.base import Web
-from .web.site import create_site
 
 __all__ = ['App']
 
@@ -48,6 +47,9 @@ DEFAULT_STREAM_CLS = 'faust.Stream'
 
 #: Path to default table class used by ``app.table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
+
+#: Path to default Web site class.
+DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
 
 #: Default Kafka Client ID.
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
@@ -82,46 +84,26 @@ class AppService(Service):
         self.app: App = app
         super().__init__(loop=self.app.loop, **kwargs)
 
-    async def on_start(self) -> None:
-        self.app.streams.beacon = self.beacon.new(self.app.streams)
-        await self._start_web()
-        await self._start_streams()
-        await self.app.streams.start()
-        await self._start_tasks()
+    def on_init_dependencies(self) -> Sequence[ServiceT]:
+        streams = list(self.app._streams.values())    # Stream+Table instances
+        services = [
+            self.app.producer,                        # app.Producer
+            self.app._website,                        # app.Web
+            self.app.streams,                         # app.StreamManager
+            self.app._tasks,                          # app.Group
+        ]
+        return cast(Sequence[ServiceT], streams + services)
 
-    async def _start_streams(self) -> None:
-        for _stream in self.app._streams.values():
-            await _stream.maybe_start()
-
-    async def _start_tasks(self) -> None:
+    async def on_first_start(self) -> None:
         if not len(self.app._tasks):
             raise ImproperlyConfigured(
                 'Attempting to start app that has no tasks')
-        await self.app._tasks.start()
+
+    async def on_started(self) -> None:
+        self.app.streams.beacon.reattach(self.beacon)
         # wait for tasks to finish, this may run forever since
         # stream processing tasks do not end (them infinite!)
         await self.app._tasks.joinall()
-
-    async def _start_web(self) -> None:
-        await self.app._website.start()
-
-    async def on_stop(self) -> None:
-        await self._stop_streams()
-        await self._stop_producer()
-        await self._stop_web()
-        await self.app.streams.stop()
-
-    async def _stop_streams(self) -> None:
-        # stop all streams in reversed order.
-        for _stream in reversed(list(self.app._streams.values())):
-            await _stream.stop()
-
-    async def _stop_producer(self) -> None:
-        if self.app._producer is not None:
-            await self.app._producer.stop()
-
-    async def _stop_web(self) -> None:
-        await self.app._website.stop()
 
     @property
     def label(self) -> str:
@@ -209,8 +191,9 @@ class App(AppT, ServiceProxy):
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
                  avro_registry_url: str = None,
-                 stream_cls: SymbolArg = DEFAULT_STREAM_CLS,
-                 table_cls: SymbolArg = DEFAULT_TABLE_CLS,
+                 Stream: SymbolArg = DEFAULT_STREAM_CLS,
+                 Table: SymbolArg = DEFAULT_TABLE_CLS,
+                 WebSite: SymbolArg = DEFAULT_WEBSITE_CLS,
                  store: str = 'memory://',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
@@ -223,8 +206,9 @@ class App(AppT, ServiceProxy):
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
         self.avro_registry_url = avro_registry_url
-        self.Stream = symbol_by_name(stream_cls)
-        self.Table = symbol_by_name(table_cls)
+        self.Stream = symbol_by_name(Stream)
+        self.Table = symbol_by_name(Table)
+        self.WebSite = symbol_by_name(WebSite)
         self.store = store
         self._streams = OrderedDict()
         self._tables = OrderedDict()
@@ -586,4 +570,4 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def _website(self) -> Web:
-        return create_site(self)
+        return self.WebSite(self)

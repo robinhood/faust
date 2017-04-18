@@ -3,6 +3,7 @@ import asyncio
 import faust
 import re
 import reprlib
+import sys
 from collections import defaultdict
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Dict, List,
@@ -523,7 +524,16 @@ class Stream(StreamT, Service):
         if not self._anext_started:
             self._anext_started = True
             await self.maybe_start()
-        return cast(Event, await self.outbox.get())
+        try:
+            return cast(Event, await self.outbox.get())
+        except RuntimeError as exc:
+            if self.app.should_stop and 'Event loop is closed' in str(exc):
+                if sys.meta_path is None:
+                    # Uh, oh - Python is shutting down, some coroutine exit
+                    # race condition
+                    return   # type: ignore
+                raise StopAsyncIteration()
+            raise
 
     def _build_topicmap(
             self, topics: Sequence[Topic]) -> MutableMapping[str, Topic]:

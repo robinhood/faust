@@ -26,19 +26,7 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def on_init(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_start(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_stop(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_shutdown(self) -> None:
+    def add_dependency(self, service: 'ServiceT') -> 'ServiceT':
         ...
 
     @abc.abstractmethod

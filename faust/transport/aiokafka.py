@@ -1,16 +1,20 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 import asyncio
+from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.structs import TopicPartition as _TopicPartition
 from typing import Awaitable, ClassVar, Optional, Sequence, Type, cast
 from ..types import Message, TopicPartition
 from ..types.transports import ConsumerT
 from ..utils.futures import done_future
+from ..utils.logging import get_logger
 from ..utils.objects import cached_property
 from . import base
 
 __all__ = ['Consumer', 'Producer', 'Transport']
+
+logger = get_logger(__name__)
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -78,6 +82,12 @@ class Consumer(base.Consumer):
                 message = Message.from_message(await getone(()))
                 track_message(message, message.offset)
                 await callback(message)
+        except ConsumerStoppedError:
+            if self.transport.app.should_stop:
+                # we're already stopping so ignore
+                logger.info('Consumer: stopped, shutting down...')
+                return
+            raise
         finally:
             self.set_shutdown()
 

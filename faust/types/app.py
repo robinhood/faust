@@ -36,6 +36,7 @@ class AppT(ServiceT):
 
     Stream: Type
     Table: Type
+    WebSite: Type
 
     id: str
     url: str
