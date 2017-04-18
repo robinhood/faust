@@ -32,7 +32,7 @@ from .utils.logging import get_logger
 from .utils.objects import cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.types.collections import NodeT
-from .web.base import Web
+from .web import Web
 
 __all__ = ['App']
 

@@ -1,11 +1,11 @@
 =====================================================
- ``faust.utils.coroutines``
+ ``faust.utils.types.services``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.utils.coroutines
+.. currentmodule:: faust.utils.types.services
 
-.. automodule:: faust.utils.coroutines
+.. automodule:: faust.utils.types.services
     :members:
     :undoc-members:

@@ -1,5 +1,5 @@
 """Avro serialization."""
-from .serializer import MessageSerializer
-from .server import RegistryClient
+from .serializers import MessageSerializer
+from .servers import RegistryClient
 
 __all__ = ['MessageSerializer', 'RegistryClient']

@@ -3,6 +3,8 @@ from aiohttp.web import Application, Response
 from faust.utils.logging import get_logger
 from .. import base
 
+__all__ = ['Web']
+
 DEFAULT_PORT = 8080
 DEFAULT_BIND = '0.0.0.0'
 

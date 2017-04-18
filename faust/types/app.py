@@ -13,7 +13,7 @@ from .transports import TransportT
 from .tuples import Message, Topic
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from ..web.base import Web
+    from ..web import Web
 else:
     class Web: ...  # noqa
 

@@ -5,7 +5,7 @@ from struct import pack, unpack
 from typing import Any, Mapping, MutableMapping, Type
 from avro.io import BinaryDecoder, BinaryEncoder, DatumReader, DatumWriter
 from avro.schema import Schema
-from .server import RegistryClient
+from .servers import RegistryClient
 try:
     from fastavro.reader import read_data as _fast_read_data
 except ImportError:  # prgama: no cover
