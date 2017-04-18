@@ -313,20 +313,37 @@ class Stream(StreamT, Service):
         self.add_processor(forward)
         return self.clone(topics=[topic], on_start=self.maybe_start)
 
-    def group_by(self, key: GroupByKeyArg) -> StreamT:
+    def group_by(self, key: GroupByKeyArg,
+                 *,
+                 name: str = None) -> StreamT:
         """Create new stream that repartitions the stream using a new key.
 
-        The key argument decides how the new key is generated, it can be
-        a field descriptor, a callable, or an async callable.
+        Arguments:
+            key: The key argument decides how the new key is generated,
+            it can be a field descriptor, a callable, or an async callable.
+
+            The ``name`` argument must be provided if the key argument is
+            a callable.
+
+        Keyword Arguments:
+            name: Suffix to use for repartitioned topics.
 
         Examples:
             >>> s.group_by(Withdrawal.account_id)
 
-            >>> s.group_by(lambda event: Event.account_id)
+            >>> s.group_by(lambda event: Event.account_id,
+            ...            name='event.account_id')
 
-            >>> s.group_by(lambda event: event.req.key + '-foo')
+            >>> s.group_by(lambda event: event.req.key + '-foo',
+            ...            name='event.account_id')
         """
-        suffix = constants.REPARTITION_TOPIC_SUFFIX
+        if not name:
+            if isinstance(key, FieldDescriptorT):
+                name = key.ident
+            else:
+                raise TypeError(
+                    'group_by with callback must set name=topic_name')
+        suffix = name + constants.REPARTITION_TOPIC_SUFFIX
         new_topics = [
             self._topic_from_topic_with_suffix(t, suffix)
             for t in self.topics

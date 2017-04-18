@@ -79,6 +79,10 @@ class FieldDescriptorT:
     required: bool = True
     default: Any = None  # noqa: E704
 
+    @property
+    def ident(self) -> str:
+        ...
+
 
 #: An event is a ModelT that was received as a message.
 Event = NewType('Event', ModelT)
