@@ -58,6 +58,13 @@ mentioned above and rely on the primitives repartitioning streams and
 creating changelog topics to create topics with the correct number of
 partitions based on the source topics.
 
+We can largely simplify step 3 above since there is no concept of task as in
+KafkaStreams, i.e. we do not introspect the application topology to define a
+task that would be assigned to the clients. We simply need to make sure that
+the correct partitions are assigned to the clients and the client streams and
+processors should handle dealing with the co-partitioning while processing
+the streams and forwarding data between the different processors.
+
 PartitionGrouper
 ----------------
 
@@ -73,7 +80,9 @@ StickAssignor
 
 With our simple `PartitionGrouper` we can use a StickyPartitionAssignor to
 assign partitions to the clients. However we need to explicitly handle
-standby assignments here.
+standby assignments here. We use the StickPartitionAssignor design approved
+in `KIP 54 <https://cwiki.apache.org/confluence/display/KAFKA/KIP-54+-+Sticky+Partition+Assignment+Strategy>`_
+as the basis for our StickyAssignor.
 
 Concerns
 ========
