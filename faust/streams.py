@@ -343,7 +343,7 @@ class Stream(StreamT, Service):
             else:
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
-        suffix = name + constants.REPARTITION_TOPIC_SUFFIX
+        suffix = '-' + name + constants.REPARTITION_TOPIC_SUFFIX
         new_topics = [
             self._topic_from_topic_with_suffix(t, suffix)
             for t in self.topics
