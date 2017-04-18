@@ -342,7 +342,7 @@ class Stream(StreamT, Service):
                 name = key.ident
             else:
                 raise TypeError(
-                    'group_by with callback must set name=topic_name')
+                    'group_by with callback must set name=topic_suffix')
         suffix = name + constants.REPARTITION_TOPIC_SUFFIX
         new_topics = [
             self._topic_from_topic_with_suffix(t, suffix)
