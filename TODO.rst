@@ -19,29 +19,45 @@ interface:
 HTTP API
 --------
 
+* List available tables
+
+    .. code-block:: text
+
+        GET localhost:6666/api/table/
+
+        200 {"results": ["user_to_amount"]}
+
 * List of key/value pairs in the table (with pagination)
 
     .. code-block:: text
 
         GET localhost:6666/api/table/user_to_amount/?page=
+
         200 {"results": {"key", "value"}}
 
 * Get value by key:
 
-    GET localhost:6666/api/table/user_to_amount/key/
-    200 {"key": "value"}
+    .. code-block:: text
+
+        GET localhost:6666/api/table/user_to_amount/key/
+
+        200 {"key": "value"}
 
 * Set value for key
 
-    PUT/POST localhost:6666/api/table/user_to_amount/key/
-    form data: {"key": "value"}
+    .. code-block:: text
 
-    response: 200
+        PUT/POST localhost:6666/api/table/user_to_amount/key/
+        form data: {"key": "value"}
+
+        response: 200
 
 * Delete key
 
-    DELETE localhost:6666/api/table/user_to_amount/key/
-    response: 200
+    .. code-block:: text
+
+        DELETE localhost:6666/api/table/user_to_amount/key/
+        response: 200
 
 HTTP User interface
 -------------------
