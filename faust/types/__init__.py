@@ -1,18 +1,17 @@
 """Abstract types for static typing."""
-from .app import AsyncSerializerT, AppT
-from .codecs import CodecArg, CodecT
-from .collections import NodeT
-from .core import K, V, TaskArg
-from .coroutines import (
+from faust.utils.types.coroutines import (
     InputStreamT,
     StreamCoroutineCallback,
     CoroCallbackT,
     StreamCoroutine,
 )
+from faust.utils.types.services import ServiceT
+from .app import AsyncSerializerT, AppT
+from .codecs import CodecArg, CodecT
+from .core import K, V
 from .joins import JoinT
 from .models import ModelOptions, ModelT, FieldDescriptorT, Event
 from .sensors import SensorT
-from .services import ServiceT
 from .stores import StoreT
 from .streams import (
     Processor,
@@ -31,11 +30,9 @@ from .transports import (
 from .tuples import Topic, TopicPartition, Message, Request
 
 __all__ = [
-    'TaskArg', 'AsyncSerializerT', 'AppT',
+    'AsyncSerializerT', 'AppT',
 
     'CodecArg', 'CodecT',
-
-    'NodeT',
 
     'K', 'V',
 

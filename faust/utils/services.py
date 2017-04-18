@@ -2,12 +2,12 @@
 import abc
 import asyncio
 from typing import Any
-from .logging import get_logger
-from ..types.collections import NodeT
-from ..types.services import ServiceT
 from .collections import Node
+from .logging import get_logger
+from .types.collections import NodeT
+from .types.services import ServiceT
 
-__all__ = ['Service']
+__all__ = ['Service', 'ServiceT']
 
 logger = get_logger(__name__)
 

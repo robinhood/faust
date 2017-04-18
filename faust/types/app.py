@@ -1,10 +1,10 @@
 import abc
-from typing import Any, Awaitable, Optional, Type, Union
+from typing import Any, Awaitable, Generator, Optional, Type, Union
+from faust.utils.types.coroutines import StreamCoroutine
+from faust.utils.types.services import ServiceT
 from .codecs import CodecArg
-from .core import K, V, TaskArg
-from .coroutines import StreamCoroutine
+from .core import K, V
 from .models import ModelT, Event
-from .services import ServiceT
 from .sensors import SensorT
 from .streams import StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
@@ -56,7 +56,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_task(self, task: TaskArg) -> Awaitable:
+    def add_task(self, task: Generator) -> Awaitable:
         ...
 
     @abc.abstractmethod

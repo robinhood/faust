@@ -1,10 +1,9 @@
 """Async I/O Future utilities."""
 import asyncio
 from collections import Sized, deque
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Generator
 from .services import Service
-from ..types import TaskArg
-from ..types.collections import NodeT
+from .types.collections import NodeT
 
 __all__ = ['Group', 'done_future']
 
@@ -45,14 +44,14 @@ class Group(Service, Sized):
         self._size = 0
         super().__init__(loop=loop, **kwargs)
 
-    def add(self, task: TaskArg) -> Awaitable:
+    def add(self, task: Generator) -> Awaitable:
         # Note: This does not actually start the task,
         #       and `await group.start()` needs to be called.
         fut = self._start_task(task, self.beacon.new(task))
         self._starting.append(fut)
         return fut
 
-    async def _start_task(self, task: TaskArg, beacon: NodeT) -> None:
+    async def _start_task(self, task: Generator, beacon: NodeT) -> None:
         _task = asyncio.Task(task, loop=self.loop)
         _task._beacon = beacon  # type: ignore
         self._running.append(_task)

@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable, Mapping, cast
+from typing import Any, Awaitable, Callable, Mapping, Type, cast
 from .base import Request, Web
 from ..types import AppT
 
@@ -14,7 +14,7 @@ class View:
             'post': self.post,
             'patch': self.patch,
             'delete': self.delete,
-            'put': self.put
+            'put': self.put,
         }
 
     async def dispatch(self, request: Any):
@@ -22,27 +22,28 @@ class View:
             self.web,
             cast(Request, request))
 
-    async def get(self, request: Request) -> Any:
+    async def get(self, web: Web, request: Request) -> Any:
         ...
 
-    async def post(self, request: Request) -> Any:
+    async def post(self, web: Web, request: Request) -> Any:
         ...
 
-    async def put(self, request: Request) -> Any:
+    async def put(self, web: Web, request: Request) -> Any:
         ...
 
-    async def patch(self, request: Request) -> Any:
+    async def patch(self, web: Web, request: Request) -> Any:
         ...
 
-    async def delete(self, request: Request) -> Any:
+    async def delete(self, web: Web, request: Request) -> Any:
         ...
 
 
 class Site:
+    views: Mapping[str, Type]
 
-    def __init__(self, app):
+    def __init__(self, app: AppT) -> None:
         self.app = app
 
-    def enable(self, web, *, prefix: str = ''):
+    def enable(self, web: Web, *, prefix: str = '') -> None:
         for pattern, view in self.views.items():
             web.route(prefix + pattern, view(self.app, web).dispatch)

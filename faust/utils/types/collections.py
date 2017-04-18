@@ -1,5 +1,6 @@
 import abc
 from typing import Any, List
+from .graphs import DependencyGraphT
 
 __all__ = ['NodeT']
 
@@ -21,4 +22,8 @@ class NodeT(abc.ABC):
 
     @abc.abstractmethod
     def add(self, data: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def as_graph(self) -> DependencyGraphT:
         ...

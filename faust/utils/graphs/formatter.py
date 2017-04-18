@@ -1,4 +1,5 @@
 from typing import Any, Mapping
+from ..types.graphs import GraphFormatterT
 
 
 def dedent_initial(s: str, n: int = 4) -> str:
@@ -39,7 +40,7 @@ def _label(s: Any) -> str:
     )
 
 
-class GraphFormatter(object):
+class GraphFormatter(GraphFormatterT):
     """Format dependency graphs."""
 
     _attr = DOT.ATTR.strip()
@@ -50,20 +51,28 @@ class GraphFormatter(object):
     _attrsep = DOT.ATTRSEP
     _dirs = dict(DOT.DIRS)
 
-    scheme = {
+    scheme: Mapping[str, Any] = {
         'shape': 'box',
         'arrowhead': 'vee',
         'style': 'filled',
         'fontname': 'HelveticaNeue',
     }
-    edge_scheme = {
+    edge_scheme: Mapping[str, Any] = {
         'color': 'darkseagreen4',
         'arrowcolor': 'black',
         'arrowsize': 0.7,
     }
-    node_scheme = {'fillcolor': 'palegreen3', 'color': 'palegreen4'}
-    term_scheme = {'fillcolor': 'palegreen1', 'color': 'palegreen2'}
-    graph_scheme = {'bgcolor': 'mintcream'}
+    node_scheme: Mapping[str, Any] = {
+        'fillcolor': 'palegreen3',
+        'color': 'palegreen4',
+    }
+    term_scheme: Mapping[str, Any] = {
+        'fillcolor': 'palegreen1',
+        'color': 'palegreen2',
+    }
+    graph_scheme: Mapping[str, Any] = {
+        'bgcolor': 'mintcream',
+    }
 
     def __init__(self,
                  root: Any = None,

@@ -7,7 +7,7 @@ import typing
 
 from collections import OrderedDict, deque
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Deque, Iterator, Mapping,
+    Any, Awaitable, Callable, ClassVar, Deque, Generator, Iterator, Mapping,
     MutableMapping, Optional, Sequence, Set, Union, Tuple, Type, cast,
 )
 from itertools import count
@@ -15,16 +15,13 @@ from weakref import WeakKeyDictionary
 
 from . import constants
 from . import transport
-from .codecs import loads
+from .codecs import CodecArg, loads
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
 from .streams import StreamManager
-from .types import CodecArg, K, Message, Request, TaskArg, Topic, V
+from .types import K, Message, Request, Topic, V
 from .types.app import AppT, AsyncSerializerT
-from .types.collections import NodeT
-from .types.coroutines import StreamCoroutine
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
-from .types.services import ServiceT
 from .types.streams import Processor, StreamT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
@@ -33,7 +30,9 @@ from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import cached_property
-from .utils.services import Service, ServiceProxy
+from .utils.services import Service, ServiceProxy, ServiceT
+from .utils.types.collections import NodeT
+from .utils.types.coroutines import StreamCoroutine
 from .web.base import Web
 from .web.site import create_site
 
@@ -372,7 +371,7 @@ class App(AppT, ServiceProxy):
                 symbol_by_name(self._serializer_override_classes[name])(self))
             return cast(AsyncSerializerT, ser)
 
-    def add_task(self, task: TaskArg) -> Awaitable:
+    def add_task(self, task: Generator) -> Awaitable:
         """Start task.
 
         Notes:

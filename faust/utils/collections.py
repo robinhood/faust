@@ -3,8 +3,9 @@ from typing import (
     MutableMapping, ValuesView, cast,
 )
 from collections import UserDict, deque
-from ..types.collections import NodeT
 from .graphs import DependencyGraph
+from .types.collections import NodeT
+from .types.graphs import DependencyGraphT
 
 __all__ = ['Node', 'FastUserDict', 'ManagedUserDict']
 
@@ -37,7 +38,7 @@ class Node(NodeT):
     def add(self, data: Any) -> None:
         self.children.append(data)
 
-    def as_graph(self) -> DependencyGraph:
+    def as_graph(self) -> DependencyGraphT:
         graph = DependencyGraph()
         stack = deque([self])
         while stack:

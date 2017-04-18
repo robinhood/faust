@@ -166,7 +166,7 @@ from .utils.compat import want_bytes, want_str
 from .utils.imports import load_extension_classes
 
 __all__ = [
-    'Codec', 'register', 'get_codec', 'dumps', 'loads',
+    'Codec', 'CodecArg', 'register', 'get_codec', 'dumps', 'loads',
 ]
 
 

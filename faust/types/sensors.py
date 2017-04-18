@@ -1,6 +1,6 @@
 import abc
+from faust.utils.types.services import ServiceT
 from .tuples import Message
-from .services import ServiceT
 
 
 class SensorT(ServiceT):

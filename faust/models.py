@@ -4,8 +4,7 @@ from typing import (
     Set, Sequence, Tuple, Type, Union, cast,
 )
 from avro import schema
-from .codecs import dumps, loads
-from .types.codecs import CodecArg
+from .codecs import CodecArg, dumps, loads
 from .types.models import FieldDescriptorT, ModelT, ModelOptions
 from .types.tuples import Request, Topic
 from .utils.avro.utils import to_avro_type
@@ -64,12 +63,20 @@ __flake8_ignore_this_Dict: Dict  # XXX
 class Model(ModelT):
     """Describes how messages in a topic is serialized."""
 
+    #: If you want to make a custom Model base class, you have to
+    #: set this attribute to True in your class.
+    #: It forces __init_subclass__ to skip class initialization.
     __abstract__: ClassVar[bool] = True
+
+    #: Name used in Avro schema's "type" field (e.g. "record").
     _schema_type: ClassVar[str] = None
+
+    #: Cache for ``.as_avro_schema()``.
     _schema_cache: ClassVar[schema.Schema] = None
 
-    #: When an Event is received as a message, this field is populated with
-    #: the :class:`Request` it originated from.
+    #: Request associated with event.
+    #: When an model (Event) is received as a message, this field is populated
+    #: with the :class:`~faust.types.Request` it originated from.
     req: Request = None
 
     @classmethod
@@ -78,12 +85,12 @@ class Model(ModelT):
             *,
             default_serializer: CodecArg = None,
             req: Request = None) -> ModelT:
-        """Deserialize event from bytes.
+        """Deserialize model object from bytes.
 
         Keyword Arguments:
             default_serializer (CodecArg): Default serializer to use
-                if no custom serializer was set for this Event subclass.
-            **kwargs: Additional attributes to set on the event object.
+                if no custom serializer was set for this model subclass.
+            **kwargs: Additional attributes to set on the model object.
                 Note, these are regarded as defaults, and any fields also
                 present in the message takes precedence.
         """
@@ -94,6 +101,7 @@ class Model(ModelT):
 
     @classmethod
     def as_schema(cls) -> Mapping:
+        """Return Avro schema as mapping."""
         return {
             'namespace': cls._options.namespace,
             'type': cls._schema_type,
@@ -103,6 +111,7 @@ class Model(ModelT):
 
     @classmethod
     def as_avro_schema(cls) -> schema.Schema:
+        """Return Avro schema as :class:`avro.schema.Schema`."""
         if cls._schema_cache is None:
             cls._schema_cache = cls._as_avro_schema()
         return cls._schema_cache
@@ -136,11 +145,12 @@ class Model(ModelT):
                        serializer: str = None,
                        namespace: str = None) -> None:
         if cls.__abstract__:
+            # Custom base classes can set this to skip class initialization.
             cls.__abstract__ = False
             return
 
-        # Can set serializer using:
-        #    class X(Event, serializer='avro'):
+        # Can set serializer/namespace/etc. using:
+        #    class X(Record, serializer='avro', namespace='com.vandelay.X'):
         #        ...
         custom_options = getattr(cls, '_options', None)
         options = ModelOptions()
@@ -178,7 +188,7 @@ class Model(ModelT):
     async def send(self, topic: Union[str, Topic],
                    *,
                    key: Any = SENTINEL) -> None:
-        """Serialize and send event to topic."""
+        """Serialize and send object to topic."""
         if key is SENTINEL:
             key = self.req.key
         await self.req.app.send(topic, key, self)
@@ -192,13 +202,15 @@ class Model(ModelT):
         await self.req.app.send(topic, key, self.req.message.value)
 
     def dumps(self) -> bytes:
-        """Serialize event to the target serialization format."""
+        """Serialize object to the target serialization format."""
         return dumps(self._options.serializer, self.to_representation())
 
     def to_representation(self) -> Any:
+        """Convert object to JSON serializable object."""
         raise NotImplementedError()
 
     def _humanize(self) -> str:
+        """String representation of object for debugging purposes."""
         raise NotImplementedError()
 
     def __repr__(self) -> str:
@@ -279,8 +291,8 @@ class Record(Model):
                  *,
                  req: Request = None,
                  **fields: Any) -> None:
-        # Req is only set by the Consumer, when the event originates
-        # from message received.
+        # Req is only set by the Consumer, when the record
+        # originates from a message.
         self.req = req
 
         if _data is not None:
@@ -374,26 +386,35 @@ class FieldDescriptor(FieldDescriptorT):
     Arguments:
         field (str): Name of field.
         type (Type): Field value type.
-        event (Type): Record class the field belongs to.
+        model (Type): Model class the field belongs to.
         required (bool): Set to false if field is optional.
         default (Any): Default value when `required=False`.
     """
 
+    #: Name of attribute on Model.
     field: str
+
+    #: Type of value (e.g. ``int``).
     type: Type
-    event: Type
+
+    #: The model this is field is associated with.
+    model: Type
+
+    #: Set if a value for this field is required (cannot be :const:`None`).
     required: bool = True
+
+    #: Default value for non-required field.
     default: Any = None  # noqa: E704
 
     def __init__(self,
                  field: str,
                  type: Type,
-                 event: Type,
+                 model: Type,
                  required: bool = True,
                  default: Any = None) -> None:
         self.field = field
         self.type = type
-        self.event = event
+        self.model = model
         self.required = required
         self.default = default
 
@@ -414,9 +435,9 @@ class FieldDescriptor(FieldDescriptorT):
         instance.__dict__[self.field] = value
 
     def __repr__(self) -> str:
-        return '<{name}: {event}.{field}: {type}{default}>'.format(
+        return '<{name}: {model}.{field}: {type}{default}>'.format(
             name=type(self).__name__,
-            event=self.event.__name__,
+            model=self.model.__name__,
             field=self.field,
             type=self.type.__name__,
             default='' if self.required else ' = {!r}'.format(self.default),

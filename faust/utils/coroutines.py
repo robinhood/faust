@@ -1,13 +1,14 @@
 """Coroutine utilities."""
 import asyncio
 from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
-from ..types.coroutines import (
-    CoroCallbackT, InputStreamT, StreamCoroutineCallback,
-)
 from ..types.models import Event
 from ..types.streams import StreamCoroutine
+from .types.coroutines import (
+    CoroCallbackT, InputStreamT, StreamCoroutineCallback,
+)
 
 __all__ = [
+    'CoroCallbackT', 'InputStreamT', 'StreamCoroutineCallback',
     'InputStream', 'CoroCallback',
     'GeneratorCoroCallback', 'AsyncCoroCallback', 'AsyncGeneratorCoroCallback',
     'wrap_callback',

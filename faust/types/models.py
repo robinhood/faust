@@ -75,7 +75,7 @@ class ModelT:
 class FieldDescriptorT:
     field: str
     type: Type
-    event: Type
+    model: Type
     required: bool = True
     default: Any = None  # noqa: E704
 

@@ -4,7 +4,7 @@ from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Coroutine, Generator, Iterable, Union,
 )
-from .models import Event
+from faust.types.models import Event
 
 __all__ = [
     'InputStreamT',

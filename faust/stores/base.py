@@ -1,16 +1,11 @@
-import asyncio
+from typing import Any
 from ..types import AppT, StoreT
+from ..utils.services import Service
 
 
-class Store(StoreT):
+class Store(StoreT, Service):
 
-    def __init__(self, url: str, app: AppT,
-                 *,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(self, url: str, app: AppT, **kwargs: Any) -> None:
         self.url = url
         self.app = app
-        self.loop = loop or asyncio.get_event_loop()
-        self.on_init()
-
-    def on_init(self) -> None:
-        ...
+        super().__init__(**kwargs)

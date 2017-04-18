@@ -2,10 +2,10 @@ import asyncio
 import reprlib
 import signal
 from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
+from .types import AppT, SensorT
 from .utils.compat import DummyContext
 from .utils.logging import setup_logging
-from .utils.services import Service
-from .types import AppT, ServiceT, SensorT
+from .utils.services import Service, ServiceT
 
 try:  # pragma: no cover
     from setproctitle import setproctitle

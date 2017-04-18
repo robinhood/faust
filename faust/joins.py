@@ -13,7 +13,7 @@ class Join(JoinT):
     def __init__(self, *,
                  stream: StreamT,
                  fields: Tuple[FieldDescriptorT, ...]) -> None:
-        self.fields = {field.event: field for field in fields}
+        self.fields = {field.model: field for field in fields}
         self.stream = stream
 
     async def process(self, event: Event) -> Optional[Event]:

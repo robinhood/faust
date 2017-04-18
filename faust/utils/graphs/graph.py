@@ -1,9 +1,10 @@
 from functools import partial
 from typing import (
     Any, Callable, ItemsView, Iterable, Iterator, IO,
-    List, Mapping, MutableMapping, Set, Sequence, cast,
+    List, MutableMapping, Set, Sequence, cast,
 )
 from collections import Counter
+from ..types.graphs import DependencyGraphT, GraphFormatterT
 from .formatter import GraphFormatter
 
 _flake8_List_is_used: List
@@ -14,11 +15,7 @@ class CycleError(Exception):
     """A cycle was detected in an acyclic graph."""
 
 
-class Graph:
-    ...
-
-
-class DependencyGraph(Graph, Mapping):
+class DependencyGraph(DependencyGraphT):
     """A directed acyclic graph of objects and their dependencies.
 
     Supports a robust topological sort
@@ -34,7 +31,7 @@ class DependencyGraph(Graph, Mapping):
 
     def __init__(self,
                  it: Iterable = None,
-                 formatter: GraphFormatter = None) -> None:
+                 formatter: GraphFormatterT = None) -> None:
         self.formatter = formatter or GraphFormatter()
         self.adjacent = {}
         if it is not None:
@@ -51,7 +48,7 @@ class DependencyGraph(Graph, Mapping):
         """
         self[A].append(B)
 
-    def connect(self, graph: 'DependencyGraph') -> None:
+    def connect(self, graph: DependencyGraphT) -> None:
         """Add nodes from another graph."""
         self.adjacent.update(graph.adjacent)
 
@@ -158,7 +155,7 @@ class DependencyGraph(Graph, Mapping):
 
         return result
 
-    def to_dot(self, fh: IO, *, formatter: GraphFormatter = None) -> None:
+    def to_dot(self, fh: IO, *, formatter: GraphFormatterT = None) -> None:
         """Convert the graph to DOT format.
 
         Arguments:
@@ -200,15 +197,16 @@ class DependencyGraph(Graph, Mapping):
         return cast(ItemsView, self.adjacent.items())
 
     def __repr__(self) -> str:
-        return '\n'.join(self.repr_node(N) for N in self)
+        return '\n'.join(self._repr_node(N) for N in self)
 
-    def repr_node(self, obj: Any,
-                  level: int = 1,
-                  fmt: str = '{0}({1})') -> str:
+    def _repr_node(self, obj: Any,
+                   level: int = 1,
+                   fmt: str = '{0}({1})') -> str:
         output = [fmt.format(obj, self.valency_of(obj))]
         if obj in self:
             for other in self[obj]:
                 d = fmt.format(other, self.valency_of(other))
                 output.append('     ' * level + d)
-                output.extend(self.repr_node(other, level + 1).split('\n')[1:])
+                output.extend(
+                    self._repr_node(other, level + 1).split('\n')[1:])
         return '\n'.join(output)

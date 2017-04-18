@@ -12,8 +12,6 @@ from typing import (
 from . import constants
 from . import joins
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
-from .types.collections import NodeT
-from .types.coroutines import CoroCallbackT
 from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
 from .types.streams import (
@@ -22,9 +20,10 @@ from .types.streams import (
 )
 from .types.transports import ConsumerCallback, ConsumerT
 from .utils.aiter import aenumerate
-from .utils.coroutines import wrap_callback
+from .utils.coroutines import CoroCallbackT, wrap_callback
 from .utils.logging import get_logger
 from .utils.services import Service
+from .utils.types.collections import NodeT
 
 __all__ = ['Stream', 'topic']
 

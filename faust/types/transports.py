@@ -2,7 +2,7 @@ import abc
 import asyncio
 import typing
 from typing import Any, Callable, ClassVar, Awaitable, Optional, Type
-from .services import ServiceT
+from faust.utils.types.services import ServiceT
 from .tuples import Message, Topic
 
 if typing.TYPE_CHECKING:

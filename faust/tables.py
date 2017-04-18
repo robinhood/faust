@@ -1,8 +1,9 @@
 """Tables (changelog stream)."""
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, cast
 from . import stores
 from .streams import Stream
 from .types import AppT, Event
+from .types.stores import StoreT
 from .types.tables import TableT
 from .utils.collections import ManagedUserDict
 
@@ -10,6 +11,7 @@ __all__ = ['Table']
 
 
 class Table(Stream, TableT, ManagedUserDict):
+
     _store: str
 
     def __init__(self, *,
@@ -44,10 +46,12 @@ class Table(Stream, TableT, ManagedUserDict):
 
     def on_bind(self, app: AppT) -> None:
         if self.StateStore is not None:
-            self.data = self.StateStore(url=None, app=app)
+            self.data = self.StateStore(url=None, app=app, beacon=self.beacon)
         else:
             url = self._store or self.app.store
-            self.data = stores.by_url(url)(url, app, loop=self.loop)
+            self.data = stores.by_url(url)(url, app,
+                                           loop=self.loop,
+                                           beacon=self.beacon)
         self.changelog_topic = self.derive_topic(self._changelog_topic_name())
         app.add_table(self)
 
@@ -56,6 +60,14 @@ class Table(Stream, TableT, ManagedUserDict):
 
     def on_key_del(self, key: Any) -> None:
         self.app.send_soon(self.changelog_topic, key=key, value=None)
+
+    async def on_start(self) -> None:
+        await cast(StoreT, self.data).maybe_start()
+        super().on_start()
+
+    async def on_stop(self) -> None:
+        await cast(StoreT, self.data).stop()
+        super().on_stop()
 
     async def on_done(self, value: Event = None) -> None:
         self[value.req.key] = value
