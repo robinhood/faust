@@ -7,7 +7,6 @@ from .types._coroutines import (
 )
 
 __all__ = [
-    'CoroCallbackT', 'InputStreamT',
     'StreamCoroutine', 'StreamCoroutineCallback',
     'InputStream', 'CoroCallback',
     'GeneratorCoroCallback', 'AsyncCoroCallback', 'AsyncGeneratorCoroCallback',

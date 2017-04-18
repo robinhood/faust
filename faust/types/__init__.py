@@ -1,11 +1,5 @@
 """Abstract types for static typing."""
 from ..utils.types.services import ServiceT
-from ._coroutines import (
-    InputStreamT,
-    StreamCoroutineCallback,
-    CoroCallbackT,
-    StreamCoroutine,
-)
 from .app import AsyncSerializerT, AppT
 from .codecs import CodecArg, CodecT
 from .core import K, V
@@ -17,6 +11,7 @@ from .streams import (
     Processor,
     TopicProcessorSequence,
     StreamProcessorMap,
+    StreamCoroutine,
     StreamCoroutineMap,
     StreamT,
 )
@@ -36,9 +31,6 @@ __all__ = [
 
     'K', 'V',
 
-    'InputStreamT', 'StreamCoroutineCallback',
-    'CoroCallbackT', 'StreamCoroutine',
-
     'JoinT',
 
     'ModelOptions', 'ModelT', 'FieldDescriptorT', 'Event',
@@ -50,7 +42,7 @@ __all__ = [
     'StoreT',
 
     'Processor', 'TopicProcessorSequence',
-    'StreamProcessorMap', 'StreamCoroutineMap',
+    'StreamProcessorMap', 'StreamCoroutine', 'StreamCoroutineMap',
     'StreamT',
 
     'ConsumerCallback', 'MessageRefT', 'ConsumerT', 'ProducerT', 'TransportT',
