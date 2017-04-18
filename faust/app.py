@@ -4,6 +4,7 @@ import faust
 import io
 import sys
 import typing
+
 from collections import OrderedDict, deque
 from typing import (
     Any, Awaitable, Callable, ClassVar, Deque, Iterator, Mapping,
@@ -11,6 +12,7 @@ from typing import (
 )
 from itertools import count
 from weakref import WeakKeyDictionary
+
 from . import constants
 from . import transport
 from .codecs import loads
@@ -39,11 +41,23 @@ __all__ = ['App']
 
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
 
+#: Default broker URL.
 DEFAULT_URL = 'kafka://localhost:9092'
+
+#: Path to default stream class used by ``app.stream``.
 DEFAULT_STREAM_CLS = 'faust.Stream'
+
+#: Path to default table class used by ``app.table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
+
+#: Default Kafka Client ID.
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
+
+#: How often we commit messages.
+#: Can be customized by setting ``App(commit_interval=...)``.
 COMMIT_INTERVAL = 30.0
+
+#: Format string for ``repr(app)``.
 APP_REPR = """
 <{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
 """.strip()
@@ -51,12 +65,19 @@ APP_REPR = """
 if typing.TYPE_CHECKING:
     # TODO mypy does not recognize WeakKeyDictionary as a MutableMapping
     TASK_TO_APP: WeakKeyDictionary[asyncio.Task, AppT]
+#: Map asyncio.Task to the app that started it.
+#: Tasks can use ``App.current_app`` to get the "currently used app".
 TASK_TO_APP = WeakKeyDictionary()
 
 logger = get_logger(__name__)
 
 
 class AppService(Service):
+    """Service responsible for starting/stopping an application."""
+
+    # App is created in module scope so we split it up to ensure
+    # Service.loop does not create the asyncio event loop
+    # when a module is imported.
 
     def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
@@ -136,17 +157,18 @@ class App(AppT, ServiceProxy):
             Provide specific asyncio event loop instance.
     """
 
-    #: Used for generating new topic names.
+    #: Used for generating internal names (see new_name taken from KS).
     _index: ClassVar[Iterator[int]] = count(0)
 
     #: Mapping of active streams by name.
     _streams: MutableMapping[str, StreamT]
 
-    #: Mapping of active tables by name.
+    #: Mapping of active tables by table name.
     _tables: MutableMapping[str, TableT]
 
-    #: Group creates the event loop, so we instantiate it lazily
-    #: only when something accesses ._tasks
+    #: The ._tasks Group starts and stops tasks in the app.
+    #: Creating a group also creates the event loop, so _tasks is a property
+    #: that sets _tasks_group lazily.
     _tasks_group: Group = None
 
     #: Default producer instance.
@@ -158,11 +180,16 @@ class App(AppT, ServiceProxy):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
+    #: Mapping of serializers that needs to be async
     _serializer_override_classes: Mapping[CodecArg, SymbolArg] = {
         'avro': 'faust.utils.avro.faust:AvroSerializer',
     }
+
+    #: Async serializer instances are cached here.
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
 
+    #: XXX TODO FIXME NEED TO SEND OUT MESSAGES IN THIS
+    #: Buffer of messages to be sent soon.
     _message_buffer: Deque[Tuple[Union[Topic, str], K, V]]
 
     #: Set of active sensors
@@ -170,6 +197,7 @@ class App(AppT, ServiceProxy):
 
     @classmethod
     def current_app(self) -> AppT:
+        """Returns the app that created the active task."""
         return TASK_TO_APP[asyncio.Task.current_task(loop=self.loop)]
 
     def __init__(self, id: str,
@@ -231,6 +259,10 @@ class App(AppT, ServiceProxy):
         )
 
     def send_soon(self, topic: Union[Topic, str], key: K, value: V) -> None:
+        """Send event to stream soon.
+
+        This is for use by non-async functions.
+        """
         self._message_buffer.append((topic, key, value))
 
     async def _send(self,
@@ -249,6 +281,12 @@ class App(AppT, ServiceProxy):
         )
 
     async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
+        """Deserialize message key.
+
+        Arguments:
+            typ: Model to use for deserialization.
+            key: Serialized key.
+        """
         if key is None or typ is None:
             return key
         try:
@@ -265,6 +303,13 @@ class App(AppT, ServiceProxy):
             raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
     async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
+        """Deserialize message value.
+
+        Arguments:
+            typ: Model to use for deserialization.
+            key: Deserialized key.
+            message: Message instance containing the serialized message body.
+        """
         if message.value is None:
             return None
         try:
@@ -282,6 +327,12 @@ class App(AppT, ServiceProxy):
             raise ValueDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
     async def dumps_key(self, topic: str, key: K) -> Optional[bytes]:
+        """Serialize key.
+
+        Arguments:
+            topic: The topic that the message will be sent to.
+            key: The key to be serialized.
+        """
         if isinstance(key, ModelT):
             try:
                 ser = self._get_serializer(key._options.serializer)
@@ -292,6 +343,12 @@ class App(AppT, ServiceProxy):
         return want_bytes(key) if key is not None else key
 
     async def dumps_value(self, topic: str, value: V) -> Optional[bytes]:
+        """Serialize value.
+
+        Arguments:
+            topic: The topic that the message will be sent to.
+            value: The value to be serialized.
+        """
         if isinstance(value, ModelT):
             try:
                 ser = self._get_serializer(value._options.serializer)
@@ -319,7 +376,8 @@ class App(AppT, ServiceProxy):
         """Start task.
 
         Notes:
-            A task is simply any coroutine iterating over a stream.
+            A task is simply any coroutine iterating over a stream,
+            or even any coroutine doing anything.
         """
         return self._tasks.add(task)
 
@@ -344,11 +402,11 @@ class App(AppT, ServiceProxy):
         """Create new stream from topic.
 
         Arguments:
-            topic (Topic): Topic description to consume from.
+            topic: Topic description to consume from.
 
         Keyword Arguments:
-            coroutine (Callable): Coroutine to filter events in this stream.
-            processors (Sequence[Callable]): List of processors for events in
+            coroutine: Coroutine to filter events in this stream.
+            processors: List of processors for events in
                 this stream.
 
         Returns:
@@ -370,6 +428,25 @@ class App(AppT, ServiceProxy):
               coroutine: StreamCoroutine = None,
               processors: Sequence[Processor] = None,
               **kwargs: Any) -> TableT:
+        """Create new table.
+
+        Arguments:
+            table_name: Name used for table, note that two tables living in
+            the same application cannot have the same name.
+
+        Keyword Arguments:
+            default: A callable, or type that will return a default value
+            for keys missing in this table.
+
+        Examples:
+            >>> table = app.table('user_to_amount', default=int)
+            >>> table['George']
+            0
+            >>> table['Elaine'] += 1
+            >>> table['Elaine'] += 1
+            >>> table['Elaine']
+            2
+        """
         Table = cast(TableT, self.Table)
         return cast(TableT, Table.from_topic(
             topic,
@@ -382,11 +459,13 @@ class App(AppT, ServiceProxy):
         ).bind(self))
 
     def add_sensor(self, sensor: SensorT) -> None:
+        """Attach new sensor to this application."""
         # connect beacons
         sensor.beacon = self.beacon.new(sensor)
         self._sensors.add(sensor)
 
     def remove_sensor(self, sensor: SensorT) -> None:
+        """Detach sensor from this application."""
         self._sensors.remove(sensor)
 
     async def on_message_in(
@@ -394,6 +473,11 @@ class App(AppT, ServiceProxy):
             consumer_id: int,
             offset: int,
             message: Message) -> None:
+        """Called whenever a message is received.
+
+        Delegates to sensors, so instead of redefining this method
+        you should add a sensor.
+        """
         for _sensor in self._sensors:
             await _sensor.on_message_in(consumer_id, offset, message)
 
@@ -402,6 +486,11 @@ class App(AppT, ServiceProxy):
             consumer_id: int,
             offset: int,
             message: Message = None) -> None:
+        """Called whenever a message has finished processing.
+
+        Delegates to sensors, so instead of redefining this method
+        you should add a sensor.
+        """
         for _sensor in self._sensors:
             await _sensor.on_message_out(consumer_id, offset, message)
 
@@ -443,6 +532,7 @@ class App(AppT, ServiceProxy):
         return Group(beacon=self.beacon, **kwargs)
 
     def render_graph(self) -> str:
+        """Render graph of application components to DOT format."""
         o = io.StringIO()
         self.beacon.as_graph().to_dot(o)
         return o.getvalue()
@@ -466,6 +556,7 @@ class App(AppT, ServiceProxy):
 
     @property
     def producer(self) -> ProducerT:
+        """Default producer instance."""
         if self._producer is None:
             self._producer = self._new_producer()
         return self._producer
@@ -476,6 +567,7 @@ class App(AppT, ServiceProxy):
 
     @property
     def transport(self) -> TransportT:
+        """Message transport."""
         if self._transport is None:
             self._transport = self._create_transport()
         return self._transport
@@ -486,6 +578,7 @@ class App(AppT, ServiceProxy):
 
     @property
     def tasks_running(self) -> int:
+        """Number of active tasks."""
         return len(self._tasks)
 
     @cached_property
