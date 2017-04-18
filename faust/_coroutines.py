@@ -1,7 +1,7 @@
 """Coroutine utilities."""
 import asyncio
 from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
-from ..types.models import Event
+from .types.models import Event
 from .types._coroutines import (
     CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback,
 )
