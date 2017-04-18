@@ -13,7 +13,7 @@ from typing import (
 from itertools import count
 from weakref import WeakKeyDictionary
 
-from . import constants
+from . import _constants
 from . import transport
 from .codecs import CodecArg, loads
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
@@ -496,7 +496,7 @@ class App(AppT, ServiceProxy):
 
     def new_stream_name(self) -> str:
         """Create a new name for a stream."""
-        return self._new_name(constants.SOURCE_NAME)
+        return self._new_name(_constants.SOURCE_NAME)
 
     def _new_name(self, prefix: str) -> str:
         return '{0}{1:010d}'.format(prefix, next(self._index))

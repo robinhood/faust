@@ -13,7 +13,6 @@
     faust
     faust.app
     faust.codecs
-    faust.constants
     faust.exceptions
     faust.joins
     faust.models

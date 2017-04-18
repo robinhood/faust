@@ -10,7 +10,7 @@ from typing import (
     Mapping, MutableMapping, MutableSequence, Pattern,
     Set, Sequence, Tuple, Type, Union, cast
 )
-from . import constants
+from . import _constants
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
@@ -343,7 +343,7 @@ class Stream(StreamT, Service):
             else:
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
-        suffix = '-' + name + constants.REPARTITION_TOPIC_SUFFIX
+        suffix = '-' + name + _constants.REPARTITION_TOPIC_SUFFIX
         new_topics = [
             self._topic_from_topic_with_suffix(t, suffix)
             for t in self.topics
