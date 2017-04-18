@@ -15,11 +15,12 @@ class Withdrawal(faust.Record, serializer='json'):
 
 topic = faust.topic('f-simple', value_type=Withdrawal)
 
+app = faust.App('f-simple', url='kafka://localhost:9092')
+user_to_total = app.table('user_to_total', default=int)
 
 async def find_large_withdrawals(app):
     if GRAPH:
         asyncio.ensure_future(_dump_beacon(app))
-    user_to_total = app.table('user_to_total', default=int)
     async for key, withdrawal in app.stream(topic).items():
         print('%r Withdrawal: %r' % (key, withdrawal,))
         user_to_total[withdrawal.user] += withdrawal.amount
@@ -28,7 +29,6 @@ async def find_large_withdrawals(app):
         print('CURRENT_TOTAL: %r' % (user_to_total[withdrawal.user],))
 
 
-app = faust.App('f-simple', url='kafka://localhost:9092')
 
 
 async def _dump_beacon(app):
