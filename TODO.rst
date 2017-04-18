@@ -209,6 +209,45 @@ Optimize ``aiokafka``
 Find out if there are any obvious optimizations that can be applied
 as it's currently quite slow.
 
+Documentation
+=============
+
+- Introduction/README
+
+- Tutorial
+
+- Glossary (docs/glossary.rst)
+
+- User Guide (docs/userguide/)
+
+    - App
+
+    - Tasks
+
+    - Streams
+
+    - Tables
+
+    - Models
+
+    - High Availability
+
+    - Serialization
+
+    - Sensors
+
+    - Deployment
+
+        * daemonization
+
+        * uvloop vs. asyncio
+
+        * debugging (aiomonitor)
+
+        * logging
+
+    - Web API
+
 Typing
 ======
 
