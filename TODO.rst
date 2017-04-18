@@ -96,6 +96,28 @@ Fault Tolerance
     * https://github.com/dpkp/kafka-python/blob/master/kafka/coordinator/assignors/roundrobin.py (Kafka python’s roundrobin parition assignor for a simpler example of the partition assignor)
     * https://cwiki.apache.org/confluence/display/KAFKA/KIP-54+-+Sticky+Partition+Assignment+Strategy (Sticky Partition Assignment strategy that was added recently)
 
+- Standby Streams
+
+    - Like standby tasks in KS
+
+    - StreamManager consumes data from other partitions, to quickly recover if
+      one of the nodes go down.
+
+    - Probably will have to change StreamManager._topicmap to
+      use ``(topic, partition)`` as key.
+
+    - New attribute: ``Stream.standby``
+
+        Can be used for introspection only, to quickly check if a stream is
+        standby, or to be used in for example ``repr(stream)``.
+
+    - ``App._streams`` and ``App._tables`` mapping may have to change to key
+      by ``(topic, partition)`` also.
+
+    - StreamManager uses Stream.clone to create copies of clones:
+
+        ``x = Stream.clone(standby=True)``
+
 Deployment
 ==========
 
