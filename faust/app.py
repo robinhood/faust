@@ -88,7 +88,7 @@ class AppService(Service):
         streams = list(self.app._streams.values())    # Stream+Table instances
         services = [
             self.app.producer,                        # app.Producer
-            self.app._website,                        # app.Web
+            self.app.website,                        # app.Web
             self.app.streams,                         # app.StreamManager
             self.app._tasks,                          # app.Group
         ]
@@ -569,5 +569,5 @@ class App(AppT, ServiceProxy):
         return AppService(self)
 
     @cached_property
-    def _website(self) -> Web:
+    def website(self) -> Web:
         return self.WebSite(self)

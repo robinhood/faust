@@ -1,4 +1,5 @@
 import abc
+import typing
 from typing import Any, Awaitable, Generator, Optional, Type, Union
 from faust.utils.types.coroutines import StreamCoroutine
 from faust.utils.types.services import ServiceT
@@ -10,6 +11,12 @@ from .streams import StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
 from .transports import TransportT
 from .tuples import Message, Topic
+
+if typing.TYPE_CHECKING:  # pragma: no cover
+    from faust.web.base import Web
+else:
+    class Web: ...  # noqa
+
 
 __all__ = ['AsyncSerializerT', 'AppT']
 
@@ -143,4 +150,9 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def tasks_running(self) -> int:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def website(self) -> Web:
         ...

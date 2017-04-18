@@ -51,7 +51,7 @@ def produce(loop):
 
 def consume(loop):
     app.add_task(find_large_withdrawals(app))
-    worker = faust.Worker(app, loglevel='INFO', loop=loop)
+    worker = faust.Worker(app, loglevel='WARN', loop=loop)
     worker.execute_from_commandline()
     loop.run_forever()
 

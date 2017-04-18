@@ -11,6 +11,9 @@ class Response:
 class Web(Service):
     app: Any
 
+    bind: str
+    port: int
+
     def text(self, value: str) -> Any:
         ...
 
@@ -19,6 +22,10 @@ class Web(Service):
 
     def route(self, pattern: str, handler: Callable) -> None:
         ...
+
+    @property
+    def url(self) -> str:
+        return 'http://localhost:{}/'.format(self.port)
 
 
 class Request:

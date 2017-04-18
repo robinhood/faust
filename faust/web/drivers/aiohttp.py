@@ -40,7 +40,7 @@ class Web(base.Web):
         self._handler = self.app.make_handler()
         self._srv = await self.loop.create_server(
             self._handler, self.bind, self.port)
-        logger.info('Web: Serving on http://localhost:%s', self.port)
+        logger.info('Web: Serving on %s', self.url)
 
     async def on_stop(self) -> None:
         logger.info('Web: closing server')

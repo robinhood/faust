@@ -1,6 +1,8 @@
 import asyncio
+import faust
 import reprlib
 import signal
+import sys
 from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
@@ -18,6 +20,33 @@ PSIDENT = '[Faust:Worker]'
 
 logger = get_logger(__name__)
 
+ARTLINES = """
+                                       .x+=:.        s
+   oec :                               z`    ^%      :8
+  @88888                 x.    .          .   <k    .88
+  8"*88%        u      .@88k  z88u      .@8Ned8"   :888ooo
+  8b.        us888u.  ~"8888 ^8888    .@^%8888"  -*8888888
+ u888888> .@88 "8888"   8888  888R   x88:  `)8b.   8888
+  8888R   9888  9888    8888  888R   8888N=*8888   8888
+  8888P   9888  9888    8888  888R    %8"    R88   8888
+  *888>   9888  9888    8888 ,888B .   @8Wou 9%   .8888Lu=
+  4888    9888  9888   "8888Y 8888"  .888888P`    ^%888*
+  '888    "888*""888"   `Y"   'YP    `   ^"F        'Y"
+   88R     ^Y"   ^Y'
+   88>
+   48
+   '8
+"""
+
+F_BANNER = """
+{art}
+Faust v{version}
+  .id:        {id}
+  .web:       {web}
+  .log:       {logfile} ({loglevel})
+  .transport: {transport}
+"""
+
 
 class _TupleAsListRepr(reprlib.Repr):
 
@@ -27,11 +56,16 @@ _repr = _TupleAsListRepr().repr  # noqa: E305
 
 
 class Worker(Service):
+    art = ARTLINES
+    f_banner = F_BANNER
     debug: bool
     sensors: Set[SensorT]
+    apps: Sequence[AppT]
     services: Sequence[ServiceT]
     loglevel: Union[str, int]
     logfile: Union[str, IO]
+    stdout: IO
+    stderr: IO
 
     def __init__(self, *services: ServiceT,
                  sensors: Sequence[SensorT] = None,
@@ -40,14 +74,30 @@ class Worker(Service):
                  logfile: Union[str, IO] = None,
                  logformat: str = None,
                  loop: asyncio.AbstractEventLoop = None,
+                 stdout: IO = sys.stdout,
+                 stderr: IO = sys.stderr,
                  **kwargs: Any) -> None:
+        self.apps = [s for s in services if isinstance(s, AppT)]
         self.services = services
         self.sensors = set(sensors or [])
         self.debug = debug
         self.loglevel = loglevel
         self.logfile = logfile
         self.logformat = logformat
+        self.stdout = stdout
+        self.stderr = stderr
         super().__init__(loop=loop, **kwargs)
+
+    def print_banner(self) -> None:
+        print(self.f_banner.format(
+            art=self.art,
+            version=faust.__version__,
+            id=', '.join(x.id for x in self.apps),
+            transport=', '.join(x.url for x in self.apps),
+            web=', '.join(x.website.url for x in self.apps),
+            logfile=self.logfile if self.logfile else '-stderr-',
+            loglevel=self.loglevel or 'INFO',
+        ), file=self.stdout)
 
     def install_signal_handlers(self) -> None:
         self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
@@ -84,6 +134,7 @@ class Worker(Service):
 
     async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
         setproctitle('[Faust:Worker] init')
+        self.print_banner()
         with self._monitor():
             self.install_signal_handlers()
             await asyncio.gather(
@@ -113,10 +164,9 @@ class Worker(Service):
         return DummyContext()
 
     def on_init_dependencies(self) -> Sequence[ServiceT]:
-        for service in self.services:
-            if isinstance(service, AppT):
-                for sensor in self.sensors:
-                    service.add_sensor(sensor)
+        for app in self.apps:
+            for sensor in self.sensors:
+                app.add_sensor(sensor)
         return self.services
 
     async def on_first_start(self) -> None:
