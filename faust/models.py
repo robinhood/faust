@@ -4,10 +4,10 @@ from typing import (
     Set, Sequence, Tuple, Type, Union, cast,
 )
 from avro import schema
+from .avro.utils import to_avro_type
 from .codecs import CodecArg, dumps, loads
 from .types.models import FieldDescriptorT, ModelT, ModelOptions
 from .types.tuples import Request, Topic
-from .utils.avro.utils import to_avro_type
 from .utils.objects import annotations
 
 __all__ = ['Model', 'Record', 'FieldDescriptor']
@@ -435,10 +435,14 @@ class FieldDescriptor(FieldDescriptorT):
         instance.__dict__[self.field] = value
 
     def __repr__(self) -> str:
-        return '<{name}: {model}.{field}: {type}{default}>'.format(
+        return '<{name}: {ident}: {type}{default}>'.format(
             name=type(self).__name__,
             model=self.model.__name__,
             field=self.field,
             type=self.type.__name__,
             default='' if self.required else ' = {!r}'.format(self.default),
         )
+
+    @property
+    def ident(self) -> str:
+        return '{}.{}'.format(self.model.__name__, self.field)

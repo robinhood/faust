@@ -18,7 +18,7 @@ from . import transport
 from .codecs import CodecArg, loads
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
 from .streams import StreamManager
-from .types import K, Message, Request, Topic, V
+from .types import K, Message, Request, StreamCoroutine, Topic, V
 from .types.app import AppT, AsyncSerializerT
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
@@ -32,7 +32,6 @@ from .utils.logging import get_logger
 from .utils.objects import cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.types.collections import NodeT
-from .utils.types.coroutines import StreamCoroutine
 from .web.base import Web
 
 __all__ = ['App']
@@ -163,7 +162,7 @@ class App(AppT, ServiceProxy):
 
     #: Mapping of serializers that needs to be async
     _serializer_override_classes: Mapping[CodecArg, SymbolArg] = {
-        'avro': 'faust.utils.avro.faust:AvroSerializer',
+        'avro': 'faust.avro.faust:AvroSerializer',
     }
 
     #: Async serializer instances are cached here.

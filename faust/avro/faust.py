@@ -1,7 +1,7 @@
 from typing import Any
-from faust.types.app import AsyncSerializerT, AppT
-from faust.types.models import ModelT
-from faust.utils.objects import cached_property
+from ..types.app import AsyncSerializerT, AppT
+from ..types.models import ModelT
+from ..utils.objects import cached_property
 from .serializer import MessageSerializer
 from .server import RegistryClient
 

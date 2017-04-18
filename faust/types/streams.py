@@ -5,8 +5,8 @@ from typing import (
     Any, AsyncIterator, Awaitable, Callable, List, Mapping,
     MutableMapping, MutableSequence, Sequence, Tuple, TypeVar, Union,
 )
-from faust.utils.types.coroutines import CoroCallbackT, StreamCoroutine
-from faust.utils.types.services import ServiceT
+from ..utils.types.services import ServiceT
+from ._coroutines import CoroCallbackT, StreamCoroutine
 from .core import K
 from .models import Event, FieldDescriptorT
 from .transports import ConsumerT

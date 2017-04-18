@@ -1,8 +1,8 @@
 import abc
 import typing
 from typing import Any, Awaitable, Generator, Optional, Type, Union
-from faust.utils.types.coroutines import StreamCoroutine
-from faust.utils.types.services import ServiceT
+from ..utils.types.services import ServiceT
+from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
 from .models import ModelT, Event
@@ -13,7 +13,7 @@ from .transports import TransportT
 from .tuples import Message, Topic
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from faust.web.base import Web
+    from ..web.base import Web
 else:
     class Web: ...  # noqa
 

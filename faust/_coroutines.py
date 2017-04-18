@@ -2,13 +2,13 @@
 import asyncio
 from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
 from ..types.models import Event
-from ..types.streams import StreamCoroutine
-from .types.coroutines import (
-    CoroCallbackT, InputStreamT, StreamCoroutineCallback,
+from .types._coroutines import (
+    CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback,
 )
 
 __all__ = [
-    'CoroCallbackT', 'InputStreamT', 'StreamCoroutineCallback',
+    'CoroCallbackT', 'InputStreamT',
+    'StreamCoroutine', 'StreamCoroutineCallback',
     'InputStream', 'CoroCallback',
     'GeneratorCoroCallback', 'AsyncCoroCallback', 'AsyncGeneratorCoroCallback',
     'wrap_callback',

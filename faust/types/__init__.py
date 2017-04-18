@@ -1,11 +1,11 @@
 """Abstract types for static typing."""
-from faust.utils.types.coroutines import (
+from ..utils.types.services import ServiceT
+from ._coroutines import (
     InputStreamT,
     StreamCoroutineCallback,
     CoroCallbackT,
     StreamCoroutine,
 )
-from faust.utils.types.services import ServiceT
 from .app import AsyncSerializerT, AppT
 from .codecs import CodecArg, CodecT
 from .core import K, V

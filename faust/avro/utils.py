@@ -1,6 +1,6 @@
 """Avro utilities."""
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
-from faust.types.models import ModelT
+from ..types.models import ModelT
 
 __all__ = ['to_avro_type']
 
