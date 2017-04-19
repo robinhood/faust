@@ -22,6 +22,7 @@ class Table(Stream, TableT, ManagedUserDict):
         self.table_name = table_name
         self.default = default
         self._store = store
+        self.data = {}
         assert not self._coroutines  # Table cannot have generator callback.
         Stream.__init__(self, **kwargs)
 

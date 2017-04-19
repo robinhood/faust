@@ -14,10 +14,14 @@ class Withdrawal(faust.Record, serializer='json'):
 
 
 topic = faust.topic('f-simple', value_type=Withdrawal)
-
-app = faust.App('f-simple', url='kafka://localhost:9092')
+app = faust.App(
+    'f-simple',
+    url='kafka://localhost:9092',
+)
 user_to_total = app.table('user_to_total', default=int)
 
+
+@app.task
 async def find_large_withdrawals(app):
     if GRAPH:
         asyncio.ensure_future(_dump_beacon(app))
@@ -27,7 +31,6 @@ async def find_large_withdrawals(app):
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
         print('CURRENT_TOTAL: %r' % (user_to_total[withdrawal.user],))
-
 
 
 
@@ -49,15 +52,8 @@ def produce(loop):
     loop.run_until_complete(_publish_withdrawals())
 
 
-def consume(loop):
-    app.add_task(find_large_withdrawals(app))
-    worker = faust.Worker(app, loglevel='WARN', loop=loop)
-    worker.execute_from_commandline()
-    loop.run_forever()
-
-
 COMMANDS = {
-    'consume': consume,
+    'consume': app.start,
     'produce': produce,
 }
 
@@ -65,7 +61,8 @@ COMMANDS = {
 def main(loop=None):
     loop = loop or asyncio.get_event_loop()
     try:
-        COMMANDS[sys.argv[1]](loop=loop)
+        command = sys.argv.pop(1)
+        COMMANDS[command](loop=loop)
     except KeyError as exc:
         print('Unknown command: {0}'.format(exc))
         raise SystemExit(os.EX_USAGE)

@@ -56,8 +56,6 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
 
-    streams: StreamManagerT
-
     @classmethod
     @abc.abstractmethod
     def current_app(cls) -> 'AppT':
@@ -155,4 +153,9 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def website(self) -> Web:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def streams(self) -> StreamManagerT:
         ...

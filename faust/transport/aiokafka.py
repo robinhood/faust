@@ -134,6 +134,7 @@ class Transport(base.Transport):
     Producer: ClassVar[Type] = Producer
 
     default_port = 9092
+    driver_version = 'aiokafka={}'.format(aiokafka.__version__)
 
     @cached_property
     def bootstrap_servers(self) -> str:

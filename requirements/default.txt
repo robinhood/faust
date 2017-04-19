@@ -1,3 +1,5 @@
 aiokafka
 aiohttp
 avro-python3
+click
+progress

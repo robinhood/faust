@@ -8,7 +8,8 @@ import typing
 from collections import OrderedDict, deque
 from typing import (
     Any, Awaitable, Callable, ClassVar, Deque, Generator, Iterator, Mapping,
-    MutableMapping, Optional, Sequence, Set, Union, Tuple, Type, cast,
+    MutableMapping, MutableSequence, Optional, Sequence, Set, Union,
+    Tuple, Type, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
@@ -22,7 +23,7 @@ from .types import K, Message, Request, StreamCoroutine, Topic, V
 from .types.app import AppT, AsyncSerializerT
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
-from .types.streams import Processor, StreamT
+from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
 from .utils.compat import want_bytes
@@ -84,6 +85,8 @@ class AppService(Service):
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Sequence[ServiceT]:
+        for task in self.app._task_factories:
+            self.app.add_task(task(self.app))
         streams = list(self.app._streams.values())    # Stream+Table instances
         services = [
             self.app.producer,                        # app.Producer
@@ -99,7 +102,13 @@ class AppService(Service):
                 'Attempting to start app that has no tasks')
 
     async def on_started(self) -> None:
-        self.app.streams.beacon.reattach(self.beacon)
+        if self.app.beacon.root:
+            try:
+                callback = self.app.beacon.root.data.on_startup_finished
+            except AttributeError:
+                pass
+            else:
+                callback()
         # wait for tasks to finish, this may run forever since
         # stream processing tasks do not end (them infinite!)
         await self.app._tasks.joinall()
@@ -175,10 +184,26 @@ class App(AppT, ServiceProxy):
     #: Set of active sensors
     _sensors: Set[SensorT] = None
 
+    #: The @app.task decorator adds tasks to start here.
+    #: for example:
+    #:     app = faust.App('myid', tasks=[task])
+    #:     >>> @app.task
+    #:     def mytask(app):
+    #:     ...     ...
+    _task_factories: MutableSequence[Callable[['AppT'], Generator]]
+
     @classmethod
     def current_app(self) -> AppT:
         """Returns the app that created the active task."""
         return TASK_TO_APP[asyncio.Task.current_task(loop=self.loop)]
+
+    def start(self, *,
+              argv: Sequence[str] = None,
+              loop: asyncio.AbstractEventLoop = None) -> None:
+        from .bin.worker import worker
+        from .worker import Worker
+        kwargs = worker(argv, standalone_mode=False)
+        Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
     def __init__(self, id: str,
                  *,
@@ -214,7 +239,7 @@ class App(AppT, ServiceProxy):
         self._message_buffer = deque()
         self._serializer_override = {}
         self._sensors = set()
-        self.streams = StreamManager(app=self)
+        self._task_factories = []
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -353,6 +378,10 @@ class App(AppT, ServiceProxy):
             ser = self._serializer_override[name] = (
                 symbol_by_name(self._serializer_override_classes[name])(self))
             return cast(AsyncSerializerT, ser)
+
+    def task(self, task: Callable[[AppT], Generator]) -> Callable:
+        self._task_factories.append(task)
+        return task
 
     def add_task(self, task: Generator) -> Awaitable:
         """Start task.
@@ -516,7 +545,8 @@ class App(AppT, ServiceProxy):
     def render_graph(self) -> str:
         """Render graph of application components to DOT format."""
         o = io.StringIO()
-        self.beacon.as_graph().to_dot(o)
+        beacon = self.beacon.root if self.beacon.root else self.beacon
+        beacon.as_graph().to_dot(o)
         return o.getvalue()
 
     def __repr__(self) -> str:
@@ -569,4 +599,8 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def website(self) -> Web:
-        return self.WebSite(self)
+        return self.WebSite(self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def streams(self) -> StreamManagerT:
+        return StreamManager(app=self, loop=self.loop, beacon=self.beacon)

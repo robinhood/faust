@@ -1,9 +1,14 @@
 import asyncio
 import faust
+import logging
+import os
+import platform
 import reprlib
 import signal
+import socket
 import sys
 from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
+from progress.spinner import Spinner
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
 from .utils.logging import get_logger, setup_logging
@@ -20,7 +25,7 @@ PSIDENT = '[Faust:Worker]'
 
 logger = get_logger(__name__)
 
-ARTLINES = """
+ARTLINES = """\
                                        .x+=:.        s
    oec :                               z`    ^%      :8
   @88888                 x.    .          .   <k    .88
@@ -35,17 +40,23 @@ ARTLINES = """
    88R     ^Y"   ^Y'
    88>
    48
-   '8
+   '8\
 """
+
+F_IDENT = """
+FAUST v{faust_v} {system} ({transport_v} {http_v} {py}={py_v})
+""".strip()
 
 F_BANNER = """
 {art}
-Faust v{version}
-  .id:        {id}
+{ident}
+[ .id:        {id}
   .web:       {web}
   .log:       {logfile} ({loglevel})
-  .transport: {transport}
-"""
+  .pid:       {pid}
+  .hostname:  {hostname}
+  .transport: {transport} ]
+""".strip()
 
 
 class _TupleAsListRepr(reprlib.Repr):
@@ -55,9 +66,22 @@ class _TupleAsListRepr(reprlib.Repr):
 _repr = _TupleAsListRepr().repr  # noqa: E305
 
 
+class SpinnerHandler(logging.Handler):
+
+    def __init__(self, worker: 'Worker', **kwargs: Any) -> None:
+        self.worker = worker
+        super().__init__(**kwargs)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if self.worker.spinner:
+            self.worker.spinner.next()
+
+
 class Worker(Service):
     art = ARTLINES
+    f_ident = F_IDENT
     f_banner = F_BANNER
+
     debug: bool
     sensors: Set[SensorT]
     apps: Sequence[AppT]
@@ -66,10 +90,12 @@ class Worker(Service):
     logfile: Union[str, IO]
     stdout: IO
     stderr: IO
+    quiet: bool
 
     def __init__(self, *services: ServiceT,
                  sensors: Sequence[SensorT] = None,
                  debug: bool = False,
+                 quiet: bool = False,
                  loglevel: Union[str, int] = None,
                  logfile: Union[str, IO] = None,
                  logformat: str = None,
@@ -86,17 +112,43 @@ class Worker(Service):
         self.logformat = logformat
         self.stdout = stdout
         self.stderr = stderr
+        self.spinner = Spinner(file=self.stdout)
         super().__init__(loop=loop, **kwargs)
+        for service in self.services:
+            service.beacon.reattach(self.beacon)
+            assert service.beacon.root is self.beacon
+
+    def on_startup_finished(self) -> None:
+        self.loop.call_later(3.0, self._on_startup_finished)
+
+    def _on_startup_finished(self) -> None:
+        if self.spinner:
+            self.spinner.finish()
+            self.spinner = None
+            print('ready-'.format(faust.__version__),
+                  file=self.stdout)
+
+    def faust_ident(self) -> str:
+        return self.f_ident.format(
+            py=platform.python_implementation(),
+            faust_v=faust.__version__,
+            system=platform.system(),
+            transport_v=self.apps[0].transport.driver_version,
+            http_v=self.apps[0].website.driver_version,
+            py_v=platform.python_version(),
+        )
 
     def print_banner(self) -> None:
         print(self.f_banner.format(
             art=self.art,
-            version=faust.__version__,
+            ident=self.faust_ident(),
             id=', '.join(x.id for x in self.apps),
             transport=', '.join(x.url for x in self.apps),
             web=', '.join(x.website.url for x in self.apps),
             logfile=self.logfile if self.logfile else '-stderr-',
             loglevel=self.loglevel or 'INFO',
+            pid=os.getpid(),
+            hostname=socket.gethostname(),
         ), file=self.stdout)
 
     def install_signal_handlers(self) -> None:
@@ -170,12 +222,18 @@ class Worker(Service):
         return self.services
 
     async def on_first_start(self) -> None:
+        _loglevel: int = None
         if self.loglevel:
-            setup_logging(
+            _loglevel = setup_logging(
                 loglevel=self.loglevel,
                 logfile=self.logfile,
                 logformat=self.logformat,
             )
+        if not _loglevel or _loglevel <= logging.WARN:
+            if self.spinner:
+                logging.root.addHandler(
+                    SpinnerHandler(self, level=logging.DEBUG))
+                logging.root.setLevel(logging.DEBUG)
         for sensor in self.sensors:
             await sensor.maybe_start()
 

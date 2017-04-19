@@ -200,6 +200,8 @@ class Transport(TransportT):
     #: Producer subclass used for this transport.
     Producer: ClassVar[Type]
 
+    driver_version: str
+
     def __init__(self, url: str, app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = url

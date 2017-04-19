@@ -18,18 +18,23 @@ def setup_logging(
         *,
         loglevel: Union[str, int] = None,
         logfile: Union[str, IO] = None,
-        logformat: str = None) -> None:
+        logformat: str = None) -> int:
     stream: IO = None
+    _loglevel: int
     if isinstance(loglevel, str):
-        loglevel = logging.getLevelName(loglevel)  # type: ignore
+        _loglevel = logging.getLevelName(loglevel.upper())  # type: ignore
+    else:
+        _loglevel = loglevel
     if not isinstance(logfile, str):
         stream, logfile = logfile, None
     _setup_logging(
-        level=loglevel,
+        level=_loglevel,
         filename=logfile,
         stream=stream,
         format=logformat or DEFAULT_FORMAT,
     )
+    logging.root.handlers[0].setLevel(_loglevel)
+    return _loglevel
 
 
 def _setup_logging(**kwargs: Any) -> None:

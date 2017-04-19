@@ -36,7 +36,8 @@ class Node(NodeT):
         return node
 
     def reattach(self, parent: NodeT) -> NodeT:
-        self.root, self.prev = parent.root, parent
+        self.root = parent.root if parent.root is not None else parent
+        self.prev = parent
         parent.add(self)
         return self
 

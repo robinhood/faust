@@ -218,7 +218,6 @@ class Stream(StreamT, Service):
         self.app = app
         self.name = app.new_stream_name()
         app.add_source(self)
-        self.on_bind(app)
         self._on_message = self._compile_message_handler()
         # attach beacon to current Faust task, or attach it to app.
         task = asyncio.Task.current_task(loop=self.loop)
@@ -226,6 +225,7 @@ class Stream(StreamT, Service):
             self.beacon = task._beacon.new(self)  # type: ignore
         else:
             self.beacon = self.app.beacon.new(self)
+        self.on_bind(app)
         return self
 
     def on_bind(self, app: AppT) -> None:

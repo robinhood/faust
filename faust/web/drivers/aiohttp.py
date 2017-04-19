@@ -1,3 +1,4 @@
+import aiohttp
 from typing import Any, Callable, cast
 from aiohttp.web import Application, Response
 from faust.utils.logging import get_logger
@@ -14,6 +15,8 @@ logger = get_logger(__name__)
 
 
 class Web(base.Web):
+
+    driver_version = 'aiohttp={}'.format(aiohttp.__version__)
 
     def __init__(self, *,
                  port: int = DEFAULT_PORT,

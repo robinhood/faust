@@ -16,6 +16,8 @@ class Web(Service):
     bind: str
     port: int
 
+    driver_version: str
+
     def text(self, value: str) -> Any:
         ...
 

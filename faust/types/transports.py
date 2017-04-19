@@ -88,6 +88,7 @@ class TransportT(metaclass=abc.ABCMeta):
     app: AppT
     url: str
     loop: asyncio.AbstractEventLoop
+    driver_version: str
 
     def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
