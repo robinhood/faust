@@ -12,7 +12,6 @@ from typing import (
 from . import _constants
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
-from .tables import Table, WindowedTable
 from .types import AppT, CodecArg, K, Message, Topic, TopicPartition
 from .types.joins import JoinT
 from .types.models import Event, FieldDescriptorT
@@ -20,6 +19,7 @@ from .types.streams import (
     GroupByKeyArg, Processor, StreamCoroutine, StreamCoroutineMap,
     StreamProcessorMap, StreamT, StreamManagerT,
 )
+from .types.tables import TableT
 from .types.transports import ConsumerCallback, ConsumerT
 from .types.windows import WindowT
 from .utils.aiter import aenumerate
@@ -381,36 +381,25 @@ class Stream(StreamT, Service):
         return await _maybe_async(key(event))
 
     def aggregate(self, table_name: str,
-                  operator: Callable[[Event, Event], Event],
-                  window: WindowT=None) -> Table:
+                  operator: Callable[[Any, Event], Any],
+                  window: WindowT=None,
+                  default: Callable[[], Any] = None) -> TableT:
+        table = self.app.table(table_name, default=default, window=window,
+                               on_start=self.maybe_start)
         if window is None:
-            return self._aggregate(table_name, operator)
-        else:
-            return self._aggregate_windowed(table_name, operator, window)
-
-    def _aggregate(self, table_name: str,
-                   operator: Callable[[Event, Event], Event]
-                   ) -> Table:
-        table = Table(table_name=table_name, on_start=self.start)
-
-        async def aggregator(event: Event) -> Event:
-            k: K = event.req.key
-            table[k] = operator(table[k], event)
-            return event
-        self.add_processor(aggregator)
-        return table
-
-    def _aggregate_windowed(self, table_name: str,
-                            operator: Callable[[Event, Event], Event],
-                            window: WindowT):
-        table = WindowedTable(window=window, table_name=table_name,
-                              on_start=self.start)
-
-        async def aggregator(event: Event) -> Event:
-            for window_range in window.windows(event.req.message.timestamp):
-                k = (event.req.key, window_range)
+            async def aggregator(event: Event) -> Event:
+                print(event)
+                k: K = event.req.key
                 table[k] = operator(table[k], event)
-            return event
+                return event
+        else:
+            async def aggregator(event: Event) -> Event:
+                window_ranges = window.windows(event.req.message.timestamp)
+                for window_range in window_ranges:
+                    k = (event.req.key, window_range)
+                    table[k] = operator(table[k], event)
+                return event
+
         self.add_processor(aggregator)
         return table
 

@@ -1,16 +1,20 @@
 import abc
 import typing
-from typing import Any, Awaitable, Generator, Optional, Type, Union
+from typing import (
+    Any, Awaitable, Callable, Generator,
+    Optional, Sequence, Type, Union,
+)
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
 from .models import ModelT, Event
 from .sensors import SensorT
-from .streams import StreamT, StreamManagerT, TopicProcessorSequence
+from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
 from .transports import TransportT
 from .tuples import Message, Topic
+from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from .web.base import Web
@@ -78,6 +82,17 @@ class AppT(ServiceT):
                coroutine: StreamCoroutine = None,
                processors: TopicProcessorSequence = None,
                **kwargs: Any) -> StreamT:
+        ...
+
+    @abc.abstractmethod
+    def table(self, table_name: str,
+              *,
+              default: Callable[[], Any] = None,
+              topic: Topic = None,
+              coroutine: StreamCoroutine = None,
+              processors: Sequence[Processor] = None,
+              window: WindowT = None,
+              **kwargs: Any) -> TableT:
         ...
 
     @abc.abstractmethod

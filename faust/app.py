@@ -26,6 +26,7 @@ from .types.sensors import SensorT
 from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
+from .types.windows import WindowT
 from .utils.compat import want_bytes
 from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
@@ -443,6 +444,7 @@ class App(AppT, ServiceProxy):
               topic: Topic = None,
               coroutine: StreamCoroutine = None,
               processors: Sequence[Processor] = None,
+              window: WindowT = None,
               **kwargs: Any) -> TableT:
         """Create new table.
 
@@ -453,6 +455,8 @@ class App(AppT, ServiceProxy):
         Keyword Arguments:
             default: A callable, or type that will return a default value
             for keys missing in this table.
+            window: A windowing strategy for this table. This windowing
+            strategy is used to clean stale keys from the table.
 
         Examples:
             >>> table = app.table('user_to_amount', default=int)

@@ -18,20 +18,19 @@ app = faust.App(
     'f-simple',
     url='kafka://localhost:9092',
 )
-user_to_total = app.table('user_to_total', default=int)
 
 
 @app.task
 async def find_large_withdrawals(app):
     if GRAPH:
         asyncio.ensure_future(_dump_beacon(app))
-    async for key, withdrawal in app.stream(topic).items():
+    withdrawals = app.stream(topic)
+    user_to_total = withdrawals.aggregate(
+        "user_to_total", lambda total, withdrawal: total + withdrawal.amount,
+        default=int)
+    async for key, withdrawal in withdrawals.items():
         print('%r Withdrawal: %r' % (key, withdrawal,))
-        user_to_total[withdrawal.user] += withdrawal.amount
-        if withdrawal.amount > 9999.0:
-            print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
-        print('CURRENT_TOTAL: %r' % (user_to_total[withdrawal.user],))
-
+        print(user_to_total[key])
 
 
 async def _dump_beacon(app):

@@ -1,11 +1,14 @@
 """Tables (changelog stream)."""
-from typing import Any, Callable, Mapping, Tuple, cast
+import asyncio
+from typing import Any, Callable, Mapping, Sequence, cast
 from . import stores
 from .streams import Stream
 from .types import AppT, Event
 from .types.stores import StoreT
-from .types.tables import TableT
-from .types.windows import WindowT, WindowRange
+from .types.streams import Processor, StreamCoroutine, StreamT
+from .types.tables import TableT, WindowedTableT
+from .types.tuples import Topic
+from .types.windows import WindowT
 from .utils.collections import ManagedUserDict
 
 __all__ = ['Table']
@@ -79,11 +82,21 @@ class Table(Stream, TableT, ManagedUserDict):
         )
 
 
-# TODO: on_key_set and on_key_del need to push to specific partitions
-# from the
-class WindowedTable(Table):
-    _window: WindowT
+# TODO: on_key_set and on_key_del need to push to incoming event partition
+class WindowedTable(WindowedTableT):
 
     def __init__(self, *, window: WindowT, **kwargs) -> None:
         super().__init__(**kwargs)
-        self._window = window
+        self.window = window
+
+    @classmethod
+    def from_topic(cls, topic: Topic = None,
+                   *,
+                   coroutine: StreamCoroutine = None,
+                   processors: Sequence[Processor] = None,
+                   loop: asyncio.AbstractEventLoop = None,
+                   window: WindowT = None,
+                   **kwargs: Any) -> StreamT:
+        cls.window = window
+        return super().from_topic(topic=topic, coroutine=coroutine,
+                                  processors=processors, loop=loop, **kwargs)
