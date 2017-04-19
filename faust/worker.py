@@ -187,21 +187,25 @@ class Worker(Service):
             self._shutdown_loop()
 
     def _shutdown_loop(self) -> None:
-        for task in asyncio.Task.all_tasks(loop=self.loop):
-            task.cancel()
         try:
             self.loop.run_until_complete(self._gather_futures())
         except asyncio.CancelledError:
             pass
+        self._gather_all()
         try:
             while self.loop.is_running():
                 logger.info('Worker: Waiting for event loop to shutdown...')
                 self.loop.stop()
-                if self.loop.is_running():
-                    self.loop.run_until_complete(asyncio.sleep(0.1))
+                self.loop.run_until_complete(asyncio.sleep(1.0))
         finally:
             logger.info('Worker: Closing event loop')
             self.loop.close()
+
+    def _gather_all(self) -> None:
+        for i in range(40):
+            if not asyncio.Task.all_tasks(loop=self.loop):
+                break
+            self.loop.run_until_complete(asyncio.sleep(0.1))
 
     async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
         setproctitle('[Faust:Worker] init')

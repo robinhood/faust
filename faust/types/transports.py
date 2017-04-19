@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import Any, Callable, ClassVar, Awaitable, Optional, Type
 from faust.utils.types.services import ServiceT
-from .tuples import Message, Topic
+from .tuples import Message, Topic, TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -25,6 +25,7 @@ ConsumerCallback = Callable[[Message], Awaitable]
 
 
 class MessageRefT(metaclass=abc.ABCMeta):
+    tp: TopicPartition
     consumer_id: int
     offset: int
 
@@ -41,7 +42,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def _commit(self, offset: int) -> None:
+    async def _commit(self, offsets: Any) -> None:
         ...
 
     @abc.abstractmethod

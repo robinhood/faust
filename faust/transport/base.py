@@ -4,7 +4,7 @@ import weakref
 from itertools import count
 from typing import (
     Any, Awaitable, Callable, ClassVar,
-    Iterator, Optional, List, Sequence, Type, cast,
+    Iterator, MutableMapping, Optional, List, Sequence, Type, cast,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
@@ -59,9 +59,11 @@ class MessageRef(weakref.ref, MessageRefT):
 
     def __init__(self, message: Message,
                  callback: Callable = None,
+                 tp: TopicPartition = None,
                  offset: int = None,
                  consumer_id: int = None) -> None:
         super().__init__(message, callback)
+        self.tp = tp
         self.offset = offset
         self.consumer_id = consumer_id
 
@@ -76,8 +78,8 @@ class Consumer(Service, ConsumerT):
 
     _app: AppT
     _dirty_messages: List[MessageRefT] = None
-    _acked: List[int] = None
-    _current_offset: int = None
+    _acked: MutableMapping[TopicPartition, List[int]] = None
+    _current_offset: MutableMapping[TopicPartition, int] = None
     _recently_acked: asyncio.Queue
 
     def __init__(self, transport: TransportT,
@@ -100,7 +102,8 @@ class Consumer(Service, ConsumerT):
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
         self._dirty_messages = []
-        self._acked = []
+        self._acked = {}
+        self._current_offset = {}
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
@@ -112,21 +115,27 @@ class Consumer(Service, ConsumerT):
 
     async def track_message(self, message: Message, offset: int) -> None:
         _id = self.id
+        tp = self._new_topicpartition(message.topic, message.partition)
+        if tp not in self._acked:
+            self._acked[tp] = []
         # keep weak reference to message, to be notified when out of scope.
         self._dirty_messages.append(
             MessageRef(message, self.on_message_ready,
-                       offset=offset, consumer_id=self.id))
+                       tp=TopicPartition(message.topic, message.partition),
+                       offset=offset,
+                       consumer_id=self.id))
         # call sensors
         await self._on_message_in(_id, offset, message)
 
     def on_message_ready(self, ref: MessageRefT) -> None:
         if self.autoack:
-            self.ack(ref.offset)
+            self.ack(ref.tp, ref.offset)
 
-    def ack(self, offset: int) -> None:
-        self._acked.append(offset)
-        self._acked.sort()
-        self._recently_acked.put(offset)
+    def ack(self, tp: TopicPartition, offset: int) -> None:
+        acked_for_tp = self._acked[tp]
+        acked_for_tp.append(offset)
+        acked_for_tp.sort()
+        self._recently_acked.put((tp, offset))
 
     async def _commit_handler(self) -> None:
         await asyncio.sleep(self.commit_interval)
@@ -138,33 +147,50 @@ class Consumer(Service, ConsumerT):
         get = self._recently_acked.get
         on_message_out = self._app.on_message_out
         while not self.should_stop:
-            await on_message_out(self.id, await get(), None)
+            # XXX ON_MESSAGE_OUT SHOULD TAKE TP
+            _, offset = await get()
+            await on_message_out(self.id, offset, None)
 
     async def maybe_commit(self) -> bool:
         async with self._commit_mutex:
-            try:
-                offset = self._new_offset()
-            except IndexError:
-                pass
-            else:
-                if self._should_commit(offset):
-                    self._current_offset = offset
-                    await self._commit(offset)
-                    return True
-        return False
+            offsets = {}
+            for tp in self._acked:
+                try:
+                    offset = self._new_offset(tp)
+                except IndexError:
+                    pass
+                else:
+                    if self._should_commit(tp, offset):
+                        self._current_offset[tp] = offset
+                        meta = self._get_topic_meta(tp.topic)
+                        offsets[tp] = self._new_offsetandmetadata(offset, meta)
+            if offsets:
+                await self._commit(offsets)
+                return True
+            return False
+
+    def _get_topic_meta(self, topic: str) -> Any:
+        raise NotImplementedError()
+
+    def _new_topicpartition(
+            self, topic: str, partition: int) -> TopicPartition:
+        raise NotImplementedError()
+
+    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
+        raise NotImplementedError()
 
     async def on_task_error(self, exc: Exception) -> None:
         if self.autoack:
             await self.maybe_commit()
 
-    def _should_commit(self, offset: int) -> bool:
+    def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
         return (
-            self._current_offset is None or
-            (bool(offset) and offset > self._current_offset)
+            tp not in self._current_offset or
+            (bool(offset) and offset > self._current_offset[tp])
         )
 
-    def _new_offset(self) -> int:
-        acked = self._acked
+    def _new_offset(self, tp: TopicPartition) -> int:
+        acked = self._acked[tp]
         for i, offset in enumerate(acked):
             if offset != acked[i - 1]:
                 break

@@ -2,8 +2,11 @@
 import aiokafka
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
-from kafka.structs import TopicPartition as _TopicPartition
-from typing import Awaitable, ClassVar, Optional, Sequence, Type, cast
+from kafka.structs import (
+    OffsetAndMetadata,
+    TopicPartition as _TopicPartition,
+)
+from typing import Any, Awaitable, ClassVar, Optional, Sequence, Type, cast
 from ..types import Message, TopicPartition
 from ..types.transports import ConsumerT
 from ..utils.futures import done_future
@@ -68,7 +71,18 @@ class Consumer(base.Consumer):
             #listener=self._rebalance_listener,
         )
 
+    def _get_topic_meta(self, topic: str) -> Any:
+        return self._consumer.partitions_for_topic(topic)
+
+    def _new_topicpartition(
+            self, topic: str, partition: int) -> TopicPartition:
+        return cast(TopicPartition, _TopicPartition(topic, partition))
+
+    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
+        return OffsetAndMetadata(offset, meta)
+
     async def on_stop(self) -> None:
+        await self.maybe_commit()
         await self._consumer.stop()
 
     async def _drain_messages(self) -> None:
@@ -90,8 +104,8 @@ class Consumer(base.Consumer):
         finally:
             self.set_shutdown()
 
-    async def _commit(self, offset: int) -> None:
-        await self._consumer.commit(offset)
+    async def _commit(self, offsets: Any) -> None:
+        await self._consumer.commit(offsets)
 
 
 class Producer(base.Producer):

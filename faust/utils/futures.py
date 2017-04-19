@@ -66,6 +66,8 @@ class Group(Service, Sized):
     async def _execute_task(self, task: asyncio.Task) -> None:
         try:
             await task
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
             if self._on_task_error is not None:
                 await self._on_task_error(task, exc)
