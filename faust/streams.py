@@ -3,7 +3,6 @@ import asyncio
 import faust
 import re
 import reprlib
-import sys
 from collections import defaultdict
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Dict, List,
@@ -23,7 +22,7 @@ from .types.streams import (
 from .types.transports import ConsumerCallback, ConsumerT
 from .utils.aiter import aenumerate
 from .utils.logging import get_logger
-from .utils.services import Service
+from .utils.services import Service, ServiceT
 from .utils.types.collections import NodeT
 
 __all__ = ['Stream', 'topic']
@@ -163,8 +162,8 @@ class Stream(StreamT, Service):
                    **kwargs: Any) -> StreamT:
         return cls(
             topics=[topic] if topic is not None else [],
-            coroutines={
-                topic: wrap_callback(coroutine, loop=loop),
+            coroutines={  # callback (2nd arg) set by __init__)
+                topic: wrap_callback(coroutine, None, loop=loop),
             } if coroutine else None,
             processors={
                 topic: processors,
@@ -207,6 +206,9 @@ class Stream(StreamT, Service):
             self._topicmap = self._build_topicmap(self.topics)
         else:
             self._topicmap = {}
+        # XXX set coroutine callbacks
+        for coroutine in self._coroutines.values():
+            coroutine.callback = self.on_done
         Service.__init__(self, loop=loop, beacon=None)
 
     def bind(self, app: AppT) -> StreamT:
@@ -452,7 +454,7 @@ class Stream(StreamT, Service):
                     v = await _maybe_async(processor(v))
             coroutine = get_coroutines(topic)
             if coroutine is not None:
-                await coroutine.send(v, on_done)
+                await coroutine.send(v)
             else:
                 await on_done(v)
         return on_message
@@ -466,7 +468,7 @@ class Stream(StreamT, Service):
                 value = await _maybe_async(processor(value))
         coroutine = self._coroutines.get(topic)
         if coroutine is not None:
-            await coroutine.send(value, self.on_done)
+            await coroutine.send(value)
         else:
             await self.on_done(value)
 
@@ -491,7 +493,8 @@ class Stream(StreamT, Service):
         if not isinstance(processors, MutableSequence):
             processors = list(processors)
         self._processors[topic] = processors
-        self._coroutines[topic] = wrap_callback(coroutine, loop=self.loop)
+        self._coroutines[topic] = wrap_callback(
+            coroutine, callback=self.on_done, loop=self.loop)
         await self.app.streams.update()
 
     async def unsubscribe(self, topic: Topic) -> None:
@@ -503,15 +506,14 @@ class Stream(StreamT, Service):
         self._coroutines.pop(topic, None)
         await self.app.streams.update()
 
+    def on_init_dependencies(self) -> Sequence[ServiceT]:
+        return cast(Sequence[ServiceT], list(self._coroutines.values()))
+
     async def on_start(self) -> None:
         if self.app is None:
             raise RuntimeError('Cannot start stream not bound to app.')
         if self._on_start:
             await self._on_start()
-
-    async def on_stop(self) -> None:
-        for coroutine in self._coroutines.values():
-            await coroutine.join()
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
@@ -541,16 +543,7 @@ class Stream(StreamT, Service):
         if not self._anext_started:
             self._anext_started = True
             await self.maybe_start()
-        try:
-            return cast(Event, await self.outbox.get())
-        except RuntimeError as exc:
-            if self.app.should_stop and 'Event loop is closed' in str(exc):
-                if sys.meta_path is None:
-                    # Uh, oh - Python is shutting down, some coroutine exit
-                    # race condition
-                    return   # type: ignore
-                raise StopAsyncIteration()
-            raise
+        return cast(Event, await self.outbox.get())
 
     def _build_topicmap(
             self, topics: Sequence[Topic]) -> MutableMapping[str, Topic]:
@@ -618,8 +611,7 @@ class StreamManager(StreamManagerT, Service):
         return on_message
 
     async def on_start(self) -> None:
-        asyncio.ensure_future(
-            self._delayed_start(), loop=self.loop)
+        self.add_future(self._delayed_start())
 
     async def _delayed_start(self) -> None:
         # wait for tasks to start streams

@@ -4,7 +4,8 @@ from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Coroutine, Generator, Iterable, Union,
 )
-from faust.types.models import Event
+from faust.utils.services import ServiceT
+from .models import Event
 
 __all__ = [
     'InputStreamT',
@@ -33,22 +34,15 @@ class InputStreamT(Iterable, AsyncIterable):
 StreamCoroutineCallback = Callable[[Event], Awaitable[None]]
 
 
-class CoroCallbackT:
+class CoroCallbackT(ServiceT):
 
-    def __init__(self, inbox: InputStreamT,
-                 *,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        ...
+    def __init__(self,
+                 inbox: InputStreamT,
+                 callback: StreamCoroutineCallback = None,
+                 **kwargs: Any) -> None:
+        self.callback: StreamCoroutineCallback = callback
 
-    async def send(self,
-                   value: Event,
-                   callback: StreamCoroutineCallback) -> None:
-        ...
-
-    async def join(self) -> None:
-        ...
-
-    async def drain(self, callback: StreamCoroutineCallback) -> None:
+    async def send(self, value: Event) -> None:
         ...
 
 

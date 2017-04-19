@@ -5,6 +5,7 @@ from .types.models import Event
 from .types._coroutines import (
     CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback,
 )
+from .utils.services import Service
 
 __all__ = [
     'StreamCoroutine', 'StreamCoroutineCallback',
@@ -74,28 +75,32 @@ class InputStream(InputStreamT):
         return await self.queue.get()
 
 
-class CoroCallback(CoroCallbackT):
+class CoroCallback(Service, CoroCallbackT):
     inbox: InputStreamT
 
-    def __init__(self, inbox: InputStreamT,
-                 *,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(self,
+                 inbox: InputStreamT,
+                 callback: StreamCoroutineCallback = None,
+                 **kwargs: Any) -> None:
         self.inbox = inbox
-        self.loop = loop
+        self.callback = callback
+        super().__init__(**kwargs)
 
-    async def send(self,
-                   value: Event,
-                   callback: StreamCoroutineCallback) -> None:
+    async def send(self, value: Event) -> None:
         await self.inbox.put(value)
-        asyncio.ensure_future(self.drain(callback), loop=self.loop)
 
-    async def join(self) -> None:
-        # make sure everything in inqueue is processed.
+    async def on_start(self) -> None:
+        self.add_future(self._drainer())
+
+    async def on_stop(self) -> None:
         await self.inbox.join()
 
-    async def drain(self, callback: StreamCoroutineCallback) -> None:
-        new_value = await self._drain()
-        await callback(new_value)
+    async def _drainer(self) -> None:
+        drain = self._drain
+        callback = self.callback
+        while not self.should_stop:
+            new_value = await drain()
+            await callback(new_value)
 
     async def _drain(self) -> Any:
         raise NotImplementedError()
@@ -107,9 +112,10 @@ class GeneratorCoroCallback(CoroCallback):
     def __init__(self,
                  gen: Generator[Event, None, None],
                  inbox: InputStreamT,
+                 callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
         self.gen = gen
-        super().__init__(inbox, **kwargs)
+        super().__init__(inbox, callback, **kwargs)
 
     async def _drain(self) -> Any:
         return self.gen.__next__()
@@ -121,9 +127,10 @@ class AsyncCoroCallback(CoroCallback):
     def __init__(self,
                  gen: AsyncIterable[Event],
                  inbox: InputStreamT,
+                 callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
         self.gen = gen
-        super().__init__(inbox, **kwargs)
+        super().__init__(inbox, callback, **kwargs)
 
     async def _drain(self) -> Any:
         return await self.gen.__anext__()
@@ -137,10 +144,11 @@ class AsyncGeneratorCoroCallback(CoroCallback):
     def __init__(self,
                  coro: Coroutine[Event, None, None],
                  inbox: InputStreamT,
+                 callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
         self.coro = coro
         self.gen = None
-        super().__init__(inbox, **kwargs)
+        super().__init__(inbox, callback, **kwargs)
 
     async def _drain(self) -> Any:
         if not self.gen_started:
@@ -151,13 +159,14 @@ class AsyncGeneratorCoroCallback(CoroCallback):
 
 def wrap_callback(
         fun: StreamCoroutine,
+        callback: StreamCoroutineCallback = None,
         *,
         loop: asyncio.AbstractEventLoop = None) -> CoroCallbackT:
     loop = loop or asyncio.get_event_loop()
     inbox = InputStream(loop=loop)
     gen = fun(inbox)
     if isinstance(gen, Coroutine):
-        return AsyncGeneratorCoroCallback(gen, inbox)
+        return AsyncGeneratorCoroCallback(gen, inbox, callback=callback)
     elif isinstance(gen, AsyncIterable):
-        return AsyncCoroCallback(gen, inbox)
-    return GeneratorCoroCallback(gen, inbox)
+        return AsyncCoroCallback(gen, inbox, callback=callback)
+    return GeneratorCoroCallback(gen, inbox, callback=callback)

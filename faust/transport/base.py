@@ -78,8 +78,7 @@ class Consumer(Service, ConsumerT):
     _dirty_messages: List[MessageRefT] = None
     _acked: List[int] = None
     _current_offset: int = None
-
-    _commit_handler_fut: asyncio.Future = None
+    _recently_acked: asyncio.Queue
 
     def __init__(self, transport: TransportT,
                  *,
@@ -96,7 +95,6 @@ class Consumer(Service, ConsumerT):
         self.callback = callback
         self.autoack = autoack
         self._on_message_in = self._app.on_message_in
-        self._on_message_out = self._app.on_message_out
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
@@ -105,36 +103,42 @@ class Consumer(Service, ConsumerT):
         self._acked = []
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
+        self._recently_acked = asyncio.Queue(loop=self.transport.loop)
         super().__init__(loop=self.transport.loop, **kwargs)
 
     async def register_timers(self) -> None:
-        self._commit_handler_fut = asyncio.ensure_future(
-            self._commit_handler(), loop=self.loop)
+        self.add_future(self._recently_acked_handler())
+        self.add_future(self._commit_handler())
 
-    def track_message(self, message: Message, offset: int) -> None:
+    async def track_message(self, message: Message, offset: int) -> None:
         _id = self.id
         # keep weak reference to message, to be notified when out of scope.
         self._dirty_messages.append(
             MessageRef(message, self.on_message_ready,
                        offset=offset, consumer_id=self.id))
         # call sensors
-        asyncio.ensure_future(
-            self._on_message_in(_id, offset, message),
-            loop=self.loop)
+        await self._on_message_in(_id, offset, message)
 
     def on_message_ready(self, ref: MessageRefT) -> None:
         if self.autoack:
-            self._acked.append(ref.offset)
-            self._acked.sort()
-        asyncio.ensure_future(
-            self._on_message_out(ref.consumer_id, ref.offset, None),
-            loop=self.loop)
+            self.ack(ref.offset)
+
+    def ack(self, offset: int) -> None:
+        self._acked.append(offset)
+        self._acked.sort()
+        self._recently_acked.put(offset)
 
     async def _commit_handler(self) -> None:
-        asyncio.sleep(self.commit_interval)
+        await asyncio.sleep(self.commit_interval)
         while 1:
             await self.maybe_commit()
             await asyncio.sleep(self.commit_interval)
+
+    async def _recently_acked_handler(self) -> None:
+        get = self._recently_acked.get
+        on_message_out = self._app.on_message_out
+        while not self.should_stop:
+            await on_message_out(self.id, await get(), None)
 
     async def maybe_commit(self) -> bool:
         async with self._commit_mutex:

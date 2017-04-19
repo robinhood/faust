@@ -1,6 +1,5 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
-import asyncio
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.structs import TopicPartition as _TopicPartition
@@ -60,7 +59,7 @@ class Consumer(base.Consumer):
         self.beacon.add(self._consumer)
         await self._consumer.start()
         await self.register_timers()
-        asyncio.ensure_future(self._drain_messages(), loop=self.loop)
+        self.add_future(self._drain_messages())
 
     async def subscribe(self, pattern: str) -> None:
         # XXX pattern does not work :/
@@ -80,7 +79,7 @@ class Consumer(base.Consumer):
         try:
             while not should_stop():
                 message = Message.from_message(await getone(()))
-                track_message(message, message.offset)
+                await track_message(message, message.offset)
                 await callback(message)
         except ConsumerStoppedError:
             if self.transport.app.should_stop:

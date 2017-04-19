@@ -2,7 +2,9 @@
 import abc
 import asyncio
 import weakref
-from typing import Any, MutableSequence, Sequence, cast
+from typing import (
+    Any, Awaitable, List, MutableSequence, Sequence, cast,
+)
 from .collections import Node
 from .logging import get_logger
 from .types.collections import NodeT
@@ -45,6 +47,7 @@ class Service(ServiceBase):
     _shutdown: asyncio.Event
     _beacon: NodeT
     _children: MutableSequence[Any]
+    _futures: List[asyncio.Future]
 
     def __init__(self, *,
                  beacon: NodeT = None,
@@ -55,6 +58,7 @@ class Service(ServiceBase):
         self._shutdown = asyncio.Event(loop=self.loop)
         self._beacon = Node(self) if beacon is None else beacon.new(self)
         self._children = []
+        self._futures = []
         self.on_init()
 
     def add_dependency(self, service: ServiceT) -> ServiceT:
@@ -62,6 +66,11 @@ class Service(ServiceBase):
             service.beacon.reattach(self.beacon)
         self._children.append(weakref.ref(service))
         return service
+
+    def add_future(self, coro: Awaitable) -> asyncio.Future:
+        fut = asyncio.ensure_future(coro, loop=self.loop)
+        self._futures.append(fut)
+        return fut
 
     def on_init(self) -> None:
         ...
@@ -116,6 +125,8 @@ class Service(ServiceBase):
                 child = childref()
                 if child is not None:
                     await cast(ServiceT, child).stop()
+            for future in reversed(self._futures):
+                future.cancel()
             logger.info('-Stopped service %r', self)
             logger.info('+Shutdown service %r', self)
             if self.wait_for_shutdown:
@@ -123,8 +134,17 @@ class Service(ServiceBase):
                     self._shutdown.wait(), self.shutdown_timeout,
                     loop=self.loop,
                 )
+            await self._gather_futures()
             await self.on_shutdown()
             logger.info('-Shutdown service %r', self)
+
+    async def _gather_futures(self) -> None:
+        try:
+            await asyncio.gather(*self._futures, loop=self.loop)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._futures.clear()
 
     async def restart(self) -> None:
         self.restart_count += 1

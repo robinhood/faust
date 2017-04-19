@@ -5,11 +5,11 @@ import io
 import sys
 import typing
 
-from collections import OrderedDict, deque
+from collections import OrderedDict
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Deque, Generator, Iterator, Mapping,
-    MutableMapping, MutableSequence, Optional, Sequence, Set, Union,
-    Tuple, Type, cast,
+    Any, Awaitable, Callable, ClassVar, Generator, Iterator,
+    Mapping, MutableMapping, MutableSequence, Optional, Sequence,
+    Set, Union, Type, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
@@ -101,6 +101,9 @@ class AppService(Service):
             raise ImproperlyConfigured(
                 'Attempting to start app that has no tasks')
 
+    async def on_start(self) -> None:
+        self.add_future(self._drain_message_buffer())
+
     async def on_started(self) -> None:
         if self.app.beacon.root:
             try:
@@ -112,6 +115,13 @@ class AppService(Service):
         # wait for tasks to finish, this may run forever since
         # stream processing tasks do not end (them infinite!)
         await self.app._tasks.joinall()
+
+    async def _drain_message_buffer(self) -> None:
+        send = self.app.send
+        get = self.app._message_buffer.get
+        while not self.should_stop:
+            topic, key, value = await get()
+            send(topic, key, value)
 
     @property
     def label(self) -> str:
@@ -177,10 +187,6 @@ class App(AppT, ServiceProxy):
     #: Async serializer instances are cached here.
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
 
-    #: XXX TODO FIXME NEED TO SEND OUT MESSAGES IN THIS
-    #: Buffer of messages to be sent soon.
-    _message_buffer: Deque[Tuple[Union[Topic, str], K, V]]
-
     #: Set of active sensors
     _sensors: Set[SensorT] = None
 
@@ -236,7 +242,6 @@ class App(AppT, ServiceProxy):
         self.store = store
         self._streams = OrderedDict()
         self._tables = OrderedDict()
-        self._message_buffer = deque()
         self._serializer_override = {}
         self._sensors = set()
         self._task_factories = []
@@ -270,7 +275,7 @@ class App(AppT, ServiceProxy):
 
         This is for use by non-async functions.
         """
-        self._message_buffer.append((topic, key, value))
+        self._message_buffer.put((topic, key, value))
 
     async def _send(self,
                     topic: str,
@@ -604,3 +609,7 @@ class App(AppT, ServiceProxy):
     @cached_property
     def streams(self) -> StreamManagerT:
         return StreamManager(app=self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def _message_buffer(self) -> asyncio.Queue:
+        return asyncio.Queue(loop=self.loop)

@@ -73,8 +73,12 @@ class Group(Service, Sized):
 
     async def on_start(self) -> None:
         for task in self._starting:
-            asyncio.ensure_future(task, loop=self.loop)
+            self.add_future(task)
         self._starting.clear()
+
+    async def on_stop(self) -> None:
+        for task in self._futures:
+            task.cancel()
 
     async def joinall(self) -> None:
         while not self.should_stop:

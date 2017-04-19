@@ -11,7 +11,7 @@ from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
 from progress.spinner import Spinner
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
-from .utils.logging import get_logger, setup_logging
+from .utils.logging import get_logger, level_name, setup_logging
 from .utils.services import Service, ServiceT
 
 try:  # pragma: no cover
@@ -40,7 +40,7 @@ ARTLINES = """\
    88R     ^Y"   ^Y'
    88>
    48
-   '8\
+   '8
 """
 
 F_IDENT = """
@@ -50,12 +50,12 @@ FAUST v{faust_v} {system} ({transport_v} {http_v} {py}={py_v})
 F_BANNER = """
 {art}
 {ident}
-[ .id:        {id}
-  .web:       {web}
-  .log:       {logfile} ({loglevel})
-  .pid:       {pid}
-  .hostname:  {hostname}
-  .transport: {transport} ]
+[ .id          -> {id}
+  .web         -> {web}
+  .log         -> {logfile} ({loglevel})
+  .pid         -> {pid}
+  .hostname    -> {hostname}
+  .transport   -> {transport} ]
 """.strip()
 
 
@@ -107,6 +107,7 @@ class Worker(Service):
         self.services = services
         self.sensors = set(sensors or [])
         self.debug = debug
+        self.quiet = quiet
         self.loglevel = loglevel
         self.logfile = logfile
         self.logformat = logformat
@@ -118,6 +119,16 @@ class Worker(Service):
             service.beacon.reattach(self.beacon)
             assert service.beacon.root is self.beacon
 
+    def say(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self._print(msg.format(*args, **kwargs))
+
+    def carp(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self._print(msg.format(*args, **kwargs), file=self.stderr)
+
+    def _print(self, msg: str, file: IO = None, end: str = '\n') -> None:
+        if not self.quiet:
+            print(msg, file=file or self.stdout, end=end)
+
     def on_startup_finished(self) -> None:
         self.loop.call_later(3.0, self._on_startup_finished)
 
@@ -125,8 +136,7 @@ class Worker(Service):
         if self.spinner:
             self.spinner.finish()
             self.spinner = None
-            print('ready-'.format(faust.__version__),
-                  file=self.stdout)
+            self.say('ready- ^')
 
     def faust_ident(self) -> str:
         return self.f_ident.format(
@@ -139,50 +149,59 @@ class Worker(Service):
         )
 
     def print_banner(self) -> None:
-        print(self.f_banner.format(
+        self.say(self.f_banner.format(
             art=self.art,
             ident=self.faust_ident(),
             id=', '.join(x.id for x in self.apps),
             transport=', '.join(x.url for x in self.apps),
             web=', '.join(x.website.url for x in self.apps),
             logfile=self.logfile if self.logfile else '-stderr-',
-            loglevel=self.loglevel or 'INFO',
+            loglevel=level_name(self.loglevel or 'WARN').lower(),
             pid=os.getpid(),
             hostname=socket.gethostname(),
-        ), file=self.stdout)
+        ))
+        self._print('^ ', end='')
 
     def install_signal_handlers(self) -> None:
         self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
+        self.loop.add_signal_handler(signal.SIGTERM, self._on_sigterm)
 
     def _on_sigint(self) -> None:
-        print('-INT- -INT- -INT- -INT- -INT- -INT-')
-        try:
-            self.loop.run_until_complete(
-                asyncio.ensure_future(self._stop_on_signal(), loop=self.loop))
-        except RuntimeError:
-            # Says loop is already running, but somehow this removes
-            # the "Task exception was never retrieved" warning.
-            pass
+        self.carp('-INT- -INT- -INT- -INT- -INT- -INT-')
+        self.add_future(self._stop_on_signal())
+
+    def _on_sigterm(self) -> None:
+        self.add_future(self._stop_on_signal())
 
     async def _stop_on_signal(self) -> None:
         logger.info('Worker: Stopping on signal received...')
         await self.stop()
-        while self.loop.is_running():
-            logger.info('Worker: Waiting for event loop to shutdown...')
-            self.loop.stop()
-            await asyncio.sleep(1.0, loop=self.loop)
-        logger.info('Worker: Closing event loop')
-        self.loop.close()
-        logger.info('Worker: exiting')
-        raise SystemExit()
 
     def execute_from_commandline(self, *coroutines: Coroutine) -> None:
         try:
-            self.loop.run_until_complete(
-                self._execute_from_commandline(*coroutines))
-        except RuntimeError as exc:
-            if 'Event loop stopped before Future completed' not in str(exc):
-                raise
+            self.loop.run_until_complete(self.add_future(
+                self._execute_from_commandline(*coroutines)))
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._shutdown_loop()
+
+    def _shutdown_loop(self) -> None:
+        for task in asyncio.Task.all_tasks(loop=self.loop):
+            task.cancel()
+        try:
+            self.loop.run_until_complete(self._gather_futures())
+        except asyncio.CancelledError:
+            pass
+        try:
+            while self.loop.is_running():
+                logger.info('Worker: Waiting for event loop to shutdown...')
+                self.loop.stop()
+                if self.loop.is_running():
+                    self.loop.run_until_complete(asyncio.sleep(0.1))
+        finally:
+            logger.info('Worker: Closing event loop')
+            self.loop.close()
 
     async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
         setproctitle('[Faust:Worker] init')
@@ -194,16 +213,16 @@ class Worker(Service):
                   for coro in coroutines],
                 loop=self.loop)
             await self.start()
-            await asyncio.ensure_future(self._stats(), loop=self.loop)
+            self.add_future(self._stats())
             await self.wait_until_stopped()
 
     async def _stats(self) -> None:
         while not self.should_stop:
             await asyncio.sleep(5)
             if len(self.services) == 1:
-                print(self.services[0])
+                self.say(repr(self.services[0]))
             else:
-                print(_repr(self.services))
+                self.say(_repr(self.services))
 
     def _monitor(self) -> Any:
         if self.debug:
@@ -222,6 +241,11 @@ class Worker(Service):
         return self.services
 
     async def on_first_start(self) -> None:
+        self._setup_logging()
+        for sensor in self.sensors:
+            await sensor.maybe_start()
+
+    def _setup_logging(self) -> None:
         _loglevel: int = None
         if self.loglevel:
             _loglevel = setup_logging(
@@ -229,13 +253,14 @@ class Worker(Service):
                 logfile=self.logfile,
                 logformat=self.logformat,
             )
-        if not _loglevel or _loglevel <= logging.WARN:
-            if self.spinner:
-                logging.root.addHandler(
-                    SpinnerHandler(self, level=logging.DEBUG))
-                logging.root.setLevel(logging.DEBUG)
-        for sensor in self.sensors:
-            await sensor.maybe_start()
+        if _loglevel and _loglevel < logging.WARN:
+            self.spinner = None
+
+        if self.spinner:
+            logging.root.handlers[0].setLevel(_loglevel)
+            logging.root.addHandler(
+                SpinnerHandler(self, level=logging.DEBUG))
+            logging.root.setLevel(logging.DEBUG)
 
     async def on_stop(self) -> None:
         for sensor in self.sensors:

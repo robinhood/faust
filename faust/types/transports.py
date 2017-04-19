@@ -53,7 +53,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def track_message(self, message: Message, offset: int) -> None:
+    async def track_message(self, message: Message, offset: int) -> None:
         ...
 
     @abc.abstractmethod

@@ -1,6 +1,5 @@
 """Message transport using :pypi:`aiokafka`."""
 import confluent_kafka
-import asyncio
 from typing import Awaitable, ClassVar, Optional, Type, cast
 from ..types import Message
 from ..utils.futures import done_future
@@ -31,11 +30,8 @@ class Consumer(base.Consumer):
         print('+SUBSCRIBE: %r' % (self.topic.topics,))
         self._consumer.subscribe(list(self.topic.topics))
         print('-SUBSCRIBE')
-        try:
-            await self.register_timers()
-            asyncio.ensure_future(self._drain_messages(), loop=self.loop)
-        except Exception as exc:
-            print(exc)
+        await self.register_timers()
+        self.add_future(self._drain_messages())
         print('ON START DONE')
 
     async def _drain_messages(self) -> None:
