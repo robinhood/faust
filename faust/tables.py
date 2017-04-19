@@ -3,7 +3,7 @@ import asyncio
 from typing import Any, Callable, Mapping, Sequence, cast
 from . import stores
 from .streams import Stream
-from .types import AppT, Event
+from .types import AppT
 from .types.stores import StoreT
 from .types.streams import Processor, StreamCoroutine, StreamT
 from .types.tables import TableT, WindowedTableT
@@ -66,9 +66,6 @@ class Table(Stream, TableT, ManagedUserDict):
     def on_key_del(self, key: Any) -> None:
         self.app.send_soon(self.changelog_topic, key=key, value=None)
 
-    async def on_done(self, value: Event = None) -> None:
-        super().on_done(value)  # <-- original value
-
     def _changelog_topic_name(self) -> str:
         return '{0.app.id}-{0.table_name}-changelog'
 
@@ -85,7 +82,7 @@ class Table(Stream, TableT, ManagedUserDict):
 # TODO: on_key_set and on_key_del need to push to incoming event partition
 class WindowedTable(WindowedTableT):
 
-    def __init__(self, *, window: WindowT, **kwargs) -> None:
+    def __init__(self, *, window: WindowT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.window = window
 

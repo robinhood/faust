@@ -11,5 +11,6 @@ class TableT(StreamT, MutableMapping):
     changelog_topic: Topic
     default: Any  # noqa: E704
 
+
 class WindowedTableT(TableT):
     window: WindowT

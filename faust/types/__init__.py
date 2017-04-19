@@ -49,4 +49,6 @@ __all__ = [
     'ConsumerCallback', 'MessageRefT', 'ConsumerT', 'ProducerT', 'TransportT',
 
     'Topic', 'TopicPartition', 'Message', 'Request',
+
+    'WindowT', 'WindowRange',
 ]
