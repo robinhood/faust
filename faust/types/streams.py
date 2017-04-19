@@ -11,13 +11,16 @@ from .core import K
 from .models import Event, FieldDescriptorT
 from .transports import ConsumerT
 from .tuples import Message, Topic
+from .windows import WindowT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
     from .join import JoinT
+    from .tables import TableT
 else:
-    class AppT: ...   # noqa
-    class JoinT: ...  # noqa
+    class AppT: ...    # noqa
+    class JoinT: ...   # noqa
+    class TableT: ...  # noqa
 
 __all__ = [
     'Processor',
@@ -102,6 +105,10 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
+    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
+        ...
+
+    @abc.abstractmethod
     def tee(self, n: int = 2) -> Tuple['StreamT', ...]:
         ...
 
@@ -114,7 +121,31 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
+    def aggregate(self, table_name: str,
+                  operator: Callable[[Any, Event], Any],
+                  *,
+                  window: WindowT = None,
+                  default: Callable[[], Any] = None) -> TableT:
+        ...
+
+    @abc.abstractmethod
+    def count(self, table_name: str, **kwargs: Any) -> TableT:
+        ...
+
+    @abc.abstractmethod
+    def sum(self, key: FieldDescriptorT, table_name: str,
+            *,
+            default: Callable[[], Any] = int,
+            **kwargs: Any) -> TableT:
+        ...
+
+    @abc.abstractmethod
     def derive_topic(self, name: str) -> Topic:
+        ...
+
+    @abc.abstractmethod
+    def enumerate(self,
+                  start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
         ...
 
     @abc.abstractmethod

@@ -382,7 +382,8 @@ class Stream(StreamT, Service):
 
     def aggregate(self, table_name: str,
                   operator: Callable[[Any, Event], Any],
-                  window: WindowT=None,
+                  *,
+                  window: WindowT = None,
                   default: Callable[[], Any] = None) -> TableT:
         table = self.app.table(table_name, default=default, window=window,
                                on_start=self.maybe_start)
@@ -402,6 +403,32 @@ class Stream(StreamT, Service):
 
         self.add_processor(aggregator)
         return table
+
+    def count(self, table_name: str, **kwargs: Any) -> TableT:
+        return self.aggregate(
+            table_name,
+            operator=self._counter,
+            default=int,
+            **kwargs,
+        )
+
+    def _counter(self, total: int, value: Event) -> int:
+        return total + 1
+
+    def sum(self, key: FieldDescriptorT, table_name: str,
+            *,
+            default: Callable[[], Any] = int,
+            **kwargs: Any) -> TableT:
+        return self.aggregate(
+            table_name,
+            operator=self._adder(key),
+            default=default,
+        )
+
+    def _adder(self, key: FieldDescriptorT) -> Callable[[Any, Event], Any]:
+        def _add_them(total: Any, event: Event) -> Any:
+            return total + getattr(event, key.field)
+        return _add_them
 
     def derive_topic(self, name: str) -> Topic:
         # find out the key_type/value_type from topic in this stream
