@@ -10,7 +10,4 @@ class TableT(StreamT, MutableMapping):
     table_name: str
     changelog_topic: Topic
     default: Any  # noqa: E704
-
-
-class WindowedTableT(TableT):
-    window: WindowT
+    window: WindowT = None

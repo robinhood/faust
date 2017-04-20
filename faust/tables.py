@@ -6,7 +6,7 @@ from .streams import Stream
 from .types import AppT
 from .types.stores import StoreT
 from .types.streams import Processor, StreamCoroutine, StreamT
-from .types.tables import TableT, WindowedTableT
+from .types.tables import TableT
 from .types.tuples import Topic
 from .types.windows import WindowT
 from .utils.collections import ManagedUserDict
@@ -77,23 +77,3 @@ class Table(Stream, TableT, ManagedUserDict):
         return '{}: {}@{}'.format(
             type(self).__name__, self.table_name, self._store,
         )
-
-
-# TODO: on_key_set and on_key_del need to push to incoming event partition
-class WindowedTable(WindowedTableT):
-
-    def __init__(self, *, window: WindowT, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.window = window
-
-    @classmethod
-    def from_topic(cls, topic: Topic = None,
-                   *,
-                   coroutine: StreamCoroutine = None,
-                   processors: Sequence[Processor] = None,
-                   loop: asyncio.AbstractEventLoop = None,
-                   window: WindowT = None,
-                   **kwargs: Any) -> StreamT:
-        cls.window = window
-        return super().from_topic(topic=topic, coroutine=coroutine,
-                                  processors=processors, loop=loop, **kwargs)

@@ -386,7 +386,7 @@ class Stream(StreamT, Service):
                   window: WindowT = None,
                   default: Callable[[], Any] = None) -> TableT:
         table = self.app.table(table_name, default=default, window=window,
-                               on_start=self.maybe_start)
+                               on_start=self.maybe_start, children=[self])
         if window is None:
             async def aggregator(event: Event) -> Event:
                 print(event)
