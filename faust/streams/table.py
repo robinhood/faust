@@ -46,6 +46,7 @@ class Table(Stream, TableT, ManagedUserDict):
             'table_name': self.table_name,
             'store': self._store,
             'default': self.default,
+            'window': self.window,
         }}
 
     def on_bind(self, app: AppT) -> None:
