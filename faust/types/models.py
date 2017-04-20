@@ -1,6 +1,6 @@
 import typing
 from typing import Any, ClassVar, FrozenSet, Mapping, NewType, Type, Union
-from .codecs import CodecArg
+from .serializers.codecs import CodecArg
 from .tuples import Request, Topic
 
 if typing.TYPE_CHECKING:  # pragma: no cover

@@ -11,7 +11,7 @@ class CodecT(metaclass=abc.ABCMeta):
     """Abstract type for an encoder/decoder.
 
     See Also:
-        :class:`faust.codecs.Codec`.
+        :class:`faust.serializers.codecs.Codec`.
     """
 
     @abc.abstractmethod

@@ -16,8 +16,8 @@ from weakref import WeakKeyDictionary
 
 from . import _constants
 from . import transport
-from .codecs import CodecArg, loads
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
+from .serializers.codecs import CodecArg, loads
 from .streams import StreamManager
 from .types import K, Message, Request, StreamCoroutine, Topic, V
 from .types.app import AppT, AsyncSerializerT
@@ -182,7 +182,7 @@ class App(AppT, ServiceProxy):
 
     #: Mapping of serializers that needs to be async
     _serializer_override_classes: Mapping[CodecArg, SymbolArg] = {
-        'avro': 'faust.avro.faust:AvroSerializer',
+        'avro': 'faust.serializers.avro.faust:AvroSerializer',
     }
 
     #: Async serializer instances are cached here.

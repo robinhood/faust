@@ -4,8 +4,8 @@ from typing import (
     Set, Sequence, Tuple, Type, Union, cast,
 )
 from avro import schema
-from .avro.utils import to_avro_type
-from .codecs import CodecArg, dumps, loads
+from .serializers.avro import to_avro_type
+from .serializers.codecs import CodecArg, dumps, loads
 from .types.models import FieldDescriptorT, ModelT, ModelOptions
 from .types.tuples import Request, Topic
 from .utils.objects import annotations
