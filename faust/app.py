@@ -475,6 +475,7 @@ class App(AppT, ServiceProxy):
             coroutine=coroutine,
             processors=processors,
             beacon=self.beacon,
+            window=window,
             **kwargs
         ).bind(self))
 
