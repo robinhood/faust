@@ -4,8 +4,8 @@ import aiohttp
 from collections import defaultdict
 from typing import DefaultDict, Dict, Mapping, Optional, Sequence, Tuple, cast
 from avro.schema import Parse, Schema
-from ..utils import json
-from ..utils.logging import get_logger
+from faust.utils import json
+from faust.utils.logging import get_logger
 
 __all__ = ['ClientError', 'RegistryClient']
 

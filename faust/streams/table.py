@@ -1,12 +1,9 @@
 """Tables (changelog stream)."""
-import asyncio
-from typing import Any, Callable, Mapping, Sequence, cast
+from typing import Any, Callable, Mapping, cast
 from .. import stores
 from ..types import AppT
 from ..types.stores import StoreT
-from ..types.streams import Processor, StreamCoroutine, StreamT
 from ..types.tables import TableT
-from ..types.tuples import Topic
 from ..types.windows import WindowT
 from ..utils.collections import ManagedUserDict
 from .stream import Stream

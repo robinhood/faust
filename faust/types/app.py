@@ -6,10 +6,10 @@ from typing import (
 )
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
+from .codecs import CodecArg
 from .core import K, V
 from .models import ModelT, Event
 from .sensors import SensorT
-from .serializers.codecs import CodecArg
 from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
 from .transports import TransportT

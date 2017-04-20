@@ -1,14 +1,15 @@
 """Streams."""
 import asyncio
 import faust
-import re
 import reprlib
+
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, Dict, List,
-    Mapping, MutableMapping, MutableSequence, Pattern,
-    Sequence, Tuple, Type, Union, cast
+    Any, AsyncIterator, Callable, Dict, List, Mapping,
+    MutableMapping, MutableSequence, Sequence, Tuple, Union, cast
 )
-from ..types import AppT, CodecArg, K, Message, Topic
+
+from ..topics import get_uniform_topic_type, topic_from_topic, topic_to_map
+from ..types import AppT, K, Message, Topic
 from ..types.joins import JoinT
 from ..types.models import Event, FieldDescriptorT
 from ..types.streams import (
@@ -19,6 +20,7 @@ from ..types.tables import TableT
 from ..types.transports import ConsumerCallback
 from ..types.windows import WindowT
 from ..utils.aiter import aenumerate
+from ..utils.futures import maybe_async
 from ..utils.logging import get_logger
 from ..utils.services import Service, ServiceT
 from ..utils.types.collections import NodeT
@@ -27,13 +29,14 @@ from ._coroutines import CoroCallbackT, wrap_callback
 from . import _constants
 from . import joins
 
-__all__ = ['Stream', 'topic']
+__all__ = ['Stream']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_Dict: Dict
 __make_flake8_happy_CoroCallbackT: CoroCallbackT
 
 logger = get_logger(__name__)
+
 
 # NOTES:
 #   - Users define an Record subclass that define how messages in a topic is
@@ -104,50 +107,6 @@ logger = get_logger(__name__)
 #
 #      for event in (s1 & s2).join(Withdrawal.account_id, Account.id):
 #          ...
-
-
-def topic(*topics: str,
-          pattern: Union[str, Pattern] = None,
-          key_type: Type = None,
-          value_type: Type = None,
-          key_serializer: CodecArg = None) -> Topic:
-    """Define new topic.
-
-    Arguments:
-        *topics: str:  List of topic names.
-
-    Keyword Arguments:
-        pattern (Union[str, Pattern]): Regular expression to match.
-            You cannot specify both topics and a pattern.
-        key_type (Type): Model used for keys in this topic.
-        value_type (Type): Model used for values in this topic.
-
-    Raises:
-        TypeError: if both `topics` and `pattern` is provided.
-
-    Returns:
-        faust.types.Topic: a named tuple.
-
-    """
-    if pattern and topics:
-        raise TypeError('Cannot specify both topics and pattern.')
-    if isinstance(pattern, str):
-        pattern = re.compile(pattern)
-
-    return Topic(
-        topics=topics,
-        pattern=pattern,
-        key_type=key_type,
-        value_type=value_type,
-    )
-
-
-async def _maybe_async(res: Any) -> Any:
-    if isinstance(res, Awaitable):
-        return await res
-    return res
-
-
 class Stream(StreamT, Service):
 
     _processors: MutableMapping[Topic, MutableSequence[Processor]] = None
@@ -205,7 +164,7 @@ class Stream(StreamT, Service):
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         if self.topics:
-            self._topicmap = self._build_topicmap(self.topics)
+            self._topicmap = topic_to_map(self.topics)
         else:
             self._topicmap = {}
         # XXX set coroutine callbacks
@@ -349,7 +308,7 @@ class Stream(StreamT, Service):
                     'group_by with callback must set name=topic_suffix')
         suffix = '-' + name + _constants.REPARTITION_TOPIC_SUFFIX
         new_topics = [
-            self._topic_from_topic_with_suffix(t, suffix)
+            topic_from_topic(t, suffix=suffix)
             for t in self.topics
         ]
         format_key = self._format_key
@@ -364,21 +323,10 @@ class Stream(StreamT, Service):
         self.add_processor(repartition)
         return self.clone(topics=new_topics, on_start=self.maybe_start)
 
-    def _topic_from_topic_with_suffix(
-            self, topic: Topic, suffix: str) -> Topic:
-        if topic.pattern:
-            raise ValueError('Cannot add suffix to Topic with pattern')
-        return Topic(
-            topics=[t + suffix for t in topic.topics],
-            pattern=topic.pattern,
-            key_type=topic.key_type,
-            value_type=topic.value_type,
-        )
-
     async def _format_key(self, key: GroupByKeyArg, event: Event):
         if isinstance(key, FieldDescriptorT):
             return getattr(event, key.field)
-        return await _maybe_async(key(event))
+        return await maybe_async(key(event))
 
     def aggregate(self, table_name: str,
                   operator: Callable[[Any, Event], Any],
@@ -439,25 +387,12 @@ class Stream(StreamT, Service):
     def derive_topic(self, name: str) -> Topic:
         # find out the key_type/value_type from topic in this stream
         # make sure it's the same for all topics.
-        key_type, value_type = self._get_uniform_topic_type()
+        key_type, value_type = get_uniform_topic_type(self.topics)
         return faust.topic(
             name,
             key_type=key_type,
             value_type=value_type,
         )
-
-    def _get_uniform_topic_type(self) -> Tuple[Type, Type]:
-        key_type: Type = None
-        value_type: Type = None
-        for topic in self.topics:
-            if key_type is None:
-                key_type = topic.key_type
-            else:
-                assert topic.key_type is key_type
-            if value_type is None:
-                value_type = topic.value_type
-                assert topic.value_type is value_type
-        return key_type, value_type
 
     def enumerate(self,
                   start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
@@ -509,7 +444,7 @@ class Stream(StreamT, Service):
             v = await process(k, v)
             if processors is not None:
                 for processor in processors:
-                    v = await _maybe_async(processor(v))
+                    v = await maybe_async(processor(v))
             coroutine = get_coroutines(topic)
             if coroutine is not None:
                 await coroutine.send(v)
@@ -523,7 +458,7 @@ class Stream(StreamT, Service):
         value = await self.process(value.req.key, value)
         if processors is not None:
             for processor in processors:
-                value = await _maybe_async(processor(value))
+                value = await maybe_async(processor(value))
         coroutine = self._coroutines.get(topic)
         if coroutine is not None:
             await coroutine.send(value)
@@ -602,16 +537,6 @@ class Stream(StreamT, Service):
             self._anext_started = True
             await self.maybe_start()
         return cast(Event, await self.outbox.get())
-
-    def _build_topicmap(
-            self, topics: Sequence[Topic]) -> MutableMapping[str, Topic]:
-        return {
-            s: topic
-            for topic in topics for s in self._subtopics_for(topic)
-        }
-
-    def _subtopics_for(self, topic: Topic) -> Sequence[str]:
-        return [topic.pattern.pattern] if topic.pattern else topic.topics
 
     def _repr_info(self) -> str:
         if self.children:

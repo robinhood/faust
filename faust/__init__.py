@@ -35,7 +35,9 @@ del(re)
 from .app import App                         # noqa: E402
 from .models import Record                   # noqa: E402
 from .sensors import Sensor                  # noqa: E402
-from .streams import Stream, Table, topic    # noqa: E402
+from .streams.stream import Stream           # noqa: E402
+from .streams.table import Table             # noqa: E402
+from .topics import topic                    # noqa: E402
 from .types import Event                     # noqa: E402
 from .worker import Worker                   # noqa: E402
 
