@@ -14,11 +14,11 @@ from typing import (
 from itertools import count
 from weakref import WeakKeyDictionary
 
-from . import _constants
 from . import transport
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
 from .serializers.codecs import CodecArg, loads
-from .streams import StreamManager
+from .streams import _constants
+from .streams.manager import StreamManager
 from .types import K, Message, Request, StreamCoroutine, Topic, V
 from .types.app import AppT, AsyncSerializerT
 from .types.models import Event, ModelT

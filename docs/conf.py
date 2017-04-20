@@ -18,8 +18,8 @@ globals().update(conf.build_config(
     # path_additions=[os.path.join(os.pardir, 'testproj')],
     apicheck_ignore_modules=[
         'faust.transport.confluent',
-        'faust._constants',
-        'faust._coroutines',
+        'faust.streams._constants',
+        'faust.streams._coroutines',
         'faust.types._coroutines',
         'faust.utils.avro',
         'faust.types',

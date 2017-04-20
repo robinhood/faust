@@ -1,15 +1,15 @@
 """Tables (changelog stream)."""
 import asyncio
 from typing import Any, Callable, Mapping, Sequence, cast
-from . import stores
-from .streams import Stream
-from .types import AppT
-from .types.stores import StoreT
-from .types.streams import Processor, StreamCoroutine, StreamT
-from .types.tables import TableT, WindowedTableT
-from .types.tuples import Topic
-from .types.windows import WindowT
-from .utils.collections import ManagedUserDict
+from .. import stores
+from ..types import AppT
+from ..types.stores import StoreT
+from ..types.streams import Processor, StreamCoroutine, StreamT
+from ..types.tables import TableT, WindowedTableT
+from ..types.tuples import Topic
+from ..types.windows import WindowT
+from ..utils.collections import ManagedUserDict
+from .stream import Stream
 
 __all__ = ['Table']
 
