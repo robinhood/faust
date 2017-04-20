@@ -1,6 +1,6 @@
 """Join strategies."""
 from typing import Optional, Tuple
-from .types import Event, FieldDescriptorT, JoinT, StreamT
+from ..types import Event, FieldDescriptorT, JoinT, StreamT
 
 __all__ = [
     'Join',
