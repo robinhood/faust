@@ -1,19 +1,22 @@
 """Message transport using :pypi:`aiokafka`."""
-import aiokafka
 import asyncio
+from typing import Any, Awaitable, ClassVar, Optional, Sequence, Type, cast
+
+import aiokafka
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from typing import Any, Awaitable, ClassVar, Optional, Sequence, Type, cast
+
+from faust.assignor.partition_assignor import PartitionAssignor
+from . import base
 from ..types import Message, TopicPartition
 from ..types.transports import ConsumerT
 from ..utils.futures import done_future
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
-from . import base
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -49,6 +52,7 @@ class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
+    _assignor = PartitionAssignor()
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
@@ -57,6 +61,7 @@ class Consumer(base.Consumer):
             client_id=transport.app.client_id,
             group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
+            partition_assignment_strategy=[self._assignor],
         )
 
     async def on_start(self) -> None:

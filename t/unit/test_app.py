@@ -1,7 +1,7 @@
 import pytest
 from case import ANY, Mock
-from faust.serializers import codecs
 from faust import App, Record, topic
+from faust.serializers import codecs
 from faust.types.models import ModelT
 from faust.utils.compat import want_bytes
 from faust.utils.futures import done_future
