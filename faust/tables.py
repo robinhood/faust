@@ -22,11 +22,13 @@ class Table(Stream, TableT, ManagedUserDict):
                  table_name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = 'memory://',
+                 window: WindowT = None,
                  **kwargs: Any) -> None:
         self.table_name = table_name
         self.default = default
         self._store = store
         self.data = {}
+        self.window = window
         assert not self._coroutines  # Table cannot have generator callback.
         Stream.__init__(self, **kwargs)
 

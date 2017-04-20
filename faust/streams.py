@@ -384,31 +384,35 @@ class Stream(StreamT, Service):
                   operator: Callable[[Any, Event], Any],
                   *,
                   window: WindowT = None,
-                  default: Callable[[], Any] = None) -> TableT:
+                  default: Callable[[], Any] = None,
+                  agg_key: FieldDescriptorT = None) -> TableT:
         table = self.app.table(table_name, default=default, window=window,
                                on_start=self.maybe_start, children=[self])
-        if window is None:
-            async def aggregator(event: Event) -> Event:
-                print(event)
-                k: K = event.req.key
+
+        async def aggregator(event: Event) -> Event:
+            k = (
+                event.req.key
+                if agg_key is None else getattr(event, agg_key.field)
+            )
+            timestamp = event.req.message.timestamp
+            keys = [k] if window is None else [
+                (k, window_range)
+                for window_range in window.windows(timestamp)
+            ]
+            for k in keys:
                 table[k] = operator(table[k], event)
-                return event
-        else:
-            async def aggregator(event: Event) -> Event:
-                window_ranges = window.windows(event.req.message.timestamp)
-                for window_range in window_ranges:
-                    k = (event.req.key, window_range)
-                    table[k] = operator(table[k], event)
-                return event
+            return event
 
         self.add_processor(aggregator)
         return table
 
-    def count(self, table_name: str, **kwargs: Any) -> TableT:
+    def count(self, table_name: str, agg_key: FieldDescriptorT,
+              **kwargs: Any) -> TableT:
         return self.aggregate(
             table_name,
             operator=self._counter,
             default=int,
+            agg_key=agg_key,
             **kwargs,
         )
 
@@ -418,11 +422,13 @@ class Stream(StreamT, Service):
     def sum(self, key: FieldDescriptorT, table_name: str,
             *,
             default: Callable[[], Any] = int,
+            agg_key: FieldDescriptorT = None,
             **kwargs: Any) -> TableT:
         return self.aggregate(
             table_name,
             operator=self._adder(key),
             default=default,
+            agg_key=agg_key,
         )
 
     def _adder(self, key: FieldDescriptorT) -> Callable[[Any, Event], Any]:

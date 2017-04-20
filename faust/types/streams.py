@@ -125,17 +125,20 @@ class StreamT(AsyncIterator[_T], ServiceT):
                   operator: Callable[[Any, Event], Any],
                   *,
                   window: WindowT = None,
-                  default: Callable[[], Any] = None) -> TableT:
+                  default: Callable[[], Any] = None,
+                  agg_key: FieldDescriptorT) -> TableT:
         ...
 
     @abc.abstractmethod
-    def count(self, table_name: str, **kwargs: Any) -> TableT:
+    def count(self, table_name: str, agg_key: FieldDescriptorT,
+              **kwargs: Any) -> TableT:
         ...
 
     @abc.abstractmethod
     def sum(self, key: FieldDescriptorT, table_name: str,
             *,
             default: Callable[[], Any] = int,
+            agg_key: FieldDescriptorT,
             **kwargs: Any) -> TableT:
         ...
 
