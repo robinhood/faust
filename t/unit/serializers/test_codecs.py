@@ -4,7 +4,7 @@ import pytest
 from typing import Mapping
 from hypothesis import given
 from hypothesis.strategies import binary, dictionaries, text
-from faust.codecs import (
+from faust.serializers.codecs import (
     Codec, get_codec, loads, dumps, json, binary as _binary,
 )
 from faust.utils.compat import want_str

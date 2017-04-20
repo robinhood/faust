@@ -1,11 +1,11 @@
 =====================================================
- ``faust.avro.utils``
+ ``faust.utils.avro.serializers``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.avro.utils
+.. currentmodule:: faust.utils.avro.serializers
 
-.. automodule:: faust.avro.utils
+.. automodule:: faust.utils.avro.serializers
     :members:
     :undoc-members:

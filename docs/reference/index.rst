@@ -12,11 +12,12 @@
 
     faust
     faust.app
-    faust.codecs
     faust.exceptions
     faust.joins
     faust.models
     faust.sensors
+    faust.serializers.avro
+    faust.serializers.codecs
     faust.stores
     faust.stores.base
     faust.stores.memory
@@ -36,10 +37,9 @@
     faust.types.tables
     faust.types.transports
     faust.types.tuples
-    faust.avro.serializers
-    faust.avro.servers
-    faust.avro.utils
     faust.utils.aiter
+    faust.utils.avro.serializers
+    faust.utils.avro.servers
     faust.utils.collections
     faust.utils.compat
     faust.utils.futures
