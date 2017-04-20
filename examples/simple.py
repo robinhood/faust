@@ -10,6 +10,7 @@ GRAPH = os.environ.get('GRAPH')
 
 class Withdrawal(faust.Record, serializer='json'):
     user: str
+    country: str
     amount: float
 
 
@@ -27,9 +28,12 @@ async def find_large_withdrawals(app):
     withdrawals = app.stream(topic)
     user_to_total = withdrawals.sum(Withdrawal.amount, 'user_to_total',
                                     agg_key=Withdrawal.user)
+    country_to_total = withdrawals.sum(Withdrawal.amount, 'country_to_total',
+                                       agg_key=Withdrawal.country)
     async for withdrawal in withdrawals:
-        print('Withdrawal: %r, Total: %r' %
-              (withdrawal, user_to_total[withdrawal.user]))
+        print('Withdrawal: %r, User Total: %r, Country Total: %r' %
+              (withdrawal, user_to_total[withdrawal.user],
+               country_to_total[withdrawal.country]))
 
 
 async def _dump_beacon(app):
@@ -40,9 +44,11 @@ async def _dump_beacon(app):
 async def _publish_withdrawals():
     for i in range(100):
         print('+SEND %r' % (i,))
-        await app.send(topic, b'K', Withdrawal(user='foo', amount=100.3 + i))
+        await app.send(topic, b'K', Withdrawal(user='foo', amount=100.3 + i,
+                                               country="FOO"))
         print('-SEND %r' % (i,))
-    await app.send(topic, b'K', Withdrawal(user='foo', amount=999999.0))
+    await app.send(topic, b'K', Withdrawal(user='foo', amount=999999.0,
+                                           country="BAR"))
     await asyncio.sleep(30)
 
 
