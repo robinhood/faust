@@ -77,8 +77,14 @@ def get_uniform_topic_type(topics: Sequence[Topic]) -> Tuple[Type, Type]:
         if key_type is None:
             key_type = topic.key_type
         else:
+            if topic.key_type is not key_type:
+                raise TypeError(
+                    'Cannot get type from topics having differing types.')
             assert topic.key_type is key_type
         if value_type is None:
             value_type = topic.value_type
-            assert topic.value_type is value_type
+        else:
+            if topic.value_type is not value_type:
+                raise TypeError(
+                    'Cannot get type from topics having differing types.')
     return key_type, value_type

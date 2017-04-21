@@ -32,14 +32,17 @@ VERSION = version_info = version_info_t(
 del(_temp)
 del(re)
 
-from .app import App                         # noqa: E402
-from .models import Record                   # noqa: E402
-from .sensors import Sensor                  # noqa: E402
-from .streams.stream import Stream           # noqa: E402
-from .streams.table import Table             # noqa: E402
-from .topics import topic                    # noqa: E402
-from .types import Event                     # noqa: E402
-from .worker import Worker                   # noqa: E402
+from .app import App                                      # noqa: E402
+from .models import Record                                # noqa: E402
+from .sensors import Sensor                               # noqa: E402
+from .streams.stream import Stream                        # noqa: E402
+from .streams.table import Table                          # noqa: E402
+from .topics import topic                                 # noqa: E402
+from .types import Event                                  # noqa: E402
+from .windows import (                                    # noqa: E402
+    HoppingWindow, TumblingWindow, SlidingWindow,
+)
+from .worker import Worker                                # noqa: E402
 
 __all__ = [
     'App',
@@ -48,9 +51,9 @@ __all__ = [
     'Sensor',
     'Stream',
     'Table',
+    'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
     'Worker',
-    'topic',
-    'use_uvloop',
+    'topic', 'use_uvloop',
 ]
 
 

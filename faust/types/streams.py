@@ -2,8 +2,9 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, List, Mapping,
-    MutableMapping, MutableSequence, Sequence, Tuple, TypeVar, Union,
+    Any, AsyncIterator, Awaitable, Callable,
+    List, Mapping, MutableMapping, MutableSequence,
+    Sequence, Tuple, Type, TypeVar, Union,
 )
 from ..utils.types.services import ServiceT
 from ._coroutines import CoroCallbackT, StreamCoroutine
@@ -126,19 +127,24 @@ class StreamT(AsyncIterator[_T], ServiceT):
                   *,
                   window: WindowT = None,
                   default: Callable[[], Any] = None,
-                  agg_key: FieldDescriptorT) -> TableT:
+                  key: FieldDescriptorT = None,
+                  key_type: Type = None,
+                  value_type: Type = None) -> TableT:
         ...
 
     @abc.abstractmethod
-    def count(self, table_name: str, agg_key: FieldDescriptorT,
+    def count(self, table_name: str,
+              *,
+              key: FieldDescriptorT = None,
               **kwargs: Any) -> TableT:
         ...
 
     @abc.abstractmethod
-    def sum(self, key: FieldDescriptorT, table_name: str,
+    def sum(self, field: FieldDescriptorT, table_name: str,
             *,
             default: Callable[[], Any] = int,
-            agg_key: FieldDescriptorT,
+            key: FieldDescriptorT,
+            value_type: Type = None,
             **kwargs: Any) -> TableT:
         ...
 

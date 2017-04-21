@@ -1,14 +1,16 @@
 """Streams."""
 import asyncio
-import faust
 import reprlib
 
 from typing import (
-    Any, AsyncIterator, Callable, Dict, List, Mapping,
-    MutableMapping, MutableSequence, Sequence, Tuple, Union, cast
+    Any, AsyncIterator, Callable, Dict, List,
+    Mapping, MutableMapping, MutableSequence,
+    Sequence, Tuple, Type, Union, cast
 )
 
-from ..topics import get_uniform_topic_type, topic_from_topic, topic_to_map
+from ..topics import (
+    get_uniform_topic_type, topic, topic_from_topic, topic_to_map,
+)
 from ..types import AppT, K, Message, Topic
 from ..types.joins import JoinT
 from ..types.models import Event, FieldDescriptorT
@@ -200,8 +202,8 @@ class Stream(StreamT, Service):
         # adds to all topics by default.
         if topics is None:
             topics = self.topics
-        for topic in topics:
-            self._add_processor_to_topic(topic, processor)
+        for t in topics:
+            self._add_processor_to_topic(t, processor)
 
     def _add_processor_to_topic(self,
                                 topic: Topic, processor: Processor) -> None:
@@ -333,15 +335,21 @@ class Stream(StreamT, Service):
                   *,
                   window: WindowT = None,
                   default: Callable[[], Any] = None,
-                  agg_key: FieldDescriptorT = None) -> TableT:
-        table = self.app.table(table_name, default=default, window=window,
-                               on_start=self.maybe_start, children=[self])
+                  key: FieldDescriptorT = None,
+                  key_type: Type = None,
+                  value_type: Type = None) -> TableT:
+        table = self.app.table(
+            table_name,
+            default=default,
+            window=window,
+            on_start=self.maybe_start,
+            children=[self],
+            key_type=key.type if key_type is None else key_type,
+            value_type=value_type,
+        )
 
         async def aggregator(event: Event) -> Event:
-            k = (
-                event.req.key
-                if agg_key is None else getattr(event, agg_key.field)
-            )
+            k = event.req.key if key is None else getattr(event, key.field)
             timestamp = event.req.message.timestamp
             keys = [k] if window is None else [
                 (k, window_range)
@@ -354,41 +362,55 @@ class Stream(StreamT, Service):
         self.add_processor(aggregator)
         return table
 
-    def count(self, table_name: str, agg_key: FieldDescriptorT,
+    def count(self, table_name: str,
+              *,
+              key: FieldDescriptorT = None,
               **kwargs: Any) -> TableT:
         return self.aggregate(
             table_name,
             operator=self._counter,
             default=int,
-            agg_key=agg_key,
+            key=key,
             **kwargs,
         )
 
     def _counter(self, total: int, value: Event) -> int:
         return total + 1
 
-    def sum(self, key: FieldDescriptorT, table_name: str,
+    def sum(self, field: FieldDescriptorT, table_name: str,
             *,
             default: Callable[[], Any] = int,
-            agg_key: FieldDescriptorT = None,
+            key: FieldDescriptorT = None,
+            value_type: Type = None,
             **kwargs: Any) -> TableT:
         return self.aggregate(
             table_name,
-            operator=self._adder(key),
+            operator=self._adder(field),
             default=default,
-            agg_key=agg_key,
+            key=key,
+            value_type=field.type if value_type is None else value_type,
         )
 
-    def _adder(self, key: FieldDescriptorT) -> Callable[[Any, Event], Any]:
+    def _adder(self, field: FieldDescriptorT) -> Callable[[Any, Event], Any]:
         def _add_them(total: Any, event: Event) -> Any:
-            return total + getattr(event, key.field)
+            return total + getattr(event, field.field)
         return _add_them
 
-    def derive_topic(self, name: str) -> Topic:
-        # find out the key_type/value_type from topic in this stream
-        # make sure it's the same for all topics.
-        key_type, value_type = get_uniform_topic_type(self.topics)
-        return faust.topic(
+    def derive_topic(self, name: str,
+                     key_type: Type = None,
+                     value_type: Type = None) -> Topic:
+        k__v: Tuple[Type, Type] = None  # cache after first call
+        # get key type from topics if not provided
+        # note: if taking types from topics, the topic types must
+        #       be uniform or an AssertionError is raised.
+        if key_type is None:
+            key_type, _ = k__v = get_uniform_topic_type(self.topics)
+
+        # get value_type from topics if not provided
+        if value_type is None:
+            _, value_type = (get_uniform_topic_type(self.topics)
+                             if k__v is None else k__v)
+        return topic(
             name,
             key_type=key_type,
             value_type=value_type,
@@ -532,10 +554,15 @@ class Stream(StreamT, Service):
     def __aiter__(self) -> AsyncIterator:
         return self
 
+    async def on_aiter_start(self) -> None:
+        """Callback called when this stream is first iterated over."""
+        ...
+
     async def __anext__(self) -> Event:
         if not self._anext_started:
             self._anext_started = True
             await self.maybe_start()
+            await self.on_aiter_start()
         return cast(Event, await self.outbox.get())
 
     def _repr_info(self) -> str:

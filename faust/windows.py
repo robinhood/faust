@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional, List
 from .types import WindowRange, WindowT
 
+__all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
+
 
 # XXX mypy doesn't allow methods in NamedTuples
 # but seems like a bug.

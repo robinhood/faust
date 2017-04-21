@@ -1,5 +1,5 @@
 """Tables (changelog stream)."""
-from typing import Any, Callable, Mapping, cast
+from typing import Any, Callable, Mapping, Type, cast
 from .. import stores
 from ..types import AppT
 from ..types.stores import StoreT
@@ -20,12 +20,16 @@ class Table(Stream, TableT, ManagedUserDict):
                  default: Callable[[], Any] = None,
                  store: str = 'memory://',
                  window: WindowT = None,
+                 key_type: Type = None,
+                 value_type: Type = None,
                  **kwargs: Any) -> None:
         self.table_name = table_name
         self.default = default
         self._store = store
         self.data = {}
         self.window = window
+        self.key_type = key_type
+        self.value_type = value_type
         assert not self._coroutines  # Table cannot have generator callback.
         Stream.__init__(self, **kwargs)
 
@@ -57,7 +61,11 @@ class Table(Stream, TableT, ManagedUserDict):
             self.data = stores.by_url(url)(url, app, loop=self.loop)
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
-        self.changelog_topic = self.derive_topic(self._changelog_topic_name())
+        self.changelog_topic = self.derive_topic(
+            self._changelog_topic_name(),
+            key_type=self.key_type,
+            value_type=self.value_type,
+        )
         app.add_table(self)
 
     def on_key_set(self, key: Any, value: Any) -> None:
