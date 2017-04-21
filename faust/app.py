@@ -16,10 +16,12 @@ from weakref import WeakKeyDictionary
 
 from . import transport
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
-from .serializers.codecs import CodecArg, loads
+from .serializers.codecs import CodecArg, dumps, loads
 from .streams import _constants
 from .streams.manager import StreamManager
-from .types import K, Message, Request, StreamCoroutine, Topic, V
+from .types import (
+    K, Message, Request, StreamCoroutine, Topic, TopicPartition, V,
+)
 from .types.app import AppT, AsyncSerializerT
 from .types.models import Event, ModelT
 from .types.sensors import SensorT
@@ -250,7 +252,9 @@ class App(AppT, ServiceProxy):
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
             *,
-            wait: bool = True) -> Awaitable:
+            wait: bool = True,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None) -> Awaitable:
         """Send event to stream.
 
         Arguments:
@@ -261,27 +265,39 @@ class App(AppT, ServiceProxy):
         Keyword Arguments:
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
+            key_serializer (CodecArg): Serializer to use
+                only when key is not a model.
+            value_serializer (CodecArg): Serializer to use
+                only when key is not a model.
         """
         if isinstance(topic, Topic):
             strtopic = topic.topics[0]
         return await self._send(
             strtopic,
-            (await self.dumps_key(strtopic, key) if key is not None else None),
-            (await self.dumps_value(strtopic, value)),
+            (await self.dumps_key(strtopic, key, key_serializer)
+             if key is not None else None),
+            (await self.dumps_value(strtopic, value, value_serializer)),
             wait=wait,
         )
 
-    def send_soon(self, topic: Union[Topic, str], key: K, value: V) -> None:
+    def send_soon(self, topic: Union[Topic, str], key: K, value: V,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None) -> None:
         """Send event to stream soon.
 
         This is for use by non-async functions.
         """
-        self._message_buffer.put((topic, key, value))
+        self._message_buffer.put((
+            topic, key, value,
+            key_serializer, value_serializer,
+        ))
 
     async def _send(self,
                     topic: str,
                     key: Optional[bytes],
                     value: Optional[bytes],
+                    key_serializer: CodecArg = None,
+                    value_serializer: CodecArg = None,
                     *,
                     wait: bool = True) -> Awaitable:
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
@@ -339,37 +355,53 @@ class App(AppT, ServiceProxy):
         except Exception as exc:
             raise ValueDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
 
-    async def dumps_key(self, topic: str, key: K) -> Optional[bytes]:
+    async def dumps_key(self, topic: str, key: K,
+                        serializer: CodecArg = None) -> Optional[bytes]:
         """Serialize key.
 
         Arguments:
             topic: The topic that the message will be sent to.
             key: The key to be serialized.
+            serializer: Custom serializer to use if value is not a Model.
         """
+        is_model = False
         if isinstance(key, ModelT):
-            try:
-                ser = self._get_serializer(key._options.serializer)
-            except KeyError:
-                return key.dumps()
-            else:
-                return await ser.dumps_key(topic, key)
-        return want_bytes(key) if key is not None else key
+            is_model, serializer = True, key._options.serializer
 
-    async def dumps_value(self, topic: str, value: V) -> Optional[bytes]:
+        if serializer:
+            try:
+                ser = self._get_serializer(serializer)
+            except KeyError:
+                if is_model:
+                    return cast(ModelT, key).dumps()
+                return dumps(serializer, key)
+            else:
+                return await ser.dumps_key(topic, cast(ModelT, key))
+
+        return want_bytes(cast(bytes, key)) if key is not None else None
+
+    async def dumps_value(self, topic: str, value: V,
+                          serializer: CodecArg = None) -> Optional[bytes]:
         """Serialize value.
 
         Arguments:
             topic: The topic that the message will be sent to.
             value: The value to be serialized.
+            serializer: Custom serializer to use if value is not a Model.
         """
+        is_model = False
         if isinstance(value, ModelT):
+            is_model, serializer = True, value._options.serializer
+        if serializer:
             try:
-                ser = self._get_serializer(value._options.serializer)
+                ser = self._get_serializer(serializer)
             except KeyError:
-                return value.dumps()
+                if is_model:
+                    return cast(ModelT, value).dumps()
+                return dumps(serializer, value)
             else:
-                return await ser.dumps_value(topic, value)
-        return value
+                return await ser.dumps_value(topic, cast(ModelT, value))
+        return cast(bytes, value)
 
     def _get_serializer(self, name: CodecArg) -> AsyncSerializerT:
         # Caches overridden AsyncSerializer
@@ -492,6 +524,7 @@ class App(AppT, ServiceProxy):
     async def on_message_in(
             self,
             consumer_id: int,
+            tp: TopicPartition,
             offset: int,
             message: Message) -> None:
         """Called whenever a message is received.
@@ -500,11 +533,12 @@ class App(AppT, ServiceProxy):
         you should add a sensor.
         """
         for _sensor in self._sensors:
-            await _sensor.on_message_in(consumer_id, offset, message)
+            await _sensor.on_message_in(consumer_id, tp, offset, message)
 
     async def on_message_out(
             self,
             consumer_id: int,
+            tp: TopicPartition,
             offset: int,
             message: Message = None) -> None:
         """Called whenever a message has finished processing.
@@ -513,7 +547,7 @@ class App(AppT, ServiceProxy):
         you should add a sensor.
         """
         for _sensor in self._sensors:
-            await _sensor.on_message_out(consumer_id, offset, message)
+            await _sensor.on_message_out(consumer_id, tp, offset, message)
 
     def add_source(self, stream: StreamT) -> None:
         """Register existing stream."""

@@ -351,7 +351,7 @@ class Stream(StreamT, Service):
         async def aggregator(event: Event) -> Event:
             k = event.req.key if key is None else getattr(event, key.field)
             timestamp = event.req.message.timestamp
-            keys = [k] if window is None else [
+            keys: Sequence[Any] = [k] if window is None else [
                 (k, window_range)
                 for window_range in window.windows(timestamp)
             ]

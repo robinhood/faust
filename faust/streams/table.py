@@ -69,10 +69,15 @@ class Table(Stream, TableT, ManagedUserDict):
         app.add_table(self)
 
     def on_key_set(self, key: Any, value: Any) -> None:
-        self.app.send_soon(self.changelog_topic, key=key, value=value)
+        self._send_changelog(key, value)
 
     def on_key_del(self, key: Any) -> None:
-        self.app.send_soon(self.changelog_topic, key=key, value=None)
+        self._send_changelog(key, value=None)
+
+    def _send_changelog(self, key: Any, value: Any) -> None:
+        self.app.send_soon(self.changelog_topic, key, value,
+                           key_serializer='json',
+                           value_serializer='json')
 
     def _changelog_topic_name(self) -> str:
         return '{0.app.id}-{0.table_name}-changelog'

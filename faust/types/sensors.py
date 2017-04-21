@@ -1,6 +1,6 @@
 import abc
 from faust.utils.types.services import ServiceT
-from .tuples import Message
+from .tuples import Message, TopicPartition
 
 
 class SensorT(ServiceT):
@@ -9,6 +9,7 @@ class SensorT(ServiceT):
     async def on_message_in(
             self,
             consumer_id: int,
+            tp: TopicPartition,
             offset: int,
             message: Message) -> None:
         ...
@@ -17,6 +18,7 @@ class SensorT(ServiceT):
     async def on_message_out(
             self,
             consumer_id: int,
+            tp: TopicPartition,
             offset: int,
             message: Message = None) -> None:
         ...

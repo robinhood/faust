@@ -13,7 +13,7 @@ from .sensors import SensorT
 from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
 from .transports import TransportT
-from .tuples import Message, Topic
+from .tuples import Message, Topic, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -111,12 +111,16 @@ class AppT(ServiceT):
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
             *,
-            wait: bool = True) -> Awaitable:
+            wait: bool = True,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None) -> Awaitable:
         ...
 
     @abc.abstractmethod
     def send_soon(
-            self, topic: Union[Topic, str], key: K, value: V) -> None:
+            self, topic: Union[Topic, str], key: K, value: V,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -128,17 +132,20 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def dumps_key(self, topic: str, key: K) -> Optional[bytes]:
+    async def dumps_key(self, topic: str, key: K,
+                        serializer: CodecArg = None) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod
-    async def dumps_value(self, topic: str, value: V) -> Optional[bytes]:
+    async def dumps_value(self, topic: str, value: V,
+                          serializer: CodecArg = None) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod
     async def on_message_in(
             self,
             consumer_id: int,
+            tp: TopicPartition,
             offset: int,
             message: Message) -> None:
         ...
@@ -147,6 +154,7 @@ class AppT(ServiceT):
     async def on_message_out(
             self,
             consumer_id: int,
+            tp: TopicPartition,
             offset: int,
             message: Message = None) -> None:
         ...

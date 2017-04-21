@@ -125,7 +125,7 @@ class Consumer(Service, ConsumerT):
                        offset=offset,
                        consumer_id=self.id))
         # call sensors
-        await self._on_message_in(_id, offset, message)
+        await self._on_message_in(_id, tp, offset, message)
 
     def on_message_ready(self, ref: MessageRefT) -> None:
         if self.autoack:
@@ -147,9 +147,8 @@ class Consumer(Service, ConsumerT):
         get = self._recently_acked.get
         on_message_out = self._app.on_message_out
         while not self.should_stop:
-            # XXX ON_MESSAGE_OUT SHOULD TAKE TP
-            _, offset = await get()
-            await on_message_out(self.id, offset, None)
+            tp, offset = await get()
+            await on_message_out(self.id, tp, offset, None)
 
     async def maybe_commit(self) -> bool:
         async with self._commit_mutex:
