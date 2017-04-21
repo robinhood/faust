@@ -338,13 +338,15 @@ class Stream(StreamT, Service):
                   key: FieldDescriptorT = None,
                   key_type: Type = None,
                   value_type: Type = None) -> TableT:
+        if key_type is None and key is not None:
+            key_type = key.type
         table = self.app.table(
             table_name,
             default=default,
             window=window,
             on_start=self.maybe_start,
             children=[self],
-            key_type=key.type if key_type is None else key_type,
+            key_type=key_type,
             value_type=value_type,
         )
 
