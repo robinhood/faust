@@ -124,6 +124,21 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def send_attached(self,
+                      message: Message,
+                      topic: Union[str, Topic],
+                      key: K,
+                      value: V,
+                      *,
+                      key_serializer: CodecArg = None,
+                      value_serializer: CodecArg = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def commit_attached(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
     async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
         ...
 

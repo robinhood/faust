@@ -1,6 +1,7 @@
 import typing
-from typing import Any, NamedTuple, Pattern, Sequence, Type
-from .core import K
+from typing import Any, NamedTuple, Pattern, Sequence, Type, Union
+from .codecs import CodecArg
+from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -20,6 +21,14 @@ class Topic(NamedTuple):
 class TopicPartition(NamedTuple):
     topic: str
     partition: int
+
+
+class PendingMessage(NamedTuple):
+    topic: Union[str, Topic]
+    key: K
+    value: V
+    key_serializer: CodecArg
+    value_serializer: CodecArg
 
 
 class Message:

@@ -22,7 +22,7 @@ from .transports import (
     ProducerT,
     TransportT,
 )
-from .tuples import Topic, TopicPartition, Message, Request
+from .tuples import Topic, TopicPartition, Message, PendingMessage, Request
 from .windows import WindowT, WindowRange
 
 __all__ = [
@@ -48,7 +48,7 @@ __all__ = [
 
     'ConsumerCallback', 'MessageRefT', 'ConsumerT', 'ProducerT', 'TransportT',
 
-    'Topic', 'TopicPartition', 'Message', 'Request',
+    'Topic', 'TopicPartition', 'Message', 'PendingMessage', 'Request',
 
     'WindowT', 'WindowRange',
 ]

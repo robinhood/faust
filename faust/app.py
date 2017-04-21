@@ -6,10 +6,11 @@ import sys
 import typing
 
 from collections import OrderedDict
+from heapq import heappush, heappop
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Generator, Iterator,
+    Any, Awaitable, Callable, ClassVar, Generator, Iterator, List,
     Mapping, MutableMapping, MutableSequence, Optional, Sequence,
-    Set, Union, Type, cast,
+    Set, Union, Tuple, Type, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
@@ -20,7 +21,8 @@ from .serializers.codecs import CodecArg, dumps, loads
 from .streams import _constants
 from .streams.manager import StreamManager
 from .types import (
-    K, Message, Request, StreamCoroutine, Topic, TopicPartition, V,
+    K, Message, PendingMessage, Request, StreamCoroutine,
+    Topic, TopicPartition, V,
 )
 from .types.app import AppT, AsyncSerializerT
 from .types.models import Event, ModelT
@@ -193,6 +195,10 @@ class App(AppT, ServiceProxy):
     #: Set of active sensors
     _sensors: Set[SensorT] = None
 
+    _pending_on_commit: MutableMapping[
+        TopicPartition,
+        List[Tuple[int, PendingMessage]]]
+
     #: The @app.task decorator adds tasks to start here.
     #: for example:
     #:     app = faust.App('myid', tasks=[task])
@@ -248,6 +254,7 @@ class App(AppT, ServiceProxy):
         self._serializer_override = {}
         self._sensors = set()
         self._task_factories = []
+        self._pending_on_commit = {}
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
@@ -291,6 +298,54 @@ class App(AppT, ServiceProxy):
             topic, key, value,
             key_serializer, value_serializer,
         ))
+
+    def send_attached(self,
+                      message: Message,
+                      topic: Union[str, Topic],
+                      key: K,
+                      value: V,
+                      *,
+                      key_serializer: CodecArg = None,
+                      value_serializer: CodecArg = None) -> None:
+        tp = TopicPartition(message.topic, message.partition)
+        buffer = self._pending_on_commit[tp]
+        heappush(
+            buffer,
+            (message.offset, PendingMessage(
+                topic, key, value, key_serializer, value_serializer)),
+        )
+
+    def commit_attached(self, tp: TopicPartition, offset: int) -> None:
+        # Get pending messages attached to this TP+offset
+        attached = list(self._get_attached(tp, offset))
+        if attached:
+            # Send the messages, waiting for all of the writes
+            # to complete by gathering the futures.
+            asyncio.gather(*[
+                self.send(topic, key, value,
+                          key_serializer=keyser,
+                          value_serializer=valser,
+                          wait=False)
+                for (topic, key, value, keyser, valser)
+                in attached
+            ])
+
+    def _get_attached(
+            self, tp: TopicPartition, commit_offset: int) -> Iterator:
+        attached = self._pending_on_commit.get(tp)
+        while attached:
+            # get the entry with the smallest offset in this TP
+            entry = heappop(attached)
+
+            # if the entry offset is smaller or equal to the offset
+            # being committed
+            if entry[0] <= commit_offset:
+                # we use it
+                yield entry
+            else:
+                # we put it back and exit, as this was the smallest offset.
+                heappush(attached, entry)
+                break
 
     async def _send(self,
                     topic: str,

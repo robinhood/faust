@@ -1,5 +1,6 @@
 import typing
 from typing import Any, ClassVar, FrozenSet, Mapping, NewType, Type, Union
+from .core import K, V
 from .codecs import CodecArg
 from .tuples import Request, Topic
 
@@ -66,6 +67,12 @@ class ModelT:
     async def forward(self, topic: Union[str, Topic],
                       *,
                       key: Any = None) -> None:
+        ...
+
+    def attach(self, topic: Union[str, Topic], key: K, value: V,
+               *,
+               key_serializer: CodecArg = None,
+               value_serializer: CodecArg = None) -> None:
         ...
 
     def to_representation(self) -> Any:

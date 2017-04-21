@@ -10,6 +10,7 @@ from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
     ConsumerCallback, ConsumerT, MessageRefT, ProducerT, TransportT,
 )
+from ..utils.functional import consecutive_numbers
 from ..utils.services import Service
 
 __all__ = ['MessageRef', 'Consumer', 'Producer', 'Transport']
@@ -151,22 +152,58 @@ class Consumer(Service, ConsumerT):
             await on_message_out(self.id, tp, offset, None)
 
     async def maybe_commit(self) -> bool:
+        did_commit = False
+
+        # Only one coroutine can commit at a time.
         async with self._commit_mutex:
-            offsets = {}
+
+            # Go over the ack list in each topic/partition:
             for tp in self._acked:
-                try:
-                    offset = self._new_offset(tp)
-                except IndexError:
-                    pass
-                else:
-                    if self._should_commit(tp, offset):
-                        self._current_offset[tp] = offset
-                        meta = self._get_topic_meta(tp.topic)
-                        offsets[tp] = self._new_offsetandmetadata(offset, meta)
-            if offsets:
-                await self._commit(offsets)
-                return True
-            return False
+                # Find the latest offset we can commit in this tp
+                offset = self._new_offset(tp)
+                # check if we can commit to this offset
+                if offset is not None and self._should_commit(tp, offset):
+                    # if so, update the current_offset and perform
+                    # the commit.
+                    self._current_offset[tp] = offset
+                    meta = self._get_topic_meta(tp.topic)
+                    did_commit = True
+                    await self._do_commit(tp, offset, meta)
+        return did_commit
+
+    def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
+        return (
+            tp not in self._current_offset or
+            (bool(offset) and offset > self._current_offset[tp])
+        )
+
+    def _new_offset(self, tp: TopicPartition) -> Optional[int]:
+        # get the new offset for this tp, by going through
+        # its list of acked messages.
+        acked = self._acked[tp]
+
+        # We iterate over it until we find a gap
+        # then return the offset before that.
+        # For example if acked[tp] is:
+        #   1 2 3 4 5 6 7 8 9
+        # the return value will be: 9
+        # If acked[tp] is:
+        #  34 35 36 40 41 42 43 44
+        #          ^--- gap
+        # the return value will be: 36
+        if acked:
+            # Note: acked is always kept sorted.
+            # find first list of consecutive numbers
+            batch = next(consecutive_numbers(acked))
+            # remove them from the list to clean up.
+            acked[:len(batch)] = []
+            # return the highest commit offset
+            return batch[-1]
+        return None
+
+    async def _do_commit(
+            self, tp: TopicPartition, offset: int, meta: Any) -> None:
+        await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
     def _get_topic_meta(self, topic: str) -> Any:
         raise NotImplementedError()
@@ -181,21 +218,6 @@ class Consumer(Service, ConsumerT):
     async def on_task_error(self, exc: Exception) -> None:
         if self.autoack:
             await self.maybe_commit()
-
-    def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
-        return (
-            tp not in self._current_offset or
-            (bool(offset) and offset > self._current_offset[tp])
-        )
-
-    def _new_offset(self, tp: TopicPartition) -> int:
-        acked = self._acked[tp]
-        for i, offset in enumerate(acked):
-            if offset != acked[i - 1]:
-                break
-        else:
-            raise IndexError()
-        return offset
 
 
 class Producer(Service, ProducerT):

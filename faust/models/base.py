@@ -2,6 +2,7 @@
 from typing import Any, ClassVar, Dict, Mapping, Tuple, Type, Union
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
+from ..types import K, V
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
 from ..types.tuples import Request, Topic
 
@@ -195,6 +196,16 @@ class Model(ModelT):
         if key is SENTINEL:
             key = self.req.key
         await self.req.app.send(topic, key, self.req.message.value)
+
+    def attach(self, topic: Union[str, Topic], key: K, value: V,
+               *,
+               key_serializer: CodecArg = None,
+               value_serializer: CodecArg = None) -> None:
+        self.req.app.send_attached(
+            self.req.message, topic, key, value,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+        )
 
     def dumps(self) -> bytes:
         """Serialize object to the target serialization format."""
