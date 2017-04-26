@@ -3,7 +3,7 @@ import asyncio
 import reprlib
 
 from typing import (
-    Any, AsyncIterator, Callable, Dict, List,
+    Any, AsyncIterator, Awaitable, Callable, Dict, List,
     Mapping, MutableMapping, MutableSequence,
     Sequence, Tuple, Type, Union, cast
 )
@@ -19,7 +19,6 @@ from ..types.streams import (
     StreamProcessorMap, StreamT
 )
 from ..types.tables import TableT
-from ..types.transports import ConsumerCallback
 from ..types.windows import WindowT
 from ..utils.aiter import aenumerate
 from ..utils.futures import maybe_async
@@ -115,6 +114,7 @@ class Stream(StreamT, Service):
     _coroutines: StreamCoroutineMap = None
     _topicmap: MutableMapping[str, Topic] = None
     _anext_started: bool = False
+    _previous_event: Event = None
 
     @classmethod
     def from_topic(cls, topic: Topic = None,
@@ -183,13 +183,14 @@ class Stream(StreamT, Service):
         self.app = app
         self.name = app.new_stream_name()
         app.add_source(self)
-        self._on_message = self._compile_message_handler()
+        self.inbox = asyncio.Queue(maxsize=1, loop=self.loop)
         # attach beacon to current Faust task, or attach it to app.
         task = asyncio.Task.current_task(loop=self.loop)
         if task is not None and hasattr(task, '_beacon'):
             self.beacon = task._beacon.new(self)  # type: ignore
         else:
             self.beacon = self.app.beacon.new(self)
+        self._on_message = self._create_message_handler()
         self.on_bind(app)
         return self
 
@@ -437,7 +438,9 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    def _compile_message_handler(self) -> ConsumerCallback:
+    def _create_message_handler(self) -> Callable[[], Awaitable[None]]:
+        # get from inbox asyncio.Queue
+        get_message = self.inbox.get
         # topic str -> Topic description
         get_topic = self._topicmap.__getitem__
         # Topic description -> processors
@@ -452,7 +455,9 @@ class Stream(StreamT, Service):
         # .on_done callback
         on_done = self.on_done
 
-        async def on_message(message: Message) -> None:
+        async def on_message() -> None:
+            message: Message = await get_message()
+
             k = v = None
             topic = get_topic(message.topic)
             try:
@@ -565,7 +570,13 @@ class Stream(StreamT, Service):
             self._anext_started = True
             await self.maybe_start()
             await self.on_aiter_start()
-        return cast(Event, await self.outbox.get())
+        else:
+            # force collect previous event before processing next one.
+            self._previous_event.ack()
+            self._previous_event = None
+        await self._on_message()
+        event = self._previous_event = cast(Event, await self.outbox.get())
+        return event
 
     def _repr_info(self) -> str:
         if self.children:

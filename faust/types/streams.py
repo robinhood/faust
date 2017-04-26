@@ -54,6 +54,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
+    inbox: asyncio.Queue = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
 

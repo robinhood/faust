@@ -57,7 +57,7 @@ class StreamManager(StreamManagerT, Service):
 
         async def on_message(message: Message) -> None:
             for stream in get_streams_for_topic(message.topic):
-                await stream._on_message(message)  # type: ignore
+                await stream.inbox.put(message)
         return on_message
 
     async def on_start(self) -> None:

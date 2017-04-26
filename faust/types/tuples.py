@@ -44,6 +44,7 @@ class Message:
         'checksum',
         'serialized_key_size',
         'serialized_value_size',
+        'acked',
         '__weakref__',
     )
 
@@ -62,6 +63,7 @@ class Message:
         self.checksum: bytes = checksum
         self.serialized_key_size = serialized_key_size or len(key)
         self.serialized_value_size = serialized_value_size or len(value)
+        self.acked = False
 
     @classmethod
     def from_message(cls, message: Any) -> 'Message':
