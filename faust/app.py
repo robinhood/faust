@@ -374,7 +374,7 @@ class App(AppT, ServiceProxy):
         if key is None or typ is None:
             return key
         try:
-            typ_serializer = typ._options.serializer  # type: ignore
+            typ_serializer = typ._options.serializer
             serializer = typ_serializer or self.key_serializer
             try:
                 ser = self._get_serializer(serializer)
@@ -398,7 +398,7 @@ class App(AppT, ServiceProxy):
             return None
         try:
             obj: Any = None
-            typ_serializer = typ._options.serializer  # type: ignore
+            typ_serializer = typ._options.serializer
             serializer = typ_serializer or self.value_serializer
             try:
                 ser = self._get_serializer(serializer)
