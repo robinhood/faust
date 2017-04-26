@@ -207,6 +207,21 @@ class Model(ModelT):
             value_serializer=value_serializer,
         )
 
+    def ack(self) -> None:
+        self.req.app.streams.ack_message(self.req.message)
+
+    async def __aenter__(self) -> 'ModelT':
+        return self
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        self.ack()
+
+    def __enter__(self) -> 'ModelT':
+        return self
+
+    def __exit__(self, *exc_info: Any) -> None:
+        self.ack()
+
     def dumps(self) -> bytes:
         """Serialize object to the target serialization format."""
         return dumps(self._options.serializer, self.to_representation())

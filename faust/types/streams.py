@@ -11,7 +11,7 @@ from ._coroutines import CoroCallbackT, StreamCoroutine
 from .core import K
 from .models import Event, FieldDescriptorT
 from .transports import ConsumerT
-from .tuples import Message, Topic
+from .tuples import Message, Topic, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -54,6 +54,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
+    inbox: asyncio.Queue = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
 
@@ -241,4 +242,12 @@ class StreamManagerT(ServiceT):
 
     @abc.abstractmethod
     async def update(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def ack_message(self, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    def ack_offset(self, tp: TopicPartition, offset: int) -> None:
         ...

@@ -27,13 +27,13 @@ async def find_large_withdrawals(app):
         asyncio.ensure_future(_dump_beacon(app))
     withdrawals = app.stream(topic)
     user_to_total = withdrawals.sum(Withdrawal.amount, 'user_to_total',
-                                    agg_key=Withdrawal.user)
+                                    key=Withdrawal.user)
     country_to_total = withdrawals.sum(Withdrawal.amount, 'country_to_total',
-                                       agg_key=Withdrawal.country)
+                                       key=Withdrawal.country)
     async for withdrawal in withdrawals:
         print('Withdrawal: %r, User Total: %r, Country Total: %r' %
-              (withdrawal, user_to_total[withdrawal.user],
-               country_to_total[withdrawal.country]))
+            (withdrawal, user_to_total[withdrawal.user],
+            country_to_total[withdrawal.country]))
 
 
 async def _dump_beacon(app):
@@ -66,13 +66,14 @@ def main(loop=None):
     loop = loop or asyncio.get_event_loop()
     try:
         command = sys.argv.pop(1)
-        COMMANDS[command](loop=loop)
     except KeyError as exc:
         print('Unknown command: {0}'.format(exc))
         raise SystemExit(os.EX_USAGE)
     except IndexError:
         print('Missing command. Try one of: {0}'.format(', '.join(COMMANDS)))
         raise SystemExit(os.EX_USAGE)
+    else:
+        COMMANDS[command](loop=loop)
     finally:
         loop.close()
 
