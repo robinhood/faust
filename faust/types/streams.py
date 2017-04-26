@@ -11,7 +11,7 @@ from ._coroutines import CoroCallbackT, StreamCoroutine
 from .core import K
 from .models import Event, FieldDescriptorT
 from .transports import ConsumerT
-from .tuples import Message, Topic
+from .tuples import Message, Topic, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -241,4 +241,12 @@ class StreamManagerT(ServiceT):
 
     @abc.abstractmethod
     async def update(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def ack_message(self, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    def ack_offset(self, tp: TopicPartition, offset: int) -> None:
         ...

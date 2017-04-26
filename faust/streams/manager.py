@@ -30,6 +30,17 @@ class StreamManager(StreamManagerT, Service):
         self._topicmap = defaultdict(set)
         super().__init__(**kwargs)
 
+    def ack_message(self, message: Message) -> None:
+        if not message.acked:
+            return self.ack_offset(
+                TopicPartition(message.topic, message.partition),
+                message.offset,
+            )
+        message.acked = True
+
+    def ack_offset(self, tp: TopicPartition, offset: int) -> None:
+        return self.consumer.ack(tp, offset)
+
     def add_stream(self, stream: StreamT) -> None:
         if stream in self._streams:
             raise ValueError('Stream already registered with app')
