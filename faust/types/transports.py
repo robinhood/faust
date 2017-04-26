@@ -38,6 +38,10 @@ class ConsumerT(ServiceT):
     commit_interval: float
 
     @abc.abstractmethod
+    def ack(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
     async def subscribe(self, pattern: str) -> None:
         ...
 
