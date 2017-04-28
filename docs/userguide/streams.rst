@@ -19,6 +19,29 @@ from a topic:
 The stream *needs to be iterated over* to be processed, it will not
 be active until you do.
 
+When iterated over the stream produces :ref:`events <guide-events>`.
+
+An event can either be a deserialized :class:`~faust.models.base.Model`,:
+
+.. code-block:: python
+
+    class BankWithdrawal(faust.Record):
+        account: str
+        amount: float
+
+    async for event in app.stream('withdrawals', value_type=BankWithdrawal):
+        print(event.amount)
+
+or just an event containing the value as bytes:
+
+.. code-block:: python
+
+    async for event in app.stream('messages'):
+        print(event.value)  # <-- .value contains the bytes message value.
+
+The event also gives you access to the *key* of the message (``event.req.key``),
+and the original :class:`~faust.types.Message` object (``event.req.message``).
+
 Processors
 ----------
 
