@@ -11,4 +11,5 @@
     :maxdepth: 1
 
     application
+    tasks
     vskafka
