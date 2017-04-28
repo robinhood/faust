@@ -146,8 +146,8 @@ class App(AppT, ServiceProxy):
         url (str):
             Transport URL.  Default: ``"aiokafka://localhost:9092"``.
         client_id (str):  Client id used for producer/consumer.
-        commit_interval (float): How often we commit offset when automatic
-            commit is enabled.  Default ``30.0``.
+        commit_interval (float): How often we commit messages that
+            have been fully processed.  Default ``30.0``.
         key_serializer (CodecArg): Default serializer for Topics
             that do not have an explicit serializer set.
             Default: :const:`None`.
@@ -223,17 +223,17 @@ class App(AppT, ServiceProxy):
     def __init__(self, id: str,
                  *,
                  url: str = 'aiokafka://localhost:9092',
+                 store: str = 'memory://',
+                 avro_registry_url: str = None,
                  client_id: str = CLIENT_ID,
                  commit_interval: float = COMMIT_INTERVAL,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
-                 avro_registry_url: str = None,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  WebSite: SymbolArg = DEFAULT_WEBSITE_CLS,
-                 store: str = 'memory://',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
