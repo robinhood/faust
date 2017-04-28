@@ -12,4 +12,5 @@
 
     application
     tasks
+    streams
     vskafka
