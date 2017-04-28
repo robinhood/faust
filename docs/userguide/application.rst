@@ -36,14 +36,15 @@ The application...
     `Instance-B`: their memory is after all separate, and all communication
     happens via message passing.
 
-- Handles configuration (e.g. the Kafka broker URL, commit interval and so
-  on).
+- Handles configuration.
 
 - Manages sensors that record statistics and monitors running streams.
 
-- Also defines how Faust works, so you can create an application subclass
-  to override how streams and tables are created, or how messages
-  are serialized/deserialized, etc.
+- Defines how Faust works.
+
+    You can create an application subclass to override how streams and
+    tables are created, how messages are serialized and deserialized, and so
+    on.
 
 It is safe to...
 ----------------
