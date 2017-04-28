@@ -78,11 +78,6 @@ See :file:`faust/joins.py`
 
 API already exposed in faust.streams.Stream, but not implemented.
 
-Window & Aggregate
-==================
-
-Being worked on by Vineet.
-
 Fault Tolerance
 ===============
 
@@ -219,8 +214,6 @@ Documentation
 - Glossary (docs/glossary.rst)
 
 - User Guide (docs/userguide/)
-
-    - App
 
     - Tasks
 
