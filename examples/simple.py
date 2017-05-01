@@ -42,7 +42,7 @@ async def _dump_beacon(app):
 
 
 async def _publish_withdrawals():
-    for i in range(100):
+    for i in range(10_000):
         print('+SEND %r' % (i,))
         await app.send(topic, b'K', Withdrawal(user='foo', amount=100.3 + i,
                                                country="FOO"))

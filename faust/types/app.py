@@ -166,6 +166,24 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def on_stream_event_in(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_stream_event_out(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        ...
+
+    @abc.abstractmethod
     async def on_message_out(
             self,
             consumer_id: int,

@@ -21,6 +21,9 @@ class Web(Service):
     def text(self, value: str) -> Any:
         ...
 
+    def json(self, value: Any) -> Any:
+        ...
+
     def bytes(self, value: _bytes, *, content_type: str = None) -> Any:
         ...
 

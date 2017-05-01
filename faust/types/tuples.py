@@ -50,6 +50,7 @@ class Message:
         'acked',
         'refcount',
         'streams',
+        'tp',
         '__weakref__',
     )
 
@@ -57,7 +58,8 @@ class Message:
                  timestamp: float, timestamp_type: str,
                  key: bytes, value: bytes, checksum: bytes,
                  serialized_key_size: int = None,
-                 serialized_value_size: int = None) -> None:
+                 serialized_value_size: int = None,
+                 tp: TopicPartition = None) -> None:
         self.topic: str = topic
         self.partition: int = partition
         self.offset: int = offset
@@ -70,6 +72,7 @@ class Message:
         self.serialized_value_size: int = serialized_value_size or len(value)
         self.acked: bool = False
         self.refcount: int = 0
+        self.tp = tp
         if typing.TYPE_CHECKING:
             # mypy does not support WeakSet
             self.streams: WeakSet[StreamT] = WeakSet()
@@ -86,9 +89,10 @@ class Message:
 
     def decref(self, n: int = 1) -> None:
         self.refcount -= n
+        assert self.refcount >= 0
 
     @classmethod
-    def from_message(cls, message: Any) -> 'Message':
+    def from_message(cls, message: Any, tp: TopicPartition) -> 'Message':
         return cls(
             message.topic,
             message.partition,
@@ -100,6 +104,7 @@ class Message:
             message.checksum,
             message.serialized_key_size,
             message.serialized_value_size,
+            tp,
         )
 
     def __repr__(self) -> str:

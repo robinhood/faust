@@ -157,3 +157,20 @@ class cached_property(object):
 
     def deleter(self, fdel: Callable) -> 'cached_property':
         return self.__class__(self.__get, self.__set, fdel)
+
+
+def _restore_from_keywords(typ: Type, kwargs: Dict) -> Any:
+    # This function is used to restore pickled KeywordReduce object.
+    return typ(**kwargs)
+
+
+class KeywordReduce:
+
+    def asdict(self) -> Mapping:
+        return self.__dict__
+
+    def __reduce_args__(self) -> Mapping:
+        return self.asdict()
+
+    def __reduce__(self) -> Tuple:
+        return _restore_from_keywords, (type(self), self.__reduce_args__())

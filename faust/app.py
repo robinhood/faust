@@ -93,13 +93,14 @@ class AppService(Service):
         for task in self.app._task_factories:
             self.app.add_task(task(self.app))
         streams = list(self.app._streams.values())    # Stream+Table instances
+        sensors = list(self.app._sensors)
         services = [
             self.app.producer,                        # app.Producer
             self.app.website,                        # app.Web
             self.app.streams,                         # app.StreamManager
             self.app._tasks,                          # app.Group
         ]
-        return cast(Sequence[ServiceT], streams + services)
+        return cast(Sequence[ServiceT], sensors + streams + services)
 
     async def on_first_start(self) -> None:
         if not len(self.app._tasks):
@@ -217,6 +218,8 @@ class App(AppT, ServiceProxy):
               loop: asyncio.AbstractEventLoop = None) -> None:
         from .bin.worker import worker
         from .worker import Worker
+        from .sensors import Sensor
+        self.add_sensor(Sensor())
         kwargs = worker(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
@@ -589,6 +592,24 @@ class App(AppT, ServiceProxy):
         """
         for _sensor in self._sensors:
             await _sensor.on_message_in(consumer_id, tp, offset, message)
+
+    async def on_stream_event_in(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        for _sensor in self._sensors:
+            await _sensor.on_stream_event_in(tp, offset, stream, event)
+
+    async def on_stream_event_out(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        for _sensor in self._sensors:
+            await _sensor.on_stream_event_out(tp, offset, stream, event)
 
     async def on_message_out(
             self,

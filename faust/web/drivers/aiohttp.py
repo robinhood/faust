@@ -1,6 +1,6 @@
 import aiohttp
 from typing import Any, Callable, cast
-from aiohttp.web import Application, Response
+from aiohttp.web import Application, Response, json_response
 from faust.utils.logging import get_logger
 from .. import base
 
@@ -31,6 +31,9 @@ class Web(base.Web):
 
     def text(self, value: str) -> base.Response:
         return cast(base.Response, Response(text=value))
+
+    def json(self, value: Any) -> Any:
+        return json_response(value)
 
     def bytes(self, value: _bytes, *, content_type: str = None) -> Any:
         return cast(base.Response, Response(

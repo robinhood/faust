@@ -92,8 +92,10 @@ class Consumer(base.Consumer):
         should_stop = self._stopped.is_set
         try:
             while not should_stop():
-                message = Message.from_message(await getone(()))
-                await track_message(message, message.offset)
+                record = await getone(())
+                tp = self._new_topicpartition(record.topic, record.partition)
+                message = Message.from_message(record, tp)
+                await track_message(message, tp, message.offset)
                 await callback(message)
         except ConsumerStoppedError:
             if self.transport.app.should_stop:

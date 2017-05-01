@@ -165,6 +165,7 @@ class Stream(StreamT, Service):
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
+        self.task_owner = None
         if self.topics:
             self._topicmap = topic_to_map(self.topics)
         else:
@@ -186,6 +187,7 @@ class Stream(StreamT, Service):
         self.inbox = asyncio.Queue(maxsize=1, loop=self.loop)
         # attach beacon to current Faust task, or attach it to app.
         task = asyncio.Task.current_task(loop=self.loop)
+        self.task_owner = task
         if task is not None and hasattr(task, '_beacon'):
             self.beacon = task._beacon.new(self)  # type: ignore
         else:
@@ -455,9 +457,13 @@ class Stream(StreamT, Service):
         # .on_done callback
         on_done = self.on_done
 
+        on_stream_event_in = self.app.on_stream_event_in
+
         async def on_message() -> None:
+            # get message from inbox
             message: Message = await get_message()
 
+            # deserialize key+value and convert to Event
             k = v = None
             topic = get_topic(message.topic)
             try:
@@ -469,15 +475,24 @@ class Stream(StreamT, Service):
                     v = await loads_value(topic.value_type, k, message)
                 except Exception as exc:
                     await self.on_value_decode_error(exc, message)
+
+            # call Sensors
+            await on_stream_event_in(message.tp, message.offset, self, v)
+
+            # reduce using processors
             processors = get_processors(topic)
             v = await process(k, v)
             if processors is not None:
                 for processor in processors:
                     v = await maybe_async(processor(v))
+
             coroutine = get_coroutines(topic)
             if coroutine is not None:
+                # if there is an S-routine we apply that and delegate
+                # on done to its callback.
                 await coroutine.send(v)
             else:
+                # otherwise we call on_done directly.
                 await on_done(v)
         return on_message
 
@@ -576,6 +591,9 @@ class Stream(StreamT, Service):
             _prev, self._previous_event = self._previous_event, None
             if _prev is not None:
                 _prev.decref()
+            _msg = _prev.req.message
+            await self.app.on_stream_event_out(
+                _msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
         await self._on_message()

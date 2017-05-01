@@ -127,15 +127,17 @@ class Consumer(Service, ConsumerT):
         self.add_future(self._recently_acked_handler())
         self.add_future(self._commit_handler())
 
-    async def track_message(self, message: Message, offset: int) -> None:
+    async def track_message(
+            self, message: Message, tp: TopicPartition, offset: int) -> None:
         _id = self.id
-        tp = self._new_topicpartition(message.topic, message.partition)
+
         # keep weak reference to message, to be notified when out of scope.
         self._dirty_messages.append(
             MessageRef(message, self.on_message_ready,
                        tp=TopicPartition(message.topic, message.partition),
                        offset=offset,
                        consumer_id=self.id))
+
         # call sensors
         await self._on_message_in(_id, tp, offset, message)
 
@@ -149,7 +151,7 @@ class Consumer(Service, ConsumerT):
         acked_for_tp = self._acked[tp]
         acked_for_tp.append(offset)
         acked_for_tp.sort()
-        self._recently_acked.put((tp, offset))
+        self._recently_acked.put_nowait((tp, offset))
 
     async def _commit_handler(self) -> None:
         await asyncio.sleep(self.commit_interval)
