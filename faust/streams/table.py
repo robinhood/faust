@@ -66,12 +66,20 @@ class Table(Stream, TableT, ManagedUserDict):
             key_type=self.key_type,
             value_type=self.value_type,
         )
+        self._sensor_on_get = self.app.on_table_get
+        self._sensor_on_set = self.app.on_table_set
+        self._sensor_on_del = self.app.on_table_del
         app.add_table(self)
 
+    def on_key_get(self, key: Any) -> None:
+        self._sensor_on_get(self, key)
+
     def on_key_set(self, key: Any, value: Any) -> None:
+        self._sensor_on_set(self, key, value)
         self._send_changelog(key, value)
 
     def on_key_del(self, key: Any) -> None:
+        self._sensor_on_del(self, key)
         self._send_changelog(key, value=None)
 
     def _send_changelog(self, key: Any, value: Any) -> None:

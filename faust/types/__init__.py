@@ -14,6 +14,7 @@ from .streams import (
     StreamCoroutine,
     StreamCoroutineMap,
     StreamT,
+    TableT,
 )
 from .transports import (
     ConsumerCallback,
@@ -44,7 +45,7 @@ __all__ = [
 
     'Processor', 'TopicProcessorSequence',
     'StreamProcessorMap', 'StreamCoroutine', 'StreamCoroutineMap',
-    'StreamT',
+    'StreamT', 'TableT',
 
     'ConsumerCallback', 'MessageRefT', 'ConsumerT', 'ProducerT', 'TransportT',
 

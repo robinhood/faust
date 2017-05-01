@@ -3,7 +3,7 @@ import typing
 from time import monotonic
 from typing import Any, Counter, List, Mapping, MutableMapping, Tuple
 from weakref import WeakValueDictionary
-from .types import Event, Message, SensorT, StreamT, TopicPartition
+from .types import Event, Message, SensorT, StreamT, TableT, TopicPartition
 from .utils.graphs.formatter import _label
 from .utils.objects import KeywordReduce
 from .utils.services import Service
@@ -12,10 +12,30 @@ MAX_MESSAGES = 1_000_000
 MAX_AVG_HISTORY = 100
 
 
+class TableState(KeywordReduce):
+
+    table: TableT
+    keys_retrieved: int
+    keys_updated: int
+    keys_deleted: int
+
+    def __init__(self,
+                 table: TableT,
+                 *,
+                 keys_retrieved: int = 0,
+                 keys_updated: int = 0,
+                 keys_deleted: int = 0) -> None:
+        self.table = table
+        self.keys_retrieved = keys_retrieved
+        self.keys_updated = keys_updated
+        self.keys_deleted = keys_deleted
+
+
 class EventState(KeywordReduce):
 
     def __init__(self,
                  stream: StreamT,
+                 *,
                  time_in: float = None,
                  time_out: float = None,
                  time_total: float = None) -> None:
@@ -30,6 +50,13 @@ class EventState(KeywordReduce):
 
 class MessageState(KeywordReduce):
 
+    consumer_id: int
+    tp: TopicPartition
+    offset: int
+    time_in: float
+    time_out: float
+    time_total: float
+
     streams: List[EventState]
     stream_index: MutableMapping[StreamT, EventState]
 
@@ -37,16 +64,17 @@ class MessageState(KeywordReduce):
                  consumer_id: int = None,
                  tp: TopicPartition = None,
                  offset: int = None,
+                 *,
                  time_in: float = None,
                  time_out: float = None,
                  time_total: float = None,
                  streams: List[EventState] = None) -> None:
-        self.consumer_id: int = consumer_id
-        self.tp: TopicPartition = tp
-        self.offset: int = offset
-        self.time_in: float = time_in
-        self.time_out: float = time_out
-        self.time_total: float = time_total
+        self.consumer_id = consumer_id
+        self.tp = tp
+        self.offset = offset
+        self.time_in = time_in
+        self.time_out = time_out
+        self.time_total = time_total
         self.streams = []
         self.stream_index = {}
 
@@ -106,6 +134,9 @@ class Sensor(SensorT, Service, KeywordReduce):
     #: List of messages
     messages: List[MessageState]
 
+    #: Mapping of tables
+    tables: MutableMapping[str, TableState]
+
     #: Index of [tp][offset] -> MessageState.
     if typing.TYPE_CHECKING:
         message_index: WeakValueDictionary[Tuple[TopicPartition, int],
@@ -116,6 +147,7 @@ class Sensor(SensorT, Service, KeywordReduce):
                  max_messages: int = MAX_MESSAGES,
                  max_avg_history: int = MAX_AVG_HISTORY,
                  messages: List[MessageState] = None,
+                 tables: MutableMapping[str, TableState] = None,
                  active_messages: int = 0,
                  active_events: int = 0,
                  total_messages: int = 0,
@@ -134,6 +166,7 @@ class Sensor(SensorT, Service, KeywordReduce):
         self.message_index.update({
             (e.tp, e.offset): e for e in self.messages
         })
+        self.tables = {} if tables is None else tables
         self.active_messages = active_messages
         self.active_events = active_events
         self.total_messages = total_messages
@@ -158,6 +191,9 @@ class Sensor(SensorT, Service, KeywordReduce):
             'avg_event_runtime': self.avg_event_runtime,
             'total_by_task': self.total_by_task,
             'total_by_topic': self.total_by_topic,
+            'tables': {
+                name: table.asdict() for name, table in self.tables.items()
+            }
         }
 
     async def on_start(self) -> None:
@@ -243,3 +279,19 @@ class Sensor(SensorT, Service, KeywordReduce):
             self.message_index[(tp, offset)].on_out()
         except KeyError:
             pass
+
+    def on_table_get(self, table: TableT, key: Any) -> None:
+        self._table_or_create(table).keys_retrieved += 1
+
+    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+        self._table_or_create(table).keys_updated += 1
+
+    def on_table_del(self, table: TableT, key: Any) -> None:
+        self._table_or_create(table).keys_deleted += 1
+
+    def _table_or_create(self, table: TableT) -> TableState:
+        try:
+            return self.tables[table.table_name]
+        except KeyError:
+            state = self.tables[table.table_name] = TableState(table)
+            return state

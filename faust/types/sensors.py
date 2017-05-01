@@ -1,7 +1,8 @@
 import abc
+from typing import Any
 from faust.utils.types.services import ServiceT
 from .models import Event
-from .streams import StreamT
+from .streams import StreamT, TableT
 from .tuples import Message, TopicPartition
 
 
@@ -41,4 +42,16 @@ class SensorT(ServiceT):
             tp: TopicPartition,
             offset: int,
             message: Message = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_table_get(self, table: TableT, key: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_table_del(self, table: TableT, key: Any) -> None:
         ...

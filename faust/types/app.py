@@ -193,6 +193,18 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def on_table_get(self, table: TableT, key: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_table_del(self, table: TableT, key: Any) -> None:
+        ...
+
+    @abc.abstractmethod
     def render_graph(self) -> str:
         ...
 

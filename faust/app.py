@@ -626,6 +626,18 @@ class App(AppT, ServiceProxy):
         for _sensor in self._sensors:
             await _sensor.on_message_out(consumer_id, tp, offset, message)
 
+    def on_table_get(self, table: TableT, key: Any) -> None:
+        for _sensor in self._sensors:
+            _sensor.on_table_get(table, key)
+
+    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+        for _sensor in self._sensors:
+            _sensor.on_table_set(table, key, value)
+
+    def on_table_del(self, table: TableT, key: Any) -> None:
+        for _sensor in self._sensors:
+            _sensor.on_table_del(table, key)
+
     def add_source(self, stream: StreamT) -> None:
         """Register existing stream."""
         assert stream.name
