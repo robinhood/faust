@@ -1,6 +1,7 @@
 import asyncio
+import typing
 from time import monotonic
-from typing import Counter, List, Mapping, MutableMapping, Tuple
+from typing import Any, Counter, List, Mapping, MutableMapping, Tuple
 from weakref import WeakValueDictionary
 from .types import Event, Message, SensorT, StreamT, TopicPartition
 from .utils.graphs.formatter import _label
@@ -88,7 +89,10 @@ class Sensor(SensorT, Service, KeywordReduce):
     total_by_stream: Counter[StreamT]
 
     #: Count of events processed by task
-    total_by_task: Counter[asyncio.Task]
+    total_by_task: Counter[str]
+
+    #: Count of messages received by topic
+    total_by_topic: Counter[str]
 
     #: List of runtimes used for averages
     event_runtimes: List[float]
@@ -103,7 +107,9 @@ class Sensor(SensorT, Service, KeywordReduce):
     messages: List[MessageState]
 
     #: Index of [tp][offset] -> MessageState.
-    message_index: MutableMapping[Tuple[TopicPartition, int], MessageState]
+    if typing.TYPE_CHECKING:
+        message_index: WeakValueDictionary[Tuple[TopicPartition, int],
+                                           MessageState]
 
     def __init__(self,
                  *,
@@ -120,7 +126,7 @@ class Sensor(SensorT, Service, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  avg_event_runtime: float = 0.0,
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         self.max_messages = max_messages
         self.max_avg_history = max_avg_history
         self.messages = [] if messages is None else messages

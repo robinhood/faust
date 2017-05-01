@@ -6,7 +6,7 @@ from itertools import count
 from typing import (
     Any, Awaitable, Callable, ClassVar,
     Iterator, List, MutableMapping, Optional, Set,
-    Sequence, Tuple, Type, cast,
+    Sequence, Type, cast,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
@@ -91,7 +91,7 @@ class Consumer(Service, ConsumerT):
     _acked: MutableMapping[TopicPartition, List[int]] = None
 
     #: Fast lookup to see if tp+offset was acked.
-    _acked_index = Set[Tuple[TopicPartition, int]]
+    _acked_index: MutableMapping[TopicPartition, Set[int]]
 
     #: Keeps track of the currently commited offset in each TP.
     _current_offset: MutableMapping[TopicPartition, int] = None
@@ -121,7 +121,7 @@ class Consumer(Service, ConsumerT):
         self._autoack = defaultdict(lambda: autoack)
         self._dirty_messages = []
         self._acked = defaultdict(list)
-        self._acked_index = set()
+        self._acked_index = defaultdict(set)
         self._current_offset = defaultdict(int)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
@@ -154,10 +154,9 @@ class Consumer(Service, ConsumerT):
 
     def ack(self, tp: TopicPartition, offset: int) -> None:
         if offset > self._current_offset[tp]:
-            acked_index = self._acked_index
-            ident = (tp, offset)
-            if ident not in acked_index:
-                self._acked_index.add((tp, offset))
+            acked_index = self._acked_index[tp]
+            if offset not in acked_index:
+                acked_index.add(offset)
                 acked_for_tp = self._acked[tp]
                 acked_for_tp.append(offset)
                 acked_for_tp.sort()
@@ -219,7 +218,7 @@ class Consumer(Service, ConsumerT):
             batch = next(consecutive_numbers(acked))
             # remove them from the list to clean up.
             acked[:len(batch)] = []
-            self._acked_index.difference_update(batch)
+            self._acked_index[tp].difference_update(batch)
             # return the highest commit offset
             return batch[-1]
         return None

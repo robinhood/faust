@@ -92,11 +92,12 @@ class AppService(Service):
     def on_init_dependencies(self) -> Sequence[ServiceT]:
         for task in self.app._task_factories:
             self.app.add_task(task(self.app))
-        streams = list(self.app._streams.values())    # Stream+Table instances
-        sensors = list(self.app._sensors)
-        services = [
+        # Stream+Table instances
+        streams: List[ServiceT] = list(self.app._streams.values())
+        sensors: List[ServiceT] = list(self.app._sensors)
+        services: List[ServiceT] = [
             self.app.producer,                        # app.Producer
-            self.app.website,                        # app.Web
+            self.app.website,                         # app.Web
             self.app.streams,                         # app.StreamManager
             self.app._tasks,                          # app.Group
         ]
