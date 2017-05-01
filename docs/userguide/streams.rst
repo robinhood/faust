@@ -42,6 +42,10 @@ or just an event containing the value as bytes:
 The event also gives you access to the *key* of the message (``event.req.key``),
 and the original :class:`~faust.types.Message` object (``event.req.message``).
 
+.. seealso::
+
+    :ref:`guide-model` for more information about models and serialization.
+
 Processors
 ----------
 

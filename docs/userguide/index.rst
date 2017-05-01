@@ -13,4 +13,6 @@
     application
     tasks
     streams
+    tables
+    models
     vskafka
