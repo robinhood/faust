@@ -567,13 +567,17 @@ class Stream(StreamT, Service):
 
     async def __anext__(self) -> Event:
         if not self._anext_started:
+            # setup stuff the first time we are iterated over.
             self._anext_started = True
             await self.maybe_start()
             await self.on_aiter_start()
         else:
-            # decrement reference count for event
-            self._previous_event.decref()
-            self._previous_event = None
+            # decrement reference count for previous event processed.
+            _prev, self._previous_event = self._previous_event, None
+            if _prev is not None:
+                _prev.decref()
+
+        # fetch next message and get value from outbox
         await self._on_message()
         event = self._previous_event = cast(Event, await self.outbox.get())
         return event
