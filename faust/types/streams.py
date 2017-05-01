@@ -107,7 +107,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
+    async def asitems(self) -> AsyncIterator[Tuple[K, Event]]:
         ...
 
     @abc.abstractmethod

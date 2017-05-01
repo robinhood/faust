@@ -251,7 +251,7 @@ class Stream(StreamT, Service):
             children=self.children + list(nodes),
         )
 
-    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
+    async def asitems(self) -> AsyncIterator[Tuple[K, Event]]:
         async for event in self:
             yield event.req.key, event
 
