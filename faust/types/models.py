@@ -78,6 +78,9 @@ class ModelT:
     def ack(self) -> None:
         ...
 
+    def decref(self) -> None:
+        ...
+
     def to_representation(self) -> Any:
         ...
 

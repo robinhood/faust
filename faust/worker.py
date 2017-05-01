@@ -7,7 +7,7 @@ import reprlib
 import signal
 import socket
 import sys
-from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union
+from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union, cast
 from progress.spinner import Spinner
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
@@ -62,7 +62,7 @@ F_BANNER = """
 class _TupleAsListRepr(reprlib.Repr):
 
     def repr_tuple(self, x: Tuple, level: int) -> str:
-        return self.repr_list(x, level)
+        return self.repr_list(cast(list, x), level)
 _repr = _TupleAsListRepr().repr  # noqa: E305
 
 

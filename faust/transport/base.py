@@ -142,7 +142,7 @@ class Consumer(Service, ConsumerT):
     def on_message_ready(self, ref: MessageRefT) -> None:
         # Called when a message goes out of scope.
         tp = ref.tp
-        if self._autoack[tp]:
+        if self._autoack[tp.topic]:
             self.ack(tp, ref.offset)
 
     def ack(self, tp: TopicPartition, offset: int) -> None:

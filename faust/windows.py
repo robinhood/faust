@@ -32,7 +32,7 @@ class HoppingWindow(WindowT):
         earliest = curr.start - self.size + self.step
         return [
             _range_from_start(start, self.size)
-            for start in range(earliest, curr.end, self.step)
+            for start in range(int(earliest), int(curr.end), int(self.step))
         ]
 
     def _timestamp_window(self, timestamp: float) -> WindowRange:

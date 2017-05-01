@@ -1,6 +1,6 @@
 import typing
 from typing import Any, NamedTuple, Pattern, Sequence, Type, Union
-from weakref import WeakSet
+from weakref import WeakSet  # type: ignore
 from .codecs import CodecArg
 from .core import K, V
 
