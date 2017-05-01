@@ -215,15 +215,19 @@ Documentation
 
 - User Guide (docs/userguide/)
 
-    - Tasks
-
     - Streams
 
     - Tables
 
     - Models
 
-    - High Availability
+    - Availability
+
+        - partitioning
+
+        - recovery
+
+        - acknowledgements
 
     - Serialization
 
