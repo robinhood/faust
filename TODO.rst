@@ -153,19 +153,10 @@ Sensors
 
 Write a basic sensor interface including the following metrics:
 
-- number of events processed/s
-
-- number of events processed/s by topic
-
-- number of events processed/s by task
 
 - number of records written to table
 
 - number of records written to table by table.
-
-- average processing time (from event received to event acked)
-
-- total number of events
 
 - ``commit()`` latency
 
@@ -174,6 +165,20 @@ Write a basic sensor interface including the following metrics:
 - ``group_by()`` latency
 
 - ``Producer.send`` latency
+
+Finished
+--------
+
+* total number of events
+
+* -average processing time (from event received to event acked)-
+
+* -number of events processed/s-
+
+* -number of events processed/s by topic-
+
+* -number of events processed/s by task-
+
 
 HTTP interface
 --------------

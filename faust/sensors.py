@@ -3,6 +3,7 @@ from time import monotonic
 from typing import Counter, List, Mapping, MutableMapping, Tuple
 from weakref import WeakValueDictionary
 from .types import Event, Message, SensorT, StreamT, TopicPartition
+from .utils.graphs.formatter import _label
 from .utils.objects import KeywordReduce
 from .utils.services import Service
 
@@ -133,6 +134,7 @@ class Sensor(SensorT, Service, KeywordReduce):
         self.total_events = total_events
         self.total_by_stream = Counter()
         self.total_by_task = Counter()
+        self.total_by_topic = Counter()
         self.event_runtimes = [] if event_runtimes is None else event_runtimes
         self.events_s = events_s
         self.messages_s = messages_s
@@ -148,6 +150,8 @@ class Sensor(SensorT, Service, KeywordReduce):
             'events_s': self.events_s,
             'messages_s': self.messages_s,
             'avg_event_runtime': self.avg_event_runtime,
+            'total_by_task': self.total_by_task,
+            'total_by_topic': self.total_by_topic,
         }
 
     async def on_start(self) -> None:
@@ -195,6 +199,7 @@ class Sensor(SensorT, Service, KeywordReduce):
         #          as this means the message won't go out of scope!
         self.total_messages += 1
         self.active_messages += 1
+        self.total_by_topic[tp.topic] += 1
         state = MessageState(consumer_id, tp, offset, time_in=monotonic())
         self.messages.append(state)
         self.message_index[(tp, offset)] = state
@@ -207,7 +212,7 @@ class Sensor(SensorT, Service, KeywordReduce):
             event: Event) -> None:
         self.total_events += 1
         self.total_by_stream[stream] += 1
-        self.total_by_task[stream.task_owner] += 1
+        self.total_by_task[_label(stream.task_owner)] += 1
         self.active_events += 1
         self.message_index[(tp, offset)].on_stream_in(stream, event)
 

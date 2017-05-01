@@ -5,7 +5,8 @@ from collections import defaultdict
 from itertools import count
 from typing import (
     Any, Awaitable, Callable, ClassVar,
-    Iterator, MutableMapping, Optional, List, Sequence, Type, cast,
+    Iterator, List, MutableMapping, Optional, Set,
+    Sequence, Tuple, Type, cast,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
@@ -89,6 +90,9 @@ class Consumer(Service, ConsumerT):
     # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TopicPartition, List[int]] = None
 
+    #: Fast lookup to see if tp+offset was acked.
+    _acked_index = Set[Tuple[TopicPartition, int]]
+
     #: Keeps track of the currently commited offset in each TP.
     _current_offset: MutableMapping[TopicPartition, int] = None
 
@@ -117,7 +121,8 @@ class Consumer(Service, ConsumerT):
         self._autoack = defaultdict(lambda: autoack)
         self._dirty_messages = []
         self._acked = defaultdict(list)
-        self._current_offset = {}
+        self._acked_index = set()
+        self._current_offset = defaultdict(int)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
@@ -148,10 +153,15 @@ class Consumer(Service, ConsumerT):
             self.ack(tp, ref.offset)
 
     def ack(self, tp: TopicPartition, offset: int) -> None:
-        acked_for_tp = self._acked[tp]
-        acked_for_tp.append(offset)
-        acked_for_tp.sort()
-        self._recently_acked.put_nowait((tp, offset))
+        if offset > self._current_offset[tp]:
+            acked_index = self._acked_index
+            ident = (tp, offset)
+            if ident not in acked_index:
+                self._acked_index.add((tp, offset))
+                acked_for_tp = self._acked[tp]
+                acked_for_tp.append(offset)
+                acked_for_tp.sort()
+                self._recently_acked.put_nowait((tp, offset))
 
     async def _commit_handler(self) -> None:
         await asyncio.sleep(self.commit_interval)
@@ -187,10 +197,7 @@ class Consumer(Service, ConsumerT):
         return did_commit
 
     def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
-        return (
-            tp not in self._current_offset or
-            (bool(offset) and offset > self._current_offset[tp])
-        )
+        return bool(offset) and offset > self._current_offset[tp]
 
     def _new_offset(self, tp: TopicPartition) -> Optional[int]:
         # get the new offset for this tp, by going through
@@ -212,6 +219,7 @@ class Consumer(Service, ConsumerT):
             batch = next(consecutive_numbers(acked))
             # remove them from the list to clean up.
             acked[:len(batch)] = []
+            self._acked_index.difference_update(batch)
             # return the highest commit offset
             return batch[-1]
         return None
