@@ -48,6 +48,8 @@ class Message:
         'serialized_key_size',
         'serialized_value_size',
         'acked',
+        'refcount',
+        'streams',
         '__weakref__',
     )
 
