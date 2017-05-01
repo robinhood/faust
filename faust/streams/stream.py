@@ -571,8 +571,8 @@ class Stream(StreamT, Service):
             await self.maybe_start()
             await self.on_aiter_start()
         else:
-            # force collect previous event before processing next one.
-            self._previous_event.ack()
+            # decrement reference count for event
+            self._previous_event.decref()
             self._previous_event = None
         await self._on_message()
         event = self._previous_event = cast(Event, await self.outbox.get())

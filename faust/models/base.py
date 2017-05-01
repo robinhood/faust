@@ -207,6 +207,15 @@ class Model(ModelT):
             value_serializer=value_serializer,
         )
 
+    def decref(self) -> None:
+        req = self.req
+        message = req.message
+        # decrement the reference count
+        message.decref()
+        # if no more references, ack message
+        if not message.refcount:
+            self.req.app.streams.ack_message(message)
+
     def ack(self) -> None:
         self.req.app.streams.ack_message(self.req.message)
 

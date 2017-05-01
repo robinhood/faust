@@ -56,7 +56,18 @@ class StreamManager(StreamManagerT, Service):
         get_streams_for_topic = self._topicmap.__getitem__
 
         async def on_message(message: Message) -> None:
-            for stream in get_streams_for_topic(message.topic):
+            # when a message is received we find all streams
+            # that subscribe to this message
+            streams = list(get_streams_for_topic(message.topic))
+
+            # we increment the reference count for this message in bulk
+            # immediately, so that nothing will get a chance to decref to
+            # zero before we've had the chance to pass it to all streams.
+            message.incref_bulk(streams)
+
+            # Then send it to each streams inbox,
+            # for Stream.__anext__ to pick up.
+            for stream in streams:
                 await stream.inbox.put(message)
         return on_message
 

@@ -1,6 +1,7 @@
 """Base message transport implementation."""
 import asyncio
 import weakref
+from collections import defaultdict
 from itertools import count
 from typing import (
     Any, Awaitable, Callable, ClassVar,
@@ -78,9 +79,20 @@ class Consumer(Service, ConsumerT):
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
 
     _app: AppT
+
+    #: Autoack flag by topic
+    _autoack: MutableMapping[str, bool]
+
+    # List of weakref's to messages waiting to be acked.
     _dirty_messages: List[MessageRefT] = None
+
+    # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TopicPartition, List[int]] = None
+
+    #: Keeps track of the currently commited offset in each TP.
     _current_offset: MutableMapping[TopicPartition, int] = None
+
+    #: Queue for the when-acked-call-sensors background thread.
     _recently_acked: asyncio.Queue
 
     def __init__(self, transport: TransportT,
@@ -102,8 +114,9 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
+        self._autoack = defaultdict(lambda: autoack)
         self._dirty_messages = []
-        self._acked = {}
+        self._acked = defaultdict(list)
         self._current_offset = {}
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
@@ -117,8 +130,6 @@ class Consumer(Service, ConsumerT):
     async def track_message(self, message: Message, offset: int) -> None:
         _id = self.id
         tp = self._new_topicpartition(message.topic, message.partition)
-        if tp not in self._acked:
-            self._acked[tp] = []
         # keep weak reference to message, to be notified when out of scope.
         self._dirty_messages.append(
             MessageRef(message, self.on_message_ready,
@@ -129,8 +140,10 @@ class Consumer(Service, ConsumerT):
         await self._on_message_in(_id, tp, offset, message)
 
     def on_message_ready(self, ref: MessageRefT) -> None:
-        if self.autoack:
-            self.ack(ref.tp, ref.offset)
+        # Called when a message goes out of scope.
+        tp = ref.tp
+        if self._autoack[tp]:
+            self.ack(tp, ref.offset)
 
     def ack(self, tp: TopicPartition, offset: int) -> None:
         acked_for_tp = self._acked[tp]

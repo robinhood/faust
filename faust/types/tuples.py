@@ -1,12 +1,15 @@
 import typing
 from typing import Any, NamedTuple, Pattern, Sequence, Type, Union
+from weakref import WeakSet
 from .codecs import CodecArg
 from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .streams import StreamT
 else:
-    class AppT: ...  # noqa
+    class AppT: ...     # noqa
+    class StreamT: ...  # noqa
 
 __all__ = ['Topic', 'TopicPartition', 'Message', 'Request']
 
@@ -61,9 +64,26 @@ class Message:
         self.key: bytes = key
         self.value: bytes = value
         self.checksum: bytes = checksum
-        self.serialized_key_size = serialized_key_size or len(key)
-        self.serialized_value_size = serialized_value_size or len(value)
-        self.acked = False
+        self.serialized_key_size: int = serialized_key_size or len(key)
+        self.serialized_value_size: int = serialized_value_size or len(value)
+        self.acked: bool = False
+        self.refcount: int = 0
+        if typing.TYPE_CHECKING:
+            # mypy does not support WeakSet
+            self.streams: WeakSet[StreamT] = WeakSet()
+        else:
+            self.streams = WeakSet()
+
+    def incref(self, stream: StreamT = None, n: int = 1) -> None:
+        self.streams.add(stream)
+        self.refcount += n
+
+    def incref_bulk(self, streams: Sequence[StreamT]) -> None:
+        self.streams.update(streams)
+        self.refcount += len(streams)
+
+    def decref(self, n: int = 1) -> None:
+        self.refcount -= n
 
     @classmethod
     def from_message(cls, message: Any) -> 'Message':
