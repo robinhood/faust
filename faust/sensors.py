@@ -25,7 +25,7 @@ class EventState(KeywordReduce):
 
     def on_out(self) -> None:
         self.time_out = monotonic()
-        self.time_total = self.time_in - self.time_out
+        self.time_total = self.time_out - self.time_in
 
 
 class MessageState(KeywordReduce):
@@ -62,7 +62,7 @@ class MessageState(KeywordReduce):
 
     def on_out(self) -> None:
         self.time_out = monotonic()
-        self.time_total = self.time_in - self.time_out
+        self.time_total = self.time_out - self.time_in
 
 
 class Sensor(SensorT, Service, KeywordReduce):
