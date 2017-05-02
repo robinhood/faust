@@ -180,6 +180,7 @@ class Consumer(Service, ConsumerT):
 
         # Only one coroutine can commit at a time.
         async with self._commit_mutex:
+            sensor_state = await self._app.sensors.on_commit_initiated(self)
 
             # Go over the ack list in each topic/partition:
             for tp in self._acked:
@@ -193,6 +194,7 @@ class Consumer(Service, ConsumerT):
                     meta = self._get_topic_meta(tp.topic)
                     did_commit = True
                     await self._do_commit(tp, offset, meta)
+            await self._app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
 
     def _should_commit(self, tp: TopicPartition, offset: int) -> bool:

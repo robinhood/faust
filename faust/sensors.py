@@ -2,11 +2,12 @@ import asyncio
 import typing
 from time import monotonic
 from typing import (
-    Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple,
+    Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
 from .types import AppT, Event, Message, StreamT, TableT, TopicPartition
 from .types.sensors import SensorT, SensorDelegateT
+from .types.transports import ConsumerT
 from .utils.graphs.formatter import _label
 from .utils.objects import KeywordReduce
 from .utils.services import Service
@@ -21,6 +22,7 @@ __all__ = [
 
 MAX_MESSAGES = 1_000_000
 MAX_AVG_HISTORY = 100
+MAX_COMMIT_LATENCY_HISTORY = 30
 
 
 class TableState(KeywordReduce):
@@ -41,7 +43,7 @@ class TableState(KeywordReduce):
         self.keys_updated = keys_updated
         self.keys_deleted = keys_deleted
 
-    def asdict(self):
+    def asdict(self) -> Mapping:
         return {
             'keys_retrieved': self.keys_retrieved,
             'keys_updated': self.keys_updated,
@@ -119,6 +121,9 @@ class Sensor(SensorT, Service, KeywordReduce):
     #: Max number of total runtimes to keep to build average.
     max_avg_history: int
 
+    #: Max number of commit latency numbers to keep.
+    max_commit_latency_history: int
+
     #: Number of messages currently being processed.
     active_messages: int
 
@@ -143,6 +148,9 @@ class Sensor(SensorT, Service, KeywordReduce):
     #: List of runtimes used for averages
     event_runtimes: List[float]
 
+    #: List of commit latency values
+    commit_latency: List[float]
+
     #: Number of events being processed this second.
     events_s: int
 
@@ -164,6 +172,7 @@ class Sensor(SensorT, Service, KeywordReduce):
                  *,
                  max_messages: int = MAX_MESSAGES,
                  max_avg_history: int = MAX_AVG_HISTORY,
+                 max_commit_latency_history: int = MAX_COMMIT_LATENCY_HISTORY,
                  messages: List[MessageState] = None,
                  tables: MutableMapping[str, TableState] = None,
                  active_messages: int = 0,
@@ -173,6 +182,7 @@ class Sensor(SensorT, Service, KeywordReduce):
                  total_by_stream: Counter[StreamT] = None,
                  total_by_task: Counter[asyncio.Task] = None,
                  event_runtimes: List[float] = None,
+                 commit_latency: List[float] = None,
                  events_s: int = 0,
                  messages_s: int = 0,
                  avg_event_runtime: float = 0.0,
@@ -193,6 +203,7 @@ class Sensor(SensorT, Service, KeywordReduce):
         self.total_by_task = Counter()
         self.total_by_topic = Counter()
         self.event_runtimes = [] if event_runtimes is None else event_runtimes
+        self.commit_latency = [] if commit_latency is None else commit_latency
         self.events_s = events_s
         self.messages_s = messages_s
         self.avg_event_runtime = avg_event_runtime
@@ -209,6 +220,7 @@ class Sensor(SensorT, Service, KeywordReduce):
             'avg_event_runtime': self.avg_event_runtime,
             'total_by_task': self.total_by_task,
             'total_by_topic': self.total_by_topic,
+            'commit_latency': self.commit_latency,
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             }
@@ -240,7 +252,6 @@ class Sensor(SensorT, Service, KeywordReduce):
             self._cleanup()
 
     def _cleanup(self) -> None:
-        return
         max_messages = self.max_messages
         if max_messages is not None and len(self.messages) > max_messages:
             self.messages[:len(self.messages) - max_messages] = []
@@ -248,6 +259,10 @@ class Sensor(SensorT, Service, KeywordReduce):
         max_avg = self.max_avg_history
         if max_avg is not None and len(self.event_runtimes) > max_avg:
             self.event_runtimes[:len(self.event_runtimes) - max_avg] = []
+
+        max_com = self.max_commit_latency_history
+        if max_com is not None and len(self.commit_latency) > max_com:
+            self.commit_latency[:len(self.commit_latency) - max_com] = []
 
     async def on_message_in(
             self,
@@ -313,6 +328,13 @@ class Sensor(SensorT, Service, KeywordReduce):
         except KeyError:
             state = self.tables[table.table_name] = TableState(table)
             return state
+
+    async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
+        return monotonic()
+
+    async def on_commit_completed(
+            self, consumer: ConsumerT, state: Any) -> None:
+        self.commit_latency.append(monotonic() - cast(float, state))
 
 
 class SensorDelegate(SensorDelegateT):
@@ -381,3 +403,17 @@ class SensorDelegate(SensorDelegateT):
     def on_table_del(self, table: TableT, key: Any) -> None:
         for sensor in self._sensors:
             sensor.on_table_del(table, key)
+
+    async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
+        # This returns arbitrary state, so we return a map from sensor->state.
+        return {
+            sensor: await sensor.on_commit_initiated(consumer)
+            for sensor in self._sensors
+        }
+
+    async def on_commit_completed(
+            self, consumer: ConsumerT, state: Any) -> None:
+        # state is now a mapping from sensor->state, so
+        # make sure to correct the correct state to each sensor.
+        for sensor in self._sensors:
+            await sensor.on_commit_completed(consumer, state[sensor])

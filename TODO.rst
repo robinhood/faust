@@ -153,13 +153,6 @@ Sensors
 
 Write a basic sensor interface including the following metrics:
 
-
-- number of records written to table
-
-- number of records written to table by table.
-
-- ``commit()`` latency
-
 - ``through()`` latency
 
 - ``group_by()`` latency
@@ -179,6 +172,9 @@ Finished
 
 * -number of events processed/s by task-
 
+* -number of records written to table by table.-
+
+* -``commit()`` latency-
 
 HTTP interface
 --------------

@@ -3,6 +3,7 @@ from typing import Any, Iterable
 from faust.utils.types.services import ServiceT
 from .models import Event
 from .streams import StreamT, TableT
+from .transports import ConsumerT
 from .tuples import Message, TopicPartition
 
 __all__ = ['SensorInterfaceT', 'SensorT']
@@ -56,6 +57,15 @@ class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
     def on_table_del(self, table: TableT, key: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
+        ...
+
+    @abc.abstractmethod
+    async def on_commit_completed(
+            self, consumer: ConsumerT, state: Any) -> None:
         ...
 
 
