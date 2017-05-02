@@ -6,6 +6,7 @@ import sys
 import typing
 
 from collections import OrderedDict
+from functools import wraps
 from heapq import heappush, heappop
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator, Iterator, List,
@@ -482,6 +483,17 @@ class App(AppT, ServiceProxy):
     def task(self, task: Callable[[AppT], Generator]) -> Callable:
         self._task_factories.append(task)
         return task
+
+    def timer(self, interval: float) -> Callable:
+        def _inner(task: Callable[[AppT], Awaitable]) -> Callable:
+            @self.task
+            @wraps(task)
+            async def around_timer(app: AppT) -> None:
+                while not app.should_stop:
+                    await asyncio.sleep(interval)
+                    await task(app)
+            return around_timer
+        return _inner
 
     def add_task(self, task: Generator) -> Awaitable:
         """Start task.
