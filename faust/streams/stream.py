@@ -11,7 +11,7 @@ from typing import (
 from ..topics import (
     get_uniform_topic_type, topic, topic_from_topic, topic_to_map,
 )
-from ..types import AppT, K, Message, Topic
+from ..types import AppT, K, Message, Request, Topic
 from ..types.joins import JoinT
 from ..types.models import Event, FieldDescriptorT
 from ..types.streams import (
@@ -450,12 +450,16 @@ class Stream(StreamT, Service):
         # Topic description -> special coroutine
         get_coroutines = self._coroutines.get
         # deserializing keys/values
-        loads_key = self.app.loads_key
-        loads_value = self.app.loads_value
+        loads_key = self.app.serializers.loads_key
+        loads_value = self.app.serializers.loads_value
         # .process() coroutine
         process = self.process
         # .on_done callback
         on_done = self.on_done
+
+        # creating Event.req
+        app = self.app
+        new_request = Request
 
         on_stream_event_in = self.app.sensors.on_stream_event_in
 
@@ -471,8 +475,10 @@ class Stream(StreamT, Service):
             except Exception as exc:
                 await self.on_key_decode_error(exc, message)
             else:
+                request = new_request(app, k, message)
                 try:
-                    v = await loads_value(topic.value_type, k, message)
+                    v = await loads_value(
+                        topic.value_type, k, message, request)
                 except Exception as exc:
                     await self.on_value_decode_error(exc, message)
 

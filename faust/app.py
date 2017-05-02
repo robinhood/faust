@@ -2,7 +2,6 @@
 import asyncio
 import faust
 import io
-import sys
 import typing
 
 from collections import OrderedDict
@@ -10,29 +9,26 @@ from functools import wraps
 from heapq import heappush, heappop
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator, Iterator, List,
-    Mapping, MutableMapping, MutableSequence, Optional, Sequence,
-    Union, Tuple, Type, cast,
+    MutableMapping, MutableSequence, Optional, Sequence,
+    Union, Tuple, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
 
 from . import transport
-from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
+from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
-from .serializers.codecs import CodecArg, dumps, loads
 from .streams import _constants
 from .streams.manager import StreamManager
 from .types import (
-    K, Message, PendingMessage, Request, StreamCoroutine,
-    Topic, TopicPartition, V,
+    CodecArg, K, Message, PendingMessage,
+    StreamCoroutine, Topic, TopicPartition, V,
 )
-from .types.app import AppT, AsyncSerializerT
-from .types.models import Event, ModelT
+from .types.app import AppT
 from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
 from .types.windows import WindowT
-from .utils.compat import want_bytes
 from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
@@ -56,6 +52,9 @@ DEFAULT_TABLE_CLS = 'faust.Table'
 
 #: Path to default Web site class.
 DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
+
+#: Path to default serializer registry class.
+DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
 
 #: Default Kafka Client ID.
 CLIENT_ID = 'faust-{0}'.format(faust.__version__)
@@ -187,14 +186,6 @@ class App(AppT, ServiceProxy):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
-    #: Mapping of serializers that needs to be async
-    _serializer_override_classes: Mapping[CodecArg, SymbolArg] = {
-        'avro': 'faust.serializers.avro.faust:AvroSerializer',
-    }
-
-    #: Async serializer instances are cached here.
-    _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
-
     _pending_on_commit: MutableMapping[
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
@@ -236,6 +227,7 @@ class App(AppT, ServiceProxy):
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  WebSite: SymbolArg = DEFAULT_WEBSITE_CLS,
+                 Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -250,10 +242,14 @@ class App(AppT, ServiceProxy):
         self.Stream = symbol_by_name(Stream)
         self.Table = symbol_by_name(Table)
         self.WebSite = symbol_by_name(WebSite)
+        self.Serializers = symbol_by_name(Serializers)
+        self.serializers = self.Serializers(
+            key_serializer=self.key_serializer,
+            value_serializer=self.value_serializer,
+        )
         self.store = store
         self._streams = OrderedDict()
         self._tables = OrderedDict()
-        self._serializer_override = {}
         self.sensors = SensorDelegate(self)
         self._task_factories = []
         self._pending_on_commit = {}
@@ -283,9 +279,11 @@ class App(AppT, ServiceProxy):
             strtopic = topic.topics[0]
         return await self._send(
             strtopic,
-            (await self.dumps_key(strtopic, key, key_serializer)
+            (await self.serializers.dumps_key(
+                strtopic, key, key_serializer)
              if key is not None else None),
-            (await self.dumps_value(strtopic, value, value_serializer)),
+            (await self.serializers.dumps_value(
+                strtopic, value, value_serializer)),
             wait=wait,
         )
 
@@ -371,114 +369,6 @@ class App(AppT, ServiceProxy):
             await self.sensors.on_send_completed(producer, state)
             return ret
         return producer.send(topic, key, value)
-
-    async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
-        """Deserialize message key.
-
-        Arguments:
-            typ: Model to use for deserialization.
-            key: Serialized key.
-        """
-        if key is None or typ is None:
-            return key
-        try:
-            typ_serializer = typ._options.serializer
-            serializer = typ_serializer or self.key_serializer
-            try:
-                ser = self._get_serializer(serializer)
-            except KeyError:
-                obj = loads(serializer, key)
-            else:
-                obj = await ser.loads(key)
-            return cast(K, typ(obj))
-        except Exception as exc:
-            raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
-
-    async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
-        """Deserialize message value.
-
-        Arguments:
-            typ: Model to use for deserialization.
-            key: Deserialized key.
-            message: Message instance containing the serialized message body.
-        """
-        if message.value is None:
-            return None
-        try:
-            obj: Any = None
-            typ_serializer = typ._options.serializer
-            serializer = typ_serializer or self.value_serializer
-            try:
-                ser = self._get_serializer(serializer)
-            except KeyError:
-                obj = loads(serializer, message.value)
-            else:
-                obj = await ser.loads(message.value)
-            return cast(Event, typ(obj, req=Request(self, key, message)))
-        except Exception as exc:
-            raise ValueDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
-
-    async def dumps_key(self, topic: str, key: K,
-                        serializer: CodecArg = None) -> Optional[bytes]:
-        """Serialize key.
-
-        Arguments:
-            topic: The topic that the message will be sent to.
-            key: The key to be serialized.
-            serializer: Custom serializer to use if value is not a Model.
-        """
-        is_model = False
-        if isinstance(key, ModelT):
-            is_model, serializer = True, key._options.serializer
-
-        if serializer:
-            try:
-                ser = self._get_serializer(serializer)
-            except KeyError:
-                if is_model:
-                    return cast(ModelT, key).dumps()
-                return dumps(serializer, key)
-            else:
-                return await ser.dumps_key(topic, cast(ModelT, key))
-
-        return want_bytes(cast(bytes, key)) if key is not None else None
-
-    async def dumps_value(self, topic: str, value: V,
-                          serializer: CodecArg = None) -> Optional[bytes]:
-        """Serialize value.
-
-        Arguments:
-            topic: The topic that the message will be sent to.
-            value: The value to be serialized.
-            serializer: Custom serializer to use if value is not a Model.
-        """
-        is_model = False
-        if isinstance(value, ModelT):
-            is_model, serializer = True, value._options.serializer
-        if serializer:
-            try:
-                ser = self._get_serializer(serializer)
-            except KeyError:
-                if is_model:
-                    return cast(ModelT, value).dumps()
-                return dumps(serializer, value)
-            else:
-                return await ser.dumps_value(topic, cast(ModelT, value))
-        return cast(bytes, value)
-
-    def _get_serializer(self, name: CodecArg) -> AsyncSerializerT:
-        # Caches overridden AsyncSerializer
-        # e.g. the avro serializer communicates with a Schema registry
-        # server, so it needs to be async.
-        # See app.dumps_key, .dumps_value, .loads_key, .loads_value,
-        # and the AsyncSerializer implementation in
-        #   faust/utils/avro/faust.py
-        try:
-            return self._serializer_override[name]
-        except KeyError:
-            ser = self._serializer_override[name] = (
-                symbol_by_name(self._serializer_override_classes[name])(self))
-            return cast(AsyncSerializerT, ser)
 
     def task(self, task: Callable[[AppT], Generator]) -> Callable:
         self._task_factories.append(task)

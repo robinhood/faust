@@ -1,14 +1,11 @@
 import abc
 import typing
-from typing import (
-    Any, Awaitable, Callable, Generator,
-    Optional, Sequence, Type, Union,
-)
+from typing import Any, Awaitable, Callable, Generator, Sequence, Type, Union
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
-from .models import ModelT, Event
+from .serializers import RegistryT
 from .sensors import SensorDelegateT
 from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
@@ -22,20 +19,7 @@ else:
     class Web: ...  # noqa
 
 
-__all__ = ['AsyncSerializerT', 'AppT']
-
-
-class AsyncSerializerT:
-    app: 'AppT'
-
-    async def loads(self, s: bytes) -> Any:
-        ...
-
-    async def dumps_key(self, topic: str, s: ModelT) -> bytes:
-        ...
-
-    async def dumps_value(self, topic: str, s: ModelT) -> bytes:
-        ...
+__all__ = ['AppT']
 
 
 class AppT(ServiceT):
@@ -61,6 +45,7 @@ class AppT(ServiceT):
     store: str
 
     sensors: SensorDelegateT
+    serializers: RegistryT
 
     @classmethod
     @abc.abstractmethod
@@ -130,24 +115,6 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def commit_attached(self, tp: TopicPartition, offset: int) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
-        ...
-
-    @abc.abstractmethod
-    async def loads_value(self, typ: Type, key: K, message: Message) -> Event:
-        ...
-
-    @abc.abstractmethod
-    async def dumps_key(self, topic: str, key: K,
-                        serializer: CodecArg = None) -> Optional[bytes]:
-        ...
-
-    @abc.abstractmethod
-    async def dumps_value(self, topic: str, value: V,
-                          serializer: CodecArg = None) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod

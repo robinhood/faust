@@ -1,11 +1,12 @@
 """Abstract types for static typing."""
 from ..utils.types.services import ServiceT
-from .app import AsyncSerializerT, AppT
+from .app import AppT
 from .codecs import CodecArg, CodecT
 from .core import K, V
 from .joins import JoinT
 from .models import ModelOptions, ModelT, FieldDescriptorT, Event
 from .sensors import SensorT
+from .serializers import AsyncSerializerT
 from .stores import StoreT
 from .streams import (
     Processor,
@@ -26,7 +27,7 @@ from .tuples import Topic, TopicPartition, Message, PendingMessage, Request
 from .windows import WindowT, WindowRange
 
 __all__ = [
-    'AsyncSerializerT', 'AppT',
+    'AppT',
 
     'CodecArg', 'CodecT',
 
@@ -37,6 +38,8 @@ __all__ = [
     'ModelOptions', 'ModelT', 'FieldDescriptorT', 'Event',
 
     'SensorT',
+
+    'AsyncSerializerT',
 
     'ServiceT',
 

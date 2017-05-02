@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
-from ..types.app import AsyncSerializerT, AppT
+from ..types.app import AppT
 from ..types.models import ModelT
+from ..types.serializers import AsyncSerializerT
 from ..utils.objects import cached_property
 from ..utils.avro import MessageSerializer, RegistryClient
 
