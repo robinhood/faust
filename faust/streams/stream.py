@@ -457,7 +457,7 @@ class Stream(StreamT, Service):
         # .on_done callback
         on_done = self.on_done
 
-        on_stream_event_in = self.app.on_stream_event_in
+        on_stream_event_in = self.app.sensors.on_stream_event_in
 
         async def on_message() -> None:
             # get message from inbox
@@ -592,7 +592,7 @@ class Stream(StreamT, Service):
             if _prev is not None:
                 _prev.decref()
             _msg = _prev.req.message
-            await self.app.on_stream_event_out(
+            await self.app.sensors.on_stream_event_out(
                 _msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox

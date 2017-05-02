@@ -10,13 +10,14 @@ from heapq import heappush, heappop
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator, Iterator, List,
     Mapping, MutableMapping, MutableSequence, Optional, Sequence,
-    Set, Union, Tuple, Type, cast,
+    Union, Tuple, Type, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
 
 from . import transport
 from .exceptions import ImproperlyConfigured, KeyDecodeError, ValueDecodeError
+from .sensors import SensorDelegate
 from .serializers.codecs import CodecArg, dumps, loads
 from .streams import _constants
 from .streams.manager import StreamManager
@@ -26,7 +27,6 @@ from .types import (
 )
 from .types.app import AppT, AsyncSerializerT
 from .types.models import Event, ModelT
-from .types.sensors import SensorT
 from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
@@ -94,7 +94,7 @@ class AppService(Service):
             self.app.add_task(task(self.app))
         # Stream+Table instances
         streams: List[ServiceT] = list(self.app._streams.values())
-        sensors: List[ServiceT] = list(self.app._sensors)
+        sensors: List[ServiceT] = list(self.app.sensors)
         services: List[ServiceT] = [
             self.app.producer,                        # app.Producer
             self.app.website,                         # app.Web
@@ -194,9 +194,6 @@ class App(AppT, ServiceProxy):
     #: Async serializer instances are cached here.
     _serializer_override: MutableMapping[CodecArg, AsyncSerializerT] = None
 
-    #: Set of active sensors
-    _sensors: Set[SensorT] = None
-
     _pending_on_commit: MutableMapping[
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
@@ -220,7 +217,7 @@ class App(AppT, ServiceProxy):
         from .bin.worker import worker
         from .worker import Worker
         from .sensors import Sensor
-        self.add_sensor(Sensor())
+        self.sensors.add(Sensor())
         kwargs = worker(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
@@ -256,7 +253,7 @@ class App(AppT, ServiceProxy):
         self._streams = OrderedDict()
         self._tables = OrderedDict()
         self._serializer_override = {}
-        self._sensors = set()
+        self.sensors = SensorDelegate(self)
         self._task_factories = []
         self._pending_on_commit = {}
 
@@ -569,74 +566,6 @@ class App(AppT, ServiceProxy):
             window=window,
             **kwargs
         ).bind(self))
-
-    def add_sensor(self, sensor: SensorT) -> None:
-        """Attach new sensor to this application."""
-        # connect beacons
-        sensor.beacon = self.beacon.new(sensor)
-        self._sensors.add(sensor)
-
-    def remove_sensor(self, sensor: SensorT) -> None:
-        """Detach sensor from this application."""
-        self._sensors.remove(sensor)
-
-    async def on_message_in(
-            self,
-            consumer_id: int,
-            tp: TopicPartition,
-            offset: int,
-            message: Message) -> None:
-        """Called whenever a message is received.
-
-        Delegates to sensors, so instead of redefining this method
-        you should add a sensor.
-        """
-        for _sensor in self._sensors:
-            await _sensor.on_message_in(consumer_id, tp, offset, message)
-
-    async def on_stream_event_in(
-            self,
-            tp: TopicPartition,
-            offset: int,
-            stream: StreamT,
-            event: Event) -> None:
-        for _sensor in self._sensors:
-            await _sensor.on_stream_event_in(tp, offset, stream, event)
-
-    async def on_stream_event_out(
-            self,
-            tp: TopicPartition,
-            offset: int,
-            stream: StreamT,
-            event: Event) -> None:
-        for _sensor in self._sensors:
-            await _sensor.on_stream_event_out(tp, offset, stream, event)
-
-    async def on_message_out(
-            self,
-            consumer_id: int,
-            tp: TopicPartition,
-            offset: int,
-            message: Message = None) -> None:
-        """Called whenever a message has finished processing.
-
-        Delegates to sensors, so instead of redefining this method
-        you should add a sensor.
-        """
-        for _sensor in self._sensors:
-            await _sensor.on_message_out(consumer_id, tp, offset, message)
-
-    def on_table_get(self, table: TableT, key: Any) -> None:
-        for _sensor in self._sensors:
-            _sensor.on_table_get(table, key)
-
-    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
-        for _sensor in self._sensors:
-            _sensor.on_table_set(table, key, value)
-
-    def on_table_del(self, table: TableT, key: Any) -> None:
-        for _sensor in self._sensors:
-            _sensor.on_table_del(table, key)
 
     def add_source(self, stream: StreamT) -> None:
         """Register existing stream."""

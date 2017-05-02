@@ -241,7 +241,7 @@ class Worker(Service):
     def on_init_dependencies(self) -> Sequence[ServiceT]:
         for app in self.apps:
             for sensor in self.sensors:
-                app.add_sensor(sensor)
+                app.sensors.add(sensor)
         return self.services
 
     async def on_first_start(self) -> None:

@@ -113,7 +113,7 @@ class Consumer(Service, ConsumerT):
         self._app = self.transport.app
         self.callback = callback
         self.autoack = autoack
-        self._on_message_in = self._app.on_message_in
+        self._on_message_in = self._app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
@@ -170,7 +170,7 @@ class Consumer(Service, ConsumerT):
 
     async def _recently_acked_handler(self) -> None:
         get = self._recently_acked.get
-        on_message_out = self._app.on_message_out
+        on_message_out = self._app.sensors.on_message_out
         while not self.should_stop:
             tp, offset = await get()
             await on_message_out(self.id, tp, offset, None)

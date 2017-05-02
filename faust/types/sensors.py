@@ -1,12 +1,14 @@
 import abc
-from typing import Any
+from typing import Any, Iterable
 from faust.utils.types.services import ServiceT
 from .models import Event
 from .streams import StreamT, TableT
 from .tuples import Message, TopicPartition
 
+__all__ = ['SensorInterfaceT', 'SensorT']
 
-class SensorT(ServiceT):
+
+class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
     async def on_message_in(
@@ -54,4 +56,19 @@ class SensorT(ServiceT):
 
     @abc.abstractmethod
     def on_table_del(self, table: TableT, key: Any) -> None:
+        ...
+
+
+class SensorT(SensorInterfaceT, ServiceT):
+    ...
+
+
+class SensorDelegateT(SensorInterfaceT, Iterable):
+
+    @abc.abstractmethod
+    def add(self, sensor: SensorT) -> None:
+        ...
+
+    @abc.abstractmethod
+    def remove(self, sensor: SensorT) -> None:
         ...

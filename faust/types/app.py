@@ -9,7 +9,7 @@ from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
 from .models import ModelT, Event
-from .sensors import SensorT
+from .sensors import SensorDelegateT
 from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
 from .transports import TransportT
@@ -60,6 +60,8 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
 
+    sensors: SensorDelegateT
+
     @classmethod
     @abc.abstractmethod
     def current_app(cls) -> 'AppT':
@@ -67,14 +69,6 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def add_task(self, task: Generator) -> Awaitable:
-        ...
-
-    @abc.abstractmethod
-    def add_sensor(self, sensor: SensorT) -> None:
-        ...
-
-    @abc.abstractmethod
-    def remove_sensor(self, sensor: SensorT) -> None:
         ...
 
     @abc.abstractmethod
@@ -154,54 +148,6 @@ class AppT(ServiceT):
     @abc.abstractmethod
     async def dumps_value(self, topic: str, value: V,
                           serializer: CodecArg = None) -> Optional[bytes]:
-        ...
-
-    @abc.abstractmethod
-    async def on_message_in(
-            self,
-            consumer_id: int,
-            tp: TopicPartition,
-            offset: int,
-            message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_stream_event_in(
-            self,
-            tp: TopicPartition,
-            offset: int,
-            stream: StreamT,
-            event: Event) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_stream_event_out(
-            self,
-            tp: TopicPartition,
-            offset: int,
-            stream: StreamT,
-            event: Event) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_message_out(
-            self,
-            consumer_id: int,
-            tp: TopicPartition,
-            offset: int,
-            message: Message = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    def on_table_get(self, table: TableT, key: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    def on_table_del(self, table: TableT, key: Any) -> None:
         ...
 
     @abc.abstractmethod

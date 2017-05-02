@@ -1,12 +1,23 @@
 import asyncio
 import typing
 from time import monotonic
-from typing import Any, Counter, List, Mapping, MutableMapping, Tuple
+from typing import (
+    Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple,
+)
 from weakref import WeakValueDictionary
-from .types import Event, Message, SensorT, StreamT, TableT, TopicPartition
+from .types import AppT, Event, Message, StreamT, TableT, TopicPartition
+from .types.sensors import SensorT, SensorDelegateT
 from .utils.graphs.formatter import _label
 from .utils.objects import KeywordReduce
 from .utils.services import Service
+
+__all__ = [
+    'TableState',
+    'EventState',
+    'MessageState',
+    'Sensor',
+    'SensorDelegate',
+]
 
 MAX_MESSAGES = 1_000_000
 MAX_AVG_HISTORY = 100
@@ -29,6 +40,13 @@ class TableState(KeywordReduce):
         self.keys_retrieved = keys_retrieved
         self.keys_updated = keys_updated
         self.keys_deleted = keys_deleted
+
+    def asdict(self):
+        return {
+            'keys_retrieved': self.keys_retrieved,
+            'keys_updated': self.keys_updated,
+            'keys_deleted': self.keys_deleted,
+        }
 
 
 class EventState(KeywordReduce):
@@ -295,3 +313,71 @@ class Sensor(SensorT, Service, KeywordReduce):
         except KeyError:
             state = self.tables[table.table_name] = TableState(table)
             return state
+
+
+class SensorDelegate(SensorDelegateT):
+
+    _sensors: Set[SensorT]
+
+    def __init__(self, app: AppT) -> None:
+        self.app = app
+        self._sensors = set()
+
+    def add(self, sensor: SensorT) -> None:
+        # connect beacons
+        sensor.beacon = self.app.beacon.new(sensor)
+        self._sensors.add(sensor)
+
+    def remove(self, sensor: SensorT) -> None:
+        self._sensors.remove(sensor)
+
+    def __iter__(self) -> Iterator:
+        return iter(self._sensors)
+
+    async def on_message_in(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message) -> None:
+        for sensor in self._sensors:
+            await sensor.on_message_in(consumer_id, tp, offset, message)
+
+    async def on_stream_event_in(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        for sensor in self._sensors:
+            await sensor.on_stream_event_in(tp, offset, stream, event)
+
+    async def on_stream_event_out(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        for sensor in self._sensors:
+            await sensor.on_stream_event_out(tp, offset, stream, event)
+
+    async def on_message_out(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message = None) -> None:
+        for sensor in self._sensors:
+            await sensor.on_message_out(consumer_id, tp, offset, message)
+
+    def on_table_get(self, table: TableT, key: Any) -> None:
+        for sensor in self._sensors:
+            sensor.on_table_get(table, key)
+
+    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+        for sensor in self._sensors:
+            sensor.on_table_set(table, key, value)
+
+    def on_table_del(self, table: TableT, key: Any) -> None:
+        for sensor in self._sensors:
+            sensor.on_table_del(table, key)
