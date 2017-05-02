@@ -8,3 +8,102 @@ About
 =====
 
 # I'm too lazy to edit the defaults.
+
+.. _faq:
+
+FAQ
+===
+
+Can I use Faust with Django/Flask/etc.?
+---------------------------------------
+
+Yes! Use gevent/eventlet and use a bridge to integrate with asyncio.
+
+- ``aiogevent`` enables you to run Faust on top of gevent:
+
+    https://pypi.python.org/pypi/aiogevent
+
+    Example::
+
+        import aiogevent
+        import asyncio
+        asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
+        import gevent.monkey
+        gevent.monkey.patch_all()
+        # if you use PostgreSQL with psycopg, make sure you also
+        # install psycogreen and call this pather:
+        #  import psycogreen.gevent
+        #  psycogreen.gevent.patch_psycopg()
+
+        # Import Django/Flask etc, stuff and use them with Faust.
+
+- ``aioeventlet`` enables you to run Faust on top of eventlet:
+
+    http://aioeventlet.readthedocs.io
+
+    Example::
+
+        import aioeventlet
+        import asyncio
+        asyncio.set_event_loop_policy(aioeventlet.EventloopPolicy())
+        import eventlet
+        eventlet.monkey_patch()
+        # if you use PostgreSQL with psycopg, make sure you also
+        # install psycogreen and call this pather:
+        #  import psycogreen.eventlet
+        #  psycogreen.eventlet.patch_psycopg()
+
+        # Import Django/Flask etc, stuff and use them with Faust.
+
+Can I use Faust with Tornado?
+-----------------------------
+
+Yes! Use the ``tornado.platform.asyncio`` bridge:
+http://www.tornadoweb.org/en/stable/asyncio.html
+
+Can I use Faust with Twisted?
+-----------------------------
+
+Yes! Use the asyncio reactor implementation:
+https://twistedmatrix.com/documents/17.1.0/api/twisted.internet.asyncioreactor.html
+
+Will you support Python 3.5 or earlier?
+---------------------------------------
+
+There are no immediate plans to support Python 3.5, but you are welcome to
+contribute to the project.
+
+Here are some of the steps required to accomplish this:
+
+- Source code transformation to rewrite variable annotations to comments
+
+  for example, the code::
+
+        class Point:
+            x: int = 0
+            y: int = 0
+
+   must be rewritten into::
+
+        class Point:
+            x = 0  # type: int
+            y = 0  # type: int
+
+- Source code transformation to rewrite async functions
+
+    for example, the code::
+
+        async def foo():
+            await asyncio.sleep(1.0)
+
+    must be rewritten into::
+
+        @coroutine
+        def foo():
+            yield from asyncio.sleep(1.0)
+
+Will you support Python 2?
+--------------------------
+
+There are no plans to support Python 2, but you are welcome to contribute to
+the project (details in question above is relevant also for Python 2).
