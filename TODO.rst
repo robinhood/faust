@@ -157,7 +157,6 @@ Write a basic sensor interface including the following metrics:
 
 - ``group_by()`` latency
 
-- ``Producer.send`` latency
 
 Finished
 --------
@@ -174,7 +173,9 @@ Finished
 
 * -number of records written to table by table.-
 
-* -``commit()`` latency-
+* ``commit()`` latency
+
+*  ``Producer.send`` latency
 
 HTTP interface
 --------------

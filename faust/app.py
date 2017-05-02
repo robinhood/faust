@@ -361,9 +361,15 @@ class App(AppT, ServiceProxy):
         if not self._producer_started:
             self._producer_started = True
             await producer.start()
-        return await (producer.send_and_wait if wait else producer.send)(
-            topic, key, value,
-        )
+        if wait:
+            state = await self.sensors.on_send_initiated(
+                producer, topic,
+                keysize=len(key) if key else 0,
+                valsize=len(value) if value else 0)
+            ret = await producer.send_and_wait(topic, key, value)
+            await self.sensors.on_send_completed(producer, state)
+            return ret
+        return producer.send(topic, key, value)
 
     async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
         """Deserialize message key.
