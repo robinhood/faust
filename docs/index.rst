@@ -2,8 +2,6 @@
  Faust - Python Stream processing
 =======================================================================
 
-.. include:: includes/introduction.txt
-
 Contents
 ========
 
@@ -15,6 +13,7 @@ Contents
 .. toctree::
     :maxdepth: 2
 
+    introduction
     userguide/index
     reference/index
 

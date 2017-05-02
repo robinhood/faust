@@ -3,9 +3,6 @@ from typing import Any, Optional, Union
 
 __all__ = ['CodecArg', 'CodecT']
 
-# `serializer` argument can be str or Codec instance.
-CodecArg = Optional[Union['CodecT', str]]
-
 
 class CodecT(metaclass=abc.ABCMeta):
     """Abstract type for an encoder/decoder.
@@ -29,3 +26,8 @@ class CodecT(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def __or__(self, other: Any) -> Any:
         ...
+
+# `serializer` argument can be str or Codec instance.
+CodecArg = Optional[Union[CodecT, str]]
+
+

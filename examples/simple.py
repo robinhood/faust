@@ -21,19 +21,26 @@ app = faust.App(
 )
 
 
-@app.task
+#@app.task(concurrency=1)
+#async def find_large_withdrawals(app):
+#    if GRAPH:
+#        asyncio.ensure_future(_dump_beacon(app))
+#    withdrawals = app.stream(topic)
+#    user_to_total = withdrawals.sum(Withdrawal.amount, 'user_to_total',
+#                                    key=Withdrawal.user)
+#    country_to_total = withdrawals.sum(Withdrawal.amount, 'country_to_total',
+#                                       key=Withdrawal.country)
+#    async for withdrawal in withdrawals:
+#        print('Withdrawal: %r, User Total: %r, Country Total: %r' %
+#            (withdrawal, user_to_total[withdrawal.user],
+#            country_to_total[withdrawal.country]))
+
+
+@app.task(concurrency=10)
 async def find_large_withdrawals(app):
-    if GRAPH:
-        asyncio.ensure_future(_dump_beacon(app))
-    withdrawals = app.stream(topic)
-    user_to_total = withdrawals.sum(Withdrawal.amount, 'user_to_total',
-                                    key=Withdrawal.user)
-    country_to_total = withdrawals.sum(Withdrawal.amount, 'country_to_total',
-                                       key=Withdrawal.country)
-    async for withdrawal in withdrawals:
-        print('Withdrawal: %r, User Total: %r, Country Total: %r' %
-            (withdrawal, user_to_total[withdrawal.user],
-            country_to_total[withdrawal.country]))
+    async for withdrawal in app.stream(topic):
+        if withdrawal.amount > 1000.0:
+            print('Found large withdrawal: %r' % (withdrawal,))
 
 
 async def _dump_beacon(app):

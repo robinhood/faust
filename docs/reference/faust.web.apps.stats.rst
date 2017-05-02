@@ -1,11 +1,11 @@
 =====================================================
- ``faust.tables``
+ ``faust.web.apps.stats``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.tables
+.. currentmodule:: faust.web.apps.stats
 
-.. automodule:: faust.tables
+.. automodule:: faust.web.apps.stats
     :members:
     :undoc-members:

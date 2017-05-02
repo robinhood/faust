@@ -60,6 +60,8 @@ class StreamManager(StreamManagerT, Service):
             # that subscribe to this message
             streams = list(get_streams_for_topic(message.topic))
 
+            print('MESSAGE DELIVERED TO %r STREAMS' % (len(streams),))
+
             # we increment the reference count for this message in bulk
             # immediately, so that nothing will get a chance to decref to
             # zero before we've had the chance to pass it to all streams.

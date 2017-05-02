@@ -4,6 +4,10 @@
  Tasks
 ==========================================
 
+.. contents::
+    :local:
+    :depth: 1
+
 .. _task-basics:
 
 Basics

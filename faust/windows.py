@@ -82,6 +82,7 @@ class SlidingWindow(WindowT):
 
         Notes:
             .. code-block:: text
+
                 SELECT * FROM s1, s2
                 WHERE
                     s1.key = s2.key

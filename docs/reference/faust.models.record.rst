@@ -1,11 +1,11 @@
 =====================================================
- ``faust.joins``
+ ``faust.models.record``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.joins
+.. currentmodule:: faust.models.record
 
-.. automodule:: faust.joins
+.. automodule:: faust.models.record
     :members:
     :undoc-members:

@@ -14,6 +14,9 @@ globals().update(conf.build_config(
     html_favicon='images/favicon.ico',
     html_prepend_sidebars=[],
     include_intersphinx={'python', 'sphinx'},
+    extra_extensions=[
+        'sphinx.ext.napoleon',
+    ],
     # django_settings='testproj.settings',
     # path_additions=[os.path.join(os.pardir, 'testproj')],
     apicheck_ignore_modules=[

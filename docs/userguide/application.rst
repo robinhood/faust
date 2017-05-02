@@ -4,6 +4,10 @@
  Application
 =======================================
 
+.. contents::
+    :local:
+    :depth: 1
+
 .. _application-basics:
 
 Basics
@@ -138,7 +142,7 @@ This can be the name of a serializer/codec, or an actual
 .. _app-value_serializer:
 
 ``value_serializer``
-------------------
+--------------------
 :type: ``Union[str, Codec]``
 :default: ``"json"``
 
@@ -174,7 +178,7 @@ The :class:`faust.Stream` class to use for streams, or the fully-qualified path 
 .. _app-Table:
 
 ``Table``
-----------
+---------
 :type: ``Union[str, Type]``
 :default: ``"faust.Table"``
 
@@ -183,7 +187,7 @@ The :class:`faust.Table` class to use for tables, or the fully-qualified path to
 .. _app-WebSite:
 
 ``WebSite``
-----------
+-----------
 :type: ``Union[str, Type]``
 :default: ``"faust.web.site:create_site"``
 

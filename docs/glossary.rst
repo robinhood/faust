@@ -6,6 +6,15 @@ Glossary
 .. glossary::
     :sorted:
 
+    acked
+        Short for :term:`acknowledged`
+
+    acknowledged
+        A message is acknowledged once the message is fully processed.  It's
+        a signal that the program does not want to see the message again.
+        Faust will advance the offset, and commit, only after a message has
+        been acknowledged.
+
     transport
         A communication channel used to send and receive messages, e.g. Kafka.
 
@@ -30,3 +39,8 @@ Glossary
 
         A task is also a unit for concurrency, so a task can not execute
         on multiple threads.
+
+    thread safe
+        A function or process that is thread safe means that multiple POSIX
+        threads can execute it in parallel without race conditions or deadlock
+        situations.

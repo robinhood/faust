@@ -4,6 +4,10 @@
  Faust vs Kafka Streams
 ========================
 
+.. contents::
+    :local:
+    :depth: 1
+
 KStream
 =======
 

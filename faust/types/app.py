@@ -53,6 +53,16 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def task(self, fun: Callable[['AppT'], Generator] = None,
+             *,
+             concurrency: int = 1) -> None:
+        ...
+
+    @abc.abstractmethod
+    def timer(self, interval: float) -> Callable:
+        ...
+
+    @abc.abstractmethod
     def add_task(self, task: Generator) -> Awaitable:
         ...
 

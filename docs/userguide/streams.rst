@@ -4,6 +4,10 @@
  Streams
 =================================================
 
+.. contents::
+    :local:
+    :depth: 1
+
 Basics
 ======
 
@@ -19,7 +23,7 @@ from a topic:
 The stream *needs to be iterated over* to be processed, it will not
 be active until you do.
 
-When iterated over the stream produces :ref:`events <guide-events>`.
+When iterated over the stream produces :ref:`events <stream-events>`.
 
 An event can either be a deserialized :class:`~faust.models.base.Model`,:
 
@@ -44,7 +48,7 @@ and the original :class:`~faust.types.Message` object (``event.req.message``).
 
 .. seealso::
 
-    :ref:`guide-model` for more information about models and serialization.
+    :ref:`guide-models` for more information about models and serialization.
 
 Processors
 ----------
@@ -152,3 +156,8 @@ rather start individual tasks:
     async def process_stream2(app):
         async for event in app.stream(topic2):
             ...
+
+.. _stream-events:
+
+Events
+======

@@ -370,9 +370,19 @@ class App(AppT, ServiceProxy):
             return ret
         return producer.send(topic, key, value)
 
-    def task(self, task: Callable[[AppT], Generator]) -> Callable:
-        self._task_factories.append(task)
-        return task
+    def task(self, fun: Callable[[AppT], Generator] = None,
+             *,
+             concurrency: int = 1) -> None:
+        # Support both `@task` and `@task(concurrency=1)`.
+        if fun:
+            return self._task(concurrency=concurrency)(fun)
+        return self._task(concurrency=concurrency)
+
+    def _task(self, *, concurrency: int = 1) -> Callable:
+        def _inner(task: Callable[[AppT], Generator]) -> Callable:
+            self._task_factories.extend([task] * concurrency)
+            return task
+        return _inner
 
     def timer(self, interval: float) -> Callable:
         def _inner(task: Callable[[AppT], Awaitable]) -> Callable:
