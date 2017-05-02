@@ -1,6 +1,5 @@
 """Base message transport implementation."""
 import asyncio
-import weakref
 from collections import defaultdict
 from itertools import count
 from typing import (
@@ -10,12 +9,12 @@ from typing import (
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
-    ConsumerCallback, ConsumerT, MessageRefT, ProducerT, TransportT,
+    ConsumerCallback, ConsumerT, ProducerT, TransportT,
 )
 from ..utils.functional import consecutive_numbers
 from ..utils.services import Service
 
-__all__ = ['MessageRef', 'Consumer', 'Producer', 'Transport']
+__all__ = ['Consumer', 'Producer', 'Transport']
 
 # The Transport is responsible for:
 #
@@ -52,25 +51,6 @@ PartitionsRevokedCallback = Callable[[Sequence[TopicPartition]], None]
 PartitionsAssignedCallback = Callable[[Sequence[TopicPartition]], None]
 
 
-class MessageRef(weakref.ref, MessageRefT):
-    """Weak-reference to :class:`~faust.types.Message`.
-
-    Remembers the offset of the message, even after message is out of scope.
-    """
-
-    # Used for tracking when messages go out of scope.
-
-    def __init__(self, message: Message,
-                 callback: Callable = None,
-                 tp: TopicPartition = None,
-                 offset: int = None,
-                 consumer_id: int = None) -> None:
-        super().__init__(message, callback)
-        self.tp = tp
-        self.offset = offset
-        self.consumer_id = consumer_id
-
-
 class Consumer(Service, ConsumerT):
     """Base Consumer."""
 
@@ -80,12 +60,6 @@ class Consumer(Service, ConsumerT):
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
 
     _app: AppT
-
-    #: Autoack flag by topic
-    _autoack: MutableMapping[str, bool]
-
-    # List of weakref's to messages waiting to be acked.
-    _dirty_messages: List[MessageRefT] = None
 
     # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TopicPartition, List[int]] = None
@@ -118,8 +92,6 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
             commit_interval or self._app.commit_interval)
-        self._autoack = defaultdict(lambda: autoack)
-        self._dirty_messages = []
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._current_offset = defaultdict(int)
@@ -136,21 +108,8 @@ class Consumer(Service, ConsumerT):
             self, message: Message, tp: TopicPartition, offset: int) -> None:
         _id = self.id
 
-        # keep weak reference to message, to be notified when out of scope.
-        self._dirty_messages.append(
-            MessageRef(message, self.on_message_ready,
-                       tp=TopicPartition(message.topic, message.partition),
-                       offset=offset,
-                       consumer_id=self.id))
-
         # call sensors
         await self._on_message_in(_id, tp, offset, message)
-
-    def on_message_ready(self, ref: MessageRefT) -> None:
-        # Called when a message goes out of scope.
-        tp = ref.tp
-        if self._autoack[tp.topic]:
-            self.ack(tp, ref.offset)
 
     def ack(self, tp: TopicPartition, offset: int) -> None:
         if offset > self._current_offset[tp]:

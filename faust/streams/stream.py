@@ -114,7 +114,7 @@ class Stream(StreamT, Service):
     _coroutines: StreamCoroutineMap = None
     _topicmap: MutableMapping[str, Topic] = None
     _anext_started: bool = False
-    _previous_event: Event = None
+    _current_event: Event = None
 
     @classmethod
     def from_topic(cls, topic: Topic = None,
@@ -552,6 +552,10 @@ class Stream(StreamT, Service):
         if self._on_start:
             await self._on_start()
 
+    async def on_stop(self) -> None:
+        if self._current_event is not None:
+            self._current_event.decref()
+
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
         logger.error('Cannot decode key: %r: %r', message.key, exc)
@@ -588,7 +592,7 @@ class Stream(StreamT, Service):
             await self.on_aiter_start()
         else:
             # decrement reference count for previous event processed.
-            _prev, self._previous_event = self._previous_event, None
+            _prev, self._current_event = self._current_event, None
             if _prev is not None:
                 _prev.decref()
             _msg = _prev.req.message
@@ -597,7 +601,7 @@ class Stream(StreamT, Service):
 
         # fetch next message and get value from outbox
         await self._on_message()
-        event = self._previous_event = cast(Event, await self.outbox.get())
+        event = self._current_event = cast(Event, await self.outbox.get())
         return event
 
     def _repr_info(self) -> str:

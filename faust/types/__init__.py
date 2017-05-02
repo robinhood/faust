@@ -18,7 +18,6 @@ from .streams import (
 )
 from .transports import (
     ConsumerCallback,
-    MessageRefT,
     ConsumerT,
     ProducerT,
     TransportT,
@@ -47,7 +46,7 @@ __all__ = [
     'StreamProcessorMap', 'StreamCoroutine', 'StreamCoroutineMap',
     'StreamT', 'TableT',
 
-    'ConsumerCallback', 'MessageRefT', 'ConsumerT', 'ProducerT', 'TransportT',
+    'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
     'Topic', 'TopicPartition', 'Message', 'PendingMessage', 'Request',
 

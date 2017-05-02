@@ -12,7 +12,6 @@ else:
 
 __all__ = [
     'ConsumerCallback',
-    'MessageRefT',
     'ConsumerT',
     'ProducerT',
     'TransportT',
@@ -22,12 +21,6 @@ __all__ = [
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
 ConsumerCallback = Callable[[Message], Awaitable]
-
-
-class MessageRefT(metaclass=abc.ABCMeta):
-    tp: TopicPartition
-    consumer_id: int
-    offset: int
 
 
 class ConsumerT(ServiceT):
@@ -63,10 +56,6 @@ class ConsumerT(ServiceT):
             message: Message,
             tp: TopicPartition,
             offset: int) -> None:
-        ...
-
-    @abc.abstractmethod
-    def on_message_ready(self, ref: MessageRefT) -> None:
         ...
 
 
