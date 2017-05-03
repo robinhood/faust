@@ -29,8 +29,14 @@ class Web(base.Web):
         self._srv: Any = None
         self._handler: Any = None
 
-    def text(self, value: str) -> base.Response:
-        return cast(base.Response, Response(text=value))
+    def text(self, value: str, *, content_type: str = None) -> base.Response:
+        return cast(base.Response, Response(
+            text=value,
+            content_type=content_type,
+        ))
+
+    def html(self, value: str) -> base.Response:
+        return self.text(value, content_type='text/html')
 
     def json(self, value: Any) -> Any:
         return json_response(value)

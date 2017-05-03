@@ -21,6 +21,9 @@ class Web(Service):
     def text(self, value: str) -> Any:
         ...
 
+    def html(self, value: str) -> Any:
+        ...
+
     def json(self, value: Any) -> Any:
         ...
 

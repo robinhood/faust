@@ -127,7 +127,7 @@ setup(
     platforms=['any'],
     license='BSD',
     packages=find_packages(exclude=['ez_setup', 'tests', 'tests.*']),
-    include_package_data=False,
+    include_package_data=True,
     zip_safe=False,
     install_requires=reqs('default.txt'),
     tests_require=reqs('test.txt'),
