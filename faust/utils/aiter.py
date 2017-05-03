@@ -5,6 +5,7 @@ __all__ = ['aenumerate', 'anext']
 
 async def aenumerate(it: AsyncIterator[Any],
                      start: int = 0) -> AsyncIterator[Tuple[int, Any]]:
+    """Asynchronous version of ``enumerate``."""
     i = start
     async for item in it:
         yield i, item
@@ -12,6 +13,7 @@ async def aenumerate(it: AsyncIterator[Any],
 
 
 def anext(it: AsyncIterator, *default: Any) -> Any:
+    """``anext(it) -> it.__anext__()``."""
     if default:
         try:
             return it.__anext__()
