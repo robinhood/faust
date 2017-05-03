@@ -2,7 +2,12 @@ import re
 from typing import MutableMapping, Pattern, Sequence, Tuple, Type, Union
 from .types import CodecArg, Topic
 
-__all__ = ['topic', 'topic_from_topic', 'topic_to_map']
+__all__ = [
+    'topic',
+    'topic_from_topic',
+    'topic_to_map',
+    'get_uniform_topic_type',
+]
 
 
 def topic(*topics: str,
