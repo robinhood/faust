@@ -1,3 +1,7 @@
+"""ƒAµS† Worker
+
+A worker starts one or more Faust applications.
+"""
 import asyncio
 import faust
 import logging
@@ -7,6 +11,7 @@ import reprlib
 import signal
 import socket
 import sys
+
 from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union, cast
 from progress.spinner import Spinner
 from .types import AppT, SensorT
@@ -21,10 +26,10 @@ except ImportError:  # pragma: no cover
 
 __all__ = ['Worker']
 
+#: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
 
-logger = get_logger(__name__)
-
+#: ASCII-art used in startup banner.
 ARTLINES = """\
                                        .x+=:.        s
    oec :                               z`    ^%      :8
@@ -43,10 +48,7 @@ ARTLINES = """\
    '8
 """
 
-F_IDENT = """
-FAUST v{faust_v} {system} ({transport_v} {http_v} {py}={py_v})
-""".strip()
-
+#: Format string for startup banner.
 F_BANNER = """
 {art}
 {ident}
@@ -58,15 +60,25 @@ F_BANNER = """
   .transport   -> {transport} ]
 """.strip()
 
+#: Format string for banner info line.
+F_IDENT = """
+ƒaµS† v{faust_v} {system} ({transport_v} {http_v} {py}={py_v})
+""".strip()
+
+
+logger = get_logger(__name__)
+
 
 class _TupleAsListRepr(reprlib.Repr):
 
     def repr_tuple(self, x: Tuple, level: int) -> str:
         return self.repr_list(cast(list, x), level)
+# this repr formats tuples as if they are lists.
 _repr = _TupleAsListRepr().repr  # noqa: E305
 
 
 class SpinnerHandler(logging.Handler):
+    """A logger handler that iterates our progress spinner for each log."""
 
     def __init__(self, worker: 'Worker', **kwargs: Any) -> None:
         self.worker = worker
@@ -78,6 +90,25 @@ class SpinnerHandler(logging.Handler):
 
 
 class Worker(Service):
+    """Worker.
+
+    Arguments:
+        *services (ServiceT): Services to start with worker.
+            This includes application instances to start.
+
+    Keyword Arguments:
+        sensors (Sequence[SensorT]): List of sensors to include.
+        debug (bool): Enables debugging mode [disabled by default].
+        quiet (bool): Do not output anything to console [disabled by default].
+        loglevel (Union[str, int]): Level to use for logging, can be string
+            (one of: CRIT|ERROR|WARN|INFO|DEBUG), or integer.
+        logfile (Union[str, IO]): Name of file or a stream to log to.
+        logformat (str): Format to use when logging messages.
+        stdout (IO): Standard out stream.
+        stderr (IO): Standard err stream.
+        loop (asyncio.AbstractEventLoop): Custom event loop object.
+    """
+
     art = ARTLINES
     f_ident = F_IDENT
     f_banner = F_BANNER
@@ -92,17 +123,18 @@ class Worker(Service):
     stderr: IO
     quiet: bool
 
-    def __init__(self, *services: ServiceT,
-                 sensors: Sequence[SensorT] = None,
-                 debug: bool = False,
-                 quiet: bool = False,
-                 loglevel: Union[str, int] = None,
-                 logfile: Union[str, IO] = None,
-                 logformat: str = None,
-                 loop: asyncio.AbstractEventLoop = None,
-                 stdout: IO = sys.stdout,
-                 stderr: IO = sys.stderr,
-                 **kwargs: Any) -> None:
+    def __init__(
+            self, *services: ServiceT,
+            sensors: Sequence[SensorT] = None,
+            debug: bool = False,
+            quiet: bool = False,
+            loglevel: Union[str, int] = None,
+            logfile: Union[str, IO] = None,
+            logformat: str = None,
+            stdout: IO = sys.stdout,
+            stderr: IO = sys.stderr,
+            loop: asyncio.AbstractEventLoop = None,
+            **kwargs: Any) -> None:
         self.apps = [s for s in services if isinstance(s, AppT)]
         self.services = services
         self.sensors = set(sensors or [])
@@ -120,9 +152,11 @@ class Worker(Service):
             assert service.beacon.root is self.beacon
 
     def say(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Write message to standard out."""
         self._print(msg.format(*args, **kwargs))
 
     def carp(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        """Write warning to standard err."""
         self._print(msg.format(*args, **kwargs), file=self.stderr)
 
     def _print(self, msg: str, file: IO = None, end: str = '\n') -> None:
@@ -187,21 +221,26 @@ class Worker(Service):
             self._shutdown_loop()
 
     def _shutdown_loop(self) -> None:
+        # Gather futures created by us.
         try:
             self.loop.run_until_complete(self._gather_futures())
         except asyncio.CancelledError:
             pass
+        # Gather absolutely all asyncio futures.
         self._gather_all()
         try:
+            # Wait until loop is fully stopped.
             while self.loop.is_running():
                 logger.info('Worker: Waiting for event loop to shutdown...')
                 self.loop.stop()
                 self.loop.run_until_complete(asyncio.sleep(1.0))
         finally:
+            # Then close the loop.
             logger.info('Worker: Closing event loop')
             self.loop.close()
 
     def _gather_all(self) -> None:
+        # sleeps for at most 40 * 0.1s
         for i in range(40):
             if not asyncio.Task.all_tasks(loop=self.loop):
                 break
@@ -217,16 +256,7 @@ class Worker(Service):
                   for coro in coroutines],
                 loop=self.loop)
             await self.start()
-            self.add_future(self._stats())
             await self.wait_until_stopped()
-
-    async def _stats(self) -> None:
-        while not self.should_stop:
-            await asyncio.sleep(5)
-            if len(self.services) == 1:
-                self.say(repr(self.services[0]))
-            else:
-                self.say(_repr(self.services))
 
     def _monitor(self) -> Any:
         if self.debug:
