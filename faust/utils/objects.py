@@ -4,11 +4,14 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Type, cast
 __flake8_Dict_is_used: Dict   # silence flake8 bug
 
 __all__ = [
-    'FieldMapping', 'DefaultsMapping',
+    'FieldMapping', 'DefaultsMapping', 'KeywordReduce',
     'annotations', 'iter_mro_reversed', 'cached_property',
 ]
 
+#: Mapping of attribute name to attribute type.
 FieldMapping = Mapping[str, Type]
+
+#: Mapping of attribute name to attributes default value.
 DefaultsMapping = Mapping[str, Any]
 
 
@@ -165,12 +168,19 @@ def _restore_from_keywords(typ: Type, kwargs: Dict) -> Any:
 
 
 class KeywordReduce:
+    """Mixin class for objects that can be pickled.
 
-    def asdict(self) -> Mapping:
-        return self.__dict__
+    Traditionally Python's __reduce__ method operates on
+    positional arguments, this adds support for restoring
+    an object using keyword arguments.
 
-    def __reduce_args__(self) -> Mapping:
-        return self.asdict()
+    Your class needs to define a ``__reduce_keywords__`` method
+    that returns the keyword arguments used to reconstruct the object
+    as a mapping.
+    """
+
+    def __reduce_keywords__(self) -> Mapping:
+        raise NotImplemented()
 
     def __reduce__(self) -> Tuple:
-        return _restore_from_keywords, (type(self), self.__reduce_args__())
+        return _restore_from_keywords, (type(self), self.__reduce_keywords__())
