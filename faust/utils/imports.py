@@ -18,6 +18,27 @@ SymbolArg = Union[str, Type]
 
 
 class FactoryMapping(FastUserDict):
+    """Class plugin system.
+
+    This is an utility to maintain a mapping from name to fully
+    qualified Python attribute path, and also supporting the use
+    of these in URLs.
+
+    Example:
+
+        >>> drivers = FactoryMapping({
+        ...    'rabbitmq': 'my.drivers.rabbitmq:Driver',
+        ...    'kafka': 'my.drivers.kafka:Driver',
+        ...    'redis': 'my.drivers.redis:Driver',
+        ... })
+
+        >>> drivers.by_url('rabbitmq://localhost:9090')
+        <class 'my.drivers.rabbitmq.Driver'>
+
+        >>> drivers.by_name('redis')
+        <class 'my.drivers.redis.Driver'>
+    """
+
     aliases: MutableMapping[str, str]
 
     def __init__(self, *args: Mapping, **kwargs: str) -> None:
@@ -37,6 +58,7 @@ class FactoryMapping(FastUserDict):
 
 
 def qualname(obj: Any) -> str:
+    """Get object qualified name."""
     if not hasattr(obj, '__name__') and hasattr(obj, '__class__'):
         obj = obj.__class__
     return '.'.join((obj.__module__, obj.__name__))
