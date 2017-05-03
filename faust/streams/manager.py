@@ -101,14 +101,16 @@ class StreamManager(StreamManagerT, Service):
         self._topicmap.clear()
 
         consolidated_streams: List[Stream] = []
+        ungrouped_streams: List[Stream] = []
 
-        # Group streams by group index.
-        streams: Dict[int, List[Stream]] = defaultdict(list)
+        # Group streams by task group+index.
+        streams: Dict[Tuple[int, int], List[Stream]] = defaultdict(list)
         for stream in cast(List[Stream], self._streams):
-            streams[stream.task_group].append(stream)
-
-        # extract all the streams that had task_group=None
-        ungrouped_streams: List[Stream] = streams.pop(None, None)
+            if stream.task_group is not None:
+                streams[(stream.task_group, stream.task_index)].append(stream)
+            else:
+                # move streams from unknown task groups into separate list.
+                ungrouped_stream.append(stream)
 
         # Streams with the same group index should share the same inbox
         for _, group_streams in streams.items():
