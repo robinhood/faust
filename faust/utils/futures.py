@@ -57,16 +57,21 @@ class Group(Service, Sized):
         self._size = 0
         super().__init__(loop=loop, **kwargs)
 
-    def add(self, task: Generator) -> Awaitable:
+    def add(self, task: Generator, *, group_id: int = 0) -> Awaitable:
         # Note: This does not actually start the task,
         #       and `await group.start()` needs to be called.
-        fut = self._start_task(task, self.beacon.new(task))
+        fut = self._start_task(task, group_id, self.beacon.new(task))
         self._starting.append(fut)
         return fut
 
-    async def _start_task(self, task: Generator, beacon: NodeT) -> None:
+    async def _start_task(self,
+                          task: Generator,
+                          group_id: int,
+                          beacon: NodeT) -> None:
         _task = asyncio.Task(task, loop=self.loop)
-        _task._beacon = beacon  # type: ignore
+        _task._beacon = beacon             # type: ignore
+        _task._stream_index = 0            # type: ignore
+        _task._group_id = group_id         # type: ignore
         self._running.append(_task)
         self._size += 1
         if self._on_task_started is not None:
@@ -104,7 +109,7 @@ class Group(Service, Sized):
                     if self._on_task_stopped is not None:
                         await self._on_task_stopped(task)
             else:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(1.0, loop=self.loop)
 
     def __len__(self) -> int:
         return len(self._starting) + self._size
