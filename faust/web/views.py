@@ -42,7 +42,7 @@ class View:
     async def delete(self, web: Web, request: Request) -> Any:
         ...
 
-    def render(self, template_name: str, **context: Any):
+    def render(self, template_name: str, **context: Any) -> str:
         template = self.env.get_template(template_name)
         return template.render(**context)
 
@@ -50,7 +50,7 @@ class View:
     def env(self) -> jinja2.Environment:
         return jinja2.Environment(
             loader=jinja2.PackageLoader(self.package),
-            autoescape=jinja2.select_autoescape(['html', 'xml'])
+            autoescape=True,
         )
 
 

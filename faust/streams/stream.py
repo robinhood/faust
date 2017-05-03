@@ -381,20 +381,26 @@ class Stream(StreamT, Service):
                        operator: Callable[[Any, Event], Any],
                        *,
                        key: FieldDescriptorT = None) -> StreamT:
-        async def aggregator(event: Event) -> Event:
-            k = event.req.key if key is None else getattr(event, key.field)
-            timestamp = event.req.message.timestamp
-            keys: Sequence[Any] = [k] if window is None else [
-                (k, window_range)
-                for window_range in window.windows(timestamp)
-            ]
-            for k in keys:
+        _window = table.window
+        if _window is not None:
+
+            async def aggregator(event: Event) -> Event:
+                k = event.req.key if key is None else getattr(event, key.field)
+                timestamp = event.req.message.timestamp
+                keys = [
+                    (k, window_range)
+                    for window_range in _window.windows(timestamp)
+                ]
+                for k in cast(Sequence[K], keys):
+                    table[k] = operator(table[k], event)
+                return event
+        else:
+            async def aggregator(event: Event) -> Event:
+                k = event.req.key if key is None else getattr(event, key.field)
                 table[k] = operator(table[k], event)
-            return event
-
+                return event
         self.add_processor(aggregator)
-
-
+        return self
 
     def count(self, table_name: str,
               *,
