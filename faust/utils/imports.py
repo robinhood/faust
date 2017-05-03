@@ -2,7 +2,9 @@
 import importlib
 import sys
 import warnings
-from typing import Any, Iterable, Mapping, MutableMapping, Tuple, Type, Union
+from typing import (
+    Any, Iterable, Mapping, MutableMapping, Set, Tuple, Type, Union,
+)
 from .collections import FastUserDict
 from .objects import cached_property
 
@@ -40,9 +42,12 @@ class FactoryMapping(FastUserDict):
     """
 
     aliases: MutableMapping[str, str]
+    namespaces: Set
+    _finalized: bool = False
 
     def __init__(self, *args: Mapping, **kwargs: str) -> None:
         self.aliases = dict(*args, **kwargs)  # type: ignore
+        self.namespaces = set()
 
     def by_url(self, url: str) -> Type:
         """Get class associated with URL (scheme is used as alias key)."""
@@ -50,7 +55,23 @@ class FactoryMapping(FastUserDict):
         return self.by_name(url.partition('://')[0])
 
     def by_name(self, name: SymbolArg) -> Any:
+        self._maybe_finalize()
         return symbol_by_name(name, aliases=self.aliases)
+
+    def include_setuptools_namespace(self, namespace: str) -> None:
+        self.namespaces.add(namespace)
+
+    def _maybe_finalize(self) -> None:
+        if not self._finalized:
+            self._finalized = True
+            self._finalize()
+
+    def _finalize(self) -> None:
+        for namespace in self.namespaces:
+            self.aliases.update({
+                name: cls_name
+                for name, cls_name in load_extension_class_names(namespace)
+            })
 
     @cached_property
     def data(self) -> MutableMapping:  # type: ignore
