@@ -4,7 +4,7 @@ from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import K, V, Event, Message, ModelT, Request
 from ..types.serializers import AsyncSerializerT, RegistryT
 from ..utils.compat import want_bytes
-from ..utils.imports import symbol_by_name
+from ..utils.imports import FactoryMapping, symbol_by_name
 from .codecs import CodecArg, dumps, loads
 
 _flake8_Any_is_really_used: Any  # XXX flake8 bug
@@ -15,9 +15,10 @@ __all__ = ['Registry']
 class Registry(RegistryT):
 
     #: Mapping of serializers that needs to be async
-    override_classes = {
-        'avro': 'faust.serializers.avro.faust:AvroSerializer',
-    }
+    override_classes = FactoryMapping(
+        avro='faust.serializers.avro.faust:AvroSerializer',
+    )
+    override_classes.include_setuptools_namespace('faust.async_serializers')
 
     #: Async serializer instances are cached here.
     _override: MutableMapping[CodecArg, AsyncSerializerT] = None
@@ -139,6 +140,6 @@ class Registry(RegistryT):
         try:
             return self._override[name]
         except KeyError:
-            ser = self._override[name] = (
-                symbol_by_name(self.override_classes[name])(self))
+            ser = self._override[name] = symbol_by_name(
+                self.override_classes.get_alias(name))(self)
             return cast(AsyncSerializerT, ser)

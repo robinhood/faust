@@ -58,6 +58,10 @@ class FactoryMapping(FastUserDict):
         self._maybe_finalize()
         return symbol_by_name(name, aliases=self.aliases)
 
+    def get_alias(self, name: str) -> Any:
+        self._maybe_finalize()
+        return self.aliases[name]
+
     def include_setuptools_namespace(self, namespace: str) -> None:
         self.namespaces.add(namespace)
 
