@@ -15,9 +15,9 @@ What is Stream Processing?
 
     - **Simple**
 
-        Faust is extremely easy to use compared to other stream processing
+        ƒaµS† is extremely easy to use compared to other stream processing
         solutions.  There's no DSL to limit your creativity, no restricted
-        set of operations to work from, and since Faust is a library it can
+        set of operations to work from, and since ƒaµS† is a library it can
         integrate with just about anything.  All you need is a Kafka broker.
 
         Here's one of the simplest applications you can make:
@@ -48,7 +48,7 @@ What is Stream Processing?
 
         You're probably a bit intimidated by the `async` and `await` keywords,
         but you don't have to know how asyncio works to use
-        Faust: just mimic the examples and you'll be fine.
+        ƒaµS†: just mimic the examples and you'll be fine.
 
         The example application starts two tasks: one is processing a stream,
         the other is a background thread sending events to that stream.
@@ -59,7 +59,7 @@ What is Stream Processing?
 
     - **Highly Available**
 
-        Faust is highly available and can survive network problems and server
+        ƒaµS† is highly available and can survive network problems and server
         crashes.  In the case of node failure it can automatically recover,
         and tables have standby nodes that will take over.
 
@@ -69,18 +69,18 @@ What is Stream Processing?
 
     - **Fast**
 
-        Faust applications can hopefully handle millions of events per second
+        ƒaµS† applications can hopefully handle millions of events per second
         in the future.
 
     - **Flexible**
 
-        Faust is just Python, and a stream is just an infinite async iterator.
-        If you know how to use Python, you already know how to use Faust,
+        ƒaµS† is just Python, and a stream is just an infinite async iterator.
+        If you know how to use Python, you already know how to use ƒaµS†,
         and it works with your favorite Python libraries like Django, Flask,
         SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
 
 
-.. topic:: Faust can be used for...
+.. topic:: ƒaµS† can be used for...
 
     .. hlist::
         :columns: 2
@@ -125,7 +125,7 @@ How do I use it?
     Did someone make an order, create a comment, tag something, ...? Publish
     it all to Kafka!
 
-.. topic:: Step 2: Use Faust to process those events
+.. topic:: Step 2: Use ƒaµS† to process those events
 
     Some ideas based around the events mentioned above:
 
