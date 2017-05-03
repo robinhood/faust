@@ -27,7 +27,6 @@ class CodecT(metaclass=abc.ABCMeta):
     def __or__(self, other: Any) -> Any:
         ...
 
+
 # `serializer` argument can be str or Codec instance.
 CodecArg = Optional[Union[CodecT, str]]
-
-
