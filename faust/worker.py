@@ -57,7 +57,8 @@ F_BANNER = """
   .log         -> {logfile} ({loglevel})
   .pid         -> {pid}
   .hostname    -> {hostname}
-  .transport   -> {transport} ]
+  .transport   -> {transport}
+  .store       -> {store} ]
 """.strip()
 
 #: Format string for banner info line.
@@ -188,6 +189,7 @@ class Worker(Service):
             ident=self.faust_ident(),
             id=', '.join(x.id for x in self.apps),
             transport=', '.join(x.url for x in self.apps),
+            store=', '.join(x.store for x in self.apps),
             web=', '.join(x.website.url for x in self.apps),
             logfile=self.logfile if self.logfile else '-stderr-',
             loglevel=level_name(self.loglevel or 'WARN').lower(),
