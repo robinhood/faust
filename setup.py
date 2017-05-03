@@ -19,6 +19,7 @@ NAME = 'faust'
 EXTENSIONS = {
     'debug',
     'fast',
+    'rocksdb',
     'uvloop',
 }
 

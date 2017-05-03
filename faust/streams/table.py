@@ -18,7 +18,7 @@ class Table(Stream, TableT, ManagedUserDict):
     def __init__(self, *,
                  table_name: str = None,
                  default: Callable[[], Any] = None,
-                 store: str = 'memory://',
+                 store: str = None,
                  window: WindowT = None,
                  key_type: Type = None,
                  value_type: Type = None,
@@ -58,7 +58,10 @@ class Table(Stream, TableT, ManagedUserDict):
             self.data = self.StateStore(url=None, app=app, loop=self.loop)
         else:
             url = self._store or self.app.store
-            self.data = stores.by_url(url)(url, app, loop=self.loop)
+            self.data = stores.by_url(url)(
+                url, app,
+                table_name=self.table_name,
+                loop=self.loop)
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
         self.changelog_topic = self.derive_topic(

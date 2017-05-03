@@ -23,6 +23,7 @@
     faust.stores
     faust.stores.base
     faust.stores.memory
+    faust.stores.rocksdb
     faust.streams.joins
     faust.streams.manager
     faust.streams.stream
