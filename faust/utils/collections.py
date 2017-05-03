@@ -11,6 +11,26 @@ __all__ = ['Node', 'FastUserDict', 'ManagedUserDict']
 
 
 class Node(NodeT):
+    """Tree node.
+
+    Notes:
+        Nodes have a link to
+
+            - the ``.root`` node (or None if this is the top-most node)
+            - the ``.prev`` node (if this is a child node).
+            - a list of children
+
+        A Node may have ``.data`` associated with it, and arbitrary
+        data may also be stored in ``.children``.
+
+    Arguments:
+        data (Any): Data to associate with node.
+
+    Keyword Arguments:
+        root (NodeT): Root node.
+        prev (NodeT): Previous node.
+        children (List[NodeT]): List of child nodes.
+    """
 
     @classmethod
     def _new_node(cls, data: Any, **kwargs: Any) -> NodeT:
@@ -27,6 +47,7 @@ class Node(NodeT):
         self.children = children or []
 
     def new(self, data: Any) -> NodeT:
+        """Create new node from this node."""
         node = self._new_node(
             data,
             root=self.root if self.root is not None else self,
@@ -36,15 +57,22 @@ class Node(NodeT):
         return node
 
     def reattach(self, parent: NodeT) -> NodeT:
+        """Attach this node to `parent` node.
+
+        The root of this node will be set to ``parent.root``, and the
+        the parent will be previous to this node.
+        """
         self.root = parent.root if parent.root is not None else parent
         self.prev = parent
         parent.add(self)
         return self
 
     def add(self, data: Any) -> None:
+        """Add node as a child node."""
         self.children.append(data)
 
     def as_graph(self) -> DependencyGraphT:
+        """Convert to :class:`~faust.utils.graphs.DependencyGraph`."""
         graph = DependencyGraph()
         stack = deque([self])
         while stack:
@@ -60,6 +88,7 @@ class Node(NodeT):
 
 
 class FastUserDict(UserDict):
+    """Like UserDict but reimplements some methods for speed."""
 
     data: MutableMapping
 
@@ -106,17 +135,22 @@ class FastUserDict(UserDict):
 
 
 class ManagedUserDict(FastUserDict):
+    """A UserDict that adds callbacks for when keys are get/set/deleted."""
 
     def on_key_get(self, key: Any) -> None:
+        """Called when a key is retrieved."""
         ...
 
     def on_key_set(self, key: Any, value: Any) -> None:
+        """Called when a key is set."""
         ...
 
     def on_key_del(self, key: Any) -> None:
+        """Called when a key is deleted."""
         ...
 
     def on_clear(self) -> None:
+        """Called when the dict is cleared."""
         ...
 
     def __getitem__(self, key: Any) -> Any:
