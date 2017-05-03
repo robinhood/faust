@@ -1,5 +1,4 @@
 """RocksDB storage."""
-from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Iterator, Tuple
 from ..types.app import AppT
 from . import base
@@ -8,33 +7,6 @@ try:
     import rocksdb
 except ImportError:
     rocksdb = None  # noqa
-
-
-class RocksKeysView(KeysView):
-
-    def __init__(self, store: 'Store') -> None:
-        self._mapping = store
-
-    def __iter__(self) -> Iterator:
-        yield from self._mapping
-
-
-class RocksValuesView(ValuesView):
-
-    def __init__(self, store: 'Store') -> None:
-        self._mapping = store
-
-    def __iter__(self) -> Iterator:
-        yield from self._mapping._itervalues()
-
-
-class RocksItemsView(ItemsView):
-
-    def __init__(self, store: 'Store') -> None:
-        self._mapping = store
-
-    def __iter__(self) -> Iterator[Tuple[Any, Any]]:
-        yield from self._mapping._iteritems()
 
 
 class Store(base.SerializedStore):
@@ -73,43 +45,28 @@ class Store(base.SerializedStore):
     def _del(self, key: bytes) -> None:
         self.db.delete(key)
 
-    def __iter__(self) -> Iterator:
-        yield from self._iterkeys()
+    def _contains(self, key: bytes) -> bool:
+        return self.db.key_may_exist(key)[0]
 
-    def __contains__(self, key: Any) -> bool:
-        return self.db.key_may_exist(self._encode_key(key))[0]
-
-    def __len__(self) -> int:
+    def _size(self) -> int:
         it = self.db.iterkeys()
         it.seek_to_first()
         return sum(1 for _ in it)
 
-    def keys(self) -> KeysView:
-        return RocksKeysView(self)
-
-    def values(self) -> ValuesView:
-        return RocksValuesView(self)
-
-    def items(self) -> ItemsView:
-        return RocksItemsView(self)
-
-    def _iterkeys(self) -> Iterator:
+    def _iterkeys(self) -> Iterator[bytes]:
         it = self.db.iterkeys()
         it.seek_to_first()
-        for key in it:
-            yield self._decode_key(key)
+        yield from it
 
-    def _itervalues(self) -> Iterator:
+    def _itervalues(self) -> Iterator[bytes]:
         it = self.db.itervalues()
         it.seek_to_first()
-        for value in it:
-            yield self._decode_value(value)
+        yield from it
 
-    def _iteritems(self) -> Iterator[Tuple[Any, Any]]:
+    def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
         it = self.db.iteritems()
         it.seek_to_first()
-        for key, value in it:
-            yield self._decode_key(key), self._decode_value(value)
+        yield from it
 
     def _open_db(self) -> rocksdb.DB:
         return rocksdb.DB(self.filename, self._options())
@@ -140,6 +97,3 @@ class Store(base.SerializedStore):
     def filename(self) -> str:
         name = self.url.partition('://')[-1]
         return '{}.db'.format(name) if '.' not in name else name
-
-    def _repr_info(self) -> str:
-        return 'url={!r}'.format(self.url)
