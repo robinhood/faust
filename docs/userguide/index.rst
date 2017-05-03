@@ -15,4 +15,5 @@
     streams
     tables
     models
+    sensors
     vskafka
