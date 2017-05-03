@@ -353,7 +353,8 @@ class Stream(StreamT, Service):
             return getattr(event, key.field)
         return await maybe_async(key(event))
 
-    def aggregate(self, table_name: str,
+    def aggregate(self,
+                  table_name: str,
                   operator: Callable[[Any, Event], Any],
                   *,
                   window: WindowT = None,
@@ -372,7 +373,14 @@ class Stream(StreamT, Service):
             key_type=key_type,
             value_type=value_type,
         )
+        self.aggregate_into(table, operator, key=key)
+        return table
 
+    def aggregate_into(self,
+                       table: TableT,
+                       operator: Callable[[Any, Event], Any],
+                       *,
+                       key: FieldDescriptorT = None) -> StreamT:
         async def aggregator(event: Event) -> Event:
             k = event.req.key if key is None else getattr(event, key.field)
             timestamp = event.req.message.timestamp
@@ -385,18 +393,26 @@ class Stream(StreamT, Service):
             return event
 
         self.add_processor(aggregator)
-        return table
+
+
 
     def count(self, table_name: str,
               *,
               key: FieldDescriptorT = None,
               **kwargs: Any) -> TableT:
         return self.aggregate(
-            table_name,
-            operator=self._counter,
+            table_name, self._counter,
             default=int,
             key=key,
             **kwargs,
+        )
+
+    def count_into(self, table: TableT,
+                   *,
+                   key: FieldDescriptorT = None) -> StreamT:
+        return self.aggregate_into(
+            table, self._counter,
+            key=key,
         )
 
     def _counter(self, total: int, value: Event) -> int:
@@ -409,11 +425,18 @@ class Stream(StreamT, Service):
             value_type: Type = None,
             **kwargs: Any) -> TableT:
         return self.aggregate(
-            table_name,
-            operator=self._adder(field),
+            table_name, self._adder(field),
             default=default,
             key=key,
             value_type=field.type if value_type is None else value_type,
+        )
+
+    def sum_into(self, field: FieldDescriptorT, table: TableT,
+                 *,
+                 key: FieldDescriptorT = None) -> StreamT:
+        return self.aggregate_into(
+            table, self._adder(field),
+            key=key,
         )
 
     def _adder(self, field: FieldDescriptorT) -> Callable[[Any, Event], Any]:
