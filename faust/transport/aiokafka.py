@@ -88,7 +88,6 @@ class Consumer(base.Consumer):
 
     async def _drain_messages(self) -> None:
         callback = self.callback
-        getone = self._consumer._fetcher.next_record
         getmany = self._consumer.getmany
         track_message = self.track_message
         should_stop = self._stopped.is_set
@@ -103,11 +102,12 @@ class Consumer(base.Consumer):
         try:
             while not should_stop():
                 pending = []
-                for tp, messages in (await getmany(timeout_ms=1000, max_records=100)).items():
+                records = await getmany(timeout_ms=1000, max_records=None)
+                for tp, messages in records.items():
                     pending.extend([
                         deliver(message, tp) for message in messages
                     ])
-                    await gather(*pending, loop=loop)
+                await gather(*pending, loop=loop)
         except ConsumerStoppedError:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore

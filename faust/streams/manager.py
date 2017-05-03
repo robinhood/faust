@@ -1,12 +1,15 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, Dict, List, Set, Sequence, MutableMapping, cast
+from typing import Any, Dict, List, Set, Sequence, MutableMapping, Tuple, cast
 from ..types import Message, TopicPartition
 from ..types.app import AppT
 from ..types.streams import StreamT, StreamManagerT
 from ..types.transports import ConsumerCallback, ConsumerT
 from ..utils.services import Service
 from .stream import Stream
+
+__flake8_Dict_is_used: Dict    # XXX flake8 bug
+__flake8_Tuple_is_used: Tuple  # XXX flake8 bug
 
 
 class StreamManager(StreamManagerT, Service):
@@ -110,7 +113,7 @@ class StreamManager(StreamManagerT, Service):
                 streams[(stream.task_group, stream.task_index)].append(stream)
             else:
                 # move streams from unknown task groups into separate list.
-                ungrouped_stream.append(stream)
+                ungrouped_streams.append(stream)
 
         # Streams with the same group index should share the same inbox
         for _, group_streams in streams.items():
