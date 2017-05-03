@@ -69,6 +69,7 @@ class JSONEncoder(json.JSONEncoder):
 
     def default(self, o: Any,
                 *,
+                sequences: Tuple[type, ...] = (set,),
                 dates: Tuple[type, ...] = (datetime.date, datetime.time),
                 textual: Tuple[type, ...] = TEXTUAL_TYPES) -> Any:
         if isinstance(o, dates):
@@ -78,6 +79,8 @@ class JSONEncoder(json.JSONEncoder):
             if r.endswith('+00:00'):
                 r = r[:-6] + 'Z'
             return r
+        elif isinstance(o, sequences):
+            return list(o)
         elif isinstance(o, textual):
             return str(o)
         else:
