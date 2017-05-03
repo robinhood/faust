@@ -39,7 +39,7 @@ class TableState(KeywordReduce):
                  keys_retrieved: int = 0,
                  keys_updated: int = 0,
                  keys_deleted: int = 0) -> None:
-        self.table = table
+        self.table: TableT = table
         self.keys_retrieved = keys_retrieved
         self.keys_updated = keys_updated
         self.keys_deleted = keys_deleted
@@ -51,6 +51,9 @@ class TableState(KeywordReduce):
             'keys_deleted': self.keys_deleted,
         }
 
+    def __reduce_keywords__(self) -> Mapping:
+        return {**self.asdict(), 'table': self.table}
+
 
 class EventState(KeywordReduce):
 
@@ -60,6 +63,7 @@ class EventState(KeywordReduce):
                  time_in: float = None,
                  time_out: float = None,
                  time_total: float = None) -> None:
+        self.stream: StreamT = stream
         self.time_in: float = time_in
         self.time_out: float = time_out
         self.time_total: float = time_total
@@ -67,6 +71,16 @@ class EventState(KeywordReduce):
     def on_out(self) -> None:
         self.time_out = monotonic()
         self.time_total = self.time_out - self.time_in
+
+    def asdict(self) -> Mapping:
+        return {
+            'time_in': self.time_in,
+            'time_out': self.time_out,
+            'time_total': self.time_total,
+        }
+
+    def __reduce_keywords__(self) -> Mapping:
+        return {**self.asdict(), 'stream': self.stream}
 
 
 class MessageState(KeywordReduce):
@@ -97,7 +111,23 @@ class MessageState(KeywordReduce):
         self.time_out = time_out
         self.time_total = time_total
         self.streams = []
-        self.stream_index = {}
+        self.stream_index = {
+            ev.stream: ev for ev in self.streams
+        }
+
+    def asdict(self) -> Mapping:
+        return {
+            'consumer_id': self.consumer_id,
+            'topic': self.tp.topic,
+            'partition': self.tp.partition,
+            'time_in': self.time_in,
+            'time_out': self.time_out,
+            'time_total': self.time_total,
+            'streams': [s.asdict() for s in self.streams],
+        }
+
+    def __reduce_keywords__(self) -> Mapping:
+        return {**self.asdict(), 'streams': self.streams}
 
     def on_stream_in(self, stream: StreamT, event: Event) -> None:
         ev = EventState(stream, time_in=monotonic())
