@@ -176,7 +176,7 @@ class Stream(StreamT, Service):
         Service.__init__(self, loop=loop, beacon=None)
 
     def bind(self, app: AppT) -> StreamT:
-        """Create a new clone of this stream that is bound to an app."""
+        """Create new clone of this stream, bound to a specific app."""
         return self.clone()._bind(app)
 
     def _bind(self, app: AppT) -> StreamT:
@@ -187,7 +187,14 @@ class Stream(StreamT, Service):
         self.inbox = asyncio.Queue(maxsize=1, loop=self.loop)
         # attach beacon to current Faust task, or attach it to app.
         task = asyncio.Task.current_task(loop=self.loop)
-        self.task_owner = task
+        if task is not None:
+            self.task_owner = task
+            self.task_group = getattr(task, '_group_id', None)
+            try:
+                self.task_index = task._stream_index  # type: ignore
+                task._stream_index += 1               # type: ignore
+            except AttributeError:
+                pass
         if task is not None and hasattr(task, '_beacon'):
             self.beacon = task._beacon.new(self)  # type: ignore
         else:
@@ -282,13 +289,13 @@ class Stream(StreamT, Service):
         return self.clone(topics=[topic], on_start=self.maybe_start)
 
     def echo(self, *topics: Union[str, Topic]) -> StreamT:
-        topics = [
+        _topics = [
             self.derive_topic(t) if isinstance(t, str) else t
             for t in topics
         ]
 
         async def echoing(event: Event) -> Event:
-            for t in topics:
+            for t in _topics:
                 await event.forward(t)
             return event
         self.add_processor(echoing)

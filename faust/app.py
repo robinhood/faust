@@ -90,8 +90,8 @@ class AppService(Service):
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Sequence[ServiceT]:
-        for task in self.app._task_factories:
-            self.app.add_task(task(self.app))
+        for task, group_id in self.app._task_factories:
+            self.app.add_task(task(self.app), group_id=group_id)
         # Stream+Table instances
         streams: List[ServiceT] = list(self.app._streams.values())
         sensors: List[ServiceT] = list(self.app.sensors)
@@ -186,6 +186,8 @@ class App(AppT, ServiceProxy):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
+    _task_ids = count(0)
+
     _pending_on_commit: MutableMapping[
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
@@ -196,7 +198,9 @@ class App(AppT, ServiceProxy):
     #:     >>> @app.task
     #:     def mytask(app):
     #:     ...     ...
-    _task_factories: MutableSequence[Callable[['AppT'], Generator]]
+    _task_factories: MutableSequence[
+        Tuple[Callable[['AppT'], Generator], int]
+    ]
 
     @classmethod
     def current_app(self) -> AppT:
@@ -380,7 +384,8 @@ class App(AppT, ServiceProxy):
 
     def _task(self, *, concurrency: int = 1) -> Callable:
         def _inner(task: Callable[[AppT], Generator]) -> Callable:
-            self._task_factories.extend([task] * concurrency)
+            group_id = next(self._task_ids)
+            self._task_factories.extend([(task, group_id)] * concurrency)
             return task
         return _inner
 
@@ -395,14 +400,16 @@ class App(AppT, ServiceProxy):
             return around_timer
         return _inner
 
-    def add_task(self, task: Generator) -> Awaitable:
+    def add_task(self, task: Generator, *, group_id: int = None) -> Awaitable:
         """Start task.
 
         Notes:
             A task is simply any coroutine iterating over a stream,
             or even any coroutine doing anything.
         """
-        return self._tasks.add(task)
+        if group_id is None:
+            group_id = next(self._task_ids)
+        return self._tasks.add(task, group_id=group_id)
 
     async def _on_task_started(
             self, task: asyncio.Task,

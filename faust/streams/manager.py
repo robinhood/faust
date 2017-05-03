@@ -1,6 +1,6 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, List, Set, Sequence, MutableMapping, cast
+from typing import Any, Dict, List, Set, Sequence, MutableMapping, cast
 from ..types import Message, TopicPartition
 from ..types.app import AppT
 from ..types.streams import StreamT, StreamManagerT
@@ -60,8 +60,6 @@ class StreamManager(StreamManagerT, Service):
             # that subscribe to this message
             streams = list(get_streams_for_topic(message.topic))
 
-            print('MESSAGE DELIVERED TO %r STREAMS' % (len(streams),))
-
             # we increment the reference count for this message in bulk
             # immediately, so that nothing will get a chance to decref to
             # zero before we've had the chance to pass it to all streams.
@@ -101,7 +99,28 @@ class StreamManager(StreamManagerT, Service):
 
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
+
+        consolidated_streams: List[Stream] = []
+
+        # Group streams by group index.
+        streams: Dict[int, List[Stream]] = defaultdict(list)
         for stream in cast(List[Stream], self._streams):
+            streams[stream.task_group].append(stream)
+
+        # extract all the streams that had task_group=None
+        ungrouped_streams: List[Stream] = streams.pop(None, None)
+
+        # Streams with the same group index should share the same inbox
+        for _, group_streams in streams.items():
+            consolidated_streams.append(group_streams[0])
+            # group_streams[0].inbox is shared with all streams
+            for s in group_streams[1:]:
+                s.inbox = group_streams[0].inbox
+
+        # add back all streams with task_group=None
+        consolidated_streams.extend(ungrouped_streams or [])
+
+        for stream in consolidated_streams:
             if stream.active:
                 for topic in stream._topicmap:
                     self._topicmap[topic].add(stream)

@@ -1,5 +1,6 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
+import asyncio
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.structs import (
@@ -47,7 +48,7 @@ class Consumer(base.Consumer):
     RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
-    wait_for_shutdown = False
+    wait_for_shutdown = True
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
@@ -88,21 +89,33 @@ class Consumer(base.Consumer):
     async def _drain_messages(self) -> None:
         callback = self.callback
         getone = self._consumer._fetcher.next_record
+        getmany = self._consumer.getmany
         track_message = self.track_message
         should_stop = self._stopped.is_set
+        gather = asyncio.gather
+        loop = self.loop
+
+        async def deliver(record: Any, tp: TopicPartition) -> None:
+            message = Message.from_message(record, tp)
+            await track_message(message, tp, message.offset)
+            await callback(message)
+
         try:
             while not should_stop():
-                record = await getone(())
-                tp = self._new_topicpartition(record.topic, record.partition)
-                message = Message.from_message(record, tp)
-                await track_message(message, tp, message.offset)
-                await callback(message)
+                pending = []
+                for tp, messages in (await getmany(timeout_ms=1000, max_records=100)).items():
+                    pending.extend([
+                        deliver(message, tp) for message in messages
+                    ])
+                    await gather(*pending, loop=loop)
         except ConsumerStoppedError:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
                 logger.info('Consumer: stopped, shutting down...')
                 return
             raise
+        except Exception as exc:
+            logger.exception('Drain messages raised: %r', exc)
         finally:
             self.set_shutdown()
 

@@ -51,6 +51,7 @@ GroupByKeyArg = Union[
 class StreamT(AsyncIterator[_T], ServiceT):
 
     active: bool = True
+    concurrency: int = 1
     app: AppT = None
     topics: MutableSequence[Topic] = None
     name: str = None
@@ -58,6 +59,8 @@ class StreamT(AsyncIterator[_T], ServiceT):
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
+    task_group: int = None
+    task_index: int = None
 
     children: List['StreamT'] = None
 
@@ -75,6 +78,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
                  topics: Sequence[Topic] = None,
                  processors: StreamProcessorMap = None,
                  coroutines: StreamCoroutineMap = None,
+                 concurrency: int = 1,
                  children: List['StreamT'] = None,
                  join_strategy: JoinT = None,
                  app: AppT = None,
