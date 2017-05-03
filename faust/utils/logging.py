@@ -8,6 +8,7 @@ DEFAULT_FORMAT = '[%(asctime)s: %(levelname)s] %(message)s'
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Get logger by name."""
     logger = logging.getLogger(name)
     if not logger.handlers:
         logger.addHandler(logging.NullHandler())
@@ -15,12 +16,14 @@ def get_logger(name: str) -> logging.Logger:
 
 
 def level_name(loglevel: Union[str, int]) -> str:
+    """Convert log level to number."""
     if isinstance(loglevel, str):
         return loglevel.upper()
     return logging.getLevelName(loglevel)
 
 
 def level_number(loglevel: Union[str, int]) -> int:
+    """Convert log level number to name."""
     if isinstance(loglevel, int):
         return loglevel
     return logging.getLevelName(loglevel.upper())  # type: ignore
@@ -31,6 +34,7 @@ def setup_logging(
         loglevel: Union[str, int] = None,
         logfile: Union[str, IO] = None,
         logformat: str = None) -> int:
+    """Setup logging to file/stream."""
     stream: IO = None
     _loglevel: int = level_number(loglevel)
     if not isinstance(logfile, str):
