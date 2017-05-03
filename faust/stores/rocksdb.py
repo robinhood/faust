@@ -139,7 +139,7 @@ class Store(base.SerializedStore):
     @property
     def filename(self) -> str:
         name = self.url.partition('://')[-1]
-        return '{0}.db' if '.' not in name else name
+        return '{}.db'.format(name) if '.' not in name else name
 
     def _repr_info(self) -> str:
         return 'url={!r}'.format(self.url)
