@@ -281,6 +281,19 @@ class Stream(StreamT, Service):
         self.add_processor(forward)
         return self.clone(topics=[topic], on_start=self.maybe_start)
 
+    def echo(self, *topics: Union[str, Topic]) -> StreamT:
+        topics = [
+            self.derive_topic(t) if isinstance(t, str) else t
+            for t in topics
+        ]
+
+        async def echoing(event: Event) -> Event:
+            for t in topics:
+                await event.forward(t)
+            return event
+        self.add_processor(echoing)
+        return self
+
     def group_by(self, key: GroupByKeyArg,
                  *,
                  name: str = None) -> StreamT:
