@@ -42,7 +42,7 @@ You can add a new codec to this mapping by:
 
 .. code-block:: pycon
 
-    >>> from faust import codecs
+    >>> from faust.serializers import codecs
     >>> codecs.register(custom, custom_serializer())
 
 A codec subclass requires two methods to be implemented: ``_loads()``
@@ -52,7 +52,7 @@ and ``_dumps()``:
 
     import msgpack
 
-    from faust import codecs
+    from faust.serializers import codecs
 
     class raw_msgpack(codecs.Codec):
 
@@ -80,7 +80,7 @@ our codec, and we can use it to define records:
 
 .. code-block:: pycon
 
-    >>> from faust import Record
+    >>> from faust.serializers import Record
     >>> class Point(Record, serializer='msgpack'):
     ...     x: int
     ...     y: int
@@ -136,7 +136,7 @@ that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 .. code-block:: python
 
-    from faust import codecs
+    from faust.serializers import codecs
 
     class raw_msgpack(codecs.Codec):
 

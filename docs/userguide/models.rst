@@ -47,6 +47,9 @@ field is an error:
 .. code-block:: pycon
 
     >>> point = Point(x=10)
+
+.. code-block:: pytb
+
     Traceback (most recent call last):
     File "<stdin>", line 1, in <module>
     File "/opt/devel/faust/faust/models/record.py", line 96, in __init__
@@ -127,4 +130,158 @@ To convert the JSON back into a model use the ``.loads()`` class method:
 Codecs
 ======
 
+Supported codecs
+----------------
 
+* **json**    - json with utf-8 encoding.
+* **pickle**  - pickle with base64 encoding (not urlsafe)
+* **binary**  - base64 encoding (not urlsafe)
+
+Serialization by name
+---------------------
+
+The func:`dumps` function takes a codec name and the object to encode,
+the return value is bytes:
+
+.. code-block:: pycon
+
+    >>> s = dumps('json', obj)
+
+For the reverse direction, the func:`loads` function takes a codec
+name and a encoded payload to decode (bytes):
+
+.. code-block:: pycon
+
+    >>> obj = loads('json', s)
+
+You can also combine encoders in the name, like in this case
+where json is combined with gzip compression:
+
+.. code-block:: pycon
+
+    >>> obj = loads('json|gzip', s)
+
+Codec registry
+--------------
+
+Codecs are configured by name and the :mod:`faust.serializers.codecs` module
+maintains a mapping from name to :class:`Codec` instance: the :attr:`codecs`
+attribute.
+
+You can add a new codec to this mapping by:
+
+.. code-block:: pycon
+
+    >>> from faust.serializers import codecs
+    >>> codecs.register(custom, custom_serializer())
+
+A codec subclass requires two methods to be implemented: ``_loads()``
+and ``_dumps()``:
+
+.. code-block:: python
+
+    import msgpack
+
+    from faust.serializers import codecs
+
+    class raw_msgpack(codecs.Codec):
+
+        def _dumps(self, obj: Any) -> bytes:
+            return msgpack.dumps(obj)
+
+        def _loads(self, s: bytes) -> Any:
+            return msgpack.loads(s)
+
+Our codec now encodes/decodes to raw msgpack format, but we
+may also need to transfer this payload on a transport not
+handling binary data well.  Codecs may be chained together,
+so to add a text encoding like base64, which we use in this case,
+we use the ``|`` operator to form a combined codec:
+
+.. code-block:: python
+
+    def msgpack() -> codecs.Codec:
+        return raw_msgpack() | codecs.binary()
+
+    codecs.register('msgpack', msgpack())
+
+At this point we monkey-patched Faust to support
+our codec, and we can use it to define records:
+
+.. code-block:: pycon
+
+    >>> from faust import Record
+    >>> class Point(Record, serializer='msgpack'):
+    ...     x: int
+    ...     y: int
+
+The problem with monkey-patching is that we must make sure the patching
+happens before we use the feature.
+
+Faust also supports registering *codec extensions*
+using setuptools entrypoints, so instead we can create an installable msgpack
+extension.
+
+To do so we need to define a package with the following directory layout:
+
+.. code-block:: text
+
+    faust-msgpack/
+        setup.py
+        faust_msgpack.py
+
+The first file, :file:`faust-msgpack/setup.py`, defines metadata about our
+package and should look like the following example:
+
+.. code-block:: python
+
+    import setuptools
+
+    setuptools.setup(
+        name='faust-msgpack',
+        version='1.0.0',
+        description='Faust msgpack serialization support',
+        author='Ola A. Normann',
+        author_email='ola@normann.no',
+        url='http://github.com/example/faust-msgpack',
+        platforms=['any'],
+        license='BSD',
+        packages=find_packages(exclude=['ez_setup', 'tests', 'tests.*']),
+        zip_safe=False,
+        install_requires=['msgpack-python'],
+        tests_require=[],
+        entry_points={
+            'faust.codecs': [
+                'msgpack = faust_msgpack:msgpack',
+            ],
+        },
+    )
+
+The most important part being the ``entry_points`` key which tells
+Faust how to load our plugin. We have set the name of our
+codec to ``msgpack`` and the path to the codec class
+to be ``faust_msgpack:msgpack``. This will be imported by Faust
+as ``from faust_msgpack import msgpack``, so we need to define
+that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
+
+.. code-block:: python
+
+    from faust.serializers import codecs
+
+    class raw_msgpack(codecs.Codec):
+
+        def _dumps(self, obj: Any) -> bytes:
+            return msgpack.dumps(s)
+
+
+    def msgpack() -> codecs.Codec:
+        return raw_msgpack() | codecs.binary()
+
+That's it! To install and use our new extension we do:
+
+.. code-block:: console
+
+    $ python setup.py install
+
+At this point may want to publish this on PyPI to share
+the extension with other Faust users.

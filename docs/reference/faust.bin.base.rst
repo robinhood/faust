@@ -1,11 +1,11 @@
 =====================================================
- ``faust.bin.worker``
+ ``faust.bin.base``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.bin.worker
+.. currentmodule:: faust.bin.base
 
-.. automodule:: faust.bin.worker
+.. automodule:: faust.bin.base
     :members:
     :undoc-members:
