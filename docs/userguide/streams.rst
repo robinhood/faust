@@ -168,84 +168,83 @@ Events
 
 .. _stream-operations:
 
-Operations
-==========
+Reference
+=========
+
+.. note::
+
+    Do not create ``Stream`` objects directly, instead use: ``app.stream``
+    to instantiate new streams.
+
+Methods
+-------
+
+Aggregation
+^^^^^^^^^^^
 
 .. class:: Stream
+    :noindex:
 
+    .. automethod:: aggregate
 
-    .. coroutinemethod:: asitems()
+    .. automethod:: aggregate_into
 
-        Iterate over the stream as ``key, event`` pairs:
+    .. automethod:: count
 
-        .. code-block:: python
+    .. automethod:: count_into
 
-            async for key, event in stream.asitems():
-                ...
+    .. automethod:: sum
 
-    .. method:: tee(n = 2)
+    .. automethod:: sum_into
 
-        Clone the stream into n new streams that all receive a copy
-        of events.
+Joins
+^^^^^
 
-        This is the stream analog of :func:`itertools.tee`.
+.. class:: Stream
+    :noindex:
 
-    .. method:: through(topic)
+    .. automethod:: join
 
-        Send messages received on this stream to another topic,
-        and return a new stream that consumes from that topic.
+    .. automethod:: left_join
 
-        Note: The messages are forwarded after any processors have been
-        applied.
+    .. automethod:: inner_join
 
-    .. method:: echo(*topics)
+    .. automethod:: outer_join
 
-        Send messages received on this stream to one or more topics,
-        but unlike ``.through()`` we do not consume from these topics.
+Iteration tools
+^^^^^^^^^^^^^^^
 
-    .. method:: group_by(key, name = None)
+.. class:: Stream
+    :noindex:
 
-        Create new stream that repartitions the stream by rewriting keys.
+    .. automethod:: asitems
 
-        :param key: The key argument specifies what to use as the basis for
-           repartitioning the stream.  It can be either a field descriptor,
-           or a callable/async callable.
-        :param name: Name of intermediate topic.  This is optional
-            and if not provided a name will be generated.
+    .. automethod:: tee(n = 2)
 
-        **Examples**
+    .. automethod:: enumerate
 
-            Using a field descriptor to use a field in the event as the new
-            key:
+    .. automethod:: through
 
-            .. code-block:: python
+    .. automethod:: echo
 
-                s = app.stream(withdrawals_topic, value_type=Withdrawal)
-                async for event in s.group_by(Withdrawal.account_id):
-                    ...
+    .. automethod:: group_by
 
-            Using an async callable to extract a new key:
+Processing
+^^^^^^^^^^
 
-            .. code-block:: python
+.. class:: Stream
+    :noindex:
 
-                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+    .. automethod:: put_event
 
-                async def get_key(withdrawal):
-                    return await aiohttp.get(
-                        'http://example.com/resolve_account/{}'.format(
-                            withdrawal.account_id))
+Topics
+^^^^^^
 
-                async for event in s.group_by(get_key):
-                    ...
+.. class:: Stream
+    :noindex:
 
-            Using a regular callable to extract a new key:
+    .. automethod:: subscribe
 
-            .. code-block:: python
+    .. automethod:: unsubscribe
 
-                s = app.stream(withdrawals_topic, value_type=Withdrawal)
-
-                def get_key(withdrawal):
-                    return withdrawal.account_id.upper()
-
-                async for event in s.group_by(get_key):
-                    ...
+    .. automethod:: derive_topic

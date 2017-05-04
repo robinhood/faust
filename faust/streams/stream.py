@@ -261,10 +261,41 @@ class Stream(StreamT, Service):
         )
 
     async def asitems(self) -> AsyncIterator[Tuple[K, Event]]:
+        """Iterate over the stream as ``key, event`` pairs.
+
+        Examples:
+            .. code-block:: python
+
+                async def mytask(app):
+                    async for key, event in stream.asitems():
+                        print(key, event)
+        """
         async for event in self:
             yield event.req.key, event
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
+        """Clone stream into n new streams, receiving copies of events.
+
+        This is the stream analog of :func:`itertools.tee`.
+
+        Examples:
+            .. code-block:: python
+
+                async def processor1(stream):
+                    async for item in stream:
+                        print(item.value * 2)
+
+                async def processor2(stream):
+                    async for item in stream:
+                        print(item.value / 2)
+
+                async def mytask(app):
+                    # duplicate the stream and process it in different ways.
+                    a, b = app.stream(topic).tee(2)
+                    await asyncio.gather(
+                        processor1(a),
+                        processor2(b))
+        """
         streams = [
             self.clone(active=False, on_start=self.maybe_start)
             for _ in range(n)
@@ -277,7 +308,36 @@ class Stream(StreamT, Service):
         self.add_processor(forward)
         return tuple(streams)
 
+    def enumerate(self,
+                  start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
+        """Enumerate events received in this stream.
+
+        Akin to Python's built-in ``enumerate``, but works for an asynchronous
+        stream.
+        """
+        return aenumerate(self, start)
+
     def through(self, topic: Union[str, Topic]) -> StreamT:
+        """Forward events to new topic and consume from that topic.
+
+        Send messages received on this stream to another topic,
+        and return a new stream that consumes from that topic.
+
+        Notes:
+            The messages are forwarded after any processors have been
+            applied.
+
+        Example:
+            .. code-block:: python
+
+                topic = faust.topic('foo')
+
+                async def mytask(app):
+                    async for event in app.stream(topic).through('bar'):
+                        # event was first received in topic 'foo',
+                        # then forwarded and consumed from topic 'bar'
+                        print(event)
+        """
         if isinstance(topic, str):
             topic = self.derive_topic(topic)
         topic = topic
@@ -289,6 +349,10 @@ class Stream(StreamT, Service):
         return self.clone(topics=[topic], on_start=self.maybe_start)
 
     def echo(self, *topics: Union[str, Topic]) -> StreamT:
+        """Forward events to one or more topics.
+
+        Unlike :meth:`through`, we don't consume from these topics.
+        """
         _topics = [
             self.derive_topic(t) if isinstance(t, str) else t
             for t in topics
@@ -308,22 +372,51 @@ class Stream(StreamT, Service):
 
         Arguments:
             key: The key argument decides how the new key is generated,
-            it can be a field descriptor, a callable, or an async callable.
+                it can be a field descriptor, a callable, or an async
+                callable.
 
-            The ``name`` argument must be provided if the key argument is
-            a callable.
+                Note: The ``name`` argument must be provided if the key
+                    argument is a callable.
 
         Keyword Arguments:
             name: Suffix to use for repartitioned topics.
+                This argument is required if `key` is a callable.
 
         Examples:
-            >>> s.group_by(Withdrawal.account_id)
+            Using a field descriptor to use a field in the event as the new
+            key:
 
-            >>> s.group_by(lambda event: event.account_id,
-            ...            name='event.account_id')
+            .. code-block:: python
 
-            >>> s.group_by(lambda event: event.req.key + '-foo',
-            ...            name='event.account_id')
+                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+                async for event in s.group_by(Withdrawal.account_id):
+                    ...
+
+            Using an async callable to extract a new key:
+
+            .. code-block:: python
+
+                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+
+                async def get_key(withdrawal):
+                    return await aiohttp.get(
+                        'http://example.com/resolve_account/{}'.format(
+                            withdrawal.account_id))
+
+                async for event in s.group_by(get_key):
+                    ...
+
+            Using a regular callable to extract a new key:
+
+            .. code-block:: python
+
+                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+
+                def get_key(withdrawal):
+                    return withdrawal.account_id.upper()
+
+                async for event in s.group_by(get_key):
+                    ...
         """
         if not name:
             if isinstance(key, FieldDescriptorT):
@@ -362,6 +455,29 @@ class Stream(StreamT, Service):
                   key: FieldDescriptorT = None,
                   key_type: Type = None,
                   value_type: Type = None) -> TableT:
+        """Aggregate events from this stream in a table.
+
+        Arguments:
+            table_name: Name of the table.
+            operator: Callable used to extract value from event,
+                must have a signature of ``(previous_value, event)``.
+                For example an operator to sum values, where the
+                event has an ``.amount`` field could be:
+                    ``lambda prev, event: prev + event.amount``
+
+        Keyword Arguments:
+            window: Optional windowing strategy, to e.g. aggregate
+                events within the last n hours, or similar.
+            default: Default value for unknown keys in table.
+                Setting this means your table will act like Python's
+                ``defaultdict``, for example having ``default=int``
+                means any unknown keys will end up having a value of ``0``.
+            key: Optional field descriptor used to extract the key used
+                when storing values in the table. If not provided the
+                message key will be used.
+            key_type: Optional model describing how keys are serialized.
+            value_type: Optional model describing how values are serialized.
+        """
         if key_type is None and key is not None:
             key_type = key.type
         table = self.app.table(
@@ -381,6 +497,7 @@ class Stream(StreamT, Service):
                        operator: Callable[[Any, Event], Any],
                        *,
                        key: FieldDescriptorT = None) -> StreamT:
+        """Aggregate into existing table."""
         _window = table.window
         if _window is not None:
 
@@ -406,6 +523,15 @@ class Stream(StreamT, Service):
               *,
               key: FieldDescriptorT = None,
               **kwargs: Any) -> TableT:
+        """Aggregate that counts the number of events coming into the stream.
+
+        Arguments:
+            table_name: Name of table.
+
+        Keyword Arguments:
+            key: Field descriptor used to extract the key used to store
+                values in the table.
+        """
         return self.aggregate(
             table_name, self._counter,
             default=int,
@@ -416,6 +542,7 @@ class Stream(StreamT, Service):
     def count_into(self, table: TableT,
                    *,
                    key: FieldDescriptorT = None) -> StreamT:
+        """Count into existing table."""
         return self.aggregate_into(
             table, self._counter,
             key=key,
@@ -430,6 +557,19 @@ class Stream(StreamT, Service):
             key: FieldDescriptorT = None,
             value_type: Type = None,
             **kwargs: Any) -> TableT:
+        """Maintain a sum of values seen in the stream.
+
+        Arguments:
+            field: Field descriptor used to extract the value
+                used for summation.
+            table_name: Name of table.
+
+        Keyword Arguments:
+            default: Default type for table (think defaultdict).
+            key: Optional field descriptors to extract the key from one of the
+                event model fields.
+            value_type: The type of values in the resulting table.
+        """
         return self.aggregate(
             table_name, self._adder(field),
             default=default,
@@ -440,6 +580,7 @@ class Stream(StreamT, Service):
     def sum_into(self, field: FieldDescriptorT, table: TableT,
                  *,
                  key: FieldDescriptorT = None) -> StreamT:
+        """Sum into existing table."""
         return self.aggregate_into(
             table, self._adder(field),
             key=key,
@@ -453,6 +594,21 @@ class Stream(StreamT, Service):
     def derive_topic(self, name: str,
                      key_type: Type = None,
                      value_type: Type = None) -> Topic:
+        """Create topic derived from the key/value type of this stream.
+
+        Arguments:
+            name: Topic name.
+
+        Keyword Arguments:
+            key_type: Specific key type to use for this topic.
+                If not set, the key type of this stream will be used.
+            value_type: Specific value type to use for this topic.
+                If not set, the value type of this stream will be used.
+
+        Raises:
+            TypeError: if the types used by topics in this stream
+                is not uniform.
+        """
         k__v: Tuple[Type, Type] = None  # cache after first call
         # get key type from topics if not provided
         # note: if taking types from topics, the topic types must
@@ -469,10 +625,6 @@ class Stream(StreamT, Service):
             key_type=key_type,
             value_type=value_type,
         )
-
-    def enumerate(self,
-                  start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
-        return aenumerate(self, start)
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -552,6 +704,7 @@ class Stream(StreamT, Service):
         return on_message
 
     async def put_event(self, value: Event) -> None:
+        """Send event into stream manually."""
         topic = self._topicmap[value.req.message.topic]
         processors = self._processors.get(topic)
         value = await self.process(value.req.key, value)
@@ -580,6 +733,17 @@ class Stream(StreamT, Service):
                         *,
                         processors: Sequence[Processor] = None,
                         coroutine: StreamCoroutine = None) -> None:
+        """Subscribe stream to new topic.
+
+        Arguments:
+            topic: Topic description to subscribe to.
+
+        Keyword Arguments:
+            processors: Processors to apply to messages received
+                from this topic.
+            coroutine: Coroutine to apply to messages received
+                from this topic.
+        """
         if topic not in self.topics:
             self.topics.append(topic)
         if not isinstance(processors, MutableSequence):
@@ -590,6 +754,11 @@ class Stream(StreamT, Service):
         await self.app.streams.update()
 
     async def unsubscribe(self, topic: Topic) -> None:
+        """Unsubscribe stream from topic.
+
+        Arguments:
+            topic: Topic description to unsubscribe from.
+        """
         try:
             self.topics.remove(topic)
         except ValueError:
@@ -609,7 +778,7 @@ class Stream(StreamT, Service):
 
     async def on_stop(self) -> None:
         if self._current_event is not None:
-            self._current_event.decref()
+            self._current_event.ack()
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
@@ -649,7 +818,7 @@ class Stream(StreamT, Service):
             # decrement reference count for previous event processed.
             _prev, self._current_event = self._current_event, None
             if _prev is not None:
-                _prev.decref()
+                _prev.ack()
             _msg = _prev.req.message
             await self.app.sensors.on_stream_event_out(
                 _msg.tp, _msg.offset, self, _prev)

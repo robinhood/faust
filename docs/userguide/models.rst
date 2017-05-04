@@ -127,6 +127,48 @@ To convert the JSON back into a model use the ``.loads()`` class method:
 
     >>> transfer = Transfer.loads(json)
 
+Reference
+~~~~~~~~~
+
+Serialization/Deserialization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. class:: Record
+    :noindex:
+
+    .. automethod:: loads
+
+    .. automethod:: dumps
+
+    .. automethod:: to_representation
+
+Schemas
+^^^^^^^
+
+.. class:: Record
+    :noindex:
+
+    .. automethod:: as_schema
+
+    .. automethod:: as_avro_schema
+
+Event methods
+^^^^^^^^^^^^^
+
+.. class:: Record
+    :noindex:
+
+    .. automethod:: send
+
+    .. automethod:: forward
+
+    .. automethod:: attach
+
+    .. automethod:: ack
+
+Introspection
+^^^^^^^^^^^^^
+
 Codecs
 ======
 

@@ -71,196 +71,177 @@ The application...
 Configuration
 =============
 
-A number of keyword arguments are avaialable when instantiating the app, that
-enables you to configure it
+A number of keyword arguments are avaialable when instantiating the app, these
+form the configuration of your Faust application.
 
-.. _app-url:
+The only required paramater is the application id, a string shared by
+all instances of the app, that uniquely identifies it:
 
-``url``
--------
-:type: ``str``
-:default: ``"aiokafka://localhost:9092"``
+.. code-block:: pycon
 
-The transport URL defines something like a broker that Faust will use to
-send and receive messages.
-Currently the only supported transport is ``aiokafka://``.
+    >>> app = faust.App('myid')
 
-You can specify a list of hosts by separating them using semicomma:
+The rest of the configuration are passed as keyword-only arguments,
+and all of the options described below are optional:
 
-.. code-block:: text
+.. code-block:: python
 
-    aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
+    >>> app = faust.App(
+    ...     'myid',
+    ...     url='kafka://example.com',
+    ...     store='rocksdb://',
+    ... )
 
-.. _app-store:
-
-``store``
----------
-:type: ``str``
-:default: ``memory://``
-
-The backend used for table storage.
-Tables are stored in-memory only by default.
-
-.. _app-avro_registry_url:
-
-``avro_registry_url``
----------------------
-:type: ``str``
-:default: :const:`None`
-
-The URL of an Avro schema registry server.
-
-See http://docs.confluent.io/1.0/schema-registry/docs/intro.html
-.. _app-client_id:
-
-``client_id``
--------------
-:type: ``str``
-:default: `faust-VERSION`
-
-The client id is used to identify the software used, and is not usually
-configured by the user.
-
-.. _app-commit_interval:
-
-``commit_interval``
--------------------
-:type: `float`
-:default: ``30.0``
-
-How often we commit messages that have been fully processed (:term:`acked`).
-
-.. _app-key_serializer:
-
-``key_serializer``
-------------------
-:type: ``Union[str, Codec]``
-:default: :const:`None`
-
-Serializer used for keys by default when no serializer is specified, or a
-model is not being used.
-
-This can be the name of a serializer/codec, or an actual
-:class:`faust.serializers.codecs.Codec` instance.
-
-.. _app-value_serializer:
-
-``value_serializer``
---------------------
-:type: ``Union[str, Codec]``
-:default: ``"json"``
-
-Serializer used for values by default when no serializer is specified, or a
-model is not being used.
-
-This can be the name of a serializer/codec, or an actual
-:class:`faust.serializers.codecs.Codec` instance.
-
-.. _app-num_standby_replicas:
-
-``num_standy_replicas``
------------------------
-
-XXX NEED TO BE DOCUMENTED XXX
-
-.. _app-replication_factor:
-
-``replication_factor``
-----------------------
-
-XXX NEED TO BE DOCUMENTED XXX
-
-.. _app-Stream:
-
-``Stream``
+Parameters
 ----------
-:type: ``Union[str, Type]``
-:default: ``"faust.Stream"``
 
-The :class:`faust.Stream` class to use for streams, or the fully-qualified path to one.
+`url`
+    :type: ``str``
+    :default: ``"aiokafka://localhost:9092"``
 
-.. _app-Table:
+    The transport URL defines something like a broker that Faust will use to
+    send and receive messages.
+    Currently the only supported transport is ``aiokafka://``.
 
-``Table``
----------
-:type: ``Union[str, Type]``
-:default: ``"faust.Table"``
+    You can specify a list of hosts by separating them using semicomma:
 
-The :class:`faust.Table` class to use for tables, or the fully-qualified path to one.
+    .. code-block:: text
 
-.. _app-WebSite:
+        aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
-``WebSite``
------------
-:type: ``Union[str, Type]``
-:default: ``"faust.web.site:create_site"``
+`store`
+    :type: ``str``
+    :default: ``memory://``
 
-A class or callable that creates the :class:`~faust.web.base.Web` instance
-that forms what a Faust instance serves over the web.  It can also be the
-fully qualified path to one.
+    The backend used for table storage.
+    Tables are stored in-memory only by default.
 
+`avro_registry_url`
+    :type: ``str``
+    :default: :const:`None`
+
+    The URL of an Avro schema registry server.
+
+    See http://docs.confluent.io/1.0/schema-registry/docs/intro.html
+
+`client_id`
+    :type: ``str``
+    :default: `faust-VERSION`
+
+    The client id is used to identify the software used, and is not usually
+    configured by the user.
+
+`commit_interval`
+    :type: `float`
+    :default: ``30.0``
+
+    How often we commit messages that have been fully processed (:term:`acked`).
+
+`key_serializer`
+    :type: ``Union[str, Codec]``
+    :default: :const:`None`
+
+    Serializer used for keys by default when no serializer is specified, or a
+    model is not being used.
+
+    This can be the name of a serializer/codec, or an actual
+    :class:`faust.serializers.codecs.Codec` instance.
+
+`value_serializer`
+    :type: ``Union[str, Codec]``
+    :default: ``"json"``
+
+    Serializer used for values by default when no serializer is specified, or a
+    model is not being used.
+
+    This can be the name of a serializer/codec, or an actual
+    :class:`faust.serializers.codecs.Codec` instance.
+
+`num_standy_replicas`
+    :type: ``int``
+    :default: ``0``
+
+    The number of standby replicas for each task.
+
+        replication_factor (int): The replication factor for changelog topics
+            and repartition topics created by the application.  Default: ``1``.
+
+`replication_factor`
+    :type: ``int``
+    :default: ``1``
+
+    The replication factor for changlog topics and repartition topics created
+    by the application.
+
+`Stream`
+    :type: ``Union[str, Type]``
+    :default: ``"faust.Stream"``
+
+    The :class:`~faust.Stream` class to use for streams, or the fully-qualified
+    path to one.
+
+`Table`
+    :type: ``Union[str, Type]``
+    :default: ``"faust.Table"``
+
+    The :class:`~faust.Table` class to use for tables, or the fully-qualified
+    path to one.
+
+`WebSite`
+    :type: ``Union[str, Type]``
+    :default: ``"faust.web.site:create_site"``
+
+    A class or callable that creates the :class:`~faust.web.base.Web` instance
+    that forms what a Faust instance serves over the web.  It can also be the
+    fully qualified path to one.
+
+Reference
+=========
 
 Methods
-=======
+-------
+
+Decorators
+^^^^^^^^^^
 
 .. class:: App
+    :noindex:
 
-    .. attribute:: Stream
+    .. automethod:: task
 
-    .. attribute:: Table
+    .. automethod:: timer
 
-    .. attribute:: WebSite
+Creating streams and tables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    .. attribute:: id
+.. class:: App
+    :noindex:
 
-    .. attribute:: url
+    .. automethod:: stream
 
-    .. attribute:: store
+    .. automethod:: table
 
-    .. attribute:: avro_registry_url
+    .. automethod:: add_source
 
-    .. attribute:: client_id
+    .. automethod:: add_table
 
-    .. attribute:: commit_interval
 
-    .. attribute:: key_serializer
+Sending messages
+^^^^^^^^^^^^^^^^
 
-    .. attribute:: value_serializer
+.. class:: App
+    :noindex:
 
-    .. attribute:: num_standby_replicas
+    .. automethod:: send
 
-    .. attribute:: replication_factor
+    .. automethod:: send_soon
 
-    .. classmethod:: current_app
+    .. automethod:: send_attached
 
-    .. method:: task(fun: Callable[[AppT], Generator])
+Utilities
+^^^^^^^^^
 
-    .. method:: timer
+.. class:: App
+    :noindex:
 
-    .. method:: stream
-
-    .. method:: table
-
-    .. method:: add_source
-
-    .. method:: add_table
-
-    .. method:: new_stream_name
-
-    .. coroutinemethod:: send
-
-    .. method:: send_soon
-
-    .. method:: send_attached
-
-    .. method:: commit_attached
-
-    .. method:: render_graph
-
-    .. attribute:: transport
-
-    .. attribute:: tasks_running
-
-    .. attribute:: website
-
-    .. attribute:: streams
+    .. automethod:: current_app()

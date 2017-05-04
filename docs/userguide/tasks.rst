@@ -8,6 +8,10 @@
     :local:
     :depth: 1
 
+.. module:: faust
+
+.. currentmodule:: faust
+
 .. _task-basics:
 
 Basics
@@ -73,3 +77,31 @@ But this is just a best practice, as any asyncio Task will be allowed to
 iterate over streams.  Explicitly defining what are Faust tasks
 aids introspection, which may be used for debugging and monitoring
 purposes.
+
+Concurrency
+===========
+
+For idempotent, stateless tasks you may use the ``concurrency`` argument to
+start multiple instances of the same task:
+
+.. code-block:: python
+
+    @task(concurrency=100)
+    async def import_feeds(app):
+        async for feed in app.stream(feed_topic):
+            await import_feed(feed)
+
+Timers
+======
+
+A shortcut decorator is included for starting background tasks that perform
+some action at regular intervals.
+
+Using the ``@app.timer`` decorator we can write the example ``dump_stats``
+example above like this:
+
+.. code-block:: python
+
+    @app.timer(interval=30.0)
+    def dump_stats(app):
+            print(f'Logs processed: {stats.logs_received})
