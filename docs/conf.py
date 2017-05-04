@@ -16,7 +16,14 @@ globals().update(conf.build_config(
     include_intersphinx={'python', 'sphinx'},
     extra_extensions=[
         'sphinx.ext.napoleon',
+        'sphinx_autodoc_annotation',
+        'sphinxcontrib.asyncio',
+        'alabaster',
     ],
+    extra_intersphinx_mapping={
+        'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
+        'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
+    },
     # django_settings='testproj.settings',
     # path_additions=[os.path.join(os.pardir, 'testproj')],
     apicheck_ignore_modules=[
@@ -35,3 +42,7 @@ globals().update(conf.build_config(
         'faust.web.drivers',
     ],
 ))
+
+html_theme = 'alabaster'
+html_sidebars = {}
+templates_path = ['_templates']

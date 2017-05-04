@@ -4,6 +4,10 @@
  Application
 =======================================
 
+.. module:: faust
+
+.. currentmodule:: faust
+
 .. contents::
     :local:
     :depth: 1
@@ -50,17 +54,17 @@ The application...
     tables are created, how messages are serialized and deserialized, and so
     on.
 
-It is safe to...
-----------------
 
-- Run multiple application instances in the same process:
+.. topic:: It is safe to...
 
-    .. code-block:: pycon
+    - Run multiple application instances in the same process:
 
-        >>> app1 = faust.App('demo1')
-        >>> app2 = faust.App('demo2')
+        .. code-block:: pycon
 
-- Share an app between multiple threads (the app is :term:`thread safe`).
+            >>> app1 = faust.App('demo1')
+            >>> app2 = faust.App('demo2')
+
+    - Share an app between multiple threads (the app is :term:`thread safe`).
 
 .. _application-configuration:
 
@@ -194,3 +198,69 @@ The :class:`faust.Table` class to use for tables, or the fully-qualified path to
 A class or callable that creates the :class:`~faust.web.base.Web` instance
 that forms what a Faust instance serves over the web.  It can also be the
 fully qualified path to one.
+
+
+Methods
+=======
+
+.. class:: App
+
+    .. attribute:: Stream
+
+    .. attribute:: Table
+
+    .. attribute:: WebSite
+
+    .. attribute:: id
+
+    .. attribute:: url
+
+    .. attribute:: store
+
+    .. attribute:: avro_registry_url
+
+    .. attribute:: client_id
+
+    .. attribute:: commit_interval
+
+    .. attribute:: key_serializer
+
+    .. attribute:: value_serializer
+
+    .. attribute:: num_standby_replicas
+
+    .. attribute:: replication_factor
+
+    .. classmethod:: current_app
+
+    .. method:: task(fun: Callable[[AppT], Generator])
+
+    .. method:: timer
+
+    .. method:: stream
+
+    .. method:: table
+
+    .. method:: add_source
+
+    .. method:: add_table
+
+    .. method:: new_stream_name
+
+    .. coroutinemethod:: send
+
+    .. method:: send_soon
+
+    .. method:: send_attached
+
+    .. method:: commit_attached
+
+    .. method:: render_graph
+
+    .. attribute:: transport
+
+    .. attribute:: tasks_running
+
+    .. attribute:: website
+
+    .. attribute:: streams

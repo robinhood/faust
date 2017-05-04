@@ -4,3 +4,5 @@ flake8>=2.5.4
 tox>=2.3.1
 sphinx2rst>=1.0
 bumpversion
+twine
+pytest-sugar
