@@ -124,10 +124,17 @@ Deployment
 
 - ``faust`` command-line tool
 
+    DONE:
+
     .. code-block:: console
 
-        $ faust -A examples.simple start
-        $ FAUSTAPP=examples.simple faust start
+        $ faust -A examples.simple worker
+        $ FAUSTAPP=examples.simple faust worker
+
+    TODO(?):
+
+    .. code-block:: console
+
         $ faust -A examples.simple status
         $ faust -A examples.simple ping
         $ faust -A examples.simple send topic [value [ key]]
@@ -151,31 +158,9 @@ Look at confluent-kafka for inspiration.
 Sensors
 =======
 
-Write a basic sensor interface including the following metrics:
-
 - ``through()`` latency
 
 - ``group_by()`` latency
-
-
-Finished
---------
-
-* total number of events
-
-* -average processing time (from event received to event acked)-
-
-* -number of events processed/s-
-
-* -number of events processed/s by topic-
-
-* -number of events processed/s by task-
-
-* -number of records written to table by table.-
-
-* ``commit()`` latency
-
-*  ``Producer.send`` latency
 
 HTTP interface
 --------------
