@@ -134,4 +134,9 @@ setup(
     extras_require=extras_require(),
     classifiers=classifiers,
     long_description=long_description,
+    entry_points={
+        'console_scripts': [
+            'faust = faust.bin.base:cli',
+        ],
+    },
 )

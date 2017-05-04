@@ -1,4 +1,4 @@
-"""Applications."""
+"""Faust Application."""
 import asyncio
 import faust
 import io
@@ -210,11 +210,11 @@ class App(AppT, ServiceProxy):
     def start(self, *,
               argv: Sequence[str] = None,
               loop: asyncio.AbstractEventLoop = None) -> None:
-        from .bin.worker import worker
+        from .bin.base import parse_worker_args
         from .worker import Worker
         from .sensors import Sensor
         self.sensors.add(Sensor())
-        kwargs = worker(argv, standalone_mode=False)
+        kwargs = parse_worker_args(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
     def __init__(self, id: str,

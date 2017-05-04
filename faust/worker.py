@@ -135,6 +135,7 @@ class Worker(Service):
             stdout: IO = sys.stdout,
             stderr: IO = sys.stderr,
             loop: asyncio.AbstractEventLoop = None,
+            workdir: str = None,
             **kwargs: Any) -> None:
         self.apps = [s for s in services if isinstance(s, AppT)]
         self.services = services
@@ -147,6 +148,7 @@ class Worker(Service):
         self.stdout = stdout
         self.stderr = stderr
         self.spinner = Spinner(file=self.stdout)
+        self.workdir = workdir
         super().__init__(loop=loop, **kwargs)
         for service in self.services:
             service.beacon.reattach(self.beacon)
@@ -277,6 +279,8 @@ class Worker(Service):
         return self.services
 
     async def on_first_start(self) -> None:
+        if self.workdir:
+            os.chdir(Path(self.workdir).absolute())
         self._setup_logging()
         for sensor in self.sensors:
             await sensor.maybe_start()

@@ -12,7 +12,7 @@
 
     faust
     faust.app
-    faust.bin.worker
+    faust.bin.base
     faust.exceptions
     faust.models.base
     faust.models.record

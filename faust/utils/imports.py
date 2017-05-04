@@ -1,9 +1,13 @@
 """Importing utilities."""
 import importlib
+import os
 import sys
 import warnings
+from contextlib import contextmanager
+from types import ModuleType
 from typing import (
-    Any, Iterable, Mapping, MutableMapping, Set, Tuple, Type, Union,
+    Any, Callable, Generator, Iterable,
+    Mapping, MutableMapping, Set, Tuple, Type, Union,
 )
 from .collections import FastUserDict
 from .objects import cached_property
@@ -176,3 +180,35 @@ def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
                     namespace, class_name, exc))
         else:
             yield name, cls
+
+
+@contextmanager
+def cwd_in_path() -> Generator:
+    """Context adding the current working directory to sys.path."""
+    cwd = os.getcwd()
+    if cwd in sys.path:
+        yield
+    else:
+        sys.path.insert(0, cwd)
+        try:
+            yield cwd
+        finally:
+            try:
+                sys.path.remove(cwd)
+            except ValueError:  # pragma: no cover
+                pass
+
+
+def import_from_cwd(module: str,
+                    *,
+                    imp: Callable = None,
+                    package: str = None) -> ModuleType:
+    """Import module, temporarily including modules in the current directory.
+
+    Modules located in the current directory has
+    precedence over modules located in `sys.path`.
+    """
+    if imp is None:
+        imp = importlib.import_module
+    with cwd_in_path():
+        return imp(module, package=package)
