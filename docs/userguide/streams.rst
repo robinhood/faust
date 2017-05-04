@@ -8,6 +8,10 @@
     :local:
     :depth: 1
 
+.. module:: faust
+
+.. currentmodule:: faust
+
 Basics
 ======
 
@@ -161,3 +165,87 @@ rather start individual tasks:
 
 Events
 ======
+
+.. _stream-operations:
+
+Operations
+==========
+
+.. class:: Stream
+
+
+    .. coroutinemethod:: asitems()
+
+        Iterate over the stream as ``key, event`` pairs:
+
+        .. code-block:: python
+
+            async for key, event in stream.asitems():
+                ...
+
+    .. method:: tee(n = 2)
+
+        Clone the stream into n new streams that all receive a copy
+        of events.
+
+        This is the stream analog of :func:`itertools.tee`.
+
+    .. method:: through(topic)
+
+        Send messages received on this stream to another topic,
+        and return a new stream that consumes from that topic.
+
+        Note: The messages are forwarded after any processors have been
+        applied.
+
+    .. method:: echo(*topics)
+
+        Send messages received on this stream to one or more topics,
+        but unlike ``.through()`` we do not consume from these topics.
+
+    .. method:: group_by(key, name = None)
+
+        Create new stream that repartitions the stream by rewriting keys.
+
+        :param key: The key argument specifies what to use as the basis for
+           repartitioning the stream.  It can be either a field descriptor,
+           or a callable/async callable.
+        :param name: Name of intermediate topic.  This is optional
+            and if not provided a name will be generated.
+
+        **Examples**
+
+            Using a field descriptor to use a field in the event as the new
+            key:
+
+            .. code-block:: python
+
+                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+                async for event in s.group_by(Withdrawal.account_id):
+                    ...
+
+            Using an async callable to extract a new key:
+
+            .. code-block:: python
+
+                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+
+                async def get_key(withdrawal):
+                    return await aiohttp.get(
+                        'http://example.com/resolve_account/{}'.format(
+                            withdrawal.account_id))
+
+                async for event in s.group_by(get_key):
+                    ...
+
+            Using a regular callable to extract a new key:
+
+            .. code-block:: python
+
+                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+
+                def get_key(withdrawal):
+                    return withdrawal.account_id.upper()
+
+                async for event in s.group_by(get_key):
+                    ...
