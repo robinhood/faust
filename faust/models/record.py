@@ -61,7 +61,11 @@ class Record(Model):
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.optionalset = frozenset(defaults)
-        options.defaults = defaults
+        # extract all default values, but only for actual fields.
+        options.defaults = {
+            k: v for k, v in defaults.items()
+            if k in fields
+        }
         options.models = {
             field: typ for field, typ in fields.items()
             if issubclass(typ, ModelT)
@@ -138,13 +142,20 @@ class Record(Model):
         # Iterate over known fields as items-tuples.
         modelset = self._options.modelset
         for key in self._options.fields:
-            value = self.__dict__[key]
+            value = getattr(self, key)
             if key in modelset:
                 value = value.to_representation()
             yield key, value
 
     def _humanize(self) -> str:
-        return _kvrepr(self.__dict__, skip={'req'})
+        # we try to preserve the order of fields specified in the class,
+        # so doing {**self._options.defaults, **self.__dict__} does not work.
+        attrs, defaults = self.__dict__, self._options.defaults.items()
+        fields = {
+            **attrs,
+            **{k: v for k, v in defaults if k not in attrs},
+        }
+        return _kvrepr(fields, skip={'req'})
 
 
 def _kvrepr(d: Mapping[str, Any],
