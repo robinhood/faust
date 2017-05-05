@@ -4,6 +4,8 @@
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
 import re
+import sys
+import typing
 from typing import NamedTuple
 
 __version__ = '1.0.0'
@@ -32,17 +34,18 @@ VERSION = version_info = version_info_t(
 del(_temp)
 del(re)
 
-from .app import App                                      # noqa: E402
-from .models import Record                                # noqa: E402
-from .sensors import Monitor, Sensor                      # noqa: E402
-from .streams.stream import Stream                        # noqa: E402
-from .streams.table import Table                          # noqa: E402
-from .topics import topic                                 # noqa: E402
-from .types import Event                                  # noqa: E402
-from .windows import (                                    # noqa: E402
-    HoppingWindow, TumblingWindow, SlidingWindow,
-)
-from .worker import Worker                                # noqa: E402
+if typing.TYPE_CHECKING:
+    from .app import App                                      # noqa: E402
+    from .models import Record                                # noqa: E402
+    from .sensors import Monitor, Sensor                      # noqa: E402
+    from .streams.stream import Stream                        # noqa: E402
+    from .streams.table import Table                          # noqa: E402
+    from .topics import topic                                 # noqa: E402
+    from .types import Event                                  # noqa: E402
+    from .windows import (                                    # noqa: E402
+        HoppingWindow, TumblingWindow, SlidingWindow,
+    )
+    from .worker import Worker                                # noqa: E402
 
 __all__ = [
     'App',
@@ -66,3 +69,72 @@ def use_uvloop() -> None:
     else:
         import asyncio
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+
+# Lazy loading.
+# - See werkzeug/__init__.py for the rationale behind this.
+from types import ModuleType  # noqa
+
+all_by_module = {
+    'faust.app': ['App'],
+    'faust.models': ['Record'],
+    'faust.sensors': ['Monitor', 'Sensor'],
+    'faust.streams.stream': ['Stream'],
+    'faust.streams.table': ['Table'],
+    'faust.topics': ['topic'],
+    'faust.types': ['Event'],
+    'faust.windows': [
+        'HoppingWindow',
+        'TumblingWindow',
+        'SlidingWindow',
+    ],
+    'faust.worker': ['Worker'],
+}
+
+object_origins = {}
+for module, items in all_by_module.items():
+    for item in items:
+        object_origins[item] = module
+
+
+class module(ModuleType):
+    """Customized Python module."""
+
+    def __getattr__(self, name):
+        if name in object_origins:
+            module = __import__(object_origins[name], None, None, [name])
+            for extra_name in all_by_module[module.__name__]:
+                setattr(self, extra_name, getattr(module, extra_name))
+            return getattr(module, name)
+        return ModuleType.__getattribute__(self, name)
+
+    def __dir__(self):
+        result = list(new_module.__all__)
+        result.extend(('__file__', '__path__', '__doc__', '__all__',
+                       '__docformat__', '__name__', '__path__',
+                       'VERSION', 'version_info_t', 'version_info',
+                       '__package__', '__version__', '__author__',
+                       '__contact__', '__homepage__', '__docformat__'))
+        return result
+
+
+# keep a reference to this module so that it's not garbage collected
+old_module = sys.modules[__name__]
+
+new_module = sys.modules[__name__] = module(__name__)
+new_module.__dict__.update({
+    '__file__': __file__,
+    '__path__': __path__,
+    '__doc__': __doc__,
+    '__all__': tuple(object_origins),
+    '__version__': __version__,
+    '__author__': __author__,
+    '__contact__': __contact__,
+    '__homepage__': __homepage__,
+    '__docformat__': __docformat__,
+    '__package__': __package__,
+    'version_info_t': version_info_t,
+    'version_info': version_info,
+    'VERSION': VERSION,
+    'use_uvloop': use_uvloop,
+})
