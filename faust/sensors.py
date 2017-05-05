@@ -17,6 +17,7 @@ __all__ = [
     'EventState',
     'MessageState',
     'Sensor',
+    'Monitor',
     'SensorDelegate',
 ]
 
@@ -28,10 +29,17 @@ MAX_SEND_LATENCY_HISTORY = 30
 
 class TableState(KeywordReduce):
 
-    table: TableT
-    keys_retrieved: int
-    keys_updated: int
-    keys_deleted: int
+    #: The table this object records statistics for.
+    table: TableT = None
+
+    #: Number of times a key has been retrieved from this table.
+    keys_retrieved: int = 0
+
+    #: Number of times a key has been created/changed in this table.
+    keys_updated: int = 0
+
+    #: Number of times a key has been deleted from this table.
+    keys_deleted: int = 0
 
     def __init__(self,
                  table: TableT,
@@ -57,16 +65,29 @@ class TableState(KeywordReduce):
 
 class EventState(KeywordReduce):
 
+    #: The stream that received this event.
+    stream: StreamT = None
+
+    #: Monotonic timestamp of when the stream received this event.
+    time_in: float = 0.0
+
+    #: Monotonic timestamp of when the stream acknowledged this event.
+    time_out: float = None
+
+    #: Total event processing time (in seconds),
+    #: or None if event is still processing.
+    time_total: float = None
+
     def __init__(self,
                  stream: StreamT,
                  *,
                  time_in: float = None,
                  time_out: float = None,
                  time_total: float = None) -> None:
-        self.stream: StreamT = stream
-        self.time_in: float = time_in
-        self.time_out: float = time_out
-        self.time_total: float = time_total
+        self.stream = stream
+        self.time_in = time_in
+        self.time_out = time_out
+        self.time_total = time_total
 
     def on_out(self) -> None:
         self.time_out = monotonic()
@@ -85,15 +106,31 @@ class EventState(KeywordReduce):
 
 class MessageState(KeywordReduce):
 
-    consumer_id: int
-    tp: TopicPartition
-    offset: int
-    time_in: float
-    time_out: float
-    time_total: float
+    #: ID of the consumer that received this message.
+    consumer_id: int = None
 
-    streams: List[EventState]
-    stream_index: MutableMapping[StreamT, EventState]
+    #: The topic+partition this message was delivered to.
+    tp: TopicPartition = None
+
+    #: The offset of this message.
+    offset: int = None
+
+    #: Monotonic timestamp of when the consumer received this message.
+    time_in: float = None
+
+    #: Monotonic timestamp of when the consumer acknowledged this message.
+    time_out: float = None
+
+    #: Total processing time (in seconds), or None if the event is
+    #: still processing.
+    time_total: float = None
+
+    #: Every stream that receives this message will get an EventState instance
+    #: in this list.
+    streams: List[EventState] = None
+
+    #: Fast index from stream to EventState.
+    stream_index: MutableMapping[StreamT, EventState] = None
 
     def __init__(self,
                  consumer_id: int = None,
@@ -144,67 +181,154 @@ class MessageState(KeywordReduce):
         self.time_total = self.time_out - self.time_in
 
 
-class Sensor(SensorT, Service, KeywordReduce):
+class Sensor(SensorT, Service):
+    """Base class for sensors.
+
+    This sensor does not do anything at all, but can be subclassed
+    to create new sensors.
+    """
+
+    async def on_message_in(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message) -> None:
+        """Called whenever a message is received by a consumer."""
+        # WARNING: Sensors must never keep a reference to the Message,
+        #          as this means the message won't go out of scope!
+        ...
+
+    async def on_stream_event_in(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        """Called whenever a message is sent to a stream as an event."""
+        ...
+
+    async def on_stream_event_out(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: Event) -> None:
+        """Called whenever an event is acknowledged (finished processing)."""
+        ...
+
+    async def on_message_out(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message = None) -> None:
+        """Called when all streams have processed the message."""
+        ...
+
+    def on_table_get(self, table: TableT, key: Any) -> None:
+        """Called whenever a key is retrieved from a table."""
+        ...
+
+    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+        """Called whenever a key is updated in a table."""
+        ...
+
+    def on_table_del(self, table: TableT, key: Any) -> None:
+        """Called whenever a key is deleted from a table."""
+        ...
+
+    async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
+        """Called when a consumer is about to commit the offset."""
+        ...
+
+    async def on_commit_completed(
+            self, consumer: ConsumerT, state: Any) -> None:
+        """Called after the offset is committed."""
+        ...
+
+    async def on_send_initiated(
+            self, producer: ProducerT, topic: str,
+            keysize: int, valsize: int) -> Any:
+        """Called when a producer is about to send a message."""
+        ...
+
+    async def on_send_completed(
+            self, producer: ProducerT, state: Any) -> None:
+        """Called after a producer has sent a message."""
+        ...
+
+
+class Monitor(Sensor, KeywordReduce):
+    """Default Faust Sensor.
+
+    This is the default sensor, recording statistics about
+    events, etc.
+    """
 
     #: Max number of messages to keep history about in memory.
-    max_messages: int
+    max_messages: int = 0
 
     #: Max number of total runtimes to keep to build average.
-    max_avg_history: int
+    max_avg_history: int = 0
 
     #: Max number of commit latency numbers to keep.
-    max_commit_latency_history: int
+    max_commit_latency_history: int = 0
 
     #: Max number of send latency numbers to keep.
-    max_send_latency_history: int
-
-    #: Number of messages currently being processed.
-    messages_active: int
-
-    #: Number of messages processed in total.
-    messages_total: int
-
-    #: Count of messages received by topic
-    messages_by_topic: Counter[str]
-
-    #: Number of messages being processed this second.
-    messages_s: int
-
-    #: Number of messages sent in total.
-    messages_sent: int
-
-    #: Number of messages sent by topic.
-    messages_sent_by_topic: Counter[str]
-
-    #: Number of events currently being processed.
-    events_active: int
-
-    #: Number of events processed in total.
-    events_total: int
-
-    #: Number of events being processed this second.
-    events_s: int
-
-    #: Count of events processed by stream
-    events_by_stream: Counter[str]
-
-    #: Count of events processed by task
-    events_by_task: Counter[str]
-
-    #: List of runtimes used for averages
-    events_runtime: List[float]
-
-    #: List of commit latency values
-    commit_latency: List[float]
-
-    #: List of send latency values
-    send_latency: List[float]
-
-    #: List of messages
-    messages: List[MessageState]
+    max_send_latency_history: int = 0
 
     #: Mapping of tables
-    tables: MutableMapping[str, TableState]
+    tables: MutableMapping[str, TableState] = None
+
+    #: List of messages, as :class:`MessageState` objects.
+    #: Note that at most :attr:`max_messages` will be kept in memory.
+    messages: List[MessageState] = None
+
+    #: Number of messages currently being processed.
+    messages_active: int = 0
+
+    #: Number of messages processed in total.
+    messages_total: int = 0
+
+    #: Count of messages received by topic
+    messages_by_topic: Counter[str] = None
+
+    #: Number of messages being processed this second.
+    messages_s: int = 0
+
+    #: Number of messages sent in total.
+    messages_sent: int = 0
+
+    #: Number of messages sent by topic.
+    messages_sent_by_topic: Counter[str] = None
+
+    #: Number of events currently being processed.
+    events_active: int = 0
+
+    #: Number of events processed in total.
+    events_total: int = 0
+
+    #: Number of events being processed this second.
+    events_s: int = 0
+
+    #: Count of events processed by stream
+    events_by_stream: Counter[str] = None
+
+    #: Count of events processed by task
+    events_by_task: Counter[str] = None
+
+    #: Average event runtime over the last second.
+    events_runtime_avg: float = None
+
+    #: List of runtimes used for averages
+    events_runtime: List[float] = None
+
+    #: List of commit latency values
+    commit_latency: List[float] = None
+
+    #: List of send latency values
+    send_latency: List[float] = None
 
     #: Index of [tp][offset] -> MessageState.
     if typing.TYPE_CHECKING:

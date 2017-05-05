@@ -133,15 +133,19 @@ What do I need?
 .. sidebar:: Version Requirements
     :subtitle: Faust version 1.0 runs on
 
+    **Core**
+
     - Python 3.6
     - Kafka 0.10 or later.
+
+    **Extensions**
 
     - RocksDB 5.0 or later, python-rocksdb
 
 Faust requires Python 3.6 or later, and a running Kafka broker.
 
 There's currently no plan to port Faust to earlier Python versions,
-please contact the project if this is something that you'd like to work on.
+please get in touch if this is something that you want to work on.
 
 Extensions
 ----------
@@ -213,9 +217,10 @@ Design considerations
 - Library
 
     Faust is designed to be used as a library, this way you can embed it in
-    any existing Python program.  Faust also includes helpers that make it
-    easy to run Faust applications without boilerplate, this includes the
-    :program:`faust` command-line program.
+    any existing Python program.  Faust includes helpers that make it
+    easy to run applications without boilerplate, like the
+    :program:`faust` command-line program, the `@app.task` decorator,
+    but it really is a library you can drop into any Python program.
 
 - Live happy, die hard
 

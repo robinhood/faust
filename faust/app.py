@@ -25,6 +25,7 @@ from .types import (
     StreamCoroutine, Topic, TopicPartition, V,
 )
 from .types.app import AppT
+from .sensors import Monitor
 from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
@@ -94,6 +95,8 @@ class AppService(Service):
             self.app.add_task(task(self.app), group_id=group_id)
         # Stream+Table instances
         streams: List[ServiceT] = list(self.app._streams.values())
+        # Sensors
+        self.app.sensors.add(self.app.monitor)  # Add the main Monitor
         sensors: List[ServiceT] = list(self.app.sensors)
         services: List[ServiceT] = [
             self.app.producer,                        # app.Producer
@@ -202,6 +205,8 @@ class App(AppT, ServiceProxy):
         Tuple[Callable[['AppT'], Generator], int]
     ]
 
+    _monitor: Monitor = None
+
     @classmethod
     def current_app(self) -> AppT:
         """Returns the app that created the active task."""
@@ -212,8 +217,8 @@ class App(AppT, ServiceProxy):
               loop: asyncio.AbstractEventLoop = None) -> None:
         from .bin.base import parse_worker_args
         from .worker import Worker
-        from .sensors import Sensor
-        self.sensors.add(Sensor())
+        from .sensors import Monitor
+        self.sensors.add(Monitor())
         kwargs = parse_worker_args(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
@@ -232,6 +237,7 @@ class App(AppT, ServiceProxy):
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  WebSite: SymbolArg = DEFAULT_WEBSITE_CLS,
                  Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
+                 monitor: Monitor = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -256,6 +262,7 @@ class App(AppT, ServiceProxy):
         self._tables = OrderedDict()
         self.sensors = SensorDelegate(self)
         self._task_factories = []
+        self._monitor = monitor
         self._pending_on_commit = {}
 
     async def send(
@@ -591,6 +598,16 @@ class App(AppT, ServiceProxy):
     @cached_property
     def streams(self) -> StreamManagerT:
         return StreamManager(app=self, loop=self.loop, beacon=self.beacon)
+
+    @property
+    def monitor(self) -> Monitor:
+        if self._monitor is None:
+            self._monitor = Monitor()
+        return self._monitor
+
+    @monitor.setter
+    def monitor(self, monitor: Monitor) -> None:
+        self._monitor = monitor
 
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:

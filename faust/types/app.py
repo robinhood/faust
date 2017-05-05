@@ -14,9 +14,11 @@ from .tuples import Message, Topic, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from .web.base import Web
+    from ..web.base import Web
+    from ..sensors import Monitor
 else:
-    class Web: ...  # noqa
+    class Web: ...      # noqa
+    class Monitor: ...  # noqa
 
 
 __all__ = ['AppT']
@@ -149,4 +151,13 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def streams(self) -> StreamManagerT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def monitor(self) -> Monitor:
+        ...
+
+    @monitor.setter
+    def monitor(self, value: Monitor) -> None:
         ...

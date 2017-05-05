@@ -34,7 +34,7 @@ del(re)
 
 from .app import App                                      # noqa: E402
 from .models import Record                                # noqa: E402
-from .sensors import Sensor                               # noqa: E402
+from .sensors import Monitor, Sensor                      # noqa: E402
 from .streams.stream import Stream                        # noqa: E402
 from .streams.table import Table                          # noqa: E402
 from .topics import topic                                 # noqa: E402
@@ -48,6 +48,7 @@ __all__ = [
     'App',
     'Event',
     'Record',
+    'Monitor',
     'Sensor',
     'Stream',
     'Table',

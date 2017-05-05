@@ -2,7 +2,6 @@ import asyncio
 import faust
 import os
 import sys
-from faust.sensors import Sensor
 
 
 class Withdrawal(faust.Record, serializer='json'):

@@ -125,8 +125,6 @@ KStream
 
 - ``groupBy()``
 
-    NOT IMPLEMENTED
-
     .. code-block:: python
 
         async for event in stream.group_by(Withdrawal.account):

@@ -3,7 +3,6 @@ import faust
 import io
 import os
 import sys
-from faust.sensors import Sensor
 
 GRAPH = os.environ.get('GRAPH')
 

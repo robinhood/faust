@@ -15,13 +15,14 @@ Contents
 
     introduction
     userguide/index
-    reference/index
 
 .. toctree::
     :maxdepth: 1
 
+    reference/index
     changelog
     contributing
+    developers
     glossary
 
 Indices and tables

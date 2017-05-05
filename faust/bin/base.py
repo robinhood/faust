@@ -1,4 +1,5 @@
 import click
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable, Mapping, Sequence
@@ -25,7 +26,8 @@ worker_options = [
                  help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG'),
 ]
 
-def _apply_options(options: Sequence[Callable]):
+
+def _apply_options(options: Sequence[Callable]) -> Callable:
     def _inner(fun: Callable) -> Callable:
         for opt in options:
             fun = opt(fun)
@@ -54,7 +56,7 @@ def cli(ctx: click.Context,
 @cli.command(help='Start worker')
 @_apply_options(worker_options)
 @click.pass_context
-def worker(ctx, logfile: str, loglevel: str) -> None:
+def worker(ctx: click.Context, logfile: str, loglevel: str) -> None:
     app = ctx.obj['app']
     debug = ctx.obj['debug']
     quiet = ctx.obj['quiet']
@@ -67,7 +69,6 @@ def worker(ctx, logfile: str, loglevel: str) -> None:
            quiet=quiet,
            logfile=logfile,
            loglevel=loglevel).execute_from_commandline()
-
 
 
 @click.command()
@@ -88,7 +89,7 @@ def find_app(app: str,
         # last part was not an attribute, but a module
         sym = imp(app)
     if isinstance(sym, ModuleType) and ':' not in app:
-        found = sym.app
+        found = sym.app  # type: ignore
         if isinstance(found, ModuleType):
             raise AttributeError()
         return found
