@@ -70,8 +70,8 @@ Class: ``Monitor``
 
 .. _monitor-message:
 
-Monitor State
-^^^^^^^^^^^^^
+Monitor Attributes
+^^^^^^^^^^^^^^^^^^
 
 .. class:: Monitor
     :noindex:
@@ -80,9 +80,9 @@ Monitor State
 
         .. autoattribute:: messages_active
 
-        .. autoattribute:: messages_total
+        .. autoattribute:: messages_received_total
 
-        .. autoattribute:: messages_by_topic
+        .. autoattribute:: messages_in_by_topic
 
         .. autoattribute:: messages_s
 

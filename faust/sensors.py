@@ -289,10 +289,10 @@ class Monitor(Sensor, KeywordReduce):
     messages_active: int = 0
 
     #: Number of messages processed in total.
-    messages_total: int = 0
+    messages_received_total: int = 0
 
     #: Count of messages received by topic
-    messages_by_topic: Counter[str] = None
+    messages_received_by_topic: Counter[str] = None
 
     #: Number of messages being processed this second.
     messages_s: int = 0
@@ -346,7 +346,7 @@ class Monitor(Sensor, KeywordReduce):
                  tables: MutableMapping[str, TableState] = None,
                  messages_active: int = 0,
                  events_active: int = 0,
-                 messages_total: int = 0,
+                 messages_received_total: int = 0,
                  events_total: int = 0,
                  events_by_stream: Counter[StreamT] = None,
                  events_by_task: Counter[asyncio.Task] = None,
@@ -372,8 +372,8 @@ class Monitor(Sensor, KeywordReduce):
         self.send_latency = [] if send_latency is None else send_latency
 
         self.messages_active = messages_active
-        self.messages_total = messages_total
-        self.messages_by_topic = Counter()
+        self.messages_received_total = messages_received_total
+        self.messages_received_by_topic = Counter()
         self.messages_sent = messages_sent
         self.messages_sent_by_topic = Counter()
         self.messages_s = messages_s
@@ -390,11 +390,11 @@ class Monitor(Sensor, KeywordReduce):
     def asdict(self) -> Mapping:
         return {
             'messages_active': self.messages_active,
-            'messages_total': self.messages_total,
+            'messages_received_total': self.messages_received_total,
             'messages_sent': self.messages_sent,
             'messages_sent_by_topic': self.messages_sent_by_topic,
             'messages_s': self.messages_s,
-            'messages_by_topic': self.messages_by_topic,
+            'messages_received_by_topic': self.messages_received_by_topic,
             'events_active': self.events_active,
             'events_total': self.events_total,
             'events_s': self.events_s,
@@ -412,7 +412,7 @@ class Monitor(Sensor, KeywordReduce):
         self.add_future(self._sampler())
 
     async def _sampler(self) -> None:
-        prev_message_total = self.messages_total
+        prev_message_total = self.messages_received_total
         prev_event_total = self.events_total
         while not self.should_stop:
             await asyncio.sleep(1.0, loop=self.loop)
@@ -427,8 +427,8 @@ class Monitor(Sensor, KeywordReduce):
             prev_event_total = self.events_total
 
             # Update messages/s
-            self.messages_s = self.messages_total - prev_message_total
-            prev_message_total = self.messages_total
+            self.messages_s = self.messages_received_total - prev_message_total
+            prev_message_total = self.messages_received_total
 
             # Cleanup
             self._cleanup()
@@ -458,9 +458,9 @@ class Monitor(Sensor, KeywordReduce):
             message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
         #          as this means the message won't go out of scope!
-        self.messages_total += 1
+        self.messages_received_total += 1
         self.messages_active += 1
-        self.messages_by_topic[tp.topic] += 1
+        self.messages_received_by_topic[tp.topic] += 1
         state = MessageState(consumer_id, tp, offset, time_in=monotonic())
         self.messages.append(state)
         self.message_index[(tp, offset)] = state
