@@ -54,22 +54,22 @@ Faust is...
         app = faust.App('hello-app', url='kafka://localhost')
 
         class Greeting(faust.Record):
-            from: str
+            sender: str
             to: str
 
-        topic = faust.topic('hello-topic', value_serializer=Greeting)
+        topic = faust.topic('hello-topic', value_type=Greeting)
 
         @app.task
         async def hello(app):
             async for greeting in app.stream(topic):
-                print(f'Hello from {greeting.from} to {greeting.to}')
+                print(f'Hello from {greeting.sender} to {greeting.to}')
 
         @app.timer(interval=1.0)
         async def example_sender(app):
-            await app.send(topic, value=Greeting(from='Faust', to='you'))
+            await app.send(topic, value=Greeting(sender='Faust', to='you'))
 
         if __name__ == '__main__':
-            app.run()
+            app.start()
 
     You're probably a bit intimidated by the `async` and `await` keywords,
     but you don't have to know how asyncio works to use
@@ -109,21 +109,21 @@ Faust is...
     .. hlist::
         :columns: 2
 
-        - **Event processing**
+        - **Event Processing**
 
-        - **Distributed joins and aggregations**
+        - **Distributed Joins & Aggregations**
 
-        - **Machine learning**
+        - **Machine Learning**
 
-        - **Asynchronous tasks**
+        - **Asynchronous Tasks**
 
-        - **Distributed computing**
+        - **Distributed Computing**
 
-        - **Data warehousing & denormalization**
+        - **Data Denormalization**
 
-        - **Intrusion detection**
+        - **Intrusion Detection**
 
-        - **Realtime web & Web sockets.**
+        - **Realtime Web & Web Sockets.**
 
         - **and much more...**
 
