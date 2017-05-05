@@ -2,6 +2,12 @@
  Faust - Python Stream Processing
 =======================================================================
 
+.. topic:: \
+
+    *“I am not omniscient, but I know a lot.”*
+
+    -- Goethe, *Faust: First part*
+
 Contents
 ========
 
