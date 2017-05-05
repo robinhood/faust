@@ -82,7 +82,7 @@ Monitor Attributes
 
         .. autoattribute:: messages_received_total
 
-        .. autoattribute:: messages_in_by_topic
+        .. autoattribute:: messages_received_by_topic
 
         .. autoattribute:: messages_s
 

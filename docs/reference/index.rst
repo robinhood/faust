@@ -7,31 +7,77 @@
 :Release: |version|
 :Date: |today|
 
+Faust
+=====
+
 .. toctree::
     :maxdepth: 1
 
     faust
-    faust.app
-    faust.bin.base
     faust.exceptions
+    faust.app
+    faust.sensors
+    faust.topics
+    faust.windows
+    faust.worker
+
+Models
+======
+
+.. toctree::
+    :maxdepth: 1
+
     faust.models.base
     faust.models.record
-    faust.sensors
+
+Serializers
+===========
+
+.. toctree::
+    :maxdepth: 1
+
     faust.serializers.avro
     faust.serializers.codecs
     faust.serializers.registry
+
+Stores
+======
+
+.. toctree::
+    :maxdepth: 1
+
     faust.stores
     faust.stores.base
     faust.stores.memory
     faust.stores.rocksdb
+
+Streams
+=======
+
+.. toctree::
+    :maxdepth: 1
+
     faust.streams.joins
     faust.streams.manager
     faust.streams.stream
     faust.streams.table
-    faust.topics
+
+Transports
+==========
+
+.. toctree::
+    :maxdepth: 1
+
     faust.transport
     faust.transport.aiokafka
     faust.transport.base
+
+Types
+=====
+
+.. toctree::
+    :maxdepth: 1
+
     faust.types.app
     faust.types.codecs
     faust.types.core
@@ -44,6 +90,13 @@
     faust.types.windows
     faust.types.transports
     faust.types.tuples
+
+Utils
+=====
+
+.. toctree::
+    :maxdepth: 1
+
     faust.utils.aiter
     faust.utils.avro.serializers
     faust.utils.avro.servers
@@ -60,11 +113,24 @@
     faust.utils.types.collections
     faust.utils.types.graphs
     faust.utils.types.services
+
+Web
+===
+
+.. toctree::
+    :maxdepth: 1
+
     faust.web.apps.graph
     faust.web.apps.stats
     faust.web.base
     faust.web.drivers.aiohttp
     faust.web.site
     faust.web.views
-    faust.windows
-    faust.worker
+
+CLI
+===
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.bin.base
