@@ -38,8 +38,7 @@ you probably already have a need for Faust.
 Faust is...
 ==========================
 
-- **Simple**
-
+**Simple**
     Faust is extremely easy to use compared to other stream processing
     solutions.  There's no DSL to limit your creativity, no restricted
     set of operations to work from, and since Faust is a library it can
@@ -82,23 +81,19 @@ Faust is...
     and the background thread is only needed to feed data into our
     example.
 
-- **Highly Available**
-
+**Highly Available**
     Faust is highly available and can survive network problems and server
     crashes.  In the case of node failure it can automatically recover,
     and tables have standby nodes that will take over.
 
-- **Distributed**
-
+**Distributed**
     Start more instances of your application as needed.
 
-- **Fast**
-
+**Fast**
     Faust applications can hopefully handle millions of events per second
     in the future.
 
-- **Flexible**
-
+**Flexible**
     Faust is just Python, and a stream is just an infinite async iterator.
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
@@ -170,7 +165,7 @@ Extensions
 
     .. code-block:: console
 
-        pip install -U faust[fast,rocksdb,uvloop]
+        $ pip install -U faust[fast,rocksdb,uvloop]
 
     and also use them in requirement files:
 
@@ -208,26 +203,26 @@ How do I use it?
 Design considerations
 =====================
 
-- Modern Python
-
+Modern Python
     Faust uses modern Python 3 features such as ``async``/``await`` and type
     annotations.  You can take advantage of type annotations when writing
     Faust applications, but this is not mandatory.
 
-- Library
+Library
+    Faust is designed to be used as a library, and embeds into
+    any existing Python program, while also including helpers that
+    make it easy to deploy applications without boilerplate.
 
-    Faust is designed to be used as a library, this way you can embed it in
-    any existing Python program.  Faust includes helpers that make it
-    easy to run applications without boilerplate, like the
-    :program:`faust` command-line program, the `@app.task` decorator,
-    but it really is a library you can drop into any Python program.
-
-- Live happy, die hard
-
+Live happy, die hard
     Faust is programmed to crash on encountering an error such as losing
     the connection to Kafka.  This means error recovery is up to supervisor
     tools such as `supervisord`_, `Circus`_, or one provided by your Operating
     System.
+
+Extensible
+    Faust abstracts away storages, serializers and even message transports,
+    to make it easy for developers to extend it with new capabilities,
+    and integrate into your existing systems.
 
 .. _`supervisord`: http://supervisord.org
 
