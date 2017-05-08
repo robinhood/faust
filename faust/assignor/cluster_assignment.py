@@ -27,7 +27,8 @@ class ClusterAssignment(Record, serializer="json"):
         self.subscriptions[client] = list(metadata.subscription)
         self.assignments[client] = (
             ClientAssignment.loads(metadata.user_data)
-            if metadata.user_data else ClientAssignment()
+            if metadata.user_data
+            else ClientAssignment(actives={}, standbys={})
         )
 
     def copartitioned_assignments(self,

@@ -108,7 +108,7 @@ class CopartitionedAssignor(object):
                                  ) -> Optional[CopartitionedAssignment]:
         # Round robin to find standby until we make a full cycle
         for _ in range(self._num_clients):
-            assignment = candidates.__next__()
+            assignment = next(candidates)
             can_assign = (
                 assignment.partition_assigned(partition, active=False) and
                 self._can_assign(assignment, partition, active=False)
@@ -123,7 +123,7 @@ class CopartitionedAssignor(object):
                                      ) -> Optional[CopartitionedAssignment]:
         # Round robin and assign until we make a full circle
         for _ in range(self._num_clients):
-            assignment = candidates.__next__()
+            assignment = next(candidates)
             if self._can_assign(assignment, partition, active):
                 return assignment
 
@@ -164,7 +164,7 @@ class CopartitionedAssignor(object):
                 # For standbys we offset to round robin start to shuffle
                 # assignment of standbys
                 for i in range(partition):
-                    candidates.__next__()
+                    next(candidates)
 
             assert assign_to is None or active
 

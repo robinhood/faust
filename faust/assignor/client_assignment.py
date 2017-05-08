@@ -1,11 +1,17 @@
-from typing import MutableMapping, NamedTuple, Sequence, Set
+from typing import MutableMapping, Sequence, Set
 from faust.models import Record
 
 
-class CopartitionedAssignment(NamedTuple):
+class CopartitionedAssignment(object):
     actives: Set[int]
     standbys: Set[int]
-    topics: Sequence[Sequence]
+    topics: Set[str]
+
+    def __init__(self, actives: Set[int]=set(), standbys: Set[int]=set(),
+                 topics: Set[str]=set()) -> None:
+        self.actives = actives
+        self.standbys = standbys
+        self.topics = topics
 
     def validate(self):
         if not self.actives.isdisjoint(self.standbys):
@@ -46,10 +52,14 @@ class CopartitionedAssignment(NamedTuple):
     def get_assigned_partitions(self, active: bool) -> Set[int]:
         return self.actives if active else self.standbys
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}<actives={self.actives}, " \
+               f"standbys={self.standbys}, topics={self.topics}>"
+
 
 class ClientAssignment(Record, serializer="json"):
-    actives: MutableMapping[str, Sequence[int]] = {}  # Topic -> Partition
-    standbys: MutableMapping[str, Sequence[int]] = {}  # Topic -> Partition
+    actives: MutableMapping[str, Sequence[int]]  # Topic -> Partition
+    standbys: MutableMapping[str, Sequence[int]]  # Topic -> Partition
 
     def kafka_protocol_assignment(self):
         return [(topic, list(partitions))
