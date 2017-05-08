@@ -216,8 +216,6 @@ Documentation
 
         - acknowledgements
 
-    - Serialization
-
     - Sensors
 
     - Deployment

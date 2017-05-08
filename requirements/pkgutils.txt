@@ -1,6 +1,9 @@
 setuptools>=20.6.7
 wheel>=0.29.0
 flake8>=2.5.4
+flake8-blind-except
+flake8-comprehensions
+flake8-pyi
 tox>=2.3.1
 sphinx2rst>=1.0
 bumpversion

@@ -16,4 +16,6 @@
     tables
     models
     sensors
+    deployment
+    http
     vskafka

@@ -46,3 +46,5 @@ globals().update(conf.build_config(
 html_theme = 'alabaster'
 html_sidebars = {}
 templates_path = ['_templates']
+
+autodoc_member_order = 'bysource'

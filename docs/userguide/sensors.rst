@@ -77,38 +77,55 @@ Monitor Attributes
     :noindex:
 
         .. autoattribute:: messages
+            :annotation:
 
         .. autoattribute:: messages_active
+            :annotation:
 
         .. autoattribute:: messages_received_total
+            :annotation:
 
         .. autoattribute:: messages_received_by_topic
+            :annotation:
 
         .. autoattribute:: messages_s
+            :annotation:
 
         .. autoattribute:: events_active
+            :annotation:
 
         .. autoattribute:: events_total
+            :annotation:
 
         .. autoattribute:: events_s
+            :annotation:
 
         .. autoattribute:: events_by_stream
+            :annotation:
 
         .. autoattribute:: events_by_task
+            :annotation:
 
         .. autoattribute:: events_runtime
+            :annotation:
 
         .. autoattribute:: events_runtime_avg
+            :annotation:
 
         .. autoattribute:: tables
+            :annotation:
 
         .. autoattribute:: commit_latency
+            :annotation:
 
         .. autoattribute:: send_latency
+            :annotation:
 
         .. autoattribute:: messages_sent
+            :annotation:
 
         .. autoattribute:: messages_sent_by_topic
+            :annotation:
 
 .. _monitor-configuration:
 

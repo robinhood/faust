@@ -165,7 +165,7 @@ class Worker(Service):
 
     def _print(self, msg: str, file: IO = None, end: str = '\n') -> None:
         if not self.quiet:
-            print(msg, file=file or self.stdout, end=end)
+            print(msg, file=file or self.stdout, end=end)  # noqa: T003
 
     def on_startup_finished(self) -> None:
         self.loop.call_later(3.0, self._on_startup_finished)

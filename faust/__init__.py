@@ -6,7 +6,7 @@
 import re
 import sys
 import typing
-from typing import NamedTuple
+from typing import Any, Mapping, NamedTuple, Sequence
 
 __version__ = '1.0.0'
 __author__ = 'Robinhood Markets'
@@ -75,7 +75,7 @@ def use_uvloop() -> None:
 # - See werkzeug/__init__.py for the rationale behind this.
 from types import ModuleType  # noqa
 
-all_by_module = {
+all_by_module: Mapping[str, Sequence[str]] = {
     'faust.app': ['App'],
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
@@ -97,18 +97,19 @@ for module, items in all_by_module.items():
         object_origins[item] = module
 
 
-class module(ModuleType):
+class _module(ModuleType):
     """Customized Python module."""
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         if name in object_origins:
-            module = __import__(object_origins[name], None, None, [name])
+            module = __import__(
+                object_origins[name], None, None, [name])
             for extra_name in all_by_module[module.__name__]:
                 setattr(self, extra_name, getattr(module, extra_name))
             return getattr(module, name)
         return ModuleType.__getattribute__(self, name)
 
-    def __dir__(self):
+    def __dir__(self) -> Sequence[str]:
         result = list(new_module.__all__)
         result.extend(('__file__', '__path__', '__doc__', '__all__',
                        '__docformat__', '__name__', '__path__',
@@ -121,10 +122,10 @@ class module(ModuleType):
 # keep a reference to this module so that it's not garbage collected
 old_module = sys.modules[__name__]
 
-new_module = sys.modules[__name__] = module(__name__)
+new_module = sys.modules[__name__] = _module(__name__)
 new_module.__dict__.update({
     '__file__': __file__,
-    '__path__': __path__,
+    '__path__': __path__,  # type: ignore
     '__doc__': __doc__,
     '__all__': tuple(object_origins),
     '__version__': __version__,

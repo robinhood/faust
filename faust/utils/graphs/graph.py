@@ -165,7 +165,7 @@ class DependencyGraph(DependencyGraphT):
         """
         seen: Set = set()
         draw = formatter or self.formatter
-        write = partial(print, file=fh)
+        write = partial(print, file=fh)  # noqa: T101
 
         def if_not_seen(fun: Callable[[Any], str], obj: Any) -> None:
             if draw.label(obj) not in seen:
