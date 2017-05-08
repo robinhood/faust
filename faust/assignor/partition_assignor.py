@@ -42,19 +42,6 @@ class PartitionAssignor(AbstractPartitionAssignor):
             topics_by_partitions[num_partitions].add(topic)
         return topics_by_partitions
 
-    def _build_assignment(self,
-                          assignments: MutableMapping[str, ClientAssignment],
-                          ) -> MutableMapping[
-                                str, ConsumerProtocolMemberAssignment]:
-        return {
-            client: ConsumerProtocolMemberAssignment(
-                self.version,
-                sorted(assignment.kafka_protocol_assignment()),
-                assignment.dumps()
-            )
-            for client, assignment in assignments.items()
-        }
-
     def assign(self, cluster,
                member_metadata: MutableMapping[str,
                                                ConsumerProtocolMemberMetadata]
@@ -65,7 +52,10 @@ class PartitionAssignor(AbstractPartitionAssignor):
         copartitioned_groups = self._get_copartitioned_groups(topics, cluster)
 
         # Initialize fresh assignment
-        assignments = defaultdict(ClientAssignment)
+        assignments = {
+            member_id: ClientAssignment(actives={}, standbys={})
+            for member_id in member_metadata
+        }
 
         for num_partitions, topics in copartitioned_groups.items():
             assert len(topics) > 0 and num_partitions > 0
@@ -80,7 +70,21 @@ class PartitionAssignor(AbstractPartitionAssignor):
             for client, assgn in assignor.get_assignment().items():
                 assignments[client].add_copartitioned_assignment(assgn)
 
-        return self._build_assignment(assignments)
+        return self._protocol_assignments(assignments)
+
+    def _protocol_assignments(self,
+                              assignments: MutableMapping[str,
+                                                          ClientAssignment],
+                              ) -> MutableMapping[
+                                str, ConsumerProtocolMemberAssignment]:
+        return {
+            client: ConsumerProtocolMemberAssignment(
+                self.version,
+                sorted(assignment.kafka_protocol_assignment()),
+                assignment.dumps()
+            )
+            for client, assignment in assignments.items()
+        }
 
     @property
     def name(self):
