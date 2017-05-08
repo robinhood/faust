@@ -94,12 +94,12 @@ class Record(Model):
 
         if _data is not None:
             assert not fields
-            self._init_fields(_data, using_args=True)
+            self._init_fields(_data)
         else:
             # Set fields from keyword arguments.
-            self._init_fields(fields, using_args=False)
+            self._init_fields(fields)
 
-    def _init_fields(self, fields: Mapping, using_args: bool) -> None:
+    def _init_fields(self, fields: Mapping) -> None:
         fieldset = frozenset(fields)
         options = self._options
 
