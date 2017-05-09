@@ -87,13 +87,16 @@ class Table(Stream, TableT, ManagedUserDict):
 
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
+        partition: int = None
         if event is not None:
             send = event.attach
+            partition = event.req.message.partition
         else:
             send = self.app.send_soon
         send(self.changelog_topic, key, value,
              key_serializer='json',
-             value_serializer='json')
+             value_serializer='json',
+             partition=partition)
 
     def _changelog_topic_name(self) -> str:
         return '{0.app.id}-{0.table_name}-changelog'

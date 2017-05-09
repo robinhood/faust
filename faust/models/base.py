@@ -199,10 +199,12 @@ class Model(ModelT):
 
     def attach(self, topic: Union[str, Topic], key: K, value: V,
                *,
+               partition: int = None,
                key_serializer: CodecArg = None,
                value_serializer: CodecArg = None) -> None:
         self.req.app.send_attached(
             self.req.message, topic, key, value,
+            partition=partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
         )
