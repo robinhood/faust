@@ -7,11 +7,11 @@ class CopartitionedAssignment(object):
     standbys: Set[int]
     topics: Set[str]
 
-    def __init__(self, actives: Set[int]=set(), standbys: Set[int]=set(),
-                 topics: Set[str]=set()) -> None:
-        self.actives = actives
-        self.standbys = standbys
-        self.topics = topics
+    def __init__(self, actives: Set[int]=None, standbys: Set[int]=None,
+                 topics: Set[str]=None) -> None:
+        self.actives = actives or set()
+        self.standbys = standbys or set()
+        self.topics = topics or set()
 
     def validate(self):
         if not self.actives.isdisjoint(self.standbys):
