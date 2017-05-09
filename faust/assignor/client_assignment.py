@@ -52,6 +52,12 @@ class CopartitionedAssignment(object):
     def get_assigned_partitions(self, active: bool) -> Set[int]:
         return self.actives if active else self.standbys
 
+    def can_assign(self, partition: int, active: bool) -> bool:
+        return (
+            not self.partition_assigned(partition, active) and
+            (active or not self.partition_assigned(partition, active=True))
+        )
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}<actives={self.actives}, " \
                f"standbys={self.standbys}, topics={self.topics}>"

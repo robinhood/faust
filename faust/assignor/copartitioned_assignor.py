@@ -79,9 +79,9 @@ class CopartitionedAssignor(object):
     def _get_unassigned(self, active: bool) -> Sequence[int]:
         partition_counts = self._assigned_partition_counts(active)
         total_assigns = self._total_assigns_per_partition(active=active)
-        assert (
-            all(partition_counts[partition] <= total_assigns
-                for partition in range(self.num_partitions))
+        assert all(
+            partition_counts[partition] <= total_assigns
+            for partition in range(self.num_partitions)
         )
         return [
             partition
@@ -89,12 +89,11 @@ class CopartitionedAssignor(object):
             for _ in range(total_assigns - partition_counts[partition])
         ]
 
-    def _can_assign(self, assgn: CopartitionedAssignment, partition: int,
+    def _can_assign(self, assignment: CopartitionedAssignment, partition: int,
                     active: bool) -> bool:
         return (
-            not assgn.partition_assigned(partition, active) and
-            not self._client_exhausted(assgn, active) and
-            (active or not assgn.partition_assigned(partition, active=True))
+            not self._client_exhausted(assignment, active) and
+            assignment.can_assign(partition, active)
         )
 
     def _client_exhausted(self, assignemnt: CopartitionedAssignment,
@@ -111,7 +110,7 @@ class CopartitionedAssignor(object):
             assignment = next(candidates)
             can_assign = (
                 assignment.partition_assigned(partition, active=False) and
-                self._can_assign(assignment, partition, active=False)
+                self._can_assign(assignment, partition, active=True)
             )
             if can_assign:
                 return assignment
@@ -194,8 +193,7 @@ class CopartitionedAssignor(object):
                     assigment
                     for assigment in self._client_assignments.values()
                     if self._client_exhausted(assigment, active) and
-                    not assigment.partition_assigned(partition, active) and
-                    not assigment.partition_assigned(partition, active=True)
+                    assigment.can_assign(partition, active)
                 )  # By above assertion, should never throw error
                 unassigned_partition = assign_to.pop_partition(active)
                 unassigned.append(unassigned_partition)
