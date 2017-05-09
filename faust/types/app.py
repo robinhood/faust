@@ -103,6 +103,7 @@ class AppT(ServiceT):
             self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True,
+            partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> Awaitable:
         ...
@@ -110,6 +111,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def send_soon(
             self, topic: Union[Topic, str], key: K, value: V,
+            *,
+            partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> None:
         ...
@@ -121,6 +124,7 @@ class AppT(ServiceT):
                       key: K,
                       value: V,
                       *,
+                      partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None) -> None:
         ...

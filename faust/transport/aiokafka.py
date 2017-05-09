@@ -145,7 +145,8 @@ class Producer(base.Producer):
             self,
             topic: str,
             key: Optional[bytes],
-            value: Optional[bytes]) -> Awaitable:
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable:
         await self._producer.send(topic, value, key=key)
         return done_future(loop=self.loop)  # interface expects Awaitable
 
@@ -153,7 +154,8 @@ class Producer(base.Producer):
             self,
             topic: str,
             key: Optional[bytes],
-            value: Optional[bytes]) -> Awaitable:
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable:
         return await self._producer.send_and_wait(topic, value, key=key)
 
 

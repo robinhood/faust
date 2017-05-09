@@ -67,7 +67,8 @@ class ProducerT(ServiceT):
             self,
             topic: str,
             key: Optional[bytes],
-            value: Optional[bytes]) -> Awaitable:
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable:
         ...
 
     @abc.abstractmethod
@@ -75,7 +76,8 @@ class ProducerT(ServiceT):
             self,
             topic: str,
             key: Optional[bytes],
-            value: Optional[bytes]) -> Awaitable:
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable:
         ...
 
 

@@ -214,14 +214,16 @@ class Producer(Service, ProducerT):
             self,
             topic: str,
             key: Optional[bytes],
-            value: Optional[bytes]) -> Awaitable:
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable:
         raise NotImplementedError()
 
     async def send_and_wait(
             self,
             topic: str,
             key: Optional[bytes],
-            value: Optional[bytes]) -> Awaitable:
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable:
         raise NotImplementedError()
 
 

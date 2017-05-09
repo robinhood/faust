@@ -131,8 +131,13 @@ class AppService(Service):
         send = self.app.send
         get = self.app._message_buffer.get
         while not self.should_stop:
-            topic, key, value = await get()
-            send(topic, key, value)
+            pending = await get()
+            send(
+                pending.topic, pending.key, pending.value,
+                partition=pending.partition,
+                key_serializer=pending.key_serializer,
+                value_serializer=pending.value_serializer,
+            )
 
     @property
     def label(self) -> str:
@@ -270,6 +275,7 @@ class App(AppT, ServiceProxy):
             self, topic: Union[Topic, str], key: K, value: V,
             *,
             wait: bool = True,
+            partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> Awaitable:
         """Send event to stream.
@@ -282,6 +288,8 @@ class App(AppT, ServiceProxy):
         Keyword Arguments:
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
+            partition (int): Specific partition to send to.
+                If not set the partition will be chosen by the partitioner.
             key_serializer (CodecArg): Serializer to use
                 only when key is not a model.
             value_serializer (CodecArg): Serializer to use
@@ -297,17 +305,20 @@ class App(AppT, ServiceProxy):
             (await self.serializers.dumps_value(
                 strtopic, value, value_serializer)),
             wait=wait,
+            partition=partition,
         )
 
     def send_soon(self, topic: Union[Topic, str], key: K, value: V,
+                  *,
+                  partition: int = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None) -> None:
         """Send event to stream soon.
 
         This is for use by non-async functions.
         """
-        self._message_buffer.put((
-            topic, key, value,
+        self._message_buffer.put(PendingMessage(
+            topic, key, value, partition,
             key_serializer, value_serializer,
         ))
 
@@ -317,15 +328,17 @@ class App(AppT, ServiceProxy):
                       key: K,
                       value: V,
                       *,
+                      partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None) -> None:
         tp = TopicPartition(message.topic, message.partition)
         buffer = self._pending_on_commit[tp]
-        heappush(
-            buffer,
-            (message.offset, PendingMessage(
-                topic, key, value, key_serializer, value_serializer)),
-        )
+        heappush(buffer, (
+            message.offset,
+            PendingMessage(
+                topic, key, value, partition,
+                key_serializer, value_serializer),
+        ))
 
     def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # Get pending messages attached to this TP+offset
@@ -335,10 +348,11 @@ class App(AppT, ServiceProxy):
             # to complete by gathering the futures.
             asyncio.gather(*[
                 self.send(topic, key, value,
+                          partition=partition,
                           key_serializer=keyser,
                           value_serializer=valser,
                           wait=False)
-                for (topic, key, value, keyser, valser)
+                for (topic, key, value, partition, keyser, valser)
                 in attached
             ])
 
@@ -363,6 +377,7 @@ class App(AppT, ServiceProxy):
                     topic: str,
                     key: Optional[bytes],
                     value: Optional[bytes],
+                    partition: int = None,
                     key_serializer: CodecArg = None,
                     value_serializer: CodecArg = None,
                     *,
@@ -377,10 +392,11 @@ class App(AppT, ServiceProxy):
                 producer, topic,
                 keysize=len(key) if key else 0,
                 valsize=len(value) if value else 0)
-            ret = await producer.send_and_wait(topic, key, value)
+            ret = await producer.send_and_wait(
+                topic, key, value, partition=partition)
             await self.sensors.on_send_completed(producer, state)
             return ret
-        return producer.send(topic, key, value)
+        return producer.send(topic, key, value, partition=partition)
 
     def task(self, fun: Callable[[AppT], Generator] = None,
              *,

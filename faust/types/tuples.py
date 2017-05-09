@@ -30,6 +30,7 @@ class PendingMessage(NamedTuple):
     topic: Union[str, Topic]
     key: K
     value: V
+    partition: int
     key_serializer: CodecArg
     value_serializer: CodecArg
 
