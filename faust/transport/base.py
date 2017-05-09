@@ -147,7 +147,10 @@ class Consumer(Service, ConsumerT):
                 offset = self._new_offset(tp)
                 # check if we can commit to this offset
                 if offset is not None and self._should_commit(tp, offset):
-                    # if so, update the current_offset and perform
+                    # if so, first send all messages attached to the new
+                    # offset
+                    self._app.commit_attached(tp, offset)
+                    # then, update the current_offset and perform
                     # the commit.
                     self._current_offset[tp] = offset
                     meta = self._get_topic_meta(tp.topic)
