@@ -1,11 +1,13 @@
 """Streams."""
 import asyncio
 import reprlib
+import typing
+import weakref
 
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Dict, List,
     Mapping, MutableMapping, MutableSequence,
-    Sequence, Tuple, Type, Union, cast
+    Optional, Sequence, Tuple, Type, Union, cast
 )
 
 from ..topics import (
@@ -20,6 +22,7 @@ from ..types.streams import (
 )
 from ..types.tables import TableT
 from ..types.windows import WindowT
+from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate
 from ..utils.futures import maybe_async
 from ..utils.logging import get_logger
@@ -30,13 +33,28 @@ from ._coroutines import CoroCallbackT, wrap_callback
 from . import _constants
 from . import joins
 
-__all__ = ['Stream']
+__all__ = ['Stream', 'current_event']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_Dict: Dict
 __make_flake8_happy_CoroCallbackT: CoroCallbackT
 
 logger = get_logger(__name__)
+
+
+class _StreamLocal(Local):
+    if typing.TYPE_CHECKING:
+        current_event: weakref.ReferenceType[Event]
+    current_event = None
+
+
+#: Task-local storage (keeps track of e.g. current_event)
+_locals = cast(_StreamLocal, Local())
+
+
+def current_event() -> Optional[Event]:
+    eventref = getattr(_locals, 'current_event', None)
+    return eventref() if eventref is not None else None
 
 
 # NOTES:
@@ -115,6 +133,7 @@ class Stream(StreamT, Service):
     _topicmap: MutableMapping[str, Topic] = None
     _anext_started: bool = False
     _current_event: Event = None
+    _context: Context = None
 
     @classmethod
     def from_topic(cls, topic: Topic = None,
@@ -469,7 +488,7 @@ class Stream(StreamT, Service):
             window: Optional windowing strategy, to e.g. aggregate
                 events within the last n hours, or similar.
             default: Default value for unknown keys in table.
-                Setting this means your table will act like Python's
+                Setting this means your table will act like Pythons
                 ``defaultdict``, for example having ``default=int``
                 means any unknown keys will end up having a value of ``0``.
             key: Optional field descriptor used to extract the key used
@@ -658,6 +677,10 @@ class Stream(StreamT, Service):
         # .on_done callback
         on_done = self.on_done
 
+        # localize this global variable
+        locals = _locals
+        create_ref = weakref.ref
+
         # creating Event.req
         app = self.app
         new_request = Request
@@ -685,6 +708,9 @@ class Stream(StreamT, Service):
 
             # call Sensors
             await on_stream_event_in(message.tp, message.offset, self, v)
+
+            # set task-local current_event
+            locals.current_event = create_ref(v)
 
             # reduce using processors
             processors = get_processors(topic)
@@ -779,6 +805,8 @@ class Stream(StreamT, Service):
     async def on_stop(self) -> None:
         if self._current_event is not None:
             self._current_event.ack()
+        if self._context is not None:
+            self._context.__exit__()
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
@@ -802,6 +830,7 @@ class Stream(StreamT, Service):
         raise NotImplementedError('Streams are asynchronous: use __aiter__')
 
     def __aiter__(self) -> AsyncIterator:
+        self._context = Context(locals=[_locals]).__enter__()
         return self
 
     async def on_aiter_start(self) -> None:

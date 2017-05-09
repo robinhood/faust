@@ -6,7 +6,7 @@ from ..types.stores import StoreT
 from ..types.tables import TableT
 from ..types.windows import WindowT
 from ..utils.collections import ManagedUserDict
-from .stream import Stream
+from .stream import Stream, current_event
 
 __all__ = ['Table']
 
@@ -86,9 +86,14 @@ class Table(Stream, TableT, ManagedUserDict):
         self._sensor_on_del(self, key)
 
     def _send_changelog(self, key: Any, value: Any) -> None:
-        self.app.send_soon(self.changelog_topic, key, value,
-                           key_serializer='json',
-                           value_serializer='json')
+        event = current_event()
+        if event is not None:
+            send = event.attach
+        else:
+            send = self.app.send_soon
+        send(self.changelog_topic, key, value,
+             key_serializer='json',
+             value_serializer='json')
 
     def _changelog_topic_name(self) -> str:
         return '{0.app.id}-{0.table_name}-changelog'

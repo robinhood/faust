@@ -4,7 +4,7 @@ import faust
 import io
 import typing
 
-from collections import OrderedDict
+from collections import defaultdict
 from functools import wraps
 from heapq import heappush, heappop
 from typing import (
@@ -30,6 +30,7 @@ from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
 from .types.transports import ProducerT, TransportT
 from .types.windows import WindowT
+from .utils.compat import OrderedDict
 from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
@@ -263,7 +264,7 @@ class App(AppT, ServiceProxy):
         self.sensors = SensorDelegate(self)
         self._task_factories = []
         self._monitor = monitor
-        self._pending_on_commit = {}
+        self._pending_on_commit = defaultdict(list)
 
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,

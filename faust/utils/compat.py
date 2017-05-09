@@ -1,7 +1,10 @@
 """Compatibility utilities."""
 from typing import Any, AnyStr
 
-__all__ = ['DummyContext', 'want_bytes', 'want_str']
+__all__ = ['DummyContext', 'OrderedDict', 'want_bytes', 'want_str']
+
+#: Dictionaries are ordered by default in Python 3.6
+OrderedDict = dict
 
 
 class DummyContext:
