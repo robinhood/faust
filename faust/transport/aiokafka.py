@@ -83,7 +83,7 @@ class Consumer(base.Consumer):
         return OffsetAndMetadata(offset, meta)
 
     async def on_stop(self) -> None:
-        await self.maybe_commit()
+        await self.commit()
         await self._consumer.stop()
 
     async def _drain_messages(self) -> None:

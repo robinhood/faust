@@ -9,7 +9,7 @@ from typing import (
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
-    ConsumerCallback, ConsumerT, ProducerT, TransportT,
+    ConsumerCallback, ConsumerT, ProducerT, TPorTopicSet, TransportT,
 )
 from ..utils.functional import consecutive_numbers
 from ..utils.services import Service
@@ -124,7 +124,7 @@ class Consumer(Service, ConsumerT):
     async def _commit_handler(self) -> None:
         await asyncio.sleep(self.commit_interval)
         while 1:
-            await self.maybe_commit()
+            await self.commit()
             await asyncio.sleep(self.commit_interval)
 
     async def _recently_acked_handler(self) -> None:
@@ -134,7 +134,12 @@ class Consumer(Service, ConsumerT):
             tp, offset = await get()
             await on_message_out(self.id, tp, offset, None)
 
-    async def maybe_commit(self) -> bool:
+    async def commit(self, topics: TPorTopicSet = None) -> bool:
+        """Maybe commit the offset for all or specific topics.
+
+        Keyword Arguments:
+            topics: Set containing topics and/or TopicPartitions to commit.
+        """
         did_commit = False
 
         # Only one coroutine can commit at a time.
@@ -142,7 +147,7 @@ class Consumer(Service, ConsumerT):
             sensor_state = await self._app.sensors.on_commit_initiated(self)
 
             # Go over the ack list in each topic/partition:
-            for tp in self._acked:
+            for tp in self._filter_tps_with_pending_acks(topics):
                 # Find the latest offset we can commit in this tp
                 offset = self._new_offset(tp)
                 # check if we can commit to this offset
@@ -158,6 +163,13 @@ class Consumer(Service, ConsumerT):
                     await self._do_commit(tp, offset, meta)
             await self._app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
+
+    def _filter_tps_with_pending_acks(
+            self, topics: TPorTopicSet = None) -> Iterator[TopicPartition]:
+        return (
+            tp for tp in self._acked
+            if topics is None or tp in topics or tp.topic in topics
+        )
 
     def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
         return bool(offset) and offset > self._current_offset[tp]
@@ -203,7 +215,7 @@ class Consumer(Service, ConsumerT):
 
     async def on_task_error(self, exc: Exception) -> None:
         if self.autoack:
-            await self.maybe_commit()
+            await self.commit()
 
 
 class Producer(Service, ProducerT):

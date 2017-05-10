@@ -10,7 +10,7 @@ from ..utils.types.services import ServiceT
 from ._coroutines import CoroCallbackT, StreamCoroutine
 from .core import K
 from .models import Event, FieldDescriptorT
-from .transports import ConsumerT
+from .transports import ConsumerT, TPorTopicSet
 from .tuples import Message, Topic, TopicPartition
 from .windows import WindowT
 
@@ -255,4 +255,8 @@ class StreamManagerT(ServiceT):
 
     @abc.abstractmethod
     def ack_offset(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit(self, topics: TPorTopicSet) -> bool:
         ...

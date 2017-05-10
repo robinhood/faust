@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Set, Sequence, MutableMapping, Tuple, cast
 from ..types import Message, TopicPartition
 from ..types.app import AppT
 from ..types.streams import StreamT, StreamManagerT
-from ..types.transports import ConsumerCallback, ConsumerT
+from ..types.transports import ConsumerCallback, ConsumerT, TPorTopicSet
 from ..utils.services import Service
 from .stream import Stream
 
@@ -43,6 +43,9 @@ class StreamManager(StreamManagerT, Service):
 
     def ack_offset(self, tp: TopicPartition, offset: int) -> None:
         return self.consumer.ack(tp, offset)
+
+    async def commit(self, topics: TPorTopicSet) -> bool:
+        return await self.consumer.commit(topics)
 
     def add_stream(self, stream: StreamT) -> None:
         if stream in self._streams:

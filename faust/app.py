@@ -28,7 +28,7 @@ from .types.app import AppT
 from .sensors import Monitor
 from .types.streams import Processor, StreamT, StreamManagerT
 from .types.tables import TableT
-from .types.transports import ProducerT, TransportT
+from .types.transports import ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.compat import OrderedDict
 from .utils.futures import Group
@@ -533,6 +533,9 @@ class App(AppT, ServiceProxy):
                 'Table with name {0.table_name!r} already exists'.format(
                     table))
         self._tables[table.table_name] = table
+
+    async def commit(self, topics: TPorTopicSet) -> bool:
+        return await self.streams.commit(topics)
 
     def new_stream_name(self) -> str:
         """Create a new name for a stream."""

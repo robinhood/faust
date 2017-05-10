@@ -1,7 +1,9 @@
 import abc
 import asyncio
 import typing
-from typing import Any, Callable, ClassVar, Awaitable, Optional, Type
+from typing import (
+    AbstractSet, Any, Callable, ClassVar, Awaitable, Optional, Type, Union,
+)
 from faust.utils.types.services import ServiceT
 from .tuples import Message, Topic, TopicPartition
 
@@ -12,6 +14,7 @@ else:
 
 __all__ = [
     'ConsumerCallback',
+    'TPorTopicSet',
     'ConsumerT',
     'ProducerT',
     'TransportT',
@@ -21,6 +24,9 @@ __all__ = [
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
 ConsumerCallback = Callable[[Message], Awaitable]
+
+#: Argument to Consumer.commit to specify topics/tps to commit.
+TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
 
 
 class ConsumerT(ServiceT):
@@ -32,6 +38,10 @@ class ConsumerT(ServiceT):
 
     @abc.abstractmethod
     def ack(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit(self, topics: TPorTopicSet = None) -> bool:
         ...
 
     @abc.abstractmethod
