@@ -60,14 +60,6 @@ class ConsumerT(ServiceT):
     async def on_task_error(self, exc: Exception) -> None:
         ...
 
-    @abc.abstractmethod
-    async def track_message(
-            self,
-            message: Message,
-            tp: TopicPartition,
-            offset: int) -> None:
-        ...
-
 
 class ProducerT(ServiceT):
     transport: 'TransportT'
