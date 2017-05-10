@@ -120,13 +120,10 @@ class Record(Model):
 
         # then reconstruct child models
         for _field, _typ in self._options.models.items():
-            try:
-                _data = fields[_field]
-            except KeyError:
-                pass
-            else:
-                if not isinstance(_data, ModelT):
-                    self.__dict__[_field] = _typ(_data)
+            _data = fields.get(_field)
+            if _data is not None and not isinstance(_data, ModelT):
+                _data = _typ(_data)
+            self.__dict__[_field] = _data
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         data = cast(Dict, self.to_representation())
@@ -143,7 +140,7 @@ class Record(Model):
         modelset = self._options.modelset
         for key in self._options.fields:
             value = getattr(self, key)
-            if key in modelset:
+            if key in modelset and value is not None:
                 value = value.to_representation()
             yield key, value
 
@@ -156,6 +153,17 @@ class Record(Model):
             **{k: v for k, v in defaults if k not in attrs},
         }
         return _kvrepr(fields, skip={'req'})
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, type(self)):
+            return all(
+                getattr(self, key) == getattr(other, key)
+                for key in self._options.fields
+            )
+        return False
+
+    def __ne__(self, other: Any) -> bool:
+        return not self.__eq__(other)
 
 
 def _kvrepr(d: Mapping[str, Any],
