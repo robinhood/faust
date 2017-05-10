@@ -71,6 +71,7 @@ class ModelT:
 
     def attach(self, topic: Union[str, Topic], key: K, value: V,
                *,
+               partition: int = None,
                key_serializer: CodecArg = None,
                value_serializer: CodecArg = None) -> None:
         ...
