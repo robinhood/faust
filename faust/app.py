@@ -399,8 +399,8 @@ class App(AppT, ServiceProxy):
         return producer.send(topic, key, value, partition=partition)
 
     def task(self, fun: Callable[[AppT], Generator] = None,
-              *,
-              concurrency: int = 1) -> None:
+             *,
+             concurrency: int = 1) -> None:
         # Support both `@task` and `@task(concurrency=1)`.
         if fun:
             return self._task(concurrency=concurrency)(fun)

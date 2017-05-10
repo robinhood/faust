@@ -16,34 +16,26 @@ class Consumer(base.Consumer):
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
-        print('+CONSUMER')
         self._consumer = confluent_kafka.Consumer({
             'bootstrap.servers': transport.bootstrap_servers,
             # 'client.id': transport.app.client_id,
             'group.id': transport.app.id,
             'default.topic.config': {'auto.offset.reset': 'smallest'},
         })
-        print('-CONSUMER')
 
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
-        print('+SUBSCRIBE: %r' % (self.topic.topics,))
         self._consumer.subscribe(list(self.topic.topics))
-        print('-SUBSCRIBE')
         await self.register_timers()
         self.add_future(self._drain_messages())
-        print('ON START DONE')
 
     async def _drain_messages(self) -> None:
-        print('DRAIN MESSAGES')
         on_message = self.on_message
         poll = self._consumer.poll
         should_stop = self._stopped.is_set
         try:
             while not should_stop():
-                print('+POLL')
                 message = poll()
-                print('-POLL: %r' % (message,))
                 _key = message.key()
                 _value = message.value()
                 await on_message(Message(
@@ -71,12 +63,10 @@ class Producer(base.Producer):
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
-        print('+PRODUCER')
         self._producer = confluent_kafka.Producer({
             'bootstrap.servers': transport.bootstrap_servers,
             #  'client.id': transport.app.client_id,
         })
-        print('-PRODUCER')
 
     async def send(
             self,
