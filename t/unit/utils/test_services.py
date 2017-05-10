@@ -63,23 +63,3 @@ async def test_interface():
 
 def test_repr():
     assert repr(S())
-
-
-@pytest.mark.asyncio
-async def test_poller():
-    s = S()
-    called = Mock()
-
-    async def poller():
-        s._stopped.set()
-
-    async def poller2():
-        called()
-
-    s.add_poller(poller)
-    s.add_poller(poller2)
-    await asyncio.sleep(0)
-    await s.start()
-    await s._stopped.wait()
-    await s.stop()
-    called.assert_called_with()

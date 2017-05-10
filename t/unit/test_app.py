@@ -1,6 +1,6 @@
 import pytest
-from case import Mock
-from faust import codecs
+from case import ANY, Mock
+from faust.serializers import codecs
 from faust import App, Record, topic
 from faust.types.models import ModelT
 from faust.utils.compat import want_bytes
@@ -126,7 +126,7 @@ def test_new_producer(app):
     app._producer = None
     app._transport = Mock(name='transport')
     assert app._new_producer() is app._transport.create_producer.return_value
-    app._transport.create_producer.assert_called_with()
+    app._transport.create_producer.assert_called_with(beacon=ANY)
     assert app.producer is app._transport.create_producer.return_value
 
 
