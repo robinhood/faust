@@ -154,7 +154,7 @@ class Consumer(Service, ConsumerT):
                 if offset is not None and self._should_commit(tp, offset):
                     # if so, first send all messages attached to the new
                     # offset
-                    self._app.commit_attached(tp, offset)
+                    await self._app.commit_attached(tp, offset)
                     # then, update the current_offset and perform
                     # the commit.
                     self._current_offset[tp] = offset

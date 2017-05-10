@@ -8,9 +8,9 @@ from collections import defaultdict
 from functools import wraps
 from heapq import heappush, heappop
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Generator, Iterator, List,
-    MutableMapping, MutableSequence, Optional, Sequence,
-    Union, Tuple, cast,
+    Any, Awaitable, Callable, ClassVar, Generator,
+    Iterable, Iterator, List, MutableMapping,
+    MutableSequence, Optional, Sequence, Union, Tuple, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
@@ -272,28 +272,31 @@ class App(AppT, ServiceProxy):
         self._pending_on_commit = defaultdict(list)
 
     async def send(
-            self, topic: Union[Topic, str], key: K, value: V,
-            *,
-            wait: bool = True,
+            self,
+            topic: Union[Topic, str],
+            key: K,
+            value: V,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> Awaitable:
+            value_serializer: CodecArg = None,
+            *,
+            wait: bool = True) -> Awaitable:
         """Send event to stream.
 
         Arguments:
             topic (Union[Topic, str]): Topic to send event to.
             key (K): Message key.
             value (V): Message value.
-
-        Keyword Arguments:
-            wait (bool): Wait for message to be published (default),
-                if unset the message will only be appended to the buffer.
             partition (int): Specific partition to send to.
                 If not set the partition will be chosen by the partitioner.
             key_serializer (CodecArg): Serializer to use
                 only when key is not a model.
             value_serializer (CodecArg): Serializer to use
                 only when key is not a model.
+
+        Keyword Arguments:
+            wait (bool): Wait for message to be published (default),
+                if unset the message will only be appended to the buffer.
         """
         if isinstance(topic, Topic):
             strtopic = topic.topics[0]
@@ -308,8 +311,32 @@ class App(AppT, ServiceProxy):
             partition=partition,
         )
 
+    async def send_many(
+            self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
+        await asyncio.gather(
+            *[self._send_tuple(msg, wait=False) for msg in it],
+            loop=self.loop,
+        )
+
+    async def _send_tuple(
+            self, message: Union[PendingMessage, Tuple],
+            wait: bool = True) -> Awaitable:
+        return await self.send(
+            *self._unpack_message_tuple(*message), wait=wait)
+
+    def _unpack_message_tuple(
+            self,
+            topic: str,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None) -> PendingMessage:
+        return PendingMessage(
+            topic, key, value, partition,
+            key_serializer, value_serializer)
+
     def send_soon(self, topic: Union[Topic, str], key: K, value: V,
-                  *,
                   partition: int = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None) -> None:
@@ -327,7 +354,6 @@ class App(AppT, ServiceProxy):
                       topic: Union[str, Topic],
                       key: K,
                       value: V,
-                      *,
                       partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None) -> None:
@@ -340,21 +366,12 @@ class App(AppT, ServiceProxy):
                 key_serializer, value_serializer),
         ))
 
-    def commit_attached(self, tp: TopicPartition, offset: int) -> None:
+    async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # Get pending messages attached to this TP+offset
         attached = list(self._get_attached(tp, offset))
         if attached:
-            # Send the messages, waiting for all of the writes
-            # to complete by gathering the futures.
-            asyncio.gather(*[
-                self.send(topic, key, value,
-                          partition=partition,
-                          key_serializer=keyser,
-                          value_serializer=valser,
-                          wait=False)
-                for (topic, key, value, partition, keyser, valser)
-                in attached
-            ])
+            # Send the messages in one go.
+            await self.send_many(attached)
 
     def _get_attached(
             self, tp: TopicPartition, commit_offset: int) -> Iterator:

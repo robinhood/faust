@@ -1,6 +1,9 @@
 import abc
 import typing
-from typing import Any, Awaitable, Callable, Generator, Sequence, Type, Union
+from typing import (
+    Any, Awaitable, Callable, Generator,
+    Iterable, Sequence, Tuple, Type, Union,
+)
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
@@ -10,7 +13,7 @@ from .sensors import SensorDelegateT
 from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
 from .tables import TableT
 from .transports import TransportT
-from .tuples import Message, Topic, TopicPartition
+from .tuples import Message, PendingMessage, Topic, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -101,17 +104,21 @@ class AppT(ServiceT):
     @abc.abstractmethod
     async def send(
             self, topic: Union[Topic, str], key: K, value: V,
-            *,
-            wait: bool = True,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> Awaitable:
+            value_serializer: CodecArg = None,
+            *,
+            wait: bool = True) -> Awaitable:
+        ...
+
+    @abc.abstractmethod
+    async def send_many(
+            self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
         ...
 
     @abc.abstractmethod
     def send_soon(
             self, topic: Union[Topic, str], key: K, value: V,
-            *,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> None:
@@ -123,14 +130,13 @@ class AppT(ServiceT):
                       topic: Union[str, Topic],
                       key: K,
                       value: V,
-                      *,
                       partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None) -> None:
         ...
 
     @abc.abstractmethod
-    def commit_attached(self, tp: TopicPartition, offset: int) -> None:
+    async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         ...
 
     @abc.abstractmethod

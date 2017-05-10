@@ -234,9 +234,19 @@ Sending messages
 
     .. automethod:: send
 
+    .. automethod:: send_many
+
     .. automethod:: send_soon
 
     .. automethod:: send_attached
+
+Committing topic offsets
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. class:: App
+    :noindex:
+
+    .. automethod:: commit
 
 Utilities
 ^^^^^^^^^
