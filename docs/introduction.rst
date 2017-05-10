@@ -17,9 +17,9 @@ a radically much simpler approach to stream processing.
 
 Modern web applications are increasingly being written as a collection
 of microservices and even before this it has been difficult to write
-data reporting operations at scale.  With stream processing you don't have to
-strain your database with complicated queries, instead a push-based streaming
-data pipeline updates reports as events happen in your system.
+data reporting operations at scale.  In a reactive stream based system,
+you don't have to strain your database with costly queries, instead a streaming
+data pipeline updates information as events happen in your system, in real-time.
 
 Faust also enables you to take advantage of asyncio and asynchronous
 processing, moving complicated and costly operations outside
@@ -53,19 +53,22 @@ Faust is...
         app = faust.App('hello-app', url='kafka://localhost')
 
         class Greeting(faust.Record):
-            sender: str
-            to: str
+            from_name: str
+            to_name: str
 
         topic = faust.topic('hello-topic', value_type=Greeting)
 
         @app.task
         async def hello(app):
             async for greeting in app.stream(topic):
-                print(f'Hello from {greeting.sender} to {greeting.to}')
+                print(f'Hello from {greeting.from_name} to {greeting.to_name}')
 
         @app.timer(interval=1.0)
         async def example_sender(app):
-            await app.send(topic, value=Greeting(sender='Faust', to='you'))
+            await app.send(
+                topic,
+                value=Greeting(from_name='Faust', to_name='you'),
+            )
 
         if __name__ == '__main__':
             app.start()

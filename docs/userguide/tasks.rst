@@ -86,7 +86,7 @@ start multiple instances of the same task:
 
 .. code-block:: python
 
-    @task(concurrency=100)
+    @app.task(concurrency=100)
     async def import_feeds(app):
         async for feed in app.stream(feed_topic):
             await import_feed(feed)
