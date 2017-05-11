@@ -24,7 +24,7 @@ topic = app.topic('f-simple', value_type=Withdrawal)
 async def find_large_withdrawals(app):
     if GRAPH:
         asyncio.ensure_future(_dump_beacon(app))
-    withdrawals = app.stream(topic)
+    withdrawals = topic.stream()
     user_to_total = app.table('user_to_total')
     country_to_total = app.table('country_to_total')
     async for withdrawal in withdrawals:

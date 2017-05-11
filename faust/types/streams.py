@@ -10,7 +10,6 @@ from ._coroutines import StreamCoroutine
 from .core import K
 from .models import Event, FieldDescriptorT
 from .topics import TopicT
-from .windows import WindowT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

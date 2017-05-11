@@ -13,9 +13,7 @@ from ..types import AppT, K, TopicT, Message
 from ..types.joins import JoinT
 from ..types.models import Event, FieldDescriptorT
 from ..types.streams import GroupByKeyArg, Processor, StreamCoroutine, StreamT
-from ..types.tables import TableT
 from ..types.topics import TopicConsumerT
-from ..types.windows import WindowT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate
 from ..utils.futures import maybe_async
