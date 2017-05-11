@@ -1,7 +1,10 @@
 """Tables (changelog stream)."""
+import operator
+from datetime import timedelta
 from typing import Any, Callable, Mapping, Type, cast
 from .. import stores
-from ..types import AppT
+from .. import windows
+from ..types import AppT, Event
 from ..types.stores import StoreT
 from ..types.tables import TableT
 from ..types.windows import WindowT
@@ -65,6 +68,20 @@ class Table(Stream, TableT, ManagedUserDict):
             return value
         raise KeyError(key)
 
+    def hopping(self, size: float, step: float,
+                expires: float = None) -> 'WindowWrapper':
+        return WindowWrapper(self, windows.HoppingWindow(size, step, expires))
+
+    def tumbling(self, size: float, expires: float = None) -> 'WindowWrapper':
+        return WindowWrapper(self, windows.TumblingWindow(size, expires))
+
+    def sliding(self,
+                before: float,
+                after: float,
+                expires: float) -> 'WindowWrapper':
+        return WindowWrapper(
+            self, windows.SlidingWindow(before, after, expires))
+
     def info(self) -> Mapping[str, Any]:
         # Used to recreate object in .clone()
         return {**super().info(), **{
@@ -109,3 +126,91 @@ class Table(Stream, TableT, ManagedUserDict):
         return '{}: {}@{}'.format(
             type(self).__name__, self.table_name, self._store,
         )
+
+
+class WindowWrapper:
+    table: TableT
+    window: WindowT
+
+    def __init__(self, table: TableT, window: WindowT) -> None:
+        self.table = table
+        self.window = window
+
+    def __getitem__(self, key: Any) -> 'WindowSet':
+        return WindowSet(key, self.table, self.window)
+
+
+class WindowSet:
+    key: Any
+    table: TableT
+    window: WindowT
+
+    def __init__(self, key: Any, table: TableT, window: WindowT):
+        self.key = key
+        self.table = table
+        self.window = window
+
+    def _op(self, op: Callable[[Any, Any], Any], other: Any):
+        table = self.table
+        key = self.key
+        timestamp = current_event().req.message.timestamp
+        for window_range in self.window.windows(timestamp):
+            table[(key, window_range)] = op(table[key], other)
+
+    def current(self, event: Event = None) -> Any:
+        event = event or current_event()
+        timestamp = event.req.message.timestamp
+        return self.table[(self.key, self.window.current_window(timestamp))]
+
+    def delta(self, d: timedelta, event: Event = None) -> Any:
+        event = event or current_event()
+        timestamp = event.req.message.timestamp
+        return self.table[(self.key, self.window.delta(timestamp, d))]
+
+    def __getitem__(self, w: Any) -> Any:
+        return self.table[(w, self.key)]
+
+    def __setitem__(self, w: Any, value: Any) -> None:
+        self.table[(w, self.key)] = value
+
+    def __delitem__(self, w: Any) -> None:
+        del self.table[(w, self.key)]
+
+    def __iadd__(self, other: Any) -> Any:
+        return self._op(operator.add, other)
+
+    def __isub__(self, other: Any) -> Any:
+        return self._op(operator.sub, other)
+
+    def __imul__(self, other: Any) -> Any:
+        return self._op(operator.mul, other)
+
+    def __idiv__(self, other: Any) -> Any:
+        return self._op(operator.div, other)
+
+    def __itruediv__(self, other: Any) -> Any:
+        return self._op(operator.truediv, other)
+
+    def __ifloordiv__(self, other: Any) -> Any:
+        return self._op(operator.floordiv, other)
+
+    def __imod__(self, other: Any) -> Any:
+        return self._op(operator.mod, other)
+
+    def __ipow__(self, other: Any) -> Any:
+        return self._op(operator.pow, other)
+
+    def __ilshift__(self, other: Any) -> Any:
+        return self._op(operator.lshift, other)
+
+    def __irshift__(self, other: Any) -> Any:
+        return self._op(operator.rshift, other)
+
+    def __iand__(self, other: Any) -> Any:
+        return self._op(operator.and_, other)
+
+    def __ixor__(self, other: Any) -> Any:
+        return self._op(operator.xor, other)
+
+    def __ior__(self, other: Any) -> Any:
+        return self._op(operator.or_, other)
