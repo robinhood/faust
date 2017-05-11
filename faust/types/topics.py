@@ -3,14 +3,19 @@ import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Pattern, Sequence, Type, Union,
 )
+from ._coroutines import StreamCoroutine
 from ..utils.types.services import ServiceT
-from .transports import ConsumerT, TPorTopicSet
 from .tuples import Message, TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .streams import StreamT
+    from .transports import ConsumerT, TPorTopicSet
 else:
-    class AppT: ...    # noqa
+    class AppT: ...             # noqa
+    class StreamT: ...          # noqa
+    class ConsumerT: ...        # noqa
+    class TPorTopicSet: ...     # noqa
 
 __all__ = ['TopicT', 'TopicConsumerT', 'TopicManagerT']
 
@@ -32,7 +37,8 @@ class TopicT(AsyncIterable):
         ...
 
     @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator:
+    def stream(self, coroutine: StreamCoroutine = None,
+               **kwargs: Any) -> StreamT:
         ...
 
     @abc.abstractmethod
@@ -44,6 +50,10 @@ class TopicT(AsyncIterable):
                prefix: str = '',
                suffix: str = '',
                format: str = '') -> 'TopicT':
+        ...
+
+    @abc.abstractmethod
+    def __aiter__(self) -> AsyncIterator:
         ...
 
 

@@ -82,7 +82,6 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def stream(self, source: AsyncIterable,
                coroutine: StreamCoroutine = None,
-               processors: Sequence[Processor] = None,
                **kwargs: Any) -> StreamT:
         ...
 

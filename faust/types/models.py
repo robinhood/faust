@@ -2,13 +2,14 @@ import typing
 from typing import Any, ClassVar, FrozenSet, Mapping, NewType, Type, Union
 from .core import K, V
 from .codecs import CodecArg
-from .topics import TopicT
 from .tuples import Request
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from avro.schema import Schema
+    from .topics import TopicT
 else:
     class Schema: ...   # noqa
+    class TopicT: ...   # noqa
 
 __all__ = ['ModelOptions', 'ModelT', 'FieldDescriptorT', 'Event']
 

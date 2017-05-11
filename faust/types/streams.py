@@ -24,6 +24,7 @@ else:
 __all__ = [
     'Processor',
     'GroupByKeyArg',
+    'StreamCoroutine',
     'StreamT',
 ]
 

@@ -5,7 +5,7 @@ import typing
 import weakref
 
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, Dict, List,
+    Any, AsyncIterator, Awaitable, Callable, List,
     Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
 )
 
@@ -30,7 +30,6 @@ from . import joins
 __all__ = ['Stream', 'current_event']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
-__make_flake8_happy_Dict: Dict
 __make_flake8_happy_CoroCallbackT: CoroCallbackT
 __make_flake8_happy_Message: Message
 
@@ -76,7 +75,6 @@ class Stream(StreamT, Service):
                  active: bool = True,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        # WARNING: App might be None here, only use the app in .bind, .on_bind
         Service.__init__(self, loop=loop, beacon=None)
         self.app = app
         self.name = name
@@ -130,10 +128,7 @@ class Stream(StreamT, Service):
         }
 
     def clone(self, **kwargs: Any) -> StreamT:
-        s = self.__class__(**{**self.info(), **kwargs})
-        if self.app:
-            return s._bind(self.app)  # bind new stream to app
-        return s
+        return self.__class__(**{**self.info(), **kwargs})
 
     def combine(self, *nodes: StreamT, **kwargs: Any) -> StreamT:
         # TODO share outbox
@@ -578,8 +573,6 @@ class Stream(StreamT, Service):
                 await outbox.put(value)
 
     async def on_start(self) -> None:
-        if self.app is None:
-            raise RuntimeError('Cannot start stream not bound to app.')
         if self._on_start:
             await self._on_start()
         if self._coroutine:

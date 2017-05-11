@@ -6,6 +6,7 @@ from typing import (
     Any, AsyncIterator, MutableMapping, Pattern, Set, Sequence, Type, Union,
 )
 from .types import AppT, Event, Message, Request, TopicPartition
+from .types.streams import StreamT, StreamCoroutine
 from .types.topics import TopicT, TopicConsumerT, TopicManagerT
 from .types.transports import ConsumerCallback, ConsumerT, TPorTopicSet
 from .utils.logging import get_logger
@@ -25,12 +26,13 @@ logger = get_logger(__name__)
 
 @total_ordering
 class Topic(TopicT):
-    """Define new topic.
+    """Define new topic description.
 
     Arguments:
-        *topics: str:  List of topic names.
+        app (AppT): App instance this topic is bound to.
 
     Keyword Arguments:
+        topics: Sequence[str]: List of topic names.
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
         key_type (Type): Model used for keys in this topic.
@@ -60,27 +62,9 @@ class Topic(TopicT):
         self.key_type = key_type
         self.value_type = value_type
 
-    def __repr__(self) -> str:
-        return '<{name}: {self}>'.format(
-            name=type(self).__name__,
-            self=self)
-
-    def __str__(self) -> str:
-        return str(self.pattern) if self.pattern else ','.join(self.topics)
-
-    def __lt__(self, other: Any) -> bool:
-        if isinstance(other, TopicT):
-            a = self.pattern if self.pattern else self.topics
-            b = other.pattern if other.pattern else other.topics
-            return a < b
-        return False
-
-    def __aiter__(self) -> AsyncIterator:
-        return TopicConsumer(self)
-
-    async def __anext__(self) -> Any:
-        # XXX Mypy seems to think AsyncIterable sould have __anext__
-        raise NotImplementedError('here because of a mypy bug')
+    def stream(self, coroutine: StreamCoroutine = None,
+               **kwargs: Any) -> StreamT:
+        return self.app.stream(self, coroutine, **kwargs)
 
     def derive(self,
                *,
@@ -104,6 +88,29 @@ class Topic(TopicT):
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
         )
+
+    def __aiter__(self) -> AsyncIterator:
+        return TopicConsumer(self)
+
+    async def __anext__(self) -> Any:
+        # XXX Mypy seems to think AsyncIterable sould have __anext__
+        raise NotImplementedError('here because of a mypy bug')
+
+    def __repr__(self) -> str:
+        return '<{name}: {self}>'.format(
+            name=type(self).__name__,
+            self=self)
+
+    def __str__(self) -> str:
+        return str(self.pattern) if self.pattern else ','.join(self.topics)
+
+    def __lt__(self, other: Any) -> bool:
+        # LT is here for heapq.heappush in app.send_attached
+        if isinstance(other, TopicT):
+            a = self.pattern if self.pattern else self.topics
+            b = other.pattern if other.pattern else other.topics
+            return a < b
+        return False
 
 
 class TopicConsumer(TopicConsumerT, Service):

@@ -482,7 +482,6 @@ class App(AppT, ServiceProxy):
 
     def stream(self, source: AsyncIterable,
                coroutine: StreamCoroutine = None,
-               processors: Sequence[Processor] = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from topic.
 
@@ -491,8 +490,7 @@ class App(AppT, ServiceProxy):
 
         Keyword Arguments:
             coroutine: Coroutine to filter events in this stream.
-            processors: List of processors for events in
-                this stream.
+            kwargs: See :class:`Stream`.
 
         Returns:
             faust.Stream:
@@ -506,7 +504,6 @@ class App(AppT, ServiceProxy):
             name=self.new_stream_name(),
             source=source_it,
             coroutine=coroutine,
-            processors=processors,
             beacon=self.beacon,
             **kwargs)
         if isinstance(source_it, TopicConsumerT):
