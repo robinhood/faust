@@ -5,7 +5,7 @@ from typing import (
     AbstractSet, Any, Callable, ClassVar, Awaitable, Optional, Type, Union,
 )
 from faust.utils.types.services import ServiceT
-from .tuples import Message, Topic, TopicPartition
+from .tuples import Message, TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -32,7 +32,6 @@ TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
 class ConsumerT(ServiceT):
 
     id: int
-    topic: Topic
     transport: 'TransportT'
     commit_interval: float
 

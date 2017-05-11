@@ -1,8 +1,8 @@
 import abc
 import typing
 from typing import (
-    Any, Awaitable, Callable, Generator,
-    Iterable, Sequence, Tuple, Type, Union,
+    Any, AsyncIterable, Awaitable, Callable, Generator,
+    Iterable, Pattern, Sequence, Tuple, Type, Union,
 )
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
@@ -10,10 +10,11 @@ from .codecs import CodecArg
 from .core import K, V
 from .serializers import RegistryT
 from .sensors import SensorDelegateT
-from .streams import Processor, StreamT, StreamManagerT, TopicProcessorSequence
+from .streams import Processor, StreamT
 from .tables import TableT
 from .transports import TransportT
-from .tuples import Message, PendingMessage, Topic, TopicPartition
+from .topics import TopicT, TopicConsumerT, TopicManagerT
+from .tuples import Message, PendingMessage, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -58,6 +59,13 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def topic(self, *topics: str,
+              pattern: Union[str, Pattern] = None,
+              key_type: Type = None,
+              value_type: Type = None) -> TopicT:
+        ...
+
+    @abc.abstractmethod
     def task(self, fun: Callable[['AppT'], Generator] = None,
              *,
              concurrency: int = 1) -> None:
@@ -72,9 +80,9 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def stream(self, topic: Topic,
+    def stream(self, source: AsyncIterable,
                coroutine: StreamCoroutine = None,
-               processors: TopicProcessorSequence = None,
+               processors: Sequence[Processor] = None,
                **kwargs: Any) -> StreamT:
         ...
 
@@ -82,7 +90,6 @@ class AppT(ServiceT):
     def table(self, table_name: str,
               *,
               default: Callable[[], Any] = None,
-              topic: Topic = None,
               coroutine: StreamCoroutine = None,
               processors: Sequence[Processor] = None,
               window: WindowT = None,
@@ -90,7 +97,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_source(self, stream: StreamT) -> None:
+    def add_source(self, source: TopicConsumerT) -> None:
         ...
 
     @abc.abstractmethod
@@ -103,7 +110,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def send(
-            self, topic: Union[Topic, str], key: K, value: V,
+            self, topic: Union[TopicT, str], key: K, value: V,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
@@ -118,7 +125,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def send_soon(
-            self, topic: Union[Topic, str], key: K, value: V,
+            self, topic: Union[TopicT, str], key: K, value: V,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> None:
@@ -127,7 +134,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def send_attached(self,
                       message: Message,
-                      topic: Union[str, Topic],
+                      topic: Union[str, TopicT],
                       key: K,
                       value: V,
                       partition: int = None,
@@ -160,7 +167,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def streams(self) -> StreamManagerT:
+    def sources(self) -> TopicManagerT:
         ...
 
     @property

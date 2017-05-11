@@ -56,7 +56,7 @@ in ``app.monitor``:
 
     @app.task
     def mytask(app):
-        async for event in app.stream(faust.topic('topic')):
+        async for event in app.stream(app.topic('topic')):
             # emit how many events are being processed every second.
             print(app.monitor.events_s)
 

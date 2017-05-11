@@ -8,8 +8,8 @@ class Withdrawal(faust.Record, serializer='json'):
     amount: float
 
 
-topic = faust.topic('mytopic', value_type=Withdrawal)
-
+app = faust.App('myid', url='kafka://localhost:9092')
+topic = app.topic('mytopic', value_type=Withdrawal)
 
 # -- Stream is coroutine
 
@@ -32,7 +32,6 @@ async def find_large_withdrawals(app):
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
 
 
-app = faust.App('myid', url='kafka://localhost:9092')
 
 
 async def _publish_withdrawals():

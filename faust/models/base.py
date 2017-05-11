@@ -2,9 +2,8 @@
 from typing import Any, ClassVar, Dict, Mapping, Tuple, Type, Union
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
-from ..types import K, V
+from ..types import K, V, Request, TopicT
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
-from ..types.tuples import Request, Topic
 
 __all__ = ['Model', 'FieldDescriptor']
 
@@ -181,7 +180,7 @@ class Model(ModelT):
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         raise NotImplementedError()
 
-    async def send(self, topic: Union[str, Topic],
+    async def send(self, topic: Union[str, TopicT],
                    *,
                    key: Any = SENTINEL) -> None:
         """Serialize and send object to topic."""
@@ -189,7 +188,7 @@ class Model(ModelT):
             key = self.req.key
         await self.req.app.send(topic, key, self)
 
-    async def forward(self, topic: Union[str, Topic],
+    async def forward(self, topic: Union[str, TopicT],
                       *,
                       key: Any = SENTINEL) -> None:
         """Forward original message (will not be reserialized)."""
@@ -197,7 +196,7 @@ class Model(ModelT):
             key = self.req.key
         await self.req.app.send(topic, key, self.req.message.value)
 
-    def attach(self, topic: Union[str, Topic], key: K, value: V,
+    def attach(self, topic: Union[str, TopicT], key: K, value: V,
                *,
                partition: int = None,
                key_serializer: CodecArg = None,
@@ -216,7 +215,7 @@ class Model(ModelT):
         message.decref()
         # if no more references, ack message
         if not message.refcount:
-            self.req.app.streams.ack_message(message)
+            self.req.app.sources.ack_message(message)
 
     async def __aenter__(self) -> 'ModelT':
         return self

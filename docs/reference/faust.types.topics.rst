@@ -1,11 +1,11 @@
 =====================================================
- ``faust.streams.manager``
+ ``faust.types.topics``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.streams.manager
+.. currentmodule:: faust.types.topics
 
-.. automodule:: faust.streams.manager
+.. automodule:: faust.types.topics
     :members:
     :undoc-members:

@@ -79,9 +79,10 @@ KStream
 
     .. code-block:: python
 
-        tiny_transfers = faust.topic('tiny_transfers')
-        small_transfers = faust.topic('small_transfers')
-        large_transfers = faust.topic('large_transfers')
+        app = faust.App('transfer-demo')
+        tiny_transfers = app.topic('tiny_transfers')
+        small_transfers = app.topic('small_transfers')
+        large_transfers = app.topic('large_transfers')
 
         async for event in stream:
             if event.amount >= 1000.0:
@@ -102,7 +103,8 @@ KStream
 
     .. code-block:: python
 
-        other_topic = faust.topic(other)
+        app = faust.App('to-demo')
+        other_topic = app.topic('other')
         async for event in stream:
             event.forward(other_topic)
 
@@ -155,7 +157,8 @@ KStream
         class Transfer(faust.Record, serializer='json'):
             amount: float
 
-        transfer_topic = faust.topic('transfers', value_type=Transfer)
+        app = faust.App('transfer-demo')
+        transfer_topic = app.topic('transfers', value_type=Transfer)
 
         class TransferBuffer:
 
@@ -177,8 +180,6 @@ KStream
 
             def start(self):
                 asyncio.ensure_future(self._flush_events())
-
-        app = faust.App('transfer-demo')
 
         async def task(app);
             buffer = TransferBuffer()

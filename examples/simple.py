@@ -13,11 +13,11 @@ class Withdrawal(faust.Record, serializer='json'):
     amount: float
 
 
-topic = faust.topic('f-simple', value_type=Withdrawal)
 app = faust.App(
     'f-simple',
     url='kafka://localhost:9092',
 )
+topic = app.topic('f-simple', value_type=Withdrawal)
 
 
 @app.task(concurrency=1)

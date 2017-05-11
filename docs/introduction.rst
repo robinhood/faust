@@ -50,13 +50,12 @@ Faust is...
 
         import faust
 
-        app = faust.App('hello-app', url='kafka://localhost')
-
         class Greeting(faust.Record):
             from_name: str
             to_name: str
 
-        topic = faust.topic('hello-topic', value_type=Greeting)
+        app = faust.App('hello-app', url='kafka://localhost')
+        topic = app.topic('hello-topic', value_type=Greeting)
 
         @app.task
         async def hello(app):

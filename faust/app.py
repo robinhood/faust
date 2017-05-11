@@ -8,9 +8,9 @@ from collections import defaultdict
 from functools import wraps
 from heapq import heappush, heappop
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Generator,
-    Iterable, Iterator, List, MutableMapping,
-    MutableSequence, Optional, Sequence, Union, Tuple, cast,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
+    ClassVar, Generator, Iterable, Iterator, List, MutableMapping,
+    MutableSequence, Optional, Pattern, Sequence, Union, Type, Tuple, cast,
 )
 from itertools import count
 from weakref import WeakKeyDictionary
@@ -19,14 +19,14 @@ from . import transport
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
 from .streams import _constants
-from .streams.manager import StreamManager
+from .topics import Topic, TopicConsumerT, TopicManager, TopicManagerT
 from .types import (
     CodecArg, K, Message, PendingMessage,
-    StreamCoroutine, Topic, TopicPartition, V,
+    StreamCoroutine, TopicT, TopicPartition, V,
 )
 from .types.app import AppT
 from .sensors import Monitor
-from .types.streams import Processor, StreamT, StreamManagerT
+from .types.streams import Processor, StreamT
 from .types.tables import TableT
 from .types.transports import ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
@@ -42,6 +42,7 @@ from .web import Web
 __all__ = ['App']
 
 __flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
+__flake8_please_AsyncIterator_is_OK: AsyncIterator
 
 #: Default broker URL.
 DEFAULT_URL = 'kafka://localhost:9092'
@@ -102,7 +103,7 @@ class AppService(Service):
         services: List[ServiceT] = [
             self.app.producer,                        # app.Producer
             self.app.website,                         # app.Web
-            self.app.streams,                         # app.StreamManager
+            self.app.sources,                         # app.TopicManager
             self.app._tasks,                          # app.Group
         ]
         return cast(Sequence[ServiceT], sensors + streams + services)
@@ -273,7 +274,7 @@ class App(AppT, ServiceProxy):
 
     async def send(
             self,
-            topic: Union[Topic, str],
+            topic: Union[TopicT, str],
             key: K,
             value: V,
             partition: int = None,
@@ -284,7 +285,7 @@ class App(AppT, ServiceProxy):
         """Send event to stream.
 
         Arguments:
-            topic (Union[Topic, str]): Topic to send event to.
+            topic (Union[TopicT, str]): Topic to send event to.
             key (K): Message key.
             value (V): Message value.
             partition (int): Specific partition to send to.
@@ -298,8 +299,10 @@ class App(AppT, ServiceProxy):
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
         """
-        if isinstance(topic, Topic):
-            strtopic = topic.topics[0]
+        if isinstance(topic, TopicT):
+            # ridiculous casting
+            topictopic = cast(TopicT, topic)
+            strtopic = topictopic.topics[0]
         return await self._send(
             strtopic,
             (await self.serializers.dumps_key(
@@ -336,7 +339,7 @@ class App(AppT, ServiceProxy):
             topic, key, value, partition,
             key_serializer, value_serializer)
 
-    def send_soon(self, topic: Union[Topic, str], key: K, value: V,
+    def send_soon(self, topic: Union[TopicT, str], key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None) -> None:
@@ -351,7 +354,7 @@ class App(AppT, ServiceProxy):
 
     def send_attached(self,
                       message: Message,
-                      topic: Union[str, Topic],
+                      topic: Union[str, TopicT],
                       key: K,
                       value: V,
                       partition: int = None,
@@ -359,12 +362,10 @@ class App(AppT, ServiceProxy):
                       value_serializer: CodecArg = None) -> None:
         tp = TopicPartition(message.topic, message.partition)
         buffer = self._pending_on_commit[tp]
-        heappush(buffer, (
-            message.offset,
-            PendingMessage(
-                topic, key, value, partition,
-                key_serializer, value_serializer),
-        ))
+        pending_message = PendingMessage(
+            topic, key, value, partition,
+            key_serializer, value_serializer)
+        heappush(buffer, (message.offset, pending_message))
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # Get pending messages attached to this TP+offset
@@ -458,22 +459,35 @@ class App(AppT, ServiceProxy):
         _set(task, self)  # add to TASK_TO_APP mapping
 
     async def _on_task_error(self, task: asyncio.Task, exc: Exception) -> None:
-        try:
-            await self.streams.consumer.on_task_error(exc)
-        except Exception as exc:
-            logger.exception('Consumer error callback raised: %r', exc)
+        if self.sources.consumer:
+            try:
+                await self.sources.consumer.on_task_error(exc)
+            except Exception as exc:
+                logger.exception('Consumer error callback raised: %r', exc)
 
     async def _on_task_stopped(self, task: asyncio.Task) -> None:
         ...
 
-    def stream(self, topic: Topic,
+    def topic(self, *topics: str,
+              pattern: Union[str, Pattern] = None,
+              key_type: Type = None,
+              value_type: Type = None) -> TopicT:
+        return Topic(
+            self,
+            topics=topics,
+            pattern=pattern,
+            key_type=key_type,
+            value_type=value_type,
+        )
+
+    def stream(self, source: AsyncIterable,
                coroutine: StreamCoroutine = None,
                processors: Sequence[Processor] = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from topic.
 
         Arguments:
-            topic: Topic description to consume from.
+            source: Async iterable to stream over.
 
         Keyword Arguments:
             coroutine: Coroutine to filter events in this stream.
@@ -484,18 +498,25 @@ class App(AppT, ServiceProxy):
             faust.Stream:
                 to iterate over events in the stream.
         """
-        return cast(StreamT, self.Stream).from_topic(
-            topic,
+        source_it: AsyncIterator = None
+        if source is not None:
+            source_it = source.__aiter__()  # type: ignore
+        stream = self.Stream(
+            self,
+            name=self.new_stream_name(),
+            source=source_it,
             coroutine=coroutine,
             processors=processors,
             beacon=self.beacon,
-            **kwargs
-        ).bind(self)
+            **kwargs)
+        if isinstance(source_it, TopicConsumerT):
+            self.add_source(cast(TopicConsumerT, source_it))
+        self._streams[stream.name] = stream
+        return stream
 
     def table(self, table_name: str,
               *,
               default: Callable[[], Any] = None,
-              topic: Topic = None,
               coroutine: StreamCoroutine = None,
               processors: Sequence[Processor] = None,
               window: WindowT = None,
@@ -521,26 +542,21 @@ class App(AppT, ServiceProxy):
             >>> table['Elaine']
             2
         """
-        Table = cast(TableT, self.Table)
-        return cast(TableT, Table.from_topic(
-            topic,
+        table = self.Table(
+            self,
             table_name=table_name,
             default=default,
             coroutine=coroutine,
             processors=processors,
             beacon=self.beacon,
             window=window,
-            **kwargs
-        ).bind(self))
+            **kwargs)
+        self.add_table(table)
+        return table
 
-    def add_source(self, stream: StreamT) -> None:
+    def add_source(self, source: TopicConsumerT) -> None:
         """Register existing stream."""
-        assert stream.name
-        if stream.name in self._streams:
-            raise ValueError(
-                'Stream with name {0.name!r} already exists.'.format(stream))
-        self._streams[stream.name] = stream
-        self.streams.add_stream(stream)
+        self.sources.add_source(source)
 
     def add_table(self, table: TableT) -> None:
         """Register existing table."""
@@ -552,7 +568,7 @@ class App(AppT, ServiceProxy):
         self._tables[table.table_name] = table
 
     async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.streams.commit(topics)
+        return await self.sources.commit(topics)
 
     def new_stream_name(self) -> str:
         """Create a new name for a stream."""
@@ -633,8 +649,8 @@ class App(AppT, ServiceProxy):
         return self.WebSite(self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
-    def streams(self) -> StreamManagerT:
-        return StreamManager(app=self, loop=self.loop, beacon=self.beacon)
+    def sources(self) -> TopicManagerT:
+        return TopicManager(app=self, loop=self.loop, beacon=self.beacon)
 
     @property
     def monitor(self) -> Monitor:

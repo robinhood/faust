@@ -2,7 +2,8 @@ import typing
 from typing import Any, ClassVar, FrozenSet, Mapping, NewType, Type, Union
 from .core import K, V
 from .codecs import CodecArg
-from .tuples import Request, Topic
+from .topics import TopicT
+from .tuples import Request
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from avro.schema import Schema
@@ -64,12 +65,12 @@ class ModelT:
     def derive(self, *objects: 'ModelT', **fields: Any) -> 'ModelT':
         ...
 
-    async def forward(self, topic: Union[str, Topic],
+    async def forward(self, topic: Union[str, TopicT],
                       *,
                       key: Any = None) -> None:
         ...
 
-    def attach(self, topic: Union[str, Topic], key: K, value: V,
+    def attach(self, topic: Union[str, TopicT], key: K, value: V,
                *,
                partition: int = None,
                key_serializer: CodecArg = None,

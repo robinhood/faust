@@ -39,9 +39,9 @@ statistics every 30 seconds:
     class Stats:
         logs_received = 0
 
-    log_topic = faust.topic('logs', value_type=LogRecord)
 
     app = faust.App('logs', url='aiokafka://localhost:9092')
+    log_topic = app.topic('logs', value_type=LogRecord)
     stats = Stats()
 
 

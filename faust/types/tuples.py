@@ -1,24 +1,18 @@
 import typing
-from typing import Any, NamedTuple, Pattern, Sequence, Type, Union
+from typing import Any, NamedTuple, Sequence, Union
 from weakref import WeakSet  # type: ignore
 from .codecs import CodecArg
 from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .streams import StreamT
+    from .topics import TopicT, TopicConsumerT
 else:
-    class AppT: ...     # noqa
-    class StreamT: ...  # noqa
+    class AppT: ...            # noqa
+    class TopicT: ...          # noqa
+    class TopicConsumerT: ...  # noqa
 
-__all__ = ['Topic', 'TopicPartition', 'Message', 'Request']
-
-
-class Topic(NamedTuple):
-    topics: Sequence[str]
-    pattern: Pattern
-    key_type: Type
-    value_type: Type
+__all__ = ['TopicPartition', 'Message', 'Request']
 
 
 class TopicPartition(NamedTuple):
@@ -27,7 +21,7 @@ class TopicPartition(NamedTuple):
 
 
 class PendingMessage(NamedTuple):
-    topic: Union[str, Topic]
+    topic: Union[str, TopicT]
     key: K
     value: V
     partition: int
@@ -50,7 +44,7 @@ class Message:
         'serialized_value_size',
         'acked',
         'refcount',
-        'streams',
+        'sources',
         'tp',
         '__weakref__',
     )
@@ -76,17 +70,17 @@ class Message:
         self.tp = tp
         if typing.TYPE_CHECKING:
             # mypy does not support WeakSet
-            self.streams: WeakSet[StreamT] = WeakSet()
+            self.sources: WeakSet[TopicConsumerT] = WeakSet()
         else:
-            self.streams = WeakSet()
+            self.sources = WeakSet()
 
-    def incref(self, stream: StreamT = None, n: int = 1) -> None:
-        self.streams.add(stream)
+    def incref(self, source: TopicConsumerT = None, n: int = 1) -> None:
+        self.sources.add(source)
         self.refcount += n
 
-    def incref_bulk(self, streams: Sequence[StreamT]) -> None:
-        self.streams.update(streams)
-        self.refcount += len(streams)
+    def incref_bulk(self, sources: Sequence[TopicConsumerT]) -> None:
+        self.sources.update(sources)
+        self.refcount += len(sources)
 
     def decref(self, n: int = 1) -> None:
         self.refcount -= n

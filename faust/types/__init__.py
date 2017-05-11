@@ -10,10 +10,7 @@ from .serializers import AsyncSerializerT
 from .stores import StoreT
 from .streams import (
     Processor,
-    TopicProcessorSequence,
-    StreamProcessorMap,
     StreamCoroutine,
-    StreamCoroutineMap,
     StreamT,
     TableT,
 )
@@ -23,7 +20,8 @@ from .transports import (
     ProducerT,
     TransportT,
 )
-from .tuples import Topic, TopicPartition, Message, PendingMessage, Request
+from .topics import TopicT
+from .tuples import TopicPartition, Message, PendingMessage, Request
 from .windows import WindowT, WindowRange
 
 __all__ = [
@@ -45,13 +43,13 @@ __all__ = [
 
     'StoreT',
 
-    'Processor', 'TopicProcessorSequence',
-    'StreamProcessorMap', 'StreamCoroutine', 'StreamCoroutineMap',
-    'StreamT', 'TableT',
+    'Processor', 'StreamCoroutine', 'StreamT', 'TableT',
 
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
-    'Topic', 'TopicPartition', 'Message', 'PendingMessage', 'Request',
+    'TopicT',
+
+    'TopicPartition', 'Message', 'PendingMessage', 'Request',
 
     'WindowT', 'WindowRange',
 ]

@@ -25,12 +25,12 @@ __all__ = ['Consumer', 'Producer', 'Transport']
 #
 #   - Holds reference to the transport that created it
 #   - ... and the app via ``self.transport.app``.
-#   - Has a callback that usually points back to ``StreamManager.on_message``.
+#   - Has a callback that usually points back to ``TopicManager.on_message``.
 #   - Receives messages and calls the callback for every message received.
 #   - Keeps track of the message and it's acked/unacked status.
 #   - If automatic acks are enabled the message is acked when the Message goes
 #     out of scope (like any variable using reference counting).
-#   - The StreamManager forwards the message to all Streams that subscribes
+#   - The TopicManager forwards the message to all Streams that subscribes
 #     to the topic the message was sent to.
 #      - Each individual Stream will deserialize the message and create
 #        one Event instance per stream.  The message goes out of scope (and so

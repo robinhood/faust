@@ -3,15 +3,13 @@ import asyncio
 import typing
 from typing import (
     Any, AsyncIterator, Awaitable, Callable,
-    List, Mapping, MutableMapping, MutableSequence,
-    Sequence, Tuple, Type, TypeVar, Union,
+    List, Mapping, Sequence, Tuple, Type, TypeVar, Union,
 )
 from ..utils.types.services import ServiceT
-from ._coroutines import CoroCallbackT, StreamCoroutine
+from ._coroutines import StreamCoroutine
 from .core import K
 from .models import Event, FieldDescriptorT
-from .transports import ConsumerT, TPorTopicSet
-from .tuples import Message, Topic, TopicPartition
+from .topics import TopicT
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -25,23 +23,17 @@ else:
 
 __all__ = [
     'Processor',
-    'TopicProcessorSequence',
-    'StreamProcessorMap',
-    'StreamCoroutineMap',
     'GroupByKeyArg',
     'StreamT',
-    'StreamManagerT',
 ]
 
 # Used for typing StreamT[Withdrawal]
 _T = TypeVar('_T')
 
 Processor = Callable[[Event], Union[Event, Awaitable[Event]]]
-TopicProcessorSequence = Sequence[Processor]
-StreamProcessorMap = MutableMapping[Topic, TopicProcessorSequence]
-StreamCoroutineMap = MutableMapping[Topic, CoroCallbackT]
 
 
+#: Type of the `key` argument to `Stream.group_by()`
 GroupByKeyArg = Union[
     FieldDescriptorT,
     Callable[[Event], K],
@@ -51,11 +43,9 @@ GroupByKeyArg = Union[
 class StreamT(AsyncIterator[_T], ServiceT):
 
     active: bool = True
-    concurrency: int = 1
     app: AppT = None
-    topics: MutableSequence[Topic] = None
+    source: AsyncIterator = None
     name: str = None
-    inbox: asyncio.Queue = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
@@ -64,39 +54,20 @@ class StreamT(AsyncIterator[_T], ServiceT):
 
     children: List['StreamT'] = None
 
-    @classmethod
     @abc.abstractmethod
-    def from_topic(cls, topic: Topic = None,
-                   *,
-                   coroutine: StreamCoroutine = None,
-                   processors: TopicProcessorSequence = None,
-                   loop: asyncio.AbstractEventLoop = None,
-                   **kwargs: Any) -> 'StreamT':
-        ...
-
-    def __init__(self, name: str = None,
-                 topics: Sequence[Topic] = None,
-                 processors: StreamProcessorMap = None,
-                 coroutines: StreamCoroutineMap = None,
-                 concurrency: int = 1,
+    def __init__(self, app: AppT,
+                 *,
+                 name: str = None,
+                 source: AsyncIterator = None,
+                 processors: Sequence[Processor] = None,
+                 coroutine: StreamCoroutine = None,
                  children: List['StreamT'] = None,
                  join_strategy: JoinT = None,
-                 app: AppT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
     @abc.abstractmethod
-    def bind(self, app: AppT) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
-    def _bind(self, app: AppT) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
-    def add_processor(self, processor: Processor,
-                      *,
-                      topics: Sequence[Topic] = None) -> None:
+    def add_processor(self, processor: Processor) -> None:
         ...
 
     @abc.abstractmethod
@@ -120,7 +91,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def through(self, topic: Union[str, Topic]) -> 'StreamT':
+    def through(self, topic: Union[str, TopicT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -155,7 +126,12 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def derive_topic(self, name: str) -> Topic:
+    def derive_topic(self, name: str,
+                     *,
+                     key_type: Type = None,
+                     value_type: Type = None,
+                     prefix: str = '',
+                     suffix: str = '') -> TopicT:
         ...
 
     @abc.abstractmethod
@@ -180,36 +156,11 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    async def put_event(self, value: Event) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def process(self, key: K, value: Event) -> Event:
+    async def send(self, value: Event) -> None:
         ...
 
     @abc.abstractmethod
     async def on_done(self, value: Event = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def subscribe(self, topic: Topic,
-                        *,
-                        processors: TopicProcessorSequence = None,
-                        coroutine: StreamCoroutine = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def unsubscribe(self, topic: Topic) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_key_decode_error(
-            self, exc: Exception, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_value_decode_error(
-            self, exc: Exception, message: Message) -> None:
         ...
 
     @abc.abstractmethod
@@ -234,29 +185,4 @@ class StreamT(AsyncIterator[_T], ServiceT):
 
     @abc.abstractmethod
     async def __anext__(self) -> Any:
-        ...
-
-
-class StreamManagerT(ServiceT):
-
-    consumer: ConsumerT
-
-    @abc.abstractmethod
-    def add_stream(self, stream: StreamT) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def update(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    def ack_message(self, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    def ack_offset(self, tp: TopicPartition, offset: int) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def commit(self, topics: TPorTopicSet) -> bool:
         ...

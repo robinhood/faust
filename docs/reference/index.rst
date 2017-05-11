@@ -58,7 +58,6 @@ Streams
     :maxdepth: 1
 
     faust.streams.joins
-    faust.streams.manager
     faust.streams.stream
     faust.streams.table
 
@@ -87,6 +86,7 @@ Types
     faust.types.stores
     faust.types.streams
     faust.types.tables
+    faust.types.topics
     faust.types.windows
     faust.types.transports
     faust.types.tuples

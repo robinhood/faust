@@ -25,7 +25,7 @@ class Request(faust.Record, serializer='json'):
 
 
 topic = str(uuid4())
-request_topic = faust.topic(topic, value_type=Request)
+request_topic = app.topic(topic, value_type=Request)
 
 
 async def send_requests(app, n=1000):

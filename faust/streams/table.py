@@ -15,7 +15,8 @@ class Table(Stream, TableT, ManagedUserDict):
 
     _store: str
 
-    def __init__(self, *,
+    def __init__(self, app: AppT,
+                 *,
                  table_name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = None,
@@ -23,6 +24,8 @@ class Table(Stream, TableT, ManagedUserDict):
                  key_type: Type = None,
                  value_type: Type = None,
                  **kwargs: Any) -> None:
+        Stream.__init__(self, app, **kwargs)
+        assert not self._coroutine  # Table cannot have generator callback.
         self.table_name = table_name
         self.default = default
         self._store = store
@@ -30,8 +33,26 @@ class Table(Stream, TableT, ManagedUserDict):
         self.window = window
         self.key_type = key_type
         self.value_type = value_type
-        assert not self._coroutines  # Table cannot have generator callback.
-        Stream.__init__(self, **kwargs)
+
+        if self.StateStore is not None:
+            self.data = self.StateStore(url=None, app=app, loop=self.loop)
+        else:
+            url = self._store or self.app.store
+            self.data = stores.by_url(url)(
+                url, app,
+                table_name=self.table_name,
+                loop=self.loop)
+
+        # Table.start() also starts Store
+        self.add_dependency(cast(StoreT, self.data))
+        self.changelog_topic = self.app.topic(
+            self._changelog_topic_name(),
+            key_type=self.key_type,
+            value_type=self.value_type,
+        )
+        self._sensor_on_get = self.app.sensors.on_table_get
+        self._sensor_on_set = self.app.sensors.on_table_set
+        self._sensor_on_del = self.app.sensors.on_table_del
 
     def __hash__(self) -> int:
         # We have to override MutableMapping __hash__, so that this table
@@ -52,27 +73,6 @@ class Table(Stream, TableT, ManagedUserDict):
             'default': self.default,
             'window': self.window,
         }}
-
-    def on_bind(self, app: AppT) -> None:
-        if self.StateStore is not None:
-            self.data = self.StateStore(url=None, app=app, loop=self.loop)
-        else:
-            url = self._store or self.app.store
-            self.data = stores.by_url(url)(
-                url, app,
-                table_name=self.table_name,
-                loop=self.loop)
-        # Table.start() also starts Store
-        self.add_dependency(cast(StoreT, self.data))
-        self.changelog_topic = self.derive_topic(
-            self._changelog_topic_name(),
-            key_type=self.key_type,
-            value_type=self.value_type,
-        )
-        self._sensor_on_get = self.app.sensors.on_table_get
-        self._sensor_on_set = self.app.sensors.on_table_set
-        self._sensor_on_del = self.app.sensors.on_table_del
-        app.add_table(self)
 
     def on_key_get(self, key: Any) -> None:
         self._sensor_on_get(self, key)
@@ -99,7 +99,7 @@ class Table(Stream, TableT, ManagedUserDict):
              partition=partition)
 
     def _changelog_topic_name(self) -> str:
-        return '{0.app.id}-{0.table_name}-changelog'
+        return '{0.app.id}-{0.table_name}-changelog'.format(self)
 
     def __repr__(self) -> str:
         return Stream.__repr__(self)
