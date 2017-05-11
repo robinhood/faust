@@ -25,13 +25,13 @@ async def find_large_withdrawals(app):
     if GRAPH:
         asyncio.ensure_future(_dump_beacon(app))
     withdrawals = app.stream(topic)
-    user_to_total = withdrawals.sum(Withdrawal.amount, 'user_to_total',
-                                    key=Withdrawal.user)
-    country_to_total = withdrawals.sum(Withdrawal.amount, 'country_to_total',
-                                       key=Withdrawal.country)
+    user_to_total = app.table('user_to_total')
+    country_to_total = app.table('country_to_total')
     async for withdrawal in withdrawals:
-        print('Withdrawal: %r, User Total: %r, Country Total: %r' %
-            (withdrawal, user_to_total[withdrawal.user],
+        user_to_total[withdrawal.user] += withdrawal.amount
+        country_to_total[withdrawal.country] += withdrawal.amount
+        print('Withdrawal: %r, User Total: %r, Country Total: %r' % (
+            withdrawal, user_to_total[withdrawal.user],
             country_to_total[withdrawal.country]))
 
 
