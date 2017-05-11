@@ -100,33 +100,6 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def aggregate(self, table_name: str,
-                  operator: Callable[[Any, Event], Any],
-                  *,
-                  window: WindowT = None,
-                  default: Callable[[], Any] = None,
-                  key: FieldDescriptorT = None,
-                  key_type: Type = None,
-                  value_type: Type = None) -> TableT:
-        ...
-
-    @abc.abstractmethod
-    def count(self, table_name: str,
-              *,
-              key: FieldDescriptorT = None,
-              **kwargs: Any) -> TableT:
-        ...
-
-    @abc.abstractmethod
-    def sum(self, field: FieldDescriptorT, table_name: str,
-            *,
-            default: Callable[[], Any] = int,
-            key: FieldDescriptorT,
-            value_type: Type = None,
-            **kwargs: Any) -> TableT:
-        ...
-
-    @abc.abstractmethod
     def derive_topic(self, name: str,
                      *,
                      key_type: Type = None,

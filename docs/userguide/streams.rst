@@ -33,18 +33,18 @@ An event can either be a deserialized :class:`~faust.models.base.Model`,:
 
 .. code-block:: python
 
-    class BankWithdrawal(faust.Record):
+    class Withdrawal(faust.Record):
         account: str
         amount: float
 
-    async for event in app.stream('withdrawals', value_type=BankWithdrawal):
+    async for event in app.topic('withdrawals', value_type=Withdrawal).stream():
         print(event.amount)
 
 or just an event containing the value as bytes:
 
 .. code-block:: python
 
-    async for event in app.stream('messages'):
+    async for event in app.topic('messages').stream():
         print(event.value)  # <-- .value contains the bytes message value.
 
 The event also gives you access to the *key* of the message (``event.req.key``),
@@ -178,24 +178,6 @@ Reference
 
 Methods
 -------
-
-Aggregation
-^^^^^^^^^^^
-
-.. class:: Stream
-    :noindex:
-
-    .. automethod:: aggregate
-
-    .. automethod:: aggregate_into
-
-    .. automethod:: count
-
-    .. automethod:: count_into
-
-    .. automethod:: sum
-
-    .. automethod:: sum_into
 
 Joins
 ^^^^^
