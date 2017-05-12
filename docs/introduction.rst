@@ -234,8 +234,8 @@ Examples
 
     .. code-block:: python
 
-        async for order in orders_topic.stream().take(100, within=30.0):
-                ...
+        async for orders in orders_topic.stream().take(100, within=30.0):
+            print(len(orders))
 
 .. topic:: Aggregate information into a table
 
