@@ -1,4 +1,4 @@
-.. _developers-guide:
+.. _devguide-overview:
 
 ================================
  Contributors Guide to the Code

@@ -28,7 +28,7 @@ Contents
     reference/index
     changelog
     contributing
-    developers
+    developerguide
     glossary
 
 Indices and tables

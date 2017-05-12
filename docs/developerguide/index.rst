@@ -1,8 +1,8 @@
-.. _guide:
+.. _developers-guide:
 
-===============
+=================
  Developer Guide
-===============
+=================
 
 :Release: |version|
 :Date: |today|
@@ -10,5 +10,6 @@
 .. toctree::
     :maxdepth: 1
 
+    overview
     partition_assignor
 
