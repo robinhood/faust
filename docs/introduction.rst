@@ -202,6 +202,75 @@ How do I use it?
 
     - Starting to get the idea?
 
+Examples
+========
+
+.. topic:: Iterate over events in a topic
+
+    .. code-block:: python
+
+        orders_topic = app.topic('orders', value_type=Order)
+        async for order in orders_topic.stream():
+            print(order.product_id)
+
+.. topic:: Asynchronously processing events in a topic
+
+    .. code-block:: python
+
+        async for order in orders_topic.stream():
+            product_info = await aiohttp.get(f'http://e.com/api/{order.id}/')
+            await aiohttp.post(f'http://cache/{order.id}/', data=product_info)
+
+.. topic:: Distribute data in iterable across cluster and process it
+
+    .. code-block:: python
+
+        async for item in app.stream([1, 2, 3, 4]):
+            print(item * 2)
+
+.. topic:: Buffer up many events at a time
+
+    Here we get up to 100 events within a 30 second window:
+
+    .. code-block:: python
+
+        async for order in orders_topic.stream().take(100, within=30.0):
+                ...
+
+.. topic:: Aggregate information into a table
+
+    .. code-block:: python
+
+        orders_by_country = app.table('orders_by_country', default=int)
+
+        async for order in orders_topic.stream():
+            orders_by_country[order.country_origin] += 1
+            print('Orders for this country: {}'.format(
+                orders_by_country[order.country_origin])
+
+.. topic:: Aggregate information using a window
+
+    Count number of orders by country, within the last two days:
+
+    .. code-block:: python
+
+        orders_by_country = app.table(
+            'orders_by_country',
+            default=int,
+        ).hopping(timedelta(days=2))
+
+        async for order in orders_topic.stream():
+            orders_by_country[order.country_origin] += 1
+            # values in this table are not concrete! access .current
+            # for the value related to the time of the current event
+            print(orders_by_country[order.country_origin].current())
+
+.. topic:: Send something to be processed later
+
+    async for event in my_topic.stream():
+        # forward to other topic, but only after two days
+        event.forward(other_topic, eta=timedelta(days=2))
+
 Design considerations
 =====================
 

@@ -217,16 +217,12 @@ Processing
 .. class:: Stream
     :noindex:
 
-    .. automethod:: put_event
+    .. automethod:: send
 
 Topics
 ^^^^^^
 
 .. class:: Stream
     :noindex:
-
-    .. automethod:: subscribe
-
-    .. automethod:: unsubscribe
 
     .. automethod:: derive_topic
