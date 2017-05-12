@@ -1,21 +1,27 @@
 from typing import MutableMapping, Sequence, Set
 from faust.models import Record
 
+R_COPART_ASSIGNMENT = """
+<{name} actives={self.actives} standbys={self.standbys} topics={self.topics}>
+""".strip()
+
 
 class CopartitionedAssignment(object):
     actives: Set[int]
     standbys: Set[int]
     topics: Set[str]
 
-    def __init__(self, actives: Set[int]=None, standbys: Set[int]=None,
-                 topics: Set[str]=None) -> None:
+    def __init__(self,
+                 actives: Set[int] = None,
+                 standbys: Set[int] = None,
+                 topics: Set[str] = None) -> None:
         self.actives = actives or set()
         self.standbys = standbys or set()
         self.topics = topics or set()
 
-    def validate(self):
+    def validate(self) -> None:
         if not self.actives.isdisjoint(self.standbys):
-            raise ValueError("Actives and Standbys are disjoint")
+            raise ValueError('Actives and Standbys are disjoint')
 
     def num_assigned(self, active: bool) -> int:
         return len(self.get_assigned_partitions(active))
@@ -45,7 +51,7 @@ class CopartitionedAssignment(object):
         return partition in self.get_assigned_partitions(active)
 
     def promote_standby_to_active(self, standby_partition: int) -> None:
-        assert standby_partition in self.standbys, "Not standby for partition"
+        assert standby_partition in self.standbys, 'Not standby for partition'
         self.standbys.remove(standby_partition)
         self.actives.add(standby_partition)
 
@@ -59,29 +65,29 @@ class CopartitionedAssignment(object):
         )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}<actives={self.actives}, " \
-               f"standbys={self.standbys}, topics={self.topics}>"
+        return R_COPART_ASSIGNMENT.format(
+            name=type(self).__name__, self=self,
+        )
 
 
-class ClientAssignment(Record, serializer="json"):
-    actives: MutableMapping[str, Sequence[int]]  # Topic -> Partition
-    standbys: MutableMapping[str, Sequence[int]]  # Topic -> Partition
+class ClientAssignment(Record, serializer='json'):
+    actives: MutableMapping[str, Set[int]]  # Topic -> Partition
+    standbys: MutableMapping[str, Set[int]]  # Topic -> Partition
 
-    def kafka_protocol_assignment(self):
+    def kafka_protocol_assignment(self) -> Sequence:
         return [(topic, list(partitions))
                 for topic, partitions in self.actives.items()]
 
-    def add_copartitioned_assignment(self,
-                                     assignment: CopartitionedAssignment
-                                     ) -> None:
+    def add_copartitioned_assignment(
+            self, assignment: CopartitionedAssignment) -> None:
         assert not any(topic in self.actives or topic in self.standbys
                        for topic in assignment.topics)
         for topic in assignment.topics:
             self.actives[topic] = assignment.actives
             self.standbys[topic] = assignment.standbys
 
-    def copartitioned_assignment(self,
-                                 topics: Set[str]) -> CopartitionedAssignment:
+    def copartitioned_assignment(
+            self, topics: Set[str]) -> CopartitionedAssignment:
         assignment = CopartitionedAssignment(
             actives=self._colocated_partitions(topics, active=True),
             standbys=self._colocated_partitions(topics, active=False),
@@ -90,16 +96,12 @@ class ClientAssignment(Record, serializer="json"):
         assignment.validate()
         return assignment
 
-    def _colocated_partitions(self, topics: Set[str],
-                              active: bool) -> Set[int]:
+    def _colocated_partitions(
+            self, topics: Set[str], active: bool) -> Set[int]:
         assignment = self.actives if active else self.standbys
         # We take the first partition set for a topic which has a valid
         # assignment assuming subscription changes with co-partitioned topic
         # groups will be rare.
-        topic_assignments = [set(assignment.get(topic, list()))
-                             for topic in topics]
-        return next((
-            partitions
-            for partitions in topic_assignments
-            if len(partitions) > 0
-        ), set())
+        topic_assignments = (assignment.get(t) or set() for t in topics)
+        valid_partitions = (p for p in topic_assignments if p)
+        return next(valid_partitions, set())
