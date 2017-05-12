@@ -117,6 +117,7 @@ Utils
     faust.utils.logging
     faust.utils.objects
     faust.utils.services
+    faust.utils.times
     faust.utils.types.collections
     faust.utils.types.graphs
     faust.utils.types.services

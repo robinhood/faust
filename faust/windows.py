@@ -1,7 +1,8 @@
 """Windowing strategies."""
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, List
 from .types import WindowRange, WindowT
+from .utils.times import Seconds, want_seconds
 
 __all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
 
@@ -21,11 +22,11 @@ class HoppingWindow(WindowT):
     size: float
     step: float
 
-    def __init__(self, size: float, step: float,
-                 expires: float = None) -> None:
-        self.size = size
-        self.step = step
-        self.expires = expires
+    def __init__(self, size: Seconds, step: Seconds,
+                 expires: Seconds = None) -> None:
+        self.size = want_seconds(size)
+        self.step = want_seconds(step)
+        self.expires = want_seconds(expires)
 
     def windows(self, timestamp: float) -> List[WindowRange]:
         curr = self._timestamp_window(timestamp)
@@ -44,8 +45,8 @@ class HoppingWindow(WindowT):
     def current(self, timestamp: float) -> WindowRange:
         return self._timestamp_window(timestamp)
 
-    def delta(self, timestamp: float, d: timedelta) -> WindowRange:
-        return self._timestamp_window(timestamp - d.total_seconds())
+    def delta(self, timestamp: float, d: Seconds) -> WindowRange:
+        return self._timestamp_window(timestamp - want_seconds(d))
 
     def _timestamp_window(self, timestamp: float) -> WindowRange:
         start = (timestamp // self.step) * self.step
@@ -62,8 +63,8 @@ class TumblingWindow(HoppingWindow):
     Fixed-size, non-overlapping, gap-less windows.
     """
 
-    def __init__(self, size: float,
-                 expires: float = None) -> None:
+    def __init__(self, size: Seconds,
+                 expires: Seconds = None) -> None:
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
@@ -77,11 +78,11 @@ class SlidingWindow(WindowT):
     before: float
     after: float
 
-    def __init__(self, before: float, after: float,
-                 expires: float) -> None:
-        self.before = before
-        self.after = after
-        self.expires = expires
+    def __init__(self, before: Seconds, after: Seconds,
+                 expires: Seconds) -> None:
+        self.before = want_seconds(before)
+        self.after = want_seconds(after)
+        self.expires = want_seconds(expires)
 
     def windows(self, timestamp: float) -> List[WindowRange]:
         """Return list of windows from timestamp.

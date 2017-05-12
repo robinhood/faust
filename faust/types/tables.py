@@ -1,7 +1,7 @@
 import abc
 import typing
-from datetime import timedelta
 from typing import Any, Callable, ClassVar, Mapping, MutableMapping, Type
+from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .models import Event
 from .streams import JoinableT
@@ -29,12 +29,13 @@ class TableT(MutableMapping, JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def hopping(self, size: float, step: float,
-                expires: float = None) -> 'WindowWrapperT':
+    def hopping(self, size: Seconds, step: Seconds,
+                expires: Seconds = None) -> 'WindowWrapperT':
         ...
 
     @abc.abstractmethod
-    def tumbling(self, size: float, expires: float = None) -> 'WindowWrapperT':
+    def tumbling(self, size: Seconds,
+                 expires: Seconds = None) -> 'WindowWrapperT':
         ...
 
 
@@ -68,7 +69,7 @@ class WindowSetT(MutableMapping):
         ...
 
     @abc.abstractmethod
-    def delta(self, d: timedelta, event: Event = None) -> Any:
+    def delta(self, d: Seconds, event: Event = None) -> Any:
         ...
 
     @abc.abstractmethod

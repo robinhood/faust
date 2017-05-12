@@ -1,6 +1,5 @@
 """Tables (changelog stream)."""
 import operator
-from datetime import timedelta
 from typing import Any, Callable, Iterator, Mapping, Type, cast
 from . import stores
 from . import windows
@@ -11,6 +10,7 @@ from .types.tables import TableT, WindowSetT, WindowWrapperT
 from .types.windows import WindowT
 from .utils.collections import FastUserDict, ManagedUserDict
 from .utils.services import Service
+from .utils.times import Seconds
 from .streams import current_event
 from .streams import joins
 
@@ -72,11 +72,12 @@ class Table(Service, TableT, ManagedUserDict):
     def using_window(self, window: WindowT) -> WindowWrapperT:
         return WindowWrapper(self, window)
 
-    def hopping(self, size: float, step: float,
-                expires: float = None) -> WindowWrapperT:
+    def hopping(self, size: Seconds, step: Seconds,
+                expires: Seconds = None) -> WindowWrapperT:
         return self.using_window(windows.HoppingWindow(size, step, expires))
 
-    def tumbling(self, size: float, expires: float = None) -> WindowWrapperT:
+    def tumbling(self, size: Seconds,
+                 expires: Seconds = None) -> WindowWrapperT:
         return self.using_window(windows.TumblingWindow(size, expires))
 
     def info(self) -> Mapping[str, Any]:
@@ -184,7 +185,7 @@ class WindowSet(WindowSetT, FastUserDict):
         timestamp = self.timestamp(event)
         return self.table[(self.key, self.window.current(timestamp))]
 
-    def delta(self, d: timedelta, event: Event = None) -> Any:
+    def delta(self, d: Seconds, event: Event = None) -> Any:
         timestamp = self.timestamp(event)
         return self.table[(self.key, self.window.delta(timestamp, d))]
 

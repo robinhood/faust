@@ -1,6 +1,6 @@
 import abc
-from datetime import timedelta
 from typing import Optional, List, NamedTuple
+from ..utils.times import Seconds
 
 
 class WindowRange(NamedTuple):
@@ -20,9 +20,9 @@ class WindowT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def current_window(self, timestamp: float) -> WindowRange:
+    def current(self, timestamp: float) -> WindowRange:
         ...
 
     @abc.abstractmethod
-    def delta(self, timestamp: float, d: timedelta) -> WindowRange:
+    def delta(self, timestamp: float, d: Seconds) -> WindowRange:
         ...
