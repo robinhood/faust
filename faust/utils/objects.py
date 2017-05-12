@@ -94,7 +94,7 @@ def iter_mro_reversed(cls: Type, stop: Type) -> Iterable[Type]:
             wanted = subcls == stop
 
 
-class cached_property(object):
+class cached_property:
     """Cached property.
 
     A property descriptor that caches the return value
@@ -151,6 +151,7 @@ class cached_property(object):
         obj.__dict__[self.__name__] = value
 
     def __delete__(self, obj: Any, _sentinel: Any = object()) -> None:
+        print('__DELETE__: %r %r' % (obj, _sentinel))
         value = obj.__dict__.pop(self.__name__, _sentinel)
         if self.__del is not None and value is not _sentinel:
             self.__del(obj, value)

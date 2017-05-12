@@ -4,13 +4,13 @@ from faust.utils.objects import cached_property
 
 class test_cached_property:
 
-    class X(object):
+    class X:
 
         @cached_property
         def foo(self):
             return 42
 
-    class X_setter(object):
+    class X_setter:
         _foo = 1
 
         @cached_property
@@ -22,7 +22,7 @@ class test_cached_property:
             self._foo = value
             return value
 
-    class X_deleter(object):
+    class X_deleter:
         _foo = 1
 
         @cached_property

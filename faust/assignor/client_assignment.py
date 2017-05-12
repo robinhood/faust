@@ -6,7 +6,7 @@ R_COPART_ASSIGNMENT = """
 """.strip()
 
 
-class CopartitionedAssignment(object):
+class CopartitionedAssignment:
     actives: Set[int]
     standbys: Set[int]
     topics: Set[str]
