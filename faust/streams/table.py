@@ -168,13 +168,13 @@ class WindowSet:
         return self.table[(self.key, self.window.delta(timestamp, d))]
 
     def __getitem__(self, w: Any) -> Any:
-        return self.table[(w, self.key)]
+        return self.table[(self.key, w)]
 
     def __setitem__(self, w: Any, value: Any) -> None:
-        self.table[(w, self.key)] = value
+        self.table[(self.key, w)] = value
 
     def __delitem__(self, w: Any) -> None:
-        del self.table[(w, self.key)]
+        del self.table[(self.key, w)]
 
     def __iadd__(self, other: Any) -> Any:
         return self._op(operator.add, other)
