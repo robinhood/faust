@@ -126,6 +126,36 @@ class Stream(StreamT, JoinableT, Service):
         async for event in self:
             yield event.req.key, event
 
+    async def take(self, max_events: int,
+                   within: float = None) -> AsyncIterator[Sequence[Event]]:
+        """Buffer n events at a time and yield lists of events.
+
+        Keyword Arguments:
+            within: Timeout for when we give up waiting for another event,
+                and return the list of events that we have.  If this is not
+                set, it can potentially wait forever.
+        """
+        buffer: List[Event] = []
+        add = buffer.append
+        wait_for = asyncio.wait_for
+        if within:
+            while 1:
+                try:
+                    add(await wait_for(self.__anext__(), timeout=within))
+                except asyncio.TimeoutError:
+                    yield list(buffer)
+                    buffer.clear()
+                else:
+                    if len(buffer) >= max_events:
+                        yield list(buffer)
+                        buffer.clear()
+        else:
+            async for event in self:
+                add(event)
+                if len(buffer) >= max_events:
+                    yield list(buffer)
+                    buffer.clear()
+
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
         """Clone stream into n new streams, receiving copies of events.
 

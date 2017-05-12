@@ -110,6 +110,11 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
+    async def take(self, max_events: int,
+                   within: float = None) -> AsyncIterator[Sequence[Event]]:
+        ...
+
+    @abc.abstractmethod
     def tee(self, n: int = 2) -> Tuple['StreamT', ...]:
         ...
 
