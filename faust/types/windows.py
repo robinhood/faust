@@ -1,4 +1,5 @@
 import abc
+from datetime import timedelta
 from typing import Optional, List, NamedTuple
 
 
@@ -16,4 +17,12 @@ class WindowT(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def stale_before(self) -> Optional[float]:
+        ...
+
+    @abc.abstractmethod
+    def current_window(self, timestamp: float) -> WindowRange:
+        ...
+
+    @abc.abstractmethod
+    def delta(self, timestamp: float, d: timedelta) -> WindowRange:
         ...

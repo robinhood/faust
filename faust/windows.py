@@ -1,5 +1,5 @@
 """Windowing strategies."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List
 from .types import WindowRange, WindowT
 
@@ -35,15 +35,21 @@ class HoppingWindow(WindowT):
             for start in range(int(earliest), int(curr.end), int(self.step))
         ]
 
-    def _timestamp_window(self, timestamp: float) -> WindowRange:
-        start = (timestamp // self.step) * self.step
-        return _range_from_start(start, self.size)
-
     def stale_before(self) -> Optional[float]:
         return (
             self._stale_before(self.expires)
             if self.expires else None
         )
+
+    def current_window(self, timestamp: float) -> WindowRange:
+        return self._timestamp_window(timestamp)
+
+    def delta(self, timestamp: float, d: timedelta) -> WindowRange:
+        return self._timestamp_window(timestamp - d.total_seconds())
+
+    def _timestamp_window(self, timestamp: float) -> WindowRange:
+        start = (timestamp // self.step) * self.step
+        return _range_from_start(start, self.size)
 
     def _stale_before(self, expires: float) -> float:
         now = datetime.utcnow().timestamp()
