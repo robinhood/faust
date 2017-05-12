@@ -26,7 +26,7 @@ from .types import (
 )
 from .types.app import AppT
 from .sensors import Monitor
-from .types.streams import Processor, StreamT
+from .types.streams import StreamT
 from .types.tables import TableT
 from .types.transports import ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
@@ -514,8 +514,6 @@ class App(AppT, ServiceProxy):
     def table(self, table_name: str,
               *,
               default: Callable[[], Any] = None,
-              coroutine: StreamCoroutine = None,
-              processors: Sequence[Processor] = None,
               window: WindowT = None,
               **kwargs: Any) -> TableT:
         """Create new table.
@@ -527,8 +525,7 @@ class App(AppT, ServiceProxy):
         Keyword Arguments:
             default: A callable, or type that will return a default value
             for keys missing in this table.
-            window: A windowing strategy for this table. This windowing
-            strategy is used to clean stale keys from the table.
+            window: A windowing strategy to wrap this window in.
 
         Examples:
             >>> table = app.table('user_to_amount', default=int)
@@ -543,13 +540,10 @@ class App(AppT, ServiceProxy):
             self,
             table_name=table_name,
             default=default,
-            coroutine=coroutine,
-            processors=processors,
             beacon=self.beacon,
-            window=window,
             **kwargs)
         self.add_table(table)
-        return table
+        return table.using_window(window) if window else table
 
     def add_source(self, source: TopicConsumerT) -> None:
         """Register existing stream."""

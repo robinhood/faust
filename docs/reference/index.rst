@@ -59,7 +59,14 @@ Streams
 
     faust.streams.joins
     faust.streams.stream
-    faust.streams.table
+
+Tables
+======
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.tables
 
 Transports
 ==========

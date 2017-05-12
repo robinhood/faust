@@ -40,7 +40,34 @@ GroupByKeyArg = Union[
 ]
 
 
-class StreamT(AsyncIterator[_T], ServiceT):
+class JoinableT(abc.ABC):
+
+    @abc.abstractmethod
+    def combine(self, *nodes: 'JoinableT', **kwargs: Any) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def left_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def inner_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def outer_join(self, *fields: FieldDescriptorT) -> 'StreamT':
+        ...
+
+    @abc.abstractmethod
+    def __and__(self, other: 'JoinableT') -> 'StreamT':
+        ...
+
+
+class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
     active: bool = True
     app: AppT = None
@@ -52,7 +79,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
     task_group: int = None
     task_index: int = None
 
-    children: List['StreamT'] = None
+    children: List[JoinableT] = None
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -61,7 +88,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
                  source: AsyncIterator = None,
                  processors: Sequence[Processor] = None,
                  coroutine: StreamCoroutine = None,
-                 children: List['StreamT'] = None,
+                 children: List[JoinableT] = None,
                  join_strategy: JoinT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
@@ -71,7 +98,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def info(self) -> Mapping[str, Any]:
+    def asdict(self) -> Mapping[str, Any]:
         ...
 
     @abc.abstractmethod
@@ -79,11 +106,7 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def combine(self, *nodes: 'StreamT', **kwargs: Any) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
-    async def asitems(self) -> AsyncIterator[Tuple[K, Event]]:
+    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
         ...
 
     @abc.abstractmethod
@@ -113,31 +136,11 @@ class StreamT(AsyncIterator[_T], ServiceT):
         ...
 
     @abc.abstractmethod
-    def join(self, *fields: FieldDescriptorT) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
-    def left_join(self, *fields: FieldDescriptorT) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
-    def inner_join(self, *fields: FieldDescriptorT) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
-    def outer_join(self, *fields: FieldDescriptorT) -> 'StreamT':
-        ...
-
-    @abc.abstractmethod
     async def send(self, value: Event) -> None:
         ...
 
     @abc.abstractmethod
     async def on_done(self, value: Event = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    def __and__(self, other: 'StreamT') -> 'StreamT':
         ...
 
     @abc.abstractmethod

@@ -28,7 +28,7 @@ KStream
 
     .. code-block:: python
 
-        async for key, event in stream.asitems():
+        async for key, event in stream.items():
             yield myfun(key, event)
 
 - ``.forEach()``
@@ -58,7 +58,7 @@ KStream
 
     .. code-block:: python
 
-        async for key, event in stream.asitems():
+        async for key, event in stream.items():
             with open(path, 'a') as f:
                 f.write(repr(key, event))
 
@@ -114,7 +114,7 @@ KStream
 
     .. code-block:: python
 
-        async for key, value in stream.asitems():
+        async for key, value in stream.items():
             key = format_key(key)
 
     If you want to transform the key for processors to use, then you

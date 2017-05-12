@@ -199,7 +199,7 @@ Iteration tools
 .. class:: Stream
     :noindex:
 
-    .. automethod:: asitems
+    .. automethod:: items
 
     .. automethod:: tee(n = 2)
 

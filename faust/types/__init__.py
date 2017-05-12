@@ -9,11 +9,12 @@ from .sensors import SensorT
 from .serializers import AsyncSerializerT
 from .stores import StoreT
 from .streams import (
+    JoinableT,
     Processor,
     StreamCoroutine,
     StreamT,
-    TableT,
 )
+from .tables import TableT
 from .transports import (
     ConsumerCallback,
     ConsumerT,
@@ -43,7 +44,9 @@ __all__ = [
 
     'StoreT',
 
-    'Processor', 'StreamCoroutine', 'StreamT', 'TableT',
+    'JoinableT', 'Processor', 'StreamCoroutine', 'StreamT',
+
+    'TableT',
 
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 

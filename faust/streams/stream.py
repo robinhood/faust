@@ -12,7 +12,9 @@ from typing import (
 from ..types import AppT, K, TopicT, Message
 from ..types.joins import JoinT
 from ..types.models import Event, FieldDescriptorT
-from ..types.streams import GroupByKeyArg, Processor, StreamCoroutine, StreamT
+from ..types.streams import (
+    GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
+)
 from ..types.topics import TopicConsumerT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate
@@ -53,7 +55,7 @@ def current_event() -> Optional[Event]:
     return eventref() if eventref is not None else None
 
 
-class Stream(StreamT, Service):
+class Stream(StreamT, JoinableT, Service):
 
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None
@@ -67,7 +69,7 @@ class Stream(StreamT, Service):
                  source: AsyncIterator = None,
                  processors: Sequence[Processor] = None,
                  coroutine: StreamCoroutine = None,
-                 children: List[StreamT] = None,
+                 children: List[JoinableT] = None,
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
                  active: bool = True,
@@ -111,37 +113,14 @@ class Stream(StreamT, Service):
     def add_processor(self, processor: Processor) -> None:
         self._processors.append(processor)
 
-    def info(self) -> Mapping[str, Any]:
-        return {
-            'app': self.app,
-            'name': self.name,
-            'source': self.source,
-            'processors': self._processors,
-            'coroutine': self._coroutine,
-            'on_start': self._on_start,
-            'loop': self.loop,
-            'children': self.children,
-            'active': self.active,
-            'beacon': self.beacon,
-        }
-
-    def clone(self, **kwargs: Any) -> StreamT:
-        return self.__class__(**{**self.info(), **kwargs})
-
-    def combine(self, *nodes: StreamT, **kwargs: Any) -> StreamT:
-        # TODO share outbox
-        return self.clone(
-            children=self.children + list(nodes),
-        )
-
-    async def asitems(self) -> AsyncIterator[Tuple[K, Event]]:
+    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
         """Iterate over the stream as ``key, event`` pairs.
 
         Examples:
             .. code-block:: python
 
                 async def mytask(app):
-                    async for key, event in stream.asitems():
+                    async for key, event in stream.items():
                         print(key, event)
         """
         async for event in self:
@@ -353,6 +332,26 @@ class Stream(StreamT, Service):
             )
         raise ValueError('Cannot derive topic from non-topic source.')
 
+    def asdict(self) -> Mapping[str, Any]:
+        return {
+            'app': self.app,
+            'name': self.name,
+            'source': self.source,
+            'processors': self._processors,
+            'coroutine': self._coroutine,
+            'on_start': self._on_start,
+            'loop': self.loop,
+            'children': self.children,
+            'active': self.active,
+            'beacon': self.beacon,
+        }
+
+    def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
+        # TODO share outbox
+        return self.clone(
+            children=self.children + list(nodes),
+        )
+
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
 
@@ -437,11 +436,9 @@ class Stream(StreamT, Service):
         if self._context is not None:
             self._context.__exit__()
 
-    def __and__(self, other: StreamT) -> StreamT:
-        return self.combine(self, other)
-
-    def __copy__(self) -> StreamT:
-        return self.clone()
+    async def on_aiter_start(self) -> None:
+        """Callback called when this stream is first iterated over."""
+        ...
 
     def __iter__(self) -> Any:
         return self
@@ -452,10 +449,6 @@ class Stream(StreamT, Service):
     def __aiter__(self) -> AsyncIterator:
         self._context = Context(locals=[_locals]).__enter__()
         return self
-
-    async def on_aiter_start(self) -> None:
-        """Callback called when this stream is first iterated over."""
-        ...
 
     async def __anext__(self) -> Event:
         if not self._anext_started:
@@ -476,6 +469,15 @@ class Stream(StreamT, Service):
         await self._on_message()
         event = self._current_event = cast(Event, await self.outbox.get())
         return event
+
+    def __and__(self, other: JoinableT) -> StreamT:
+        return self.combine(self, other)
+
+    def clone(self, **kwargs: Any) -> Any:
+        return self.__class__(**{**self.asdict(), **kwargs})
+
+    def __copy__(self) -> Any:
+        return self.clone()
 
     def _repr_info(self) -> str:
         if self.children:

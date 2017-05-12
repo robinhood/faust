@@ -163,6 +163,9 @@ class TopicConsumer(TopicConsumerT, Service):
     async def __anext__(self) -> Event:
         return await self.queue.get()
 
+    def _repr_info(self) -> str:
+        return repr(self.topic)
+
 
 class TopicManager(TopicManagerT, Service):
     """Manages the sources that subscribe to topics.

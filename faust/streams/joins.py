@@ -1,6 +1,6 @@
 """Join strategies."""
 from typing import Optional, Tuple
-from ..types import Event, FieldDescriptorT, JoinT, StreamT
+from ..types import Event, FieldDescriptorT, JoinT, JoinableT
 
 __all__ = [
     'Join',
@@ -11,7 +11,7 @@ __all__ = [
 class Join(JoinT):
 
     def __init__(self, *,
-                 stream: StreamT,
+                 stream: JoinableT,
                  fields: Tuple[FieldDescriptorT, ...]) -> None:
         self.fields = {field.model: field for field in fields}
         self.stream = stream
