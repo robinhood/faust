@@ -41,7 +41,7 @@ class HoppingWindow(WindowT):
             if self.expires else None
         )
 
-    def current_window(self, timestamp: float) -> WindowRange:
+    def current(self, timestamp: float) -> WindowRange:
         return self._timestamp_window(timestamp)
 
     def delta(self, timestamp: float, d: timedelta) -> WindowRange:
