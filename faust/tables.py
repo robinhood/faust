@@ -193,19 +193,19 @@ class WindowSet(WindowSetT, FastUserDict):
         if isinstance(w, Event):
             return type(self)(self.key, self.table, self.window, w)
         # wrapper[key][window_range] returns value for that range.
-        return self.table[(w, self.key)]
+        return self.table[(self.key, w)]
 
     def __setitem__(self, w: Any, value: Any) -> None:
         if isinstance(w, Event):
             raise NotImplementedError(
                 'Cannot set WindowSet key, when key is an event')
-        self.table[(w, self.key)] = value
+        self.table[(self.key, w)] = value
 
     def __delitem__(self, w: Any) -> None:
         if isinstance(w, Event):
             raise NotImplementedError(
                 'Cannot delete WindowSet key, when key is an event')
-        del self.table[(w, self.key)]
+        del self.table[(self.key, w)]
 
     def __iadd__(self, other: Any) -> Any:
         return self.apply(operator.add, other)
