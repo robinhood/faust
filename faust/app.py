@@ -30,6 +30,7 @@ from .types.streams import StreamT
 from .types.tables import TableT
 from .types.transports import ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
+from .utils.aiter import aiter
 from .utils.compat import OrderedDict
 from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
@@ -480,7 +481,7 @@ class App(AppT, ServiceProxy):
             value_type=value_type,
         )
 
-    def stream(self, source: AsyncIterable,
+    def stream(self, source: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from topic.
@@ -498,7 +499,8 @@ class App(AppT, ServiceProxy):
         """
         source_it: AsyncIterator = None
         if source is not None:
-            source_it = source.__aiter__()  # type: ignore
+            source_it = aiter(source)
+            print('SOURCE IT IS: %r' % (source_it,))
         stream = self.Stream(
             self,
             name=self.new_stream_name(),

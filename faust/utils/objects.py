@@ -151,7 +151,6 @@ class cached_property:
         obj.__dict__[self.__name__] = value
 
     def __delete__(self, obj: Any, _sentinel: Any = object()) -> None:
-        print('__DELETE__: %r %r' % (obj, _sentinel))
         value = obj.__dict__.pop(self.__name__, _sentinel)
         if self.__del is not None and value is not _sentinel:
             self.__del(obj, value)

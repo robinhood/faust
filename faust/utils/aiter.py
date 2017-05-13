@@ -1,4 +1,6 @@
-from typing import Any, AsyncIterator, Tuple
+from typing import (
+    Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple, Union,
+)
 
 __all__ = ['aenumerate', 'anext']
 
@@ -10,6 +12,35 @@ async def aenumerate(it: AsyncIterator[Any],
     async for item in it:
         yield i, item
         i += 1
+
+
+class AsyncIterWrapper(AsyncIterator):
+
+    def __init__(self, it: Iterator) -> None:
+        self._it = it
+
+    def __aiter__(self) -> AsyncIterator:
+        return self
+
+    async def __anext__(self) -> Any:
+        try:
+            return next(self._it)
+        except StopIteration as exc:
+            raise StopAsyncIteration() from exc
+
+    def __repr__(self) -> str:
+        return '<{}: {}>'.format(type(self).__name__, self._it)
+
+
+def aiter(it: Union[AsyncIterable, Iterable]) -> AsyncIterator:
+    if isinstance(it, AsyncIterable):
+        # XXX mypy thinks AsyncIterable is an iterator, and AsyncIterator is
+        # an iterable, so they have mixed them up.  Probably will be fixed at
+        # some point.
+        return it.__aiter__()  # type: ignore
+    elif isinstance(it, Iterable):
+        return AsyncIterWrapper(iter(it)).__aiter__()
+    raise TypeError('{!r} object is not an iterable'.format(it))
 
 
 def anext(it: AsyncIterator, *default: Any) -> Any:
