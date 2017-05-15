@@ -11,6 +11,13 @@ class ClusterAssignment(Record, serializer='json'):
     subscriptions: MutableMapping[str, Sequence[str]] = None
     assignments: MutableMapping[str, ClientAssignment] = None
 
+    def __init__(self,
+                 subscriptions: MutableMapping[str, Sequence[Str] = None,
+                 assignments: MutableMapping[str, ClientAssignment] = None,
+                 **kwargs):
+        super().__init__(subscriptions=subscriptions or {},
+                         assignments=assignments or {})
+
     def topics(self) -> Set[str]:
         # All topics subscribed to in the cluster
         return {
