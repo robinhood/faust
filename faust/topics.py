@@ -3,9 +3,12 @@ import re
 from collections import defaultdict
 from functools import total_ordering
 from typing import (
-    Any, AsyncIterator, MutableMapping, Pattern, Set, Sequence, Type, Union,
+    Any, AsyncIterator, Awaitable, MutableMapping, Pattern,
+    Set, Sequence, Type, Union,
 )
-from .types import AppT, Event, Message, Request, TopicPartition
+from .types import (
+    AppT, CodecArg, Event, Message, Request, TopicPartition, K, V,
+)
 from .types.streams import StreamT, StreamCoroutine
 from .types.topics import TopicT, TopicConsumerT, TopicManagerT
 from .types.transports import ConsumerCallback, ConsumerT, TPorTopicSet
@@ -65,6 +68,29 @@ class Topic(TopicT):
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
         return self.app.stream(self, coroutine, **kwargs)
+
+    async def send(
+            self,
+            key: K,
+            value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            *,
+            wait: bool = True) -> Awaitable:
+        return self.app.send(
+            self, key, value, partition,
+            key_serializer, value_serializer,
+            wait=wait,
+        )
+
+    def send_soon(self, key: K, value: V,
+                  partition: int = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None) -> None:
+        return self.app.send_soon(
+            self, key, value, partition,
+            key_serializer, value_serializer)
 
     def derive(self,
                *,
@@ -260,30 +286,6 @@ class TopicManager(TopicManagerT, Service):
 
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
-
-        # consolidated_streams: List[Stream] = []
-        # ungrouped_streams: List[Stream] = []
-
-        # Group streams by task group+index.
-        # streams: Dict[Tuple[int, int], List[Stream]] = defaultdict(list)
-        # for stream in cast(List[Stream], self._streams):
-        #    if stream.task_group is not None:
-        #        streams[(stream.task_group, stream.task_index)].append(stream)
-        #    else:
-        #        # move streams from unknown task groups into separate list.
-        #        ungrouped_streams.append(stream)
-
-        # Streams with the same group index should share the same inbox
-        # for _, group_streams in streams.items():
-        #    consolidated_streams.append(group_streams[0])
-        #    # group_streams[0].source.queue is shared with all streams
-        #    for s in group_streams[1:]:
-        #        s.source.queue = group_streams[0].source.queue
-
-        # add back all streams with task_group=None
-        # consolidated_streams.extend(ungrouped_streams or [])
-
-        # for stream in consolidated_streams:
         for source in self._sources:
             for topic in source.topic.topics:
                 self._topicmap[topic].add(source)

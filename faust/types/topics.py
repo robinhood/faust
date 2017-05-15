@@ -1,10 +1,13 @@
 import abc
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Pattern, Sequence, Type, Union,
+    Any, AsyncIterable, AsyncIterator, Awaitable,
+    Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.types.services import ServiceT
+from .codecs import CodecArg
+from .core import K, V
 from .tuples import Message, TopicPartition
 
 if typing.TYPE_CHECKING:
@@ -39,6 +42,24 @@ class TopicT(AsyncIterable):
     @abc.abstractmethod
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
+        ...
+
+    @abc.abstractmethod
+    async def send(
+            self,
+            key: K,
+            value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            *,
+            wait: bool = True) -> Awaitable:
+        ...
+
+    def send_soon(self, key: K, value: V,
+                  partition: int = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None) -> None:
         ...
 
     @abc.abstractmethod
