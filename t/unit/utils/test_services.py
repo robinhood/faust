@@ -1,4 +1,3 @@
-import asyncio
 import pytest
 from case import Mock
 from faust.utils.services import Service

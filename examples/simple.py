@@ -1,10 +1,7 @@
 import asyncio
 import faust
-import io
 import os
 import sys
-
-GRAPH = os.environ.get('GRAPH')
 
 
 class Withdrawal(faust.Record, serializer='json'):
@@ -32,11 +29,6 @@ async def find_large_withdrawals(withdrawals):
             country_to_total[withdrawal.country]))
 
 
-async def _dump_beacon(app):
-    await asyncio.sleep(4)
-    print(app.render_graph())
-
-
 async def _publish_withdrawals():
     for i in range(10_000):
         print('+SEND %r' % (i,))
@@ -44,7 +36,7 @@ async def _publish_withdrawals():
             b'K', Withdrawal(user='foo', amount=100.3 + i, country='FOO'))
         print('-SEND %r' % (i,))
     await withdrawals_topic.send(
-            b'K', Withdrawal(user='foo', amount=999999.0, country='BAR'))
+        b'K', Withdrawal(user='foo', amount=999999.0, country='BAR'))
     await asyncio.sleep(30)
 
 

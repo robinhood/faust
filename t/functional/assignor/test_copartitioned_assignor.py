@@ -7,7 +7,7 @@ from faust.assignor.client_assignment import CopartitionedAssignment
 from faust.assignor.copartitioned_assignor import CopartitionedAssignor
 
 
-_topics = {"foo", "bar", "baz"}
+_topics = {'foo', 'bar', 'baz'}
 
 
 def is_valid(cli_assignments: MutableMapping[str, CopartitionedAssignment],
@@ -18,14 +18,14 @@ def is_valid(cli_assignments: MutableMapping[str, CopartitionedAssignment],
                             for partition in assignment.actives)
     assert all(
         count == 1 for count in active_counts.values()
-    ), "Multiple clients assigned to same active"
+    ), 'Multiple clients assigned to same active'
     assert set(active_counts.keys()) == all_partitions
     standby_counts = Counter(partition
                              for assignment in cli_assignments.values()
                              for partition in assignment.standbys)
     assert all(
         count == replicas for count in standby_counts.values()
-    ), "Multiple clients assigned to same active"
+    ), 'Multiple clients assigned to same active'
     assert not replicas or set(standby_counts.keys()) == all_partitions
     return True
 

@@ -13,6 +13,7 @@ topic = app.topic('mytopic', value_type=Withdrawal)
 
 # -- Stream is coroutine
 
+
 async def combine_withdrawals(it):
     while 1:
         eventA = await it.next()
@@ -30,8 +31,6 @@ async def find_large_withdrawals(app):
         print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
             print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
-
-
 
 
 async def _publish_withdrawals():
