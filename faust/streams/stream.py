@@ -94,12 +94,6 @@ class Stream(StreamT, JoinableT, Service):
         task = asyncio.Task.current_task(loop=self.loop)
         if task is not None:
             self.task_owner = task
-            self.task_group = getattr(task, '_group_id', None)
-            try:
-                self.task_index = task._stream_index  # type: ignore
-                task._stream_index += 1               # type: ignore
-            except AttributeError:
-                pass
         if task is not None and hasattr(task, '_beacon'):
             self.beacon = task._beacon.new(self)  # type: ignore
         else:

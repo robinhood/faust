@@ -94,8 +94,8 @@ class AppService(Service):
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Sequence[ServiceT]:
-        for task, group_id in self.app._task_factories:
-            self.app.add_task(task(self.app), group_id=group_id)
+        for task in self.app._task_factories:
+            self.app.add_task(task(self.app))
         # Stream+Table instances
         streams: List[ServiceT] = list(self.app._streams.values())
         # Sensors
@@ -418,25 +418,25 @@ class App(AppT, ServiceProxy):
         return producer.send(topic, key, value, partition=partition)
 
     def actor(self, topic: TopicT, concurrency: int = 1) -> Callable:
+        group_id = next(self._task_ids)
+
         def _inner(fun: Callable[[StreamT], Generator]) -> Callable:
+            shared_source = None
             @wraps(fun)
             def _start_actor(app: AppT) -> Generator:
-                return fun(app.stream(topic))
-            return self._task(concurrency=concurrency)(_start_actor)
+                # for concurrency all actor copies will share
+                # the same TopicConsumer
+                nonlocal shared_source
+                if shared_source is None:
+                    shared_source = aiter(topic)
+                return fun(app.stream(shared_source))
+            self._task_factories.extend([fun] * concurrency)
+            return fun
         return _inner
 
-    def task(self, fun: Callable[[AppT], Generator] = None,
-             *,
-             concurrency: int = 1) -> None:
-        # Support both `@actor` and `@actor(concurrency=1)`.
-        if fun:
-            return self._task(concurrency=concurrency)(fun)
-        return self._task(concurrency=concurrency)
-
-    def _task(self, *, concurrency: int = 1) -> Callable:
+    def task(self, fun: Callable[[AppT], Generator]) -> Callable:
         def _inner(fun: Callable[[AppT], Generator]) -> Callable:
-            group_id = next(self._task_ids)
-            self._task_factories.extend([(fun, group_id)] * concurrency)
+            self._task_factories.append([fun])
             return fun
         return _inner
 
@@ -446,21 +446,19 @@ class App(AppT, ServiceProxy):
             @wraps(fun)
             async def around_timer(app: AppT) -> None:
                 while not app.should_stop:
-                    await asyncio.sleep(interval)
+                    await asyncio.sleep(interval, loop=app.loop)
                     await fun(app)
             return around_timer
         return _inner
 
-    def add_task(self, task: Generator, *, group_id: int = None) -> Awaitable:
+    def add_task(self, task: Generator) -> Awaitable:
         """Start task.
 
         Notes:
             A task is simply any coroutine iterating over a stream,
             or even any coroutine doing anything.
         """
-        if group_id is None:
-            group_id = next(self._task_ids)
-        return self._tasks.add(task, group_id=group_id)
+        return self._tasks.add(task)
 
     async def _on_task_started(
             self, task: asyncio.Task,
@@ -508,6 +506,11 @@ class App(AppT, ServiceProxy):
         source_it: AsyncIterator = None
         if source is not None:
             source_it = aiter(source)
+        return self._stream(source, coroutine, **kwargs)
+
+    def _stream(self, source: AsyncIterator,
+                coroutine: StreamCoroutine = None,
+                **kwargs) -> StreamT:
         stream = self.Stream(
             self,
             name=self.new_stream_name(),
