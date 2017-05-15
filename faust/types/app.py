@@ -70,9 +70,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def task(self, fun: Callable[['AppT'], Generator] = None,
-             *,
-             concurrency: int = 1) -> None:
+    def task(self, fun: Callable[['AppT'], Generator] = None) -> Callable:
         ...
 
     @abc.abstractmethod

@@ -209,9 +209,7 @@ class App(AppT, ServiceProxy):
     #:     >>> @app.task
     #:     def mytask():
     #:     ...     ...
-    _task_factories: MutableSequence[
-        Tuple[Callable[[AppT], Generator], int]
-    ]
+    _task_factories: MutableSequence[Callable[[AppT], Generator]]
 
     _monitor: Monitor = None
 
@@ -422,6 +420,7 @@ class App(AppT, ServiceProxy):
 
         def _inner(fun: Callable[[StreamT], Generator]) -> Callable:
             shared_source = None
+
             @wraps(fun)
             def _start_actor(app: AppT) -> Generator:
                 # for concurrency all actor copies will share
@@ -435,10 +434,8 @@ class App(AppT, ServiceProxy):
         return _inner
 
     def task(self, fun: Callable[[AppT], Generator]) -> Callable:
-        def _inner(fun: Callable[[AppT], Generator]) -> Callable:
-            self._task_factories.append([fun])
-            return fun
-        return _inner
+        self._task_factories.append([fun])
+        return fun
 
     def timer(self, interval: float) -> Callable:
         def _inner(fun: Callable[[AppT], Awaitable]) -> Callable:
@@ -503,23 +500,23 @@ class App(AppT, ServiceProxy):
             faust.Stream:
                 to iterate over events in the stream.
         """
-        source_it: AsyncIterator = None
-        if source is not None:
-            source_it = aiter(source)
-        return self._stream(source, coroutine, **kwargs)
+        return self._stream(
+            aiter(source) if source is not None else None,
+            coroutine,
+            **kwargs)
 
     def _stream(self, source: AsyncIterator,
                 coroutine: StreamCoroutine = None,
-                **kwargs) -> StreamT:
+                **kwargs: Any) -> StreamT:
         stream = self.Stream(
             self,
             name=self.new_stream_name(),
-            source=source_it,
+            source=source,
             coroutine=coroutine,
             beacon=self.beacon,
             **kwargs)
-        if isinstance(source_it, TopicConsumerT):
-            self.add_source(cast(TopicConsumerT, source_it))
+        if isinstance(source, TopicConsumerT):
+            self.add_source(cast(TopicConsumerT, source))
         self._streams[stream.name] = stream
         return stream
 
