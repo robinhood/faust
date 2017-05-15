@@ -93,9 +93,9 @@ points as key and value types:
 
     my_topic = faust.topic('mytopic', key_type=Point, value_type=Point)
 
-    @app.task
-    async def task(app):
-        async for event in app.stream(my_topic):
+    @app.actor(my_topic)
+    async def task(events):
+        async for event in events:
             print(event)
 
 Records can also have other records as fields:

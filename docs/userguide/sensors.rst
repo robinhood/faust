@@ -54,9 +54,9 @@ in ``app.monitor``:
 
 .. code-block:: python
 
-    @app.task
-    def mytask(app):
-        async for event in app.stream(app.topic('topic')):
+    @app.actor(app.topic('topic'))
+    def mytask(events):
+        async for event in events:
             # emit how many events are being processed every second.
             print(app.monitor.events_s)
 

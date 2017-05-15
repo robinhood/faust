@@ -17,14 +17,11 @@ app = faust.App(
     'f-simple',
     url='kafka://localhost:9092',
 )
-topic = app.topic('f-simple', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
 
-@app.task(concurrency=1)
-async def find_large_withdrawals(app):
-    if GRAPH:
-        asyncio.ensure_future(_dump_beacon(app))
-    withdrawals = topic.stream()
+@app.actor(withdrawals_topic)
+async def find_large_withdrawals(withdrawals):
     user_to_total = app.table('user_to_total', default=int)
     country_to_total = app.table('country_to_total', default=int)
     async for withdrawal in withdrawals:

@@ -150,15 +150,15 @@ rather start individual tasks:
 
 .. code-block:: python
 
-    @app.task
-    async def process_stream1(app):
-        async for event in app.stream(topic1):
+    @app.actor(topic1)
+    async def process_stream1(events):
+        async for event in events:
             ...
 
 
-    @app.task
-    async def process_stream2(app):
-        async for event in app.stream(topic2):
+    @app.actor(topic2)
+    async def process_stream2(events):
+        async for event in events:
             ...
 
 .. _stream-events:

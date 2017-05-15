@@ -57,9 +57,9 @@ Faust is...
         app = faust.App('hello-app', url='kafka://localhost')
         topic = app.topic('hello-topic', value_type=Greeting)
 
-        @app.task
-        async def hello(app):
-            async for greeting in app.stream(topic):
+        @app.actor(topic)
+        async def hello(greetings):
+            async for greeting in greetings:
                 print(f'Hello from {greeting.from_name} to {greeting.to_name}')
 
         @app.timer(interval=1.0)

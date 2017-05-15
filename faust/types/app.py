@@ -66,6 +66,10 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def actor(self, topic: TopicT, *, concurrency: int = 1) -> Callable:
+        ...
+
+    @abc.abstractmethod
     def task(self, fun: Callable[['AppT'], Generator] = None,
              *,
              concurrency: int = 1) -> None:

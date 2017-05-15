@@ -45,19 +45,17 @@ statistics every 30 seconds:
     stats = Stats()
 
 
-    @app.task
-    async def process_logs(app):
-        async for log in app.stream(log_topic):
+    @app.actor(log_topic)
+    async def process_logs(logs):
+        async for log in logs:
             state.logs_received += 1
             if log.severity == 'ERROR':
                 print('ERROR: {}'.format(log.message))
 
 
-    @app.task
-    async def dumps_stats(app):
-        while 1:
-            await asyncio.sleep(30.0)
-            print(f'Logs processed: {stats.logs_received})
+    @app.timer(interval=30.0)
+    async def dumps_stats():
+        print(f'Logs processed: {stats.logs_received})
 
     if __name__ == '__main__':
         app.start()
@@ -69,7 +67,7 @@ Starting tasks
 
 Tasks can be registered with an app in two ways:
 
-1) Using the ``@app.task`` decorator
+1) Using the ``@app.actor`` decorator
 
 2) Manually using the ``app.add_task()`` method.
 
@@ -86,9 +84,9 @@ start multiple instances of the same task:
 
 .. code-block:: python
 
-    @app.task(concurrency=100)
-    async def import_feeds(app):
-        async for feed in app.stream(feed_topic):
+    @app.actor(feed_topics, concurrency=100)
+    async def import_feeds(feeds):
+        async for feed in feeds:
             await import_feed(feed)
 
 Timers
@@ -96,9 +94,6 @@ Timers
 
 A shortcut decorator is included for starting background tasks that perform
 some action at regular intervals.
-
-Using the ``@app.timer`` decorator we can write the example ``dump_stats``
-example above like this:
 
 .. code-block:: python
 

@@ -203,14 +203,14 @@ class App(AppT, ServiceProxy):
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
 
-    #: The @app.task decorator adds tasks to start here.
+    #: The @app.task/@app.actor decorators adds tasks to start here.
     #: for example:
     #:     app = faust.App('myid', tasks=[task])
     #:     >>> @app.task
-    #:     def mytask(app):
+    #:     def mytask():
     #:     ...     ...
     _task_factories: MutableSequence[
-        Tuple[Callable[['AppT'], Generator], int]
+        Tuple[Callable[[AppT], Generator], int]
     ]
 
     _monitor: Monitor = None
@@ -417,10 +417,18 @@ class App(AppT, ServiceProxy):
             return ret
         return producer.send(topic, key, value, partition=partition)
 
+    def actor(self, topic: TopicT, concurrency: int = 1) -> Callable:
+        def _inner(fun: Callable[[StreamT], Generator]) -> Callable:
+            @wraps(fun)
+            def _start_actor(app: AppT) -> Generator:
+                return fun(app.stream(topic))
+            return self._task(concurrency=concurrency)(_start_actor)
+        return _inner
+
     def task(self, fun: Callable[[AppT], Generator] = None,
              *,
              concurrency: int = 1) -> None:
-        # Support both `@task` and `@task(concurrency=1)`.
+        # Support both `@actor` and `@actor(concurrency=1)`.
         if fun:
             return self._task(concurrency=concurrency)(fun)
         return self._task(concurrency=concurrency)
@@ -500,7 +508,6 @@ class App(AppT, ServiceProxy):
         source_it: AsyncIterator = None
         if source is not None:
             source_it = aiter(source)
-            print('SOURCE IT IS: %r' % (source_it,))
         stream = self.Stream(
             self,
             name=self.new_stream_name(),
