@@ -47,8 +47,8 @@ class TopicT(AsyncIterable):
     @abc.abstractmethod
     async def send(
             self,
-            key: K,
-            value: V,
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,

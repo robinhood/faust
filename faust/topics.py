@@ -71,8 +71,8 @@ class Topic(TopicT):
 
     async def send(
             self,
-            key: K,
-            value: V,
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
@@ -229,10 +229,9 @@ class TopicManager(TopicManagerT, Service):
         return await self.consumer.commit(topics)
 
     def add_source(self, source: TopicConsumerT) -> None:
-        if source in self._sources:
-            raise ValueError('Source already registered with app')
-        self._sources.add(source)
-        self.beacon.add(source)  # connect to beacon
+        if source not in self._sources:
+            self._sources.add(source)
+            self.beacon.add(source)  # connect to beacon
 
     async def update(self) -> None:
         self._compile_pattern()

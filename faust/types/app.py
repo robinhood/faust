@@ -111,7 +111,9 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def send(
-            self, topic: Union[TopicT, str], key: K, value: V,
+            self, topic: Union[TopicT, str],
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,

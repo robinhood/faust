@@ -60,7 +60,7 @@ class ModelT:
             req: Request = None) -> 'ModelT':
         ...
 
-    def dumps(self) -> bytes:
+    def dumps(self, *, serializer: CodecArg = None) -> bytes:
         ...
 
     def derive(self, *objects: 'ModelT', **fields: Any) -> 'ModelT':

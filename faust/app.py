@@ -104,8 +104,8 @@ class Actor:
 
     async def send(
             self,
-            key: K,
-            value: V,
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
@@ -318,8 +318,8 @@ class App(AppT, ServiceProxy):
     async def send(
             self,
             topic: Union[TopicT, str],
-            key: K,
-            value: V,
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,

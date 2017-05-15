@@ -229,9 +229,10 @@ class Model(ModelT):
     def __exit__(self, *exc_info: Any) -> None:
         self.ack()
 
-    def dumps(self) -> bytes:
+    def dumps(self, *, serializer: CodecArg = None) -> bytes:
         """Serialize object to the target serialization format."""
-        return dumps(self._options.serializer, self.to_representation())
+        return dumps(serializer or self._options.serializer,
+                     self.to_representation())
 
     def to_representation(self) -> Any:
         """Convert object to JSON serializable object."""

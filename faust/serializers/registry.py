@@ -91,14 +91,15 @@ class Registry(RegistryT):
         """
         is_model = False
         if isinstance(key, ModelT):
-            is_model, serializer = True, key._options.serializer
+            is_model = True
+            serializer = key._options.serializer or self.key_serializer
 
         if serializer:
             try:
                 ser = self._get_serializer(serializer)
             except KeyError:
                 if is_model:
-                    return cast(ModelT, key).dumps()
+                    return cast(ModelT, key).dumps(serializer=serializer)
                 return dumps(serializer, key)
             else:
                 return await ser.dumps_key(topic, cast(ModelT, key))
@@ -116,13 +117,14 @@ class Registry(RegistryT):
         """
         is_model = False
         if isinstance(value, ModelT):
-            is_model, serializer = True, value._options.serializer
+            is_model = True
+            serializer = value._options.serializer or self.value_serializer
         if serializer:
             try:
                 ser = self._get_serializer(serializer)
             except KeyError:
                 if is_model:
-                    return cast(ModelT, value).dumps()
+                    return cast(ModelT, value).dumps(serializer=serializer)
                 return dumps(serializer, value)
             else:
                 return await ser.dumps_value(topic, cast(ModelT, value))
