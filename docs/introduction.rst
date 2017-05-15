@@ -64,8 +64,7 @@ Faust is...
 
         @app.timer(interval=1.0)
         async def example_sender(app):
-            await app.send(
-                topic,
+            await hello.send(
                 value=Greeting(from_name='Faust', to_name='you'),
             )
 
