@@ -69,7 +69,6 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
-    active: bool = True
     app: AppT = None
     source: AsyncIterator = None
     name: str = None
