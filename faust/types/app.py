@@ -70,7 +70,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def task(self, fun: Callable[['AppT'], Generator] = None) -> Callable:
+    def task(self, fun: Callable[['AppT'], Awaitable]) -> Callable:
         ...
 
     @abc.abstractmethod

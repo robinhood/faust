@@ -82,6 +82,51 @@ TASK_TO_APP = WeakKeyDictionary()
 logger = get_logger(__name__)
 
 
+class Actor:
+
+    app: AppT
+    topic: TopicT
+    concurrency: int
+
+    def __init__(self,
+                 app: AppT,
+                 topic: TopicT,
+                 fun: Callable[[StreamT], Generator],
+                 *,
+                 concurrency: int = 1) -> None:
+        self.app = app
+        self.topic = topic
+        self.fun: Callable[[StreamT], Generator] = fun
+        self.concurrency = concurrency
+
+    def __call__(self, app: AppT) -> Generator:
+        return self.fun(self.app.stream(self.source))
+
+    async def send(
+            self,
+            key: K,
+            value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            *,
+            wait: bool = True) -> Awaitable:
+        return await self.topic.send(key, value, partition,
+                                     key_serializer, value_serializer,
+                                     wait=wait)
+
+    def send_soon(self, key: K, value: V,
+                  partition: int = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None) -> None:
+        return self.topic.send_soon(key, value, partition,
+                                    key_serializer, value_serializer)
+
+    @cached_property
+    def source(self) -> AsyncIterator:
+        return aiter(self.topic)
+
+
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
 
@@ -197,8 +242,6 @@ class App(AppT, ServiceProxy):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
-    _task_ids = count(0)
-
     _pending_on_commit: MutableMapping[
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
@@ -209,7 +252,8 @@ class App(AppT, ServiceProxy):
     #:     >>> @app.task
     #:     def mytask():
     #:     ...     ...
-    _task_factories: MutableSequence[Callable[[AppT], Generator]]
+    _task_factories: MutableSequence[
+        Union[Actor, Callable[[AppT], Awaitable]]]
 
     _monitor: Monitor = None
 
@@ -416,25 +460,14 @@ class App(AppT, ServiceProxy):
         return producer.send(topic, key, value, partition=partition)
 
     def actor(self, topic: TopicT, concurrency: int = 1) -> Callable:
-        group_id = next(self._task_ids)
-
-        def _inner(fun: Callable[[StreamT], Generator]) -> Callable:
-            shared_source = None
-
-            @wraps(fun)
-            def _start_actor(app: AppT) -> Generator:
-                # for concurrency all actor copies will share
-                # the same TopicConsumer
-                nonlocal shared_source
-                if shared_source is None:
-                    shared_source = aiter(topic)
-                return fun(app.stream(shared_source))
-            self._task_factories.extend([fun] * concurrency)
-            return fun
+        def _inner(fun: Callable[[StreamT], Generator]) -> Actor:
+            actor = Actor(self, topic, fun, concurrency=concurrency)
+            self._task_factories.extend([actor] * concurrency)
+            return actor
         return _inner
 
-    def task(self, fun: Callable[[AppT], Generator]) -> Callable:
-        self._task_factories.append([fun])
+    def task(self, fun: Callable[[AppT], Awaitable]) -> Callable:
+        self._task_factories.append(fun)
         return fun
 
     def timer(self, interval: float) -> Callable:
@@ -448,7 +481,7 @@ class App(AppT, ServiceProxy):
             return around_timer
         return _inner
 
-    def add_task(self, task: Generator) -> Awaitable:
+    def add_task(self, task: Union[Generator, Awaitable]) -> Awaitable:
         """Start task.
 
         Notes:
