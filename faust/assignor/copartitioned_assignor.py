@@ -42,7 +42,7 @@ class CopartitionedAssignor:
         self.replicas = replicas
         self.capacity = (
             int(ceil(float(self.num_partitions) / self._num_clients))
-            if self.capacity is None else self.capacity
+            if capacity is None else capacity
         )
         self.topics = set(topics)
 

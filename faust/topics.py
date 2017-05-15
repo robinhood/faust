@@ -78,7 +78,7 @@ class Topic(TopicT):
             value_serializer: CodecArg = None,
             *,
             wait: bool = True) -> Awaitable:
-        return self.app.send(
+        return await self.app.send(
             self, key, value, partition,
             key_serializer, value_serializer,
             wait=wait,
