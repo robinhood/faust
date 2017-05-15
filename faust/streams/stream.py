@@ -72,14 +72,12 @@ class Stream(StreamT, JoinableT, Service):
                  children: List[JoinableT] = None,
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
-                 active: bool = True,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=None)
         self.app = app
         self.name = name
         self.source = source
-        self.active = active
         self._processors = list(processors) if processors else []
         if coroutine:
             self._coroutine = wrap_callback(coroutine, None, loop=loop)
@@ -177,7 +175,7 @@ class Stream(StreamT, JoinableT, Service):
                         processor2(b))
         """
         streams = [
-            self.clone(active=False, on_start=self.maybe_start)
+            self.clone(on_start=self.maybe_start)
             for _ in range(n)
         ]
 
@@ -369,7 +367,6 @@ class Stream(StreamT, JoinableT, Service):
             'on_start': self._on_start,
             'loop': self.loop,
             'children': self.children,
-            'active': self.active,
             'beacon': self.beacon,
         }
 
