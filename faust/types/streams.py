@@ -143,10 +143,6 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_done(self, value: Event = None) -> None:
-        ...
-
-    @abc.abstractmethod
     def __copy__(self) -> 'StreamT':
         ...
 

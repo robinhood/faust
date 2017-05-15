@@ -84,7 +84,7 @@ class Stream(StreamT, JoinableT, Service):
         if coroutine:
             self._coroutine = wrap_callback(coroutine, None, loop=loop)
             # XXX set coroutine callbacks
-            self._coroutine.callback = self.on_done
+            self._coroutine.callback = self._send_to_outbox
         self._on_start = on_start
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
@@ -103,6 +103,9 @@ class Stream(StreamT, JoinableT, Service):
         self._on_message = None
         if self.source:
             self._on_message = self._create_message_handler()
+
+    async def _send_to_outbox(self, event: Event) -> None:
+        await self.outbox.put(event)
 
     def add_processor(self, processor: Processor) -> None:
         self._processors.append(processor)
@@ -371,10 +374,17 @@ class Stream(StreamT, JoinableT, Service):
         }
 
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
-        # TODO share outbox
-        return self.clone(
+        # A combined stream is composed of multiple streams that
+        # all share the same outbox.
+        # The resulting stream's `on_merge` callback can be used to
+        # process events from all the combined streams, and e.g.
+        # joins uses this to consolidate multiple events into one.
+        stream = self.clone(
             children=self.children + list(nodes),
         )
+        for node in stream.children:
+            node.outbox = stream.outbox
+        return stream
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -398,8 +408,6 @@ class Stream(StreamT, JoinableT, Service):
         processors = self._processors
         # Topic description -> special coroutine
         coroutine = self._coroutine
-        # .on_done callback
-        on_done = self.on_done
 
         # localize this global variable
         locals = _locals
@@ -427,9 +435,15 @@ class Stream(StreamT, JoinableT, Service):
                 # on done to its callback.
                 await coroutine.send(event)
             else:
-                # otherwise we call on_done directly.
-                await on_done(event)
+                # otherwise we send directly to outbox
+                await self._send_to_outbox(event)
         return on_message
+
+    async def on_merge(self, value: Event = None) -> Optional[Event]:
+        join_strategy = self.join_strategy
+        if join_strategy:
+            value = await join_strategy.process(value)
+        return value
 
     async def send(self, value: Event) -> None:
         """Send event into stream manually."""
@@ -438,15 +452,6 @@ class Stream(StreamT, JoinableT, Service):
         else:
             raise NotImplementedError(
                 'Cannot send to non-topic source stream.')
-
-    async def on_done(self, value: Event = None) -> None:
-        join_strategy = self.join_strategy
-        if join_strategy:
-            value = await join_strategy.process(value)
-        if value is not None:
-            outbox = self.outbox
-            if outbox:
-                await outbox.put(value)
 
     async def on_start(self) -> None:
         if self._on_start:
@@ -490,8 +495,11 @@ class Stream(StreamT, JoinableT, Service):
                 _msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
-        await self._on_message()
-        event = self._current_event = cast(Event, await self.outbox.get())
+        event: Event = None
+        while not event:  # we iterate until on_merge gives back an event
+            await self._on_message()
+            event = await self.on_merge(cast(Event, await self.outbox.get()))
+        self._current_event = event
         return event
 
     def __and__(self, other: JoinableT) -> StreamT:
