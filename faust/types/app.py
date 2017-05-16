@@ -6,6 +6,7 @@ from typing import (
 )
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
+from .actors import ActorFun, ActorT
 from .codecs import CodecArg
 from .core import K, V
 from .serializers import RegistryT
@@ -66,7 +67,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def actor(self, topic: TopicT, *, concurrency: int = 1) -> Callable:
+    def actor(self, topic: TopicT, *,
+              concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
         ...
 
     @abc.abstractmethod
