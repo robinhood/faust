@@ -1,8 +1,7 @@
 import typing
-from typing import Any, ClassVar, FrozenSet, Mapping, NewType, Type, Union
+from typing import Any, ClassVar, FrozenSet, Mapping, Type, Union
 from .core import K, V
 from .codecs import CodecArg
-from .tuples import Request
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from avro.schema import Schema
@@ -11,7 +10,7 @@ else:
     class Schema: ...   # noqa
     class TopicT: ...   # noqa
 
-__all__ = ['ModelOptions', 'ModelT', 'FieldDescriptorT', 'Event']
+__all__ = ['ModelOptions', 'ModelT', 'FieldDescriptorT']
 
 
 class ModelOptions:
@@ -40,8 +39,6 @@ class ModelOptions:
 class ModelT:
     # uses __init_subclass__ so cannot use ABCMeta
 
-    req: Request
-
     _options: ClassVar[ModelOptions]
 
     @classmethod
@@ -56,8 +53,7 @@ class ModelT:
     def loads(
             cls, s: bytes,
             *,
-            default_serializer: CodecArg = None,
-            req: Request = None) -> 'ModelT':
+            default_serializer: CodecArg = None) -> 'ModelT':
         ...
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
@@ -107,7 +103,3 @@ class FieldDescriptorT:
     @property
     def ident(self) -> str:
         ...
-
-
-#: An event is a ModelT that was received as a message.
-Event = NewType('Event', ModelT)

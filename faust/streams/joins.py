@@ -1,6 +1,6 @@
 """Join strategies."""
 from typing import Optional, Tuple
-from ..types import Event, FieldDescriptorT, JoinT, JoinableT
+from ..types import EventT, FieldDescriptorT, JoinT, JoinableT
 
 __all__ = [
     'Join',
@@ -16,7 +16,7 @@ class Join(JoinT):
         self.fields = {field.model: field for field in fields}
         self.stream = stream
 
-    async def process(self, event: Event) -> Optional[Event]:
+    async def process(self, event: EventT) -> Optional[EventT]:
         raise NotImplementedError()
 
 

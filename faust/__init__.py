@@ -82,8 +82,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.streams.stream': ['Stream', 'current_event'],
     'faust.tables': ['Table'],
-    'faust.topics': ['Topic'],
-    'faust.types': ['Event'],
+    'faust.topics': ['Event', 'Topic'],
     'faust.windows': [
         'HoppingWindow',
         'TumblingWindow',

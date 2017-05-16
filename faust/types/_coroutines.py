@@ -5,7 +5,6 @@ from typing import (
     Coroutine, Generator, Iterable, Union,
 )
 from faust.utils.services import ServiceT
-from .models import Event
 
 __all__ = [
     'InputStreamT',
@@ -19,7 +18,7 @@ class InputStreamT(Iterable, AsyncIterable):
     queue: asyncio.Queue
 
     @abc.abstractmethod
-    async def put(self, value: Event) -> None:
+    async def put(self, value: Any) -> None:
         ...
 
     @abc.abstractmethod
@@ -31,7 +30,7 @@ class InputStreamT(Iterable, AsyncIterable):
         ...
 
 
-StreamCoroutineCallback = Callable[[Event], Awaitable[None]]
+StreamCoroutineCallback = Callable[[Any], Awaitable[None]]
 
 
 class CoroCallbackT(ServiceT):
@@ -42,12 +41,12 @@ class CoroCallbackT(ServiceT):
                  **kwargs: Any) -> None:
         self.callback: StreamCoroutineCallback = callback
 
-    async def send(self, value: Event) -> None:
+    async def send(self, value: Any) -> None:
         ...
 
 
 StreamCoroutine = Union[
-    Callable[[InputStreamT], Coroutine[Event, None, None]],
-    Callable[[InputStreamT], AsyncIterable[Event]],
-    Callable[[InputStreamT], Generator[Event, None, None]],
+    Callable[[InputStreamT], Coroutine[Any, None, None]],
+    Callable[[InputStreamT], AsyncIterable[Any]],
+    Callable[[InputStreamT], Generator[Any, None, None]],
 ]

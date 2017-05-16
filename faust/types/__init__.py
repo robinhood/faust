@@ -4,7 +4,7 @@ from .app import AppT
 from .codecs import CodecArg, CodecT
 from .core import K, V
 from .joins import JoinT
-from .models import ModelOptions, ModelT, FieldDescriptorT, Event
+from .models import ModelOptions, ModelT, FieldDescriptorT
 from .sensors import SensorT
 from .serializers import AsyncSerializerT
 from .stores import StoreT
@@ -21,8 +21,8 @@ from .transports import (
     ProducerT,
     TransportT,
 )
-from .topics import TopicT
-from .tuples import TopicPartition, Message, PendingMessage, Request
+from .topics import EventT, TopicT
+from .tuples import TopicPartition, Message, PendingMessage
 from .windows import WindowT, WindowRange
 
 __all__ = [
@@ -34,7 +34,7 @@ __all__ = [
 
     'JoinT',
 
-    'ModelOptions', 'ModelT', 'FieldDescriptorT', 'Event',
+    'ModelOptions', 'ModelT', 'FieldDescriptorT',
 
     'SensorT',
 
@@ -50,9 +50,9 @@ __all__ = [
 
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
-    'TopicT',
+    'EventT', 'TopicT',
 
-    'TopicPartition', 'Message', 'PendingMessage', 'Request',
+    'TopicPartition', 'Message', 'PendingMessage',
 
     'WindowT', 'WindowRange',
 ]

@@ -5,7 +5,7 @@ from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
-from .types import AppT, Event, Message, StreamT, TableT, TopicPartition
+from .types import AppT, EventT, Message, StreamT, TableT, TopicPartition
 from .types.sensors import SensorT, SensorDelegateT
 from .types.transports import ConsumerT, ProducerT
 from .utils.graphs.formatter import _label
@@ -166,12 +166,12 @@ class MessageState(KeywordReduce):
     def __reduce_keywords__(self) -> Mapping:
         return {**self.asdict(), 'streams': self.streams}
 
-    def on_stream_in(self, stream: StreamT, event: Event) -> None:
+    def on_stream_in(self, stream: StreamT, event: EventT) -> None:
         ev = EventState(stream, time_in=monotonic())
         self.streams.append(ev)
         self.stream_index[stream] = ev
 
-    def on_stream_out(self, stream: StreamT, event: Event) -> EventState:
+    def on_stream_out(self, stream: StreamT, event: EventT) -> EventState:
         s = self.stream_index[stream]
         s.on_out()
         return s
@@ -204,7 +204,7 @@ class Sensor(SensorT, Service):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         """Called whenever a message is sent to a stream as an event."""
         ...
 
@@ -213,7 +213,7 @@ class Sensor(SensorT, Service):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         """Called whenever an event is acknowledged (finished processing)."""
         ...
 
@@ -470,7 +470,7 @@ class Monitor(Sensor, KeywordReduce):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         self.events_total += 1
         self.events_by_stream[_label(stream)] += 1
         self.events_by_task[_label(stream.task_owner)] += 1
@@ -482,7 +482,7 @@ class Monitor(Sensor, KeywordReduce):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         self.events_active -= 1
         state = self.message_index[(tp, offset)].on_stream_out(stream, event)
         self.events_runtime.append(state.time_total)
@@ -567,7 +567,7 @@ class SensorDelegate(SensorDelegateT):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         for sensor in self._sensors:
             await sensor.on_stream_event_in(tp, offset, stream, event)
 
@@ -576,7 +576,7 @@ class SensorDelegate(SensorDelegateT):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         for sensor in self._sensors:
             await sensor.on_stream_event_out(tp, offset, stream, event)
 

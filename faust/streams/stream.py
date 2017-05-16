@@ -9,11 +9,11 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
 )
 
-from ..types import K, TopicT, Message
+from ..types import EventT, K, TopicT, Message
 from ..types.joins import JoinT
-from ..types.models import Event, FieldDescriptorT
+from ..types.models import FieldDescriptorT
 from ..types.streams import (
-    GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
+    _T, GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
 )
 from ..types.topics import TopicConsumerT
 from ..utils.aiolocals import Context, Local
@@ -40,7 +40,7 @@ class _StreamLocal(Local):
     # This holds task-local variables related to streams.
 
     if typing.TYPE_CHECKING:
-        current_event: weakref.ReferenceType[Event]
+        current_event: weakref.ReferenceType[EventT]
     #: Weak reference to the event currently being processed.
     current_event = None
 
@@ -49,10 +49,18 @@ class _StreamLocal(Local):
 _locals = cast(_StreamLocal, Local())
 
 
-def current_event() -> Optional[Event]:
+def current_event() -> Optional[EventT]:
     """Returns the event being currently processed, or None."""
     eventref = getattr(_locals, 'current_event', None)
     return eventref() if eventref is not None else None
+
+
+async def maybe_forward(value: Any, topic: TopicT) -> Any:
+    if isinstance(value, EventT):
+        await value.forward(topic)
+    else:
+        await topic.send(value=value)
+    return value
 
 
 class Stream(StreamT, JoinableT, Service):
@@ -60,12 +68,12 @@ class Stream(StreamT, JoinableT, Service):
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None
     _anext_started: bool = False
-    _current_event: Event = None
+    _current_event: EventT = None
     _context: Context = None
 
     def __init__(self,
                  *,
-                 source: AsyncIterator = None,
+                 source: AsyncIterator[_T] = None,
                  processors: Sequence[Processor] = None,
                  coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
@@ -107,36 +115,45 @@ class Stream(StreamT, JoinableT, Service):
                 pass
             self._on_message = self._create_message_handler()
 
-    async def _send_to_outbox(self, event: Event) -> None:
-        await self.outbox.put(event)
+    async def _send_to_outbox(self, value: _T) -> None:
+        await self.outbox.put(value)
 
     def add_processor(self, processor: Processor) -> None:
         self._processors.append(processor)
 
-    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
-        """Iterate over the stream as ``key, event`` pairs.
+    async def items(self) -> AsyncIterator[Tuple[K, _T]]:
+        """Iterate over the stream as ``key, value`` pairs.
 
         Examples:
             .. code-block:: python
 
                 @app.actor(topic)
-                async def mytask(events):
-                    async for key, event in events.items():
-                        print(key, event)
+                async def mytask(stream):
+                    async for key, value in stream.items():
+                        print(key, value)
         """
-        async for event in self:
-            yield event.req.key, event
+        async for event in self.events():
+            yield event.key, event.value
 
-    async def take(self, max_events: int,
-                   within: float = None) -> AsyncIterator[Sequence[Event]]:
-        """Buffer n events at a time and yield lists of events.
+    async def events(self) -> AsyncIterator[EventT]:
+        """Iterate over the stream as events exclusively.
+
+        This means the messages must be from a topic source.
+        """
+        async for _ in self:  # noqa: F841
+            if self._current_event is not None:
+                yield self._current_event
+
+    async def take(self, max_: int,
+                   within: float = None) -> AsyncIterator[Sequence[_T]]:
+        """Buffer n values at a time and yields a list of buffered values.
 
         Keyword Arguments:
-            within: Timeout for when we give up waiting for another event,
-                and return the list of events that we have.  If this is not
+            within: Timeout for when we give up waiting for another value,
+                and return the list of values that we have.  If this is not
                 set, it can potentially wait forever.
         """
-        buffer: List[Event] = []
+        buffer: List[_T] = []
         add = buffer.append
         wait_for = asyncio.wait_for
         if within:
@@ -147,18 +164,18 @@ class Stream(StreamT, JoinableT, Service):
                     yield list(buffer)
                     buffer.clear()
                 else:
-                    if len(buffer) >= max_events:
+                    if len(buffer) >= max_:
                         yield list(buffer)
                         buffer.clear()
         else:
-            async for event in self:
-                add(event)
-                if len(buffer) >= max_events:
+            async for value in self:
+                add(value)
+                if len(buffer) >= max_:
                     yield list(buffer)
                     buffer.clear()
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
-        """Clone stream into n new streams, receiving copies of events.
+        """Clone stream into n new streams, receiving copies of values.
 
         This is the stream analog of :func:`itertools.tee`.
 
@@ -166,17 +183,17 @@ class Stream(StreamT, JoinableT, Service):
             .. code-block:: python
 
                 async def processor1(stream):
-                    async for item in stream:
-                        print(item.value * 2)
+                    async for value in stream:
+                        print(value * 2)
 
                 async def processor2(stream):
-                    async for item in stream:
-                        print(item.value / 2)
+                    async for value in stream:
+                        print(value / 2)
 
                 @app.actor(topic)
-                async def mytask(events):
+                async def mytask(stream):
                     # duplicate the stream and process it in different ways.
-                    a, b = events.tee(2)
+                    a, b = stream.tee(2)
                     await asyncio.gather(
                         processor1(a),
                         processor2(b))
@@ -186,16 +203,16 @@ class Stream(StreamT, JoinableT, Service):
             for _ in range(n)
         ]
 
-        async def forward(event: Event) -> Event:
+        async def forward(value: _T) -> _T:
             for stream in streams:
-                await stream.send(event)
-            return event
+                await stream.send(value)
+            return value
         self.add_processor(forward)
         return tuple(streams)
 
     def enumerate(self,
-                  start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
-        """Enumerate events received in this stream.
+                  start: int = 0) -> AsyncIterator[Tuple[int, _T]]:
+        """Enumerate values received in this stream.
 
         Akin to Python's built-in ``enumerate``, but works for an asynchronous
         stream.
@@ -203,7 +220,7 @@ class Stream(StreamT, JoinableT, Service):
         return aenumerate(self, start)
 
     def through(self, topic: Union[str, TopicT]) -> StreamT:
-        """Forward events to new topic and consume from that topic.
+        """Forward values to new topic and consume from that topic.
 
         Send messages received on this stream to another topic,
         and return a new stream that consumes from that topic.
@@ -218,24 +235,25 @@ class Stream(StreamT, JoinableT, Service):
                 topic = app.topic('foo')
 
                 @app.actor(topic)
-                async def mytask(events):
-                    async for event in events.through('bar'):
-                        # event was first received in topic 'foo',
+                async def mytask(stream):
+                    async for value in stream.through(app.topic('bar')):
+                        # value was first received in topic 'foo',
                         # then forwarded and consumed from topic 'bar'
-                        print(event)
+                        print(value)
         """
+        # ridiculous mypy
         if isinstance(topic, str):
-            topic = self.derive_topic(topic)
-        topic = topic
+            topictopic = self.derive_topic(topic)
+        else:
+            topictopic = topic
 
-        async def forward(event: Event) -> Event:
-            await event.forward(topic)
-            return event
+        async def forward(value: _T) -> _T:
+            return await maybe_forward(value, topictopic)
         self.add_processor(forward)
         return self.clone(source=topic, on_start=self.maybe_start)
 
     def echo(self, *topics: Union[str, TopicT]) -> StreamT:
-        """Forward events to one or more topics.
+        """Forward values to one or more topics.
 
         Unlike :meth:`through`, we don't consume from these topics.
         """
@@ -244,10 +262,12 @@ class Stream(StreamT, JoinableT, Service):
             for t in topics
         ]
 
-        async def echoing(event: Event) -> Event:
-            for t in _topics:
-                await event.forward(t)
-            return event
+        async def echoing(value: _T) -> _T:
+            await asyncio.gather(*[
+                maybe_forward(value, topic)
+                for topic in _topics
+            ], loop=self.loop)
+            return value
         self.add_processor(echoing)
         return self
 
@@ -276,6 +296,7 @@ class Stream(StreamT, JoinableT, Service):
             .. code-block:: python
 
                 s = withdrawals_topic.stream()
+                # values in this stream are of type Withdrawal
                 async for event in s.group_by(Withdrawal.account_id):
                     ...
 
@@ -319,20 +340,24 @@ class Stream(StreamT, JoinableT, Service):
             topic = source.topic.derive(suffix=suffix)
         format_key = self._format_key
 
-        async def repartition(event: Event) -> Event:
-            new_key = await format_key(key, event)
+        async def repartition(value: _T) -> _T:
+            event = self._current_event
+            if event is None:
+                raise RuntimeError(
+                    'Cannot repartition stream with non-topic source')
+            new_key = await format_key(key, value)
             await event.forward(
-                event.req.message.topic + suffix,
+                event.message.topic + suffix,
                 key=new_key,
             )
-            return event
+            return value
         self.add_processor(repartition)
         return self.clone(source=topic, on_start=self.maybe_start)
 
-    async def _format_key(self, key: GroupByKeyArg, event: Event):
+    async def _format_key(self, key: GroupByKeyArg, value: _T):
         if isinstance(key, FieldDescriptorT):
-            return getattr(event, key.field)
-        return await maybe_async(key(event))
+            return getattr(value, key.field)
+        return await maybe_async(key(value))
 
     def derive_topic(self, name: str,
                      *,
@@ -380,8 +405,8 @@ class Stream(StreamT, JoinableT, Service):
         # A combined stream is composed of multiple streams that
         # all share the same outbox.
         # The resulting stream's `on_merge` callback can be used to
-        # process events from all the combined streams, and e.g.
-        # joins uses this to consolidate multiple events into one.
+        # process values from all the combined streams, and e.g.
+        # joins uses this to consolidate multiple values into one.
         stream = self.clone(
             children=self.children + list(nodes),
         )
@@ -406,7 +431,7 @@ class Stream(StreamT, JoinableT, Service):
 
     def _create_message_handler(self) -> Callable[[], Awaitable[None]]:
         # get from source
-        get_message = self.source.__anext__
+        get_next_value = self.source.__anext__
         # Topic description -> processors
         processors = self._processors
         # Topic description -> special coroutine
@@ -420,36 +445,42 @@ class Stream(StreamT, JoinableT, Service):
 
         async def on_message() -> None:
             # get message from source
-            event: Event = await get_message()
-            message: Message = event.req.message
+            value: Any = await get_next_value()
 
-            # call Sensors
-            await on_stream_event_in(message.tp, message.offset, self, event)
+            if isinstance(value, EventT):
+                event: Event = value
+                message: Message = event.message
 
-            # set task-local current_event
-            locals.current_event = create_ref(event)
+                # call Sensors
+                await on_stream_event_in(
+                    message.tp, message.offset, self, event)
+
+                # set task-local current_event
+                locals.current_event = create_ref(event)
+                # set Stream._current_event
+                self._current_event = event
 
             # reduce using processors
             for processor in processors:
-                event = await maybe_async(processor(event))
+                value = await maybe_async(processor(value))
 
             if coroutine is not None:
                 # if there is an S-routine we apply that and delegate
                 # on done to its callback.
-                await coroutine.send(event)
+                await coroutine.send(value)
             else:
                 # otherwise we send directly to outbox
-                await self._send_to_outbox(event)
+                await self._send_to_outbox(value)
         return on_message
 
-    async def on_merge(self, value: Event = None) -> Optional[Event]:
+    async def on_merge(self, value: _T = None) -> Optional[_T]:
         join_strategy = self.join_strategy
         if join_strategy:
             value = await join_strategy.process(value)
         return value
 
-    async def send(self, value: Event) -> None:
-        """Send event into stream manually."""
+    async def send(self, value: _T) -> None:
+        """Send value into stream manually."""
         if isinstance(self.source, TopicConsumerT):
             await cast(TopicConsumerT, self.source).put(value)
         else:
@@ -475,14 +506,14 @@ class Stream(StreamT, JoinableT, Service):
     def __iter__(self) -> Any:
         return self
 
-    def __next__(self) -> Event:
+    def __next__(self) -> _T:
         raise NotImplementedError('Streams are asynchronous: use __aiter__')
 
     def __aiter__(self) -> AsyncIterator:
         self._context = Context(locals=[_locals]).__enter__()
         return self
 
-    async def __anext__(self) -> Event:
+    async def __anext__(self) -> _T:
         if not self._anext_started:
             # setup stuff the first time we are iterated over.
             self._anext_started = True
@@ -493,18 +524,17 @@ class Stream(StreamT, JoinableT, Service):
             _prev, self._current_event = self._current_event, None
             if _prev is not None:
                 _prev.ack()
-            _msg = _prev.req.message
+            _msg = _prev.message
             on_stream_event_out = self._on_stream_event_out
             if on_stream_event_out is not None:
                 await on_stream_event_out(_msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
-        event: Event = None
-        while not event:  # we iterate until on_merge gives back an event
+        value: _T = None
+        while not value:  # we iterate until on_merge gives back a value
             await self._on_message()
-            event = await self.on_merge(cast(Event, await self.outbox.get()))
-        self._current_event = event
-        return event
+            value = await self.on_merge(await self.outbox.get())
+        return value
 
     def __and__(self, other: JoinableT) -> StreamT:
         return self.combine(self, other)

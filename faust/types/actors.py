@@ -1,8 +1,8 @@
 import abc
 import typing
 from typing import AsyncIterable, AsyncIterator, Awaitable, Callable, Union
+from .codecs import CodecArg
 from .core import K, V
-from .serialization import CodecArg
 from .topics import TopicT
 
 if typing.TYPE_CHECKING:
