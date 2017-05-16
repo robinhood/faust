@@ -460,6 +460,8 @@ class Stream(StreamT, JoinableT, Service):
                 # set Stream._current_event
                 self._current_event = event
 
+                value = event.value  # Stream yields Event.value
+
             # reduce using processors
             for processor in processors:
                 value = await maybe_async(processor(value))
