@@ -106,10 +106,6 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def new_stream_name(self) -> str:
-        ...
-
-    @abc.abstractmethod
     async def send(
             self, topic: Union[TopicT, str],
             key: K = None,

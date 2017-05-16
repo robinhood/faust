@@ -9,16 +9,14 @@ from functools import wraps
 from heapq import heappush, heappop
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    ClassVar, Generator, Iterable, Iterator, List, MutableMapping,
+    Generator, Iterable, Iterator, List, MutableMapping,
     MutableSequence, Optional, Pattern, Sequence, Union, Type, Tuple, cast,
 )
-from itertools import count
 from weakref import WeakKeyDictionary
 
 from . import transport
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
-from .streams import _constants
 from .topics import Topic, TopicConsumerT, TopicManager, TopicManagerT
 from .types import (
     CodecArg, K, Message, PendingMessage,
@@ -69,7 +67,7 @@ COMMIT_INTERVAL = 30.0
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({self.id}): {self.url} {self.state} tasks={tasks} streams={streams}>
+<{name}({self.id}): {self.url} {self.state} tasks={tasks} sources={sources}>
 """.strip()
 
 if typing.TYPE_CHECKING:
@@ -141,8 +139,8 @@ class AppService(Service):
     def on_init_dependencies(self) -> Sequence[ServiceT]:
         for task in self.app._task_factories:
             self.app.add_task(task(self.app))
-        # Stream+Table instances
-        streams: List[ServiceT] = list(self.app._streams.values())
+        # Table instances
+        tables: List[ServiceT] = list(self.app._tables.values())
         # Sensors
         self.app.sensors.add(self.app.monitor)  # Add the main Monitor
         sensors: List[ServiceT] = list(self.app.sensors)
@@ -152,7 +150,7 @@ class AppService(Service):
             self.app.sources,                         # app.TopicManager
             self.app._tasks,                          # app.Group
         ]
-        return cast(Sequence[ServiceT], sensors + streams + services)
+        return cast(Sequence[ServiceT], sensors + tables + services)
 
     async def on_first_start(self) -> None:
         if not len(self.app._tasks):
@@ -218,12 +216,6 @@ class App(AppT, ServiceProxy):
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
-
-    #: Used for generating internal names (see new_name taken from KS).
-    _index: ClassVar[Iterator[int]] = count(0)
-
-    #: Mapping of active streams by name.
-    _streams: MutableMapping[str, StreamT]
 
     #: Mapping of active tables by table name.
     _tables: MutableMapping[str, TableT]
@@ -308,7 +300,6 @@ class App(AppT, ServiceProxy):
             value_serializer=self.value_serializer,
         )
         self.store = store
-        self._streams = OrderedDict()
         self._tables = OrderedDict()
         self.sensors = SensorDelegate(self)
         self._task_factories = []
@@ -542,14 +533,12 @@ class App(AppT, ServiceProxy):
                 coroutine: StreamCoroutine = None,
                 **kwargs: Any) -> StreamT:
         stream = self.Stream(
-            name=self.new_stream_name(),
             source=source,
             coroutine=coroutine,
             beacon=self.beacon,
             **kwargs)
         if isinstance(source, TopicConsumerT):
             self.add_source(cast(TopicConsumerT, source))
-        self._streams[stream.name] = stream
         return stream
 
     def table(self, table_name: str,
@@ -602,13 +591,6 @@ class App(AppT, ServiceProxy):
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.sources.commit(topics)
 
-    def new_stream_name(self) -> str:
-        """Create a new name for a stream."""
-        return self._new_name(_constants.SOURCE_NAME)
-
-    def _new_name(self, prefix: str) -> str:
-        return '{0}{1:010d}'.format(prefix, next(self._index))
-
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
             beacon=beacon or self.beacon,
@@ -633,7 +615,7 @@ class App(AppT, ServiceProxy):
             name=type(self).__name__,
             self=self,
             tasks=self.tasks_running,
-            streams=len(self._streams),
+            sources=len(self.sources),
         )
 
     @cached_property

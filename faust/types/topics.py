@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Pattern, Sequence, Type, Union,
+    Pattern, Sequence, Sized, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.types.services import ServiceT
@@ -106,7 +106,7 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
 
-class TopicManagerT(ServiceT):
+class TopicManagerT(ServiceT, Sized):
 
     consumer: ConsumerT
 
