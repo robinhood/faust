@@ -207,11 +207,14 @@ class TopicManager(TopicManagerT, Service):
     #: of each message sent to that topic.
     _topicmap: MutableMapping[str, Set[TopicConsumerT]]
 
+    _pending_tasks: asyncio.Queue
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         self.consumer = None
         self._sources = set()
         self._topicmap = defaultdict(set)
+        self._pending_tasks = asyncio.Queue(loop=self.loop)
         super().__init__(**kwargs)
 
     def ack_message(self, message: Message) -> None:
@@ -238,13 +241,17 @@ class TopicManager(TopicManagerT, Service):
         await self.consumer.subscribe(self._pattern)
 
     def _compile_message_handler(self) -> ConsumerCallback:
+        gather = asyncio.gather
+        list_ = list
         # topic str -> list of TopicConsumer
         get_sources_for_topic = self._topicmap.__getitem__
+
+        add_pending_task = self._pending_tasks.put
 
         async def on_message(message: Message) -> None:
             # when a message is received we find all sources
             # that subscribe to this message
-            sources = list(get_sources_for_topic(message.topic))
+            sources = list_(get_sources_for_topic(message.topic))
 
             # we increment the reference count for this message in bulk
             # immediately, so that nothing will get a chance to decref to
@@ -253,12 +260,15 @@ class TopicManager(TopicManagerT, Service):
 
             # Then send it to each sources inbox,
             # for TopicConsumer.__anext__ to pick up.
-            for source in sources:
-                await source.deliver(message)
+            await gather(*[
+                add_pending_task(source.deliver(message))
+                for source in sources
+            ], loop=self.loop)
         return on_message
 
     async def on_start(self) -> None:
         self.add_future(self._delayed_start())
+        self.add_future(self._gatherer())
 
     async def _delayed_start(self) -> None:
         # wait for tasks to start streams
@@ -270,6 +280,15 @@ class TopicManager(TopicManagerT, Service):
         self.consumer = self._create_consumer()
         await self.consumer.subscribe(self._pattern)
         await self.consumer.start()
+
+    async def _gatherer(self) -> None:
+        waiting = set()
+        wait = asyncio.wait
+        return_when = asyncio.FIRST_COMPLETED
+        while not self.should_stop:
+            waiting.add(await self._pending_tasks.get())
+            finished, unfinished = await wait(waiting, return_when=return_when)
+            waiting = unfinished
 
     async def on_stop(self) -> None:
         if self.consumer:

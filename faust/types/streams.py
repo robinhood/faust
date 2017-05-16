@@ -69,7 +69,6 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
-    app: AppT = None
     source: AsyncIterator = None
     name: str = None
     outbox: asyncio.Queue = None
@@ -79,7 +78,7 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
     children: List[JoinableT] = None
 
     @abc.abstractmethod
-    def __init__(self, app: AppT,
+    def __init__(self,
                  *,
                  name: str = None,
                  source: AsyncIterator = None,

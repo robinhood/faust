@@ -1,4 +1,5 @@
 import asyncio
+import aiohttp
 import faust
 
 
@@ -9,12 +10,13 @@ class Record(faust.Record):
 app = faust.App('concurrency', url='kafka://localhost')
 topic = app.topic('concurrency', value_type=Record)
 
-@app.actor(topic, concurrency=30)
+@app.actor(topic, concurrency=200)
 async def mytask(records):
     sleep = asyncio.sleep
+    session = aiohttp.ClientSession()
     async for record in records:
-        print(record.value ** 2)
-        await sleep(0.0)
+        await session.get(
+            'http://www.google.com/?#safe=off&q={}'.format(record.value))
 
 
 async def producer():

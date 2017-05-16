@@ -9,7 +9,7 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
 )
 
-from ..types import AppT, K, TopicT, Message
+from ..types import K, TopicT, Message
 from ..types.joins import JoinT
 from ..types.models import Event, FieldDescriptorT
 from ..types.streams import (
@@ -63,7 +63,7 @@ class Stream(StreamT, JoinableT, Service):
     _current_event: Event = None
     _context: Context = None
 
-    def __init__(self, app: AppT,
+    def __init__(self,
                  *,
                  name: str = None,
                  source: AsyncIterator = None,
@@ -75,7 +75,6 @@ class Stream(StreamT, JoinableT, Service):
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=None)
-        self.app = app
         self.name = name
         self.source = source
         self._processors = list(processors) if processors else []
@@ -88,18 +87,26 @@ class Stream(StreamT, JoinableT, Service):
         self.children = children if children is not None else []
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
 
-        # attach beacon to current Faust task, or attach it to app.
+        # attach beacon to source, or if iterable attach to current task.
         task = asyncio.Task.current_task(loop=self.loop)
         if task is not None:
             self.task_owner = task
-        if task is not None and hasattr(task, '_beacon'):
+        if source is not None and hasattr(source, 'beacon'):
+            self.beacon = self.source.beacon.new(self)  # type: ignore
+        elif task is not None and hasattr(task, '_beacon'):
             self.beacon = task._beacon.new(self)  # type: ignore
-        else:
-            self.beacon = self.app.beacon.new(self)
 
         # Generate message handler
         self._on_message = None
+        self._on_stream_event_in = None
+        self._on_stream_event_out = None
         if self.source:
+            try:
+                app = self.source.app  # type: ignore
+                self._on_stream_event_in = app.sensors.on_stream_event_in
+                self._on_stream_event_out = app.sensors.on_stream_event_out
+            except AttributeError:
+                pass
             self._on_message = self._create_message_handler()
 
     async def _send_to_outbox(self, event: Event) -> None:
@@ -114,8 +121,9 @@ class Stream(StreamT, JoinableT, Service):
         Examples:
             .. code-block:: python
 
-                async def mytask(app):
-                    async for key, event in stream.items():
+                @app.actor(topic)
+                async def mytask(events):
+                    async for key, event in events.items():
                         print(key, event)
         """
         async for event in self:
@@ -167,9 +175,10 @@ class Stream(StreamT, JoinableT, Service):
                     async for item in stream:
                         print(item.value / 2)
 
-                async def mytask(app):
+                @app.actor(topic)
+                async def mytask(events):
                     # duplicate the stream and process it in different ways.
-                    a, b = app.stream(topic).tee(2)
+                    a, b = events.tee(2)
                     await asyncio.gather(
                         processor1(a),
                         processor2(b))
@@ -210,8 +219,9 @@ class Stream(StreamT, JoinableT, Service):
 
                 topic = app.topic('foo')
 
-                async def mytask(app):
-                    async for event in app.stream(topic).through('bar'):
+                @app.actor(topic)
+                async def mytask(events):
+                    async for event in events.through('bar'):
                         # event was first received in topic 'foo',
                         # then forwarded and consumed from topic 'bar'
                         print(event)
@@ -267,7 +277,7 @@ class Stream(StreamT, JoinableT, Service):
 
             .. code-block:: python
 
-                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+                s = withdrawals_topic.stream()
                 async for event in s.group_by(Withdrawal.account_id):
                     ...
 
@@ -275,7 +285,7 @@ class Stream(StreamT, JoinableT, Service):
 
             .. code-block:: python
 
-                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+                s = withdrawals_topic.stream()
 
                 async def get_key(withdrawal):
                     return await aiohttp.get(
@@ -289,7 +299,7 @@ class Stream(StreamT, JoinableT, Service):
 
             .. code-block:: python
 
-                s = app.stream(withdrawals_topic, value_type=Withdrawal)
+                s = withdrawals_topic.stream()
 
                 def get_key(withdrawal):
                     return withdrawal.account_id.upper()
@@ -359,7 +369,6 @@ class Stream(StreamT, JoinableT, Service):
 
     def asdict(self) -> Mapping[str, Any]:
         return {
-            'app': self.app,
             'name': self.name,
             'source': self.source,
             'processors': self._processors,
@@ -405,12 +414,12 @@ class Stream(StreamT, JoinableT, Service):
         processors = self._processors
         # Topic description -> special coroutine
         coroutine = self._coroutine
+        # Sensor: on_stream_event_in
+        on_stream_event_in = self._on_stream_event_in
 
         # localize this global variable
         locals = _locals
         create_ref = weakref.ref
-
-        on_stream_event_in = self.app.sensors.on_stream_event_in
 
         async def on_message() -> None:
             # get message from source
@@ -488,8 +497,9 @@ class Stream(StreamT, JoinableT, Service):
             if _prev is not None:
                 _prev.ack()
             _msg = _prev.req.message
-            await self.app.sensors.on_stream_event_out(
-                _msg.tp, _msg.offset, self, _prev)
+            on_stream_event_out = self._on_stream_event_out
+            if on_stream_event_out is not None:
+                await on_stream_event_out(_msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
         event: Event = None
