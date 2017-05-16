@@ -542,7 +542,6 @@ class App(AppT, ServiceProxy):
                 coroutine: StreamCoroutine = None,
                 **kwargs: Any) -> StreamT:
         stream = self.Stream(
-            self,
             name=self.new_stream_name(),
             source=source,
             coroutine=coroutine,
