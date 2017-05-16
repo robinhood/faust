@@ -47,15 +47,17 @@ class FaustKafkaClient(KafkaClient):
             False
         )
         future = self.send(node_id, request)
-
-        def on_success(resp):
-            logger.info(f'Created topic {topic}')
-        future.add_callback(on_success)
-
-        def on_error(err):
-            raise Exception(f'Exception ({err.error_message}) while creating '
-                            f'topic: {topic}')
-        future.add_errback(on_error)
+        self.poll(timeout)
+        assert future.is_done
+        if future.succeeded():
+            response = future.value
+            assert len(response.topic_error_codes) == 1
+            _, err_code, err_msg = response.topic_error_codes[0]
+            if err_code != 0:
+                raise Exception(f'Error ({err_msg}) while creating '
+                                f'topic: {topic}')
+        else:
+            raise future.exception
 
     def create_changelog_topic(self, topic: str, partitions: int,
                                replication_factor: int,
