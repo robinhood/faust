@@ -8,7 +8,7 @@ from typing import (
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .core import K
-from .models import Event, FieldDescriptorT
+from .models import FieldDescriptorT
 from .topics import TopicT
 
 if typing.TYPE_CHECKING:
@@ -25,18 +25,19 @@ __all__ = [
     'GroupByKeyArg',
     'StreamCoroutine',
     'StreamT',
+    '_T',
 ]
 
 # Used for typing StreamT[Withdrawal]
 _T = TypeVar('_T')
 
-Processor = Callable[[Event], Union[Event, Awaitable[Event]]]
+Processor = Callable[[_T], Union[_T, Awaitable[_T]]]
 
 
 #: Type of the `key` argument to `Stream.group_by()`
 GroupByKeyArg = Union[
     FieldDescriptorT,
-    Callable[[Event], K],
+    Callable[[_T], K],
 ]
 
 
@@ -69,7 +70,7 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
-    source: AsyncIterator = None
+    source: AsyncIterator[_T] = None
     name: str = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
@@ -81,7 +82,7 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
     def __init__(self,
                  *,
                  name: str = None,
-                 source: AsyncIterator = None,
+                 source: AsyncIterator[_T] = None,
                  processors: Sequence[Processor] = None,
                  coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
@@ -102,12 +103,12 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def items(self) -> AsyncIterator[Tuple[K, Event]]:
+    async def items(self) -> AsyncIterator[Tuple[K, _T]]:
         ...
 
     @abc.abstractmethod
     async def take(self, max_events: int,
-                   within: float = None) -> AsyncIterator[Sequence[Event]]:
+                   within: float = None) -> AsyncIterator[Sequence[_T]]:
         ...
 
     @abc.abstractmethod
@@ -133,11 +134,11 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
     @abc.abstractmethod
     def enumerate(self,
-                  start: int = 0) -> AsyncIterator[Tuple[int, Event]]:
+                  start: int = 0) -> AsyncIterator[Tuple[int, _T]]:
         ...
 
     @abc.abstractmethod
-    async def send(self, value: Event) -> None:
+    async def send(self, value: _T) -> None:
         ...
 
     @abc.abstractmethod
@@ -149,13 +150,13 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def __next__(self) -> Event:
+    def __next__(self) -> _T:
         ...
 
     @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator:
+    def __aiter__(self) -> AsyncIterator[_T]:
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> Any:
+    async def __anext__(self) -> _T:
         ...

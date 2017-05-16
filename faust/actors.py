@@ -4,13 +4,23 @@ from .types.actors import ActorFun, ActorT
 from .utils.aiter import aiter
 from .utils.logging import get_logger
 from .utils.objects import cached_property
+from .utils.services import Service, ServiceProxy
 
 logger = get_logger(__name__)
 
 __all__ = ['Actor', 'ActorFun', 'ActorT']
 
 
-class Actor(ActorT):
+class ActorService(Service):
+
+    def __init__(self, actor: 'ActorT') -> None:
+        self.actor = actor
+
+    async def on_start(self) -> None:
+        ...
+
+
+class Actor(ActorT, ServiceProxy):
 
     app: AppT
     topic: TopicT
@@ -59,3 +69,7 @@ class Actor(ActorT):
     @cached_property
     def source(self) -> AsyncIterator:
         return aiter(self.topic)
+
+    @cached_property
+    def _service(self) -> ActorService:
+        return ActorService(self)

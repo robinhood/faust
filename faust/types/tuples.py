@@ -12,7 +12,7 @@ else:
     class TopicT: ...          # noqa
     class TopicConsumerT: ...  # noqa
 
-__all__ = ['TopicPartition', 'Message', 'Request']
+__all__ = ['TopicPartition', 'Message']
 
 
 class TopicPartition(NamedTuple):
@@ -107,9 +107,3 @@ class Message:
             name=type(self).__name__,
             self=self,
         )
-
-
-class Request(NamedTuple):
-    app: AppT
-    key: K
-    message: Message

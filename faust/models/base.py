@@ -1,13 +1,10 @@
 """Serializing/deserializing message keys and values."""
-from typing import Any, ClassVar, Dict, Mapping, Tuple, Type, Union
+from typing import Any, ClassVar, Dict, Mapping, Tuple, Type
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
-from ..types import K, V, Request, TopicT
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
 
 __all__ = ['Model', 'FieldDescriptor']
-
-SENTINEL = object()
 
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
@@ -69,17 +66,11 @@ class Model(ModelT):
     #: Cache for ``.as_avro_schema()``.
     _schema_cache: ClassVar[schema.Schema] = None
 
-    #: Request associated with event.
-    #: When an model (Event) is received as a message, this field is populated
-    #: with the :class:`~faust.types.Request` it originated from.
-    req: Request = None
-
     @classmethod
     def loads(
             cls, s: bytes,
             *,
-            default_serializer: CodecArg = None,
-            req: Request = None) -> ModelT:
+            default_serializer: CodecArg = None) -> ModelT:
         """Deserialize model object from bytes.
 
         Keyword Arguments:
@@ -91,7 +82,6 @@ class Model(ModelT):
         """
         return cls(  # type: ignore
             loads(cls._options.serializer or default_serializer, s),
-            req=req,
         )
 
     @classmethod
@@ -179,55 +169,6 @@ class Model(ModelT):
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         raise NotImplementedError()
-
-    async def send(self, topic: Union[str, TopicT],
-                   *,
-                   key: Any = SENTINEL) -> None:
-        """Serialize and send object to topic."""
-        if key is SENTINEL:
-            key = self.req.key
-        await self.req.app.send(topic, key, self)
-
-    async def forward(self, topic: Union[str, TopicT],
-                      *,
-                      key: Any = SENTINEL) -> None:
-        """Forward original message (will not be reserialized)."""
-        if key is SENTINEL:
-            key = self.req.key
-        await self.req.app.send(topic, key, self.req.message.value)
-
-    def attach(self, topic: Union[str, TopicT], key: K, value: V,
-               *,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None) -> None:
-        self.req.app.send_attached(
-            self.req.message, topic, key, value,
-            partition=partition,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-        )
-
-    def ack(self) -> None:
-        req = self.req
-        message = req.message
-        # decrement the reference count
-        message.decref()
-        # if no more references, ack message
-        if not message.refcount:
-            self.req.app.sources.ack_message(message)
-
-    async def __aenter__(self) -> 'ModelT':
-        return self
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        self.ack()
-
-    def __enter__(self) -> 'ModelT':
-        return self
-
-    def __exit__(self, *exc_info: Any) -> None:
-        self.ack()
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
         """Serialize object to the target serialization format."""

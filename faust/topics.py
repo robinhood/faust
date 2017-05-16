@@ -7,10 +7,10 @@ from typing import (
     Set, Sequence, Type, Union,
 )
 from .types import (
-    AppT, CodecArg, Event, Message, Request, TopicPartition, K, V,
+    AppT, CodecArg, Message, TopicPartition, K, V,
 )
 from .types.streams import StreamT, StreamCoroutine
-from .types.topics import TopicT, TopicConsumerT, TopicManagerT
+from .types.topics import EventT, TopicT, TopicConsumerT, TopicManagerT
 from .types.transports import ConsumerCallback, ConsumerT, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service
@@ -25,6 +25,64 @@ __all__ = [
 ]
 
 logger = get_logger(__name__)
+
+SENTINEL = object()
+
+
+class Event(EventT):
+
+    app: AppT
+    key: K
+    value: V
+    message: Message
+
+    async def send(self, topic: Union[str, TopicT],
+                   *,
+                   key: Any = SENTINEL) -> None:
+        """Serialize and send object to topic."""
+        if key is SENTINEL:
+            key = self.key
+        await self.app.send(topic, key, self)
+
+    async def forward(self, topic: Union[str, TopicT],
+                      *,
+                      key: Any = SENTINEL) -> None:
+        """Forward original message (will not be reserialized)."""
+        if key is SENTINEL:
+            key = self.key
+        await self.app.send(topic, key, self.message.value)
+
+    def attach(self, topic: Union[str, TopicT], key: K, value: V,
+               *,
+               partition: int = None,
+               key_serializer: CodecArg = None,
+               value_serializer: CodecArg = None) -> None:
+        self.app.send_attached(
+            self.message, topic, key, value,
+            partition=partition,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+        )
+
+    def ack(self) -> None:
+        message = self.message
+        # decrement the reference count
+        message.decref()
+        # if no more references, ack message
+        if not message.refcount:
+            self.app.sources.ack_message(message)
+
+    async def __aenter__(self) -> EventT:
+        return self
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        self.ack()
+
+    def __enter__(self) -> EventT:
+        return self
+
+    def __exit__(self, *exc_info: Any) -> None:
+        self.ack()
 
 
 @total_ordering
@@ -160,15 +218,13 @@ class TopicConsumer(TopicConsumerT, Service):
         except Exception as exc:
             await self.on_key_decode_error(exc, message)
         else:
-            request = Request(app, k, message)
             try:
-                v = await loads_value(
-                    topic.value_type, k, message, request)
+                v = await loads_value(topic.value_type, k, message)
             except Exception as exc:
                 await self.on_value_decode_error(exc, message)
-            await self.put(v)
+            await self.put(Event(app, k, v, message))
 
-    async def put(self, event: Event) -> None:
+    async def put(self, event: EventT) -> None:
         await self.queue.put(event)
 
     async def on_key_decode_error(
@@ -180,14 +236,14 @@ class TopicConsumer(TopicConsumerT, Service):
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    async def get(self) -> Event:
+    async def get(self) -> EventT:
         return await self.queue.get()
 
     def __aiter__(self) -> AsyncIterator:
         self.app.add_source(self)
         return self
 
-    async def __anext__(self) -> Event:
+    async def __anext__(self) -> EventT:
         return await self.queue.get()
 
     def _repr_info(self) -> str:

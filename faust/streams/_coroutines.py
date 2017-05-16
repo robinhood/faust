@@ -1,7 +1,6 @@
 """Coroutine utilities."""
 import asyncio
 from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
-from ..types.models import Event
 from ..types._coroutines import (
     CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback,
 )
@@ -40,7 +39,7 @@ class InputStream(InputStreamT):
         self.loop = loop
         self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
 
-    async def put(self, value: Event) -> None:
+    async def put(self, value: Any) -> None:
         await self.queue.put(value)
 
     async def next(self) -> Any:
@@ -86,7 +85,7 @@ class CoroCallback(Service, CoroCallbackT):
         self.callback = callback
         super().__init__(**kwargs)
 
-    async def send(self, value: Event) -> None:
+    async def send(self, value: Any) -> None:
         await self.inbox.put(value)
 
     async def on_start(self) -> None:
@@ -107,10 +106,10 @@ class CoroCallback(Service, CoroCallbackT):
 
 
 class GeneratorCoroCallback(CoroCallback):
-    gen: Generator[Event, None, None]
+    gen: Generator[Any, None, None]
 
     def __init__(self,
-                 gen: Generator[Event, None, None],
+                 gen: Generator[Any, None, None],
                  inbox: InputStreamT,
                  callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
@@ -122,10 +121,10 @@ class GeneratorCoroCallback(CoroCallback):
 
 
 class AsyncCoroCallback(CoroCallback):
-    gen: AsyncIterable[Event]
+    gen: AsyncIterable[Any]
 
     def __init__(self,
-                 gen: AsyncIterable[Event],
+                 gen: AsyncIterable[Any],
                  inbox: InputStreamT,
                  callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
@@ -137,12 +136,12 @@ class AsyncCoroCallback(CoroCallback):
 
 
 class AsyncGeneratorCoroCallback(CoroCallback):
-    coro: Coroutine[Event, None, None]
-    gen: AsyncIterable[Event]
+    coro: Coroutine[Any, None, None]
+    gen: AsyncIterable[Any]
     gen_started = False
 
     def __init__(self,
-                 coro: Coroutine[Event, None, None],
+                 coro: Coroutine[Any, None, None],
                  inbox: InputStreamT,
                  callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:

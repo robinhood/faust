@@ -20,7 +20,50 @@ else:
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
 
-__all__ = ['TopicT', 'TopicConsumerT', 'TopicManagerT']
+__all__ = ['EventT', 'TopicT', 'TopicConsumerT', 'TopicManagerT']
+
+
+class EventT:
+
+    __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
+
+    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
+        self.app: AppT = app
+        self.key: K = key
+        self.value: V = value
+        self.message: Message = message
+
+    async def send(self, topic: Union[str, 'TopicT'],
+                   *,
+                   key: Any = None) -> None:
+        ...
+
+    async def forward(self, topic: Union[str, 'TopicT'],
+                      *,
+                      key: Any = None) -> None:
+        ...
+
+    def attach(self, topic: Union[str, 'TopicT'], key: K, value: V,
+               *,
+               partition: int = None,
+               key_serializer: CodecArg = None,
+               value_serializer: CodecArg = None) -> None:
+        ...
+
+    def ack(self) -> None:
+        ...
+
+    async def __aenter__(self) -> 'EventT':
+        ...
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        ...
+
+    def __enter__(self) -> 'EventT':
+        ...
+
+    def __exit__(self, *exc_info: Any) -> None:
+        ...
 
 
 class TopicT(AsyncIterable):
@@ -86,7 +129,7 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def put(self, event: Any) -> None:
+    async def put(self, value: Any) -> None:
         ...
 
     @abc.abstractmethod
@@ -94,7 +137,7 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def get(self) -> Any:
+    async def get(self) -> EventT:
         ...
 
     @abc.abstractmethod
@@ -102,7 +145,7 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> Any:
+    async def __anext__(self) -> EventT:
         ...
 
 

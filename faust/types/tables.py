@@ -3,9 +3,8 @@ import typing
 from typing import Any, Callable, ClassVar, Mapping, MutableMapping, Type
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
-from .models import Event
 from .streams import JoinableT
-from .topics import TopicT
+from .topics import EventT, TopicT
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -43,33 +42,33 @@ class WindowSetT(MutableMapping):
     key: Any
     table: TableT
     window: WindowT
-    event: Event = None
+    event: EventT = None
 
     @abc.abstractmethod
     def __init__(self,
                  key: Any,
                  table: TableT,
                  window: WindowT,
-                 event: Event = None) -> None:
+                 event: EventT = None) -> None:
         ...
 
     @abc.abstractmethod
     def apply(self,
               op: Callable[[Any, Any], Any],
               value: Any,
-              event: Event = None) -> 'WindowSetT':
+              event: EventT = None) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def timestamp(self, event: Event = None) -> float:
+    def timestamp(self, event: EventT = None) -> float:
         ...
 
     @abc.abstractmethod
-    def current(self, event: Event = None) -> Any:
+    def current(self, event: EventT = None) -> Any:
         ...
 
     @abc.abstractmethod
-    def delta(self, d: Seconds, event: Event = None) -> Any:
+    def delta(self, d: Seconds, event: EventT = None) -> Any:
         ...
 
     @abc.abstractmethod

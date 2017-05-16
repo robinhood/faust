@@ -1,8 +1,8 @@
 import abc
 from typing import Any, Iterable
 from faust.utils.types.services import ServiceT
-from .models import Event
 from .streams import StreamT, TableT
+from .topics import EventT
 from .transports import ConsumerT, ProducerT
 from .tuples import Message, TopicPartition
 
@@ -26,7 +26,7 @@ class SensorInterfaceT(abc.ABC):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         ...
 
     @abc.abstractmethod
@@ -35,7 +35,7 @@ class SensorInterfaceT(abc.ABC):
             tp: TopicPartition,
             offset: int,
             stream: StreamT,
-            event: Event) -> None:
+            event: EventT) -> None:
         ...
 
     @abc.abstractmethod

@@ -3,7 +3,6 @@ from typing import (
 )
 from ..serializers.avro import to_avro_type
 from ..types.models import ModelT, ModelOptions
-from ..types.tuples import Request
 from ..utils.objects import annotations
 from .base import FieldDescriptor, Model
 
@@ -84,14 +83,7 @@ class Record(Model):
             setattr(cls, field, FieldDescriptor(
                 field, typ, cls, required, default))
 
-    def __init__(self, _data: Any = None,
-                 *,
-                 req: Request = None,
-                 **fields: Any) -> None:
-        # Req is only set by the Consumer, when the record
-        # originates from a message.
-        self.req = req
-
+    def __init__(self, _data: Any = None, **fields: Any) -> None:
         if _data is not None:
             assert not fields
             self._init_fields(_data)
@@ -129,7 +121,7 @@ class Record(Model):
         data = cast(Dict, self.to_representation())
         for obj in objects:
             data.update(cast(Record, obj).to_representation())
-        return type(self)(req=self.req, **{**data, **fields})
+        return type(self)(**{**data, **fields})
 
     def to_representation(self) -> Mapping[str, Any]:
         # Convert known fields to mapping of ``{field: value}``.
@@ -152,7 +144,7 @@ class Record(Model):
             **attrs,
             **{k: v for k, v in defaults if k not in attrs},
         }
-        return _kvrepr(fields, skip={'req'})
+        return _kvrepr(fields)
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, type(self)):
