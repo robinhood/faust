@@ -42,7 +42,7 @@ class Event(EventT):
         """Serialize and send object to topic."""
         if key is SENTINEL:
             key = self.key
-        await self.app.send(topic, key, self)
+        await self.app.send(topic, key, self.value)
 
     async def forward(self, topic: Union[str, TopicT],
                       *,
