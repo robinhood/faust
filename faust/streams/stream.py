@@ -133,7 +133,7 @@ class Stream(StreamT, JoinableT, Service):
                         print(key, value)
         """
         async for event in self.events():
-            yield event.key, event.value
+            yield event.key, cast(_T, event.value)
 
     async def events(self) -> AsyncIterator[EventT]:
         """Iterate over the stream as events exclusively.
@@ -448,7 +448,7 @@ class Stream(StreamT, JoinableT, Service):
             value: Any = await get_next_value()
 
             if isinstance(value, EventT):
-                event: Event = value
+                event: EventT = value
                 message: Message = event.message
 
                 # call Sensors
