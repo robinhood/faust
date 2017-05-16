@@ -317,6 +317,9 @@ class TopicManager(TopicManagerT, Service):
                                revoked: Sequence[TopicPartition]) -> None:
         ...
 
+    def __len__(self) -> int:
+        return len(self._sources)
+
     @property
     def label(self) -> str:
         return '{}({})'.format(

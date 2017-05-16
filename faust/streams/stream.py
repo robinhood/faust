@@ -65,7 +65,6 @@ class Stream(StreamT, JoinableT, Service):
 
     def __init__(self,
                  *,
-                 name: str = None,
                  source: AsyncIterator = None,
                  processors: Sequence[Processor] = None,
                  coroutine: StreamCoroutine = None,
@@ -75,7 +74,6 @@ class Stream(StreamT, JoinableT, Service):
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=None)
-        self.name = name
         self.source = source
         self._processors = list(processors) if processors else []
         if coroutine:
@@ -369,7 +367,6 @@ class Stream(StreamT, JoinableT, Service):
 
     def asdict(self) -> Mapping[str, Any]:
         return {
-            'name': self.name,
             'source': self.source,
             'processors': self._processors,
             'coroutine': self._coroutine,

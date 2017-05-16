@@ -91,35 +91,10 @@ def test_stream_with_coroutine(app):
 
 
 @pytest.mark.asyncio
-async def test_on_start(app):
-    s = app._streams['foo'] = Mock(name='stream')
-    s.start.return_value = done_future()
-    await app.start()
-    s.start.assert_called_with()
-
-
-@pytest.mark.asyncio
-async def test_on_stop_streams(app):
-    app._producer = None
-    s = app._streams['foo'] = Mock(name='stream')
-    s.stop.return_value = done_future()
-    await app.stop()
-    s.stop.assert_called_with()
-
-
-@pytest.mark.asyncio
 async def test_on_stop_producer(app):
     app._producer.stop.return_value = done_future()
     await app.stop()
     app._producer.stop.assert_called_with()
-
-
-def test_add_stream(app):
-    s = Mock(name='foo')
-    app.add_source(s)
-    assert app._streams[s.name] == s
-    with pytest.raises(ValueError):
-        app.add_source(s)
 
 
 def test_new_producer(app):
