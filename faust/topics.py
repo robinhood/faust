@@ -184,6 +184,7 @@ class TopicConsumer(TopicConsumerT, Service):
         return await self.queue.get()
 
     def __aiter__(self) -> AsyncIterator:
+        self.app.add_source(self)
         return self
 
     async def __anext__(self) -> Event:

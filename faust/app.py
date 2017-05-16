@@ -15,6 +15,7 @@ from typing import (
 from weakref import WeakKeyDictionary
 
 from . import transport
+from .actors import ActorFun, Actor, ActorT
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
 from .topics import Topic, TopicConsumerT, TopicManager, TopicManagerT
@@ -78,51 +79,6 @@ if typing.TYPE_CHECKING:
 TASK_TO_APP = WeakKeyDictionary()
 
 logger = get_logger(__name__)
-
-
-class Actor:
-
-    app: AppT
-    topic: TopicT
-    concurrency: int
-
-    def __init__(self,
-                 app: AppT,
-                 topic: TopicT,
-                 fun: Callable[[StreamT], Generator],
-                 *,
-                 concurrency: int = 1) -> None:
-        self.app = app
-        self.topic = topic
-        self.fun: Callable[[StreamT], Generator] = fun
-        self.concurrency = concurrency
-
-    def __call__(self, app: AppT) -> Generator:
-        return self.fun(self.app.stream(self.source))
-
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            wait: bool = True) -> Awaitable:
-        return await self.topic.send(key, value, partition,
-                                     key_serializer, value_serializer,
-                                     wait=wait)
-
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
-        return self.topic.send_soon(key, value, partition,
-                                    key_serializer, value_serializer)
-
-    @cached_property
-    def source(self) -> AsyncIterator:
-        return aiter(self.topic)
 
 
 class AppService(Service):
@@ -245,7 +201,7 @@ class App(AppT, ServiceProxy):
     #:     def mytask():
     #:     ...     ...
     _task_factories: MutableSequence[
-        Union[Actor, Callable[[AppT], Awaitable]]]
+        Union[ActorT, Callable[[AppT], Awaitable]]]
 
     _monitor: Monitor = None
 
@@ -450,8 +406,9 @@ class App(AppT, ServiceProxy):
             return ret
         return producer.send(topic, key, value, partition=partition)
 
-    def actor(self, topic: TopicT, concurrency: int = 1) -> Callable:
-        def _inner(fun: Callable[[StreamT], Generator]) -> Actor:
+    def actor(self, topic: TopicT,
+              concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
+        def _inner(fun: ActorFun) -> ActorT:
             actor = Actor(self, topic, fun, concurrency=concurrency)
             self._task_factories.extend([actor] * concurrency)
             return actor
@@ -524,22 +481,11 @@ class App(AppT, ServiceProxy):
             faust.Stream:
                 to iterate over events in the stream.
         """
-        return self._stream(
-            aiter(source) if source is not None else None,
-            coroutine,
-            **kwargs)
-
-    def _stream(self, source: AsyncIterator,
-                coroutine: StreamCoroutine = None,
-                **kwargs: Any) -> StreamT:
-        stream = self.Stream(
-            source=source,
+        return self.Stream(
+            source=aiter(source) if source is not None else None,
             coroutine=coroutine,
             beacon=self.beacon,
             **kwargs)
-        if isinstance(source, TopicConsumerT):
-            self.add_source(cast(TopicConsumerT, source))
-        return stream
 
     def table(self, table_name: str,
               *,
