@@ -5,6 +5,7 @@ from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable,
     List, Mapping, Sequence, Tuple, Type, TypeVar, Union,
 )
+from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .core import K
@@ -109,7 +110,7 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
     @abc.abstractmethod
     async def take(self, max_: int,
-                   within: float = None) -> AsyncIterator[Sequence[_T]]:
+                   within: Seconds = None) -> AsyncIterator[Sequence[_T]]:
         ...
 
     @abc.abstractmethod
@@ -126,7 +127,7 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def echo(self, *topics: Union[str, TopicT]) -> StreamT:
+    def echo(self, *topics: Union[str, TopicT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
