@@ -410,6 +410,8 @@ class App(AppT, ServiceProxy):
             # ridiculous casting
             topictopic = cast(TopicT, topic)
             strtopic = topictopic.topics[0]
+        else:
+            strtopic = topic
         return await self._send(
             strtopic,
             (await self.serializers.dumps_key(
