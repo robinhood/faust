@@ -92,7 +92,7 @@ class AppService(Service):
         self.app: App = app
         super().__init__(loop=self.app.loop, **kwargs)
 
-    def on_init_dependencies(self) -> Sequence[ServiceT]:
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
         for task in self.app._task_factories:
             self.app.add_task(task(self.app))
         # Table instances
@@ -106,7 +106,7 @@ class AppService(Service):
             self.app.sources,                         # app.TopicManager
             self.app._tasks,                          # app.Group
         ]
-        return cast(Sequence[ServiceT], sensors + tables + services)
+        return cast(Iterable[ServiceT], sensors + tables + services)
 
     async def on_first_start(self) -> None:
         if not len(self.app._tasks):
@@ -262,6 +262,120 @@ class App(AppT, ServiceProxy):
         self._monitor = monitor
         self._pending_on_commit = defaultdict(list)
 
+    def topic(self, *topics: str,
+              pattern: Union[str, Pattern] = None,
+              key_type: Type = None,
+              value_type: Type = None) -> TopicT:
+        return Topic(
+            self,
+            topics=topics,
+            pattern=pattern,
+            key_type=key_type,
+            value_type=value_type,
+        )
+
+    def actor(self, topic: TopicT,
+              *,
+              concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
+        def _inner(fun: ActorFun) -> ActorT:
+            actor = Actor(self, topic, fun, concurrency=concurrency)
+            self._task_factories.extend([actor] * concurrency)
+            return actor
+        return _inner
+
+    def task(self, fun: Callable[[AppT], Awaitable]) -> Callable:
+        self._task_factories.append(fun)
+        return fun
+
+    def timer(self, interval: float) -> Callable:
+        def _inner(fun: Callable[[AppT], Awaitable]) -> Callable:
+            @self.task
+            @wraps(fun)
+            async def around_timer(app: AppT) -> None:
+                while not app.should_stop:
+                    await asyncio.sleep(interval, loop=app.loop)
+                    await fun(app)
+            return around_timer
+        return _inner
+
+    def add_task(self, task: Union[Generator, Awaitable]) -> Awaitable:
+        """Start task.
+
+        Notes:
+            A task is simply any coroutine iterating over a stream,
+            or even any coroutine doing anything.
+        """
+        return self._tasks.add(task)
+
+    def stream(self, source: Union[AsyncIterable, Iterable],
+               coroutine: StreamCoroutine = None,
+               **kwargs: Any) -> StreamT:
+        """Create new stream from topic.
+
+        Arguments:
+            source: Async iterable to stream over.
+
+        Keyword Arguments:
+            coroutine: Coroutine to filter events in this stream.
+            kwargs: See :class:`Stream`.
+
+        Returns:
+            faust.Stream:
+                to iterate over events in the stream.
+        """
+        return self.Stream(
+            source=aiter(source) if source is not None else None,
+            coroutine=coroutine,
+            beacon=self.beacon,
+            **kwargs)
+
+    def table(self, table_name: str,
+              *,
+              default: Callable[[], Any] = None,
+              window: WindowT = None,
+              **kwargs: Any) -> TableT:
+        """Create new table.
+
+        Arguments:
+            table_name: Name used for table, note that two tables living in
+            the same application cannot have the same name.
+
+        Keyword Arguments:
+            default: A callable, or type that will return a default value
+            for keys missing in this table.
+            window: A windowing strategy to wrap this window in.
+
+        Examples:
+            >>> table = app.table('user_to_amount', default=int)
+            >>> table['George']
+            0
+            >>> table['Elaine'] += 1
+            >>> table['Elaine'] += 1
+            >>> table['Elaine']
+            2
+        """
+        table = self.Table(
+            self,
+            table_name=table_name,
+            default=default,
+            beacon=self.beacon,
+            **kwargs)
+        self.add_table(table)
+        return table.using_window(window) if window else table
+
+    def add_source(self, source: TopicConsumerT) -> None:
+        """Register existing stream."""
+        self.sources.add_source(source)
+
+    def add_table(self, table: TableT) -> None:
+        """Register existing table."""
+        assert table.table_name
+        if table.table_name in self._tables:
+            raise ValueError(
+                'Table with name {0.table_name!r} already exists'.format(
+                    table))
+        self._tables[table.table_name] = table
+
     async def send(
             self,
             topic: Union[TopicT, str],
@@ -406,38 +520,6 @@ class App(AppT, ServiceProxy):
             return ret
         return producer.send(topic, key, value, partition=partition)
 
-    def actor(self, topic: TopicT,
-              concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
-        def _inner(fun: ActorFun) -> ActorT:
-            actor = Actor(self, topic, fun, concurrency=concurrency)
-            self._task_factories.extend([actor] * concurrency)
-            return actor
-        return _inner
-
-    def task(self, fun: Callable[[AppT], Awaitable]) -> Callable:
-        self._task_factories.append(fun)
-        return fun
-
-    def timer(self, interval: float) -> Callable:
-        def _inner(fun: Callable[[AppT], Awaitable]) -> Callable:
-            @self.task
-            @wraps(fun)
-            async def around_timer(app: AppT) -> None:
-                while not app.should_stop:
-                    await asyncio.sleep(interval, loop=app.loop)
-                    await fun(app)
-            return around_timer
-        return _inner
-
-    def add_task(self, task: Union[Generator, Awaitable]) -> Awaitable:
-        """Start task.
-
-        Notes:
-            A task is simply any coroutine iterating over a stream,
-            or even any coroutine doing anything.
-        """
-        return self._tasks.add(task)
-
     async def _on_task_started(
             self, task: asyncio.Task,
             *, _set: Callable = TASK_TO_APP.__setitem__) -> None:
@@ -452,87 +534,6 @@ class App(AppT, ServiceProxy):
 
     async def _on_task_stopped(self, task: asyncio.Task) -> None:
         ...
-
-    def topic(self, *topics: str,
-              pattern: Union[str, Pattern] = None,
-              key_type: Type = None,
-              value_type: Type = None) -> TopicT:
-        return Topic(
-            self,
-            topics=topics,
-            pattern=pattern,
-            key_type=key_type,
-            value_type=value_type,
-        )
-
-    def stream(self, source: Union[AsyncIterable, Iterable],
-               coroutine: StreamCoroutine = None,
-               **kwargs: Any) -> StreamT:
-        """Create new stream from topic.
-
-        Arguments:
-            source: Async iterable to stream over.
-
-        Keyword Arguments:
-            coroutine: Coroutine to filter events in this stream.
-            kwargs: See :class:`Stream`.
-
-        Returns:
-            faust.Stream:
-                to iterate over events in the stream.
-        """
-        return self.Stream(
-            source=aiter(source) if source is not None else None,
-            coroutine=coroutine,
-            beacon=self.beacon,
-            **kwargs)
-
-    def table(self, table_name: str,
-              *,
-              default: Callable[[], Any] = None,
-              window: WindowT = None,
-              **kwargs: Any) -> TableT:
-        """Create new table.
-
-        Arguments:
-            table_name: Name used for table, note that two tables living in
-            the same application cannot have the same name.
-
-        Keyword Arguments:
-            default: A callable, or type that will return a default value
-            for keys missing in this table.
-            window: A windowing strategy to wrap this window in.
-
-        Examples:
-            >>> table = app.table('user_to_amount', default=int)
-            >>> table['George']
-            0
-            >>> table['Elaine'] += 1
-            >>> table['Elaine'] += 1
-            >>> table['Elaine']
-            2
-        """
-        table = self.Table(
-            self,
-            table_name=table_name,
-            default=default,
-            beacon=self.beacon,
-            **kwargs)
-        self.add_table(table)
-        return table.using_window(window) if window else table
-
-    def add_source(self, source: TopicConsumerT) -> None:
-        """Register existing stream."""
-        self.sources.add_source(source)
-
-    def add_table(self, table: TableT) -> None:
-        """Register existing table."""
-        assert table.table_name
-        if table.table_name in self._tables:
-            raise ValueError(
-                'Table with name {0.table_name!r} already exists'.format(
-                    table))
-        self._tables[table.table_name] = table
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.sources.commit(topics)

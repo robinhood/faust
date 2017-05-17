@@ -12,7 +12,9 @@ import signal
 import socket
 import sys
 
-from typing import Any, Coroutine, IO, Sequence, Set, Tuple, Union, cast
+from typing import (
+    Any, Coroutine, IO, Iterable, Sequence, Set, Tuple, Union, cast,
+)
 from pathlib import Path
 from progress.spinner import Spinner
 from .types import AppT, SensorT
@@ -99,7 +101,7 @@ class Worker(Service):
             This includes application instances to start.
 
     Keyword Arguments:
-        sensors (Sequence[SensorT]): List of sensors to include.
+        sensors (Iterable[SensorT]): List of sensors to include.
         debug (bool): Enables debugging mode [disabled by default].
         quiet (bool): Do not output anything to console [disabled by default].
         loglevel (Union[str, int]): Level to use for logging, can be string
@@ -118,7 +120,7 @@ class Worker(Service):
     debug: bool
     sensors: Set[SensorT]
     apps: Sequence[AppT]
-    services: Sequence[ServiceT]
+    services: Iterable[ServiceT]
     loglevel: Union[str, int]
     logfile: Union[str, IO]
     stdout: IO
@@ -127,7 +129,7 @@ class Worker(Service):
 
     def __init__(
             self, *services: ServiceT,
-            sensors: Sequence[SensorT] = None,
+            sensors: Iterable[SensorT] = None,
             debug: bool = False,
             quiet: bool = False,
             loglevel: Union[str, int] = None,
@@ -273,7 +275,7 @@ class Worker(Service):
                 return aiomonitor.start_monitor(loop=self.loop)
         return DummyContext()
 
-    def on_init_dependencies(self) -> Sequence[ServiceT]:
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
         for app in self.apps:
             for sensor in self.sensors:
                 app.sensors.add(sensor)

@@ -40,8 +40,7 @@ if typing.TYPE_CHECKING:
     from .sensors import Monitor, Sensor                      # noqa: E402
     from .streams.stream import Stream, current_event         # noqa: E402
     from .tables import Table                                 # noqa: E402
-    from .topics import Topic                                 # noqa: E402
-    from .types import Event                                  # noqa: E402
+    from .topics import Event, Topic                          # noqa: E402
     from .windows import (                                    # noqa: E402
         HoppingWindow, TumblingWindow, SlidingWindow,
     )

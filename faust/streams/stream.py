@@ -5,7 +5,7 @@ import typing
 import weakref
 
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, List,
+    Any, AsyncIterator, Awaitable, Callable, Iterable, List,
     Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
 )
 
@@ -71,10 +71,9 @@ class Stream(StreamT, JoinableT, Service):
     _current_event: EventT = None
     _context: Context = None
 
-    def __init__(self,
+    def __init__(self, source: AsyncIterator[_T] = None,
                  *,
-                 source: AsyncIterator[_T] = None,
-                 processors: Sequence[Processor] = None,
+                 processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
                  on_start: Callable = None,
@@ -83,15 +82,16 @@ class Stream(StreamT, JoinableT, Service):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=None)
         self.source = source
+        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
+        self.join_strategy = join_strategy
+        self.children = children if children is not None else []
+
         self._processors = list(processors) if processors else []
         if coroutine:
             self._coroutine = wrap_callback(coroutine, None, loop=loop)
             # XXX set coroutine callbacks
             self._coroutine.callback = self._send_to_outbox
         self._on_start = on_start
-        self.join_strategy = join_strategy
-        self.children = children if children is not None else []
-        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
 
         # attach beacon to source, or if iterable attach to current task.
         task = asyncio.Task.current_task(loop=self.loop)
@@ -120,6 +120,20 @@ class Stream(StreamT, JoinableT, Service):
 
     def add_processor(self, processor: Processor) -> None:
         self._processors.append(processor)
+
+    def info(self) -> Mapping[str, Any]:
+        return {
+            'source': self.source,
+            'processors': self._processors,
+            'coroutine': self._coroutine,
+            'on_start': self._on_start,
+            'loop': self.loop,
+            'children': self.children,
+            'beacon': self.beacon,
+        }
+
+    def clone(self, **kwargs: Any) -> Any:
+        return self.__class__(**{**self.info(), **kwargs})
 
     async def items(self) -> AsyncIterator[Tuple[K, _T]]:
         """Iterate over the stream as ``key, value`` pairs.
@@ -390,17 +404,6 @@ class Stream(StreamT, JoinableT, Service):
             )
         raise ValueError('Cannot derive topic from non-topic source.')
 
-    def asdict(self) -> Mapping[str, Any]:
-        return {
-            'source': self.source,
-            'processors': self._processors,
-            'coroutine': self._coroutine,
-            'on_start': self._on_start,
-            'loop': self.loop,
-            'children': self.children,
-            'beacon': self.beacon,
-        }
-
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
         # A combined stream is composed of multiple streams that
         # all share the same outbox.
@@ -501,10 +504,6 @@ class Stream(StreamT, JoinableT, Service):
         if self._context is not None:
             self._context.__exit__()
 
-    async def on_aiter_start(self) -> None:
-        """Callback called when this stream is first iterated over."""
-        ...
-
     def __iter__(self) -> Any:
         return self
 
@@ -520,7 +519,6 @@ class Stream(StreamT, JoinableT, Service):
             # setup stuff the first time we are iterated over.
             self._anext_started = True
             await self.maybe_start()
-            await self.on_aiter_start()
         else:
             # decrement reference count for previous event processed.
             _prev, self._current_event = self._current_event, None
@@ -540,9 +538,6 @@ class Stream(StreamT, JoinableT, Service):
 
     def __and__(self, other: JoinableT) -> StreamT:
         return self.combine(self, other)
-
-    def clone(self, **kwargs: Any) -> Any:
-        return self.__class__(**{**self.asdict(), **kwargs})
 
     def __copy__(self) -> Any:
         return self.clone()

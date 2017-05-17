@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Generator,
-    Iterable, Pattern, Sequence, Tuple, Type, Union,
+    Iterable, Pattern, Tuple, Type, Union,
 )
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
@@ -39,6 +39,7 @@ class AppT(ServiceT):
     Stream: Type
     Table: Type
     WebSite: Type
+    Serializers: Type
 
     id: str
     url: str
@@ -67,7 +68,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def actor(self, topic: TopicT, *,
+    def actor(self, topic: TopicT,
+              *,
               concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
         ...
 
@@ -94,7 +96,7 @@ class AppT(ServiceT):
               *,
               default: Callable[[], Any] = None,
               coroutine: StreamCoroutine = None,
-              processors: Sequence[Processor] = None,
+              processors: Iterable[Processor] = None,
               window: WindowT = None,
               **kwargs: Any) -> TableT:
         ...
