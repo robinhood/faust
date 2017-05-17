@@ -36,6 +36,7 @@ from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
+from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
 from .web import Web
 
@@ -158,7 +159,7 @@ class App(AppT, ServiceProxy):
         url (str):
             Transport URL.  Default: ``"aiokafka://localhost:9092"``.
         client_id (str):  Client id used for producer/consumer.
-        commit_interval (float): How often we commit messages that
+        commit_interval (Seconds): How often we commit messages that
             have been fully processed.  Default ``30.0``.
         key_serializer (CodecArg): Default serializer for Topics
             that do not have an explicit serializer set.
@@ -226,7 +227,7 @@ class App(AppT, ServiceProxy):
                  store: str = 'memory://',
                  avro_registry_url: str = None,
                  client_id: str = CLIENT_ID,
-                 commit_interval: float = COMMIT_INTERVAL,
+                 commit_interval: Seconds = COMMIT_INTERVAL,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
@@ -241,7 +242,7 @@ class App(AppT, ServiceProxy):
         self.id = id
         self.url = url
         self.client_id = client_id
-        self.commit_interval = commit_interval
+        self.commit_interval = want_seconds(commit_interval)
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
@@ -287,13 +288,15 @@ class App(AppT, ServiceProxy):
         self._task_factories.append(fun)
         return fun
 
-    def timer(self, interval: float) -> Callable:
+    def timer(self, interval: Seconds) -> Callable:
+        interval_s = want_seconds(interval)
+
         def _inner(fun: Callable[[AppT], Awaitable]) -> Callable:
             @self.task
             @wraps(fun)
             async def around_timer(app: AppT) -> None:
                 while not app.should_stop:
-                    await asyncio.sleep(interval, loop=app.loop)
+                    await asyncio.sleep(interval_s, loop=app.loop)
                     await fun(app)
             return around_timer
         return _inner

@@ -4,6 +4,7 @@ from typing import (
     Any, AsyncIterable, Awaitable, Callable, Generator,
     Iterable, Pattern, Tuple, Type, Union,
 )
+from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT
@@ -78,7 +79,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def timer(self, interval: float) -> Callable:
+    def timer(self, interval: Seconds) -> Callable:
         ...
 
     @abc.abstractmethod

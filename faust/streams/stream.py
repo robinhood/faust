@@ -21,6 +21,7 @@ from ..utils.aiter import aenumerate
 from ..utils.futures import maybe_async
 from ..utils.logging import get_logger
 from ..utils.services import Service
+from ..utils.times import Seconds, want_seconds
 from ..utils.types.collections import NodeT
 
 from ._coroutines import CoroCallbackT, wrap_callback
@@ -159,7 +160,7 @@ class Stream(StreamT, JoinableT, Service):
                 yield self._current_event
 
     async def take(self, max_: int,
-                   within: float = None) -> AsyncIterator[Sequence[_T]]:
+                   within: Seconds = None) -> AsyncIterator[Sequence[_T]]:
         """Buffer n values at a time and yields a list of buffered values.
 
         Keyword Arguments:
@@ -170,10 +171,11 @@ class Stream(StreamT, JoinableT, Service):
         buffer: List[_T] = []
         add = buffer.append
         wait_for = asyncio.wait_for
-        if within:
+        within_s = want_seconds(within)
+        if within_s:
             while 1:
                 try:
-                    add(await wait_for(self.__anext__(), timeout=within))
+                    add(await wait_for(self.__anext__(), timeout=within_s))
                 except asyncio.TimeoutError:
                     yield list(buffer)
                     buffer.clear()
