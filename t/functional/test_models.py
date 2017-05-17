@@ -21,12 +21,11 @@ def test_constructor():
         Account(name='foo')
     with pytest.raises(TypeError):
         Account(unknown_argument=303)
-    account = Account(id='123', name='foo', req=123)
+    account = Account(id='123', name='foo')
     assert account.id == '123'
     assert account.name == 'foo'
     assert account.active
     assert not Account(id='123', name='foo', active=False).active
-    assert account.req == 123
 
 
 def test_constructor_from_data():
@@ -36,11 +35,10 @@ def test_constructor_from_data():
         Account({'name': 'foo'})
     with pytest.raises(TypeError):
         Account({'unknown_argument': 303})
-    account = Account({'id': '123', 'name': 'foo'}, req=123)
+    account = Account({'id': '123', 'name': 'foo'})
     assert account.id == '123'
     assert account.name == 'foo'
     assert account.active
-    assert account.req == 123
     assert not Account({'id': '123', 'name': 'foo', 'active': False}).active
 
 

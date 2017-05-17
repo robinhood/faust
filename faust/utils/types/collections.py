@@ -24,6 +24,10 @@ class NodeT(abc.ABC):
     def add(self, data: Any) -> None:
         ...
 
+    @abc.abstractmethod
+    def discard(self, data: Any) -> None:
+        ...
+
     def reattach(self, parent: 'NodeT') -> 'NodeT':
         ...
 

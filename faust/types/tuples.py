@@ -69,7 +69,7 @@ class Message:
         self.refcount: int = 0
         self.tp = tp
         if typing.TYPE_CHECKING:
-            # mypy does not support WeakSet
+            # mypy supports this, but Python doesn't.
             self.sources: WeakSet[TopicConsumerT] = WeakSet()
         else:
             self.sources = WeakSet()

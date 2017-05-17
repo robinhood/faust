@@ -3,8 +3,8 @@ import re
 from collections import defaultdict
 from functools import total_ordering
 from typing import (
-    Any, AsyncIterator, Awaitable, MutableMapping, Pattern,
-    Set, Sequence, Type, Union,
+    Any, AsyncIterator, Awaitable, Iterator, MutableMapping,
+    Optional, Pattern, Set, Sequence, Type, Union,
 )
 from .types import (
     AppT, CodecArg, Message, TopicPartition, K, V,
@@ -174,7 +174,9 @@ class Topic(TopicT):
         )
 
     def __aiter__(self) -> AsyncIterator:
-        return TopicConsumer(self)
+        source = TopicConsumer(self)
+        self.app.add_source(source)
+        return source
 
     async def __anext__(self) -> Any:
         # XXX Mypy seems to think AsyncIterable sould have __anext__
@@ -240,7 +242,6 @@ class TopicConsumer(TopicConsumerT, Service):
         return await self.queue.get()
 
     def __aiter__(self) -> AsyncIterator:
-        self.app.add_source(self)
         return self
 
     async def __anext__(self) -> EventT:
@@ -266,12 +267,17 @@ class TopicManager(TopicManagerT, Service):
 
     _pending_tasks: asyncio.Queue
 
+    #: Whenever a change is made, i.e. a source is added/removed, we notify
+    #: the background task responsible for resubscribing.
+    _subscription_changed: Optional[asyncio.Condition]
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         self.consumer = None
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
+        self._subscription_changed = None
         super().__init__(**kwargs)
 
     def ack_message(self, message: Message) -> None:
@@ -287,15 +293,6 @@ class TopicManager(TopicManagerT, Service):
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.consumer.commit(topics)
-
-    def add_source(self, source: TopicConsumerT) -> None:
-        if source not in self._sources:
-            self._sources.add(source)
-            self.beacon.add(source)  # connect to beacon
-
-    async def update(self) -> None:
-        self._compile_pattern()
-        await self.consumer.subscribe(self._pattern)
 
     def _compile_message_handler(self) -> ConsumerCallback:
         gather = asyncio.gather
@@ -324,19 +321,39 @@ class TopicManager(TopicManagerT, Service):
         return on_message
 
     async def on_start(self) -> None:
-        self.add_future(self._delayed_start())
+        self.add_future(self._subscriber())
         self.add_future(self._gatherer())
 
-    async def _delayed_start(self) -> None:
-        # wait for tasks to start streams
+    async def _subscriber(self) -> None:
+        # the first time we start, we will wait two seconds
+        # to give actors a chance to start up and register their
+        # streams.  This way we won't have N subscription requests at the
+        # start.
         await asyncio.sleep(2.0, loop=self.loop)
 
-        # then register topics etc.
+        # then we compile the subscription topic pattern,
         self._compile_pattern()
+
+        # and we compile the closure used for receive messages
+        # (this just optimizes symbol lookups, localizing variables etc).
         self._on_message = self._compile_message_handler()
+
+        # create the faust.transport.base.Consumer object
         self.consumer = self._create_consumer()
+
+        # tell the consumer to subscribe to our pattern
         await self.consumer.subscribe(self._pattern)
+
+        # and start the consumer
         await self.consumer.start()
+
+        # Now we wait for changes
+        cond = self._subscription_changed = asyncio.Condition(loop=self.loop)
+        while 1:
+            with await cond:
+                await cond.wait()
+                self._compile_pattern()
+                self.consumer.subscribe(self._pattern)
 
     async def _gatherer(self) -> None:
         waiting = set()
@@ -374,8 +391,27 @@ class TopicManager(TopicManagerT, Service):
                                revoked: Sequence[TopicPartition]) -> None:
         ...
 
+    def __contains__(self, value: Any) -> bool:
+        return value in self._sources
+
+    def __iter__(self) -> Iterator[TopicConsumerT]:
+        return iter(self._sources)
+
     def __len__(self) -> int:
         return len(self._sources)
+
+    def add(self, source: TopicConsumerT) -> None:
+        if source not in self._sources:
+            self._sources.add(source)
+            self.beacon.add(source)  # connect to beacon
+            if self._subscription_changed is not None:
+                self._subscription_changed.notify_all()
+
+    def discard(self, source: TopicConsumerT) -> None:
+        self._sources.discard(source)
+        self.beacon.discard(source)
+        if self._subscription_changed is not None:
+            self._subscription_changed.notify_all()
 
     @property
     def label(self) -> str:

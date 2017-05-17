@@ -18,10 +18,10 @@ class TableT(MutableMapping, JoinableT, ServiceT):
 
     app: AppT
     table_name: str
-    changelog_topic: TopicT
     default: Any  # noqa: E704
     key_type: Type
     value_type: Type
+    changelog_topic: TopicT
 
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':

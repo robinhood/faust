@@ -228,7 +228,7 @@ class App(AppT, ServiceProxy):
                  avro_registry_url: str = None,
                  client_id: str = CLIENT_ID,
                  commit_interval: Seconds = COMMIT_INTERVAL,
-                 key_serializer: CodecArg = None,
+                 key_serializer: CodecArg = 'json',
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
@@ -368,7 +368,7 @@ class App(AppT, ServiceProxy):
 
     def add_source(self, source: TopicConsumerT) -> None:
         """Register existing stream."""
-        self.sources.add_source(source)
+        self.sources.add(source)
 
     def add_table(self, table: TableT) -> None:
         """Register existing table."""

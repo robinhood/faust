@@ -34,9 +34,13 @@ class Table(Service, TableT, ManagedUserDict):
         self.table_name = table_name
         self.default = default
         self._store = store
-        self.data = {}
         self.key_type = key_type
         self.value_type = value_type
+        self.changelog_topic = self.app.topic(
+            self._changelog_topic_name(),
+            key_type=self.key_type,
+            value_type=self.value_type,
+        )
 
         if self.StateStore is not None:
             self.data = self.StateStore(url=None, app=app, loop=self.loop)
@@ -49,11 +53,8 @@ class Table(Service, TableT, ManagedUserDict):
 
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
-        self.changelog_topic = self.app.topic(
-            self._changelog_topic_name(),
-            key_type=self.key_type,
-            value_type=self.value_type,
-        )
+
+        # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get
         self._sensor_on_set = self.app.sensors.on_table_set
         self._sensor_on_del = self.app.sensors.on_table_del
