@@ -272,13 +272,17 @@ class TopicManager(TopicManagerT, Service):
     _subscription_changed: Optional[asyncio.Condition]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
+        Service.__init__(self, **kwargs)
         self.app = app
         self.consumer = None
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
         self._subscription_changed = None
-        super().__init__(**kwargs)
+        # we compile the closure used for receive messages
+        # (this just optimizes symbol lookups, localizing variables etc).
+        self._on_message = self._compile_message_handler()
+        self.consumer = self._create_consumer()
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
@@ -333,13 +337,6 @@ class TopicManager(TopicManagerT, Service):
 
         # then we compile the subscription topic pattern,
         self._compile_pattern()
-
-        # and we compile the closure used for receive messages
-        # (this just optimizes symbol lookups, localizing variables etc).
-        self._on_message = self._compile_message_handler()
-
-        # create the faust.transport.base.Consumer object
-        self.consumer = self._create_consumer()
 
         # tell the consumer to subscribe to our pattern
         await self.consumer.subscribe(self._pattern)
