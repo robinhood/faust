@@ -2,9 +2,7 @@
 import abc
 import asyncio
 import weakref
-from typing import (
-    Any, Awaitable, List, MutableSequence, Sequence, cast,
-)
+from typing import Any, Awaitable, Iterable, List, MutableSequence, cast
 from .collections import Node
 from .logging import get_logger
 from .types.collections import NodeT
@@ -109,7 +107,7 @@ class Service(ServiceBase):
         """Callback to be called on instantiation."""
         ...
 
-    def on_init_dependencies(self) -> Sequence[ServiceT]:
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
         """Callback to be used to add service dependencies."""
         return []
 

@@ -2,14 +2,14 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable,
+    Any, AsyncIterator, Awaitable, Callable, Iterable,
     List, Mapping, Sequence, Tuple, Type, TypeVar, Union,
 )
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .core import K
 from .models import FieldDescriptorT
-from .topics import TopicT
+from .topics import EventT, TopicT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -71,7 +71,6 @@ class JoinableT(abc.ABC):
 class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
 
     source: AsyncIterator[_T] = None
-    name: str = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
@@ -79,11 +78,9 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
     children: List[JoinableT] = None
 
     @abc.abstractmethod
-    def __init__(self,
+    def __init__(self, source: AsyncIterator[_T] = None,
                  *,
-                 name: str = None,
-                 source: AsyncIterator[_T] = None,
-                 processors: Sequence[Processor] = None,
+                 processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
                  join_strategy: JoinT = None,
@@ -95,7 +92,7 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def asdict(self) -> Mapping[str, Any]:
+    def info(self) -> Mapping[str, Any]:
         ...
 
     @abc.abstractmethod
@@ -107,7 +104,11 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def take(self, max_events: int,
+    async def events(self) -> AsyncIterator[EventT]:
+        ...
+
+    @abc.abstractmethod
+    async def take(self, max_: int,
                    within: float = None) -> AsyncIterator[Sequence[_T]]:
         ...
 
@@ -116,11 +117,23 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
+    def enumerate(self,
+                  start: int = 0) -> AsyncIterator[Tuple[int, _T]]:
+        ...
+
+    @abc.abstractmethod
     def through(self, topic: Union[str, TopicT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
-    def group_by(self, key: GroupByKeyArg) -> 'StreamT':
+    def echo(self, *topics: Union[str, TopicT]) -> StreamT:
+        ...
+
+    @abc.abstractmethod
+    def group_by(self, key: GroupByKeyArg,
+                 *,
+                 name: str = None,
+                 topic: TopicT = None) -> 'StreamT':
         ...
 
     @abc.abstractmethod
@@ -130,11 +143,6 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
                      value_type: Type = None,
                      prefix: str = '',
                      suffix: str = '') -> TopicT:
-        ...
-
-    @abc.abstractmethod
-    def enumerate(self,
-                  start: int = 0) -> AsyncIterator[Tuple[int, _T]]:
         ...
 
     @abc.abstractmethod

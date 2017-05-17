@@ -2,7 +2,7 @@
 import asyncio
 import aiohttp
 from collections import defaultdict
-from typing import DefaultDict, Dict, Mapping, Optional, Sequence, Tuple, cast
+from typing import DefaultDict, Dict, Iterable, Mapping, Optional, Tuple, cast
 from avro.schema import Parse, Schema
 from faust.utils import json
 from faust.utils.logging import get_logger
@@ -11,7 +11,7 @@ __all__ = ['ClientError', 'RegistryClient']
 
 logger = get_logger(__name__)
 
-ACCEPT_TYPES: Sequence[str] = [
+ACCEPT_TYPES: Iterable[str] = [
     'application/vnd.schemaregistry.v1+json',
     'application/vnd.schemaregistry+json',
     'application/json',
@@ -50,7 +50,7 @@ class RegistryClient:
                  *,
                  max_schemas_per_subject: int = 1000,
                  session: aiohttp.ClientSession = None,
-                 accept: Sequence[str] = ACCEPT_TYPES,
+                 accept: Iterable[str] = ACCEPT_TYPES,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = url.rstrip('/')
         self.max_schemas_per_subject = max_schemas_per_subject
