@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Pattern, Sequence, Sized, Type, Union,
+    MutableSet, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.types.services import ServiceT
@@ -149,17 +149,9 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
 
-class TopicManagerT(ServiceT, Sized):
+class TopicManagerT(ServiceT, MutableSet[TopicConsumerT]):
 
     consumer: ConsumerT
-
-    @abc.abstractmethod
-    def add_source(self, source: TopicConsumerT) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def update(self) -> None:
-        ...
 
     @abc.abstractmethod
     def ack_message(self, message: Message) -> None:

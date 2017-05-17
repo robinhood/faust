@@ -36,23 +36,15 @@ class ConsumerT(ServiceT):
     commit_interval: float
 
     @abc.abstractmethod
+    async def subscribe(self, pattern: str) -> None:
+        ...
+
+    @abc.abstractmethod
     def ack(self, tp: TopicPartition, offset: int) -> None:
         ...
 
     @abc.abstractmethod
     async def commit(self, topics: TPorTopicSet = None) -> bool:
-        ...
-
-    @abc.abstractmethod
-    async def subscribe(self, pattern: str) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def _commit(self, offsets: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def register_timers(self) -> None:
         ...
 
     @abc.abstractmethod
@@ -91,9 +83,11 @@ class TransportT(metaclass=abc.ABCMeta):
     loop: asyncio.AbstractEventLoop
     driver_version: str
 
+    @abc.abstractmethod
     def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
         ...
 
+    @abc.abstractmethod
     def create_producer(self, **kwargs: Any) -> ProducerT:
         ...

@@ -181,13 +181,18 @@ class Service(ServiceBase):
             logger.info('-Shutdown service %r', self)
 
     async def _gather_futures(self) -> None:
-        # Gather all futures added via .add_future
-        try:
-            await asyncio.gather(*self._futures, loop=self.loop)
-        except asyncio.CancelledError:
-            pass
-        finally:
-            self._futures.clear()
+        if self._futures:
+            # Gather all futures added via .add_future
+            try:
+                await asyncio.wait(
+                    self._futures,
+                    return_when=asyncio.ALL_COMPLETED,
+                    loop=self.loop,
+                )
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._futures.clear()
 
     async def restart(self) -> None:
         """Restart this service."""

@@ -71,6 +71,13 @@ class Node(NodeT):
         """Add node as a child node."""
         self.children.append(data)
 
+    def discard(self, data: Any) -> None:
+        # XXX slow
+        try:
+            self.children.remove(data)
+        except ValueError:
+            pass
+
     def as_graph(self) -> DependencyGraphT:
         """Convert to :class:`~faust.utils.graphs.DependencyGraph`."""
         graph = DependencyGraph()

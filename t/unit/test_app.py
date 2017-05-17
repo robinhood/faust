@@ -1,25 +1,26 @@
+import faust
 import pytest
+import weakref
 from case import ANY, Mock
-from faust import App, Record, topic
 from faust.serializers import codecs
 from faust.types.models import ModelT
 from faust.utils.compat import want_bytes
 from faust.utils.futures import done_future
 
-test_topic = topic('test')
+TEST_TOPIC = 'test'
 
 
-class Key(Record, serializer='json'):
+class Key(faust.Record):
     value: int
 
 
-class Value(Record, serializer='json'):
+class Value(faust.Record, serializer='json'):
     amount: float
 
 
 @pytest.fixture
 def app():
-    instance = App('testid')
+    instance = faust.App('testid')
     instance.producer = Mock(name='producer')
     return instance
 
@@ -31,15 +32,17 @@ def setup_producer(app):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('key,wait,topic,expected_topic,key_serializer', [
-    ('key', True, test_topic, test_topic.topics[0], None),
-    (Key(value=10), True, test_topic, test_topic.topics[0], None),
-    ({'key': 'k'}, True, test_topic, test_topic.topics[0], 'json'),
+@pytest.mark.parametrize('key,wait,topic_name,expected_topic,key_serializer', [
+    ('key', True, TEST_TOPIC, TEST_TOPIC, None),
+    (Key(value=10), True, TEST_TOPIC, TEST_TOPIC, None),
+    ({'key': 'k'}, True, TEST_TOPIC, TEST_TOPIC, 'json'),
     (None, True, 'topic', 'topic', None),
-    (b'key', False, test_topic, test_topic.topics[0], None),
+    (b'key', False, TEST_TOPIC, TEST_TOPIC, None),
     ('key', False, 'topic', 'topic', None),
 ])
-async def test_send(key, wait, topic, expected_topic, key_serializer, app):
+async def test_send(
+        key, wait, topic_name, expected_topic, key_serializer, app):
+    topic = app.topic(topic_name)
     event = Value(amount=0.0)
     setup_producer(app)
     await app.send(topic, key, event, key_serializer=key_serializer, wait=wait)
@@ -51,7 +54,7 @@ async def test_send(key, wait, topic, expected_topic, key_serializer, app):
     )
     if key is not None:
         if isinstance(key, ModelT):
-            expected_key = key.dumps()
+            expected_key = key.dumps(serializer='json')
         elif key_serializer:
             expected_key = codecs.dumps(key_serializer, key)
         else:
@@ -59,24 +62,30 @@ async def test_send(key, wait, topic, expected_topic, key_serializer, app):
     else:
         expected_key = None
     expected_sender.assert_called_with(
-        expected_topic, expected_key, event.dumps(),
+        expected_topic, expected_key, event.dumps(), partition=None,
     )
 
 
-def test_add_task(app, patching):
-    ensure_future = patching('asyncio.ensure_future')
+@pytest.mark.asyncio
+async def test_add_task(app, patching):
+    app._tasks._starting.clear()
+    started = False
 
     async def foo():
-        ...
+        nonlocal started
+        started = True
 
-    app.add_task(foo)
-    ensure_future.assert_called()
+    app.add_task(foo())
+    assert app._tasks._starting
+    await app._tasks.start()
+    await app._tasks.stop()
 
 
 def test_stream(app):
-    s = app.stream(test_topic)
-    assert s.topics == [test_topic]
-    assert s.app == app
+    s = app.topic(TEST_TOPIC).stream()
+    assert s.source.topic.topics == (TEST_TOPIC,)
+    assert s.source in app.sources
+    assert s.source.app == app
 
 
 def test_stream_with_coroutine(app):
@@ -84,14 +93,13 @@ def test_stream_with_coroutine(app):
     async def coro(it):
         ...
 
-    s = app.stream(test_topic, coro)
-    assert s.topics == [test_topic]
-    assert s._coroutines[test_topic]
-    assert s.app == app
+    s = app.topic(TEST_TOPIC).stream(coro)
+    assert s._coroutine
 
 
 @pytest.mark.asyncio
 async def test_on_stop_producer(app):
+    app._service._children.append(weakref.ref(app._producer))
     app._producer.stop.return_value = done_future()
     await app.stop()
     app._producer.stop.assert_called_with()

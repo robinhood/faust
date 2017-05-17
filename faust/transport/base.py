@@ -1,4 +1,5 @@
 """Base message transport implementation."""
+import abc
 import asyncio
 from collections import defaultdict
 from itertools import count
@@ -99,6 +100,23 @@ class Consumer(Service, ConsumerT):
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
         super().__init__(loop=self.transport.loop, **kwargs)
+
+    @abc.abstractmethod
+    async def _commit(self, offsets: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def _get_topic_meta(self, topic: str) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def _new_topicpartition(
+            self, topic: str, partition: int) -> TopicPartition:
+        ...
+
+    @abc.abstractmethod
+    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
+        ...
 
     async def register_timers(self) -> None:
         self.add_future(self._recently_acked_handler())
@@ -202,16 +220,6 @@ class Consumer(Service, ConsumerT):
     async def _do_commit(
             self, tp: TopicPartition, offset: int, meta: Any) -> None:
         await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
-
-    def _get_topic_meta(self, topic: str) -> Any:
-        raise NotImplementedError()
-
-    def _new_topicpartition(
-            self, topic: str, partition: int) -> TopicPartition:
-        raise NotImplementedError()
-
-    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
-        raise NotImplementedError()
 
     async def on_task_error(self, exc: Exception) -> None:
         if self.autoack:
