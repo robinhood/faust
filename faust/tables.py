@@ -61,7 +61,7 @@ class Table(Service, TableT, ManagedUserDict):
 
     def __hash__(self) -> int:
         # We have to override MutableMapping __hash__, so that this table
-        # can be registered in the app._tables mapping.
+        # can be registered in the app.tables mapping.
         return object.__hash__(self)
 
     def __missing__(self, key: Any) -> Any:

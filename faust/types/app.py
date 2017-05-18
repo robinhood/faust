@@ -1,8 +1,8 @@
 import abc
 import typing
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Generator,
-    Iterable, Pattern, Tuple, Type, Union,
+    Any, AsyncIterable, Awaitable, Callable,
+    Iterable, MutableMapping, Pattern, Tuple, Type, Union,
 )
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
@@ -53,6 +53,8 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
 
+    actors: MutableMapping[str, ActorT]
+    tables: MutableMapping[str, TableT]
     sensors: SensorDelegateT
     serializers: RegistryT
 
@@ -75,15 +77,11 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def task(self, fun: Callable[['AppT'], Awaitable]) -> Callable:
+    def task(self, fun: Callable[[], Awaitable]) -> Callable:
         ...
 
     @abc.abstractmethod
     def timer(self, interval: Seconds) -> Callable:
-        ...
-
-    @abc.abstractmethod
-    def add_task(self, task: Generator) -> Awaitable:
         ...
 
     @abc.abstractmethod
@@ -153,11 +151,6 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def transport(self) -> TransportT:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def tasks_running(self) -> int:
         ...
 
     @property

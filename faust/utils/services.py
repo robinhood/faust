@@ -1,8 +1,7 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import abc
 import asyncio
-import weakref
-from typing import Any, Awaitable, Iterable, List, MutableSequence, cast
+from typing import Any, Awaitable, Iterable, List, MutableSequence
 from .collections import Node
 from .logging import get_logger
 from .types.collections import NodeT
@@ -66,7 +65,7 @@ class Service(ServiceBase):
 
     #: .add_dependency adds subservices to this list.
     #: They are started/stopped with the service.
-    _children: MutableSequence[Any]
+    _children: MutableSequence[ServiceT]
 
     #: .add_future adds futures to this list
     #: They are started/stopped with the service.
@@ -91,7 +90,7 @@ class Service(ServiceBase):
         """
         if service.beacon.root is None:
             service.beacon.reattach(self.beacon)
-        self._children.append(weakref.ref(service))
+        self._children.append(service)
         return service
 
     def add_future(self, coro: Awaitable) -> asyncio.Future:
@@ -141,14 +140,12 @@ class Service(ServiceBase):
         assert not self._started.is_set()
         self._started.set()
         if not self.restart_count:
-            self._children.extend(
-                map(weakref.ref, self.on_init_dependencies()))
+            self._children.extend(self.on_init_dependencies())
             await self.on_first_start()
         await self.on_start()
-        for childref in self._children:
-            child = childref()
+        for child in self._children:
             if child is not None:
-                await cast(ServiceT, child).maybe_start()
+                await child.maybe_start()
         logger.info('-Started service %r', self)
         await self.on_started()
 
@@ -163,10 +160,9 @@ class Service(ServiceBase):
             logger.info('+Stopping service %r', self)
             self._stopped.set()
             await self.on_stop()
-            for childref in reversed(self._children):
-                child = childref()
+            for child in reversed(self._children):
                 if child is not None:
-                    await cast(ServiceT, child).stop()
+                    await child.stop()
             for future in reversed(self._futures):
                 future.cancel()
             logger.info('-Stopped service %r', self)

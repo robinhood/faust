@@ -166,32 +166,27 @@ KStream
                 self.pending = []
                 self.total = 0
 
-            async def _flush_events():
-                while 1:
-                    # flush events every second
-                    await asyncio.sleep(1.0)
-                    for amount in self.pending:
-                        self.total += total
-                    self.pending.clear()
-                    print('TOTAL NOW: %r' % (total,))
+            def flush(self):
+                for amount in self.pending:
+                    self.total += amount
+                self.pending.clear()
+                print('TOTAL NOW: %r' % (total,))
 
             def add(self, amount):
                 self.pending.append(amount)
+        buffer = TransferBuffer()
 
-            def start(self):
-                asyncio.ensure_future(self._flush_events())
-
-        async def task(app);
-            buffer = TransferBuffer()
-            buffer.start()
-            async for transfer in app.stream(transfer_topic):
+        @app.actor(transfer_topic)
+        async def task(transfers):
+            async transfer for transfers in transfers:
                 buffer.add(transfer.amount)
 
-        async def main():
-            app.add_task(task())
+        @app.timer(interval=1.0)
+        async def flush_buffer():
+            buffer.flush()
 
         if __name__ == '__main__':
-            faust.Worker(app).execute_from_commandline(main())
+            app.start()
 
 - ``join()``
 - ``outerJoin()``

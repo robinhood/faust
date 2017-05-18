@@ -1,6 +1,8 @@
 import abc
+import asyncio
 import typing
 from typing import AsyncIterable, AsyncIterator, Awaitable, Callable, Union
+from ..utils.types.services import ServiceT
 from .codecs import CodecArg
 from .core import K, V
 from .topics import TopicT
@@ -10,23 +12,41 @@ if typing.TYPE_CHECKING:
 else:
     class AppT: ...  # noqa
 
+__all__ = [
+    'ActorFun',
+    'ActorStartedHandler',
+    'ActorStoppedHandler',
+    'ActorErrorHandler',
+    'ActorT',
+]
+
 ActorFun = Callable[[AsyncIterator], Union[Awaitable, AsyncIterable]]
+ActorStartedHandler = Callable[[asyncio.Task], Awaitable]
+ActorStoppedHandler = Callable[[asyncio.Task], Awaitable]
+ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
 
 
-class ActorT(abc.ABC):
+class ActorT(ServiceT):
 
+    name: str
     app: AppT
     topic: TopicT
     concurrency: int
 
     @abc.abstractmethod
-    def __init__(self, app: AppT, topic: TopicT, fun: ActorFun,
+    def __init__(self, fun: ActorFun,
                  *,
-                 concurrency: int = 1) -> None:
+                 name: str = None,
+                 app: AppT = None,
+                 topic: TopicT = None,
+                 concurrency: int = 1,
+                 on_started: ActorStartedHandler = None,
+                 on_stopped: ActorStoppedHandler = None,
+                 on_error: ActorErrorHandler = None) -> None:
         self.fun: ActorFun = fun
 
     @abc.abstractmethod
-    def __call__(self, app: AppT) -> Awaitable:
+    def __call__(self) -> Union[Awaitable, AsyncIterable]:
         ...
 
     @abc.abstractmethod

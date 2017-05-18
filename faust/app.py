@@ -7,10 +7,11 @@ import typing
 from collections import defaultdict
 from functools import wraps
 from heapq import heappush, heappop
+from itertools import chain
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Generator, Iterable, Iterator, List, MutableMapping,
-    MutableSequence, Optional, Pattern, Sequence, Union, Type, Tuple, cast,
+    Iterable, Iterator, List, MutableMapping, MutableSequence,
+    Optional, Pattern, Sequence, Union, Type, Tuple, cast,
 )
 from weakref import WeakKeyDictionary
 
@@ -31,7 +32,6 @@ from .types.transports import ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
-from .utils.futures import Group
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import cached_property
@@ -69,7 +69,7 @@ COMMIT_INTERVAL = 30.0
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({self.id}): {self.url} {self.state} tasks={tasks} sources={sources}>
+<{name}({s.id}): {s.url} {s.state} actors({actors}) sources({sources})>
 """.strip()
 
 if typing.TYPE_CHECKING:
@@ -94,25 +94,36 @@ class AppService(Service):
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
-        for task in self.app._task_factories:
-            self.app.add_task(task(self.app))
-        # Table instances
-        tables: List[ServiceT] = list(self.app._tables.values())
-        # Sensors
-        self.app.sensors.add(self.app.monitor)  # Add the main Monitor
-        sensors: List[ServiceT] = list(self.app.sensors)
-        services: List[ServiceT] = [
-            self.app.producer,                        # app.Producer
-            self.app.website,                         # app.Web
-            self.app.sources,                         # app.TopicManager
-            self.app._tasks,                          # app.Group
-        ]
-        return cast(Iterable[ServiceT], sensors + tables + services)
+        # Add all asyncio.Tasks, like timers, etc.
+        for task in self.app._tasks:
+            self.add_future(task())
+
+        # Add the main Monitor sensor.
+        self.app.sensors.add(self.app.monitor)
+
+        # Then return the list of "subservices",
+        # those that'll be started when the app starts,
+        # stopped when the app stops,
+        # etc...
+        return cast(Iterable[ServiceT], chain(
+            # Sensors must always be started first, and stopped last.
+            self.app.sensors,
+            # Producer must be stoppped after consumer.
+            [self.app.producer],                      # app.Producer
+            # Tables (and Sets).
+            self.app.tables.values(),
+            # WebSite
+            [self.app.website],                       # app.WebSite
+            # TopicManager + Consumer
+            [self.app.sources],                       # app.TopicManager
+            # Actors last.
+            self.app.actors.values(),
+        ))
 
     async def on_first_start(self) -> None:
-        if not len(self.app._tasks):
+        if not self.app.actors:
             raise ImproperlyConfigured(
-                'Attempting to start app that has no tasks')
+                'Attempting to start app that has no actors')
 
     async def on_start(self) -> None:
         self.add_future(self._drain_message_buffer())
@@ -125,9 +136,7 @@ class AppService(Service):
                 pass
             else:
                 callback()
-        # wait for tasks to finish, this may run forever since
-        # stream processing tasks do not end (them infinite!)
-        await self.app._tasks.joinall()
+        await self._stopped.wait()
 
     async def _drain_message_buffer(self) -> None:
         send = self.app.send
@@ -167,20 +176,12 @@ class App(AppT, ServiceProxy):
         value_serializer (CodecArg): Default serializer for event types
             that do not have an explicit serializer set.  Default: ``"json"``.
         num_standby_replicas (int): The number of standby replicas for each
-            task.  Default: ``0``.
+            table.  Default: ``0``.
         replication_factor (int): The replication factor for changelog topics
             and repartition topics created by the application.  Default: ``1``.
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
-
-    #: Mapping of active tables by table name.
-    _tables: MutableMapping[str, TableT]
-
-    #: The ._tasks Group starts and stops tasks in the app.
-    #: Creating a group also creates the event loop, so _tasks is a property
-    #: that sets _tasks_group lazily.
-    _tasks_group: Group = None
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
@@ -195,16 +196,9 @@ class App(AppT, ServiceProxy):
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
 
-    #: The @app.task/@app.actor decorators adds tasks to start here.
-    #: for example:
-    #:     app = faust.App('myid', tasks=[task])
-    #:     >>> @app.task
-    #:     def mytask():
-    #:     ...     ...
-    _task_factories: MutableSequence[
-        Union[ActorT, Callable[[AppT], Awaitable]]]
-
     _monitor: Monitor = None
+
+    _tasks: MutableSequence[Callable[[], Awaitable]]
 
     @classmethod
     def current_app(self) -> AppT:
@@ -256,11 +250,12 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
-        self.store = store
-        self._tables = OrderedDict()
+        self.actors = OrderedDict()
+        self.tables = OrderedDict()
         self.sensors = SensorDelegate(self)
-        self._task_factories = []
+        self.store = store
         self._monitor = monitor
+        self._tasks = []
         self._pending_on_commit = defaultdict(list)
 
     def topic(self, *topics: str,
@@ -277,15 +272,25 @@ class App(AppT, ServiceProxy):
 
     def actor(self, topic: TopicT,
               *,
+              name: str = None,
               concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
         def _inner(fun: ActorFun) -> ActorT:
-            actor = Actor(self, topic, fun, concurrency=concurrency)
-            self._task_factories.extend([actor] * concurrency)
+            actor = Actor(
+                fun,
+                name=name,
+                app=self,
+                topic=topic,
+                concurrency=concurrency,
+                on_started=self._on_actor_started,
+                on_stopped=self._on_actor_stopped,
+                on_error=self._on_actor_error,
+            )
+            self.actors[actor.name] = actor
             return actor
         return _inner
 
-    def task(self, fun: Callable[[AppT], Awaitable]) -> Callable:
-        self._task_factories.append(fun)
+    def task(self, fun: Callable[[], Awaitable]) -> Callable:
+        self._tasks.append(fun)
         return fun
 
     def timer(self, interval: Seconds) -> Callable:
@@ -300,15 +305,6 @@ class App(AppT, ServiceProxy):
                     await fun(app)
             return around_timer
         return _inner
-
-    def add_task(self, task: Union[Generator, Awaitable]) -> Awaitable:
-        """Start task.
-
-        Notes:
-            A task is simply any coroutine iterating over a stream,
-            or even any coroutine doing anything.
-        """
-        return self._tasks.add(task)
 
     def stream(self, source: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
@@ -369,11 +365,11 @@ class App(AppT, ServiceProxy):
     def add_table(self, table: TableT) -> None:
         """Register existing table."""
         assert table.table_name
-        if table.table_name in self._tables:
+        if table.table_name in self.tables:
             raise ValueError(
                 'Table with name {0.table_name!r} already exists'.format(
                     table))
-        self._tables[table.table_name] = table
+        self.tables[table.table_name] = table
 
     async def send(
             self,
@@ -402,12 +398,13 @@ class App(AppT, ServiceProxy):
             wait (bool): Wait for message to be published (default),
                 if unset the message will only be appended to the buffer.
         """
+        strtopic: str
         if isinstance(topic, TopicT):
             # ridiculous casting
             topictopic = cast(TopicT, topic)
             strtopic = topictopic.topics[0]
         else:
-            strtopic = topic
+            strtopic = cast(str, topic)
         return await self._send(
             strtopic,
             (await self.serializers.dumps_key(
@@ -465,8 +462,7 @@ class App(AppT, ServiceProxy):
                       partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None) -> None:
-        tp = TopicPartition(message.topic, message.partition)
-        buffer = self._pending_on_commit[tp]
+        buffer = self._pending_on_commit[message.tp]
         pending_message = PendingMessage(
             topic, key, value, partition,
             key_serializer, value_serializer)
@@ -509,7 +505,8 @@ class App(AppT, ServiceProxy):
         producer = self.producer
         if not self._producer_started:
             self._producer_started = True
-            await producer.start()
+            # producer may also have been started by app.start()
+            await producer.maybe_start()
         if wait:
             state = await self.sensors.on_send_initiated(
                 producer, topic,
@@ -521,20 +518,22 @@ class App(AppT, ServiceProxy):
             return ret
         return producer.send(topic, key, value, partition=partition)
 
-    async def _on_task_started(
+    async def _on_actor_started(
             self, task: asyncio.Task,
             *, _set: Callable = TASK_TO_APP.__setitem__) -> None:
+        # XXX SHOULD IT BE TASK_TO_APP OR ACTOR_TO_APP?
         _set(task, self)  # add to TASK_TO_APP mapping
 
-    async def _on_task_error(self, task: asyncio.Task, exc: Exception) -> None:
+    async def _on_actor_error(
+            self, actor: ActorT, exc: Exception) -> None:
         if self.sources.consumer:
             try:
                 await self.sources.consumer.on_task_error(exc)
             except Exception as exc:
                 logger.exception('Consumer error callback raised: %r', exc)
 
-    async def _on_task_stopped(self, task: asyncio.Task) -> None:
-        ...
+    async def _on_actor_stopped(self, task: asyncio.Task) -> None:
+        TASK_TO_APP.pop(task, None)
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.sources.commit(topics)
@@ -548,9 +547,6 @@ class App(AppT, ServiceProxy):
         return cast(TransportT,
                     transport.by_url(self.url)(self.url, self, loop=self.loop))
 
-    def _new_group(self, **kwargs: Any) -> Group:
-        return Group(beacon=self.beacon, **kwargs)
-
     def render_graph(self) -> str:
         """Render graph of application components to DOT format."""
         o = io.StringIO()
@@ -561,18 +557,9 @@ class App(AppT, ServiceProxy):
     def __repr__(self) -> str:
         return APP_REPR.format(
             name=type(self).__name__,
-            self=self,
-            tasks=self.tasks_running,
+            s=self,
+            actors=self.actors,
             sources=len(self.sources),
-        )
-
-    @cached_property
-    def _tasks(self) -> Group:
-        return self._new_group(
-            on_task_started=self._on_task_started,
-            on_task_error=self._on_task_error,
-            on_task_stopped=self._on_task_stopped,
-            loop=self.loop,
         )
 
     @property
@@ -596,11 +583,6 @@ class App(AppT, ServiceProxy):
     @transport.setter
     def transport(self, transport: TransportT) -> None:
         self._transport = transport
-
-    @property
-    def tasks_running(self) -> int:
-        """Number of active tasks."""
-        return len(self._tasks)
 
     @cached_property
     def _service(self) -> ServiceT:

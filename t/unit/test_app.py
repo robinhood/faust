@@ -66,21 +66,6 @@ async def test_send(
     )
 
 
-@pytest.mark.asyncio
-async def test_add_task(app, patching):
-    app._tasks._starting.clear()
-    started = False
-
-    async def foo():
-        nonlocal started
-        started = True
-
-    app.add_task(foo())
-    assert app._tasks._starting
-    await app._tasks.start()
-    await app._tasks.stop()
-
-
 def test_stream(app):
     s = app.topic(TEST_TOPIC).stream()
     assert s.source.topic.topics == (TEST_TOPIC,)
