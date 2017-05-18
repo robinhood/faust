@@ -157,13 +157,13 @@ class Worker(Service):
             service.beacon.reattach(self.beacon)
             assert service.beacon.root is self.beacon
 
-    def say(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def say(self, msg: str) -> None:
         """Write message to standard out."""
-        self._print(msg.format(*args, **kwargs))
+        self._print(msg)
 
-    def carp(self, msg: str, *args: Any, **kwargs: Any) -> None:
+    def carp(self, msg: str) -> None:
         """Write warning to standard err."""
-        self._print(msg.format(*args, **kwargs), file=self.stderr)
+        self._print(msg, file=self.stderr)
 
     def _print(self, msg: str, file: IO = None, end: str = '\n') -> None:
         if not self.quiet:
@@ -313,4 +313,4 @@ class Worker(Service):
         return _repr(self.services)
 
     def _setproctitle(self, info: str) -> None:
-        setproctitle('{} {}'.format(PSIDENT, info))
+        setproctitle(f'{PSIDENT} {info}')

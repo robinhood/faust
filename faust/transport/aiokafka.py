@@ -169,7 +169,7 @@ class Transport(base.Transport):
     Producer: ClassVar[Type] = Producer
 
     default_port = 9092
-    driver_version = 'aiokafka={}'.format(aiokafka.__version__)
+    driver_version = f'aiokafka={aiokafka.__version__}'
 
     @cached_property
     def bootstrap_servers(self) -> str:
@@ -177,6 +177,6 @@ class Transport(base.Transport):
         servers = self.url.split('://', 1)[1]
         # add default ports
         return ';'.join(
-            (host if ':' in host else '{}:{}'.format(host, self.default_port))
+            host if ':' in host else f'{host}:{self.default_port}'
             for host in servers.split(';')
         )

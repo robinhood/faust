@@ -58,7 +58,7 @@ DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
 
 #: Default Kafka Client ID.
-CLIENT_ID = 'faust-{0}'.format(faust.__version__)
+CLIENT_ID = f'faust-{faust.__version__}'
 
 #: How often we commit messages.
 #: Can be customized by setting ``App(commit_interval=...)``.
@@ -142,10 +142,7 @@ class AppService(Service):
 
     @property
     def label(self) -> str:
-        return '{name}: {app.id}@{app.url}'.format(
-            name=type(self.app).__name__,
-            app=self.app,
-        )
+        return f'{type(self).__name__}: {self.app.id}@{self.app.url}'
 
 
 class App(AppT, ServiceProxy):
@@ -350,8 +347,7 @@ class App(AppT, ServiceProxy):
         assert table.table_name
         if table.table_name in self.tables:
             raise ValueError(
-                'Table with name {0.table_name!r} already exists'.format(
-                    table))
+                f'Table with name {table.table_name!r} already exists')
         self.tables[table.table_name] = table
 
     async def send(
@@ -401,9 +397,10 @@ class App(AppT, ServiceProxy):
 
     async def send_many(
             self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
-        await asyncio.gather(
-            *[self._send_tuple(msg, wait=False) for msg in it],
+        await asyncio.wait(
+            [self._send_tuple(msg, wait=False) for msg in it],
             loop=self.loop,
+            return_when=asyncio.ALL_COMPLETED,
         )
 
     async def _send_tuple(

@@ -35,7 +35,7 @@ class Web(Service):
 
     @property
     def url(self) -> str:
-        return 'http://localhost:{}/'.format(self.port)
+        return f'http://localhost:{self.port}/'
 
 
 class Request:

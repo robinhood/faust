@@ -151,7 +151,7 @@ def symbol_by_name(
             module = imp(module_name, package=package, **kwargs)
         except ValueError as exc:
             raise ValueError(
-                "Couldn't import {0!r}: {1}".format(name, exc)
+                f'Cannot import {name!r}: {exc}'
             ).with_traceback(sys.exc_info()[2])
         return getattr(module, cls_name) if cls_name else module
     except (ImportError, AttributeError):
@@ -171,13 +171,12 @@ def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
 
 
 def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
-    for name, class_name in load_extension_class_names(namespace):
+    for name, cls_name in load_extension_class_names(namespace):
         try:
-            cls = symbol_by_name(class_name)
+            cls = symbol_by_name(cls_name)
         except (ImportError, SyntaxError) as exc:
             warnings.warn(
-                'Cannot load {0} extension {1!r}: {2!r}'.format(
-                    namespace, class_name, exc))
+                f'Cannot load {namespace} extension {cls_name!r}: {exc!r}')
         else:
             yield name, cls
 

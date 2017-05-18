@@ -117,7 +117,7 @@ class cached_property:
             def connection(self, value):
                 # Additional action to do at del(self.attr)
                 if value is not None:
-                    print('Connection {0!r} deleted'.format(value)
+                    print(f'Connection {value!r} deleted')
     """
 
     def __init__(self,

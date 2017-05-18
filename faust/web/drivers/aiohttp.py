@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 class Web(base.Web):
 
-    driver_version = 'aiohttp={}'.format(aiohttp.__version__)
+    driver_version = f'aiohttp={aiohttp.__version__}'
 
     def __init__(self, *,
                  port: int = DEFAULT_PORT,
