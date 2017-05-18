@@ -20,7 +20,7 @@ else:
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
 
-__all__ = ['EventT', 'TopicT', 'TopicConsumerT', 'TopicManagerT']
+__all__ = ['EventT', 'TopicT', 'SourceT', 'TopicManagerT']
 
 
 class EventT:
@@ -121,7 +121,7 @@ class TopicT(AsyncIterable):
         ...
 
 
-class TopicConsumerT(ServiceT, AsyncIterator):
+class SourceT(AsyncIterator):
     topic: TopicT
 
     @abc.abstractmethod
@@ -129,15 +129,15 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def put(self, value: Any) -> None:
-        ...
-
-    @abc.abstractmethod
     async def deliver(self, message: Message) -> None:
         ...
 
     @abc.abstractmethod
-    async def get(self) -> EventT:
+    async def put(self, value: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def get(self) -> Any:
         ...
 
     @abc.abstractmethod
@@ -149,7 +149,7 @@ class TopicConsumerT(ServiceT, AsyncIterator):
         ...
 
 
-class TopicManagerT(ServiceT, MutableSet[TopicConsumerT]):
+class TopicManagerT(ServiceT, MutableSet[SourceT]):
 
     consumer: ConsumerT
 

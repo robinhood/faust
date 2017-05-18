@@ -18,7 +18,7 @@ from . import transport
 from .actors import ActorFun, Actor, ActorT
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
-from .topics import Topic, TopicConsumerT, TopicManager, TopicManagerT
+from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
     CodecArg, K, Message, PendingMessage,
     StreamCoroutine, TopicT, TopicPartition, V,
@@ -365,10 +365,6 @@ class App(AppT, ServiceProxy):
             **kwargs)
         self.add_table(table)
         return table.using_window(window) if window else table
-
-    def add_source(self, source: TopicConsumerT) -> None:
-        """Register existing stream."""
-        self.sources.add(source)
 
     def add_table(self, table: TableT) -> None:
         """Register existing table."""
