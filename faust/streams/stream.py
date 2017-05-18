@@ -210,9 +210,7 @@ class Stream(StreamT, JoinableT, Service):
                 async def mytask(stream):
                     # duplicate the stream and process it in different ways.
                     a, b = stream.tee(2)
-                    await asyncio.gather(
-                        processor1(a),
-                        processor2(b))
+                    await asyncio.gather(processor1(a), processor2(b))
         """
         streams = [
             self.clone(on_start=self.maybe_start)
@@ -279,10 +277,11 @@ class Stream(StreamT, JoinableT, Service):
         ]
 
         async def echoing(value: _T) -> _T:
-            await asyncio.gather(*[
-                maybe_forward(value, topic)
-                for topic in _topics
-            ], loop=self.loop)
+            await asyncio.wait(
+                [maybe_forward(value, topic) for topic in _topics],
+                loop=self.loop,
+                return_when=asyncio.ALL_COMPLETED,
+            )
             return value
         self.add_processor(echoing)
         return self

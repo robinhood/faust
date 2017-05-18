@@ -302,7 +302,9 @@ class TopicManager(TopicManagerT, Service):
         return await self.consumer.commit(topics)
 
     def _compile_message_handler(self) -> ConsumerCallback:
-        gather = asyncio.gather
+        wait = asyncio.wait
+        return_when = asyncio.ALL_COMPLETED
+        loop = self.loop
         list_ = list
         # topic str -> list of TopicSource
         get_sources_for_topic = self._topicmap.__getitem__
@@ -321,10 +323,12 @@ class TopicManager(TopicManagerT, Service):
 
             # Then send it to each sources inbox,
             # for TopicSource.__anext__ to pick up.
-            await gather(*[
-                add_pending_task(source.deliver(message))
-                for source in sources
-            ], loop=self.loop)
+            await wait(
+                [add_pending_task(source.deliver(message))
+                 for source in sources],
+                loop=loop,
+                return_when=return_when,
+            )
         return on_message
 
     async def on_start(self) -> None:
