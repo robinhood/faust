@@ -6,11 +6,11 @@ from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .topics import TopicT, TopicConsumerT
+    from .topics import SourceT, TopicT
 else:
-    class AppT: ...            # noqa
-    class TopicT: ...          # noqa
-    class TopicConsumerT: ...  # noqa
+    class AppT: ...      # noqa
+    class SourceT: ...   # noqa
+    class TopicT: ...    # noqa
 
 __all__ = ['TopicPartition', 'Message']
 
@@ -70,15 +70,15 @@ class Message:
         self.tp = tp
         if typing.TYPE_CHECKING:
             # mypy supports this, but Python doesn't.
-            self.sources: WeakSet[TopicConsumerT] = WeakSet()
+            self.sources: WeakSet[SourceT] = WeakSet()
         else:
             self.sources = WeakSet()
 
-    def incref(self, source: TopicConsumerT = None, n: int = 1) -> None:
+    def incref(self, source: SourceT = None, n: int = 1) -> None:
         self.sources.add(source)
         self.refcount += n
 
-    def incref_bulk(self, sources: Sequence[TopicConsumerT]) -> None:
+    def incref_bulk(self, sources: Sequence[SourceT]) -> None:
         self.sources.update(sources)
         self.refcount += len(sources)
 

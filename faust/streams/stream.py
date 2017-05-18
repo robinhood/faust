@@ -15,7 +15,7 @@ from ..types.models import FieldDescriptorT
 from ..types.streams import (
     _T, GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
 )
-from ..types.topics import TopicConsumerT
+from ..types.topics import SourceT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate
 from ..utils.futures import maybe_async
@@ -349,10 +349,10 @@ class Stream(StreamT, JoinableT, Service):
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
         if topic is None:
-            if not isinstance(self.source, TopicConsumerT):
+            if not isinstance(self.source, SourceT):
                 raise ValueError('Need to specify topic for non-topic source')
             suffix = '-' + name + _constants.REPARTITION_TOPIC_SUFFIX
-            source = cast(TopicConsumerT, self.source)
+            source = cast(SourceT, self.source)
             topic = source.topic.derive(suffix=suffix)
         format_key = self._format_key
 
@@ -396,8 +396,8 @@ class Stream(StreamT, JoinableT, Service):
             TypeError: if the types used by topics in this stream
                 is not uniform.
         """
-        if isinstance(self.source, TopicConsumerT):
-            return cast(TopicConsumerT, self.source).topic.derive(
+        if isinstance(self.source, SourceT):
+            return cast(SourceT, self.source).topic.derive(
                 topics=[name],
                 key_type=key_type,
                 value_type=value_type,
@@ -488,8 +488,8 @@ class Stream(StreamT, JoinableT, Service):
 
     async def send(self, value: _T) -> None:
         """Send value into stream manually."""
-        if isinstance(self.source, TopicConsumerT):
-            await cast(TopicConsumerT, self.source).put(value)
+        if isinstance(self.source, SourceT):
+            await cast(SourceT, self.source).put(value)
         else:
             raise NotImplementedError(
                 'Cannot send to non-topic source stream.')

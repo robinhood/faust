@@ -15,7 +15,7 @@ from .sensors import SensorDelegateT
 from .streams import Processor, StreamT
 from .tables import TableT
 from .transports import TransportT
-from .topics import TopicT, TopicConsumerT, TopicManagerT
+from .topics import TopicT, TopicManagerT
 from .tuples import Message, PendingMessage, TopicPartition
 from .windows import WindowT
 
@@ -100,10 +100,6 @@ class AppT(ServiceT):
               processors: Iterable[Processor] = None,
               window: WindowT = None,
               **kwargs: Any) -> TableT:
-        ...
-
-    @abc.abstractmethod
-    def add_source(self, source: TopicConsumerT) -> None:
         ...
 
     @abc.abstractmethod

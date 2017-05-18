@@ -3,14 +3,14 @@ import re
 from collections import defaultdict
 from functools import total_ordering
 from typing import (
-    Any, AsyncIterator, Awaitable, Iterator, MutableMapping,
-    Optional, Pattern, Set, Sequence, Type, Union,
+    Any, AsyncIterator, Awaitable, Callable, Iterator,
+    MutableMapping, Optional, Pattern, Set, Sequence, Type, Union,
 )
 from .types import (
     AppT, CodecArg, Message, TopicPartition, K, V,
 )
 from .types.streams import StreamT, StreamCoroutine
-from .types.topics import EventT, TopicT, TopicConsumerT, TopicManagerT
+from .types.topics import EventT, SourceT, TopicT, TopicManagerT
 from .types.transports import ConsumerCallback, ConsumerT, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service
@@ -18,8 +18,8 @@ from .utils.services import Service
 __all__ = [
     'Topic',
     'TopicT',
-    'TopicConsumer',
-    'TopicConsumerT',
+    'TopicSource',
+    'SourceT',
     'TopicManager',
     'TopicManagerT',
 ]
@@ -174,8 +174,8 @@ class Topic(TopicT):
         )
 
     def __aiter__(self) -> AsyncIterator:
-        source = TopicConsumer(self)
-        self.app.add_source(source)
+        source = TopicSource(self)
+        self.app.sources.add(source)
         return source
 
     async def __anext__(self) -> Any:
@@ -199,35 +199,50 @@ class Topic(TopicT):
         return False
 
 
-class TopicConsumer(TopicConsumerT, Service):
+class TopicSource(SourceT):
     queue: asyncio.Queue
 
-    def __init__(self, topic: TopicT, **kwargs: Any) -> None:
-        Service.__init__(self, **kwargs)
+    def __init__(self, topic: TopicT,
+                 *,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         self.topic = topic
         self.app = self.topic.app
+        self.loop = loop or self.app.loop
         self.queue = asyncio.Queue(loop=self.loop)
+        self.deliver = self._compile_deliver()  # type: ignore
 
     async def deliver(self, message: Message) -> None:
+        ...  # closure compiled at __init__
+
+    def _compile_deliver(self) -> Callable[[Message], Awaitable]:
         app = self.app
         topic = self.topic
-        # deserialize key+value and convert to Event
+        key_type = topic.key_type
+        value_type = topic.value_type
         loads_key = self.app.serializers.loads_key
         loads_value = self.app.serializers.loads_value
-        k = v = None
-        try:
-            k = await loads_key(topic.key_type, message.key)
-        except Exception as exc:
-            await self.on_key_decode_error(exc, message)
-        else:
-            try:
-                v = await loads_value(topic.value_type, k, message)
-            except Exception as exc:
-                await self.on_value_decode_error(exc, message)
-            await self.put(Event(app, k, v, message))
+        put = self.queue.put  # NOTE circumvents self.put, using queue directly
+        create_event = Event
 
-    async def put(self, event: EventT) -> None:
-        await self.queue.put(event)
+        async def deliver(message: Message) -> None:
+            k = v = None
+            try:
+                k = await loads_key(key_type, message.key)
+            except Exception as exc:
+                await self.on_key_decode_error(exc, message)
+            else:
+                try:
+                    v = await loads_value(value_type, k, message)
+                except Exception as exc:
+                    await self.on_value_decode_error(exc, message)
+                await put(create_event(app, k, v, message))
+        return deliver
+
+    async def put(self, value: Any) -> None:
+        await self.queue.put(value)
+
+    async def get(self) -> Any:
+        return await self.queue.get()
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
@@ -238,17 +253,16 @@ class TopicConsumer(TopicConsumerT, Service):
         logger.error('Cannot decode value for key=%r (%r): %r',
                      message.key, message.value, exc)
 
-    async def get(self) -> EventT:
-        return await self.queue.get()
-
     def __aiter__(self) -> AsyncIterator:
         return self
 
     async def __anext__(self) -> EventT:
         return await self.queue.get()
 
-    def _repr_info(self) -> str:
-        return repr(self.topic)
+    def __repr__(self) -> str:
+        return '<{name}: {self.topic!r}'.format(
+            name=type(self).__name__, self=self,
+        )
 
 
 class TopicManager(TopicManagerT, Service):
@@ -259,11 +273,11 @@ class TopicManager(TopicManagerT, Service):
     """
 
     #: Fast index to see if source is registered.
-    _sources: Set[TopicConsumerT]
+    _sources: Set[SourceT]
 
     #: Map str topic to set of streams that should get a copy
     #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, Set[TopicConsumerT]]
+    _topicmap: MutableMapping[str, Set[SourceT]]
 
     _pending_tasks: asyncio.Queue
 
@@ -301,7 +315,7 @@ class TopicManager(TopicManagerT, Service):
     def _compile_message_handler(self) -> ConsumerCallback:
         gather = asyncio.gather
         list_ = list
-        # topic str -> list of TopicConsumer
+        # topic str -> list of TopicSource
         get_sources_for_topic = self._topicmap.__getitem__
 
         add_pending_task = self._pending_tasks.put
@@ -317,7 +331,7 @@ class TopicManager(TopicManagerT, Service):
             message.incref_bulk(sources)
 
             # Then send it to each sources inbox,
-            # for TopicConsumer.__anext__ to pick up.
+            # for TopicSource.__anext__ to pick up.
             await gather(*[
                 add_pending_task(source.deliver(message))
                 for source in sources
@@ -391,20 +405,20 @@ class TopicManager(TopicManagerT, Service):
     def __contains__(self, value: Any) -> bool:
         return value in self._sources
 
-    def __iter__(self) -> Iterator[TopicConsumerT]:
+    def __iter__(self) -> Iterator[SourceT]:
         return iter(self._sources)
 
     def __len__(self) -> int:
         return len(self._sources)
 
-    def add(self, source: TopicConsumerT) -> None:
+    def add(self, source: SourceT) -> None:
         if source not in self._sources:
             self._sources.add(source)
             self.beacon.add(source)  # connect to beacon
             if self._subscription_changed is not None:
                 self._subscription_changed.notify_all()
 
-    def discard(self, source: TopicConsumerT) -> None:
+    def discard(self, source: SourceT) -> None:
         self._sources.discard(source)
         self.beacon.discard(source)
         if self._subscription_changed is not None:
