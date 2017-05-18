@@ -1,10 +1,7 @@
 import asyncio
 from typing import Any, AsyncIterable, AsyncIterator, Awaitable, Union, cast
 from .types import AppT, CodecArg, K, TopicT, V
-from .types.actors import (
-    ActorFun, ActorStartedHandler, ActorStoppedHandler,
-    ActorErrorHandler, ActorT,
-)
+from .types.actors import ActorFun, ActorErrorHandler, ActorT
 from .utils.aiter import aiter
 from .utils.collections import NodeT
 from .utils.imports import qualname
@@ -41,16 +38,12 @@ class Actor(ActorT, ServiceProxy):
                  app: AppT = None,
                  topic: TopicT = None,
                  concurrency: int = 1,
-                 on_started: ActorStartedHandler = None,
-                 on_stopped: ActorStoppedHandler = None,
                  on_error: ActorErrorHandler = None) -> None:
         self.fun: ActorFun = fun
         self.name = name or qualname(self.fun)
         self.app = app
         self.topic = topic
         self.concurrency = concurrency
-        self._on_started: ActorStartedHandler = on_started
-        self._on_stopped: ActorStoppedHandler = on_stopped
         self._on_error: ActorErrorHandler = on_error
 
     def __call__(self) -> Union[Awaitable, AsyncIterable]:
@@ -65,8 +58,6 @@ class Actor(ActorT, ServiceProxy):
         coro = res if isinstance(res, Awaitable) else self._slurp(aiter(res))
         task = asyncio.Task(self._execute_task(coro), loop=self.loop)
         task._beacon = beacon  # type: ignore
-        if self._on_started is not None:
-            await self._on_started(task)
         return task
 
     async def _execute_task(self, coro: Awaitable) -> None:

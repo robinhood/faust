@@ -58,11 +58,6 @@ class AppT(ServiceT):
     sensors: SensorDelegateT
     serializers: RegistryT
 
-    @classmethod
-    @abc.abstractmethod
-    def current_app(cls) -> 'AppT':
-        ...
-
     @abc.abstractmethod
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,

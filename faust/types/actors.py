@@ -1,5 +1,4 @@
 import abc
-import asyncio
 import typing
 from typing import AsyncIterable, AsyncIterator, Awaitable, Callable, Union
 from ..utils.types.services import ServiceT
@@ -13,17 +12,13 @@ else:
     class AppT: ...  # noqa
 
 __all__ = [
-    'ActorFun',
-    'ActorStartedHandler',
-    'ActorStoppedHandler',
     'ActorErrorHandler',
+    'ActorFun',
     'ActorT',
 ]
 
-ActorFun = Callable[[AsyncIterator], Union[Awaitable, AsyncIterable]]
-ActorStartedHandler = Callable[[asyncio.Task], Awaitable]
-ActorStoppedHandler = Callable[[asyncio.Task], Awaitable]
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
+ActorFun = Callable[[AsyncIterator], Union[Awaitable, AsyncIterable]]
 
 
 class ActorT(ServiceT):
@@ -40,8 +35,6 @@ class ActorT(ServiceT):
                  app: AppT = None,
                  topic: TopicT = None,
                  concurrency: int = 1,
-                 on_started: ActorStartedHandler = None,
-                 on_stopped: ActorStoppedHandler = None,
                  on_error: ActorErrorHandler = None) -> None:
         self.fun: ActorFun = fun
 

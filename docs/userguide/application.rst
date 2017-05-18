@@ -247,11 +247,3 @@ Committing topic offsets
     :noindex:
 
     .. automethod:: commit
-
-Utilities
-^^^^^^^^^
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: current_app()
