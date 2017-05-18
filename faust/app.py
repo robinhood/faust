@@ -1,7 +1,6 @@
 """Faust Application."""
 import asyncio
 import faust
-import io
 
 from collections import defaultdict
 from functools import wraps
@@ -521,13 +520,6 @@ class App(AppT, ServiceProxy):
     def _create_transport(self) -> TransportT:
         return cast(TransportT,
                     transport.by_url(self.url)(self.url, self, loop=self.loop))
-
-    def render_graph(self) -> str:
-        """Render graph of application components to DOT format."""
-        o = io.StringIO()
-        beacon = self.beacon.root if self.beacon.root else self.beacon
-        beacon.as_graph().to_dot(o)
-        return o.getvalue()
 
     def __repr__(self) -> str:
         return APP_REPR.format(
