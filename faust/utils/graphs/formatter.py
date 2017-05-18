@@ -91,8 +91,7 @@ class GraphFormatter(GraphFormatterT):
         self.graph_scheme = dict(self.graph_scheme, root=self.label(self.root))
 
     def attr(self, name: str, value: Any) -> str:
-        value = '"{0}"'.format(value)
-        return self.FMT(self._attr, name=name, value=value)
+        return self.FMT(self._attr, name=name, value=f'"{value}"')
 
     def attrs(self, d: Mapping = None, scheme: Mapping = None) -> str:
         scheme = {**self.scheme, **scheme} if scheme else self.scheme

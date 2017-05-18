@@ -112,8 +112,7 @@ class TopicT(AsyncIterable):
                key_type: Type = None,
                value_type: Type = None,
                prefix: str = '',
-               suffix: str = '',
-               format: str = '') -> 'TopicT':
+               suffix: str = '') -> 'TopicT':
         ...
 
     @abc.abstractmethod

@@ -117,7 +117,7 @@ class Table(Service, TableT, ManagedUserDict):
              partition=partition)
 
     def _changelog_topic_name(self) -> str:
-        return '{0.app.id}-{0.table_name}-changelog'.format(self)
+        return f'{self.app.id}-{self.table_name}-changelog'
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -150,9 +150,7 @@ class Table(Service, TableT, ManagedUserDict):
 
     @property
     def label(self) -> str:
-        return '{}: {}@{}'.format(
-            type(self).__name__, self.table_name, self._store,
-        )
+        return f'{type(self).__name__}: {self.table_name}@{self._store}'
 
 
 class WindowSet(WindowSetT, FastUserDict):

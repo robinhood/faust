@@ -184,7 +184,7 @@ class Model(ModelT):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
-        return '<{}: {}>'.format(type(self).__name__, self._humanize())
+        return f'<{type(self).__name__}: {self._humanize()}>'
 
 
 class FieldDescriptor(FieldDescriptorT):
@@ -255,14 +255,10 @@ class FieldDescriptor(FieldDescriptorT):
         instance.__dict__[self.field] = value
 
     def __repr__(self) -> str:
-        return '<{name}: {ident}: {type}{default}>'.format(
-            name=type(self).__name__,
-            model=self.model.__name__,
-            field=self.field,
-            type=self.type.__name__,
-            default='' if self.required else ' = {!r}'.format(self.default),
-        )
+        default = '' if self.required else f' = {self.default!r}'
+        typ = self.type.__name__
+        return f'<{type(self).__name__}: {self.ident}: {typ}{default}>'
 
     @property
     def ident(self) -> str:
-        return '{}.{}'.format(self.model.__name__, self.field)
+        return f'{self.model.__name__}.{self.field}'

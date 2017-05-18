@@ -1,5 +1,5 @@
 from typing import (
-    Any, ClassVar, Dict, Iterable, Mapping, Set, Sequence, Tuple, cast,
+    Any, ClassVar, Dict, Iterable, Mapping, Sequence, Tuple, cast,
 )
 from ..serializers.avro import to_avro_type
 from ..types.models import ModelT, ModelOptions
@@ -160,12 +160,6 @@ class Record(Model):
 
 def _kvrepr(d: Mapping[str, Any],
             *,
-            skip: Set[str] = None,
-            sep: str = ', ',
-            fmt: str = '{0}={1!r}') -> str:
+            sep: str = ', ') -> str:
     """Represent dict as `k='v'` pairs separated by comma."""
-    skip = skip or set()
-    return sep.join(
-        fmt.format(k, v) for k, v in d.items()
-        if k not in skip
-    )
+    return sep.join(f'{k}={v!r}' for k, v in d.items())

@@ -33,7 +33,7 @@ def to_avro_type(typ: Type) -> str:
         return 'map'
     elif issubclass(typ, ModelT):
         return typ.as_schema()  # type: ignore
-    raise TypeError('Cannot convert type {!r} to Avro'.format(typ))
+    raise TypeError(f'Cannot convert type {typ!r} to Avro')
 
 
 class AvroSerializer(AsyncSerializerT):

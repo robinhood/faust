@@ -9,7 +9,7 @@ class Stats(views.View):
 
     async def get(self, web: Web, request: Request) -> Response:
         return web.json({
-            'Sensor{}'.format(i): s.asdict()
+            f'Sensor{i}': s.asdict()
             for i, s in enumerate(self.app.sensors)
         })
 

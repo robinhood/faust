@@ -34,7 +34,7 @@ class Store(StoreT, Service):
         return loads(self.value_serializer, value)
 
     def _repr_info(self) -> str:
-        return 'url={!r}'.format(self.url)
+        return f'url={self.url!r}'
 
 
 class SerializedStoreKeysView(KeysView):

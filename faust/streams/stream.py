@@ -324,8 +324,7 @@ class Stream(StreamT, JoinableT, Service):
 
                 async def get_key(withdrawal):
                     return await aiohttp.get(
-                        'http://example.com/resolve_account/{}'.format(
-                            withdrawal.account_id))
+                        f'http://e.com/resolve_account/{withdrawal.account_id}'
 
                 async for event in s.group_by(get_key):
                     ...
@@ -510,7 +509,7 @@ class Stream(StreamT, JoinableT, Service):
         return self
 
     def __next__(self) -> _T:
-        raise NotImplementedError('Streams are asynchronous: use __aiter__')
+        raise NotImplementedError('Streams are asynchronous: use `async for`')
 
     def __aiter__(self) -> AsyncIterator:
         self._context = Context(locals=[_locals]).__enter__()
@@ -551,4 +550,4 @@ class Stream(StreamT, JoinableT, Service):
 
     @property
     def label(self) -> str:
-        return '{}: {}'.format(type(self).__name__, self.source)
+        return f'{type(self).__name__}: {self.source}'

@@ -29,7 +29,7 @@ class AsyncIterWrapper(AsyncIterator):
             raise StopAsyncIteration() from exc
 
     def __repr__(self) -> str:
-        return '<{}: {}>'.format(type(self).__name__, self._it)
+        return f'<{type(self).__name__}: {self._it}>'
 
 
 def aiter(it: Union[AsyncIterable, Iterable]) -> AsyncIterator:
@@ -40,7 +40,7 @@ def aiter(it: Union[AsyncIterable, Iterable]) -> AsyncIterator:
         return it.__aiter__()  # type: ignore
     elif isinstance(it, Iterable):
         return AsyncIterWrapper(iter(it)).__aiter__()
-    raise TypeError('{!r} object is not an iterable'.format(it))
+    raise TypeError(f'{it!r} object is not an iterable')
 
 
 def anext(it: AsyncIterator, *default: Any) -> Any:

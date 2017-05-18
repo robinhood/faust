@@ -156,18 +156,14 @@ class Topic(TopicT):
                key_type: Type = None,
                value_type: Type = None,
                prefix: str = '',
-               suffix: str = '',
-               format: str = '{prefix}{topic}{suffix}') -> TopicT:
+               suffix: str = '') -> TopicT:
         if self.pattern:
             raise ValueError('Cannot add suffix to Topic with pattern')
         if topics is None:
             topics = self.topics
         return type(self)(
             self.app,
-            topics=[
-                format.format(prefix=prefix, topic=topic, suffix=suffix)
-                for topic in topics
-            ],
+            topics=[f'{prefix}{topic}{suffix}' for topic in topics],
             pattern=self.pattern,
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
@@ -183,9 +179,7 @@ class Topic(TopicT):
         raise NotImplementedError('here because of a mypy bug')
 
     def __repr__(self) -> str:
-        return '<{name}: {self}>'.format(
-            name=type(self).__name__,
-            self=self)
+        return f'<{type(self).__name__}: {self}>'
 
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
@@ -260,9 +254,7 @@ class TopicSource(SourceT):
         return await self.queue.get()
 
     def __repr__(self) -> str:
-        return '<{name}: {self.topic!r}'.format(
-            name=type(self).__name__, self=self,
-        )
+        return f'<{type(self).__name__}: {self.topic!r}'
 
 
 class TopicManager(TopicManagerT, Service):
@@ -426,5 +418,4 @@ class TopicManager(TopicManagerT, Service):
 
     @property
     def label(self) -> str:
-        return '{}({})'.format(
-            type(self).__name__, len(self._sources))
+        return f'{type(self).__name__}({len(self._sources)})'

@@ -52,11 +52,10 @@ def str_to_decimal(s: str,
         return None
     if len(s) > maxlen:
         raise ValueError(
-            'Decimal string of length {0} is longer than limit ([1])'.format(
-                len(s), maxlen))
+            f'string of length {len(s)} is longer than limit ({maxlen})')
     v = Decimal(s)
     if math.isnan(cast(float, v)) or math.isinf(cast(float, v)):
-        raise ValueError('Illegal value in decimal: {0}'.format(s))
+        raise ValueError(f'Illegal value in decimal: {s!r}')
     return v
 
 

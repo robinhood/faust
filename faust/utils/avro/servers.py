@@ -79,7 +79,7 @@ class RegistryClient:
             pass
 
         result = await self._send_request(
-            '{}/subjects/{}/versions'.format(self.url, subject),
+            f'{self.url}/subjects/{subject}/versions',
             method='post',
             unknown_error_message='Unable to register schema',
             body={
@@ -105,7 +105,7 @@ class RegistryClient:
             return self.id_to_schema[schema_id]
         except KeyError:
             result = await self._send_request(
-                '{}/schemas/ids/{}'.format(self.url, schema_id),
+                f'{self.url}/schemas/ids/{schema_id}',
             )
             schema = self._parse_schema(cast(str, result.get('schema')))
             self._cache_schema(schema, schema_id)
@@ -121,7 +121,7 @@ class RegistryClient:
             self, subject: str) -> Tuple[int, Schema, str]:
         try:
             result = await self._send_request(
-                '{}/subjects/{}/versions/latest'.format(self.url, subject),
+                f'{self.url}/subjects/{subject}/versions/latest',
             )
         except ClientError:
             return None, None, None
@@ -144,7 +144,7 @@ class RegistryClient:
 
         try:
             result = await self._send_request(
-                '{}/subjects/{}'.format(self.url, subject),
+                f'{self.url}/subjects/{subject}',
                 method='post',
                 body={
                     'schema': json.dumps(schema.to_json()),
@@ -162,10 +162,10 @@ class RegistryClient:
     async def test_compatibility(
             self, subject: str, schema: Schema,
             version: str = 'latest') -> bool:
+        url = self.url
         try:
             result = await self._send_request(
-                '{}/compatibility/subjects/{}/versions/{}'.format(
-                    self.url, subject, version),
+                f'{url}/compatibility/subjects/{subject}/versions/{version}',
                 method='post',
                 body={
                     'schema': json.dumps(schema.to_json()),
@@ -179,13 +179,13 @@ class RegistryClient:
     async def update_compatibility(
             self, level: str, subject: str = None) -> str:
         if level not in self.valid_levels:
-            raise ClientError('Invalid level specified: {!r}'.format(level))
+            raise ClientError(f'Invalid level specified: {level!r}')
 
         result = await self._send_request(
             self._compatibility_url(subject),
             method='put',
             body={'compatibility': 'level'},
-            unknown_error_message='Unable to update level: %s'.format(level),
+            unknown_error_message=f'Unable to update level: {level}',
         )
         return result['compatibility']
 
@@ -197,9 +197,8 @@ class RegistryClient:
             'compatibility', result.get('compatibilityLevel')))
 
     def _compatibility_url(self, subject: str = None) -> str:
-        return '{}/config{}'.format(
-            self.url,
-            '/{}'.format(subject) if subject else '')
+        path = f'/{subject}' if subject else ''
+        return f'{self.url}/config{path}'
 
     async def _send_request(
             self, url: str,
@@ -224,12 +223,11 @@ class RegistryClient:
         )
         if response.ok:
             return response.json()
+        code = response.status_code
 
-        error = STATUS_TO_ERROR.get(
-            response.status_code, unknown_error_message)
-        message = '{}: code={!r} url={!r} body={!r}'.format(
-            error, response.status_code, url, body)
-        logger.error(message)
+        error = STATUS_TO_ERROR.get(code, unknown_error_message)
+        message = f'{error}: code={code!r} url={url!r} body={body!r}'
+        logger.exception(message)
         raise ClientError(message)
 
     @property

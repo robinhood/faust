@@ -103,7 +103,4 @@ class Message:
         )
 
     def __repr__(self) -> str:
-        return '<{name}: {self.topic} {self.partition} {self.offset}'.format(
-            name=type(self).__name__,
-            self=self,
-        )
+        return f'<{type(self).__name__}: {self.tp} offset={self.offset}>'
