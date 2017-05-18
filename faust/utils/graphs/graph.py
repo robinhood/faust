@@ -168,9 +168,10 @@ class DependencyGraph(DependencyGraphT):
         write = partial(print, file=fh)  # noqa: T101
 
         def if_not_seen(fun: Callable[[Any], str], obj: Any) -> None:
-            if draw.label(obj) not in seen:
+            label = draw.label(obj)
+            if label not in seen:
                 write(fun(obj))
-                seen.add(draw.label(obj))
+                seen.add(label)
 
         write(draw.head())
         for obj, adjacent in self.items():
