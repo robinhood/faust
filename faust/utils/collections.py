@@ -7,7 +7,7 @@ from .graphs import DependencyGraph
 from .types.collections import NodeT
 from .types.graphs import DependencyGraphT
 
-__all__ = ['Node', 'FastUserDict', 'ManagedUserDict']
+__all__ = ['Node', 'NodeT', 'FastUserDict', 'ManagedUserDict']
 
 
 class Node(NodeT):

@@ -42,10 +42,10 @@ async def send_requests(app, n=1000):
         print('PRODUCED {}: {}'.format(n, monotonic() - time_start))
 
 
-async def process_requests(app, n=1000):
+@app.actor(request_topic)
+async def process_requests(requests, n=1000):
     i, j, time_start = 0, 0, None
-    s = app.stream(request_topic)
-    async for i, request in s.enumerate():
+    async for i, request in requests.enumerate():
         i += 1
         if time_start is None:
             time_start = monotonic()
@@ -60,7 +60,6 @@ async def process_requests(app, n=1000):
 
 async def main():
     await send_requests(app)
-    app.add_task(process_requests(app))
 
 
 if __name__ == '__main__':

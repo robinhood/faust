@@ -300,10 +300,7 @@ class TopicManager(TopicManagerT, Service):
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
-            return self.ack_offset(
-                TopicPartition(message.topic, message.partition),
-                message.offset,
-            )
+            return self.ack_offset(message.tp, message.offset)
         message.acked = True
 
     def ack_offset(self, tp: TopicPartition, offset: int) -> None:
@@ -410,6 +407,9 @@ class TopicManager(TopicManagerT, Service):
 
     def __len__(self) -> int:
         return len(self._sources)
+
+    def __hash__(self) -> int:
+        return object.__hash__(self)
 
     def add(self, source: SourceT) -> None:
         if source not in self._sources:

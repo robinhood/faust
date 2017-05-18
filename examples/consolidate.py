@@ -25,8 +25,9 @@ async def combine_withdrawals(it):
             yield eventA.derive(amount=eventA.amount + eventB.amount)
 
 
-async def find_large_withdrawals(app):
-    withdrawals = app.stream(topic, combine_withdrawals)
+@app.actor(topic)
+async def find_large_withdrawals(stream):
+    withdrawals = app.stream(stream, combine_withdrawals)
     async for withdrawal in withdrawals.through('foo'):
         print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
         if withdrawal.amount > 9999.0:
@@ -47,7 +48,6 @@ def produce(loop):
 
 
 def consume(loop):
-    app.add_task(find_large_withdrawals(app))
     worker = faust.Worker(app, loglevel='INFO', loop=loop)
     worker.execute_from_commandline()
     loop.run_forever()

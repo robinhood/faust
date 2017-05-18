@@ -60,24 +60,11 @@ statistics every 30 seconds:
     if __name__ == '__main__':
         app.start()
 
-.. _task-starting:
-
-Starting tasks
-==============
-
-Tasks can be registered with an app in two ways:
-
-1) Using the ``@app.actor`` decorator
-
-2) Manually using the ``app.add_task()`` method.
-
-But this is just a best practice, as any asyncio Task will be allowed to
-iterate over streams.  Explicitly defining what are Faust tasks
-aids introspection, which may be used for debugging and monitoring
-purposes.
+Actors
+======
 
 Concurrency
-===========
+-----------
 
 For idempotent, stateless tasks you may use the ``concurrency`` argument to
 start multiple instances of the same task:
@@ -98,5 +85,5 @@ some action at regular intervals.
 .. code-block:: python
 
     @app.timer(interval=30.0)
-    def dump_stats(app):
-            print(f'Logs processed: {stats.logs_received})
+    def dump_stats():
+        print(f'Logs processed: {stats.logs_received})
