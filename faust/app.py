@@ -398,7 +398,7 @@ class App(AppT, ServiceProxy):
     async def send_many(
             self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
         await asyncio.wait(
-            [self._send_tuple(msg, wait=False) for msg in it],
+            [self._send_tuple(msg) for msg in it],
             loop=self.loop,
             return_when=asyncio.ALL_COMPLETED,
         )

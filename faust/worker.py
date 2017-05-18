@@ -258,10 +258,13 @@ class Worker(Service):
         self.print_banner()
         with self._monitor():
             self.install_signal_handlers()
-            await asyncio.gather(
-                *[asyncio.ensure_future(coro, loop=self.loop)
-                  for coro in coroutines],
-                loop=self.loop)
+            if coroutines:
+                await asyncio.wait(
+                    [asyncio.ensure_future(coro, loop=self.loop)
+                    for coro in coroutines],
+                    loop=self.loop,
+                    return_when=asyncio.ALL_COMPLETED,
+                )
             await self.start()
             await self.wait_until_stopped()
 
