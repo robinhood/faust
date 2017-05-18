@@ -2,7 +2,6 @@
 import asyncio
 import faust
 import io
-import typing
 
 from collections import defaultdict
 from functools import wraps
@@ -13,7 +12,6 @@ from typing import (
     Iterable, Iterator, List, MutableMapping, MutableSequence,
     Optional, Pattern, Sequence, Union, Type, Tuple, cast,
 )
-from weakref import WeakKeyDictionary
 
 from . import transport
 from .actors import ActorFun, Actor, ActorT
@@ -71,13 +69,6 @@ COMMIT_INTERVAL = 30.0
 APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} actors({actors}) sources({sources})>
 """.strip()
-
-if typing.TYPE_CHECKING:
-    # TODO mypy does not recognize WeakKeyDictionary as a MutableMapping
-    TASK_TO_APP: WeakKeyDictionary[asyncio.Task, AppT]
-#: Map asyncio.Task to the app that started it.
-#: Tasks can use ``App.current_app`` to get the "currently used app".
-TASK_TO_APP = WeakKeyDictionary()
 
 logger = get_logger(__name__)
 
@@ -200,11 +191,6 @@ class App(AppT, ServiceProxy):
 
     _tasks: MutableSequence[Callable[[], Awaitable]]
 
-    @classmethod
-    def current_app(self) -> AppT:
-        """Returns the app that created the active task."""
-        return TASK_TO_APP[asyncio.Task.current_task(loop=self.loop)]
-
     def start(self, *,
               argv: Sequence[str] = None,
               loop: asyncio.AbstractEventLoop = None) -> None:
@@ -281,8 +267,6 @@ class App(AppT, ServiceProxy):
                 app=self,
                 topic=topic,
                 concurrency=concurrency,
-                on_started=self._on_actor_started,
-                on_stopped=self._on_actor_stopped,
                 on_error=self._on_actor_error,
             )
             self.actors[actor.name] = actor
@@ -518,12 +502,6 @@ class App(AppT, ServiceProxy):
             return ret
         return producer.send(topic, key, value, partition=partition)
 
-    async def _on_actor_started(
-            self, task: asyncio.Task,
-            *, _set: Callable = TASK_TO_APP.__setitem__) -> None:
-        # XXX SHOULD IT BE TASK_TO_APP OR ACTOR_TO_APP?
-        _set(task, self)  # add to TASK_TO_APP mapping
-
     async def _on_actor_error(
             self, actor: ActorT, exc: Exception) -> None:
         if self.sources.consumer:
@@ -531,9 +509,6 @@ class App(AppT, ServiceProxy):
                 await self.sources.consumer.on_task_error(exc)
             except Exception as exc:
                 logger.exception('Consumer error callback raised: %r', exc)
-
-    async def _on_actor_stopped(self, task: asyncio.Task) -> None:
-        TASK_TO_APP.pop(task, None)
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.sources.commit(topics)
