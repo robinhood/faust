@@ -50,10 +50,11 @@ class ActorService(Service):
             self.instances.append(task)
 
     async def on_stop(self) -> None:
-        # Actors iterate over infinite streams, so we cannot wait for it to stop.
-        # Instead, we cancel it and that forces the stream to ack the
-        # last message processed (but not the message causing the error to be
-        # raised).
+        # Actors iterate over infinite streams, and we cannot wait for it
+        # to stop.
+        # Instead we cancel it and this forces the stream to ack the
+        # last message processed (but not the message causing the error
+        # to be raised).
         for instance in self.instances:
             instance.cancel()
 

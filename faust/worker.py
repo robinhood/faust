@@ -261,7 +261,7 @@ class Worker(Service):
             if coroutines:
                 await asyncio.wait(
                     [asyncio.ensure_future(coro, loop=self.loop)
-                    for coro in coroutines],
+                     for coro in coroutines],
                     loop=self.loop,
                     return_when=asyncio.ALL_COMPLETED,
                 )
