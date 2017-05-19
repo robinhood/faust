@@ -17,14 +17,22 @@ logger = get_logger(__name__)
 __all__ = ['Actor', 'ActorFun', 'ActorT']
 
 
-# --- Actors are asyncio.Tasks that processes a Stream.
-# like normal actors they have an inbox and communicate like message passing,
-# but they do not have replies yet.
+# --- An actor is an `async def` function, iterating over a stream:
+#
+#   @app.actor(withdrawals_topic)
+#   async def alert_on_large_transfer(withdrawal):
+#       async for withdrawal in withdrawals:
+#           if withdrawal.amount > 1000.0:
+#               alert(f'Large withdrawal: {withdrawal}')
+#
+# unlike normal actors they do not implement replies... yet!
 
 
 class ActorService(Service):
-    # Since actors are created at module-scope, we create the actor
-    # service lazily: Actor(ServiceProxy) -> ActorService
+    # Actors are created at module-scope, and the Service class
+    # creates the asyncio loop when created, so we separate the
+    # actor service in such a way that we can start it lazily.
+    # Actor(ServiceProxy) -> ActorService
 
     actor: ActorT
     instances: MutableSequence[asyncio.Task]
@@ -42,8 +50,10 @@ class ActorService(Service):
             self.instances.append(task)
 
     async def on_stop(self) -> None:
-        # actors processes infinite streams, so we cannot wait for it to stop.
-        # simply cancel it and the stream will ack the last message processed.
+        # Actors iterate over infinite streams, so we cannot wait for it to stop.
+        # Instead, we cancel it and that forces the stream to ack the
+        # last message processed (but not the message causing the error to be
+        # raised).
         for instance in self.instances:
             instance.cancel()
 
@@ -66,6 +76,22 @@ class Actor(ActorT, ServiceProxy):
 
     def __call__(self) -> Union[Awaitable, AsyncIterable]:
         # The actor function can be reused by other actors/tasks.
+        # For example:
+        #
+        #   @app.actor(logs_topic, through='other-topic')
+        #   filter_log_errors_(stream):
+        #       async for event in stream:
+        #           if event.severity == 'error':
+        #               yield event
+        #
+        #   @app.actor(logs_topic)
+        #   def alert_on_log_error(stream):
+        #       async for event in filter_log_errors(stream):
+        #            alert(f'Error occurred: {event!r}')
+        #
+        # Calling `res = filter_log_errors(it)` will end you up with
+        # an AsyncIterable that you can reuse (but only if the actor
+        # function is an `async def` function that yields)
         return self.fun(self.app.stream(self.source))
 
     async def _start_task(self, beacon: NodeT) -> asyncio.Task:
@@ -119,7 +145,9 @@ class Actor(ActorT, ServiceProxy):
 
     @cached_property
     def source(self) -> AsyncIterator:
-        # The source is shared by multiple instances of this actor.
+        # The source is reused here, so that when ActorService start
+        # is called it will start n * concurrency self._start_task() futures
+        # that all share the same source topic.
         return aiter(self.topic)
 
     @cached_property
