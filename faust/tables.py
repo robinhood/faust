@@ -60,7 +60,7 @@ class Table(Service, TableT, ManagedUserDict):
 
         # Assign changelog to list of partitions to be consumed
         logger.info("Adding Changelog")
-        self.app.sources.init_new_table(TopicSource(self.changelog_topic))
+        self.app.sources.add(TopicSource(self.changelog_topic))
         logger.info("Done changelogging")
         # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get
