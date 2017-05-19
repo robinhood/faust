@@ -86,8 +86,10 @@ class Consumer(base.Consumer):
             group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
-            enable_auto_commit=False,
+            enable_auto_commit=False
         )
+        self.should_pause = asyncio.Event(loop=self.loop)
+        self.can_continue = asyncio.Event(loop=self.loop)
 
     async def create_topic(self, topic: str, partitions: int, replication: int,
                            *,
@@ -163,6 +165,10 @@ class Consumer(base.Consumer):
         try:
             while not should_stop():
                 pending: List[Awaitable] = []
+                # if self.should_pause.is_set():
+                #     self.transport.app.table_manager.recover_tables.set()
+                self.transport.app.table_manager.recover_tables.set()
+                await self.can_continue.wait()
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     offset = get_current_offset(tp)
@@ -198,6 +204,21 @@ class Consumer(base.Consumer):
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
 
+    def raw_consumer(self) -> Any:
+        return self._consumer
+
+    def pause_partitions(self, tps: Sequence[TopicPartition]) -> None:
+        for partition in tps:
+            self._consumer._subscription.pause(partition=partition)
+
+    def resume_partitions(self, tps: Sequence[TopicPartition]):
+        for partition in tps:
+            self._consumer._subscription.resume(partition=partition)
+
+    def reset_offset(self, topic_partiton: TopicPartition,
+                     strategy: int) -> None:
+        self._consumer._subscription.need_offset_reset(topic_partiton,
+                                                       strategy)
 
 class Producer(base.Producer):
     _producer: aiokafka.AIOKafkaProducer

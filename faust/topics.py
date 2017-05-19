@@ -1,3 +1,4 @@
+import json
 import asyncio
 import re
 import typing
@@ -334,6 +335,7 @@ class TopicManager(TopicManagerT, Service):
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
+
         self._subscription_changed = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
@@ -399,7 +401,7 @@ class TopicManager(TopicManagerT, Service):
         while not self.should_stop:
             await ev.wait()
             self._compile_pattern()
-            self.app.consumer.subscribe(self._pattern)
+            await self.app.consumer.subscribe(self._pattern)
             ev.clear()
 
     @Service.task
@@ -420,11 +422,12 @@ class TopicManager(TopicManagerT, Service):
         self._pattern = '^' + '$|^'.join(self._topicmap) + '$'
 
     def on_partitions_assigned(self,
-                               assigned: Sequence[TopicPartition]) -> None:
-        ...
+                                assigned: Sequence[
+                                    TopicPartition]) -> None:
+        self.app.table_manager.queue_assignment(assigned)
 
     def on_partitions_revoked(self,
-                              revoked: Sequence[TopicPartition]) -> None:
+                               revoked: Sequence[TopicPartition]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:

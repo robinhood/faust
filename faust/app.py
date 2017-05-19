@@ -24,7 +24,7 @@ from .types import (
 from .types.app import AppT
 from .sensors import Monitor
 from .types.streams import StreamT
-from .types.tables import TableT
+from .types.tables import TableT, TableManagerT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
@@ -46,6 +46,8 @@ DEFAULT_URL = 'kafka://localhost:9092'
 
 #: Path to default stream class used by ``app.stream``.
 DEFAULT_STREAM_CLS = 'faust.Stream'
+
+DEFAULT_TABLE_MANAGER_CLS = 'faust.TableManager'
 
 #: Path to default table class used by ``app.table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
@@ -102,6 +104,8 @@ class AppService(Service):
             [self.app.producer],                      # app.Producer
             # Consumer must be stopped after Topic Manager
             [self.app.consumer],                      # app.Consumer
+            # TableManager
+            [self.app.table_manager],                 # app.TableManager
             # Tables (and Sets).
             self.app.tables.values(),
             # TopicManager
@@ -214,6 +218,7 @@ class App(AppT, ServiceProxy):
                  default_partitions: int = 8,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
+                 TableManager: SymbolArg = DEFAULT_TABLE_MANAGER_CLS,
                  Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
@@ -232,6 +237,7 @@ class App(AppT, ServiceProxy):
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.Table = symbol_by_name(Table)
+        self.TableManager = symbol_by_name(TableManager)
         self.Serializers = symbol_by_name(Serializers)
         self.serializers = self.Serializers(
             key_serializer=self.key_serializer,
@@ -587,6 +593,11 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _service(self) -> ServiceT:
         return AppService(self)
+
+    @cached_property
+    def table_manager(self) -> TableManagerT:
+        return self.TableManager(app=self, tables=self.tables,
+                                 loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def sources(self) -> TopicManagerT:
