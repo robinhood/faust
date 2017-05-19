@@ -28,4 +28,5 @@ cover/
 .vagrant/
 .cache/
 .hypothesis/
+.mypy_cache/
 htmlcov/
