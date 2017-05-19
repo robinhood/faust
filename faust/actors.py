@@ -36,7 +36,7 @@ class ActorService(Service):
 
     async def on_start(self) -> None:
         # start the actor processor.
-        for _ in range(self.concurrency):
+        for _ in range(self.actor.concurrency):
             task = await cast(Actor, self.actor)._start_task(self.beacon)
             self.add_future(task)
             self.instances.append(task)
