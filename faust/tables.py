@@ -174,7 +174,7 @@ class WindowSet(WindowSetT, FastUserDict):
         key = self.key
         timestamp = self.timestamp(event)
         for window_range in self.window.windows(timestamp):
-            table[(key, window_range)] = op(table[key], value)
+            table[key, window_range] = op(table[key], value)
         return self
 
     def timestamp(self, event: EventT = None) -> float:
@@ -182,30 +182,30 @@ class WindowSet(WindowSetT, FastUserDict):
 
     def current(self, event: EventT = None) -> Any:
         timestamp = self.timestamp(event)
-        return self.table[(self.key, self.window.current(timestamp))]
+        return self.table[self.key, self.window.current(timestamp)]
 
     def delta(self, d: Seconds, event: EventT = None) -> Any:
         timestamp = self.timestamp(event)
-        return self.table[(self.key, self.window.delta(timestamp, d))]
+        return self.table[self.key, self.window.delta(timestamp, d)]
 
     def __getitem__(self, w: Any) -> Any:
         # wrapper[key][event] returns WindowSet with event already set.
         if isinstance(w, EventT):
             return type(self)(self.key, self.table, self.window, w)
         # wrapper[key][window_range] returns value for that range.
-        return self.table[(self.key, w)]
+        return self.table[self.key, w]
 
     def __setitem__(self, w: Any, value: Any) -> None:
         if isinstance(w, EventT):
             raise NotImplementedError(
                 'Cannot set WindowSet key, when key is an event')
-        self.table[(self.key, w)] = value
+        self.table[self.key, w] = value
 
     def __delitem__(self, w: Any) -> None:
         if isinstance(w, EventT):
             raise NotImplementedError(
                 'Cannot delete WindowSet key, when key is an event')
-        del self.table[(self.key, w)]
+        del self.table[self.key, w]
 
     def __iadd__(self, other: Any) -> Any:
         return self.apply(operator.add, other)

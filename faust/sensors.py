@@ -463,7 +463,7 @@ class Monitor(Sensor, KeywordReduce):
         self.messages_received_by_topic[tp.topic] += 1
         state = MessageState(consumer_id, tp, offset, time_in=monotonic())
         self.messages.append(state)
-        self.message_index[(tp, offset)] = state
+        self.message_index[tp, offset] = state
 
     async def on_stream_event_in(
             self,
@@ -475,7 +475,7 @@ class Monitor(Sensor, KeywordReduce):
         self.events_by_stream[_label(stream)] += 1
         self.events_by_task[_label(stream.task_owner)] += 1
         self.events_active += 1
-        self.message_index[(tp, offset)].on_stream_in(stream, event)
+        self.message_index[tp, offset].on_stream_in(stream, event)
 
     async def on_stream_event_out(
             self,
@@ -484,7 +484,7 @@ class Monitor(Sensor, KeywordReduce):
             stream: StreamT,
             event: EventT) -> None:
         self.events_active -= 1
-        state = self.message_index[(tp, offset)].on_stream_out(stream, event)
+        state = self.message_index[tp, offset].on_stream_out(stream, event)
         self.events_runtime.append(state.time_total)
 
     async def on_message_out(
@@ -495,7 +495,7 @@ class Monitor(Sensor, KeywordReduce):
             message: Message = None) -> None:
         self.messages_active -= 1
         try:
-            self.message_index[(tp, offset)].on_out()
+            self.message_index[tp, offset].on_out()
         except KeyError:
             pass
 
