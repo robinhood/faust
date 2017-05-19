@@ -283,6 +283,8 @@ class TopicManager(TopicManagerT, Service):
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
+        self._partition_callback_tasks = asyncio.Queue(maxsize=1,
+                                                       loop=self.loop)
         self._subscription_changed = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
@@ -332,6 +334,7 @@ class TopicManager(TopicManagerT, Service):
     async def on_start(self) -> None:
         self.add_future(self._subscriber())
         self.add_future(self._gatherer())
+        self.add_future(self._partition_assign_listener())
 
     async def _subscriber(self) -> None:
         # the first time we start, we will wait two seconds
@@ -354,6 +357,13 @@ class TopicManager(TopicManagerT, Service):
             self.app.consumer.subscribe(self._pattern)
             ev.clear()
 
+    def init_new_table(self, source):
+        if source not in self._sources:
+            self._sources.add(source)
+            self.beacon.add(source)  # connect to beacon
+            self._compile_pattern()
+            self.consumer.subscribe(self._pattern)
+
     async def _gatherer(self) -> None:
         waiting = set()
         wait = asyncio.wait
@@ -363,6 +373,53 @@ class TopicManager(TopicManagerT, Service):
             finished, unfinished = await wait(waiting, return_when=return_when)
             waiting = unfinished
 
+    async def _partition_assign_listener(self) -> None:
+        logger.info("in partition assign listener")
+        while not self.should_stop:
+            print("here")
+            assigned = await self._partition_callback_tasks.get()
+            print("there")
+            logger.info("well im in")
+            for topic_partition in assigned:
+                logger.info(topic_partition)
+                table_name = self.app.get_table_name_changelog(
+                    topic_partition.topic)
+                if table_name is None:
+                    continue
+                table = self.app.get_table(table_name)
+                while True:
+                    print("assignment", self.consumer._consumer._subscription.assignment)
+                    print("partition", topic_partition)
+                    print(type(topic_partition))
+                    print(type(self.consumer._consumer._subscription.assignment))
+                    print(type(list(self.consumer._consumer._subscription.assignment.keys())[0]))
+                    print(topic_partition)
+                    print(self.consumer._consumer._subscription.is_assigned(topic_partition))
+                    highwater = self.consumer._consumer.highwater(topic_partition)
+                    print("tp before", topic_partition)
+                    position = await self.consumer._consumer.position(topic_partition)
+                    print("highwater is", highwater, "position is", position)
+                    if highwater - position <= 0:
+                        print("breaking")
+                        break
+                    msgs = await self.consumer._consumer.getmany(topic_partition)
+                    for message in msgs:
+                        logger.info("Got messages")
+                        table[message.key] = message.value
+            await self.consumer.commit(set(assigned))
+
+    async def on_stop(self) -> None:
+        if self.consumer:
+            await self.consumer.stop()
+
+    def _create_consumer(self) -> ConsumerT:
+        return self.app.transport.create_consumer(
+            callback=self._on_message,
+            on_partitions_revoked=self._on_partitions_revoked,
+            on_partitions_assigned=self._on_partitions_assigned,
+            beacon=self.beacon,
+        )
+
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
         for source in self._sources:
@@ -370,13 +427,19 @@ class TopicManager(TopicManagerT, Service):
                 self._topicmap[topic].add(source)
         self._pattern = '|'.join(self._topicmap)
 
-    def on_partitions_assigned(self,
-                               assigned: Sequence[TopicPartition]) -> None:
-        ...
+    def _on_partitions_assigned(self,
+                                assigned: Sequence[
+                                    TopicPartition]) -> None:
+        logger.info("something cool is happening")
+        logger.info(assigned)
+        print("assigned", assigned)
+        self._partition_callback_tasks.put_nowait(assigned)
+        print("come here")
+        logger.info("well im out")
 
-    def on_partitions_revoked(self,
-                              revoked: Sequence[TopicPartition]) -> None:
-        ...
+    def _on_partitions_revoked(self,
+                               revoked: Sequence[TopicPartition]) -> None:
+        logger.info("something not cool is happening")
 
     def __contains__(self, value: Any) -> bool:
         return value in self._sources
@@ -391,7 +454,9 @@ class TopicManager(TopicManagerT, Service):
         return object.__hash__(self)
 
     def add(self, source: SourceT) -> None:
+        print("adding")
         if source not in self._sources:
+            print("not there")
             self._sources.add(source)
             self.beacon.add(source)  # connect to beacon
             if self._subscription_changed is not None:

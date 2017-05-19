@@ -358,6 +358,25 @@ class App(AppT, ServiceProxy):
                 f'Table with name {table.table_name!r} already exists')
         self.tables[table.table_name] = table
 
+    def get_table_name_changelog(self, topic_name):
+        logger.info(topic_name)
+        for table_name, table in self._tables.items():
+            logger.info("Printing table info")
+            logger.info(table_name)
+            logger.info(type(table.changelog_topic))
+            logger.info(table.changelog_topic.topics)
+            logger.info(type(topic_name))
+            logger.info(topic_name == table.changelog_topic)
+            logger.info("Done printing")
+            if str(table.changelog_topic) == topic_name:
+                logger.info("returning something")
+                return table_name
+
+
+    def get_table(self, table_name):
+        return self._tables.get(table_name)
+
+
     async def send(
             self,
             topic: Union[TopicT, str],

@@ -3,18 +3,22 @@ import operator
 from typing import Any, Callable, Iterator, Mapping, Type, cast
 from . import stores
 from . import windows
+from .topics import TopicSource
 from .types import AppT, EventT, FieldDescriptorT, JoinT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT
 from .types.windows import WindowT
 from .utils.collections import FastUserDict, ManagedUserDict
+from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
 from .streams import current_event
 from .streams import joins
 
 __all__ = ['Table']
+
+logger = get_logger(__name__)
 
 
 class Table(Service, TableT, ManagedUserDict):
@@ -54,6 +58,10 @@ class Table(Service, TableT, ManagedUserDict):
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
 
+        # Assign changelog to list of partitions to be consumed
+        logger.info("Adding Changelog")
+        self.app.sources.init_new_table(TopicSource(self.changelog_topic))
+        logger.info("Done changelogging")
         # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get
         self._sensor_on_set = self.app.sensors.on_table_set
