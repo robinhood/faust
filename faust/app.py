@@ -359,8 +359,11 @@ class App(AppT, ServiceProxy):
         self.tables[table.table_name] = table
 
     def get_table_name_changelog(self, topic_name):
+        print("entere heere")
         logger.info(topic_name)
-        for table_name, table in self._tables.items():
+        print(str(self.tables))
+        print(self.tables.items())
+        for table_name, table in self.tables.items():
             logger.info("Printing table info")
             logger.info(table_name)
             logger.info(type(table.changelog_topic))
@@ -374,7 +377,7 @@ class App(AppT, ServiceProxy):
 
 
     def get_table(self, table_name):
-        return self._tables.get(table_name)
+        return self.tables.get(table_name)
 
 
     async def send(

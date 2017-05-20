@@ -357,12 +357,12 @@ class TopicManager(TopicManagerT, Service):
             self.app.consumer.subscribe(self._pattern)
             ev.clear()
 
-    def init_new_table(self, source):
-        if source not in self._sources:
-            self._sources.add(source)
-            self.beacon.add(source)  # connect to beacon
-            self._compile_pattern()
-            self.consumer.subscribe(self._pattern)
+    # def init_new_table(self, source):
+    #     if source not in self._sources:
+    #         self._sources.add(source)
+    #         self.beacon.add(source)  # connect to beacon
+    #         self._compile_pattern()
+    #         self.consumer._consumer.subscribe(pattern=self._pattern, listener=)
 
     async def _gatherer(self) -> None:
         waiting = set()
@@ -381,9 +381,12 @@ class TopicManager(TopicManagerT, Service):
             print("there")
             logger.info("well im in")
             for topic_partition in assigned:
+                print("in loops")
                 logger.info(topic_partition)
+                print("here at some point 2")
                 table_name = self.app.get_table_name_changelog(
                     topic_partition.topic)
+                print("here at some point")
                 if table_name is None:
                     continue
                 table = self.app.get_table(table_name)
@@ -399,13 +402,18 @@ class TopicManager(TopicManagerT, Service):
                     print("tp before", topic_partition)
                     position = await self.consumer._consumer.position(topic_partition)
                     print("highwater is", highwater, "position is", position)
+                    if highwater is None:
+                        highwater = 1
                     if highwater - position <= 0:
                         print("breaking")
                         break
                     msgs = await self.consumer._consumer.getmany(topic_partition)
+                    print("messages", msgs)
                     for message in msgs:
                         logger.info("Got messages")
                         table[message.key] = message.value
+                    await self.consumer.commit(set([topic_partition]))
+                    break
             await self.consumer.commit(set(assigned))
 
     async def on_stop(self) -> None:
