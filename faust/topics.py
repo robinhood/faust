@@ -280,15 +280,13 @@ class TopicManager(TopicManagerT, Service):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self.consumer = None
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
         self._subscription_changed = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
-        self._on_message = self._compile_message_handler()
-        self.consumer = self._create_consumer()
+        self.on_message = self._compile_message_handler()
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
@@ -296,10 +294,10 @@ class TopicManager(TopicManagerT, Service):
         message.acked = True
 
     def ack_offset(self, tp: TopicPartition, offset: int) -> None:
-        return self.consumer.ack(tp, offset)
+        return self.app.consumer.ack(tp, offset)
 
     async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.consumer.commit(topics)
+        return await self.app.consumer.commit(topics)
 
     def _compile_message_handler(self) -> ConsumerCallback:
         wait = asyncio.wait
@@ -346,10 +344,10 @@ class TopicManager(TopicManagerT, Service):
         self._compile_pattern()
 
         # tell the consumer to subscribe to our pattern
-        await self.consumer.subscribe(self._pattern)
+        await self.app.consumer.subscribe(self._pattern)
 
         # and start the consumer
-        await self.consumer.start()
+        await self.app.consumer.start()
 
         # Now we wait for changes
         cond = self._subscription_changed = asyncio.Condition(loop=self.loop)
@@ -357,7 +355,7 @@ class TopicManager(TopicManagerT, Service):
             with await cond:
                 await cond.wait()
                 self._compile_pattern()
-                self.consumer.subscribe(self._pattern)
+                self.app.consumer.subscribe(self._pattern)
 
     async def _gatherer(self) -> None:
         waiting = set()
@@ -368,18 +366,6 @@ class TopicManager(TopicManagerT, Service):
             finished, unfinished = await wait(waiting, return_when=return_when)
             waiting = unfinished
 
-    async def on_stop(self) -> None:
-        if self.consumer:
-            await self.consumer.stop()
-
-    def _create_consumer(self) -> ConsumerT:
-        return self.app.transport.create_consumer(
-            callback=self._on_message,
-            on_partitions_revoked=self._on_partitions_revoked,
-            on_partitions_assigned=self._on_partitions_assigned,
-            beacon=self.beacon,
-        )
-
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
         for source in self._sources:
@@ -387,12 +373,12 @@ class TopicManager(TopicManagerT, Service):
                 self._topicmap[topic].add(source)
         self._pattern = '|'.join(self._topicmap)
 
-    def _on_partitions_assigned(self,
-                                assigned: Sequence[TopicPartition]) -> None:
+    def on_partitions_assigned(self,
+                               assigned: Sequence[TopicPartition]) -> None:
         ...
 
-    def _on_partitions_revoked(self,
-                               revoked: Sequence[TopicPartition]) -> None:
+    def on_partitions_revoked(self,
+                              revoked: Sequence[TopicPartition]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:
