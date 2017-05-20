@@ -24,17 +24,19 @@ async def find_large_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
         user_to_total[withdrawal.user] += withdrawal.amount
         country_to_total[withdrawal.country] += withdrawal.amount
-        print('Withdrawal: %r, User Total: %r, Country Total: %r' % (
-            withdrawal, user_to_total[withdrawal.user],
-            country_to_total[withdrawal.country]))
+        print('{!r} User Total: {!r}, Country Total: {!r}'.format(
+            withdrawal,
+            user_to_total[withdrawal.user],
+            country_to_total[withdrawal.country],
+        ))
 
 
 async def _publish_withdrawals():
     for i in range(10_000):
-        print('+SEND %r' % (i,))
+        print(f'+SEND {i!r}')
         await withdrawals_topic.send(
             b'K', Withdrawal(user='foo', amount=100.3 + i, country='FOO'))
-        print('-SEND %r' % (i,))
+        print(f'-SEND {i!r}')
     await withdrawals_topic.send(
         b'K', Withdrawal(user='foo', amount=999999.0, country='BAR'))
     await asyncio.sleep(30)
@@ -55,10 +57,10 @@ def main(loop=None):
     try:
         command = sys.argv.pop(1)
     except KeyError as exc:
-        print('Unknown command: {0}'.format(exc))
+        print(f'Unknown command: {exc}')
         raise SystemExit(os.EX_USAGE)
     except IndexError:
-        print('Missing command. Try one of: {0}'.format(', '.join(COMMANDS)))
+        print(f'Missing command. Try one of: {", ".join(COMMANDS)}')
         raise SystemExit(os.EX_USAGE)
     else:
         COMMANDS[command](loop=loop)

@@ -25,7 +25,8 @@ globals().update(conf.build_config(
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
     },
     # django_settings='testproj.settings',
-    # path_additions=[os.path.join(os.pardir, 'testproj')],
+    # from pathlib import Path
+    # path_additions=[Path.cwd().parent / 'testproj']
     apicheck_ignore_modules=[
         'faust.transport.confluent',
         'faust.streams._constants',

@@ -15,8 +15,7 @@ async def mytask(records):
     sleep = asyncio.sleep
     session = aiohttp.ClientSession()
     async for record in records:
-        await session.get(
-            'http://www.google.com/?#safe=off&q={}'.format(record.value))
+        await session.get(f'http://www.google.com/?#q={record.value}')
 
 
 async def producer():

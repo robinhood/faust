@@ -28,10 +28,9 @@ async def combine_withdrawals(it):
 @app.actor(topic)
 async def find_large_withdrawals(stream):
     withdrawals = app.stream(stream, combine_withdrawals)
-    async for withdrawal in withdrawals.through('foo'):
-        print('TASK GENERATOR RECV FROM OUTBOX: %r' % (withdrawal,))
-        if withdrawal.amount > 9999.0:
-            print('ALERT: large withdrawal: {0.amount!r}'.format(withdrawal))
+    async for w in withdrawals.through('foo'):
+        if w.amount > 9999.0:
+            print(f'ALERT: large withdrawal: {w.amount!r}')
 
 
 async def _publish_withdrawals():
@@ -64,10 +63,10 @@ def main(loop=None):
     try:
         COMMANDS[sys.argv[1]](loop=loop)
     except KeyError as exc:
-        print('Unknown command: {0}'.format(exc))
+        print(f'Unknown command: {exc}')
         raise SystemExit(os.EX_USAGE)
     except IndexError:
-        print('Missing command. Try one of: {0}'.format(', '.join(COMMANDS)))
+        print(f'Missing command. Try one of: {", ".join(COMMANDS)}')
         raise SystemExit(os.EX_USAGE)
     finally:
         loop.close()

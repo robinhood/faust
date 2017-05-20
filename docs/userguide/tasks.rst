@@ -50,7 +50,7 @@ statistics every 30 seconds:
         async for log in logs:
             state.logs_received += 1
             if log.severity == 'ERROR':
-                print('ERROR: {}'.format(log.message))
+                print(f'ERROR: {log.message}')
 
 
     @app.timer(interval=30.0)

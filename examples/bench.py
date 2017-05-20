@@ -19,7 +19,7 @@ from time import monotonic  # noqa
 from uuid import uuid4      # noqa
 
 group = str(uuid4())
-app = faust.App('faustbench-{}'.format(group), url='aiokafka://localhost')
+app = faust.App(f'faustbench-{group}', url='aiokafka://localhost')
 
 
 class Request(faust.Record, serializer='json'):
@@ -39,7 +39,8 @@ async def send_requests(app, n=1000):
                 id=str(uuid4()),
                 time_start=monotonic(),
             ), wait=True)
-        print('PRODUCED {}: {}'.format(n, monotonic() - time_start))
+        time_end = monotonic() - time_start
+        print(f'PRODUCED {n}: {time_end}')
 
 
 @app.actor(request_topic)
@@ -51,7 +52,8 @@ async def process_requests(requests, n=1000):
             time_start = monotonic()
         assert request.id
         if not i % n:
-            print('CONSUMED {}: {}'.format(n, monotonic() - time_start))
+            time_end = monotonic() - time_start
+            print(f'CONSUMED {n}: {time_end}')
             time_start = monotonic()
             j += 1
             if j > 10:

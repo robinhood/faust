@@ -243,9 +243,9 @@ Examples
         orders_by_country = app.table('orders_by_country', default=int)
 
         async for order in orders_topic.stream():
-            orders_by_country[order.country_origin] += 1
-            print('Orders for this country: {}'.format(
-                orders_by_country[order.country_origin])
+            country = order.country_origin
+            new_total = orders_by_country.increment(country, 1)
+            print(f'Orders for country {country}: {new_total}')
 
 .. topic:: Aggregate information using a window
 

@@ -1,19 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
-
-import os
 import re
 import sys
-import codecs
-
 try:
     import platform
     _pyimp = platform.python_implementation
 except (AttributeError, ImportError):
     def _pyimp():
         return 'Python'
+from setuptools import setup, find_packages
 
 NAME = 'faust'
 EXTENSIONS = {
@@ -22,12 +18,15 @@ EXTENSIONS = {
     'rocksdb',
     'uvloop',
 }
-
 E_UNSUPPORTED_PYTHON = '%s 1.0 requires %%s %%s or later!' % (NAME,)
 
 PYIMP = _pyimp()
 if sys.version_info < (3, 6):
     raise Exception(E_UNSUPPORTED_PYTHON % (PYIMP, '3.6'))
+
+from pathlib import Path  # noqa
+
+README = Path('README.rst')
 
 # -*- Classifiers -*-
 
@@ -58,10 +57,9 @@ def add_doc(m):
     return (('doc', m.groups()[0]),)
 
 
-pats = {re_meta: add_default,
-        re_doc: add_doc}
-here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, NAME, '__init__.py')) as meta_fh:
+pats = {re_meta: add_default, re_doc: add_doc}
+here = Path(__file__).parent.absolute()
+with open(here / NAME / '__init__.py') as meta_fh:
     meta = {}
     for line in meta_fh:
         if line.strip() == '# -eof meta-':
@@ -86,11 +84,9 @@ def _pip_requirement(req):
 
 
 def _reqs(*f):
-    return [
-        _pip_requirement(r) for r in (
-            strip_comments(l) for l in open(
-                os.path.join(os.getcwd(), 'requirements', *f)).readlines()
-        ) if r]
+    path = (Path.cwd() / 'requirements').joinpath(*f)
+    reqs = (strip_comments(l) for l in path.open().readlines())
+    return [_pip_requirement(r) for r in reqs if r]
 
 
 def reqs(*f):
@@ -110,10 +106,10 @@ def extras_require():
 # -*- Long Description -*-
 
 
-if os.path.exists('README.rst'):
-    long_description = codecs.open('README.rst', 'r', 'utf-8').read()
+if README.exists():
+    long_description = README.read_text(encoding='utf-8')
 else:
-    long_description = 'See http://pypi.python.org/pypi/%s' % (NAME,)
+    long_description = f'See http://pypi.python.org/pypi/{NAME}'
 
 # -*- %%% -*-
 
