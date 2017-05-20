@@ -466,7 +466,7 @@ class App(AppT, ServiceProxy):
             # being committed
             if entry[0] <= commit_offset:
                 # we use it
-                yield entry
+                yield entry[1]  # Only yielding Pending Message (not offset)
             else:
                 # we put it back and exit, as this was the smallest offset.
                 heappush(attached, entry)
