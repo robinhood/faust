@@ -114,7 +114,7 @@ class RegistryClient:
         try:
             return Parse(payload)
         except Exception as exc:
-            raise ClientError('Received bad schema from registry')
+            raise ClientError(f'Received bad schema from registry: {exc}')
 
     async def get_latest_schema(
             self, subject: str) -> Tuple[int, Schema, str]:

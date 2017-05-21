@@ -50,7 +50,8 @@ class Registry(RegistryT):
                 obj = await ser.loads(key)
             return cast(K, typ(obj))
         except Exception as exc:
-            raise KeyDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
+            raise KeyDecodeError(
+                str(exc)).with_traceback(sys.exc_info()[2]) from None
 
     async def loads_value(self,
                           typ: Type,
@@ -77,7 +78,8 @@ class Registry(RegistryT):
                 obj = await ser.loads(message.value)
             return typ(obj)
         except Exception as exc:
-            raise ValueDecodeError(str(exc)).with_traceback(sys.exc_info()[2])
+            raise ValueDecodeError(
+                str(exc)).with_traceback(sys.exc_info()[2]) from None
 
     async def dumps_key(self, topic: str, key: K,
                         serializer: CodecArg = None) -> Optional[bytes]:

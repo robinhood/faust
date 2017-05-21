@@ -127,7 +127,7 @@ class Local:
                 raise ValueError('Cannot access a local outside a context')
             return self.__storage__[ident][name]
         except KeyError:
-            raise AttributeError(name)
+            raise AttributeError(name) from None
 
     def __setattr__(self, name: str, value: Any) -> None:
         ident = self.__ident_func__()
@@ -146,4 +146,4 @@ class Local:
                 raise ValueError('Cannot set a local outside a context')
             del self.__storage__[ident][name]
         except KeyError:
-            raise AttributeError(name)
+            raise AttributeError(name) from None
