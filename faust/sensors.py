@@ -1,4 +1,5 @@
 import asyncio
+import statistics
 import typing
 from contextlib import suppress
 from time import monotonic
@@ -413,6 +414,7 @@ class Monitor(Sensor, KeywordReduce):
         self.add_future(self._sampler())
 
     async def _sampler(self) -> None:
+        median = statistics.median
         prev_message_total = self.messages_received_total
         prev_event_total = self.events_total
         while not self.should_stop:
@@ -420,8 +422,7 @@ class Monitor(Sensor, KeywordReduce):
 
             # Update average event runtime.
             if self.events_runtime:
-                self.events_runtime_avg = (
-                    sum(self.events_runtime) / len(self.events_runtime))
+                self.events_runtime_avg = median(self.events_runtime)
 
             # Update events/s
             self.events_s = self.events_total - prev_event_total
