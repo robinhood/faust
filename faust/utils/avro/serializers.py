@@ -2,7 +2,7 @@
 import io
 from contextlib import suppress
 from functools import partial
-from struct import pack, unpack
+from struct import Struct
 from typing import Any, Mapping, MutableMapping, Type
 from avro.io import BinaryDecoder, BinaryEncoder, DatumReader, DatumWriter
 from avro.schema import Schema
@@ -14,6 +14,7 @@ except ImportError:  # prgama: no cover
 
 __all__ = ['MessageSerializer']
 
+HEADER_FMT = Struct('>bI')
 MAGIC_BYTE = 0
 
 
@@ -40,7 +41,7 @@ class MessageSerializer:
     def _dumps(
             self, subject_id: int, writer: DatumWriter, data: Any) -> bytes:
         with io.BytesIO() as buffer:
-            buffer.write(pack('>bI', MAGIC_BYTE, subject_id))
+            buffer.write(HEADER_FMT.pack(MAGIC_BYTE, subject_id))
             encoder = self.Encoder(buffer)
             writer.write(data, encoder)
             return buffer.getvalue()
@@ -49,7 +50,7 @@ class MessageSerializer:
         if len(message) <= 5:
             raise ValueError('Message is too small to decode')
         with io.BytesIO(message) as payload:
-            magic, schema_id = unpack('>bI', payload.read(5))
+            magic, schema_id = HEADER_FMT.unpack(payload.read(5))
             if magic != MAGIC_BYTE:
                 raise ValueError('Message does not start with magic byte.')
             try:
