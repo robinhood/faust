@@ -6,6 +6,7 @@
 import re
 import sys
 import typing
+from contextlib import suppress
 from typing import Any, Mapping, NamedTuple, Sequence
 
 __version__ = '1.0.0'
@@ -62,11 +63,8 @@ __all__ = [
 
 
 def use_uvloop() -> None:
-    try:
+    with suppress(ImportError):
         import uvloop
-    except ImportError:
-        pass
-    else:
         import asyncio
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 

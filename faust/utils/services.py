@@ -1,6 +1,7 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import abc
 import asyncio
+from contextlib import suppress
 from typing import Any, Awaitable, Iterable, List, MutableSequence
 from .collections import Node
 from .logging import get_logger
@@ -179,16 +180,13 @@ class Service(ServiceBase):
     async def _gather_futures(self) -> None:
         if self._futures:
             # Gather all futures added via .add_future
-            try:
+            with suppress(asyncio.CancelledError):
                 await asyncio.wait(
                     self._futures,
                     return_when=asyncio.ALL_COMPLETED,
                     loop=self.loop,
                 )
-            except asyncio.CancelledError:
-                pass
-            finally:
-                self._futures.clear()
+            self._futures.clear()
 
     async def restart(self) -> None:
         """Restart this service."""

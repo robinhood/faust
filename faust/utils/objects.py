@@ -1,4 +1,5 @@
 """Object utilities."""
+from contextlib import suppress
 from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Type, cast
 
 __flake8_Dict_is_used: Dict   # silence flake8 bug
@@ -49,11 +50,8 @@ def annotations(cls: Type,
     defaults: Dict[str, Any] = {}  # noqa: E704 (flake8 bug)
     for subcls in iter_mro_reversed(cls, stop=stop):
         defaults.update(subcls.__dict__)
-        try:
+        with suppress(AttributeError):
             annotations = subcls.__annotations__
-        except AttributeError:
-            pass
-        else:
             fields.update(annotations)
     return fields, defaults
 

@@ -1,5 +1,6 @@
 """Avro serialization/deserialization."""
 import io
+from contextlib import suppress
 from functools import partial
 from struct import pack, unpack
 from typing import Any, Mapping, MutableMapping, Type
@@ -65,11 +66,8 @@ class MessageSerializer:
         cur_pos = payload.tell()
         if _fast_read_data is not None:
             schema_dict = schema.to_json()
-            try:
+            with suppress(Exception):
                 obj = self._fast_decode(schema_dict, payload)
-            except Exception:
-                pass
-            else:
                 self._id_to_decoder[schema_id] = partial(
                     self._fast_decode, schema_dict)
                 return obj

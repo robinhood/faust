@@ -1,5 +1,6 @@
 import asyncio
 import typing
+from contextlib import suppress
 from time import monotonic
 from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
@@ -494,10 +495,8 @@ class Monitor(Sensor, KeywordReduce):
             offset: int,
             message: Message = None) -> None:
         self.messages_active -= 1
-        try:
+        with suppress(KeyError):
             self.message_index[tp, offset].on_out()
-        except KeyError:
-            pass
 
     def on_table_get(self, table: TableT, key: Any) -> None:
         self._table_or_create(table).keys_retrieved += 1

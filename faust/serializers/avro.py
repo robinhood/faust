@@ -23,11 +23,9 @@ AVRO_FAST_TYPE: Mapping[Any, str] = {
 
 
 def to_avro_type(typ: Type) -> str:
-    try:
+    if typ in AVRO_FAST_TYPE:
         return AVRO_FAST_TYPE[typ]
-    except KeyError:
-        pass
-    if issubclass(typ, Sequence):
+    elif issubclass(typ, Sequence):
         return 'array'
     elif issubclass(typ, Mapping):
         return 'map'

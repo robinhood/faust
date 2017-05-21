@@ -12,6 +12,7 @@ import signal
 import socket
 import sys
 
+from contextlib import suppress
 from typing import (
     Any, Coroutine, IO, Iterable, Sequence, Set, Tuple, Union, cast,
 )
@@ -220,19 +221,16 @@ class Worker(Service):
 
     def execute_from_commandline(self, *coroutines: Coroutine) -> None:
         try:
-            self.loop.run_until_complete(self.add_future(
-                self._execute_from_commandline(*coroutines)))
-        except asyncio.CancelledError:
-            pass
+            with suppress(asyncio.CancelledError):
+                self.loop.run_until_complete(self.add_future(
+                    self._execute_from_commandline(*coroutines)))
         finally:
             self._shutdown_loop()
 
     def _shutdown_loop(self) -> None:
         # Gather futures created by us.
-        try:
+        with suppress(asyncio.CancelledError):
             self.loop.run_until_complete(self._gather_futures())
-        except asyncio.CancelledError:
-            pass
         # Gather absolutely all asyncio futures.
         self._gather_all()
         try:
@@ -270,11 +268,8 @@ class Worker(Service):
 
     def _monitor(self) -> Any:
         if self.debug:
-            try:
+            with suppress(ImportError):
                 import aiomonitor
-            except ImportError:
-                pass
-            else:
                 return aiomonitor.start_monitor(loop=self.loop)
         return DummyContext()
 

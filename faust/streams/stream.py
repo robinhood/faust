@@ -4,6 +4,7 @@ import reprlib
 import typing
 import weakref
 
+from contextlib import suppress
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, List,
     Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
@@ -108,12 +109,10 @@ class Stream(StreamT, JoinableT, Service):
         self._on_stream_event_in = None
         self._on_stream_event_out = None
         if self.source:
-            try:
+            with suppress(AttributeError):
                 app = self.source.app  # type: ignore
                 self._on_stream_event_in = app.sensors.on_stream_event_in
                 self._on_stream_event_out = app.sensors.on_stream_event_out
-            except AttributeError:
-                pass
             self._on_message = self._create_message_handler()
 
     async def _send_to_outbox(self, value: _T) -> None:

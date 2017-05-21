@@ -3,6 +3,7 @@ from typing import (
     MutableMapping, ValuesView, cast,
 )
 from collections import UserDict, deque
+from contextlib import suppress
 from .graphs import DependencyGraph
 from .types.collections import NodeT
 from .types.graphs import DependencyGraphT
@@ -73,10 +74,8 @@ class Node(NodeT):
 
     def discard(self, data: Any) -> None:
         # XXX slow
-        try:
+        with suppress(ValueError):
             self.children.remove(data)
-        except ValueError:
-            pass
 
     def as_graph(self) -> DependencyGraphT:
         """Convert to :class:`~faust.utils.graphs.DependencyGraph`."""

@@ -2,6 +2,7 @@
 import asyncio
 import aiohttp
 from collections import defaultdict
+from contextlib import suppress
 from typing import DefaultDict, Dict, Iterable, Mapping, Optional, Tuple, cast
 from avro.schema import Parse, Schema
 from faust.utils import json
@@ -73,10 +74,8 @@ class RegistryClient:
         """
         # POST /subjects/{subject}/versions
         schemas_to_id = self.subject_to_schema_ids[subject]
-        try:
+        with suppress(KeyError):
             return schemas_to_id[schema]
-        except KeyError:
-            pass
 
         result = await self._send_request(
             f'{self.url}/subjects/{subject}/versions',
@@ -137,10 +136,8 @@ class RegistryClient:
 
     async def get_version(self, subject: str, schema: Schema) -> Optional[str]:
         schemas_to_version = self.subject_to_schema_versions[subject]
-        try:
+        with suppress(KeyError):
             return schemas_to_version[schema]
-        except KeyError:
-            pass
 
         try:
             result = await self._send_request(

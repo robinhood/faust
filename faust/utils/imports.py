@@ -3,7 +3,7 @@ import importlib
 import os
 import sys
 import warnings
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import (
     Any, Callable, Generator, Iterable,
@@ -192,10 +192,8 @@ def cwd_in_path() -> Generator:
         try:
             yield cwd
         finally:
-            try:
+            with suppress(ValueError):
                 sys.path.remove(cwd)
-            except ValueError:  # pragma: no cover
-                pass
 
 
 def import_from_cwd(module: str,
