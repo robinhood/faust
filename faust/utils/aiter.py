@@ -1,6 +1,5 @@
-from typing import (
-    Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple, Union,
-)
+from functools import singledispatch
+from typing import Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple
 
 __all__ = ['aenumerate', 'anext']
 
@@ -32,15 +31,22 @@ class AsyncIterWrapper(AsyncIterator):
         return f'<{type(self).__name__}: {self._it}>'
 
 
-def aiter(it: Union[AsyncIterable, Iterable]) -> AsyncIterator:
-    if isinstance(it, AsyncIterable):
-        # XXX mypy thinks AsyncIterable is an iterator, and AsyncIterator is
-        # an iterable, so they have mixed them up.  Probably will be fixed at
-        # some point.
-        return it.__aiter__()  # type: ignore
-    elif isinstance(it, Iterable):
-        return AsyncIterWrapper(iter(it)).__aiter__()
+@singledispatch
+def aiter(it: Any) -> AsyncIterator:
     raise TypeError(f'{it!r} object is not an iterable')
+
+
+@aiter.register(AsyncIterable)
+def _aiter_async(it: AsyncIterable) -> AsyncIterator:
+    # XXX mypy thinks AsyncIterable is an iterator, and AsyncIterator is
+    # an iterable, so they have mixed them up.  Probably will be fixed at
+    # some point.
+    return it.__aiter__()  # type: ignore
+
+
+@aiter.register(Iterable)
+def _aiter_iter(it: Iterable) -> AsyncIterator:
+    return AsyncIterWrapper(iter(it)).__aiter__()
 
 
 def anext(it: AsyncIterator, *default: Any) -> Any:

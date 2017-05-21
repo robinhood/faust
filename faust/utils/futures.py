@@ -1,5 +1,6 @@
 """Async I/O Future utilities."""
 import asyncio
+from functools import singledispatch
 from typing import Any, Awaitable
 
 __all__ = ['done_future', 'maybe_async']
@@ -13,6 +14,7 @@ def done_future(result: Any = None, *,
     return f
 
 
+@singledispatch
 async def maybe_async(res: Any) -> Any:
     """Await future if argument is awaitable.
 
@@ -20,6 +22,9 @@ async def maybe_async(res: Any) -> Any:
         >>> await maybe_async(regular_function(arg))
         >>> await maybe_async(async_function(arg))
     """
-    if isinstance(res, Awaitable):
-        return await res
     return res
+
+
+@maybe_async.register(Awaitable)
+async def _(res: Awaitable) -> Any:
+    return await res

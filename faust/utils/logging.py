@@ -1,5 +1,6 @@
 """Logging utilities."""
 import logging
+from functools import singledispatch
 from typing import Any, IO, Union
 
 __all__ = ['get_logger', 'level_name', 'level_number', 'setup_logging']
@@ -15,17 +16,25 @@ def get_logger(name: str) -> logging.Logger:
     return logger
 
 
-def level_name(loglevel: Union[str, int]) -> str:
+@singledispatch
+def level_name(loglevel: int) -> str:
     """Convert log level to number."""
-    if isinstance(loglevel, str):
-        return loglevel.upper()
     return logging.getLevelName(loglevel)
 
 
-def level_number(loglevel: Union[str, int]) -> int:
+@level_name.register(str)
+def _when_str(loglevel: str) -> str:
+    return loglevel.upper()
+
+
+@singledispatch
+def level_number(loglevel: int) -> int:
     """Convert log level number to name."""
-    if isinstance(loglevel, int):
-        return loglevel
+    return loglevel
+
+
+@level_number.register(str)
+def _(loglevel: str) -> int:
     return logging.getLevelName(loglevel.upper())  # type: ignore
 
 

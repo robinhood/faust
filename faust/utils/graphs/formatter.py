@@ -1,3 +1,4 @@
+from functools import singledispatch
 from typing import Any, Mapping
 from ..types.graphs import GraphFormatterT
 
@@ -27,9 +28,8 @@ class DOT:
     TAIL = '{IN}}}'
 
 
+@singledispatch
 def _label(s: Any) -> str:
-    if isinstance(s, str):
-        return s
     return str(
         getattr(s, 'label', None) or
         getattr(s, 'name', None) or
@@ -38,6 +38,11 @@ def _label(s: Any) -> str:
         getattr(type(s), '__qualname__', None) or
         type(s).__name__
     )
+
+
+@_label.register(str)
+def _(s: str) -> str:
+    return s
 
 
 class GraphFormatter(GraphFormatterT):
