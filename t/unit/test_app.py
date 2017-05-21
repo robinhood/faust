@@ -1,6 +1,5 @@
 import faust
 import pytest
-import weakref
 from case import ANY, Mock
 from faust.serializers import codecs
 from faust.types.models import ModelT
@@ -26,6 +25,7 @@ def app():
 
 
 def setup_producer(app):
+    app.producer.maybe_start.return_value = done_future()
     app.producer.start.return_value = done_future()
     app.producer.send.return_value = done_future()
     app.producer.send_and_wait.return_value = done_future()
@@ -84,7 +84,7 @@ def test_stream_with_coroutine(app):
 
 @pytest.mark.asyncio
 async def test_on_stop_producer(app):
-    app._service._children.append(weakref.ref(app._producer))
+    app._service._children.append(app._producer)
     app._producer.stop.return_value = done_future()
     await app.stop()
     app._producer.stop.assert_called_with()
