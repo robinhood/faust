@@ -106,7 +106,7 @@ class AppService(Service):
             self.app.tables.values(),
             # WebSite
             [self.app.website],                       # app.WebSite
-            # TopicManager stops consumer
+            # TopicManager
             [self.app.sources],                       # app.TopicManager
             # Actors last.
             self.app.actors.values(),

@@ -346,9 +346,6 @@ class TopicManager(TopicManagerT, Service):
         # tell the consumer to subscribe to our pattern
         await self.app.consumer.subscribe(self._pattern)
 
-        # and start the consumer
-        await self.app.consumer.start()
-
         # Now we wait for changes
         cond = self._subscription_changed = asyncio.Condition(loop=self.loop)
         while 1:

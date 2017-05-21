@@ -165,10 +165,6 @@ class TopicManagerT(ServiceT, MutableSet[SourceT]):
         ...
 
     @abc.abstractmethod
-    async def on_message(self, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
     def on_partitions_assigned(self,
                                assigned: Sequence[TopicPartition]) -> None:
         ...
