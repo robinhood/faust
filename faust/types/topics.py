@@ -150,7 +150,7 @@ class SourceT(AsyncIterator):
 
 class TopicManagerT(ServiceT, MutableSet[SourceT]):
 
-    consumer: ConsumerT
+    app: AppT
 
     @abc.abstractmethod
     def ack_message(self, message: Message) -> None:
@@ -162,4 +162,14 @@ class TopicManagerT(ServiceT, MutableSet[SourceT]):
 
     @abc.abstractmethod
     async def commit(self, topics: TPorTopicSet) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def on_partitions_assigned(self,
+                               assigned: Sequence[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_partitions_revoked(self,
+                              revoked: Sequence[TopicPartition]) -> None:
         ...

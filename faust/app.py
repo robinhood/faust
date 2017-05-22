@@ -25,7 +25,7 @@ from .types.app import AppT
 from .sensors import Monitor
 from .types.streams import StreamT
 from .types.tables import TableT
-from .types.transports import ProducerT, TPorTopicSet, TransportT
+from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
@@ -100,11 +100,13 @@ class AppService(Service):
             self.app.sensors,
             # Producer must be stoppped after consumer.
             [self.app.producer],                      # app.Producer
+            # Consumer must be stopped after Topic Manager
+            [self.app.consumer],                      # app.Consumer
             # Tables (and Sets).
             self.app.tables.values(),
             # WebSite
             [self.app.website],                       # app.WebSite
-            # TopicManager + Consumer
+            # TopicManager
             [self.app.sources],                       # app.TopicManager
             # Actors last.
             self.app.actors.values(),
@@ -175,6 +177,12 @@ class App(AppT, ServiceProxy):
 
     #: Set when producer is started.
     _producer_started: bool = False
+
+    #: Default consumer instance.
+    _consumer: Optional[ConsumerT] = None
+
+    #: Set when consumer is started.
+    _consumer_started: bool = False
 
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
@@ -466,7 +474,7 @@ class App(AppT, ServiceProxy):
             # being committed
             if entry[0] <= commit_offset:
                 # we use it
-                yield entry
+                yield entry[1]  # Only yielding Pending Message (not offset)
             else:
                 # we put it back and exit, as this was the smallest offset.
                 heappush(attached, entry)
@@ -514,6 +522,14 @@ class App(AppT, ServiceProxy):
             beacon=beacon or self.beacon,
         )
 
+    def _new_consumer(self) -> ConsumerT:
+        return self.transport.create_consumer(
+            callback=self.sources.on_message,
+            on_partitions_revoked=self.sources.on_partitions_revoked,
+            on_partitions_assigned=self.sources.on_partitions_assigned,
+            beacon=self.beacon,
+        )
+
     def _create_transport(self) -> TransportT:
         return cast(TransportT,
                     transport.by_url(self.url)(self.url, self, loop=self.loop))
@@ -536,6 +552,17 @@ class App(AppT, ServiceProxy):
     @producer.setter
     def producer(self, producer: ProducerT) -> None:
         self._producer = producer
+
+    @property
+    def consumer(self) -> ConsumerT:
+        """Default consumer instance."""
+        if self._consumer is None:
+            self._consumer = self._new_consumer()
+        return self._consumer
+
+    @consumer.setter
+    def consumer(self, consumer: ConsumerT) -> None:
+        self._consumer = consumer
 
     @property
     def transport(self) -> TransportT:
