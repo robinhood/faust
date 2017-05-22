@@ -14,7 +14,7 @@ from .serializers import RegistryT
 from .sensors import SensorDelegateT
 from .streams import Processor, StreamT
 from .tables import TableT
-from .transports import TransportT
+from .transports import ConsumerT, TransportT
 from .topics import TopicT, TopicManagerT
 from .tuples import Message, PendingMessage, TopicPartition
 from .windows import WindowT
@@ -142,6 +142,11 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def transport(self) -> TransportT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def consumer(self) -> ConsumerT:
         ...
 
     @property

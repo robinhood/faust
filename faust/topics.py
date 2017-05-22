@@ -11,7 +11,7 @@ from .types import (
 )
 from .types.streams import StreamT, StreamCoroutine
 from .types.topics import EventT, SourceT, TopicT, TopicManagerT
-from .types.transports import ConsumerCallback, ConsumerT, TPorTopicSet
+from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service
 
