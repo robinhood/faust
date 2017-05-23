@@ -139,7 +139,6 @@ class Consumer(base.Consumer):
             if tp not in current_offset:
                 committed = await self._consumer.committed(tp)
                 current_offset[tp] = committed
-                print('SEEK TO %r' % (tp,))
                 seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
