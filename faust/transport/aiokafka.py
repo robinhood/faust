@@ -1,8 +1,10 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 import asyncio
-
-from typing import Any, Awaitable, ClassVar, Optional, Sequence, Type, cast
+from datetime import timedelta
+from typing import (
+    Any, Awaitable, ClassVar, MutableMapping, Optional, Sequence, Type, cast
+)
 
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
@@ -13,6 +15,7 @@ from kafka.structs import (
 
 from faust.assignor.partition_assignor import PartitionAssignor
 from . import base
+from .kafka.protocol.admin import CreateTopicsRequest
 from ..types import Message, TopicPartition
 from ..types.transports import ConsumerT
 from ..utils.futures import done_future
@@ -22,6 +25,48 @@ from ..utils.objects import cached_property
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 logger = get_logger(__name__)
+
+
+class TopicCreationHelper:
+
+    _client: aiokafka.AIOKafkaClient
+    _protocol_version: int = 1
+
+    async def create_topic(self, topic: str,
+                           partitions: int,
+                           replication: int,
+                           *,
+                           configs: MutableMapping[str, str] = None,
+                           timeout: int = 10000) -> None:
+        self._client.bootstrap()  # Not needed if called after on_start()
+        node_id = next(broker.nodeId
+                       for broker in self._client.cluster.brokers())
+        request = CreateTopicsRequest[self._protocol_version]([
+            (topic, partitions, replication,
+             [], list((configs or {}).items())),
+            timeout,
+            False
+        ])
+        response = await self._client.send(node_id, request)
+        assert len(response.topic_error_codes), "Single Topic requested."
+        _, err_code, err_msg = response.topic_error_codes[0]
+        if err_code != 0:
+            raise Exception(f'Error: <{err_msg}> Creating topic: {topic}')
+
+    async def create_changelog_topic(self, topic: str,
+                                     partitions: int,
+                                     replication: int,
+                                     *,
+                                     configs: MutableMapping[str, str] = None,
+                                     retention: timedelta = None,
+                                     timeout: int = 10000) -> None:
+        configs = configs or {}
+        configs['cleanup.policy'] = 'compact'
+        if retention is not None:
+            configs['cleanup.policy'] += ',delete'
+            configs['retention.ms'] = int(retention.total_seconds() * 1000)
+        await self.create_topic(topic, partitions, replication,
+                                configs=configs, timeout=timeout)
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -48,7 +93,7 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
             cast(Sequence[TopicPartition], revoked))
 
 
-class Consumer(base.Consumer):
+class Consumer(base.Consumer, TopicCreationHelper):
     RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
@@ -65,6 +110,7 @@ class Consumer(base.Consumer):
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
         )
+        self._client = self._consumer._client
 
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
@@ -145,7 +191,7 @@ class Consumer(base.Consumer):
         await self._consumer.commit(offsets)
 
 
-class Producer(base.Producer):
+class Producer(base.Producer, TopicCreationHelper):
     _producer: aiokafka.AIOKafkaProducer
 
     def on_init(self) -> None:
@@ -155,6 +201,7 @@ class Producer(base.Producer):
             bootstrap_servers=transport.bootstrap_servers,
             client_id=transport.app.client_id,
         )
+        self._client = self._producer.client
 
     async def on_start(self) -> None:
         self.beacon.add(self._producer)
