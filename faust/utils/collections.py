@@ -182,3 +182,6 @@ class ManagedUserDict(FastUserDict):
     def clear(self) -> None:
         self.on_clear()
         self.data.clear()
+
+    def raw_add(self, key: Any, value: Any):
+        self.data[key] = value

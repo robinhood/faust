@@ -354,8 +354,7 @@ class App(AppT, ServiceProxy):
         """Register existing table."""
         assert table.table_name
         if table.table_name in self.tables:
-            raise ValueError(
-                f'Table with name {table.table_name!r} already exists')
+            raise ValueError('Table with name {table.table_name!r} already exists')
         self.tables[table.table_name] = table
 
     def get_table_name_changelog(self, topic_name):

@@ -1,3 +1,4 @@
+import json
 import asyncio
 import re
 from collections import defaultdict
@@ -289,6 +290,7 @@ class TopicManager(TopicManagerT, Service):
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
         self.on_message = self._compile_message_handler()
+        self.consumer.can_read = False
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
@@ -380,41 +382,45 @@ class TopicManager(TopicManagerT, Service):
             assigned = await self._partition_callback_tasks.get()
             print("there")
             logger.info("well im in")
+            print("how many assigned:", len(assigned))
             for topic_partition in assigned:
-                print("in loops")
                 logger.info(topic_partition)
-                print("here at some point 2")
                 table_name = self.app.get_table_name_changelog(
                     topic_partition.topic)
-                print("here at some point")
                 if table_name is None:
                     continue
                 table = self.app.get_table(table_name)
+                self.consumer._consumer._subscription.need_offset_reset(topic_partition, -2)
+                print("table is", table, "table_key", table.key_type, "value_type", table.value_type)
+                # Await client boostrap
                 while True:
-                    print("assignment", self.consumer._consumer._subscription.assignment)
-                    print("partition", topic_partition)
-                    print(type(topic_partition))
-                    print(type(self.consumer._consumer._subscription.assignment))
-                    print(type(list(self.consumer._consumer._subscription.assignment.keys())[0]))
-                    print(topic_partition)
-                    print(self.consumer._consumer._subscription.is_assigned(topic_partition))
+                    print("in loop")
+                    print("type", type(self.consumer._consumer))
+                    commited_last = await self.consumer._consumer.committed(topic_partition)
+                    print("last_commited", commited_last)
+                    data = await self.consumer._consumer.getmany(topic_partition, timeout_ms=5000)
+                    print("data", data)
+                    for _, messages in data.items():
+                        print("messages", messages)
+                        for message in messages:
+                            logger.info("Got messages")
+                            print("key:", message.key, "value", message.value)
+                            table.raw_add(json.loads(message.key), table.default(json.loads(message.value)))
+                            # table[message.key] = message.value
+
                     highwater = self.consumer._consumer.highwater(topic_partition)
-                    print("tp before", topic_partition)
                     position = await self.consumer._consumer.position(topic_partition)
-                    print("highwater is", highwater, "position is", position)
+                    print("position", position)
+                    # data = await self.consumer._consumer.getone(topic_partition)
+                    await asyncio.sleep(0)
+                    print("data", data)
                     if highwater is None:
-                        highwater = 1
-                    if highwater - position <= 0:
-                        print("breaking")
                         break
-                    msgs = await self.consumer._consumer.getmany(topic_partition)
-                    print("messages", msgs)
-                    for message in msgs:
-                        logger.info("Got messages")
-                        table[message.key] = message.value
-                    await self.consumer.commit(set([topic_partition]))
-                    break
-            await self.consumer.commit(set(assigned))
+                    if highwater - position <= 0:
+                        break
+            print([table.items() for _, table in self.app.tables.items()])
+            self.consumer.can_read = True
+
 
     async def on_stop(self) -> None:
         if self.consumer:

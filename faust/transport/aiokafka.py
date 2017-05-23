@@ -63,14 +63,17 @@ class Consumer(base.Consumer):
             group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
-            enable_auto_commit=False,
+            enable_auto_commit=False
         )
+        self.can_read = True
 
     async def on_start(self) -> None:
+        print("consumer started!!")
         self.beacon.add(self._consumer)
         await self._consumer.start()
         await self.register_timers()
         self.add_future(self._drain_messages())
+        print("done starting consumer!")
 
     async def subscribe(self, pattern: str) -> None:
         # XXX pattern does not work :/
@@ -111,6 +114,9 @@ class Consumer(base.Consumer):
         try:
             while not should_stop():
                 pending = []
+                while self.can_read is False:
+                    print("sleeping")
+                    await asyncio.sleep(5)
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     current_offset = get_current_offset(tp)

@@ -3,7 +3,7 @@ import operator
 from typing import Any, Callable, Iterator, Mapping, Type, cast
 from . import stores
 from . import windows
-from .topics import TopicSource
+from .topics import TopicSource, Topic
 from .types import AppT, EventT, FieldDescriptorT, JoinT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
@@ -40,6 +40,7 @@ class Table(Service, TableT, ManagedUserDict):
         self._store = store
         self.key_type = key_type
         self.value_type = value_type
+        print("key is", key_type, "valuue is ", value_type)
         self.changelog_topic = self.app.topic(
             self._changelog_topic_name(),
             key_type=self.key_type,
@@ -61,6 +62,11 @@ class Table(Service, TableT, ManagedUserDict):
         # Assign changelog to list of partitions to be consumed
         logger.info("Adding Changelog")
         self.app.sources.add(TopicSource(self.changelog_topic))
+        logger.info("Done changelogging")
+
+        # Assign changelog to list of partitions to be consumed
+        logger.info("Removing Changelog")
+        self.app.sources.discard(TopicSource(self.changelog_topic))
         logger.info("Done changelogging")
         # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get
