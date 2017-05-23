@@ -37,21 +37,47 @@ class TopicCreationHelper:
                            replication: int,
                            *,
                            configs: MutableMapping[str, str] = None,
-                           timeout: int = 10000) -> None:
+                           timeout: int = 10000,
+                           ensure_created: bool = False) -> None:
+        '''
+        Create topic with custom configuration
+
+        :param topic:
+        :param partitions:
+        :param replication:
+        :param configs:
+        :param timeout: In milliseconds
+        :param ensure_created: if True, throw exception if topic exists
+        :return:
+        '''
         self._client.bootstrap()  # Not needed if called after on_start()
         node_id = next(broker.nodeId
                        for broker in self._client.cluster.brokers())
-        request = CreateTopicsRequest[self._protocol_version]([
-            (topic, partitions, replication,
-             [], list((configs or {}).items())),
+        request = CreateTopicsRequest[self._protocol_version](
+            [
+                (topic, partitions, replication,
+                 [], list((configs or {}).items()))
+            ],
             timeout,
             False
-        ])
+        )
         response = await self._client.send(node_id, request)
         assert len(response.topic_error_codes), "Single Topic requested."
         _, err_code, err_msg = response.topic_error_codes[0]
+
+        # https://kafka.apache.org/protocol#protocol_error_codes
+        # Topic already exists
+        topic_exists = err_code == 36
+
+        # If not ensure created we allow TopicExists errors
+        _skip_topic_exists = not ensure_created and topic_exists
+
         if err_code != 0:
-            raise Exception(f'Error: <{err_msg}> Creating topic: {topic}')
+            if _skip_topic_exists:
+                logger.info(f"Topic {topic} exists, skipping creation.")
+            else:
+                raise Exception(f'Error while creating Topic: {topic}. '
+                                f'<Error Code: {err_code} | {err_msg}>')
 
     async def create_changelog_topic(self, topic: str,
                                      partitions: int,
@@ -59,14 +85,16 @@ class TopicCreationHelper:
                                      *,
                                      configs: MutableMapping[str, str] = None,
                                      retention: timedelta = None,
-                                     timeout: int = 10000) -> None:
+                                     timeout: int = 10000,
+                                     ensure_created: bool = False) -> None:
         configs = configs or {}
         configs['cleanup.policy'] = 'compact'
         if retention is not None:
             configs['cleanup.policy'] += ',delete'
             configs['retention.ms'] = int(retention.total_seconds() * 1000)
         await self.create_topic(topic, partitions, replication,
-                                configs=configs, timeout=timeout)
+                                configs=configs, timeout=timeout,
+                                ensure_created=ensure_created)
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):

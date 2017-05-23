@@ -1,4 +1,5 @@
 """Tables (changelog stream)."""
+import asyncio
 import operator
 from typing import Any, Callable, Iterator, Mapping, Type, cast
 from . import stores
@@ -9,6 +10,7 @@ from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT
 from .types.windows import WindowT
 from .utils.collections import FastUserDict, ManagedUserDict
+from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
 from .streams import current_event
@@ -42,6 +44,9 @@ class Table(Service, TableT, ManagedUserDict):
             value_type=self.value_type,
         )
 
+        # TODO: Is this too kafka specific?
+        asyncio.ensure_future(self.maybe_create_topic(), loop=self.loop)
+
         if self.StateStore is not None:
             self.data = self.StateStore(url=None, app=app, loop=self.loop)
         else:
@@ -69,6 +74,13 @@ class Table(Service, TableT, ManagedUserDict):
             value = self[key] = self.default()
             return value
         raise KeyError(key)
+
+    async def maybe_create_topic(self):
+        await self.app.consumer.create_changelog_topic(
+            self.changelog_topic,
+            partitions=10,  # TODO: Get these values from source topic
+            replication=1,  # TODO: Get from configuration
+        )
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         return WindowWrapper(self, window)

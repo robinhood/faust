@@ -508,9 +508,9 @@ class App(AppT, ServiceProxy):
 
     async def _on_actor_error(
             self, actor: ActorT, exc: Exception) -> None:
-        if self.sources.consumer:
+        if self._consumer:
             try:
-                await self.sources.consumer.on_task_error(exc)
+                await self._consumer.on_task_error(exc)
             except Exception as exc:
                 logger.exception('Consumer error callback raised: %r', exc)
 
