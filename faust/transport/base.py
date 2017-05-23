@@ -74,6 +74,9 @@ class Consumer(Service, ConsumerT):
     #: Queue for the when-acked-call-sensors background thread.
     _recently_acked: asyncio.Queue
 
+    #: Event set whenever we resubscribe
+    _time_to_seek: asyncio.Event
+
     def __init__(self, transport: TransportT,
                  *,
                  callback: ConsumerCallback = None,
@@ -99,7 +102,12 @@ class Consumer(Service, ConsumerT):
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
+        self._time_to_seek = asyncio.Event(loop=self.transport.loop)
         super().__init__(loop=self.transport.loop, **kwargs)
+
+    @abc.abstractmethod
+    async def _perform_seek(self) -> None:
+        ...
 
     @abc.abstractmethod
     async def _commit(self, offsets: Any) -> None:
@@ -118,9 +126,19 @@ class Consumer(Service, ConsumerT):
     def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
         ...
 
+    def on_partitions_assigned(
+            self, assigned: Sequence[TopicPartition]) -> None:
+        self._on_partitions_assigned(assigned)
+        self._time_to_seek.set()
+
+    def on_partitions_revoked(
+            self, revoked: Sequence[TopicPartition]) -> None:
+        self._on_partitions_revoked(revoked)
+
     async def register_timers(self) -> None:
         self.add_future(self._recently_acked_handler())
         self.add_future(self._commit_handler())
+        self.add_future(self._seeker())
 
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
@@ -151,6 +169,14 @@ class Consumer(Service, ConsumerT):
         while not self.should_stop:
             tp, offset = await get()
             await on_message_out(self.id, tp, offset, None)
+
+    async def _seeker(self) -> None:
+        while not self.should_stop:
+            await self._time_to_seek.wait()
+            try:
+                await self._perform_seek()
+            finally:
+                self._time_to_seek.clear()
 
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.

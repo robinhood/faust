@@ -275,7 +275,7 @@ class TopicManager(TopicManagerT, Service):
 
     #: Whenever a change is made, i.e. a source is added/removed, we notify
     #: the background task responsible for resubscribing.
-    _subscription_changed: Optional[asyncio.Condition]
+    _subscription_changed: Optional[asyncio.Event]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
@@ -347,12 +347,12 @@ class TopicManager(TopicManagerT, Service):
         await self.app.consumer.subscribe(self._pattern)
 
         # Now we wait for changes
-        cond = self._subscription_changed = asyncio.Condition(loop=self.loop)
+        ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while 1:
-            with await cond:
-                await cond.wait()
-                self._compile_pattern()
-                self.app.consumer.subscribe(self._pattern)
+            await ev.wait()
+            self._compile_pattern()
+            self.app.consumer.subscribe(self._pattern)
+            ev.clear()
 
     async def _gatherer(self) -> None:
         waiting = set()
@@ -395,13 +395,13 @@ class TopicManager(TopicManagerT, Service):
             self._sources.add(source)
             self.beacon.add(source)  # connect to beacon
             if self._subscription_changed is not None:
-                self._subscription_changed.notify_all()
+                self._subscription_changed.set()
 
     def discard(self, source: SourceT) -> None:
         self._sources.discard(source)
         self.beacon.discard(source)
         if self._subscription_changed is not None:
-            self._subscription_changed.notify_all()
+            self._subscription_changed.set()
 
     @property
     def label(self) -> str:

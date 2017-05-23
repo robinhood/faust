@@ -1,8 +1,9 @@
 """Message transport using :pypi:`aiokafka`."""
+import aiokafka
 import asyncio
+
 from typing import Any, Awaitable, ClassVar, Optional, Sequence, Type, cast
 
-import aiokafka
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.structs import (
@@ -37,13 +38,13 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
         # the Kafka TopicPartition namedtuples to our description,
         # that way they are typed and decoupled from the actual client
         # implementation.
-        return cast(Consumer, self.consumer)._on_partitions_assigned(
+        return cast(Consumer, self.consumer).on_partitions_assigned(
             cast(Sequence[TopicPartition], assigned))
 
     def on_partitions_revoked(self,
                               revoked: Sequence[_TopicPartition]) -> None:
         # see comment in on_partitions_assigned
-        return cast(Consumer, self.consumer)._on_partitions_revoked(
+        return cast(Consumer, self.consumer).on_partitions_revoked(
             cast(Sequence[TopicPartition], revoked))
 
 
@@ -62,6 +63,7 @@ class Consumer(base.Consumer):
             group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
+            enable_auto_commit=False,
         )
 
     async def on_start(self) -> None:
@@ -73,8 +75,8 @@ class Consumer(base.Consumer):
     async def subscribe(self, pattern: str) -> None:
         # XXX pattern does not work :/
         self._consumer.subscribe(
-            topics=pattern.split('|'),
-            #listener=self._rebalance_listener,
+            pattern=pattern,
+            listener=self._rebalance_listener,
         )
 
     def _get_topic_meta(self, topic: str) -> Any:
@@ -99,6 +101,7 @@ class Consumer(base.Consumer):
         wait = asyncio.wait
         return_when = asyncio.ALL_COMPLETED
         loop = self.loop
+        get_current_offset = self._current_offset.__getitem__
 
         async def deliver(record: Any, tp: TopicPartition) -> None:
             message = Message.from_message(record, tp)
@@ -110,8 +113,10 @@ class Consumer(base.Consumer):
                 pending = []
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
+                    current_offset = get_current_offset(tp)
                     pending.extend([
                         deliver(message, tp) for message in messages
+                        if message.offset > current_offset
                     ])
                 if pending:
                     await wait(pending, loop=loop, return_when=return_when)
@@ -125,6 +130,17 @@ class Consumer(base.Consumer):
             logger.exception('Drain messages raised: %r', exc)
         finally:
             self.set_shutdown()
+
+    async def _perform_seek(self) -> None:
+        current_offset = self._current_offset
+        seek = self._consumer.seek
+        for tp in self._consumer.assignment():
+            tp = cast(TopicPartition, tp)
+            if tp not in current_offset:
+                committed = await self._consumer.committed(tp)
+                current_offset[tp] = committed
+                print('SEEK TO %r' % (tp,))
+                await seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
