@@ -159,7 +159,7 @@ class Consumer(Service, ConsumerT):
 
     async def _commit_handler(self) -> None:
         await asyncio.sleep(self.commit_interval)
-        while 1:
+        while not self.should_stop:
             await self.commit()
             await asyncio.sleep(self.commit_interval)
 

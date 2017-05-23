@@ -172,7 +172,7 @@ class Stream(StreamT, JoinableT, Service):
         wait_for = asyncio.wait_for
         within_s = want_seconds(within)
         if within_s:
-            while 1:
+            while not self.should_stop:
                 try:
                     add(await wait_for(self.__anext__(), timeout=within_s))
                 except asyncio.TimeoutError:

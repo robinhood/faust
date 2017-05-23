@@ -348,7 +348,7 @@ class TopicManager(TopicManagerT, Service):
 
         # Now we wait for changes
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
-        while 1:
+        while not self.should_stop:
             await ev.wait()
             self._compile_pattern()
             self.app.consumer.subscribe(self._pattern)
