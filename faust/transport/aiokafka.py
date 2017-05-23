@@ -140,7 +140,7 @@ class Consumer(base.Consumer):
                 committed = await self._consumer.committed(tp)
                 current_offset[tp] = committed
                 print('SEEK TO %r' % (tp,))
-                await seek(tp, committed)
+                seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
