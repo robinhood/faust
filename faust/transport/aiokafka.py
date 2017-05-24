@@ -53,10 +53,11 @@ class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
-    _assignor = PartitionAssignor()
+    _assignor: PartitionAssignor
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
+        self._assignor = PartitionAssignor()
         self._consumer = aiokafka.AIOKafkaConsumer(
             loop=self.loop,
             client_id=transport.app.client_id,
