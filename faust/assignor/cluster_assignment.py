@@ -1,5 +1,5 @@
 from kafka.coordinator.protocol import ConsumerProtocolMemberMetadata
-from typing import MutableMapping, Sequence, Set, cast
+from typing import Any, MutableMapping, Sequence, Set, cast
 from faust.models import Record
 from .client_assignment import ClientAssignment, CopartitionedAssignment
 
@@ -14,7 +14,7 @@ class ClusterAssignment(Record, serializer='json'):
     def __init__(self,
                  subscriptions: MutableMapping[str, Sequence[str]] = None,
                  assignments: MutableMapping[str, ClientAssignment] = None,
-                 **kwargs):
+                 **kwargs: Any) -> None:
         super().__init__(
             subscriptions=subscriptions or {},
             assignments=assignments or {},

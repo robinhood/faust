@@ -71,20 +71,19 @@ class CopartitionedAssignment:
 
 
 class ClientAssignment(Record, serializer='json'):
-    actives: MutableMapping[str, Set[int]]  # Topic -> Partition
-    standbys: MutableMapping[str, Set[int]]  # Topic -> Partition
+    actives: MutableMapping[str, Sequence[int]]  # Topic -> Partition
+    standbys: MutableMapping[str, Sequence[int]]  # Topic -> Partition
 
     def kafka_protocol_assignment(self) -> Sequence:
-        return [(topic, list(partitions))
-                for topic, partitions in self.actives.items()]
+        return list(self.actives.items())
 
     def add_copartitioned_assignment(
             self, assignment: CopartitionedAssignment) -> None:
-        assert not any(topic in self.actives or topic in self.standbys
-                       for topic in assignment.topics)
+        assigned = set(self.actives.keys()).union(set(self.standbys.keys()))
+        assert not any(topic in assigned for topic in assignment.topics)
         for topic in assignment.topics:
-            self.actives[topic] = assignment.actives
-            self.standbys[topic] = assignment.standbys
+            self.actives[topic] = list(assignment.actives)
+            self.standbys[topic] = list(assignment.standbys)
 
     def copartitioned_assignment(
             self, topics: Set[str]) -> CopartitionedAssignment:
@@ -102,6 +101,6 @@ class ClientAssignment(Record, serializer='json'):
         # We take the first partition set for a topic which has a valid
         # assignment assuming subscription changes with co-partitioned topic
         # groups will be rare.
-        topic_assignments = (assignment.get(t) or set() for t in topics)
+        topic_assignments = (set(assignment.get(t, set())) for t in topics)
         valid_partitions = (p for p in topic_assignments if p)
         return next(valid_partitions, set())
