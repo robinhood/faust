@@ -25,6 +25,7 @@ Contents
 .. toctree::
     :maxdepth: 1
 
+    faq
     reference/index
     changelog
     contributing

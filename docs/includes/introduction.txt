@@ -2,108 +2,97 @@
 :Web: http://faust.readthedocs.org/
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/robinhoodmarkets/faust
-:Keywords: KEYWORDS
+:Keywords: distributed, stream, async, processing, data, queue
 
-About
-=====
+Faust is a Python library for event processing and streaming applications
+that are distributed and fault-tolerant.
 
-# I'm too lazy to edit the defaults.
+It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
+`Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
+a radically much simpler approach to stream processing.
 
-.. _faq:
+Modern web applications are increasingly being written as a collection
+of microservices and even before this it has been difficult to write
+data reporting operations at scale.  In a reactive stream based system,
+you don't have to strain your database with costly queries, instead a streaming
+data pipeline updates information as events happen in your system, in real-time.
 
-FAQ
-===
+Faust also enables you to take advantage of asyncio and asynchronous
+processing, moving complicated and costly operations outside
+of the webserver process: converting video, notifying third-party services,
+etc. are common use cases for event processing.
 
-Can I use Faust with Django/Flask/etc.?
----------------------------------------
+You may not know it yet, but if you're writing a modern web application,
+you probably already have a need for Faust.
 
-Yes! Use gevent/eventlet and use a bridge to integrate with asyncio.
+.. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
+.. _`Apache Spark`: http://spark.apache.org
+.. _`Apache Storm`: http://storm.apache.org
+.. _`Apache Flink`: http://flink.apache.org
+.. _`Apache Samza`: http://samza.apache.org
 
-- ``aiogevent`` enables you to run Faust on top of gevent:
+Faust is...
+==========================
 
-    https://pypi.python.org/pypi/aiogevent
+**Simple**
+    Faust is extremely easy to use compared to other stream processing
+    solutions.  There's no DSL to limit your creativity, no restricted
+    set of operations to work from, and since Faust is a library it can
+    integrate with just about anything.
 
-    Example::
+    Here's one of the simplest applications you can make:
 
-        import aiogevent
-        import asyncio
-        asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
-        import gevent.monkey
-        gevent.monkey.patch_all()
-        # if you use PostgreSQL with psycopg, make sure you also
-        # install psycogreen and call this pather:
-        #  import psycogreen.gevent
-        #  psycogreen.gevent.patch_psycopg()
+    .. code-block:: python
 
-        # Import Django/Flask etc, stuff and use them with Faust.
+        import faust
 
-- ``aioeventlet`` enables you to run Faust on top of eventlet:
+        class Greeting(faust.Record):
+            from_name: str
+            to_name: str
 
-    http://aioeventlet.readthedocs.io
+        app = faust.App('hello-app', url='kafka://localhost')
+        topic = app.topic('hello-topic', value_type=Greeting)
 
-    Example::
+        @app.actor(topic)
+        async def hello(greetings):
+            async for greeting in greetings:
+                print(f'Hello from {greeting.from_name} to {greeting.to_name}')
 
-        import aioeventlet
-        import asyncio
-        asyncio.set_event_loop_policy(aioeventlet.EventloopPolicy())
-        import eventlet
-        eventlet.monkey_patch()
-        # if you use PostgreSQL with psycopg, make sure you also
-        # install psycogreen and call this pather:
-        #  import psycogreen.eventlet
-        #  psycogreen.eventlet.patch_psycopg()
+        @app.timer(interval=1.0)
+        async def example_sender(app):
+            await hello.send(
+                value=Greeting(from_name='Faust', to_name='you'),
+            )
 
-        # Import Django/Flask etc, stuff and use them with Faust.
+        if __name__ == '__main__':
+            app.start()
 
-Can I use Faust with Tornado?
------------------------------
+    You're probably a bit intimidated by the `async` and `await` keywords,
+    but you don't have to know how asyncio works to use
+    Faust: just mimic the examples and you'll be fine.
 
-Yes! Use the ``tornado.platform.asyncio`` bridge:
-http://www.tornadoweb.org/en/stable/asyncio.html
+    The example application starts two tasks: one is processing a stream,
+    the other is a background thread sending events to that stream.
+    In a real-live application your system will publish
+    events to Kafka topics that your processors can consume from,
+    and the background thread is only needed to feed data into our
+    example.
 
-Can I use Faust with Twisted?
------------------------------
+**Highly Available**
+    Faust is highly available and can survive network problems and server
+    crashes.  In the case of node failure it can automatically recover,
+    and tables have standby nodes that will take over.
 
-Yes! Use the asyncio reactor implementation:
-https://twistedmatrix.com/documents/17.1.0/api/twisted.internet.asyncioreactor.html
+**Distributed**
+    Start more instances of your application as needed.
 
-Will you support Python 3.5 or earlier?
----------------------------------------
+**Fast**
+    Faust applications can hopefully handle millions of events per second
+    in the future.
 
-There are no immediate plans to support Python 3.5, but you are welcome to
-contribute to the project.
+**Flexible**
+    Faust is just Python, and a stream is just an infinite async iterator.
+    If you know how to use Python, you already know how to use Faust,
+    and it works with your favorite Python libraries like Django, Flask,
+    SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
 
-Here are some of the steps required to accomplish this:
-
-- Source code transformation to rewrite variable annotations to comments
-
-  for example, the code::
-
-        class Point:
-            x: int = 0
-            y: int = 0
-
-   must be rewritten into::
-
-        class Point:
-            x = 0  # type: int
-            y = 0  # type: int
-
-- Source code transformation to rewrite async functions
-
-    for example, the code::
-
-        async def foo():
-            await asyncio.sleep(1.0)
-
-    must be rewritten into::
-
-        @coroutine
-        def foo():
-            yield from asyncio.sleep(1.0)
-
-Will you support Python 2?
---------------------------
-
-There are no plans to support Python 2, but you are welcome to contribute to
-the project (details in question above is relevant also for Python 2).

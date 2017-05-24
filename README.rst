@@ -8,14 +8,143 @@
 :Web: http://faust.readthedocs.org/
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/robinhoodmarkets/faust
-:Keywords: KEYWORDS
+:Keywords: distributed, stream, async, processing, data, queue
 
-About
-=====
+Faust is a Python library for event processing and streaming applications
+that are distributed and fault-tolerant.
 
-# I'm too lazy to edit the defaults.
+It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
+`Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
+a radically much simpler approach to stream processing.
 
-.. _faq:
+Modern web applications are increasingly being written as a collection
+of microservices and even before this it has been difficult to write
+data reporting operations at scale.  In a reactive stream based system,
+you don't have to strain your database with costly queries, instead a streaming
+data pipeline updates information as events happen in your system, in real-time.
+
+Faust also enables you to take advantage of asyncio and asynchronous
+processing, moving complicated and costly operations outside
+of the webserver process: converting video, notifying third-party services,
+etc. are common use cases for event processing.
+
+You may not know it yet, but if you're writing a modern web application,
+you probably already have a need for Faust.
+
+.. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
+.. _`Apache Spark`: http://spark.apache.org
+.. _`Apache Storm`: http://storm.apache.org
+.. _`Apache Flink`: http://flink.apache.org
+.. _`Apache Samza`: http://samza.apache.org
+
+Faust is...
+==========================
+
+**Simple**
+    Faust is extremely easy to use compared to other stream processing
+    solutions.  There's no DSL to limit your creativity, no restricted
+    set of operations to work from, and since Faust is a library it can
+    integrate with just about anything.
+
+    Here's one of the simplest applications you can make:
+
+    ::
+
+        import faust
+
+        class Greeting(faust.Record):
+            from_name: str
+            to_name: str
+
+        app = faust.App('hello-app', url='kafka://localhost')
+        topic = app.topic('hello-topic', value_type=Greeting)
+
+        @app.actor(topic)
+        async def hello(greetings):
+            async for greeting in greetings:
+                print(f'Hello from {greeting.from_name} to {greeting.to_name}')
+
+        @app.timer(interval=1.0)
+        async def example_sender(app):
+            await hello.send(
+                value=Greeting(from_name='Faust', to_name='you'),
+            )
+
+        if __name__ == '__main__':
+            app.start()
+
+    You're probably a bit intimidated by the `async` and `await` keywords,
+    but you don't have to know how asyncio works to use
+    Faust: just mimic the examples and you'll be fine.
+
+    The example application starts two tasks: one is processing a stream,
+    the other is a background thread sending events to that stream.
+    In a real-live application your system will publish
+    events to Kafka topics that your processors can consume from,
+    and the background thread is only needed to feed data into our
+    example.
+
+**Highly Available**
+    Faust is highly available and can survive network problems and server
+    crashes.  In the case of node failure it can automatically recover,
+    and tables have standby nodes that will take over.
+
+**Distributed**
+    Start more instances of your application as needed.
+
+**Fast**
+    Faust applications can hopefully handle millions of events per second
+    in the future.
+
+**Flexible**
+    Faust is just Python, and a stream is just an infinite async iterator.
+    If you know how to use Python, you already know how to use Faust,
+    and it works with your favorite Python libraries like Django, Flask,
+    SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
+
+
+.. _installation:
+
+Installation
+============
+
+You can install faust either via the Python Package Index (PyPI)
+or from source.
+
+To install using `pip`,::
+
+    $ pip install -U faust
+
+.. _installing-from-source:
+
+Downloading and installing from source
+--------------------------------------
+
+Download the latest version of faust from
+http://pypi.python.org/pypi/faust
+
+You can install it by doing the following,::
+
+    $ tar xvfz faust-0.0.0.tar.gz
+    $ cd faust-0.0.0
+    $ python setup.py build
+    # python setup.py install
+
+The last command must be executed as a privileged user if
+you are not currently using a virtualenv.
+
+.. _installing-from-git:
+
+Using the development version
+-----------------------------
+
+With pip
+~~~~~~~~
+
+You can install the latest snapshot of faust using the following
+pip command::
+
+    $ pip install https://github.com/robinhoodmarkets/faust/zipball/master#egg=faust
 
 FAQ
 ===
@@ -113,49 +242,6 @@ Will you support Python 2?
 
 There are no plans to support Python 2, but you are welcome to contribute to
 the project (details in question above is relevant also for Python 2).
-
-.. _installation:
-
-Installation
-============
-
-You can install faust either via the Python Package Index (PyPI)
-or from source.
-
-To install using `pip`,::
-
-    $ pip install -U faust
-
-.. _installing-from-source:
-
-Downloading and installing from source
---------------------------------------
-
-Download the latest version of faust from
-http://pypi.python.org/pypi/faust
-
-You can install it by doing the following,::
-
-    $ tar xvfz faust-0.0.0.tar.gz
-    $ cd faust-0.0.0
-    $ python setup.py build
-    # python setup.py install
-
-The last command must be executed as a privileged user if
-you are not currently using a virtualenv.
-
-.. _installing-from-git:
-
-Using the development version
------------------------------
-
-With pip
-~~~~~~~~
-
-You can install the latest snapshot of faust using the following
-pip command::
-
-    $ pip install https://github.com/robinhoodmarkets/faust/zipball/master#egg=faust
 
 .. |build-status| image:: https://secure.travis-ci.org/robinhoodmarkets/faust.png?branch=master
     :alt: Build status

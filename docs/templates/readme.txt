@@ -8,6 +8,8 @@
 
 .. include:: ../includes/installation.txt
 
+.. include:: ../includes/faq.txt
+
 .. |build-status| image:: https://secure.travis-ci.org/robinhoodmarkets/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/robinhoodmarkets/faust
