@@ -1,5 +1,5 @@
 =====================================================================
- Stream processing
+ Faust: Stream Processing for Python
 =====================================================================
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
