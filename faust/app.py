@@ -488,7 +488,8 @@ class App(AppT, ServiceProxy):
                     key_serializer: CodecArg = None,
                     value_serializer: CodecArg = None,
                     *,
-                    wait: bool = True) -> Awaitable:
+                    wait: bool = True,
+                    declare: Sequence[TopicT]) -> Awaitable:
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
         if not self._producer_started:

@@ -21,6 +21,7 @@ from ..types.transports import ConsumerT
 from ..utils.futures import done_future
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
+from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -36,7 +37,7 @@ class TopicCreationHelper:
                            partitions: int,
                            replication: int,
                            *,
-                           configs: MutableMapping[str, str] = None,
+                           config: MutableMapping[str, str] = None,
                            timeout: int = 10000,
                            ensure_created: bool = False) -> None:
         '''
@@ -56,7 +57,7 @@ class TopicCreationHelper:
         request = CreateTopicsRequest[self._protocol_version](
             [
                 (topic, partitions, replication,
-                 [], list((configs or {}).items()))
+                 [], list((config or {}).items()))
             ],
             timeout,
             False
@@ -79,22 +80,14 @@ class TopicCreationHelper:
                 raise Exception(f'Error while creating Topic: {topic}. '
                                 f'<Error Code: {err_code} | {err_msg}>')
 
-    async def create_changelog_topic(self, topic: str,
-                                     partitions: int,
-                                     replication: int,
-                                     *,
-                                     configs: MutableMapping[str, str] = None,
-                                     retention: timedelta = None,
-                                     timeout: int = 10000,
-                                     ensure_created: bool = False) -> None:
-        configs = configs or {}
-        configs['cleanup.policy'] = 'compact'
+    @classmethod
+    def changelog_config(cls,
+                         retention: Seconds=None) -> MutableMapping[str, str]:
+        configs = {'cleanup.policy': 'compact'}
         if retention is not None:
             configs['cleanup.policy'] += ',delete'
-            configs['retention.ms'] = int(retention.total_seconds() * 1000)
-        await self.create_topic(topic, partitions, replication,
-                                configs=configs, timeout=timeout,
-                                ensure_created=ensure_created)
+            configs['retention.ms'] = int(want_seconds(retention) * 1000)
+        return configs
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
