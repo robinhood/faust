@@ -35,7 +35,6 @@ from .utils.objects import cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
-from .web import Web
 
 __all__ = ['App']
 
@@ -50,9 +49,6 @@ DEFAULT_STREAM_CLS = 'faust.Stream'
 
 #: Path to default table class used by ``app.table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
-
-#: Path to default Web site class.
-DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
 
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
@@ -104,8 +100,6 @@ class AppService(Service):
             [self.app.consumer],                      # app.Consumer
             # Tables (and Sets).
             self.app.tables.values(),
-            # WebSite
-            [self.app.website],                       # app.WebSite
             # TopicManager
             [self.app.sources],                       # app.TopicManager
             # Actors last.
@@ -172,6 +166,9 @@ class App(AppT, ServiceProxy):
             Provide specific asyncio event loop instance.
     """
 
+    web_port: int
+    web_bind: str
+
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
 
@@ -218,7 +215,6 @@ class App(AppT, ServiceProxy):
                  replication_factor: int = 1,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
-                 WebSite: SymbolArg = DEFAULT_WEBSITE_CLS,
                  Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
                  monitor: Monitor = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -234,7 +230,6 @@ class App(AppT, ServiceProxy):
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.Table = symbol_by_name(Table)
-        self.WebSite = symbol_by_name(WebSite)
         self.Serializers = symbol_by_name(Serializers)
         self.serializers = self.Serializers(
             key_serializer=self.key_serializer,
@@ -577,10 +572,6 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _service(self) -> ServiceT:
         return AppService(self)
-
-    @cached_property
-    def website(self) -> Web:
-        return self.WebSite(self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def sources(self) -> TopicManagerT:

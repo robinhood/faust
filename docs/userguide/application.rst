@@ -187,14 +187,6 @@ Parameters
     The :class:`~faust.Table` class to use for tables, or the fully-qualified
     path to one.
 
-`WebSite`
-    :type: ``Union[str, Type]``
-    :default: ``"faust.web.site:create_site"``
-
-    A class or callable that creates the :class:`~faust.web.base.Web` instance
-    that forms what a Faust instance serves over the web.  It can also be the
-    fully qualified path to one.
-
 Reference
 =========
 

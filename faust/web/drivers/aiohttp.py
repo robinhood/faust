@@ -19,13 +19,13 @@ class Web(base.Web):
     driver_version = f'aiohttp={aiohttp.__version__}'
 
     def __init__(self, *,
-                 port: int = DEFAULT_PORT,
-                 bind: str = DEFAULT_BIND,
+                 port: int = None,
+                 bind: str = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app: Application = Application()
-        self.port: int = port
-        self.bind: str = bind
+        self.port: int = port or DEFAULT_PORT
+        self.bind: str = bind or DEFAULT_BIND
         self._srv: Any = None
         self._handler: Any = None
 

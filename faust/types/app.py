@@ -39,7 +39,6 @@ class AppT(ServiceT):
 
     Stream: Type
     Table: Type
-    WebSite: Type
     Serializers: Type
 
     id: str
@@ -147,11 +146,6 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def consumer(self) -> ConsumerT:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def website(self) -> Web:
         ...
 
     @property

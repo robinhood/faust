@@ -13,15 +13,16 @@ import socket
 import sys
 
 from contextlib import suppress
-from typing import (
-    Any, Coroutine, IO, Iterable, Sequence, Set, Tuple, Union, cast,
-)
+from typing import Any, Coroutine, IO, Iterable, Set, Tuple, Union, cast
 from pathlib import Path
 from progress.spinner import Spinner
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
+from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger, level_name, setup_logging
+from .utils.objects import cached_property
 from .utils.services import Service, ServiceT
+from .web import Web
 
 try:  # pragma: no cover
     from setproctitle import setproctitle
@@ -29,6 +30,9 @@ except ImportError:  # pragma: no cover
     def setproctitle(title: str) -> None: ...  # noqa
 
 __all__ = ['Worker']
+
+#: Path to default Web site class.
+DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
@@ -56,13 +60,13 @@ ARTLINES = """\
 F_BANNER = """
 {art}
 {ident}
-[ .id          -> {id}
-  .web         -> {web}
+[ .id          -> {app.id}
+  .web         -> {website.url}
   .log         -> {logfile} ({loglevel})
   .pid         -> {pid}
   .hostname    -> {hostname}
-  .transport   -> {transport}
-  .store       -> {store} ]
+  .transport   -> {app.url}
+  .store       -> {app.store} ]
 """.strip()
 
 #: Format string for banner info line.
@@ -118,9 +122,9 @@ class Worker(Service):
     f_ident = F_IDENT
     f_banner = F_BANNER
 
+    app: AppT
     debug: bool
     sensors: Set[SensorT]
-    apps: Sequence[AppT]
     services: Iterable[ServiceT]
     loglevel: Union[str, int]
     logfile: Union[str, IO]
@@ -129,7 +133,7 @@ class Worker(Service):
     quiet: bool
 
     def __init__(
-            self, *services: ServiceT,
+            self, app: AppT, *services: ServiceT,
             sensors: Iterable[SensorT] = None,
             debug: bool = False,
             quiet: bool = False,
@@ -140,8 +144,11 @@ class Worker(Service):
             stderr: IO = sys.stderr,
             loop: asyncio.AbstractEventLoop = None,
             workdir: str = None,
+            Website: SymbolArg = DEFAULT_WEBSITE_CLS,
+            web_port: int = None,
+            web_bind: str = None,
             **kwargs: Any) -> None:
-        self.apps = [s for s in services if isinstance(s, AppT)]
+        self.app = app
         self.services = services
         self.sensors = set(sensors or [])
         self.debug = debug
@@ -153,6 +160,9 @@ class Worker(Service):
         self.stderr = stderr
         self.spinner = Spinner(file=self.stdout)
         self.workdir = workdir
+        self.Website = symbol_by_name(Website)
+        self.web_port = web_port
+        self.web_bind = web_bind
         super().__init__(loop=loop, **kwargs)
         for service in self.services:
             service.beacon.reattach(self.beacon)
@@ -184,8 +194,8 @@ class Worker(Service):
             py=platform.python_implementation(),
             faust_v=faust.__version__,
             system=platform.system(),
-            transport_v=self.apps[0].transport.driver_version,
-            http_v=self.apps[0].website.driver_version,
+            transport_v=self.app.transport.driver_version,
+            http_v=self.website.driver_version,
             py_v=platform.python_version(),
         )
 
@@ -193,10 +203,8 @@ class Worker(Service):
         self.say(self.f_banner.format(
             art=self.art,
             ident=self.faust_ident(),
-            id=', '.join(x.id for x in self.apps),
-            transport=', '.join(x.url for x in self.apps),
-            store=', '.join(x.store for x in self.apps),
-            web=', '.join(x.website.url for x in self.apps),
+            app=self.app,
+            website=self.website,
             logfile=self.logfile if self.logfile else '-stderr-',
             loglevel=level_name(self.loglevel or 'WARN').lower(),
             pid=os.getpid(),
@@ -274,17 +282,26 @@ class Worker(Service):
         return DummyContext()
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
-        for app in self.apps:
-            for sensor in self.sensors:
-                app.sensors.add(sensor)
+        for sensor in self.sensors:
+            self.app.sensors.add(sensor)
         return self.services
 
     async def on_first_start(self) -> None:
         if self.workdir:
             os.chdir(Path(self.workdir).absolute())
         self._setup_logging()
+
+    async def on_start(self) -> None:
         for sensor in self.sensors:
-            await sensor.maybe_start()
+            self.app.sensors.add(sensor)
+        await self.app.maybe_start()
+        for service in self.services:
+            await service.maybe_start()
+
+    async def on_stop(self) -> None:
+        for service in reverse(self.services):
+            await service.stop()
+        await self.app.stop()
 
     def _setup_logging(self) -> None:
         _loglevel: int = None
@@ -303,12 +320,18 @@ class Worker(Service):
                 SpinnerHandler(self, level=logging.DEBUG))
             logging.root.setLevel(logging.DEBUG)
 
-    async def on_stop(self) -> None:
-        for sensor in self.sensors:
-            await sensor.stop()
-
     def _repr_info(self) -> str:
         return _repr(self.services)
 
     def _setproctitle(self, info: str) -> None:
         setproctitle(f'{PSIDENT} {info}')
+
+    @cached_property
+    def website(self) -> Web:
+        return self.Website(
+            self,
+            bind=self.web_bind,
+            port=self.web_port,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
