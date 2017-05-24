@@ -19,13 +19,9 @@ withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
 @app.actor(withdrawals_topic)
 async def find_large_withdrawals(withdrawals):
-    user_to_total = app.table('user_to_total', default=float, key_type=str)
-    country_to_total = app.table('country_to_total', default=float, key_type=str)
-    print("user_tots", user_to_total.keys())
-    print("country_tots", country_to_total.keys())
+    user_to_total = app.table('user_to_total', default=int)
+    country_to_total = app.table('country_to_total', default=int)
     async for withdrawal in withdrawals:
-        print("user_tots", user_to_total.keys())
-        print("country_tots", country_to_total.keys())
         user_to_total[withdrawal.user] += withdrawal.amount
         country_to_total[withdrawal.country] += withdrawal.amount
         print('{!r} User Total: {!r}, Country Total: {!r}'.format(

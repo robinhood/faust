@@ -359,13 +359,6 @@ class TopicManager(TopicManagerT, Service):
             await self.app.consumer.subscribe(self._pattern)
             ev.clear()
 
-    # def init_new_table(self, source):
-    #     if source not in self._sources:
-    #         self._sources.add(source)
-    #         self.beacon.add(source)  # connect to beacon
-    #         self._compile_pattern()
-    #         self.consumer._consumer.subscribe(pattern=self._pattern, listener=)
-
     async def _gatherer(self) -> None:
         waiting = set()
         wait = asyncio.wait
@@ -376,52 +369,49 @@ class TopicManager(TopicManagerT, Service):
             waiting = unfinished
 
     async def _partition_assign_listener(self) -> None:
-        logger.info("in partition assign listener")
         while not self.should_stop:
-            print("here")
+            consumer = self.app.consumer.raw_consumer()
             assigned = await self._partition_callback_tasks.get()
-            print("there")
-            logger.info("well im in")
-            print("how many assigned:", len(assigned))
+            logger.info("Recovering from Changelog if needed.")
             for topic_partition in assigned:
                 logger.info(topic_partition)
                 table_name = self.app.get_table_name_changelog(
                     topic_partition.topic)
                 if table_name is None:
                     continue
+                logger.info('Recovering Table: %r in the context: %r',
+                            table_name, topic_partition)
                 table = self.app.get_table(table_name)
-                self.app.consumer._consumer._subscription.need_offset_reset(topic_partition, -2)
-                print("table is", table, "table_key", table.key_type, "value_type", table.value_type)
-                # Await client boostrap
-                while True:
-                    print("in loop")
-                    print("type", type(self.app.consumer._consumer))
-                    commited_last = await self.app.consumer._consumer.committed(topic_partition)
-                    print("last_commited", commited_last)
-                    data = await self.app.consumer._consumer.getmany(topic_partition, timeout_ms=5000)
-                    print("data", data)
-                    for _, messages in data.items():
-                        print("messages", messages)
-                        for message in messages:
-                            logger.info("Got messages")
-                            print("key:", message.key, "value", message.value)
-                            table.raw_add(json.loads(message.key), table.default(json.loads(message.value)))
-                            # table[message.key] = message.value
 
-                    highwater = self.app.consumer._consumer.highwater(topic_partition)
-                    position = await self.app.consumer._consumer.position(topic_partition)
-                    print("position", position)
-                    # data = await self.consumer._consumer.getone(topic_partition)
-                    await asyncio.sleep(0)
-                    print("data", data)
+                # Set offset of partition to beginning
+                # TODO: change to seek_to_beginning once implmented in aiokafka
+                consumer._subscription.need_offset_reset(
+                    topic_partition, -2)
+                while True:
+                    data = await consumer.getmany(topic_partition,
+                                                  timeout_ms=1000)
+                    for _, messages in data.items():
+                        for message in messages:
+                            table.raw_add(json.loads(message.key),
+                                          json.loads(message.value))
+                    highwater = consumer.highwater(
+                        topic_partition)
+                    position = await consumer.position(
+                        topic_partition)
                     if highwater is None:
                         break
                     if highwater - position <= 0:
                         break
-            print([table.items() for _, table in self.app.tables.items()])
-            print([source.topic.topics for source in self.app.sources])
+                    logger.info('Still Need to Fetch, %r',
+                                highwater - position)
+
+            # Once tables up to date, remove from consumer pattern
             await self._remove_changelog_sources()
+
+            # Allow consumer to proceed
             self.app.consumer.can_read = True
+            logger.info('Done Recovery')
+
 
     async def _remove_changelog_sources(self):
         source_list = []
@@ -431,17 +421,6 @@ class TopicManager(TopicManagerT, Service):
                     source_list.append(source)
         for source in source_list:
             self.discard(source)
-    # async def on_stop(self) -> None:
-    #     if self.app.consumer:
-    #         await self.consumer.stop()
-
-    # def _create_consumer(self) -> ConsumerT:
-    #     return self.app.transport.create_consumer(
-    #         callback=self._on_message,
-    #         on_partitions_revoked=self._on_partitions_revoked,
-    #         on_partitions_assigned=self._on_partitions_assigned,
-    #         beacon=self.beacon,
-    #     )
 
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
@@ -453,17 +432,12 @@ class TopicManager(TopicManagerT, Service):
     def on_partitions_assigned(self,
                                 assigned: Sequence[
                                     TopicPartition]) -> None:
-        logger.info("something cool is happening")
-        logger.info(assigned)
-        print("assigned", assigned)
         self._partition_callback_tasks.put_nowait(assigned)
-        print("come here")
-        logger.info("well im out")
 
 
     def on_partitions_revoked(self,
                                revoked: Sequence[TopicPartition]) -> None:
-        logger.info("something not cool is happening")
+        ...
 
     def __contains__(self, value: Any) -> bool:
         return value in self._sources
@@ -478,9 +452,7 @@ class TopicManager(TopicManagerT, Service):
         return object.__hash__(self)
 
     def add(self, source: SourceT) -> None:
-        print("adding")
         if source not in self._sources:
-            print("not there")
             self._sources.add(source)
             self.beacon.add(source)  # connect to beacon
             if self._subscription_changed is not None:

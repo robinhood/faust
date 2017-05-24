@@ -40,7 +40,6 @@ class Table(Service, TableT, ManagedUserDict):
         self._store = store
         self.key_type = key_type
         self.value_type = value_type
-        print("key is", key_type, "valuue is ", value_type)
         self.changelog_topic = self.app.topic(
             self._changelog_topic_name(),
             key_type=self.key_type,
@@ -60,14 +59,8 @@ class Table(Service, TableT, ManagedUserDict):
         self.add_dependency(cast(StoreT, self.data))
 
         # Assign changelog to list of partitions to be consumed
-        logger.info("Adding Changelog")
         self.app.sources.add(TopicSource(self.changelog_topic))
-        logger.info("Done changelogging")
 
-        # Assign changelog to list of partitions to be consumed
-        logger.info("Removing Changelog")
-        self.app.sources.discard(TopicSource(self.changelog_topic))
-        logger.info("Done changelogging")
         # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get
         self._sensor_on_set = self.app.sensors.on_table_set

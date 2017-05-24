@@ -354,30 +354,18 @@ class App(AppT, ServiceProxy):
         """Register existing table."""
         assert table.table_name
         if table.table_name in self.tables:
-            raise ValueError('Table with name {table.table_name!r} already exists')
+            raise ValueError(
+                f'Table with name {table.table_name!r} already exists')
         self.tables[table.table_name] = table
 
     def get_table_name_changelog(self, topic_name):
-        print("entere heere")
-        logger.info(topic_name)
-        print(str(self.tables))
-        print(self.tables.items())
         for table_name, table in self.tables.items():
-            logger.info("Printing table info")
-            logger.info(table_name)
-            logger.info(type(table.changelog_topic))
-            logger.info(table.changelog_topic.topics)
-            logger.info(type(topic_name))
-            logger.info(topic_name == table.changelog_topic)
-            logger.info("Done printing")
             if str(table.changelog_topic) == topic_name:
-                logger.info("returning something")
                 return table_name
 
 
     def get_table(self, table_name):
         return self.tables.get(table_name)
-
 
     async def send(
             self,
@@ -578,7 +566,6 @@ class App(AppT, ServiceProxy):
     def consumer(self) -> ConsumerT:
         """Default consumer instance."""
         if self._consumer is None:
-            print("consumer is None")
             self._consumer = self._new_consumer()
         return self._consumer
 

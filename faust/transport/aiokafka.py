@@ -68,12 +68,10 @@ class Consumer(base.Consumer):
         self.can_read = True
 
     async def on_start(self) -> None:
-        print("consumer started!!")
         self.beacon.add(self._consumer)
         await self._consumer.start()
         await self.register_timers()
         self.add_future(self._drain_messages())
-        print("done starting consumer!")
 
     async def subscribe(self, pattern: str) -> None:
         # XXX pattern does not work :/
@@ -115,7 +113,6 @@ class Consumer(base.Consumer):
             while not should_stop():
                 pending = []
                 while self.can_read is False:
-                    print("sleeping")
                     await asyncio.sleep(5)
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
@@ -150,6 +147,8 @@ class Consumer(base.Consumer):
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
 
+    def raw_consumer(self) -> Any:
+        return self._consumer
 
 class Producer(base.Producer):
     _producer: aiokafka.AIOKafkaProducer
