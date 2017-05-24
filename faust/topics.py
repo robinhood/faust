@@ -290,7 +290,6 @@ class TopicManager(TopicManagerT, Service):
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
         self.on_message = self._compile_message_handler()
-        self.consumer.can_read = False
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
@@ -334,6 +333,7 @@ class TopicManager(TopicManagerT, Service):
         return on_message
 
     async def on_start(self) -> None:
+        self.app.consumer.can_read = False
         self.add_future(self._subscriber())
         self.add_future(self._gatherer())
         self.add_future(self._partition_assign_listener())
@@ -352,12 +352,25 @@ class TopicManager(TopicManagerT, Service):
         await self.app.consumer.subscribe(self._pattern)
 
         # Now we wait for changes
+<<<<<<< HEAD
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
             await ev.wait()
             self._compile_pattern()
             self.app.consumer.subscribe(self._pattern)
             ev.clear()
+=======
+        print("waiting here")
+        cond = self._subscription_changed = asyncio.Condition(loop=self.loop)
+        while 1:
+            with await cond:
+                print("holding lock again")
+                await cond.wait()
+
+                print("signalled already")
+                self._compile_pattern()
+                self.app.consumer.subscribe(self._pattern)
+>>>>>>> Updating to remove properly
 
     # def init_new_table(self, source):
     #     if source not in self._sources:
@@ -390,15 +403,15 @@ class TopicManager(TopicManagerT, Service):
                 if table_name is None:
                     continue
                 table = self.app.get_table(table_name)
-                self.consumer._consumer._subscription.need_offset_reset(topic_partition, -2)
+                self.app.consumer._consumer._subscription.need_offset_reset(topic_partition, -2)
                 print("table is", table, "table_key", table.key_type, "value_type", table.value_type)
                 # Await client boostrap
                 while True:
                     print("in loop")
-                    print("type", type(self.consumer._consumer))
-                    commited_last = await self.consumer._consumer.committed(topic_partition)
+                    print("type", type(self.app.consumer._consumer))
+                    commited_last = await self.app.consumer._consumer.committed(topic_partition)
                     print("last_commited", commited_last)
-                    data = await self.consumer._consumer.getmany(topic_partition, timeout_ms=5000)
+                    data = await self.app.consumer._consumer.getmany(topic_partition, timeout_ms=5000)
                     print("data", data)
                     for _, messages in data.items():
                         print("messages", messages)
@@ -408,8 +421,8 @@ class TopicManager(TopicManagerT, Service):
                             table.raw_add(json.loads(message.key), table.default(json.loads(message.value)))
                             # table[message.key] = message.value
 
-                    highwater = self.consumer._consumer.highwater(topic_partition)
-                    position = await self.consumer._consumer.position(topic_partition)
+                    highwater = self.app.consumer._consumer.highwater(topic_partition)
+                    position = await self.app.consumer._consumer.position(topic_partition)
                     print("position", position)
                     # data = await self.consumer._consumer.getone(topic_partition)
                     await asyncio.sleep(0)
@@ -419,20 +432,33 @@ class TopicManager(TopicManagerT, Service):
                     if highwater - position <= 0:
                         break
             print([table.items() for _, table in self.app.tables.items()])
-            self.consumer.can_read = True
+            print([source.topic.topics for source in self.app.sources])
+            await self._remove_changelog_sources()
+            self.app.consumer.can_read = True
 
+    async def _remove_changelog_sources(self):
+        source_list = []
+        for source in self.app.sources:
+            for topic_name in source.topic.topics:
+                if self.app.get_table_name_changelog(topic_name):
+                    source_list.append(source)
+        for source in source_list:
+            self._sources.discard(source)
+            self.beacon.discard(source)
+        self._compile_pattern()
+        await self.app.consumer.subscribe(self._pattern)
 
-    async def on_stop(self) -> None:
-        if self.consumer:
-            await self.consumer.stop()
+    # async def on_stop(self) -> None:
+    #     if self.app.consumer:
+    #         await self.consumer.stop()
 
-    def _create_consumer(self) -> ConsumerT:
-        return self.app.transport.create_consumer(
-            callback=self._on_message,
-            on_partitions_revoked=self._on_partitions_revoked,
-            on_partitions_assigned=self._on_partitions_assigned,
-            beacon=self.beacon,
-        )
+    # def _create_consumer(self) -> ConsumerT:
+    #     return self.app.transport.create_consumer(
+    #         callback=self._on_message,
+    #         on_partitions_revoked=self._on_partitions_revoked,
+    #         on_partitions_assigned=self._on_partitions_assigned,
+    #         beacon=self.beacon,
+    #     )
 
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
@@ -441,7 +467,7 @@ class TopicManager(TopicManagerT, Service):
                 self._topicmap[topic].add(source)
         self._pattern = '|'.join(self._topicmap)
 
-    def _on_partitions_assigned(self,
+    def on_partitions_assigned(self,
                                 assigned: Sequence[
                                     TopicPartition]) -> None:
         logger.info("something cool is happening")
@@ -451,7 +477,8 @@ class TopicManager(TopicManagerT, Service):
         print("come here")
         logger.info("well im out")
 
-    def _on_partitions_revoked(self,
+
+    def on_partitions_revoked(self,
                                revoked: Sequence[TopicPartition]) -> None:
         logger.info("something not cool is happening")
 
