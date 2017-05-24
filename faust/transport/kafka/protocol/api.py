@@ -1,13 +1,10 @@
-from __future__ import absolute_import
-
 import abc
 
 from kafka.protocol.struct import Struct
 from kafka.protocol.types import Schema
 
 
-class Response(Struct):
-    __metaclass__ = abc.ABCMeta
+class Response(Struct, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def API_KEY(self) -> int:
@@ -25,8 +22,7 @@ class Response(Struct):
         pass
 
 
-class Request(Struct):
-    __metaclass__ = abc.ABCMeta
+class Request(Struct, metaclass=abc.ABCMeta):
 
     @abc.abstractproperty
     def API_KEY(self) -> int:

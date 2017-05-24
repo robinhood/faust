@@ -110,6 +110,8 @@ class Topic(TopicT):
     def __init__(self, app: AppT,
                  *,
                  topics: Sequence[str] = None,
+                 partitions: int = None,
+                 changelog: bool = True,
                  pattern: Union[str, Pattern] = None,
                  key_type: Type = None,
                  value_type: Type = None) -> None:
@@ -118,6 +120,11 @@ class Topic(TopicT):
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.topics = topics
+        self._topics_created = False
+        self.partitions = partitions or 1  #TODO: fix this
+        self.replicas = 1  #TODO: fix this
+        self.retention = None #TODO: fix this
+        self.changelog = changelog
         self.app = app
         self.pattern = pattern
         self.key_type = key_type
@@ -136,6 +143,7 @@ class Topic(TopicT):
             value_serializer: CodecArg = None,
             *,
             wait: bool = True) -> Awaitable:
+        await self._maybe_create_topics()
         return await self.app.send(
             self, key, value, partition,
             key_serializer, value_serializer,
@@ -168,6 +176,22 @@ class Topic(TopicT):
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
         )
+
+    async def _maybe_create_topics(self):
+        if not self._topics_created:
+            for topic in self.topics:
+                await self._create_topic(topic)
+            self._topics_created = True
+
+    async def _create_topic(self, topic: str):
+        logger.info(f"Attempting to create Topic: {topic}")
+        create_topic = self.app.producer.create_topic
+        extras = {}
+        if self.changelog:
+            create_topic = self.app.producer.create_changelog_topic
+            extras["retention"] = self.retention
+        await create_topic(topic=topic, partitions=self.partitions,
+                           replication=self.replicas, **extras)
 
     def __aiter__(self) -> AsyncIterator:
         source = TopicSource(self)

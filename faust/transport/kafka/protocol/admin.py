@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from kafka.protocol.types import (
     Array, Boolean, Int16, Int32, Schema, String,
 )

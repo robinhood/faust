@@ -50,7 +50,7 @@ class TopicCreationHelper:
         :param ensure_created: if True, throw exception if topic exists
         :return:
         '''
-        self._client.bootstrap()  # Not needed if called after on_start()
+        await self._client.bootstrap()  # Not needed if called after on_start()
         node_id = next(broker.nodeId
                        for broker in self._client.cluster.brokers())
         request = CreateTopicsRequest[self._protocol_version](
