@@ -49,11 +49,11 @@ def _aiter_iter(it: Iterable) -> AsyncIterator:
     return AsyncIterWrapper(iter(it)).__aiter__()
 
 
-def anext(it: AsyncIterator, *default: Any) -> Any:
+async def anext(it: AsyncIterator, *default: Any) -> Any:
     """``anext(it) -> it.__anext__()``."""
     if default:
         try:
-            return it.__anext__()
+            return await it.__anext__()
         except StopAsyncIteration:
             return default[0]
-    return it.__anext__()
+    return await it.__anext__()
