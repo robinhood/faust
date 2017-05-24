@@ -352,25 +352,12 @@ class TopicManager(TopicManagerT, Service):
         await self.app.consumer.subscribe(self._pattern)
 
         # Now we wait for changes
-<<<<<<< HEAD
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
             await ev.wait()
             self._compile_pattern()
-            self.app.consumer.subscribe(self._pattern)
+            await self.app.consumer.subscribe(self._pattern)
             ev.clear()
-=======
-        print("waiting here")
-        cond = self._subscription_changed = asyncio.Condition(loop=self.loop)
-        while 1:
-            with await cond:
-                print("holding lock again")
-                await cond.wait()
-
-                print("signalled already")
-                self._compile_pattern()
-                self.app.consumer.subscribe(self._pattern)
->>>>>>> Updating to remove properly
 
     # def init_new_table(self, source):
     #     if source not in self._sources:
@@ -443,11 +430,7 @@ class TopicManager(TopicManagerT, Service):
                 if self.app.get_table_name_changelog(topic_name):
                     source_list.append(source)
         for source in source_list:
-            self._sources.discard(source)
-            self.beacon.discard(source)
-        self._compile_pattern()
-        await self.app.consumer.subscribe(self._pattern)
-
+            self.discard(source)
     # async def on_stop(self) -> None:
     #     if self.app.consumer:
     #         await self.consumer.stop()
