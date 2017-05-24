@@ -379,6 +379,9 @@ class TopicManager(TopicManagerT, Service):
                     topic_partition.topic)
                 if table_name is None:
                     continue
+
+                # TODO: If standby ready, just swap and continue. Else proceed.
+
                 logger.info('Recovering Table: %r in the context: %r',
                             table_name, topic_partition)
                 table = self.app.get_table(table_name)
