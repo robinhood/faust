@@ -1,6 +1,7 @@
 import asyncio
 import re
 from collections import defaultdict
+from datetime import timedelta
 from functools import total_ordering
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterator,
@@ -113,6 +114,7 @@ class Topic(TopicT):
                  partitions: int = None,
                  changelog: bool = True,
                  pattern: Union[str, Pattern] = None,
+                 retention: timedelta = None,
                  key_type: Type = None,
                  value_type: Type = None) -> None:
         if pattern and topics:
@@ -123,7 +125,7 @@ class Topic(TopicT):
         self._topics_created = False
         self.partitions = partitions or 1  #TODO: fix this
         self.replicas = 1  #TODO: fix this
-        self.retention = None #TODO: fix this
+        self.retention = retention
         self.changelog = changelog
         self.app = app
         self.pattern = pattern
@@ -163,6 +165,7 @@ class Topic(TopicT):
                topics: Sequence[str] = None,
                key_type: Type = None,
                value_type: Type = None,
+               retention: timedelta = None,
                prefix: str = '',
                suffix: str = '') -> TopicT:
         if self.pattern:
@@ -175,6 +178,7 @@ class Topic(TopicT):
             pattern=self.pattern,
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
+            retention=retention,
         )
 
     async def _maybe_create_topics(self):

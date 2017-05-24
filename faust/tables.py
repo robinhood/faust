@@ -71,6 +71,8 @@ class Table(Service, TableT, ManagedUserDict):
         raise KeyError(key)
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
+        self.changelog_topic = self.changelog_topic.derive(
+            retention=window.expires)
         return WindowWrapper(self, window)
 
     def hopping(self, size: Seconds, step: Seconds,
