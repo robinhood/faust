@@ -405,6 +405,7 @@ class App(AppT, ServiceProxy):
 
     async def send_many(
             self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
+        """Send a list of messages (unordered)."""
         await asyncio.wait(
             [self._send_tuple(msg) for msg in it],
             loop=self.loop,
@@ -458,10 +459,8 @@ class App(AppT, ServiceProxy):
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # Get pending messages attached to this TP+offset
-        attached = list(self._get_attached(tp, offset))
-        if attached:
-            # Send the messages in one go.
-            await self.send_many(attached)
+        for message in list(self._get_attached(tp, offset)):
+            await self._send_tuple(message)
 
     def _get_attached(
             self, tp: TopicPartition, commit_offset: int) -> Iterator:
