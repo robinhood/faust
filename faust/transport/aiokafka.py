@@ -43,8 +43,6 @@ EXTRA_ERRORS: Mapping[int, Type] = {
     TopicExists.errno: TopicExists
 }
 
-DEFAULT_TOPIC_CONFIG = {'cleanup.policy': 'compact'}
-
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
     # kafka's ridiculous class based callback interface makes this hacky.
