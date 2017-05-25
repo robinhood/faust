@@ -186,7 +186,7 @@ class WindowSet(WindowSetT, FastUserDict):
         key = self.key
         timestamp = self.timestamp(event)
         for window_range in self.window.windows(timestamp):
-            table[key, window_range] = op(table[key], value)
+            table[key, window_range] = op(table[key, window_range], value)
         return self
 
     def timestamp(self, event: EventT = None) -> float:

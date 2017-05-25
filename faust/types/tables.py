@@ -132,3 +132,6 @@ class WindowWrapperT(Mapping):
     @abc.abstractmethod
     def __getitem__(self, key: Any) -> WindowSetT:
         ...
+
+    def __setitem__(self, key, value) -> None:
+        pass
