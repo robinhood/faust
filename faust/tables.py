@@ -13,6 +13,7 @@ from .utils.services import Service
 from .utils.times import Seconds
 from .streams import current_event
 from .streams import joins
+from .transport import aiokafka
 
 __all__ = ['Table']
 
@@ -36,13 +37,12 @@ class Table(Service, TableT, ManagedUserDict):
         self._store = store
         self.key_type = key_type
         self.value_type = value_type
-        self._changelog_config = self.app.producer.changelog_config
         self.changelog_topic = self.app.topic(
             self._changelog_topic_name(),
             key_type=self.key_type,
             value_type=self.value_type,
             partitions=self.partitions,
-            config=self._changelog_config(),
+            config=aiokafka.changelog_config(),
         )
 
         if self.StateStore is not None:
@@ -77,8 +77,8 @@ class Table(Service, TableT, ManagedUserDict):
         await self.changelog_topic.maybe_declare()
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
-        self.changelog_topic = self.changelog_topic.derive(
-            config=self._changelog_config(retention=window.expires))
+        config = aiokafka.changelog_config(retention=window.expires)
+        self.changelog_topic = self.changelog_topic.derive(config=config)
         return WindowWrapper(self, window)
 
     def hopping(self, size: Seconds, step: Seconds,

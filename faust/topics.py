@@ -129,7 +129,7 @@ class Topic(TopicT):
         self.topics = topics
         self._topics_declared = False
         self.partitions = partitions
-        self.replicas = self.app.replication_factor
+        self.replicas = app.replication_factor
         self.config = config or {}
         self.app = app
         self.pattern = pattern
