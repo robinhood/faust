@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional, List
 from .types import WindowRange, WindowT
-from .utils.times import Seconds, want_milliseconds
+from .utils.times import Seconds, want_seconds
 
 __all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
 
@@ -24,9 +24,9 @@ class HoppingWindow(WindowT):
 
     def __init__(self, size: Seconds, step: Seconds,
                  expires: Seconds = None) -> None:
-        self.size = want_milliseconds(size)
-        self.step = want_milliseconds(step)
-        self.expires = want_milliseconds(expires) if expires else expires
+        self.size = want_seconds(size)
+        self.step = want_seconds(step)
+        self.expires = want_seconds(expires) if expires else expires
 
     def windows(self, timestamp: float) -> List[WindowRange]:
         curr = self._timestamp_window(timestamp)
@@ -46,7 +46,7 @@ class HoppingWindow(WindowT):
         return self._timestamp_window(timestamp)
 
     def delta(self, timestamp: float, d: Seconds) -> WindowRange:
-        return self._timestamp_window(timestamp - want_milliseconds(d))
+        return self._timestamp_window(timestamp - want_seconds(d))
 
     def _timestamp_window(self, timestamp: float) -> WindowRange:
         start = (timestamp // self.step) * self.step
@@ -80,9 +80,9 @@ class SlidingWindow(WindowT):
 
     def __init__(self, before: Seconds, after: Seconds,
                  expires: Seconds) -> None:
-        self.before = want_milliseconds(before)
-        self.after = want_milliseconds(after)
-        self.expires = want_milliseconds(expires)
+        self.before = want_seconds(before)
+        self.after = want_seconds(after)
+        self.expires = want_seconds(expires)
 
     def windows(self, timestamp: float) -> List[WindowRange]:
         """Return list of windows from timestamp.

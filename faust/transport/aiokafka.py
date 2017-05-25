@@ -153,10 +153,12 @@ class Consumer(base.Consumer):
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     current_offset = get_current_offset(tp)
-                    pending.extend([
-                        deliver(message, tp) for message in messages
-                        if message.offset > current_offset
-                    ])
+                    for message in messages:
+                        if message.offset > current_offset:
+                            # Kafka message timestamp is in milliseconds
+                            t_secs = message.timestamp / 1000.0
+                            message = message._replace(timestamp=t_secs)
+                            pending.append(deliver(message, tp))
                 if pending:
                     await wait(pending, loop=loop, return_when=return_when)
         except ConsumerStoppedError:
