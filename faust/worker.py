@@ -299,7 +299,7 @@ class Worker(Service):
             await service.maybe_start()
 
     async def on_stop(self) -> None:
-        for service in reverse(self.services):
+        for service in reversed(list(self.services)):
             await service.stop()
         await self.app.stop()
 
