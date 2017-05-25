@@ -265,6 +265,12 @@ class WindowWrapper(WindowWrapperT):
     def __getitem__(self, key: Any) -> WindowSetT:
         return WindowSet(key, self.table, self.window)
 
+    def __setitem__(self, key: Any, value: Any) -> None:
+        if not isinstance(value, WindowSetT):
+            def op(_, b):
+                return b
+            WindowSet(key, self.table, self.window).apply(op, value)
+
     def __iter__(self) -> Iterator:
         return iter(self.table)
 

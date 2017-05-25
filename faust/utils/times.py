@@ -24,4 +24,4 @@ def want_milliseconds(s: float) -> float:
 
 @want_milliseconds.register(timedelta)
 def _(s: timedelta) -> float:
-    return s.total_seconds() * 1000.0
+    return want_milliseconds(s.total_seconds())
