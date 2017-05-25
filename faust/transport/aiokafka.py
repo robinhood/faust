@@ -1,8 +1,10 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 import asyncio
-
-from typing import Any, Awaitable, ClassVar, Optional, Sequence, Type, cast
+import functools
+from typing import (
+    Any, Awaitable, ClassVar, MutableMapping, Optional, Sequence, Type, cast
+)
 
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
@@ -13,15 +15,62 @@ from kafka.structs import (
 
 from faust.assignor.partition_assignor import PartitionAssignor
 from . import base
+from .kafka.protocol.admin import CreateTopicsRequest
 from ..types import Message, TopicPartition
 from ..types.transports import ConsumerT
 from ..utils.futures import done_future
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
+from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 logger = get_logger(__name__)
+
+
+def changelog_config(retention: Seconds = None) -> MutableMapping[str, str]:
+    configs = {'cleanup.policy': 'compact'}
+    if retention is not None:
+        configs['cleanup.policy'] += ',delete'
+        configs['retention.ms'] = int(want_seconds(retention) * 1000)
+    return configs
+
+
+async def _create_topic(client: aiokafka.AIOKafkaClient,
+                        topic: str,
+                        partitions: int,
+                        replication: int,
+                        *,
+                        config: MutableMapping[str, str] = None,
+                        timeout: int = 10000,
+                        ensure_created: bool = False) -> None:
+    protocol_version = 1
+    node_id = next(broker.nodeId for broker in client.cluster.brokers())
+    request = CreateTopicsRequest[protocol_version](
+        [
+            (topic, partitions, replication,
+             [], list((config or {}).items()))
+        ],
+        timeout,
+        False
+    )
+    response = await client.send(node_id, request)
+    assert len(response.topic_error_codes), "Single topic requested."
+    _, err_code, err_msg = response.topic_error_codes[0]
+
+    # https://kafka.apache.org/protocol#protocol_error_codes
+    # Topic already exists
+    topic_exists = err_code == 36
+
+    # If not ensure created we allow TopicExists errors
+    _skip_topic_exists = not ensure_created and topic_exists
+
+    if err_code != 0:
+        if _skip_topic_exists:
+            logger.info(f"Topic {topic} exists, skipping creation.")
+        else:
+            raise Exception(f'Error while creating Topic: {topic}. '
+                            f'<Error Code: {err_code} | {err_msg}>')
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -66,6 +115,8 @@ class Consumer(base.Consumer):
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
         )
+        self._client = self._consumer._client
+        self.create_topic = functools.partial(_create_topic, self._client)
 
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
@@ -156,6 +207,8 @@ class Producer(base.Producer):
             bootstrap_servers=transport.bootstrap_servers,
             client_id=transport.app.client_id,
         )
+        self._client = self._producer.client
+        self.create_topic = functools.partial(_create_topic, self._client)
 
     async def on_start(self) -> None:
         self.beacon.add(self._producer)

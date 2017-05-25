@@ -482,7 +482,8 @@ class App(AppT, ServiceProxy):
                     key_serializer: CodecArg = None,
                     value_serializer: CodecArg = None,
                     *,
-                    wait: bool = True) -> Awaitable:
+                    wait: bool = True,
+                    declare: Sequence[TopicT]) -> Awaitable:
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
         if not self._producer_started:
@@ -502,9 +503,9 @@ class App(AppT, ServiceProxy):
 
     async def _on_actor_error(
             self, actor: ActorT, exc: Exception) -> None:
-        if self.sources.consumer:
+        if self._consumer:
             try:
-                await self.sources.consumer.on_task_error(exc)
+                await self._consumer.on_task_error(exc)
             except Exception as exc:
                 logger.exception('Consumer error callback raised: %r', exc)
 

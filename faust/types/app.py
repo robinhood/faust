@@ -61,7 +61,9 @@ class AppT(ServiceT):
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: Type = None,
-              value_type: Type = None) -> TopicT:
+              value_type: Type = None,
+              partitions: int = None,
+              config: MutableMapping[str, str] = None) -> TopicT:
         ...
 
     @abc.abstractmethod

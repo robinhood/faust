@@ -106,6 +106,10 @@ class TopicT(AsyncIterable):
         ...
 
     @abc.abstractmethod
+    async def maybe_declare(self) -> None:
+        ...
+
+    @abc.abstractmethod
     def derive(self,
                *,
                topics: Sequence[str] = None,
