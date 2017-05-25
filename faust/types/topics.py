@@ -5,6 +5,7 @@ from typing import (
     Mapping, MutableSet, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
+from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .codecs import CodecArg
 from .core import K, V
@@ -72,6 +73,10 @@ class TopicT(AsyncIterable):
     pattern: Pattern
     key_type: Type
     value_type: Type
+    retention: Seconds
+    compacting: bool
+    deleting: bool
+    config: Mapping[str, Any]
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -79,7 +84,12 @@ class TopicT(AsyncIterable):
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
                  key_type: Type = None,
-                 value_type: Type = None) -> None:
+                 value_type: Type = None,
+                 partitions: int = None,
+                 retention: Seconds = None,
+                 compacting: bool = None,
+                 deleting: bool = None,
+                 config: Mapping[str, Any] = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -116,6 +126,9 @@ class TopicT(AsyncIterable):
                key_type: Type = None,
                value_type: Type = None,
                partitions: int = None,
+               retention: Seconds = None,
+               compacting: bool = None,
+               deleting: bool = None,
                config: Mapping[str, Any] = None,
                prefix: str = '',
                suffix: str = '') -> 'TopicT':

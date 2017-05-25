@@ -15,6 +15,7 @@ from .types.topics import EventT, SourceT, TopicT, TopicManagerT
 from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service
+from .utils.times import Seconds
 
 __all__ = [
     'Topic',
@@ -118,10 +119,13 @@ class Topic(TopicT):
     def __init__(self, app: AppT,
                  *,
                  topics: Sequence[str] = None,
-                 partitions: int = None,
                  pattern: Union[str, Pattern] = None,
                  key_type: Type = None,
                  value_type: Type = None,
+                 partitions: int = None,
+                 retention: Seconds = None,
+                 compacting: bool = None,
+                 deleting: bool = None,
                  config: Mapping[str, Any] = None) -> None:
         if pattern and topics:
             raise TypeError('Cannot specify both topics and pattern.')
@@ -130,6 +134,9 @@ class Topic(TopicT):
         self.topics = topics
         self.partitions = partitions
         self.replicas = app.replication_factor
+        self.retention = retention
+        self.compacting = compacting
+        self.deleting = deleting
         self.config = config or {}
         self.app = app
         self.pattern = pattern
@@ -169,6 +176,9 @@ class Topic(TopicT):
                key_type: Type = None,
                value_type: Type = None,
                partitions: int = None,
+               retention: Seconds = None,
+               compacting: bool = None,
+               deleting: bool = None,
                config: Mapping[str, Any] = None,
                prefix: str = '',
                suffix: str = '') -> TopicT:
@@ -183,6 +193,9 @@ class Topic(TopicT):
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
             partitions=self.partitions if partitions is None else partitions,
+            retention=self.retention if retention is None else retention,
+            compacting=self.compacting if compacting is None else compacting,
+            deleting=self.deleting if deleting is None else deleting,
             config=self.config if config is None else config,
         )
 

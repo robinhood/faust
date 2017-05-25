@@ -42,6 +42,9 @@ class ConsumerT(ServiceT):
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
                            ensure_created: bool = False) -> None:
         ...
 
@@ -88,6 +91,9 @@ class ProducerT(ServiceT):
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
                            ensure_created: bool = False) -> None:
         ...
 

@@ -63,6 +63,9 @@ class AppT(ServiceT):
               key_type: Type = None,
               value_type: Type = None,
               partitions: int = None,
+              retention: Seconds = None,
+              compacting: bool = None,
+              deleting: bool = None,
               config: Mapping[str, Any] = None) -> TopicT:
         ...
 

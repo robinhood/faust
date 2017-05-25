@@ -2,7 +2,8 @@
 import aiokafka
 import asyncio
 from typing import (
-    Any, Awaitable, ClassVar, Mapping, Optional, Sequence, Type, cast
+    Any, Awaitable, ClassVar, Mapping,
+    MutableMapping, Optional, Set, Sequence, Type, cast
 )
 
 from aiokafka.errors import ConsumerStoppedError
@@ -27,6 +28,9 @@ __all__ = ['Consumer', 'Producer', 'Transport']
 
 logger = get_logger(__name__)
 
+__flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug
+__flake8_Set_is_used: Set
+
 
 class TopicExists(errors.BrokerResponseError):
     errno = 36
@@ -39,14 +43,7 @@ EXTRA_ERRORS: Mapping[int, Type] = {
     TopicExists.errno: TopicExists
 }
 
-
-def changelog_config(retention: Seconds = None) -> Mapping[str, Any]:
-    if retention is not None:
-        return {
-            'cleanup.policy': 'compact,delete',
-            'retention.ms': int(want_seconds(retention) * 1000),
-        }
-    return {'cleanup.policy': 'compact'}
+DEFAULT_TOPIC_CONFIG = {'cleanup.policy': 'compact'}
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -96,11 +93,17 @@ class Consumer(base.Consumer):
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
                            ensure_created: bool = False) -> None:
         cast(Transport, self.transport)._create_topic(
             self._consumer._client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
+            retention=int(want_seconds(retention) * 1000.0),
+            compacting=compacting,
+            deleting=deleting,
             ensure_created=ensure_created,
         )
 
@@ -198,11 +201,17 @@ class Producer(base.Producer):
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
                            ensure_created: bool = False) -> None:
         cast(Transport, self.transport)._create_topic(
             self._producer._client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
+            retention=int(want_seconds(retention) * 1000.0),
+            compacting=compacting,
+            deleting=deleting,
             ensure_created=ensure_created,
         )
 
@@ -248,6 +257,22 @@ class Transport(base.Transport):
             for host in servers.split(';')
         )
 
+    def _topic_config(self,
+                      retention: int = None,
+                      compacting: bool = None,
+                      deleting: bool = None) -> Mapping[str, Any]:
+        config: MutableMapping[str, Any] = {}
+        cleanup_flags: Set[str] = set()
+        if compacting:
+            cleanup_flags |= {'compact'}
+        if deleting:
+            cleanup_flags |= {'delete'}
+        if cleanup_flags:
+            config['cleanup.policy'] = ','.join(sorted(cleanup_flags))
+        if retention:
+            config['retention.ms'] = retention
+        return config
+
     async def _create_topic(self, client: aiokafka.AIOKafkaClient,
                             topic: str,
                             partitions: int,
@@ -255,10 +280,13 @@ class Transport(base.Transport):
                             *,
                             config: Mapping[str, Any] = None,
                             timeout: int = 10000,
+                            retention: int = None,
+                            compacting: bool = None,
+                            deleting: bool = None,
                             ensure_created: bool = False) -> None:
         logger.info(f'Creating topic {topic}')
         protocol_version = 1
-        config = config or {}
+        config = config or self._topic_config(retention, compacting, deleting)
         node_id = next(broker.nodeId for broker in client.cluster.brokers())
         request = CreateTopicsRequest[protocol_version](
             [(topic, partitions, replication, [], list(config.items()))],

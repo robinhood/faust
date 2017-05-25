@@ -248,6 +248,9 @@ class App(AppT, ServiceProxy):
               key_type: Type = None,
               value_type: Type = None,
               partitions: int = None,
+              retention: Seconds = None,
+              compacting: bool = None,
+              deleting: bool = None,
               config: Mapping[str, Any] = None) -> TopicT:
         return Topic(
             self,
@@ -256,6 +259,9 @@ class App(AppT, ServiceProxy):
             key_type=key_type,
             value_type=value_type,
             partitions=partitions,
+            retention=retention,
+            compacting=compacting,
+            deleting=deleting,
             config=config,
         )
 
