@@ -1,6 +1,7 @@
 import asyncio
 import re
 from collections import defaultdict
+from datetime import timedelta
 from functools import total_ordering
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterator,
@@ -14,6 +15,7 @@ from .types.topics import EventT, SourceT, TopicT, TopicManagerT
 from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service
+from .utils.times import Seconds, want_seconds
 
 __all__ = [
     'Topic',
@@ -94,6 +96,11 @@ class Topic(TopicT):
 
     Keyword Arguments:
         topics: Sequence[str]: List of topic names.
+        partitions: int: Number of partitions for these topics.
+            On declaration, topics are created using this.
+            Note: kafka cluster configuration is used if message produced
+            when topic not declared.
+        retention
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
         key_type (Type): Model used for keys in this topic.
@@ -110,14 +117,20 @@ class Topic(TopicT):
     def __init__(self, app: AppT,
                  *,
                  topics: Sequence[str] = None,
+                 partitions: int = None,
                  pattern: Union[str, Pattern] = None,
                  key_type: Type = None,
-                 value_type: Type = None) -> None:
+                 value_type: Type = None,
+                 config: MutableMapping[str, str] = None) -> None:
         if pattern and topics:
             raise TypeError('Cannot specify both topics and pattern.')
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.topics = topics
+        self._topics_declared = False
+        self.partitions = partitions
+        self.replicas = app.replication_factor
+        self.config = config or {}
         self.app = app
         self.pattern = pattern
         self.key_type = key_type
@@ -155,6 +168,8 @@ class Topic(TopicT):
                topics: Sequence[str] = None,
                key_type: Type = None,
                value_type: Type = None,
+               partitions: int = None,
+               config: MutableMapping[str, str] = None,
                prefix: str = '',
                suffix: str = '') -> TopicT:
         if self.pattern:
@@ -167,7 +182,21 @@ class Topic(TopicT):
             pattern=self.pattern,
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
+            partitions=self.partitions if partitions is None else partitions,
+            config=self.config if config is None else config,
         )
+
+    async def maybe_declare(self):
+        if not self._topics_declared:
+            for topic in self.topics:
+                await self._declare_topic(topic)
+            self._topics_declared = True
+
+    async def _declare_topic(self, topic: str):
+        logger.info(f"Attempting to create Topic: {topic}")
+        create_topic = self.app.producer.create_topic
+        await create_topic(topic=topic, partitions=self.partitions,
+                           replication=self.replicas, config=self.config)
 
     def __aiter__(self) -> AsyncIterator:
         source = TopicSource(self)

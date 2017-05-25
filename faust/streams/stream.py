@@ -84,6 +84,7 @@ class Stream(StreamT, JoinableT, Service):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=None)
         self.source = source
+        self.app = self.source.app
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
@@ -351,6 +352,7 @@ class Stream(StreamT, JoinableT, Service):
             suffix = '-' + name + _constants.REPARTITION_TOPIC_SUFFIX
             source = cast(SourceT, self.source)
             topic = source.topic.derive(suffix=suffix)
+        topic_created = False
         format_key = self._format_key
 
         async def repartition(value: _T) -> _T:
@@ -359,6 +361,10 @@ class Stream(StreamT, JoinableT, Service):
                 raise RuntimeError(
                     'Cannot repartition stream with non-topic source')
             new_key = await format_key(key, value)
+            nonlocal topic_created
+            if not topic_created:
+                await topic.maybe_declare()
+                topic_created = True
             await event.forward(
                 event.message.topic + suffix,
                 key=new_key,

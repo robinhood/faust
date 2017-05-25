@@ -13,6 +13,7 @@ from .utils.services import Service
 from .utils.times import Seconds
 from .streams import current_event
 from .streams import joins
+from .transport import aiokafka
 
 __all__ = ['Table']
 
@@ -40,6 +41,8 @@ class Table(Service, TableT, ManagedUserDict):
             self._changelog_topic_name(),
             key_type=self.key_type,
             value_type=self.value_type,
+            partitions=self.partitions,
+            config=aiokafka.changelog_config(),
         )
 
         if self.StateStore is not None:
@@ -70,7 +73,12 @@ class Table(Service, TableT, ManagedUserDict):
             return value
         raise KeyError(key)
 
+    async def on_start(self) -> None:
+        await self.changelog_topic.maybe_declare()
+
     def using_window(self, window: WindowT) -> WindowWrapperT:
+        config = aiokafka.changelog_config(retention=window.expires)
+        self.changelog_topic = self.changelog_topic.derive(config=config)
         return WindowWrapper(self, window)
 
     def hopping(self, size: Seconds, step: Seconds,
