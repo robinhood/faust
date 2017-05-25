@@ -26,7 +26,7 @@ class HoppingWindow(WindowT):
                  expires: Seconds = None) -> None:
         self.size = want_seconds(size)
         self.step = want_seconds(step)
-        self.expires = want_seconds(expires) if expires else expires
+        self.expires = want_seconds(expires) if expires else None
 
     def windows(self, timestamp: float) -> List[WindowRange]:
         curr = self._timestamp_window(timestamp)
