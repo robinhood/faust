@@ -8,7 +8,7 @@ from heapq import heappush, heappop
 from itertools import chain
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Iterable, Iterator, List, MutableMapping, MutableSequence,
+    Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
     Optional, Pattern, Sequence, Union, Type, Tuple, cast,
 )
 
@@ -246,13 +246,17 @@ class App(AppT, ServiceProxy):
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: Type = None,
-              value_type: Type = None) -> TopicT:
+              value_type: Type = None,
+              partitions: int = None,
+              config: Mapping[str, Any] = None) -> TopicT:
         return Topic(
             self,
             topics=topics,
             pattern=pattern,
             key_type=key_type,
             value_type=value_type,
+            partitions=partitions,
+            config=config,
         )
 
     def actor(self, topic: TopicT,
@@ -315,6 +319,7 @@ class App(AppT, ServiceProxy):
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
+              partitions: int = None,
               **kwargs: Any) -> TableT:
         """Create new table.
 
@@ -341,6 +346,7 @@ class App(AppT, ServiceProxy):
             table_name=table_name,
             default=default,
             beacon=self.beacon,
+            partitions=partitions,
             **kwargs)
         self.add_table(table)
         return table.using_window(window) if window else table
@@ -482,8 +488,7 @@ class App(AppT, ServiceProxy):
                     key_serializer: CodecArg = None,
                     value_serializer: CodecArg = None,
                     *,
-                    wait: bool = True,
-                    declare: Sequence[TopicT]) -> Awaitable:
+                    wait: bool = True) -> Awaitable:
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
         if not self._producer_started:

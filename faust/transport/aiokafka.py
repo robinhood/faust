@@ -1,12 +1,12 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 import asyncio
-import functools
 from typing import (
-    Any, Awaitable, ClassVar, MutableMapping, Optional, Sequence, Type, cast
+    Any, Awaitable, ClassVar, Mapping, Optional, Sequence, Type, cast
 )
 
 from aiokafka.errors import ConsumerStoppedError
+from kafka import errors
 from kafka.consumer import subscription_state
 from kafka.structs import (
     OffsetAndMetadata,
@@ -28,49 +28,25 @@ __all__ = ['Consumer', 'Producer', 'Transport']
 logger = get_logger(__name__)
 
 
-def changelog_config(retention: Seconds = None) -> MutableMapping[str, str]:
-    configs = {'cleanup.policy': 'compact'}
+class TopicExists(errors.BrokerResponseError):
+    errno = 36
+    message = 'TOPIC_ALREADY_EXISTS'
+    description = 'Topic creation was requested, but topic already exists.'
+    retriable = False
+
+
+EXTRA_ERRORS: Mapping[int, Type] = {
+    TopicExists.errno: TopicExists
+}
+
+
+def changelog_config(retention: Seconds = None) -> Mapping[str, Any]:
     if retention is not None:
-        configs['cleanup.policy'] += ',delete'
-        configs['retention.ms'] = int(want_seconds(retention) * 1000)
-    return configs
-
-
-async def _create_topic(client: aiokafka.AIOKafkaClient,
-                        topic: str,
-                        partitions: int,
-                        replication: int,
-                        *,
-                        config: MutableMapping[str, str] = None,
-                        timeout: int = 10000,
-                        ensure_created: bool = False) -> None:
-    protocol_version = 1
-    node_id = next(broker.nodeId for broker in client.cluster.brokers())
-    request = CreateTopicsRequest[protocol_version](
-        [
-            (topic, partitions, replication,
-             [], list((config or {}).items()))
-        ],
-        timeout,
-        False
-    )
-    response = await client.send(node_id, request)
-    assert len(response.topic_error_codes), "Single topic requested."
-    _, err_code, err_msg = response.topic_error_codes[0]
-
-    # https://kafka.apache.org/protocol#protocol_error_codes
-    # Topic already exists
-    topic_exists = err_code == 36
-
-    # If not ensure created we allow TopicExists errors
-    _skip_topic_exists = not ensure_created and topic_exists
-
-    if err_code != 0:
-        if _skip_topic_exists:
-            logger.info(f"Topic {topic} exists, skipping creation.")
-        else:
-            raise Exception(f'Error while creating Topic: {topic}. '
-                            f'<Error Code: {err_code} | {err_msg}>')
+        return {
+            'cleanup.policy': 'compact,delete',
+            'retention.ms': int(want_seconds(retention) * 1000),
+        }
+    return {'cleanup.policy': 'compact'}
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -115,8 +91,18 @@ class Consumer(base.Consumer):
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
         )
-        self._client = self._consumer._client
-        self.create_topic = functools.partial(_create_topic, self._client)
+
+    async def create_topic(self, topic: str, partitions: int, replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           ensure_created: bool = False) -> None:
+        cast(Transport, self.transport)._create_topic(
+            self._consumer._client, topic, partitions, replication,
+            config=config,
+            timeout=int(want_seconds(timeout) * 1000.0),
+            ensure_created=ensure_created,
+        )
 
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
@@ -207,8 +193,18 @@ class Producer(base.Producer):
             bootstrap_servers=transport.bootstrap_servers,
             client_id=transport.app.client_id,
         )
-        self._client = self._producer.client
-        self.create_topic = functools.partial(_create_topic, self._client)
+
+    async def create_topic(self, topic: str, partitions: int, replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           ensure_created: bool = False) -> None:
+        cast(Transport, self.transport)._create_topic(
+            self._producer._client, topic, partitions, replication,
+            config=config,
+            timeout=int(want_seconds(timeout) * 1000.0),
+            ensure_created=ensure_created,
+        )
 
     async def on_start(self) -> None:
         self.beacon.add(self._producer)
@@ -251,3 +247,31 @@ class Transport(base.Transport):
             host if ':' in host else f'{host}:{self.default_port}'
             for host in servers.split(';')
         )
+
+    async def _create_topic(self, client: aiokafka.AIOKafkaClient,
+                            topic: str,
+                            partitions: int,
+                            replication: int,
+                            *,
+                            config: Mapping[str, Any] = None,
+                            timeout: int = 10000,
+                            ensure_created: bool = False) -> None:
+        logger.info(f'Creating topic {topic}')
+        protocol_version = 1
+        config = config or {}
+        node_id = next(broker.nodeId for broker in client.cluster.brokers())
+        request = CreateTopicsRequest[protocol_version](
+            [(topic, partitions, replication, [], list(config.items()))],
+            timeout,
+            False
+        )
+        response = await client.send(node_id, request)
+        assert len(response.topic_error_codes), 'Single topic requested.'
+        _, code, reason = response.topic_error_codes[0]
+
+        if code != 0:
+            if not ensure_created and code == TopicExists.errno:
+                logger.debug(f'Topic {topic} exists, skipping creation.')
+            else:
+                raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
+                    f'Cannot create topic: {topic} ({code}): {reason}')

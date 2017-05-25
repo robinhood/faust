@@ -22,6 +22,7 @@ class TableT(MutableMapping, JoinableT, ServiceT):
     key_type: Type
     value_type: Type
     changelog_topic: TopicT
+    partitions: int
 
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':

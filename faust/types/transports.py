@@ -2,8 +2,10 @@ import abc
 import asyncio
 import typing
 from typing import (
-    AbstractSet, Any, Callable, ClassVar, Awaitable, Optional, Type, Union,
+    AbstractSet, Any, Awaitable, Callable, ClassVar,
+    Mapping, Optional, Type, Union,
 )
+from faust.utils.times import Seconds
 from faust.utils.types.services import ServiceT
 from .tuples import Message, TopicPartition
 
@@ -34,6 +36,14 @@ class ConsumerT(ServiceT):
     id: int
     transport: 'TransportT'
     commit_interval: float
+
+    @abc.abstractmethod
+    async def create_topic(self, topic: str, partitions: int, replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           ensure_created: bool = False) -> None:
+        ...
 
     @abc.abstractmethod
     async def subscribe(self, pattern: str) -> None:
@@ -71,6 +81,14 @@ class ProducerT(ServiceT):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> Awaitable:
+        ...
+
+    @abc.abstractmethod
+    async def create_topic(self, topic: str, partitions: int, replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           ensure_created: bool = False) -> None:
         ...
 
 

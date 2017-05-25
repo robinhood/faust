@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
-    Iterable, MutableMapping, Pattern, Tuple, Type, Union,
+    Iterable, Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
@@ -63,7 +63,7 @@ class AppT(ServiceT):
               key_type: Type = None,
               value_type: Type = None,
               partitions: int = None,
-              config: MutableMapping[str, str] = None) -> TopicT:
+              config: Mapping[str, Any] = None) -> TopicT:
         ...
 
     @abc.abstractmethod
@@ -93,6 +93,7 @@ class AppT(ServiceT):
               coroutine: StreamCoroutine = None,
               processors: Iterable[Processor] = None,
               window: WindowT = None,
+              partitions: int = None,
               **kwargs: Any) -> TableT:
         ...
 

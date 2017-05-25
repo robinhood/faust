@@ -29,6 +29,7 @@ class Table(Service, TableT, ManagedUserDict):
                  store: str = None,
                  key_type: Type = None,
                  value_type: Type = None,
+                 partitions: int = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -37,6 +38,7 @@ class Table(Service, TableT, ManagedUserDict):
         self._store = store
         self.key_type = key_type
         self.value_type = value_type
+        self.partitions = partitions
         self.changelog_topic = self.app.topic(
             self._changelog_topic_name(),
             key_type=self.key_type,

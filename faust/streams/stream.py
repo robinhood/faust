@@ -84,7 +84,6 @@ class Stream(StreamT, JoinableT, Service):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=None)
         self.source = source
-        self.app = self.source.app
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         self.join_strategy = join_strategy
         self.children = children if children is not None else []

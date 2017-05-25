@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    MutableSet, Pattern, Sequence, Type, Union,
+    Mapping, MutableSet, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.types.services import ServiceT
@@ -115,6 +115,8 @@ class TopicT(AsyncIterable):
                topics: Sequence[str] = None,
                key_type: Type = None,
                value_type: Type = None,
+               partitions: int = None,
+               config: Mapping[str, Any] = None,
                prefix: str = '',
                suffix: str = '') -> 'TopicT':
         ...
