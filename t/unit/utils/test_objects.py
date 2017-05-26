@@ -4,13 +4,13 @@ from faust.utils.objects import cached_property
 
 class test_cached_property:
 
-    class X:
+    class X(object):
 
         @cached_property
         def foo(self):
             return 42
 
-    class X_setter:
+    class X_setter(object):
         _foo = 1
 
         @cached_property
@@ -22,7 +22,7 @@ class test_cached_property:
             self._foo = value
             return value
 
-    class X_deleter:
+    class X_deleter(object):
         _foo = 1
 
         @cached_property
@@ -64,9 +64,6 @@ class test_cached_property:
         assert x.foo == 303
         assert x.__dict__['foo'] == 303
 
-    def test_set_class(self, x):
-        assert type(x).foo.__set__(None, 1) is type(x).foo
-
     def test_set_setter(self, x_setter):
         assert x_setter.foo == 1
         x_setter.foo = 2
@@ -79,9 +76,6 @@ class test_cached_property:
         assert 'foo' in x.__dict__
         del x.foo
         assert 'foo' not in x.__dict__
-
-    def test_del_class(self, x):
-        assert type(x).foo.__delete__(None) is type(x).foo
 
     def test_del_deleter(self, x_deleter):
         del x_deleter.foo
