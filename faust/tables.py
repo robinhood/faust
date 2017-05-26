@@ -1,13 +1,15 @@
 """Tables (changelog stream)."""
+import json
+import asyncio
 import operator
-from typing import Any, Callable, Iterator, Mapping, Type, cast
+from typing import Any, Callable, Iterator, Mapping, Type, cast, MutableMapping
 from . import stores
 from . import windows
 from .topics import TopicSource, Topic
 from .types import AppT, EventT, FieldDescriptorT, JoinT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
-from .types.tables import TableT, WindowSetT, WindowWrapperT
+from .types.tables import TableT, WindowSetT, WindowWrapperT, TableManagerT
 from .types.windows import WindowT
 from .utils.collections import FastUserDict, ManagedUserDict
 from .utils.logging import get_logger
@@ -16,10 +18,86 @@ from .utils.times import Seconds
 from .streams import current_event
 from .streams import joins
 
-__all__ = ['Table']
+__all__ = ['Table', 'TableManager']
 
 logger = get_logger(__name__)
 
+class TableManager(Service, TableManagerT):
+
+    def __init__(self, app:AppT,
+                 tables:MutableMapping[str, TableT], **kwargs: Any) -> None:
+        print("Table manager!")
+        Service.__init__(self, **kwargs)
+        self.app = app
+        self.tables = tables
+        self._partition_callback_tasks = asyncio.Queue(maxsize=1,
+                                                       loop=self.loop)
+        print("returning!")
+
+    def get_table_changelog(self, topic_name) -> TableT:
+        for table_name, table in self.tables.items():
+            print("scanning", table.changelog_topic, topic_name)
+            if str(table.changelog_topic) == topic_name:
+                return table
+
+    async def on_start(self) -> None:
+        print("here")
+        self.add_future(self.partition_assign_table_handler())
+        print("there")
+
+    async def partition_assign_table_handler(self) -> None:
+        while not self.should_stop:
+            print(self.tables)
+            consumer = self.app.consumer.raw_consumer()
+            assigned = await self._partition_callback_tasks.get()
+            print(self.tables, "after queue get")
+            logger.info("Recovering from Changelog if needed.")
+            for topic_partition in assigned:
+                # TODO: If standby ready, just swap and continue. Else proceed.
+
+                table = self.get_table_changelog(topic_partition.topic)
+                if table is None:
+                    continue
+                # Set offset of partition to beginning
+                # TODO: change to seek_to_beginning once implmented in aiokafka
+                consumer._subscription.need_offset_reset(
+                    topic_partition, -2)
+                while True:
+                    data = await consumer.getmany(topic_partition,
+                                                  timeout_ms=1000)
+                    for _, messages in data.items():
+                        for message in messages:
+                            table.raw_add(json.loads(message.key),
+                                          json.loads(message.value))
+                    highwater = consumer.highwater(
+                        topic_partition)
+                    position = await consumer.position(
+                        topic_partition)
+                    if highwater is None:
+                        break
+                    if highwater - position <= 0:
+                        break
+                    logger.info('Still Need to Fetch, %r',
+                                highwater - position)
+
+            # Once tables up to date, remove from consumer pattern
+            await self._remove_changelog_sources()
+
+            # Allow consumer to proceed
+            self.app.consumer.can_read = True
+            logger.info('Done Recovery')
+
+    async def _remove_changelog_sources(self):
+        source_list = []
+        for source in self.app.sources:
+            for topic_name in source.topic.topics:
+                if self.get_table_changelog(topic_name):
+                    source_list.append(source)
+        for source in source_list:
+            self.app.sources.discard(source)
+
+    async def partition_remove_table_handler(self) -> None:
+        ...
 
 class Table(Service, TableT, ManagedUserDict):
 

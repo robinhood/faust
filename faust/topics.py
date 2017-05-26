@@ -435,7 +435,7 @@ class TopicManager(TopicManagerT, Service):
     def on_partitions_assigned(self,
                                 assigned: Sequence[
                                     TopicPartition]) -> None:
-        self._partition_callback_tasks.put_nowait(assigned)
+        self.app.table_manager._partition_callback_tasks.put_nowait(assigned)
 
 
     def on_partitions_revoked(self,

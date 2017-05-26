@@ -37,6 +37,21 @@ class TableT(MutableMapping, JoinableT, ServiceT):
                  expires: Seconds = None) -> 'WindowWrapperT':
         ...
 
+class TableManagerT(ServiceT):
+    app: AppT
+    tables: MutableMapping[str, TableT]
+
+    @abc.abstractmethod
+    def get_table_changelog(self, table_name: str) -> 'TableT':
+        ...
+
+    @abc.abstractmethod
+    def partition_assign_table_handler(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def partition_remove_table_handler(self) -> None:
+        ...
 
 class WindowSetT(MutableMapping):
     key: Any

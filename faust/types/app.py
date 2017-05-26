@@ -13,7 +13,7 @@ from .core import K, V
 from .serializers import RegistryT
 from .sensors import SensorDelegateT
 from .streams import Processor, StreamT
-from .tables import TableT
+from .tables import TableT, TableManagerT
 from .transports import ConsumerT, TransportT
 from .topics import TopicT, TopicManagerT
 from .tuples import Message, PendingMessage, TopicPartition
@@ -153,6 +153,12 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def website(self) -> Web:
         ...
+
+    @property
+    @abc.abstractmethod
+    def table_manager(self) -> TableManagerT:
+        ...
+
 
     @property
     @abc.abstractmethod
