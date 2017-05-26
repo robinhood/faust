@@ -1,10 +1,11 @@
 """Serializing/deserializing message keys and values."""
-from typing import Any, ClassVar, Dict, Mapping, Tuple, Type
+from typing import Any, ClassVar, Dict, Mapping, MutableMapping, Tuple, Type
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
+from ..utils.imports import qualname
 
-__all__ = ['Model', 'FieldDescriptor']
+__all__ = ['Model', 'FieldDescriptor', 'registry']
 
 # flake8 thinks Dict is unused for some reason
 __flake8_ignore_this_Dict: Dict  # XXX
@@ -50,6 +51,10 @@ __flake8_ignore_this_Dict: Dict  # XXX
 #       >>> x.foo
 #       ACCESS ON INSTANCE
 #       42
+
+
+#: Global map of namespace -> Model
+registry: MutableMapping[str, ModelT] = {}
 
 
 class Model(ModelT):
@@ -143,8 +148,7 @@ class Model(ModelT):
             options.__dict__.update(custom_options.__dict__)
         if serializer is not None:
             options.serializer = serializer
-        if namespace is not None:
-            options.namespace = namespace
+        options.namespace = namespace or qualname(cls)
 
         # Add introspection capabilities
         cls._contribute_to_options(options)
@@ -153,6 +157,10 @@ class Model(ModelT):
 
         # Store options on new subclass.
         cls._options = options
+
+        # Register in the global registry, so we can look up
+        # models by namespace.
+        registry[options.namespace] = cls
 
     @classmethod
     def _contribute_to_options(
