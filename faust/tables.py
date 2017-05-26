@@ -17,6 +17,12 @@ from .streams import joins
 __all__ = ['Table']
 
 
+def _OP_GIVE_VALUE(prev: Any, current: Any) -> Any:
+    # operator used when setting Windowed table values directly,
+    # when not taking the previous value into account.
+    return current
+
+
 class Table(Service, TableT, ManagedUserDict):
 
     _store: str
@@ -266,10 +272,7 @@ class WindowWrapper(WindowWrapperT):
         return WindowSet(key, self.table, self.window)
 
     def __setitem__(self, key: Any, value: Any) -> None:
-        if not isinstance(value, WindowSetT):
-            def op(_, b):
-                return b
-            WindowSet(key, self.table, self.window).apply(op, value)
+        WindowSet(key, self.table, self.window).apply(_OP_GIVE_VALUE, value)
 
     def __iter__(self) -> Iterator:
         return iter(self.table)
