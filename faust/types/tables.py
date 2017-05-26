@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Any, Callable, ClassVar, Mapping, MutableMapping, Type
+from typing import Any, Callable, ClassVar, MutableMapping, Type
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .streams import JoinableT
@@ -121,7 +121,7 @@ class WindowSetT(MutableMapping):
         ...
 
 
-class WindowWrapperT(Mapping):
+class WindowWrapperT(MutableMapping):
     table: TableT
     window: WindowT
 
@@ -131,8 +131,4 @@ class WindowWrapperT(Mapping):
 
     @abc.abstractmethod
     def __getitem__(self, key: Any) -> WindowSetT:
-        ...
-
-    @abc.abstractmethod
-    def __setitem__(self, key: Any, value: Any) -> None:
         ...

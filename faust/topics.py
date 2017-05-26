@@ -236,9 +236,9 @@ class Topic(TopicT):
     def __lt__(self, other: Any) -> bool:
         # LT is here for heapq.heappush in app.send_attached
         if isinstance(other, TopicT):
-            a = self.pattern if self.pattern else self.topics
-            b = other.pattern if other.pattern else other.topics
-            return tuple(a) < tuple(b)
+            if self.pattern:
+                return self.pattern.pattern < other.pattern.pattern
+            return tuple(self.topics) < tuple(other.topics)
         return False
 
 

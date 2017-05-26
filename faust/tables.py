@@ -1,13 +1,13 @@
 """Tables (changelog stream)."""
 import operator
-from typing import Any, Callable, Iterator, Mapping, Type, cast
+from typing import Any, Callable, Iterator, Mapping, Tuple, Type, cast
 from . import stores
 from . import windows
 from .types import AppT, EventT, FieldDescriptorT, JoinT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT
-from .types.windows import WindowT
+from .types.windows import WindowRange, WindowT
 from .utils.collections import FastUserDict, ManagedUserDict
 from .utils.services import Service
 from .utils.times import Seconds
@@ -15,12 +15,6 @@ from .streams import current_event
 from .streams import joins
 
 __all__ = ['Table']
-
-
-def _OP_GIVE_VALUE(prev: Any, current: Any) -> Any:
-    # operator used when setting Windowed table values directly,
-    # when not taking the previous value into account.
-    return current
 
 
 class Table(Service, TableT, ManagedUserDict):
@@ -189,11 +183,26 @@ class WindowSet(WindowSetT, FastUserDict):
               value: Any,
               event: EventT = None) -> WindowSetT:
         table = self.table
+        for key, window_range in self.ranges(event):
+            table[key, window_range] = op(table[key, window_range], value)
+        return self
+
+    def _set_value(self, value: Any, event: EventT = None) -> None:
+        table = self.table
+        for key, window_range in self.ranges(event):
+            table[key, window_range] = value
+
+    def _del_key(self, event: EventT = None) -> None:
+        table = self.table
+        for key, window_range in self.ranges(event):
+            del table[key, window_range]
+
+    def ranges(
+            self, event: EventT = None) -> Iterator[Tuple[Any, WindowRange]]:
         key = self.key
         timestamp = self.timestamp(event)
         for window_range in self.window.ranges(timestamp):
-            table[key, window_range] = op(table[key, window_range], value)
-        return self
+            yield key, window_range
 
     def timestamp(self, event: EventT = None) -> float:
         return (event or self.event or current_event()).message.timestamp
@@ -272,7 +281,10 @@ class WindowWrapper(WindowWrapperT):
         return WindowSet(key, self.table, self.window)
 
     def __setitem__(self, key: Any, value: Any) -> None:
-        WindowSet(key, self.table, self.window).apply(_OP_GIVE_VALUE, value)
+        WindowSet(key, self.table, self.window)._set_value(value)
+
+    def __delitem__(self, key: Any) -> None:
+        WindowSet(key, self.table, self.window)._del_key()
 
     def __iter__(self) -> Iterator:
         return iter(self.table)
