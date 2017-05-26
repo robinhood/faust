@@ -61,10 +61,6 @@ class WindowSetT(MutableMapping):
         ...
 
     @abc.abstractmethod
-    def timestamp(self, event: EventT = None) -> float:
-        ...
-
-    @abc.abstractmethod
     def current(self, event: EventT = None) -> Any:
         ...
 

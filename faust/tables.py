@@ -1,6 +1,6 @@
 """Tables (changelog stream)."""
 import operator
-from typing import Any, Callable, Iterator, Mapping, Tuple, Type, cast
+from typing import Any, Callable, Iterator, Mapping, Type, cast
 from . import stores
 from . import windows
 from .types import AppT, EventT, FieldDescriptorT, JoinT
@@ -160,6 +160,45 @@ class Table(Service, TableT, ManagedUserDict):
     def __and__(self, other: JoinableT) -> StreamT:
         return self.combine(self, other)
 
+    def _apply_window_op(self,
+                         op: Callable[[Any, Any], Any],
+                         key: Any,
+                         value: Any,
+                         window: WindowT,
+                         event: EventT = None) -> None:
+        for window_range in self._window_ranges(window, event):
+            self[key, window_range] = op(self[key, window_range], value)
+
+    def _set_windowed(self, key: Any, value: Any, window: WindowT,
+                      event: EventT = None) -> None:
+        for window_range in self._window_ranges(window, event):
+            self[key, window_range] = value
+
+    def _del_windowed(self, key: Any, window: WindowT,
+                      event: EventT = None) -> None:
+        for window_range in self._window_ranges(window, event):
+            del self[key, window_range]
+
+    def _window_ranges(
+            self, window: WindowT,
+            event: EventT = None) -> Iterator[WindowRange]:
+        timestamp = self._get_timestamp(event)
+        for window_range in window.ranges(timestamp):
+            yield window_range
+
+    def _windowed_current(
+            self, key: Any, window: WindowT,
+            event: EventT = None) -> Any:
+        return self[key, window.current(self._get_timestamp(event))]
+
+    def _windowed_delta(
+            self, key: Any, window: WindowT, d: Seconds,
+            event: EventT = None) -> Any:
+        return self[key, window.delta(self._get_timestamp(event), d)]
+
+    def _get_timestamp(self, event: EventT = None) -> float:
+        return (event or current_event()).message.timestamp
+
     @property
     def label(self) -> str:
         return f'{type(self).__name__}: {self.table_name}@{self._store}'
@@ -173,47 +212,24 @@ class WindowSet(WindowSetT, FastUserDict):
                  window: WindowT,
                  event: EventT = None) -> None:
         self.key = key
-        self.table = table
+        self.table = cast(Table, table)
         self.window = window
         self.event = event
         self.data = table  # provides underlying mapping in FastUserDict
 
-    def apply(self,
-              op: Callable[[Any, Any], Any],
-              value: Any,
+    def apply(self, op: Callable[[Any, Any], Any], value: Any,
               event: EventT = None) -> WindowSetT:
-        table = self.table
-        for key, window_range in self.ranges(event):
-            table[key, window_range] = op(table[key, window_range], value)
+        cast(Table, self.table)._apply_window_op(
+            op, self.key, value, self.window, event or self.event)
         return self
 
-    def _set_value(self, value: Any, event: EventT = None) -> None:
-        table = self.table
-        for key, window_range in self.ranges(event):
-            table[key, window_range] = value
-
-    def _del_key(self, event: EventT = None) -> None:
-        table = self.table
-        for key, window_range in self.ranges(event):
-            del table[key, window_range]
-
-    def ranges(
-            self, event: EventT = None) -> Iterator[Tuple[Any, WindowRange]]:
-        key = self.key
-        timestamp = self.timestamp(event)
-        for window_range in self.window.ranges(timestamp):
-            yield key, window_range
-
-    def timestamp(self, event: EventT = None) -> float:
-        return (event or self.event or current_event()).message.timestamp
-
     def current(self, event: EventT = None) -> Any:
-        timestamp = self.timestamp(event)
-        return self.table[self.key, self.window.current(timestamp)]
+        return cast(Table, self.table)._windowed_current(
+            self.key, self.window, event or self.event)
 
     def delta(self, d: Seconds, event: EventT = None) -> Any:
-        timestamp = self.timestamp(event)
-        return self.table[self.key, self.window.delta(timestamp, d)]
+        return cast(Table, self.table)._windowed_delta(
+            self.key, self.window, d, event or self.event)
 
     def __getitem__(self, w: Any) -> Any:
         # wrapper[key][event] returns WindowSet with event already set.
@@ -281,10 +297,10 @@ class WindowWrapper(WindowWrapperT):
         return WindowSet(key, self.table, self.window)
 
     def __setitem__(self, key: Any, value: Any) -> None:
-        WindowSet(key, self.table, self.window)._set_value(value)
+        cast(Table, self.table)._set_windowed(key, value, self.window)
 
     def __delitem__(self, key: Any) -> None:
-        WindowSet(key, self.table, self.window)._del_key()
+        cast(Table, self.table)._del_windowed(key, self.window)
 
     def __iter__(self) -> Iterator:
         return iter(self.table)
