@@ -1,12 +1,12 @@
 import asyncio
 import re
+import typing
 from collections import defaultdict
 from functools import total_ordering
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Set, Sequence, Type, Union, cast,
 )
-from .app import App
 from .types import (
     AppT, CodecArg, Message, TopicPartition, K, V,
 )
@@ -16,6 +16,11 @@ from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
+
+if typing.TYPE_CHECKING:
+    from .app import App
+else:
+    class App: ...  # noqa
 
 __all__ = [
     'Topic',
@@ -233,7 +238,7 @@ class Topic(TopicT):
         if isinstance(other, TopicT):
             a = self.pattern if self.pattern else self.topics
             b = other.pattern if other.pattern else other.topics
-            return a < b
+            return tuple(a) < tuple(b)
         return False
 
 

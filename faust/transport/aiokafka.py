@@ -143,7 +143,7 @@ class Consumer(base.Consumer):
         get_current_offset = self._current_offset.__getitem__
 
         async def deliver(record: Any, tp: TopicPartition) -> None:
-            message = Message.from_message(record, tp)
+            message = self._to_message(record, tp)
             await track_message(message, tp, message.offset)
             await callback(message)
 
@@ -153,10 +153,12 @@ class Consumer(base.Consumer):
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     current_offset = get_current_offset(tp)
-                    pending.extend([
-                        deliver(message, tp) for message in messages
-                        if message.offset > current_offset
-                    ])
+                    for message in messages:
+                        if message.offset > current_offset:
+                            # Kafka message timestamp is in milliseconds
+                            t_secs = message.timestamp / 1000.0
+                            message = message._replace(timestamp=t_secs)
+                            pending.append(deliver(message, tp))
                 if pending:
                     await wait(pending, loop=loop, return_when=return_when)
         except ConsumerStoppedError:
@@ -169,6 +171,22 @@ class Consumer(base.Consumer):
             logger.exception('Drain messages raised: %r', exc)
         finally:
             self.set_shutdown()
+
+    @classmethod
+    def _to_message(cls, record: Any, tp: TopicPartition) -> Message:
+        return Message(
+            record.topic,
+            record.partition,
+            record.offset,
+            record.timestamp / 1000.0,
+            record.timestamp_type,
+            record.key,
+            record.value,
+            record.checksum,
+            record.serialized_key_size,
+            record.serialized_value_size,
+            tp,
+        )
 
     async def _perform_seek(self) -> None:
         current_offset = self._current_offset
