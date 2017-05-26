@@ -1,6 +1,12 @@
 """Tables (changelog stream)."""
+import asyncio
 import operator
-from typing import Any, Callable, Iterator, Mapping, Type, cast
+from collections import defaultdict
+from heapq import heappush, heappop
+from typing import (
+    Any, Callable, Iterator, List, Mapping,
+    MutableMapping, MutableSet, Type, cast,
+)
 from . import stores
 from . import windows
 from .types import AppT, EventT, FieldDescriptorT, JoinT, TopicT
@@ -21,6 +27,8 @@ class Table(Service, TableT, ManagedUserDict):
 
     _store: str
     _changelog_topic: TopicT
+    _ts_keys: MutableMapping[float, MutableSet]
+    _timestamps: List[float]
 
     def __init__(self, app: AppT,
                  *,
@@ -43,6 +51,10 @@ class Table(Service, TableT, ManagedUserDict):
         self.partitions = partitions
         self.window = window
         self.changelog_topic = changelog_topic
+
+        # Table key expiration
+        self._ts_keys = defaultdict(set)
+        self._timestamps = []
 
         if self.StateStore is not None:
             self.data = self.StateStore(url=None, app=app, loop=self.loop)
@@ -74,6 +86,7 @@ class Table(Service, TableT, ManagedUserDict):
 
     async def on_start(self) -> None:
         await self.changelog_topic.maybe_declare()
+        self.add_future(self._clean_data())
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         self.window = window
@@ -110,10 +123,12 @@ class Table(Service, TableT, ManagedUserDict):
 
     def on_key_set(self, key: Any, value: Any) -> None:
         self._send_changelog(key, value)
+        self._maybe_set_key_ttl(key)
         self._sensor_on_set(self, key, value)
 
     def on_key_del(self, key: Any) -> None:
         self._send_changelog(key, value=None)
+        self._maybe_del_key_ttl(key)
         self._sensor_on_del(self, key)
 
     def _send_changelog(self, key: Any, value: Any) -> None:
@@ -128,6 +143,37 @@ class Table(Service, TableT, ManagedUserDict):
              key_serializer='json',
              value_serializer='json',
              partition=partition)
+
+    async def _clean_data(self) -> None:
+        if not self._should_expire_keys():
+            return
+        timestamps = self._timestamps
+        window = self.window
+        while not self.should_stop:
+            while timestamps and window.stale(timestamps[0]):
+                timestamp = heappop(timestamps)
+                for key in self._ts_keys[timestamp]:
+                    del self[key]
+                del self._ts_keys[timestamp]
+            await asyncio.sleep(self.app.table_cleanup_interval)
+
+    def _should_expire_keys(self) -> bool:
+        window = self.window
+        return not (window is None or window.expires is None)
+
+    def _maybe_set_key_ttl(self, key: Any) -> None:
+        if not self._should_expire_keys():
+            return
+        _, (_, upper) = key
+        heappush(self._timestamps, upper)
+        self._ts_keys.get(upper).add(key)
+
+    def _maybe_del_key_ttl(self, key: Any) -> None:
+        if not self._should_expire_keys():
+            return
+        _, (_, upper) = key
+        ts_keys = self._ts_keys.get(upper)
+        ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
         return f'{self.app.id}-{self.table_name}-changelog'

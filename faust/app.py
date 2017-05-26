@@ -60,6 +60,10 @@ CLIENT_ID = f'faust-{faust.__version__}'
 #: Can be customized by setting ``App(commit_interval=...)``.
 COMMIT_INTERVAL = 30.0
 
+#: How often we clean up windowed tables.
+#: Can be customized by setting ``App(table_cleanup_interval=...)``.
+TABLE_CLEANUP_INTERVAL = 30.0
+
 #: Format string for ``repr(app)``.
 APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} actors({actors}) sources({sources})>
@@ -209,6 +213,7 @@ class App(AppT, ServiceProxy):
                  avro_registry_url: str = None,
                  client_id: str = CLIENT_ID,
                  commit_interval: Seconds = COMMIT_INTERVAL,
+                 table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
                  key_serializer: CodecArg = 'json',
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
@@ -223,6 +228,7 @@ class App(AppT, ServiceProxy):
         self.url = url
         self.client_id = client_id
         self.commit_interval = want_seconds(commit_interval)
+        self.table_cleanup_interval = want_seconds(table_cleanup_interval)
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas

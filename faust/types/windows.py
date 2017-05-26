@@ -16,8 +16,10 @@ class WindowT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def stale_before(self) -> Optional[float]:
+    def stale(self, timestamp: float) -> bool:
         ...
+
+
 
     @abc.abstractmethod
     def current(self, timestamp: float) -> WindowRange:
