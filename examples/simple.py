@@ -33,7 +33,7 @@ async def find_large_withdrawals(withdrawals):
 
 
 async def _publish_withdrawals():
-    for i in range(10_000):
+    for i in range(10000):
         print(f'+SEND {i!r}')
         await withdrawals_topic.send(
             b'K', Withdrawal(user='foo', amount=100.3 + i, country='FOO'))

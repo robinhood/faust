@@ -30,3 +30,4 @@ cover/
 .hypothesis/
 .mypy_cache/
 htmlcov/
+.mypy_cache/

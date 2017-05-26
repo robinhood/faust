@@ -1,3 +1,4 @@
+import json
 import asyncio
 import re
 import typing
@@ -333,6 +334,8 @@ class TopicManager(TopicManagerT, Service):
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
+        self._partition_callback_tasks = asyncio.Queue(maxsize=1,
+                                                       loop=self.loop)
         self._subscription_changed = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
@@ -380,8 +383,10 @@ class TopicManager(TopicManagerT, Service):
         return on_message
 
     async def on_start(self) -> None:
+        self.app.consumer.can_read = False
         self.add_future(self._subscriber())
         self.add_future(self._gatherer())
+        self.add_future(self._partition_assign_listener())
 
     async def _subscriber(self) -> None:
         # the first time we start, we will wait two seconds
@@ -401,7 +406,7 @@ class TopicManager(TopicManagerT, Service):
         while not self.should_stop:
             await ev.wait()
             self._compile_pattern()
-            self.app.consumer.subscribe(self._pattern)
+            await self.app.consumer.subscribe(self._pattern)
             ev.clear()
 
     async def _gatherer(self) -> None:
@@ -413,6 +418,63 @@ class TopicManager(TopicManagerT, Service):
             finished, unfinished = await wait(waiting, return_when=return_when)
             waiting = unfinished
 
+    async def _partition_assign_listener(self) -> None:
+        while not self.should_stop:
+            consumer = self.app.consumer.raw_consumer()
+            assigned = await self._partition_callback_tasks.get()
+            logger.info("Recovering from Changelog if needed.")
+            for topic_partition in assigned:
+                logger.info(topic_partition)
+                table_name = self.app.get_table_name_changelog(
+                    topic_partition.topic)
+                if table_name is None:
+                    continue
+
+                # TODO: If standby ready, just swap and continue. Else proceed.
+
+                logger.info('Recovering Table: %r in the context: %r',
+                            table_name, topic_partition)
+                table = self.app.get_table(table_name)
+
+                # Set offset of partition to beginning
+                # TODO: change to seek_to_beginning once implmented in aiokafka
+                consumer._subscription.need_offset_reset(
+                    topic_partition, -2)
+                while True:
+                    data = await consumer.getmany(topic_partition,
+                                                  timeout_ms=1000)
+                    for _, messages in data.items():
+                        for message in messages:
+                            table.raw_add(json.loads(message.key),
+                                          json.loads(message.value))
+                    highwater = consumer.highwater(
+                        topic_partition)
+                    position = await consumer.position(
+                        topic_partition)
+                    if highwater is None:
+                        break
+                    if highwater - position <= 0:
+                        break
+                    logger.info('Still Need to Fetch, %r',
+                                highwater - position)
+
+            # Once tables up to date, remove from consumer pattern
+            await self._remove_changelog_sources()
+
+            # Allow consumer to proceed
+            self.app.consumer.can_read = True
+            logger.info('Done Recovery')
+
+
+    async def _remove_changelog_sources(self):
+        source_list = []
+        for source in self.app.sources:
+            for topic_name in source.topic.topics:
+                if self.app.get_table_name_changelog(topic_name):
+                    source_list.append(source)
+        for source in source_list:
+            self.discard(source)
+
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
         for source in self._sources:
@@ -421,11 +483,13 @@ class TopicManager(TopicManagerT, Service):
         self._pattern = '|'.join(self._topicmap)
 
     def on_partitions_assigned(self,
-                               assigned: Sequence[TopicPartition]) -> None:
-        ...
+                                assigned: Sequence[
+                                    TopicPartition]) -> None:
+        self._partition_callback_tasks.put_nowait(assigned)
+
 
     def on_partitions_revoked(self,
-                              revoked: Sequence[TopicPartition]) -> None:
+                               revoked: Sequence[TopicPartition]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:

@@ -84,8 +84,9 @@ class Consumer(base.Consumer):
             group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
-            enable_auto_commit=False,
+            enable_auto_commit=False
         )
+        self.can_read = True
 
     async def create_topic(self, topic: str, partitions: int, replication: int,
                            *,
@@ -162,6 +163,8 @@ class Consumer(base.Consumer):
         try:
             while not should_stop():
                 pending = []
+                while self.can_read is False:
+                    await asyncio.sleep(5)
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     current_offset = get_current_offset(tp)
@@ -196,6 +199,8 @@ class Consumer(base.Consumer):
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
 
+    def raw_consumer(self) -> Any:
+        return self._consumer
 
 class Producer(base.Producer):
     _producer: aiokafka.AIOKafkaProducer
