@@ -164,15 +164,15 @@ class Table(Service, TableT, ManagedUserDict):
     def _maybe_set_key_ttl(self, key: Any) -> None:
         if not self._should_expire_keys():
             return
-        _, (_, upper) = key
-        heappush(self._timestamps, upper)
-        self._ts_keys.get(upper).add(key)
+        _, window_range = key
+        heappush(self._timestamps, window_range.end)
+        self._ts_keys.get(window_range.end).add(key)
 
     def _maybe_del_key_ttl(self, key: Any) -> None:
         if not self._should_expire_keys():
             return
-        _, (_, upper) = key
-        ts_keys = self._ts_keys.get(upper)
+        _, window_range = key
+        ts_keys = self._ts_keys.get(window_range.end)
         ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
