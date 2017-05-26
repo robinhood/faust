@@ -312,7 +312,8 @@ class WindowWrapper(WindowWrapperT):
         return WindowSet(key, self.table)
 
     def __setitem__(self, key: Any, value: Any) -> None:
-        cast(Table, self.table)._set_windowed(key, value)
+        if not isinstance(value, WindowSetT):
+            cast(Table, self.table)._set_windowed(key, value)
 
     def __delitem__(self, key: Any) -> None:
         cast(Table, self.table)._del_windowed(key)
