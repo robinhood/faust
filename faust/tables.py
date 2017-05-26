@@ -302,6 +302,9 @@ class WindowSet(WindowSetT, FastUserDict):
     def __ior__(self, other: Any) -> Any:
         return self.apply(operator.or_, other)
 
+    def __repr__(self) -> str:
+        return f'<{type(self).__name__}: table={self.table}>'
+
 
 class WindowWrapper(WindowWrapperT):
 
