@@ -7,6 +7,7 @@ from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Set, Sequence, Type, Union, cast,
 )
+from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
     AppT, CodecArg, Message, TopicPartition, K, V,
 )
@@ -268,17 +269,17 @@ class TopicSource(SourceT):
         create_event = Event
 
         async def deliver(message: Message) -> None:
-            k = v = None
             try:
                 k = await loads_key(key_type, message.key)
-            except Exception as exc:
+            except KeyDecodeError as exc:
                 await self.on_key_decode_error(exc, message)
             else:
                 try:
-                    v = await loads_value(value_type, k, message)
-                except Exception as exc:
+                    v = await loads_value(value_type, message.value)
+                except ValueDecodeError as exc:
                     await self.on_value_decode_error(exc, message)
-                await put(create_event(app, k, v, message))
+                else:
+                    await put(create_event(app, k, v, message))
         return deliver
 
     async def put(self, value: Any) -> None:

@@ -4,7 +4,6 @@ from typing import Any, Mapping, Optional, Type
 from ..utils.imports import SymbolArg
 from .codecs import CodecArg
 from .core import K, V
-from .tuples import Message
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -46,10 +45,7 @@ class RegistryT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def loads_value(self,
-                          typ: Type,
-                          key: K,
-                          message: Message) -> Any:
+    async def loads_value(self, typ: Type, value: bytes) -> Any:
         ...
 
     @abc.abstractmethod

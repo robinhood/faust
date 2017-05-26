@@ -1,7 +1,7 @@
 import sys
 from typing import Any, MutableMapping, Optional, Type, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
-from ..types import K, V, Message, ModelT
+from ..types import K, V, ModelT
 from ..types.serializers import AsyncSerializerT, RegistryT
 from ..utils.compat import want_bytes
 from ..utils.imports import FactoryMapping, symbol_by_name
@@ -53,18 +53,14 @@ class Registry(RegistryT):
             raise KeyDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from None
 
-    async def loads_value(self,
-                          typ: Type,
-                          key: K,
-                          message: Message) -> Any:
-        """Deserialize message value.
+    async def loads_value(self, typ: Type, value: bytes) -> Any:
+        """Deserialize value.
 
         Arguments:
             typ: Model to use for deserialization.
-            key: Deserialized key.
-            message: Message instance containing the serialized message body.
+            value: Bytestring to deserialize.
         """
-        if message.value is None:
+        if value is None:
             return None
         try:
             obj: Any = None
@@ -73,9 +69,9 @@ class Registry(RegistryT):
             try:
                 ser = self._get_serializer(serializer)
             except KeyError:
-                obj = loads(serializer, message.value)
+                obj = loads(serializer, value)
             else:
-                obj = await ser.loads(message.value)
+                obj = await ser.loads(value)
             return typ(obj)
         except Exception as exc:
             raise ValueDecodeError(
