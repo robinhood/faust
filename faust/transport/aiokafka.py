@@ -164,11 +164,11 @@ class Consumer(base.Consumer):
                 pending = []
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
-                    current_offset = get_current_offset(tp)
-                    pending.extend([
+                    offset = get_current_offset(tp)
+                    pending.extend(
                         deliver(message, tp) for message in messages
-                        if message.offset > current_offset
-                    ])
+                        if offset is None or message.offset > offset
+                    )
 
                 if pending:
                     await wait(pending, loop=loop, return_when=return_when)
@@ -190,8 +190,9 @@ class Consumer(base.Consumer):
             tp = cast(TopicPartition, tp)
             if tp not in current_offset:
                 committed = await self._consumer.committed(tp)
-                current_offset[tp] = committed
-                seek(tp, committed)
+                if committed and committed >= 0:
+                    current_offset[tp] = committed
+                    seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
