@@ -28,7 +28,7 @@ class HoppingWindow(WindowT):
         self.step = want_seconds(step)
         self.expires = want_seconds(expires)
 
-    def windows(self, timestamp: float) -> List[WindowRange]:
+    def ranges(self, timestamp: float) -> List[WindowRange]:
         curr = self._timestamp_window(timestamp)
         earliest = curr.start - self.size + self.step
         return [
@@ -84,7 +84,7 @@ class SlidingWindow(WindowT):
         self.after = want_seconds(after)
         self.expires = want_seconds(expires)
 
-    def windows(self, timestamp: float) -> List[WindowRange]:
+    def ranges(self, timestamp: float) -> List[WindowRange]:
         """Return list of windows from timestamp.
 
         Notes:

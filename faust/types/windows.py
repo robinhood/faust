@@ -12,7 +12,7 @@ class WindowT(metaclass=abc.ABCMeta):
     expires: float = None
 
     @abc.abstractmethod
-    def windows(self, timestamp: float) -> List[WindowRange]:
+    def ranges(self, timestamp: float) -> List[WindowRange]:
         ...
 
     @abc.abstractmethod
