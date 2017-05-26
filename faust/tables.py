@@ -3,7 +3,7 @@ import operator
 from typing import Any, Callable, Iterator, Mapping, Type, cast
 from . import stores
 from . import windows
-from .types import AppT, EventT, FieldDescriptorT, JoinT
+from .types import AppT, EventT, FieldDescriptorT, JoinT, TopicT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT
@@ -20,6 +20,7 @@ __all__ = ['Table']
 class Table(Service, TableT, ManagedUserDict):
 
     _store: str
+    _changelog_topic: TopicT
 
     def __init__(self, app: AppT,
                  *,
@@ -29,6 +30,8 @@ class Table(Service, TableT, ManagedUserDict):
                  key_type: Type = None,
                  value_type: Type = None,
                  partitions: int = None,
+                 window: WindowT = None,
+                 changelog_topic: TopicT = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -38,13 +41,8 @@ class Table(Service, TableT, ManagedUserDict):
         self.key_type = key_type
         self.value_type = value_type
         self.partitions = partitions
-        self.changelog_topic = self.app.topic(
-            self._changelog_topic_name(),
-            key_type=self.key_type,
-            value_type=self.value_type,
-            partitions=self.partitions,
-            compacting=True,
-        )
+        self.window = window
+        self.changelog_topic = changelog_topic
 
         if self.StateStore is not None:
             self.data = self.StateStore(url=None, app=app, loop=self.loop)
@@ -78,12 +76,13 @@ class Table(Service, TableT, ManagedUserDict):
         await self.changelog_topic.maybe_declare()
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
-        self.changelog_topic = self.changelog_topic.derive(
+        self.window = window
+        self.changelog_topic = self._new_changelog_topic(
             retention=window.expires,
             compacting=True,
             deleting=True,
         )
-        return WindowWrapper(self, window)
+        return WindowWrapper(self)
 
     def hopping(self, size: Seconds, step: Seconds,
                 expires: Seconds = None) -> WindowWrapperT:
@@ -102,6 +101,8 @@ class Table(Service, TableT, ManagedUserDict):
             'default': self.default,
             'key_type': self.key_type,
             'value_type': self.value_type,
+            'changelog_topic': self.changelog_topic,
+            'window': self.window,
         }
 
     def on_key_get(self, key: Any) -> None:
@@ -154,6 +155,20 @@ class Table(Service, TableT, ManagedUserDict):
         # TODO
         raise NotImplementedError('TODO')
 
+    def _new_changelog_topic(self, *,
+                             retention: Seconds = None,
+                             compacting: bool = True,
+                             deleting: bool = None) -> TopicT:
+        return self.app.topic(
+            self._changelog_topic_name(),
+            key_type=self.key_type,
+            value_type=self.value_type,
+            partitions=self.partitions,
+            retention=retention,
+            compacting=compacting,
+            deleting=deleting,
+        )
+
     def __copy__(self) -> Any:
         return self.clone()
 
@@ -164,37 +179,30 @@ class Table(Service, TableT, ManagedUserDict):
                          op: Callable[[Any, Any], Any],
                          key: Any,
                          value: Any,
-                         window: WindowT,
                          event: EventT = None) -> None:
-        for window_range in self._window_ranges(window, event):
+        for window_range in self._window_ranges(event):
             self[key, window_range] = op(self[key, window_range], value)
 
-    def _set_windowed(self, key: Any, value: Any, window: WindowT,
+    def _set_windowed(self, key: Any, value: Any,
                       event: EventT = None) -> None:
-        for window_range in self._window_ranges(window, event):
+        for window_range in self._window_ranges(event):
             self[key, window_range] = value
 
-    def _del_windowed(self, key: Any, window: WindowT,
-                      event: EventT = None) -> None:
-        for window_range in self._window_ranges(window, event):
+    def _del_windowed(self, key: Any, event: EventT = None) -> None:
+        for window_range in self._window_ranges(event):
             del self[key, window_range]
 
-    def _window_ranges(
-            self, window: WindowT,
-            event: EventT = None) -> Iterator[WindowRange]:
+    def _window_ranges(self, event: EventT = None) -> Iterator[WindowRange]:
         timestamp = self._get_timestamp(event)
-        for window_range in window.ranges(timestamp):
+        for window_range in self.window.ranges(timestamp):
             yield window_range
 
-    def _windowed_current(
-            self, key: Any, window: WindowT,
-            event: EventT = None) -> Any:
-        return self[key, window.current(self._get_timestamp(event))]
+    def _windowed_current(self, key: Any, event: EventT = None) -> Any:
+        return self[key, self.window.current(self._get_timestamp(event))]
 
-    def _windowed_delta(
-            self, key: Any, window: WindowT, d: Seconds,
-            event: EventT = None) -> Any:
-        return self[key, window.delta(self._get_timestamp(event), d)]
+    def _windowed_delta(self, key: Any, d: Seconds,
+                        event: EventT = None) -> Any:
+        return self[key, self.window.delta(self._get_timestamp(event), d)]
 
     def _get_timestamp(self, event: EventT = None) -> float:
         return (event or current_event()).message.timestamp
@@ -203,38 +211,46 @@ class Table(Service, TableT, ManagedUserDict):
     def label(self) -> str:
         return f'{type(self).__name__}: {self.table_name}@{self._store}'
 
+    @property
+    def changelog_topic(self) -> TopicT:
+        if self._changelog_topic is None:
+            self._changelog_topic = self._new_changelog_topic(compacting=True)
+        return self._changelog_topic
+
+    @changelog_topic.setter
+    def changelog_topic(self, topic: TopicT) -> None:
+        self._changelog_topic = topic
+
 
 class WindowSet(WindowSetT, FastUserDict):
 
     def __init__(self,
                  key: Any,
                  table: TableT,
-                 window: WindowT,
                  event: EventT = None) -> None:
         self.key = key
         self.table = cast(Table, table)
-        self.window = window
         self.event = event
         self.data = table  # provides underlying mapping in FastUserDict
 
     def apply(self, op: Callable[[Any, Any], Any], value: Any,
               event: EventT = None) -> WindowSetT:
         cast(Table, self.table)._apply_window_op(
-            op, self.key, value, self.window, event or self.event)
+            op, self.key, value, event or self.event)
         return self
 
     def current(self, event: EventT = None) -> Any:
         return cast(Table, self.table)._windowed_current(
-            self.key, self.window, event or self.event)
+            self.key, event or self.event)
 
     def delta(self, d: Seconds, event: EventT = None) -> Any:
         return cast(Table, self.table)._windowed_delta(
-            self.key, self.window, d, event or self.event)
+            self.key, d, event or self.event)
 
     def __getitem__(self, w: Any) -> Any:
         # wrapper[key][event] returns WindowSet with event already set.
         if isinstance(w, EventT):
-            return type(self)(self.key, self.table, self.window, w)
+            return type(self)(self.key, self.table, w)
         # wrapper[key][window_range] returns value for that range.
         return self.table[self.key, w]
 
@@ -289,18 +305,17 @@ class WindowSet(WindowSetT, FastUserDict):
 
 class WindowWrapper(WindowWrapperT):
 
-    def __init__(self, table: TableT, window: WindowT) -> None:
+    def __init__(self, table: TableT) -> None:
         self.table = table
-        self.window = window
 
     def __getitem__(self, key: Any) -> WindowSetT:
-        return WindowSet(key, self.table, self.window)
+        return WindowSet(key, self.table)
 
     def __setitem__(self, key: Any, value: Any) -> None:
-        cast(Table, self.table)._set_windowed(key, value, self.window)
+        cast(Table, self.table)._set_windowed(key, value)
 
     def __delitem__(self, key: Any) -> None:
-        cast(Table, self.table)._del_windowed(key, self.window)
+        cast(Table, self.table)._del_windowed(key)
 
     def __iter__(self) -> Iterator:
         return iter(self.table)

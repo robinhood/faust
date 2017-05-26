@@ -21,8 +21,8 @@ class TableT(MutableMapping, JoinableT, ServiceT):
     default: Any  # noqa: E704
     key_type: Type
     value_type: Type
-    changelog_topic: TopicT
     partitions: int
+    window: WindowT = None
 
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':
@@ -38,18 +38,25 @@ class TableT(MutableMapping, JoinableT, ServiceT):
                  expires: Seconds = None) -> 'WindowWrapperT':
         ...
 
+    @property
+    @abc.abstractmethod
+    def changelog_topic(self) -> TopicT:
+        ...
+
+    @changelog_topic.setter
+    def changelog_topic(self, topic: TopicT) -> None:
+        ...
+
 
 class WindowSetT(MutableMapping):
     key: Any
     table: TableT
-    window: WindowT
     event: EventT = None
 
     @abc.abstractmethod
     def __init__(self,
                  key: Any,
                  table: TableT,
-                 window: WindowT,
                  event: EventT = None) -> None:
         ...
 
@@ -119,10 +126,9 @@ class WindowSetT(MutableMapping):
 
 class WindowWrapperT(MutableMapping):
     table: TableT
-    window: WindowT
 
     @abc.abstractmethod
-    def __init__(self, table: TableT, window: WindowT) -> None:
+    def __init__(self, table: TableT) -> None:
         ...
 
     @abc.abstractmethod
