@@ -1,5 +1,5 @@
 import abc
-from typing import Optional, List, NamedTuple
+from typing import List, NamedTuple
 from ..utils.times import Seconds
 
 
@@ -18,8 +18,6 @@ class WindowT(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def stale(self, timestamp: float) -> bool:
         ...
-
-
 
     @abc.abstractmethod
     def current(self, timestamp: float) -> WindowRange:

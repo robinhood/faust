@@ -31,6 +31,7 @@ logger = get_logger(__name__)
 
 __flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug
 __flake8_Set_is_used: Set
+__flake8_List_is_used: List
 
 
 class TopicExists(errors.BrokerResponseError):

@@ -1,6 +1,6 @@
 """Windowing strategies."""
 from datetime import datetime
-from typing import Optional, List
+from typing import List
 from .types import WindowRange, WindowT
 from .utils.times import Seconds, want_seconds
 

@@ -50,7 +50,7 @@ class AppT(ServiceT):
     value_serializer: CodecArg
     num_standby_replicas: int
     replication_factor: int
-    default_partitions: int
+    default_partitions: int  # noqa: E704
     avro_registry_url: str
     store: str
 

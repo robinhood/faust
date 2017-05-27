@@ -1,5 +1,4 @@
 """Tables (changelog stream)."""
-import asyncio
 import operator
 from collections import defaultdict
 from heapq import heappush, heappop
