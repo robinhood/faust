@@ -45,10 +45,12 @@ class AppT(ServiceT):
     url: str
     client_id: str
     commit_interval: float
+    table_cleanup_interval: float
     key_serializer: CodecArg
     value_serializer: CodecArg
     num_standby_replicas: int
     replication_factor: int
+    default_partitions: int
     avro_registry_url: str
     store: str
 
