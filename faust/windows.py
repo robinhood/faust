@@ -36,10 +36,10 @@ class HoppingWindow(WindowT):
             for start in range(int(earliest), int(curr.end), int(self.step))
         ]
 
-    def stale_before(self) -> Optional[float]:
+    def stale(self, timestamp: float) -> bool:
         return (
-            self._stale_before(self.expires)
-            if self.expires else None
+            timestamp < self._stale_before(self.expires)
+            if self.expires else False
         )
 
     def current(self, timestamp: float) -> WindowRange:
@@ -99,10 +99,10 @@ class SlidingWindow(WindowT):
         return [WindowRange(start=timestamp - self.before,
                             end=timestamp + self.after)]
 
-    def stale_before(self) -> Optional[float]:
+    def stale(self, timestamp: float) -> bool:
         return (
-            self._stale_before(self.expires)
-            if self.expires else None
+            timestamp < self._stale_before(self.expires)
+            if self.expires else False
         )
 
     @classmethod

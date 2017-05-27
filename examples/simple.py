@@ -15,9 +15,11 @@ app = faust.App(
     url='kafka://localhost:9092',
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+
 user_to_total = app.table('user_to_total', default=int)
-country_to_total = app.table(
-    'country_to_total', default=int).tumbling(10.0)
+country_to_total = app.table('country_to_total',
+                             default=int).tumbling(10.0, expires=10.0)
+
 
 @app.actor(withdrawals_topic)
 async def find_large_withdrawals(withdrawals):

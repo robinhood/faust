@@ -138,7 +138,7 @@ class Topic(TopicT):
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.topics = topics
-        self.partitions = partitions
+        self.partitions = partitions or app.default_partitions
         self.replicas = app.replication_factor
         self.retention = retention
         self.compacting = compacting
