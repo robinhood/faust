@@ -385,7 +385,7 @@ class TopicManager(TopicManagerT, Service):
         # to give actors a chance to start up and register their
         # streams.  This way we won't have N subscription requests at the
         # start.
-        await asyncio.sleep(2.0, loop=self.loop)
+        await self.sleep(2.0)
 
         # then we compile the subscription topic pattern,
         self._compile_pattern()

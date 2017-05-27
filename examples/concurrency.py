@@ -12,7 +12,6 @@ topic = app.topic('concurrency', value_type=Record)
 
 @app.actor(topic, concurrency=200)
 async def mytask(records):
-    sleep = asyncio.sleep
     session = aiohttp.ClientSession()
     async for record in records:
         await session.get(f'http://www.google.com/?#q={record.value}')

@@ -416,7 +416,7 @@ class Monitor(Sensor, KeywordReduce):
         prev_message_total = self.messages_received_total
         prev_event_total = self.events_total
         while not self.should_stop:
-            await asyncio.sleep(1.0, loop=self.loop)
+            await self.sleep(1.0)
 
             # Update average event runtime.
             if self.events_runtime:

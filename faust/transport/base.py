@@ -154,10 +154,10 @@ class Consumer(Service, ConsumerT):
 
     @Service.task
     async def _commit_handler(self) -> None:
-        await asyncio.sleep(self.commit_interval)
+        await self.sleep(self.commit_interval)
         while not self.should_stop:
             await self.commit()
-            await asyncio.sleep(self.commit_interval)
+            await self.sleep(self.commit_interval)
 
     @Service.task
     async def _recently_acked_handler(self) -> None:

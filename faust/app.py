@@ -295,13 +295,13 @@ class App(AppT, ServiceProxy):
     def timer(self, interval: Seconds) -> Callable:
         interval_s = want_seconds(interval)
 
-        def _inner(fun: Callable[[AppT], Awaitable]) -> Callable:
+        def _inner(fun: Callable[..., Awaitable]) -> Callable:
             @self.task
             @wraps(fun)
-            async def around_timer(app: AppT) -> None:
-                while not app.should_stop:
-                    await asyncio.sleep(interval_s, loop=app.loop)
-                    await fun(app)
+            async def around_timer(*args: Any, **kwargs: Any) -> None:
+                while not self._service.should_stop:
+                    await self._service.sleep(interval_s)
+                    await fun(*args, **kwargs)
             return around_timer
         return _inner
 

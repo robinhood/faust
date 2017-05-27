@@ -57,9 +57,9 @@ class InputStream(InputStreamT):
     async def join(self, timeout: float = None):
         await asyncio.wait_for(self._join(), timeout, loop=self.loop)
 
-    async def _join(self, interval: float = 0.1):
+    async def _join(self, interval: float = 1):
         while self.queue.qsize():
-            await asyncio.sleep(interval)
+            await asyncio.sleep(interval, loop=self.loop)
 
     def __iter__(self) -> Any:
         return self

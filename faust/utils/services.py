@@ -40,6 +40,18 @@ class ServiceBase(ServiceT):
         return ''
 
 
+class ServiceTask:
+
+    def __init__(self, fun: Callable[..., Awaitable]) -> None:
+        self.fun: Callable[..., Awaitable] = fun
+
+    async def __call__(self, obj: Any) -> Any:
+        return await self.fun(obj)
+
+    def __repr__(self) -> str:
+        return repr(self.fun)
+
+
 class Service(ServiceBase):
     """An asyncio service that can be started/stopped/restarted.
 
@@ -75,13 +87,17 @@ class Service(ServiceBase):
     #: They are started/stopped with the service.
     _futures: List[asyncio.Future]
 
-    _tasks: ClassVar[List[Callable[..., Awaitable]]] = []
+    _tasks: ClassVar[List[ServiceTask]]
 
     @classmethod
-    def task(
-            cls, fun: Callable[..., Awaitable]) -> Callable:
-        cls._tasks.append(fun)
-        return fun
+    def task(cls, fun: Callable[..., Awaitable]) -> ServiceTask:
+        return ServiceTask(fun)
+
+    def __init_subclass__(self) -> None:
+        self._tasks = [
+            value for key, value in self.__dict__.items()
+            if isinstance(value, ServiceTask)
+        ]
 
     def __init__(self, *,
                  beacon: NodeT = None,
@@ -147,7 +163,11 @@ class Service(ServiceBase):
         ...
 
     async def sleep(self, s: Seconds) -> None:
-        await asyncio.wait_for(self._stopped.wait(), timeout=want_seconds(s))
+        try:
+            await asyncio.wait_for(
+                self._stopped.wait(), timeout=want_seconds(s), loop=self.loop)
+        except asyncio.TimeoutError:
+            pass
 
     async def start(self) -> None:
         """Start the service."""
