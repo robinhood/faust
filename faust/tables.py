@@ -27,7 +27,7 @@ class Table(Service, TableT, ManagedUserDict):
 
     _store: str
     _changelog_topic: TopicT
-    _ts_keys: MutableMapping[float, MutableSet]
+    _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
 
     def __init__(self, app: AppT,
@@ -53,7 +53,7 @@ class Table(Service, TableT, ManagedUserDict):
         self.changelog_topic = changelog_topic
 
         # Table key expiration
-        self._ts_keys = defaultdict(set)
+        self._timestamp_keys = defaultdict(set)
         self._timestamps = []
 
         if self.StateStore is not None:
@@ -152,9 +152,9 @@ class Table(Service, TableT, ManagedUserDict):
         while not self.should_stop:
             while timestamps and window.stale(timestamps[0]):
                 timestamp = heappop(timestamps)
-                for key in self._ts_keys[timestamp]:
-                    del self[key]
-                del self._ts_keys[timestamp]
+                for key in self._timestamp_keys[timestamp]:
+                    del self.data[key]
+                del self._timestamp_keys[timestamp]
             await asyncio.sleep(self.app.table_cleanup_interval)
 
     def _should_expire_keys(self) -> bool:
@@ -166,13 +166,13 @@ class Table(Service, TableT, ManagedUserDict):
             return
         _, window_range = key
         heappush(self._timestamps, window_range.end)
-        self._ts_keys.get(window_range.end).add(key)
+        self._timestamp_keys[window_range.end].add(key)
 
     def _maybe_del_key_ttl(self, key: Any) -> None:
         if not self._should_expire_keys():
             return
         _, window_range = key
-        ts_keys = self._ts_keys.get(window_range.end)
+        ts_keys = self._timestamp_keys.get(window_range.end)
         ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:

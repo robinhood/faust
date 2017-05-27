@@ -95,7 +95,7 @@ class Consumer(base.Consumer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        cast(Transport, self.transport)._create_topic(
+        await cast(Transport, self.transport)._create_topic(
             self._consumer._client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
@@ -217,11 +217,15 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        cast(Transport, self.transport)._create_topic(
-            self._producer._client, topic, partitions, replication,
+        _retention = (
+            int(want_seconds(retention) * 1000.0)
+            if retention else None
+        )
+        await cast(Transport, self.transport)._create_topic(
+            self._producer.client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
-            retention=int(want_seconds(retention) * 1000.0),
+            retention=_retention,
             compacting=compacting,
             deleting=deleting,
             ensure_created=ensure_created,

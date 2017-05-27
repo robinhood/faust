@@ -218,6 +218,7 @@ class App(AppT, ServiceProxy):
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
+                 default_partitions: int = 8,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
@@ -233,6 +234,7 @@ class App(AppT, ServiceProxy):
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
+        self.default_partitions = default_partitions
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.Table = symbol_by_name(Table)
