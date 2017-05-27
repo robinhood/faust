@@ -86,7 +86,6 @@ class Table(Service, TableT, ManagedUserDict):
 
     async def on_start(self) -> None:
         await self.changelog_topic.maybe_declare()
-        self.add_future(self._clean_data())
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         self.window = window
@@ -144,18 +143,18 @@ class Table(Service, TableT, ManagedUserDict):
              value_serializer='json',
              partition=partition)
 
+    @Service.task
     async def _clean_data(self) -> None:
-        if not self._should_expire_keys():
-            return
-        timestamps = self._timestamps
-        window = self.window
-        while not self.should_stop:
-            while timestamps and window.stale(timestamps[0]):
-                timestamp = heappop(timestamps)
-                for key in self._timestamp_keys[timestamp]:
-                    del self.data[key]
-                del self._timestamp_keys[timestamp]
-            await asyncio.sleep(self.app.table_cleanup_interval)
+        if self._should_expire_keys():
+            timestamps = self._timestamps
+            window = self.window
+            while not self.should_stop:
+                while timestamps and window.stale(timestamps[0]):
+                    timestamp = heappop(timestamps)
+                    for key in self._timestamp_keys[timestamp]:
+                        del self.data[key]
+                    del self._timestamp_keys[timestamp]
+                await self.sleep(self.app.table_cleanup_interval)
 
     def _should_expire_keys(self) -> bool:
         window = self.window
