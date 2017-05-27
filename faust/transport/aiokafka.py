@@ -2,7 +2,7 @@
 import aiokafka
 import asyncio
 from typing import (
-    Any, Awaitable, ClassVar, Mapping,
+    Any, Awaitable, ClassVar, List, Mapping,
     MutableMapping, Optional, Set, Sequence, Type, cast
 )
 
@@ -22,6 +22,7 @@ from ..types.transports import ConsumerT
 from ..utils.futures import done_future
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
+from ..utils.services import Service
 from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
@@ -108,8 +109,6 @@ class Consumer(base.Consumer):
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
         await self._consumer.start()
-        await self.register_timers()
-        self.add_future(self._drain_messages())
 
     async def subscribe(self, pattern: str) -> None:
         # XXX pattern does not work :/
@@ -132,6 +131,7 @@ class Consumer(base.Consumer):
         await self.commit()
         await self._consumer.stop()
 
+    @Service.task
     async def _drain_messages(self) -> None:
         callback = self.callback
         getmany = self._consumer.getmany
@@ -161,7 +161,7 @@ class Consumer(base.Consumer):
 
         try:
             while not should_stop():
-                pending = []
+                pending: List[Awaitable] = []
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     offset = get_current_offset(tp)
@@ -218,7 +218,7 @@ class Producer(base.Producer):
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
         cast(Transport, self.transport)._create_topic(
-            self._producer._client, topic, partitions, replication,
+            self._producer.client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=int(want_seconds(retention) * 1000.0),

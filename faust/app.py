@@ -111,9 +111,6 @@ class AppService(Service):
             raise ImproperlyConfigured(
                 'Attempting to start app that has no actors')
 
-    async def on_start(self) -> None:
-        self.add_future(self._drain_message_buffer())
-
     async def on_started(self) -> None:
         if self.app.beacon.root:
             try:
@@ -124,6 +121,7 @@ class AppService(Service):
                 callback()
         await self._stopped.wait()
 
+    @Service.task
     async def _drain_message_buffer(self) -> None:
         send = self.app.send
         get = self.app._message_buffer.get

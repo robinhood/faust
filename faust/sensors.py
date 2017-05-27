@@ -410,9 +410,7 @@ class Monitor(Sensor, KeywordReduce):
             }
         }
 
-    async def on_start(self) -> None:
-        self.add_future(self._sampler())
-
+    @Service.task
     async def _sampler(self) -> None:
         median = statistics.median
         prev_message_total = self.messages_received_total

@@ -88,12 +88,10 @@ class CoroCallback(Service, CoroCallbackT):
     async def send(self, value: Any) -> None:
         await self.inbox.put(value)
 
-    async def on_start(self) -> None:
-        self.add_future(self._drainer())
-
     async def on_stop(self) -> None:
         await self.inbox.join()
 
+    @Service.task
     async def _drainer(self) -> None:
         drain = self._drain
         callback = self.callback

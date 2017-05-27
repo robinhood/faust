@@ -2,9 +2,12 @@
 import abc
 import asyncio
 from contextlib import suppress
-from typing import Any, Awaitable, Iterable, List, MutableSequence
+from typing import (
+    Any, Awaitable, Callable, ClassVar, Iterable, List, MutableSequence,
+)
 from .collections import Node
 from .logging import get_logger
+from .times import Seconds, want_seconds
 from .types.collections import NodeT
 from .types.services import ServiceT
 
@@ -72,6 +75,14 @@ class Service(ServiceBase):
     #: They are started/stopped with the service.
     _futures: List[asyncio.Future]
 
+    _tasks: ClassVar[List[Callable[..., Awaitable]]] = []
+
+    @classmethod
+    def task(
+            cls, fun: Callable[..., Awaitable]) -> Callable:
+        cls._tasks.append(fun)
+        return fun
+
     def __init__(self, *,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -135,6 +146,9 @@ class Service(ServiceBase):
         """Callback to be called when the service is restarted."""
         ...
 
+    async def sleep(self, s: Seconds) -> None:
+        await asyncio.wait_for(self._stopped.wait(), timeout=want_seconds(s))
+
     async def start(self) -> None:
         """Start the service."""
         logger.info('+Starting service %r', self)
@@ -144,6 +158,8 @@ class Service(ServiceBase):
             self._children.extend(self.on_init_dependencies())
             await self.on_first_start()
         await self.on_start()
+        for task in self._tasks:
+            self.add_future(task(self))
         for child in self._children:
             if child is not None:
                 await child.maybe_start()

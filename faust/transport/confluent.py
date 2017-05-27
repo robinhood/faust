@@ -4,6 +4,7 @@ from typing import Awaitable, ClassVar, Optional, Type, cast
 from ..types import Message
 from ..utils.futures import done_future
 from ..utils.objects import cached_property
+from ..utils.services import Service
 from . import base
 
 __all__ = ['Consumer', 'Producer', 'Transport']
@@ -26,9 +27,8 @@ class Consumer(base.Consumer):
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
         self._consumer.subscribe(list(self.topic.topics))
-        await self.register_timers()
-        self.add_future(self._drain_messages())
 
+    @Service.task
     async def _drain_messages(self) -> None:
         on_message = self.on_message
         poll = self._consumer.poll

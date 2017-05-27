@@ -135,11 +135,6 @@ class Consumer(Service, ConsumerT):
             self, revoked: Sequence[TopicPartition]) -> None:
         self._on_partitions_revoked(revoked)
 
-    async def register_timers(self) -> None:
-        self.add_future(self._recently_acked_handler())
-        self.add_future(self._commit_handler())
-        self.add_future(self._seeker())
-
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
         _id = self.id
@@ -157,12 +152,14 @@ class Consumer(Service, ConsumerT):
                 acked_for_tp.sort()
                 self._recently_acked.put_nowait((tp, offset))
 
+    @Service.task
     async def _commit_handler(self) -> None:
         await asyncio.sleep(self.commit_interval)
         while not self.should_stop:
             await self.commit()
             await asyncio.sleep(self.commit_interval)
 
+    @Service.task
     async def _recently_acked_handler(self) -> None:
         get = self._recently_acked.get
         on_message_out = self._app.sensors.on_message_out
@@ -170,6 +167,7 @@ class Consumer(Service, ConsumerT):
             tp, offset = await get()
             await on_message_out(self.id, tp, offset, None)
 
+    @Service.task
     async def _seeker(self) -> None:
         while not self.should_stop:
             await self._time_to_seek.wait()

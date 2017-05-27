@@ -379,10 +379,7 @@ class TopicManager(TopicManagerT, Service):
             )
         return on_message
 
-    async def on_start(self) -> None:
-        self.add_future(self._subscriber())
-        self.add_future(self._gatherer())
-
+    @Service.task
     async def _subscriber(self) -> None:
         # the first time we start, we will wait two seconds
         # to give actors a chance to start up and register their
@@ -404,6 +401,7 @@ class TopicManager(TopicManagerT, Service):
             self.app.consumer.subscribe(self._pattern)
             ev.clear()
 
+    @Service.task
     async def _gatherer(self) -> None:
         waiting = set()
         wait = asyncio.wait
