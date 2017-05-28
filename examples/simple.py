@@ -23,7 +23,7 @@ country_to_total = app.table('country_to_total',
 
 @app.actor(withdrawals_topic)
 async def find_large_withdrawals(withdrawals):
-    async for withdrawal in withdrawals:
+    async for withdrawal in withdrawals.group_by(Withdrawal.user):
         user_to_total[withdrawal.user] += withdrawal.amount
         country_to_total[withdrawal.country] += withdrawal.amount
         print('{!r} User Total: {!r}, Country Total: {!r}'.format(
