@@ -1,9 +1,11 @@
 import abc
+import asyncio
 import typing
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
+from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
@@ -58,6 +60,28 @@ class AppT(ServiceT):
     tables: MutableMapping[str, TableT]
     sensors: SensorDelegateT
     serializers: RegistryT
+
+    @abc.abstractmethod
+    def __init__(self, id: str,
+                 *,
+                 url: str = 'aiokafka://localhost:9092',
+                 store: str = 'memory://',
+                 avro_registry_url: str = None,
+                 client_id: str = '',
+                 commit_interval: Seconds = 1.0,
+                 table_cleanup_interval: Seconds = 1.0,
+                 key_serializer: CodecArg = 'json',
+                 value_serializer: CodecArg = 'json',
+                 num_standby_replicas: int = 0,
+                 replication_factor: int = 1,
+                 default_partitions: int = 8,
+                 Stream: SymbolArg = '',
+                 Table: SymbolArg = '',
+                 Serializers: SymbolArg = '',
+                 monitor: Monitor = None,
+                 on_startup_finished: Callable = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        self.on_startup_finished: Callable = None
 
     @abc.abstractmethod
     def topic(self, *topics: str,
