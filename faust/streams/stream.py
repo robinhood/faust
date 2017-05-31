@@ -18,7 +18,7 @@ from ..types.streams import (
 )
 from ..types.topics import SourceT
 from ..utils.aiolocals import Context, Local
-from ..utils.aiter import aenumerate
+from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import maybe_async
 from ..utils.logging import get_logger
 from ..utils.services import Service
@@ -72,6 +72,7 @@ class Stream(StreamT, JoinableT, Service):
     _anext_started: bool = False
     _current_event: EventT = None
     _context: Context = None
+    _passive = False
 
     def __init__(self, source: AsyncIterator[_T] = None,
                  *,
@@ -263,7 +264,18 @@ class Stream(StreamT, JoinableT, Service):
         async def forward(value: _T) -> _T:
             return await maybe_forward(value, topictopic)
         self.add_processor(forward)
-        return self.clone(source=topic, on_start=self.maybe_start)
+        self._enable_passive()
+        return self.clone(source=aiter(topictopic), on_start=self.maybe_start)
+
+    def _enable_passive(self) -> None:
+        if not self._passive:
+            self._passive = True
+            self.add_future(self._drainer())
+
+    async def _drainer(self):
+        sleep = self.sleep
+        async for item in self:
+            await sleep(0)
 
     def echo(self, *topics: Union[str, TopicT]) -> StreamT:
         """Forward values to one or more topics.
@@ -370,7 +382,7 @@ class Stream(StreamT, JoinableT, Service):
             )
             return value
         self.add_processor(repartition)
-        return self.clone(source=topic, on_start=self.maybe_start)
+        return self.clone(source=aiter(topic), on_start=self.maybe_start)
 
     async def _format_key(self, key: GroupByKeyArg, value: _T):
         if isinstance(key, FieldDescriptorT):
