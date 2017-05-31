@@ -116,13 +116,8 @@ class AppService(Service):
                 'Attempting to start app that has no actors')
 
     async def on_started(self) -> None:
-        if self.app.beacon.root:
-            try:
-                callback = self.app.beacon.root.data.on_startup_finished
-            except AttributeError:
-                pass
-            else:
-                callback()
+        if self.app.on_startup_finished:
+            await self.app.on_startup_finished()
         await self._stopped.wait()
 
     @Service.task
@@ -221,6 +216,7 @@ class App(AppT, ServiceProxy):
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
                  monitor: Monitor = None,
+                 on_startup_finished: Callable = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -248,6 +244,7 @@ class App(AppT, ServiceProxy):
         self._monitor = monitor
         self._tasks = []
         self._pending_on_commit = defaultdict(list)
+        self.on_startup_finished: Callable = on_startup_finished
 
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,

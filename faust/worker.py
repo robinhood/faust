@@ -180,7 +180,7 @@ class Worker(Service):
         if not self.quiet:
             print(msg, file=file or self.stdout, end=end)  # noqa: T003
 
-    def on_startup_finished(self) -> None:
+    async def on_startup_finished(self) -> None:
         self.loop.call_later(3.0, self._on_startup_finished)
 
     def _on_startup_finished(self) -> None:
@@ -292,6 +292,7 @@ class Worker(Service):
         self._setup_logging()
 
     async def on_start(self) -> None:
+        self.app.on_startup_finished = self.on_startup_finished
         for sensor in self.sensors:
             self.app.sensors.add(sensor)
         await self.app.maybe_start()
