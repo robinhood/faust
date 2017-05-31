@@ -52,9 +52,8 @@ __flake8_ignore_this_Dict: Dict  # XXX
 #       ACCESS ON INSTANCE
 #       42
 
-
 #: Global map of namespace -> Model
-registry: MutableMapping[str, ModelT] = {}
+registry: MutableMapping[str, Type[ModelT]] = {}
 
 
 class Model(ModelT):
@@ -85,7 +84,7 @@ class Model(ModelT):
                 Note, these are regarded as defaults, and any fields also
                 present in the message takes precedence.
         """
-        return cls(  # type: ignore
+        return cls(
             loads(cls._options.serializer or default_serializer, s),
         )
 
@@ -226,7 +225,7 @@ class FieldDescriptor(FieldDescriptorT):
     type: Type
 
     #: The model this is field is associated with.
-    model: Type
+    model: Type[ModelT]
 
     #: Set if a value for this field is required (cannot be :const:`None`).
     required: bool = True
@@ -237,7 +236,7 @@ class FieldDescriptor(FieldDescriptorT):
     def __init__(self,
                  field: str,
                  type: Type,
-                 model: Type,
+                 model: Type[ModelT],
                  required: bool = True,
                  default: Any = None) -> None:
         self.field = field

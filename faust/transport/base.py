@@ -4,13 +4,13 @@ import asyncio
 from collections import defaultdict
 from itertools import count
 from typing import (
-    Any, Awaitable, Callable, ClassVar,
-    Iterator, List, MutableMapping, Optional, Set,
-    Sequence, Type, cast,
+    Any, Awaitable, ClassVar, Iterator, List,
+    MutableMapping, Optional, Set, Sequence, Type,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
     ConsumerCallback, ConsumerT, ProducerT, TPorTopicSet, TransportT,
+    PartitionsAssignedCallback, PartitionsRevokedCallback,
 )
 from ..utils.functional import consecutive_numbers
 from ..utils.services import Service
@@ -47,9 +47,6 @@ __all__ = ['Consumer', 'Producer', 'Transport']
 #
 # To see a reference transport implementation go to:
 #     faust/transport/aiokafka.py
-
-PartitionsRevokedCallback = Callable[[Sequence[TopicPartition]], None]
-PartitionsAssignedCallback = Callable[[Sequence[TopicPartition]], None]
 
 
 class Consumer(Service, ConsumerT):
@@ -278,10 +275,10 @@ class Transport(TransportT):
     """Message transport implementation."""
 
     #: Consumer subclass used for this transport.
-    Consumer: ClassVar[Type]
+    Consumer: ClassVar[Type[ConsumerT]]
 
     #: Producer subclass used for this transport.
-    Producer: ClassVar[Type]
+    Producer: ClassVar[Type[ProducerT]]
 
     driver_version: str
 
@@ -293,8 +290,7 @@ class Transport(TransportT):
 
     def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
-        return cast(ConsumerT, self.Consumer(
-            self, callback=callback, **kwargs))
+        return self.Consumer(self, callback=callback, **kwargs)
 
     def create_producer(self, **kwargs: Any) -> ProducerT:
-        return cast(ProducerT, self.Producer(self, **kwargs))
+        return self.Producer(self, **kwargs)

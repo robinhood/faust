@@ -10,7 +10,7 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
 )
 
-from ..types import EventT, K, TopicT, Message
+from ..types import EventT, K, TopicT, Message, ModelT
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
@@ -391,8 +391,8 @@ class Stream(StreamT, JoinableT, Service):
 
     def derive_topic(self, name: str,
                      *,
-                     key_type: Type = None,
-                     value_type: Type = None,
+                     key_type: Type[ModelT] = None,
+                     value_type: Type[ModelT] = None,
                      prefix: str = '',
                      suffix: str = '') -> TopicT:
         """Create topic derived from the key/value type of this stream.

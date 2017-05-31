@@ -9,7 +9,7 @@ from typing import (
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, Message, TopicPartition, K, V,
+    AppT, CodecArg, Message, ModelT, TopicPartition, K, V,
 )
 from .types.streams import StreamT, StreamCoroutine
 from .types.topics import EventT, SourceT, TopicT, TopicManagerT
@@ -109,8 +109,8 @@ class Topic(TopicT):
         retention
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
-        key_type (Type): Model used for keys in this topic.
-        value_type (Type): Model used for values in this topic.
+        key_type (Type[ModelT]): Model used for keys in this topic.
+        value_type (Type[ModelT]): Model used for values in this topic.
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
@@ -126,8 +126,8 @@ class Topic(TopicT):
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
-                 key_type: Type = None,
-                 value_type: Type = None,
+                 key_type: Type[ModelT] = None,
+                 value_type: Type[ModelT] = None,
                  partitions: int = None,
                  retention: Seconds = None,
                  compacting: bool = None,
@@ -179,8 +179,8 @@ class Topic(TopicT):
     def derive(self,
                *,
                topics: Sequence[str] = None,
-               key_type: Type = None,
-               value_type: Type = None,
+               key_type: Type[ModelT] = None,
+               value_type: Type[ModelT] = None,
                partitions: int = None,
                retention: Seconds = None,
                compacting: bool = None,

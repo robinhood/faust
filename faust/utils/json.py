@@ -86,7 +86,8 @@ class JSONEncoder(json.JSONEncoder):
             return super(JSONEncoder, self).default(o)
 
 
-def dumps(obj: Any, cls: Type = JSONEncoder, **kwargs: Any) -> str:
+def dumps(obj: Any,
+          cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
     """Serialize to json.  See :func:`json.dumps`."""
     return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 

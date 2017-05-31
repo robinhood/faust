@@ -27,7 +27,7 @@ class ModelOptions:
     optionalset: FrozenSet[str]
 
     # Index: Mapping of fields that are ModelT
-    models: Mapping[str, Type]
+    models: Mapping[str, Type['ModelT']]
 
     # Index: Set of field names that are ModelT
     modelset: FrozenSet[str]
@@ -54,6 +54,9 @@ class ModelT:
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None) -> 'ModelT':
+        ...
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         ...
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
@@ -96,7 +99,7 @@ class ModelT:
 class FieldDescriptorT:
     field: str
     type: Type
-    model: Type
+    model: Type[ModelT]
     required: bool = True
     default: Any = None  # noqa: E704
 

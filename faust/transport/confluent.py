@@ -1,6 +1,6 @@
 """Message transport using :pypi:`aiokafka`."""
 import confluent_kafka
-from typing import Awaitable, ClassVar, Optional, Type, cast
+from typing import Awaitable, Optional, cast
 from ..types import Message
 from ..utils.futures import done_future
 from ..utils.objects import cached_property
@@ -87,8 +87,8 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
-    Consumer: ClassVar[Type] = Consumer
-    Producer: ClassVar[Type] = Producer
+    Consumer = Consumer
+    Producer = Producer
 
     @cached_property
     def bootstrap_servers(self):

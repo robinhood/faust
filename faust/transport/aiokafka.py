@@ -18,7 +18,7 @@ from faust.assignor.partition_assignor import PartitionAssignor
 from . import base
 from .kafka.protocol.admin import CreateTopicsRequest
 from ..types import Message, TopicPartition
-from ..types.transports import ConsumerT
+from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import done_future
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
@@ -41,7 +41,7 @@ class TopicExists(errors.BrokerResponseError):
     retriable = False
 
 
-EXTRA_ERRORS: Mapping[int, Type] = {
+EXTRA_ERRORS: Mapping[int, Type[errors.KafkaError]] = {
     TopicExists.errno: TopicExists
 }
 
@@ -258,8 +258,8 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
-    Consumer: ClassVar[Type] = Consumer
-    Producer: ClassVar[Type] = Producer
+    Consumer: ClassVar[Type[ConsumerT]] = Consumer
+    Producer: ClassVar[Type[ProducerT]] = Producer
 
     default_port = 9092
     driver_version = f'aiokafka={aiokafka.__version__}'

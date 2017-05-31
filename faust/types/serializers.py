@@ -41,11 +41,11 @@ class RegistryT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
+    async def loads_key(self, typ: Optional[Type[ModelT]], key: bytes) -> K:
         ...
 
     @abc.abstractmethod
-    async def loads_value(self, typ: Type, value: bytes) -> Any:
+    async def loads_value(self, typ: Type[ModelT], value: bytes) -> Any:
         ...
 
     @abc.abstractmethod

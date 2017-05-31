@@ -5,24 +5,41 @@ from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .streams import JoinableT
 from .topics import EventT, TopicT
+from .stores import StoreT
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .models import ModelT
 else:
-    class AppT: ...  # noqa
+    class AppT: ...    # noqa
+    class ModelT: ...  # noqa
 
 
 class TableT(MutableMapping, JoinableT, ServiceT):
-    StateStore: ClassVar[Type] = None
+    StateStore: ClassVar[Type[StoreT]] = None
 
     app: AppT
     table_name: str
     default: Any  # noqa: E704
-    key_type: Type
-    value_type: Type
+    key_type: Type[ModelT]
+    value_type: Type[ModelT]
     partitions: int
     window: WindowT = None
+
+    @abc.abstractmethod
+    def __init__(self, app: AppT,
+                 *,
+                 table_name: str = None,
+                 default: Callable[[], Any] = None,
+                 store: str = None,
+                 key_type: Type[ModelT] = None,
+                 value_type: Type[ModelT] = None,
+                 partitions: int = None,
+                 window: WindowT = None,
+                 changelog_topic: TopicT = None,
+                 **kwargs: Any) -> None:
+        ...
 
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':

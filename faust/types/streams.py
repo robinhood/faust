@@ -9,7 +9,7 @@ from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .core import K
-from .models import FieldDescriptorT
+from .models import FieldDescriptorT, ModelT
 from .topics import EventT, TopicT
 
 if typing.TYPE_CHECKING:
@@ -140,8 +140,8 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
     @abc.abstractmethod
     def derive_topic(self, name: str,
                      *,
-                     key_type: Type = None,
-                     value_type: Type = None,
+                     key_type: Type[ModelT] = None,
+                     value_type: Type[ModelT] = None,
                      prefix: str = '',
                      suffix: str = '') -> TopicT:
         ...

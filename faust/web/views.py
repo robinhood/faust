@@ -55,7 +55,7 @@ class View:
 
 
 class Site:
-    views: Mapping[str, Type]
+    views: Mapping[str, Type[View]]
 
     def __init__(self, app: AppT) -> None:
         self.app = app

@@ -22,12 +22,11 @@ from .tuples import Message, PendingMessage, TopicPartition
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from ..web.base import Web
     from ..sensors import Monitor
+    from .models import ModelT
 else:
-    class Web: ...      # noqa
     class Monitor: ...  # noqa
-
+    class ModelT: ...   # noqa
 
 __all__ = ['AppT']
 
@@ -39,9 +38,9 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
-    Stream: Type
-    Table: Type
-    Serializers: Type
+    Stream: Type[StreamT]
+    Table: Type[TableT]
+    Serializers: Type[RegistryT]
 
     id: str
     url: str
@@ -86,8 +85,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
-              key_type: Type = None,
-              value_type: Type = None,
+              key_type: Type[ModelT] = None,
+              value_type: Type[ModelT] = None,
               partitions: int = None,
               retention: Seconds = None,
               compacting: bool = None,

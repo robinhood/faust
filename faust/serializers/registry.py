@@ -30,7 +30,7 @@ class Registry(RegistryT):
         self.value_serializer = value_serializer
         self._override = {}
 
-    async def loads_key(self, typ: Optional[Type], key: bytes) -> K:
+    async def loads_key(self, typ: Optional[Type[ModelT]], key: bytes) -> K:
         """Deserialize message key.
 
         Arguments:
@@ -53,7 +53,7 @@ class Registry(RegistryT):
             raise KeyDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from None
 
-    async def loads_value(self, typ: Type, value: bytes) -> Any:
+    async def loads_value(self, typ: Type[ModelT], value: bytes) -> Any:
         """Deserialize value.
 
         Arguments:

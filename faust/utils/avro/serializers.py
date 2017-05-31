@@ -19,10 +19,10 @@ MAGIC_BYTE = 0
 
 
 class MessageSerializer:
-    Decoder: Type = BinaryDecoder
-    Encoder: Type = BinaryEncoder
-    Reader: Type = DatumReader
-    Writer: Type = DatumWriter
+    Decoder: Type[BinaryDecoder] = BinaryDecoder
+    Encoder: Type[BinaryEncoder] = BinaryEncoder
+    Reader: Type[DatumReader] = DatumReader
+    Writer: Type[DatumWriter] = DatumWriter
 
     _id_to_decoder: MutableMapping[int, partial]
     _id_to_writer: MutableMapping[int, DatumWriter]

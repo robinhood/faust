@@ -9,6 +9,7 @@ from typing import (
 from . import stores
 from . import windows
 from .types import AppT, EventT, FieldDescriptorT, JoinT, TopicT
+from .types.models import ModelT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT
@@ -34,8 +35,8 @@ class Table(Service, TableT, ManagedUserDict):
                  table_name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = None,
-                 key_type: Type = None,
-                 value_type: Type = None,
+                 key_type: Type[ModelT] = None,
+                 value_type: Type[ModelT] = None,
                  partitions: int = None,
                  window: WindowT = None,
                  changelog_topic: TopicT = None,

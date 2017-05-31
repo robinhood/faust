@@ -13,10 +13,12 @@ from .tuples import Message, TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .models import ModelT
     from .streams import StreamT
     from .transports import ConsumerT, TPorTopicSet
 else:
     class AppT: ...             # noqa
+    class Model: ...            # noqa
     class StreamT: ...          # noqa
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
@@ -71,8 +73,8 @@ class TopicT(AsyncIterable):
     app: AppT
     topics: Sequence[str]
     pattern: Pattern
-    key_type: Type
-    value_type: Type
+    key_type: Type[ModelT]
+    value_type: Type[ModelT]
     retention: Seconds
     compacting: bool
     deleting: bool
@@ -83,8 +85,8 @@ class TopicT(AsyncIterable):
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
-                 key_type: Type = None,
-                 value_type: Type = None,
+                 key_type: Type[ModelT] = None,
+                 value_type: Type[ModelT] = None,
                  partitions: int = None,
                  retention: Seconds = None,
                  compacting: bool = None,
@@ -123,8 +125,8 @@ class TopicT(AsyncIterable):
     def derive(self,
                *,
                topics: Sequence[str] = None,
-               key_type: Type = None,
-               value_type: Type = None,
+               key_type: Type[ModelT] = None,
+               value_type: Type[ModelT] = None,
                partitions: int = None,
                retention: Seconds = None,
                compacting: bool = None,

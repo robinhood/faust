@@ -18,7 +18,7 @@ from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
-    CodecArg, K, Message, PendingMessage,
+    CodecArg, K, Message, ModelT, PendingMessage,
     StreamCoroutine, TopicT, TopicPartition, V,
 )
 from .types.app import AppT
@@ -248,8 +248,8 @@ class App(AppT, ServiceProxy):
 
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
-              key_type: Type = None,
-              value_type: Type = None,
+              key_type: Type[ModelT] = None,
+              value_type: Type[ModelT] = None,
               partitions: int = None,
               retention: Seconds = None,
               compacting: bool = None,

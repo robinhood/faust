@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import (
     AbstractSet, Any, Awaitable, Callable, ClassVar,
-    Mapping, Optional, Type, Union,
+    Mapping, Optional, Sequence, Type, Union,
 )
 from faust.utils.times import Seconds
 from faust.utils.types.services import ServiceT
@@ -17,6 +17,8 @@ else:
 __all__ = [
     'ConsumerCallback',
     'TPorTopicSet',
+    'PartitionsRevokedCallback',
+    'PartitionsAssignedCallback',
     'ConsumerT',
     'ProducerT',
     'TransportT',
@@ -30,12 +32,27 @@ ConsumerCallback = Callable[[Message], Awaitable]
 #: Argument to Consumer.commit to specify topics/tps to commit.
 TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
 
+PartitionsRevokedCallback = Callable[[Sequence[TopicPartition]], None]
+PartitionsAssignedCallback = Callable[[Sequence[TopicPartition]], None]
+
 
 class ConsumerT(ServiceT):
 
     id: int
     transport: 'TransportT'
     commit_interval: float
+
+    @abc.abstractmethod
+    def __init__(self, transport: 'TransportT',
+                 *,
+                 callback: ConsumerCallback = None,
+                 on_partitions_revoked: PartitionsRevokedCallback = None,
+                 on_partitions_assigned: PartitionsAssignedCallback = None,
+                 autoack: bool = True,
+                 commit_interval: float = None,
+                 **kwargs: Any) -> None:
+        self._on_partitions_revoked: PartitionsRevokedCallback
+        self._on_partitions_assigned: PartitionsAssignedCallback
 
     @abc.abstractmethod
     async def create_topic(self, topic: str, partitions: int, replication: int,
@@ -69,6 +86,10 @@ class ProducerT(ServiceT):
     transport: 'TransportT'
 
     @abc.abstractmethod
+    def __init__(self, transport: 'TransportT', **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
     async def send(
             self,
             topic: str,
@@ -99,8 +120,8 @@ class ProducerT(ServiceT):
 
 
 class TransportT(metaclass=abc.ABCMeta):
-    Consumer: ClassVar[Type]
-    Producer: ClassVar[Type]
+    Consumer: ClassVar[Type[ConsumerT]]
+    Producer: ClassVar[Type[ProducerT]]
 
     app: AppT
     url: str
