@@ -290,12 +290,12 @@ class TopicSource(SourceT):
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
-        logger.error('Cannot decode key: %r: %r', message.key, exc)
+        logger.exception('Cannot decode key: %r: %r', message.key, exc)
 
     async def on_value_decode_error(
             self, exc: Exception, message: Message) -> None:
-        logger.error('Cannot decode value for key=%r (%r): %r',
-                     message.key, message.value, exc)
+        logger.exception('Cannot decode value for key=%r (%r): %r',
+                         message.key, message.value, exc)
 
     def __aiter__(self) -> AsyncIterator:
         return self
