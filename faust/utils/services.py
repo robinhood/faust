@@ -179,12 +179,20 @@ class Service(ServiceBase):
             await self.on_first_start()
         await self.on_start()
         for task in self._tasks:
-            self.add_future(task(self))
+            self.add_future(self._execute_task(task))
         for child in self._children:
             if child is not None:
                 await child.maybe_start()
         logger.info('-Started service %r', self)
         await self.on_started()
+
+    async def _execute_task(self, task: Awaitable) -> None:
+        try:
+            await task(self)
+        except asyncio.CancelledError:
+            logger.info('Terminating cancelled task: %r', task)
+        except Exception as exc:
+            logger.exception('Task %r raised: %r', task, exc)
 
     async def maybe_start(self) -> None:
         """Start the service, if it has not already been started."""
