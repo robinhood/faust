@@ -126,7 +126,7 @@ class Service(ServiceBase):
 
         The future will be joined when this service is stopped.
         """
-        fut = asyncio.ensure_future(coro, loop=self.loop)
+        fut = asyncio.ensure_future(self._execute_task(coro), loop=self.loop)
         self._futures.append(fut)
         return fut
 
@@ -179,7 +179,7 @@ class Service(ServiceBase):
             await self.on_first_start()
         await self.on_start()
         for task in self._tasks:
-            self.add_future(self._execute_task(task))
+            self.add_future(task(self))
         for child in self._children:
             if child is not None:
                 await child.maybe_start()
@@ -188,7 +188,7 @@ class Service(ServiceBase):
 
     async def _execute_task(self, task: Awaitable) -> None:
         try:
-            await task(self)
+            await task
         except asyncio.CancelledError:
             logger.info('Terminating cancelled task: %r', task)
         except Exception as exc:

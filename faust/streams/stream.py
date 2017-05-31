@@ -274,7 +274,7 @@ class Stream(StreamT, JoinableT, Service):
 
     async def _drainer(self):
         sleep = self.sleep
-        async for item in self:
+        async for item in self:  # noqa
             await sleep(0)
 
     def echo(self, *topics: Union[str, TopicT]) -> StreamT:
