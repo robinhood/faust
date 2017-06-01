@@ -6,17 +6,20 @@ from kafka.protocol.types import Schema
 
 class Response(Struct, metaclass=abc.ABCMeta):
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def API_KEY(self) -> int:
         """Integer identifier for api request/response"""
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def API_VERSION(self) -> int:
         """Integer of api request/response version"""
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def SCHEMA(self) -> Schema:
         """An instance of Schema() representing the response structure"""
         pass
@@ -24,22 +27,26 @@ class Response(Struct, metaclass=abc.ABCMeta):
 
 class Request(Struct, metaclass=abc.ABCMeta):
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def API_KEY(self) -> int:
         """Integer identifier for api request"""
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def API_VERSION(self) -> int:
         """Integer of api request version"""
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def SCHEMA(self) -> Schema:
         """An instance of Schema() representing the request structure"""
         pass
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def RESPONSE_TYPE(self) -> Type[Response]:
         """The Response class associated with the api request"""
         pass
