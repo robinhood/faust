@@ -104,10 +104,9 @@ class AppService(Service):
             [self.app.producer],                      # app.Producer
             # Consumer must be stopped after Topic Manager
             [self.app.consumer],                      # app.Consumer
-            [self.app.table_manager],                 # app.TableManager
             # Tables (and Sets).
             self.app.tables.values(),
-
+            [self.app.table_manager],  # app.TableManager
             # WebSite
             [self.app.website],                       # app.WebSite
             # TopicManager

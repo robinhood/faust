@@ -65,7 +65,8 @@ class Consumer(base.Consumer):
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False
         )
-        self.can_read = True
+        self.should_pause = asyncio.Event(loop=self.loop)
+        self.can_continue = asyncio.Event(loop=self.loop)
 
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
@@ -112,8 +113,10 @@ class Consumer(base.Consumer):
         try:
             while not should_stop():
                 pending = []
-                while self.can_read is False:
-                    await asyncio.sleep(5)
+                # if self.should_pause.is_set():
+                #     self.transport.app.table_manager.recover_tables.set()
+                self.transport.app.table_manager.recover_tables.set()
+                await self.can_continue.wait()
                 records = await getmany(timeout_ms=1000, max_records=None)
                 for tp, messages in records.items():
                     current_offset = get_current_offset(tp)
@@ -149,6 +152,15 @@ class Consumer(base.Consumer):
 
     def raw_consumer(self) -> Any:
         return self._consumer
+
+    def pause_partitions(self, tps: Sequence[TopicPartition]):
+        for partition in tps:
+            self._consumer._subscription.pause(partition=partition)
+
+    def resume_partitions(self, tps: Sequence[TopicPartition]):
+        for partition in tps:
+            print("resuming", partition)
+            self._consumer._subscription.resume(partition=partition)
 
 class Producer(base.Producer):
     _producer: aiokafka.AIOKafkaProducer

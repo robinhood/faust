@@ -26,66 +26,84 @@ class TableManager(Service, TableManagerT):
 
     def __init__(self, app:AppT,
                  tables:MutableMapping[str, TableT], **kwargs: Any) -> None:
-        print("Table manager!")
         Service.__init__(self, **kwargs)
         self.app = app
         self.tables = tables
         self._partition_callback_tasks = asyncio.Queue(maxsize=1,
                                                        loop=self.loop)
-        print("returning!")
+        self.recover_tables = asyncio.Event(loop=self.loop)
+        self.recover_tables.set()
 
     def get_table_changelog(self, topic_name) -> TableT:
         for table_name, table in self.tables.items():
-            print("scanning", table.changelog_topic, topic_name)
             if str(table.changelog_topic) == topic_name:
                 return table
 
     async def on_start(self) -> None:
-        print("here")
         self.add_future(self.partition_assign_table_handler())
-        print("there")
 
     async def partition_assign_table_handler(self) -> None:
-        while not self.should_stop:
-            print(self.tables)
-            consumer = self.app.consumer.raw_consumer()
-            assigned = await self._partition_callback_tasks.get()
-            print(self.tables, "after queue get")
-            logger.info("Recovering from Changelog if needed.")
-            for topic_partition in assigned:
-                # TODO: If standby ready, just swap and continue. Else proceed.
-
-                table = self.get_table_changelog(topic_partition.topic)
-                if table is None:
-                    continue
-                # Set offset of partition to beginning
-                # TODO: change to seek_to_beginning once implmented in aiokafka
-                consumer._subscription.need_offset_reset(
-                    topic_partition, -2)
-                while True:
-                    data = await consumer.getmany(topic_partition,
-                                                  timeout_ms=1000)
-                    for _, messages in data.items():
-                        for message in messages:
-                            table.raw_add(json.loads(message.key),
-                                          json.loads(message.value))
-                    highwater = consumer.highwater(
-                        topic_partition)
-                    position = await consumer.position(
-                        topic_partition)
-                    if highwater is None:
-                        break
-                    if highwater - position <= 0:
-                        break
-                    logger.info('Still Need to Fetch, %r',
-                                highwater - position)
-
-            # Once tables up to date, remove from consumer pattern
-            await self._remove_changelog_sources()
-
-            # Allow consumer to proceed
-            self.app.consumer.can_read = True
-            logger.info('Done Recovery')
+        try:
+            while not self.should_stop:
+                consumer = self.app.consumer.raw_consumer()
+                assigned = await self._partition_callback_tasks.get()
+                print(assigned)
+                await self.recover_tables.wait()
+                self.app.consumer.pause_partitions(assigned)
+                self.app.consumer.can_continue.clear()
+                to_resume = []
+                logger.info("Recovering from Changelog if needed.")
+                for topic_partition in assigned:
+                    # TODO: If standby ready, just swap and continue.
+                    # Else proceed.
+                    print("topic_partition is", topic_partition.topic)
+                    table = self.get_table_changelog(topic_partition.topic)
+                    print("table", table)
+                    if table is None:
+                        to_resume.append(topic_partition)
+                        continue
+                    # Set offset of partition to beginning
+                    # TODO: change to seek_to_beginning once implmented in
+                    #  aiokafka
+                    self.app.consumer.resume_partitions([topic_partition])
+                    consumer._subscription.need_offset_reset(
+                        topic_partition, -2)
+                    while True:
+                        print("in here")
+                        print("paused", consumer._subscription.paused_partitions())
+                        print ("can read", topic_partition not in consumer._subscription.paused_partitions())
+                        position = await consumer.position(
+                            topic_partition)
+                        print(position, "position is")
+                        data = await consumer.getmany(topic_partition,
+                                                      timeout_ms=5000)
+                        print("dataa", data)
+                        for _, messages in data.items():
+                            for message in messages:
+                                table.raw_add(json.loads(message.key),
+                                              json.loads(message.value))
+                        highwater = consumer.highwater(
+                            topic_partition)
+                        position = await consumer.position(
+                            topic_partition)
+                        if highwater is None:
+                            break
+                        if highwater - position <= 0:
+                            break
+                        logger.info('Still Need to Fetch, %r',
+                                    highwater - position)
+                    print("pausing them")
+                    self.app.consumer.pause_partitions([topic_partition])
+                # Once tables up to date, remove from consumer pattern
+                # await self._remove_changelog_sources()
+                print("resuming finall", to_resume)
+                self.app.consumer.resume_partitions(to_resume)
+                # Allow consumer to proceed
+                self.recover_tables.clear()
+                self.app.consumer.can_continue.set()
+                logger.info('Done Recovery')
+        finally:
+            self.set_shutdown()
 
     async def _remove_changelog_sources(self):
         source_list = []
@@ -98,6 +116,7 @@ class TableManager(Service, TableManagerT):
 
     async def partition_remove_table_handler(self) -> None:
         ...
+
 
 class Table(Service, TableT, ManagedUserDict):
 
@@ -136,7 +155,6 @@ class Table(Service, TableT, ManagedUserDict):
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
 
-        # Assign changelog to list of partitions to be consumed
         self.app.sources.add(TopicSource(self.changelog_topic))
 
         # Aliases
