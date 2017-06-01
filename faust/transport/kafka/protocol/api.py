@@ -1,5 +1,5 @@
 import abc
-
+from typing import Type
 from kafka.protocol.struct import Struct
 from kafka.protocol.types import Schema
 
@@ -40,7 +40,7 @@ class Request(Struct, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractproperty
-    def RESPONSE_TYPE(self) -> Response:
+    def RESPONSE_TYPE(self) -> Type[Response]:
         """The Response class associated with the api request"""
         pass
 
