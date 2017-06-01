@@ -14,12 +14,12 @@ class Store(StoreT, Service):
                  key_serializer: CodecArg = 'json',
                  value_serializer: CodecArg = 'json',
                  **kwargs: Any) -> None:
+        Service.__init__(self, **kwargs)
         self.url = url
         self.app = app
         self.table_name = table_name
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
-        super().__init__(**kwargs)
 
     def _encode_key(self, key: Any) -> bytes:
         return dumps(self.key_serializer, key)

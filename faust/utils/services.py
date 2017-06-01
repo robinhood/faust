@@ -76,7 +76,7 @@ class Service(ServiceBase):
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
 
-    #: The becon is used to track the graph of services.
+    #: The beacon is used to track the graph of services.
     _beacon: NodeT
 
     #: .add_dependency adds subservices to this list.

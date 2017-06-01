@@ -416,7 +416,7 @@ class TopicManager(TopicManagerT, Service):
         for source in self._sources:
             for topic in source.topic.topics:
                 self._topicmap[topic].add(source)
-        self._pattern = '|'.join(self._topicmap)
+        self._pattern = '$|'.join(self._topicmap) + '$'
 
     def on_partitions_assigned(self,
                                assigned: Sequence[TopicPartition]) -> None:
