@@ -1,6 +1,6 @@
+import abc
 import typing
-from typing import Any, ClassVar, FrozenSet, Mapping, Type, Union
-from .core import K, V
+from typing import Any, ClassVar, FrozenSet, Mapping, Type
 from .codecs import CodecArg
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -13,7 +13,7 @@ else:
 __all__ = ['ModelOptions', 'ModelT', 'FieldDescriptorT']
 
 
-class ModelOptions:
+class ModelOptions(abc.ABC):
     serializer: CodecArg = None
     namespace: str = None
 
@@ -36,63 +36,43 @@ class ModelOptions:
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
 
-class ModelT:
+class ModelT(abc.ABC):
     # uses __init_subclass__ so cannot use ABCMeta
 
     _options: ClassVar[ModelOptions]
 
     @classmethod
+    @abc.abstractmethod
     def as_schema(cls) -> Mapping:
         ...
 
     @classmethod
+    @abc.abstractmethod
     def as_avro_schema(cls) -> Schema:
         ...
 
     @classmethod
+    @abc.abstractmethod
     def loads(
             cls, s: bytes,
             *,
             default_serializer: CodecArg = None) -> 'ModelT':
         ...
 
+    @abc.abstractmethod
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         ...
 
+    @abc.abstractmethod
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
         ...
 
+    @abc.abstractmethod
     def derive(self, *objects: 'ModelT', **fields: Any) -> 'ModelT':
         ...
 
-    async def forward(self, topic: Union[str, TopicT],
-                      *,
-                      key: Any = None) -> None:
-        ...
-
-    def attach(self, topic: Union[str, TopicT], key: K, value: V,
-               *,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None) -> None:
-        ...
-
-    def ack(self) -> None:
-        ...
-
+    @abc.abstractmethod
     def to_representation(self) -> Any:
-        ...
-
-    async def __aenter__(self) -> 'ModelT':
-        ...
-
-    async def __aexit__(self, *exc_info: Any) -> None:
-        ...
-
-    def __enter__(self) -> 'ModelT':
-        ...
-
-    def __exit__(self, *exc_info: Any) -> None:
         ...
 
 
@@ -102,6 +82,14 @@ class FieldDescriptorT:
     model: Type[ModelT]
     required: bool = True
     default: Any = None  # noqa: E704
+
+    def __init__(self,
+                 field: str,
+                 type: Type,
+                 model: Type[ModelT],
+                 required: bool = True,
+                 default: Any = None) -> None:
+        ...
 
     @property
     def ident(self) -> str:

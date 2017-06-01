@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Optional, Union
+from typing import Any, Optional, Tuple, Union
 
 __all__ = ['CodecArg', 'CodecT']
 
@@ -10,6 +10,12 @@ class CodecT(metaclass=abc.ABCMeta):
     See Also:
         :class:`faust.serializers.codecs.Codec`.
     """
+
+    @abc.abstractmethod
+    def __init__(self,
+                 children: Tuple['CodecT', ...] = None,
+                 **kwargs: Any) -> None:
+        ...
 
     @abc.abstractmethod
     def dumps(self, obj: Any) -> bytes:

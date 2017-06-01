@@ -15,15 +15,22 @@ else:
 __all__ = ['AsyncSerializerT', 'RegistryT']
 
 
-class AsyncSerializerT:
+class AsyncSerializerT(abc.ABC):
     app: AppT
 
+    @abc.abstractmethod
+    def __init__(self, app: AppT) -> None:
+        ...
+
+    @abc.abstractmethod
     async def loads(self, s: bytes) -> Any:
         ...
 
+    @abc.abstractmethod
     async def dumps_key(self, topic: str, s: ModelT) -> bytes:
         ...
 
+    @abc.abstractmethod
     async def dumps_value(self, topic: str, s: ModelT) -> bytes:
         ...
 

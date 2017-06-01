@@ -15,7 +15,12 @@ __all__ = [
 
 
 class InputStreamT(Iterable, AsyncIterable):
+    loop: asyncio.AbstractEventLoop
     queue: asyncio.Queue
+
+    @abc.abstractmethod
+    def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
 
     @abc.abstractmethod
     async def put(self, value: Any) -> None:
@@ -35,12 +40,14 @@ StreamCoroutineCallback = Callable[[Any], Awaitable[None]]
 
 class CoroCallbackT(ServiceT):
 
+    @abc.abstractmethod
     def __init__(self,
                  inbox: InputStreamT,
                  callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
         self.callback: StreamCoroutineCallback = callback
 
+    @abc.abstractmethod
     async def send(self, value: Any) -> None:
         ...
 

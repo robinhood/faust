@@ -89,6 +89,7 @@ class Registry(RegistryT):
         is_model = False
         if isinstance(key, ModelT):
             is_model = True
+            key = cast(ModelT, key)
             serializer = key._options.serializer or self.key_serializer
 
         if serializer:
@@ -115,6 +116,7 @@ class Registry(RegistryT):
         is_model = False
         if isinstance(value, ModelT):
             is_model = True
+            value = cast(ModelT, value)
             serializer = value._options.serializer or self.value_serializer
         if serializer:
             try:

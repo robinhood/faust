@@ -37,6 +37,7 @@ Serializers
     :maxdepth: 1
 
     faust.serializers.avro
+    faust.serializers.base
     faust.serializers.codecs
     faust.serializers.registry
 

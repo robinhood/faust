@@ -26,26 +26,30 @@ else:
 __all__ = ['EventT', 'TopicT', 'SourceT', 'TopicManagerT']
 
 
-class EventT:
+class EventT(metaclass=abc.ABCMeta):
 
     __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
 
+    @abc.abstractmethod
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
         self.app: AppT = app
         self.key: K = key
         self.value: V = value
         self.message: Message = message
 
+    @abc.abstractmethod
     async def send(self, topic: Union[str, 'TopicT'],
                    *,
                    key: Any = None) -> None:
         ...
 
+    @abc.abstractmethod
     async def forward(self, topic: Union[str, 'TopicT'],
                       *,
                       key: Any = None) -> None:
         ...
 
+    @abc.abstractmethod
     def attach(self, topic: Union[str, 'TopicT'], key: K, value: V,
                *,
                partition: int = None,
@@ -53,18 +57,23 @@ class EventT:
                value_serializer: CodecArg = None) -> None:
         ...
 
+    @abc.abstractmethod
     def ack(self) -> None:
         ...
 
+    @abc.abstractmethod
     async def __aenter__(self) -> 'EventT':
         ...
 
+    @abc.abstractmethod
     async def __aexit__(self, *exc_info: Any) -> None:
         ...
 
+    @abc.abstractmethod
     def __enter__(self) -> 'EventT':
         ...
 
+    @abc.abstractmethod
     def __exit__(self, *exc_info: Any) -> None:
         ...
 
@@ -111,6 +120,7 @@ class TopicT(AsyncIterable):
             wait: bool = True) -> Awaitable:
         ...
 
+    @abc.abstractmethod
     def send_soon(self, key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
@@ -172,6 +182,10 @@ class SourceT(AsyncIterator):
 class TopicManagerT(ServiceT, MutableSet[SourceT]):
 
     app: AppT
+
+    @abc.abstractmethod
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
 
     @abc.abstractmethod
     def ack_message(self, message: Message) -> None:

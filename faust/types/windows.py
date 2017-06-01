@@ -8,7 +8,7 @@ class WindowRange(NamedTuple):
     end: float = None
 
 
-class WindowT(metaclass=abc.ABCMeta):
+class WindowT(abc.ABC):
     expires: float = None
 
     @abc.abstractmethod

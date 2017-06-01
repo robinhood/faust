@@ -119,7 +119,7 @@ class ProducerT(ServiceT):
         ...
 
 
-class TransportT(metaclass=abc.ABCMeta):
+class TransportT(abc.ABC):
     Consumer: ClassVar[Type[ConsumerT]]
     Producer: ClassVar[Type[ProducerT]]
 

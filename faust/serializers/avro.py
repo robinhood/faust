@@ -1,9 +1,8 @@
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
-from ..types.app import AppT
 from ..types.models import ModelT
-from ..types.serializers import AsyncSerializerT
 from ..utils.objects import cached_property
 from ..utils.avro import MessageSerializer, RegistryClient
+from . import base
 
 __all__ = ['AvroSerializer', 'to_avro_type']
 
@@ -30,16 +29,13 @@ def to_avro_type(typ: Type) -> str:
     elif issubclass(typ, Mapping):
         return 'map'
     elif issubclass(typ, ModelT):
-        return typ.as_schema()  # type: ignore
+        return typ.as_schema()
     raise TypeError(f'Cannot convert type {typ!r} to Avro')
 
 
-class AvroSerializer(AsyncSerializerT):
+class AvroSerializer(base.AsyncSerializer):
     key_subject = '{}-key'
     value_subject = '{}-value'
-
-    def __init__(self, app: AppT) -> None:
-        self.app = app
 
     async def loads(self, s: bytes) -> Any:
         return await self.serializer.loads(s)
