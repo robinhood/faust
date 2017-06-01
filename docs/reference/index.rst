@@ -15,6 +15,7 @@ Faust
 
     faust
     faust.exceptions
+    faust.actors
     faust.app
     faust.sensors
     faust.topics
@@ -79,18 +80,31 @@ Transports
     faust.transport.aiokafka
     faust.transport.base
 
+Assignor
+========
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.assignor.client_assignment
+    faust.assignor.cluster_assignment
+    faust.assignor.copartitioned_assignor
+    faust.assignor.partition_assignor
+
 Types
 =====
 
 .. toctree::
     :maxdepth: 1
 
+    faust.types.actors
     faust.types.app
     faust.types.codecs
     faust.types.core
     faust.types.joins
     faust.types.models
     faust.types.sensors
+    faust.types.serializers
     faust.types.stores
     faust.types.streams
     faust.types.tables
@@ -105,6 +119,7 @@ Utils
 .. toctree::
     :maxdepth: 1
 
+    faust.utils.aiolocals
     faust.utils.aiter
     faust.utils.avro.serializers
     faust.utils.avro.servers

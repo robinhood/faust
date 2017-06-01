@@ -16,10 +16,10 @@ from kafka.structs import (
 
 from faust.assignor.partition_assignor import PartitionAssignor
 from . import base
-from .kafka.protocol.admin import CreateTopicsRequest
 from ..types import Message, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import done_future
+from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
 from ..utils.services import Service

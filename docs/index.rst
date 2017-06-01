@@ -29,7 +29,7 @@ Contents
     reference/index
     changelog
     contributing
-    developerguide
+    developerguide/index
     glossary
 
 Indices and tables

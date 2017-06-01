@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from sphinx_celery import conf
+import sys
+
+sys.path.append('.')
 
 globals().update(conf.build_config(
     'faust', __file__,
@@ -28,18 +31,26 @@ globals().update(conf.build_config(
     # from pathlib import Path
     # path_additions=[Path.cwd().parent / 'testproj']
     apicheck_ignore_modules=[
-        'faust.transport.confluent',
+        'faust.__main__',
+        'faust.assignor',
+        'faust.bin',
+        'faust.models',
+        'faust.serializers',
+        'faust.streams',
         'faust.streams._constants',
         'faust.streams._coroutines',
+        'faust.transport.confluent',
         'faust.types._coroutines',
-        'faust.utils.avro',
         'faust.types',
         'faust.utils',
+        'faust.utils.avro',
+        r'faust.utils.kafka.*',
         'faust.utils.types',
         'faust.utils.graphs.graph',
         'faust.utils.graphs.formatter',
         'faust.web',
-        'faust.web.apps',
+        r'faust.web.apps*',
+        'faust.web.apps.stats.app',
         'faust.web.drivers',
     ],
 ))
@@ -49,3 +60,9 @@ html_sidebars = {}
 templates_path = ['_templates']
 
 autodoc_member_order = 'bysource'
+
+# This option is deprecated and raises an error.
+try:
+    del(html_use_smartypants)
+except NameError:
+    pass

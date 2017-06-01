@@ -213,11 +213,6 @@ Creating streams and tables
 
     .. automethod:: table
 
-    .. automethod:: add_source
-
-    .. automethod:: add_table
-
-
 Sending messages
 ^^^^^^^^^^^^^^^^
 

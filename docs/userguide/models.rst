@@ -152,20 +152,6 @@ Schemas
 
     .. automethod:: as_avro_schema
 
-Event methods
-^^^^^^^^^^^^^
-
-.. class:: Record
-    :noindex:
-
-    .. automethod:: send
-
-    .. automethod:: forward
-
-    .. automethod:: attach
-
-    .. automethod:: ack
-
 Introspection
 ^^^^^^^^^^^^^
 

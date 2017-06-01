@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
     from .transports import ConsumerT, TPorTopicSet
 else:
     class AppT: ...             # noqa
-    class Model: ...            # noqa
+    class ModelT: ...           # noqa
     class StreamT: ...          # noqa
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
