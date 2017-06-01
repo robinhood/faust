@@ -36,7 +36,6 @@ class ModelOptions(abc.ABC):
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
 
-
 class ModelT:
     # uses __init_subclass__ so cannot use ABCMeta
 
