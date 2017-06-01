@@ -261,11 +261,16 @@ class Stream(StreamT, JoinableT, Service):
         else:
             topictopic = topic
 
+        source = aiter(topictopic)
+        through = self.clone(source=source, on_start=self.maybe_start)
+
         async def forward(value: _T) -> _T:
-            return await maybe_forward(value, topictopic)
+            event = self._current_event
+            return await maybe_forward(event, topictopic)
+
         self.add_processor(forward)
         self._enable_passive()
-        return self.clone(source=aiter(topictopic), on_start=self.maybe_start)
+        return through
 
     def _enable_passive(self) -> None:
         if not self._passive:
@@ -366,6 +371,8 @@ class Stream(StreamT, JoinableT, Service):
         topic_created = False
         format_key = self._format_key
 
+        grouped = self.clone(source=aiter(topic), on_start=self.maybe_start)
+
         async def repartition(value: _T) -> _T:
             event = self._current_event
             if event is None:
@@ -382,7 +389,8 @@ class Stream(StreamT, JoinableT, Service):
             )
             return value
         self.add_processor(repartition)
-        return self.clone(source=aiter(topic), on_start=self.maybe_start)
+        self._enable_passive()
+        return grouped
 
     async def _format_key(self, key: GroupByKeyArg, value: _T):
         if isinstance(key, FieldDescriptorT):
