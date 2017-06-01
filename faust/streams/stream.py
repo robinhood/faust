@@ -261,10 +261,15 @@ class Stream(StreamT, JoinableT, Service):
         else:
             topictopic = topic
 
+        topic_created = False
         source = aiter(topictopic)
         through = self.clone(source=source, on_start=self.maybe_start)
 
         async def forward(value: _T) -> _T:
+            nonlocal topic_created
+            if not topic_created:
+                await topictopic.maybe_declare()
+                topic_created = True
             event = self._current_event
             return await maybe_forward(event, topictopic)
 
