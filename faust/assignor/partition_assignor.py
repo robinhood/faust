@@ -1,4 +1,5 @@
 from collections import defaultdict
+from kafka.cluster import ClusterMetadata
 from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
     ConsumerProtocolMemberMetadata, ConsumerProtocolMemberAssignment,
@@ -42,14 +43,14 @@ class PartitionAssignor(AbstractPartitionAssignor):
     @classmethod
     def _get_copartitioned_groups(
             cls, topics: Set[str],
-            cluster: ClusterAssignment) -> MutableMapping[int, Set[str]]:
+            cluster: ClusterMetadata) -> MutableMapping[int, Set[str]]:
         topics_by_partitions: MutableMapping[int, Set] = defaultdict(set)
         for topic in topics:
             num_partitions = len(cluster.partitions_for_topic(topic))
             topics_by_partitions[num_partitions].add(topic)
         return topics_by_partitions
 
-    def assign(self, cluster: ClusterAssignment,
+    def assign(self, cluster: ClusterMetadata,
                member_metadata: MutableMapping[str,
                                                ConsumerProtocolMemberMetadata]
                ) -> MemberAssignmentMapping:
@@ -74,8 +75,8 @@ class PartitionAssignor(AbstractPartitionAssignor):
                 num_partitions=num_partitions,
             )
             # Update client assignments for copartitioned group
-            for client, assgn in assignor.get_assignment().items():
-                assignments[client].add_copartitioned_assignment(assgn)
+            for client, copart_assn in assignor.get_assignment().items():
+                assignments[client].add_copartitioned_assignment(copart_assn)
 
         return self._protocol_assignments(assignments)
 
