@@ -30,7 +30,6 @@ class EventT(metaclass=abc.ABCMeta):
 
     __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
 
-    @abc.abstractmethod
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
         self.app: AppT = app
         self.key: K = key
