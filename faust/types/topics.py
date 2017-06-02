@@ -27,14 +27,16 @@ __all__ = ['EventT', 'TopicT', 'SourceT', 'TopicManagerT']
 
 
 class EventT(metaclass=abc.ABCMeta):
+    app: AppT
+    key: K
+    value: V
+    message: Message
 
     __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
 
+    @abc.abstractmethod
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
-        self.app: AppT = app
-        self.key: K = key
-        self.value: V = value
-        self.message: Message = message
+        ...
 
     @abc.abstractmethod
     async def send(self, topic: Union[str, 'TopicT'],

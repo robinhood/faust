@@ -39,10 +39,11 @@ SENTINEL = object()
 
 class Event(EventT):
 
-    app: AppT
-    key: K
-    value: V
-    message: Message
+    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
+        self.app: AppT = app
+        self.key: K = key
+        self.value: V = value
+        self.message: Message = message
 
     async def send(self, topic: Union[str, TopicT],
                    *,
