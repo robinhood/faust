@@ -333,7 +333,6 @@ class TopicManager(TopicManagerT, Service):
         return on_message
 
     async def on_start(self) -> None:
-        self.app.consumer.can_read = False
         self.add_future(self._subscriber())
         self.add_future(self._gatherer())
 
