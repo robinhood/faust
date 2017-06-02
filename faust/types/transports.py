@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import (
     AbstractSet, Any, Awaitable, Callable, ClassVar,
-    Mapping, Optional, Sequence, Type, Union,
+    Iterator, Mapping, Optional, Sequence, Tuple, Type, Union,
 )
 from faust.utils.times import Seconds
 from faust.utils.types.services import ServiceT
@@ -70,7 +70,26 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def getmany(
+            self,
+            *partitions: TopicPartition,
+            timeout: float) -> Iterator[Tuple[TopicPartition, Message]]:
+        ...
+
+    @abc.abstractmethod
     def ack(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    def pause_partitions(self, tps: Sequence[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def resume_partitions(self, tps: Sequence[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def reset_offset_earliest(self, topic_partiton: TopicPartition):
         ...
 
     @abc.abstractmethod
@@ -79,6 +98,14 @@ class ConsumerT(ServiceT):
 
     @abc.abstractmethod
     async def on_task_error(self, exc: Exception) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def suspend(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def resume(self) -> None:
         ...
 
 

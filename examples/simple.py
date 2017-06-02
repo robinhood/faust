@@ -12,7 +12,7 @@ class Withdrawal(faust.Record, serializer='json'):
 
 app = faust.App(
     'f-simple',
-    url='kafka://10.2.4.27:9092',
+    url='kafka://localhost:9092',
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
@@ -23,7 +23,7 @@ country_to_total = app.table('country_to_total',
 
 @app.actor(withdrawals_topic)
 async def find_large_withdrawals(withdrawals):
-    async for withdrawal in withdrawals.group_by(Withdrawal.user):
+    async for withdrawal in withdrawals:
         user_to_total[withdrawal.user] += withdrawal.amount
         country_to_total[withdrawal.country] += withdrawal.amount
         print('{!r} User Total: {!r}, Country Total: {!r}'.format(
@@ -34,7 +34,7 @@ async def find_large_withdrawals(withdrawals):
 
 
 async def _publish_withdrawals():
-    for i in range(10000):
+    for i in range(10_000):
         print(f'+SEND {i!r}')
         await withdrawals_topic.send(
             b'K', Withdrawal(user='foo', amount=100.3 + i, country='FOO'))

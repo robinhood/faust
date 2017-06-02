@@ -1,4 +1,3 @@
-import json
 import asyncio
 import re
 import typing
@@ -421,13 +420,12 @@ class TopicManager(TopicManagerT, Service):
                 self._topicmap[topic].add(source)
         self._pattern = '^' + '$|^'.join(self._topicmap) + '$'
 
-    def on_partitions_assigned(self,
-                                assigned: Sequence[
-                                    TopicPartition]) -> None:
-        self.app.table_manager.queue_assignment(assigned)
+    def on_partitions_assigned(
+            self, assigned: Sequence[TopicPartition]) -> None:
+        self.app.tables.on_partitions_assigned(assigned)
 
-    def on_partitions_revoked(self,
-                               revoked: Sequence[TopicPartition]) -> None:
+    def on_partitions_revoked(
+            self, revoked: Sequence[TopicPartition]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:
@@ -458,3 +456,15 @@ class TopicManager(TopicManagerT, Service):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}({len(self._sources)})'
+
+
+class Fetcher(Service):
+    app: AppT
+
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        self.app = app
+        super().__init__(**kwargs)
+
+    @Service.task
+    async def _drain_messages(self) -> None:
+        await self.app.consumer._drain_messages()

@@ -1,14 +1,14 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
-import asyncio
 from typing import (
-    Any, Awaitable, ClassVar, List, Mapping,
-    MutableMapping, Optional, Set, Sequence, Type, cast
+    Any, Awaitable, ClassVar, Iterator, List, Mapping,
+    MutableMapping, Optional, Set, Sequence, Tuple, Type, cast
 )
 
 from aiokafka.errors import ConsumerStoppedError
 from kafka import errors
 from kafka.consumer import subscription_state
+from kafka.protocol.offset import OffsetResetStrategy
 from kafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
@@ -22,7 +22,6 @@ from ..utils.futures import done_future
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
-from ..utils.services import Service
 from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
@@ -77,6 +76,10 @@ class Consumer(base.Consumer):
     wait_for_shutdown = True
     _assignor: PartitionAssignor
 
+    consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = (
+        ConsumerStoppedError,
+    )
+
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
         self._assignor = PartitionAssignor()
@@ -86,10 +89,8 @@ class Consumer(base.Consumer):
             group_id=transport.app.id,
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
-            enable_auto_commit=False
+            enable_auto_commit=False,
         )
-        self.should_pause = asyncio.Event(loop=self.loop)
-        self.can_continue = asyncio.Event(loop=self.loop)
 
     async def create_topic(self, topic: str, partitions: int, replication: int,
                            *,
@@ -120,6 +121,32 @@ class Consumer(base.Consumer):
             listener=self._rebalance_listener,
         )
 
+    async def getmany(
+            self,
+            *partitions: TopicPartition,
+            timeout: float) -> Iterator[Tuple[TopicPartition, Message]]:
+        records = await self._consumer.getmany(
+            *partitions,
+            timeout_ms=timeout * 1000.0,
+            max_records=None,
+        )
+        create_message = Message  # localize
+        for tp, messages in records.items():
+            for message in messages:
+                yield tp, create_message(
+                    message.topic,
+                    message.partition,
+                    message.offset,
+                    message.timestamp / 1000.0,
+                    message.timestamp_type,
+                    message.key,
+                    message.value,
+                    message.checksum,
+                    message.serialized_key_size,
+                    message.serialized_value_size,
+                    tp,
+                )
+
     def _get_topic_meta(self, topic: str) -> Any:
         return self._consumer.partitions_for_topic(topic)
 
@@ -133,62 +160,6 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await self.commit()
         await self._consumer.stop()
-
-    @Service.task
-    async def _drain_messages(self) -> None:
-        callback = self.callback
-        getmany = self._consumer.getmany
-        track_message = self.track_message
-        should_stop = self._stopped.is_set
-        wait = asyncio.wait
-        return_when = asyncio.ALL_COMPLETED
-        loop = self.loop
-        get_current_offset = self._current_offset.__getitem__
-
-        async def deliver(record: Any, tp: TopicPartition) -> None:
-            message = Message(
-                record.topic,
-                record.partition,
-                record.offset,
-                record.timestamp / 1000.0,
-                record.timestamp_type,
-                record.key,
-                record.value,
-                record.checksum,
-                record.serialized_key_size,
-                record.serialized_value_size,
-                tp,
-            )
-            await track_message(message, tp, message.offset)
-            await callback(message)
-
-        try:
-            while not should_stop():
-                pending: List[Awaitable] = []
-                # if self.should_pause.is_set():
-                #     self.transport.app.table_manager.recover_tables.set()
-                self.transport.app.table_manager.recover_tables.set()
-                await self.can_continue.wait()
-                records = await getmany(timeout_ms=1000, max_records=None)
-                for tp, messages in records.items():
-                    offset = get_current_offset(tp)
-                    pending.extend(
-                        deliver(message, tp) for message in messages
-                        if offset is None or message.offset > offset
-                    )
-
-                if pending:
-                    await wait(pending, loop=loop, return_when=return_when)
-        except ConsumerStoppedError:
-            if self.transport.app.should_stop:
-                # we're already stopping so ignore
-                logger.info('Consumer: stopped, shutting down...')
-                return
-            raise
-        except Exception as exc:
-            logger.exception('Drain messages raised: %r', exc)
-        finally:
-            self.set_shutdown()
 
     async def _perform_seek(self) -> None:
         current_offset = self._current_offset
@@ -204,21 +175,30 @@ class Consumer(base.Consumer):
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
 
-    def raw_consumer(self) -> Any:
-        return self._consumer
-
     def pause_partitions(self, tps: Sequence[TopicPartition]) -> None:
         for partition in tps:
             self._consumer._subscription.pause(partition=partition)
 
-    def resume_partitions(self, tps: Sequence[TopicPartition]):
+    def resume_partitions(self, tps: Sequence[TopicPartition]) -> None:
         for partition in tps:
             self._consumer._subscription.resume(partition=partition)
 
-    def reset_offset(self, topic_partiton: TopicPartition,
-                     strategy: int) -> None:
-        self._consumer._subscription.need_offset_reset(topic_partiton,
-                                                       strategy)
+    def reset_offset_earliest(self, topic_partiton: TopicPartition):
+        self._consumer._subscription.need_offset_reset(
+            topic_partiton, OffsetResetStrategy.EARLIEST)
+
+    def assignment(self):
+        # XXX Need public interface
+        return self._consumer.assignment()
+
+    def highwater(self, tp):
+        # XXX Need public interface
+        return self._consumer.highwater(tp)
+
+    def position(self, tp):
+        # XXX Need public interface
+        return self._consumer.position(tp)
+
 
 class Producer(base.Producer):
     _producer: aiokafka.AIOKafkaProducer

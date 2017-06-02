@@ -1,10 +1,13 @@
 import abc
 import typing
-from typing import Any, Callable, ClassVar, MutableMapping, Type
+from typing import (
+    Any, Callable, ClassVar, MutableMapping, Sequence, Type,
+)
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .streams import JoinableT
 from .topics import EventT, TopicT
+from .tuples import TopicPartition
 from .stores import StoreT
 from .windows import WindowT
 
@@ -65,20 +68,16 @@ class TableT(MutableMapping, JoinableT, ServiceT):
         ...
 
 
-class TableManagerT(ServiceT):
+class TableManagerT(ServiceT, MutableMapping[str, TableT]):
     app: AppT
-    tables: MutableMapping[str, TableT]
 
     @abc.abstractmethod
-    def get_table_changelog(self, table_name: str) -> 'TableT':
+    def on_partitions_assigned(
+            self, assigned: Sequence[TopicPartition]) -> None:
         ...
 
     @abc.abstractmethod
-    def partition_assign_table_handler(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    def partition_remove_table_handler(self) -> None:
+    def recover(self) -> None:
         ...
 
 

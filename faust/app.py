@@ -16,7 +16,7 @@ from . import transport
 from .actors import ActorFun, Actor, ActorT
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
-from .topics import Topic, TopicManager, TopicManagerT
+from .topics import Fetcher, Topic, TopicManager, TopicManagerT
 from .types import (
     CodecArg, K, Message, ModelT, PendingMessage,
     StreamCoroutine, TopicT, TopicPartition, V,
@@ -47,7 +47,7 @@ DEFAULT_URL = 'kafka://localhost:9092'
 #: Path to default stream class used by ``app.stream``.
 DEFAULT_STREAM_CLS = 'faust.Stream'
 
-DEFAULT_TABLE_MANAGER_CLS = 'faust.TableManager'
+DEFAULT_TABLE_MANAGER_CLS = 'faust.tables.TableManager'
 
 #: Path to default table class used by ``app.table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
@@ -105,11 +105,11 @@ class AppService(Service):
             # Consumer must be stopped after Topic Manager
             [self.app.consumer],                      # app.Consumer
             # TableManager
-            [self.app.table_manager],                 # app.TableManager
-            # Tables (and Sets).
-            self.app.tables.values(),
+            [self.app.tables],                        # app.TableManager
             # TopicManager
             [self.app.sources],                       # app.TopicManager
+            # Fetcher
+            [self.app.fetcher],                       # faust.topics.Fetcher
             # Actors last.
             self.app.actors.values(),
         ))
@@ -185,6 +185,9 @@ class App(AppT, ServiceProxy):
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
 
+    #: Service dedicated to consuming messages.
+    _fetcher: Fetcher = None
+
     _pending_on_commit: MutableMapping[
         TopicPartition,
         List[Tuple[int, PendingMessage]]]
@@ -244,7 +247,6 @@ class App(AppT, ServiceProxy):
             value_serializer=self.value_serializer,
         )
         self.actors = OrderedDict()
-        self.tables = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store
         self._monitor = monitor
@@ -595,9 +597,9 @@ class App(AppT, ServiceProxy):
         return AppService(self)
 
     @cached_property
-    def table_manager(self) -> TableManagerT:
-        return self.TableManager(app=self, tables=self.tables,
-                                 loop=self.loop, beacon=self.beacon)
+    def tables(self) -> TableManagerT:
+        return self.TableManager(
+            app=self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def sources(self) -> TopicManagerT:
@@ -616,3 +618,9 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
         return asyncio.Queue(loop=self.loop)
+
+    @property
+    def fetcher(self):
+        if self._fetcher is None:
+            self._fetcher = Fetcher(self, beacon=self.beacon, loop=self.loop)
+        return self._fetcher

@@ -1,5 +1,4 @@
 """Tables (changelog stream)."""
-import json
 import asyncio
 import operator
 from collections import defaultdict
@@ -10,7 +9,6 @@ from typing import (
 )
 from . import stores
 from . import windows
-from .topics import TopicSource
 from .types import (
     AppT, EventT, FieldDescriptorT, JoinT, TopicT, TopicPartition,
 )
@@ -18,7 +16,9 @@ from .types.models import ModelT
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT, TableManagerT
+from .types.topics import SourceT
 from .types.windows import WindowRange, WindowT
+from .utils.aiter import aiter
 from .utils.collections import FastUserDict, ManagedUserDict
 from .utils.logging import get_logger
 from .utils.services import Service
@@ -31,71 +31,102 @@ __all__ = ['Table', 'TableManager']
 logger = get_logger(__name__)
 
 
-class TableManager(Service, TableManagerT):
+class TableManager(Service, TableManagerT, FastUserDict):
+    _topic_to_table: MutableMapping[str, TableT]
+    _sources: MutableMapping[TableT, SourceT]
 
-    def __init__(self, app:AppT,
-                 tables:MutableMapping[str, TableT], **kwargs: Any) -> None:
+    def __init__(self, app: AppT,
+                 **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self.tables = tables
-        self._partition_callback_tasks = asyncio.Queue(maxsize=1,
-                                                       loop=self.loop)
-        self.recover_tables = asyncio.Event(loop=self.loop)
-        self.recover_tables.set()
-
-    def queue_assignment(self, assigned: Sequence[TopicPartition]):
-        self._partition_callback_tasks.put_nowait(assigned)
-
-    def get_table_changelog(self, topic_name) -> TableT:
-        for table_name, table in self.tables.items():
-            if str(table.changelog_topic) == topic_name:
-                return table
+        self._partition_callback_tasks = asyncio.Queue(
+            maxsize=1, loop=self.loop)
+        self._recover_tables = asyncio.Event(loop=self.loop)
+        self._recover_tables.set()
+        self._topic_to_table = {}
+        self._sources = {}
+        self.data = {}
 
     async def on_start(self) -> None:
-        self.add_future(self.partition_assign_table_handler())
+        # Start the topic sources so that the TopicManager will
+        # subscribe to them.
+        self._sources = {
+            table: aiter(table.changelog_topic)
+            for table in self.values()
+        }
 
-    async def partition_assign_table_handler(self) -> None:
+    def on_partitions_assigned(
+            self, assigned: Sequence[TopicPartition]) -> None:
+        self._partition_callback_tasks.put_nowait(assigned)
+
+    def __setitem__(self, key: Any, value: TableT) -> None:
+        super().__setitem__(key, value)
+        for topic in value.changelog_topic.topics:
+            self._topic_to_table[topic] = value
+
+    def __delitem__(self, key: Any) -> None:
+        table = self[key]
+        for topic in table.changelog_topic.topics:
+            self._topic_to_table.pop(topic, None)
+        super().__delitem__(key)
+
+    def recover(self) -> None:
+        self._recover_tables.set()
+
+    async def _recover_from_changelog(self, table: TableT) -> None:
+        table.raw_update({
+            event.key: event.value
+            async for event in self._until_highwater(self._sources[table])
+        })
+
+    async def _until_highwater(self, source: TopicT) -> Iterator[EventT]:
+        consumer = self.app.consumer
+        tps = {
+            tp for tp in consumer.assignment()
+            if tp.topic in source.topic.topics
+        }
+        highwater = {
+            tp: consumer.highwater(tp)
+            for tp in tps
+        }
+        # Set offset of partition to beginning
+        # TODO Change to seek_to_beginning once implmented in
+        for tp in tps:
+            consumer.reset_offset_earliest(tp)
+        consumer.resume_partitions(tps)
+        # XXX This will actually update our paused partitions
+        await consumer.position(next(iter(tps)))
+        try:
+            async for event in source:
+                if event.message.offset > highwater[event.message.tp]:
+                    break
+                yield event
+        finally:
+            consumer.pause_partitions(tps)
+
+    @Service.task
+    async def _recover_tables_from_changelog(self) -> None:
         try:
             while not self.should_stop:
-                consumer = self.app.consumer.raw_consumer()
+                changelog_topics = set()
+                for table in self.values():
+                    changelog_topics.update(set(table.changelog_topic.topics))
                 assigned = await self._partition_callback_tasks.get()
-                await self.recover_tables.wait()
+                await self._recover_tables.wait()
                 self.app.consumer.pause_partitions(assigned)
-                self.app.consumer.can_continue.clear()
-                to_resume = []
+                await self.app.consumer.suspend()
                 logger.info('Recovering from Changelog if needed.')
-                for topic_partition in assigned:
+                for table in self.values():
                     # TODO: If standby ready, just swap and continue.
                     # Else proceed.
-                    table = self.get_table_changelog(topic_partition.topic)
-                    if table is None:
-                        to_resume.append(topic_partition)
-                        continue
-                    # Set offset of partition to beginning
-                    # TODO: change to seek_to_beginning once implmented in
-                    self.app.consumer.reset_offset(topic_partition, -2)
-                    self.app.consumer.resume_partitions([topic_partition])
-                    while True:
-                        await consumer.position(topic_partition)
-                        data = await consumer.getmany(topic_partition,
-                                                      timeout_ms=1000)
-                        for _, messages in data.items():
-                            for message in messages:
-                                table.raw_add(json.loads(message.key),
-                                              json.loads(message.value))
-                        highwater = consumer.highwater(topic_partition)
-                        position = await consumer.position(topic_partition)
-                        if highwater is None:
-                            break
-                        if highwater - position <= 0:
-                            break
-                        logger.info('Still Need to Fetch, %r',
-                                    highwater - position)
-                    self.app.consumer.pause_partitions([topic_partition])
-                self.app.consumer.resume_partitions(to_resume)
+                    await self._recover_from_changelog(table)
+                self.app.consumer.resume_partitions({
+                    tp for tp in assigned
+                    if tp.topic in changelog_topics
+                })
                 # Allow consumer to proceed
-                self.recover_tables.clear()
-                self.app.consumer.can_continue.set()
+                self._recover_tables.clear()
+                await self.app.consumer.resume()
                 logger.info('Done Recovery')
         finally:
             self.set_shutdown()
@@ -148,8 +179,6 @@ class Table(Service, TableT, ManagedUserDict):
 
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
-
-        self.app.sources.add(TopicSource(self.changelog_topic))
 
         # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get

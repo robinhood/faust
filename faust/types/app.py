@@ -56,7 +56,6 @@ class AppT(ServiceT):
     store: str
 
     actors: MutableMapping[str, ActorT]
-    tables: MutableMapping[str, TableT]
     sensors: SensorDelegateT
     serializers: RegistryT
 
@@ -181,7 +180,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def table_manager(self) -> TableManagerT:
+    def tables(self) -> TableManagerT:
         ...
 
     @property

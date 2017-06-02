@@ -5,7 +5,7 @@ from collections import defaultdict
 from itertools import count
 from typing import (
     Any, Awaitable, ClassVar, Iterator, List,
-    MutableMapping, Optional, Set, Sequence, Type,
+    MutableMapping, Optional, Set, Sequence, Tuple, Type,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
@@ -13,9 +13,12 @@ from ..types.transports import (
     PartitionsAssignedCallback, PartitionsRevokedCallback,
 )
 from ..utils.functional import consecutive_numbers
+from ..utils.logging import get_logger
 from ..utils.services import Service
 
 __all__ = ['Consumer', 'Producer', 'Transport']
+
+logger = get_logger(__name__)
 
 # The Transport is responsible for:
 #
@@ -53,6 +56,8 @@ class Consumer(Service, ConsumerT):
     """Base Consumer."""
 
     RebalanceListener: ClassVar[Type]
+
+    consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = None
 
     #: This counter generates new consumer ids.
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
@@ -100,6 +105,7 @@ class Consumer(Service, ConsumerT):
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
         self._time_to_seek = asyncio.Event(loop=self.transport.loop)
+        self._can_continue = asyncio.Event(loop=self.transport.loop)
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -131,6 +137,12 @@ class Consumer(Service, ConsumerT):
     def on_partitions_revoked(
             self, revoked: Sequence[TopicPartition]) -> None:
         self._on_partitions_revoked(revoked)
+
+    async def suspend(self) -> None:
+        self._can_continue.clear()
+
+    async def resume(self) -> None:
+        self._can_continue.set()
 
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
@@ -245,6 +257,45 @@ class Consumer(Service, ConsumerT):
     async def on_task_error(self, exc: Exception) -> None:
         if self.autoack:
             await self.commit()
+
+    async def _drain_messages(self) -> None:
+        callback = self.callback
+        getmany = self.getmany
+        track_message = self.track_message
+        should_stop = self._stopped.is_set
+        wait = asyncio.wait
+        return_when = asyncio.ALL_COMPLETED
+        loop = self.loop
+        get_current_offset = self._current_offset.__getitem__
+
+        async def deliver(message: Message, tp: TopicPartition) -> None:
+            await track_message(message, tp, message.offset)
+            await callback(message)
+
+        try:
+            while not should_stop():
+                pending: List[Awaitable] = []
+                self.transport.app.tables.recover()
+                await self._can_continue.wait()
+                for tp, messages in await getmany(timeout=1.0):
+                    offset = get_current_offset(tp)
+                    pending.extend(
+                        deliver(message, tp) for message in messages
+                        if offset is None or message.offset > offset
+                    )
+
+                if pending:
+                    await wait(pending, loop=loop, return_when=return_when)
+        except self.consumer_stopped_errors:
+            if self.transport.app.should_stop:
+                # we're already stopping so ignore
+                logger.info('Consumer: stopped, shutting down...')
+                return
+            raise
+        except Exception as exc:
+            logger.exception('Drain messages raised: %r', exc)
+        finally:
+            self.set_shutdown()
 
 
 class Producer(Service, ProducerT):
