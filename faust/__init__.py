@@ -99,7 +99,6 @@ class _module(ModuleType):
     """Customized Python module."""
 
     def __getattr__(self, name: str) -> Any:
-        print(object_origins)
         if name in object_origins:
             module = __import__(
                 object_origins[name], None, None, [name])

@@ -357,7 +357,6 @@ class App(AppT, ServiceProxy):
 
     def add_table(self, table: TableT) -> None:
         """Register existing table."""
-        print("adding table", table)
         assert table.table_name
         if table.table_name in self.tables:
             raise ValueError(

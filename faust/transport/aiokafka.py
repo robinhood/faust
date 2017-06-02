@@ -153,14 +153,18 @@ class Consumer(base.Consumer):
     def raw_consumer(self) -> Any:
         return self._consumer
 
-    def pause_partitions(self, tps: Sequence[TopicPartition]):
+    def pause_partitions(self, tps: Sequence[TopicPartition]) -> None:
         for partition in tps:
             self._consumer._subscription.pause(partition=partition)
 
     def resume_partitions(self, tps: Sequence[TopicPartition]):
         for partition in tps:
-            print("resuming", partition)
             self._consumer._subscription.resume(partition=partition)
+
+    def reset_offset(self, topic_partiton: TopicPartition,
+                     strategy: int) -> None:
+        self._consumer._subscription.need_offset_reset(topic_partiton,
+                                                       strategy)
 
 class Producer(base.Producer):
     _producer: aiokafka.AIOKafkaProducer

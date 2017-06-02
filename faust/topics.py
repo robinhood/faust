@@ -367,16 +367,6 @@ class TopicManager(TopicManagerT, Service):
             finished, unfinished = await wait(waiting, return_when=return_when)
             waiting = unfinished
 
-
-    async def _remove_changelog_sources(self):
-        source_list = []
-        for source in self.app.sources:
-            for topic_name in source.topic.topics:
-                if self.app.get_table_name_changelog(topic_name):
-                    source_list.append(source)
-        for source in source_list:
-            self.discard(source)
-
     def _compile_pattern(self) -> None:
         self._topicmap.clear()
         for source in self._sources:
@@ -387,8 +377,7 @@ class TopicManager(TopicManagerT, Service):
     def on_partitions_assigned(self,
                                 assigned: Sequence[
                                     TopicPartition]) -> None:
-        self.app.table_manager._partition_callback_tasks.put_nowait(assigned)
-
+        self.app.table_manager.queue_assignment(assigned)
 
     def on_partitions_revoked(self,
                                revoked: Sequence[TopicPartition]) -> None:
