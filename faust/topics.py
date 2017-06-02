@@ -284,8 +284,7 @@ class TopicManager(TopicManagerT, Service):
         self._sources = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
-        self._partition_callback_tasks = asyncio.Queue(maxsize=1,
-                                                       loop=self.loop)
+
         self._subscription_changed = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
