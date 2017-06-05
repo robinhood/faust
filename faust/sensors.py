@@ -508,9 +508,9 @@ class Monitor(Sensor, KeywordReduce):
 
     def _table_or_create(self, table: TableT) -> TableState:
         try:
-            return self.tables[table.table_name]
+            return self.tables[table.name]
         except KeyError:
-            state = self.tables[table.table_name] = TableState(table)
+            state = self.tables[table.name] = TableState(table)
             return state
 
     async def on_commit_initiated(self, consumer: ConsumerT) -> Any:

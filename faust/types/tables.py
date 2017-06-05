@@ -21,7 +21,7 @@ class TableT(MutableMapping, JoinableT, ServiceT):
     StateStore: ClassVar[Type[StoreT]] = None
 
     app: AppT
-    table_name: str
+    name: str
     default: Any  # noqa: E704
     key_type: Type[ModelT]
     value_type: Type[ModelT]
@@ -31,7 +31,7 @@ class TableT(MutableMapping, JoinableT, ServiceT):
     @abc.abstractmethod
     def __init__(self, app: AppT,
                  *,
-                 table_name: str = None,
+                 name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = None,
                  key_type: Type[ModelT] = None,

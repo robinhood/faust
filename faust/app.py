@@ -327,7 +327,7 @@ class App(AppT, ServiceProxy):
             beacon=self.beacon,
             **kwargs)
 
-    def table(self, table_name: str,
+    def table(self, name: str,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
@@ -336,8 +336,8 @@ class App(AppT, ServiceProxy):
         """Create new table.
 
         Arguments:
-            table_name: Name used for table, note that two tables living in
-            the same application cannot have the same name.
+            name: Name used for table, note that two tables living in
+                the same application cannot have the same name.
 
         Keyword Arguments:
             default: A callable, or type that will return a default value
@@ -355,7 +355,7 @@ class App(AppT, ServiceProxy):
         """
         table = self.Table(
             self,
-            table_name=table_name,
+            name=name,
             default=default,
             beacon=self.beacon,
             partitions=partitions,
@@ -365,11 +365,11 @@ class App(AppT, ServiceProxy):
 
     def add_table(self, table: TableT) -> None:
         """Register existing table."""
-        assert table.table_name
-        if table.table_name in self.tables:
+        assert table.name
+        if table.name in self.tables:
             raise ValueError(
-                f'Table with name {table.table_name!r} already exists')
-        self.tables[table.table_name] = table
+                f'Table with name {table.name!r} already exists')
+        self.tables[table.name] = table
 
     async def send(
             self,

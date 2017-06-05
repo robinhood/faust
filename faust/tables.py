@@ -35,13 +35,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _sources: MutableMapping[TableT, SourceT]
     _new_assignments: asyncio.Queue
 
-    def __init__(self, app: AppT,
-                 **kwargs: Any) -> None:
-        Service.__init__(self, **kwargs)
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self.app = app
-        self._new_assignments = asyncio.Queue(maxsize=None, loop=self.loop)
-        self._sources = {}
         self.data = {}
+        self._sources = {}
+        self._new_assignments = asyncio.Queue(loop=self.loop)
 
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
@@ -51,7 +50,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         cast(Table, table).raw_update({
             e.key: e.value
             async for e in self._until_highwater(
-                self._get_changelog_source(table))
+                table, self._get_changelog_source(table))
         })
 
     def _get_changelog_source(self, table: TableT) -> SourceT:
@@ -62,16 +61,16 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._sources[table] = source
             return source
 
-    async def _until_highwater(self, source: SourceT) -> AsyncIterator[EventT]:
+    async def _until_highwater(
+            self, table: TableT, source: SourceT) -> AsyncIterator[EventT]:
         consumer = self.app.consumer
         tps = {
             tp for tp in consumer.assignment()
             if tp.topic in source.topic.topics
         }
-        highwater = {
-            tp: consumer.highwater(tp)
-            for tp in tps
-        }
+        highwater = {tp: consumer.highwater(tp) for tp in tps}
+        logger.info('[Table %r]: Recovering from changelog topic (%r entries)',
+                    table.name, sum(highwater.values()))
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
         await consumer.reset_offset_earliest(*tps)
@@ -83,6 +82,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 yield event
         finally:
             await consumer.pause_partitions(tps)
+        logger.info('[Table %r]: Recovery completed successfully', table.name)
 
     @Service.task
     async def _new_assignments_handler(self) -> None:
@@ -92,7 +92,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             for table in self.values():
                 changelog_topics.update(set(table.changelog_topic.topics))
             self.app.consumer.pause_partitions(assigned)
-            logger.info('Recovering from Changelog if needed.')
             for table in self.values():
                 # TODO If standby ready, just swap and continue.
                 await self._recover_from_changelog(table)
@@ -112,7 +111,7 @@ class Table(Service, TableT, ManagedUserDict):
 
     def __init__(self, app: AppT,
                  *,
-                 table_name: str = None,
+                 name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = None,
                  key_type: Type[ModelT] = None,
@@ -123,7 +122,7 @@ class Table(Service, TableT, ManagedUserDict):
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self.table_name = table_name
+        self.name = name
         self.default = default
         self._store = store
         self.key_type = key_type
@@ -142,7 +141,7 @@ class Table(Service, TableT, ManagedUserDict):
             url = self._store or self.app.store
             self.data = stores.by_url(url)(
                 url, app,
-                table_name=self.table_name,
+                name=self.name,
                 loop=self.loop)
 
         # Table.start() also starts Store
@@ -188,7 +187,7 @@ class Table(Service, TableT, ManagedUserDict):
         # Used to recreate object in .clone()
         return {
             'app': self.app,
-            'table_name': self.table_name,
+            'name': self.name,
             'store': self._store,
             'default': self.default,
             'key_type': self.key_type,
@@ -255,7 +254,7 @@ class Table(Service, TableT, ManagedUserDict):
         ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
-        return f'{self.app.id}-{self.table_name}-changelog'
+        return f'{self.app.id}-{self.name}-changelog'
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -334,7 +333,7 @@ class Table(Service, TableT, ManagedUserDict):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {self.table_name}@{self._store}'
+        return f'{type(self).__name__}: {self.name}@{self._store}'
 
     @property
     def changelog_topic(self) -> TopicT:

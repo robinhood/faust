@@ -114,7 +114,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def table(self, table_name: str,
+    def table(self, name: str,
               *,
               default: Callable[[], Any] = None,
               coroutine: StreamCoroutine = None,
