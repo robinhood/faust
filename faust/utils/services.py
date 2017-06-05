@@ -87,17 +87,19 @@ class Service(ServiceBase):
     #: They are started/stopped with the service.
     _futures: List[asyncio.Future]
 
-    _tasks: ClassVar[List[ServiceTask]]
+    _tasks: ClassVar[List[ServiceTask]] = None
 
     @classmethod
     def task(cls, fun: Callable[..., Awaitable]) -> ServiceTask:
         return ServiceTask(fun)
 
     def __init_subclass__(self) -> None:
-        self._tasks = [
+        if self._tasks is None:
+            self._tasks = []
+        self._tasks.extend([
             value for key, value in self.__dict__.items()
             if isinstance(value, ServiceTask)
-        ]
+        ])
 
     def __init__(self, *,
                  beacon: NodeT = None,

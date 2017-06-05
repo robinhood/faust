@@ -127,6 +127,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if tp.topic not in changelog_topics
             })
             logger.info('[TableManager]: New assignments handled')
+            print('FETCHABLE: %r' %
+                    (self.app.consumer._consumer._subscription.fetchable_partitions(),))
 
 
 class Table(Service, TableT, ManagedUserDict):
