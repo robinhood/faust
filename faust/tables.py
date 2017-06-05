@@ -141,7 +141,7 @@ class Table(Service, TableT, ManagedUserDict):
             url = self._store or self.app.store
             self.data = stores.by_url(url)(
                 url, app,
-                name=self.name,
+                table_name=self.name,
                 loop=self.loop)
 
         # Table.start() also starts Store
