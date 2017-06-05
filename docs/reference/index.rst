@@ -125,6 +125,7 @@ Utils
     faust.utils.avro.servers
     faust.utils.collections
     faust.utils.compat
+    faust.utils.contextlib
     faust.utils.functional
     faust.utils.futures
     faust.utils.graphs
