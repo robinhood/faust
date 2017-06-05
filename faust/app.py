@@ -537,10 +537,19 @@ class App(AppT, ServiceProxy):
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
             callback=self.sources.on_message,
-            on_partitions_revoked=self.sources.on_partitions_revoked,
-            on_partitions_assigned=self.sources.on_partitions_assigned,
+            on_partitions_revoked=self.on_partitions_revoked,
+            on_partitions_assigned=self.on_partitions_assigned,
             beacon=self.beacon,
         )
+
+    def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        self.sources.on_partitions_assigned(assigned)
+        self.tables.on_partitions_assigned(assigned)
+
+    def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        self.sources.on_partitions_revoked(revoked)
 
     def _create_transport(self) -> TransportT:
         return cast(TransportT,

@@ -422,7 +422,7 @@ class TopicManager(TopicManagerT, Service):
 
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        self.app.tables.on_partitions_assigned(assigned)
+        ...
 
     def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
