@@ -43,23 +43,24 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._sources = {}
         self.data = {}
 
-    async def on_start(self) -> None:
-        # Start the topic sources so that the TopicManager will
-        # subscribe to them.
-        self._sources = {
-            table: cast(SourceT, aiter(table.changelog_topic))
-            for table in self.values()
-        }
-
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         self._new_assignments.put_nowait(assigned)
 
     async def _recover_from_changelog(self, table: TableT) -> None:
         cast(Table, table).raw_update({
-            event.key: event.value
-            async for event in self._until_highwater(self._sources[table])
+            e.key: e.value
+            async for e in self._until_highwater(
+                self._get_changelog_source(table))
         })
+
+    def _get_changelog_source(self, table: TableT) -> SourceT:
+        try:
+            return self._sources[table]
+        except KeyError:
+            source = cast(SourceT, aiter(table.changelog_topic))
+            self._sources[table] = source
+            return source
 
     async def _until_highwater(self, source: SourceT) -> AsyncIterator[EventT]:
         consumer = self.app.consumer
