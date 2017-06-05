@@ -16,7 +16,7 @@ from . import transport
 from .actors import ActorFun, Actor, ActorT
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
-from .topics import Fetcher, Topic, TopicManager, TopicManagerT
+from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
     CodecArg, K, Message, ModelT, PendingMessage,
     StreamCoroutine, TopicT, TopicPartition, V,
@@ -108,8 +108,6 @@ class AppService(Service):
             [self.app.tables],                        # app.TableManager
             # TopicManager
             [self.app.sources],                       # app.TopicManager
-            # Fetcher
-            [self.app.fetcher],                       # faust.topics.Fetcher
             # Actors last.
             self.app.actors.values(),
         ))
@@ -184,9 +182,6 @@ class App(AppT, ServiceProxy):
 
     #: Transport is created on demand: use `.transport`.
     _transport: Optional[TransportT] = None
-
-    #: Service dedicated to consuming messages.
-    _fetcher: Fetcher = None
 
     _pending_on_commit: MutableMapping[
         TopicPartition,
@@ -618,9 +613,3 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
         return asyncio.Queue(loop=self.loop)
-
-    @property
-    def fetcher(self):
-        if self._fetcher is None:
-            self._fetcher = Fetcher(self, beacon=self.beacon, loop=self.loop)
-        return self._fetcher

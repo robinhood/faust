@@ -258,6 +258,7 @@ class Consumer(Service, ConsumerT):
         if self.autoack:
             await self.commit()
 
+    @Service.task
     async def _drain_messages(self) -> None:
         callback = self.callback
         getmany = self.getmany

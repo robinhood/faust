@@ -456,15 +456,3 @@ class TopicManager(TopicManagerT, Service):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}({len(self._sources)})'
-
-
-class Fetcher(Service):
-    app: AppT
-
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
-        self.app = app
-        super().__init__(**kwargs)
-
-    @Service.task
-    async def _drain_messages(self) -> None:
-        await self.app.consumer._drain_messages()
