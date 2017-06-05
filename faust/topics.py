@@ -386,23 +386,26 @@ class TopicManager(TopicManagerT, Service):
 
     @Service.task
     async def _subscriber(self) -> None:
-        # the first time we start, we will wait two seconds
-        # to give actors a chance to start up and register their
-        # streams.  This way we won't have N subscription requests at the
-        # start.
-        await self.sleep(2.0)
+        try:
+            # the first time we start, we will wait two seconds
+            # to give actors a chance to start up and register their
+            # streams.  This way we won't have N subscription requests at the
+            # start.
+            await self.sleep(2.0)
 
-        # tell the consumer to subscribe to the topics.
-        await self.app.consumer.subscribe(self._update_topicmap())
-
-        # Now we wait for changes
-        ev = self._subscription_changed = asyncio.Event(loop=self.loop)
-        while not self.should_stop:
-            await ev.wait()
-            print('SUBSCRIPTIONS CHANGED: RESUBSCRIBING')
+            # tell the consumer to subscribe to the topics.
             await self.app.consumer.subscribe(self._update_topicmap())
-            ev.clear()
             self._notify_subscription_waiters()
+
+            # Now we wait for changes
+            ev = self._subscription_changed = asyncio.Event(loop=self.loop)
+            while not self.should_stop:
+                await ev.wait()
+                await self.app.consumer.subscribe(self._update_topicmap())
+                ev.clear()
+                self._notify_subscription_waiters()
+        except Exception as exc:
+            logger.exception('ERROR ERROR ERROR: %r', exc)
 
     def _notify_subscription_waiters(self) -> None:
         fut = self._subscription_done
@@ -411,9 +414,7 @@ class TopicManager(TopicManagerT, Service):
 
     async def wait_for_subscriptions(self) -> None:
         if self._subscription_done is not None:
-            print("WAIT FOR SUBS")
             await self._subscription_done
-        print("SUBS DONE")
 
     @Service.task
     async def _gatherer(self) -> None:
@@ -454,7 +455,6 @@ class TopicManager(TopicManagerT, Service):
 
     def add(self, source: SourceT) -> None:
         if source not in self._sources:
-            print("SUBSCRIBE TO: %r" % (source,))
             self._sources.add(source)
             self.beacon.add(source)  # connect to beacon
             self._flag_changes()

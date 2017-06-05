@@ -34,6 +34,7 @@ logger = get_logger(__name__)
 
 class TableManager(Service, TableManagerT, FastUserDict):
     _sources: MutableMapping[TableT, SourceT]
+    _changelogs: MutableMapping[str, TableT]
     _new_assignments: asyncio.Queue
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
@@ -41,7 +42,20 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.app = app
         self.data = {}
         self._sources = {}
+        self._changelogs = {}
         self._new_assignments = asyncio.Queue(loop=self.loop)
+
+    async def on_start(self) -> None:
+        self._sources.update({
+            table: cast(SourceT, aiter(table.changelog_topic))
+            for table in self.values()
+        })
+        self._changelogs.update({
+            table.changelog_topic.topics[0]: table
+            for table in self.values()
+        })
+        await self.app.consumer.pause_partitions(
+            self._get_changelog_partitions())
 
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
@@ -50,17 +64,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _recover_from_changelog(self, table: TableT) -> None:
         cast(Table, table).raw_update({
             e.key: e.value
-            async for e in self._until_highwater(
-                table, self._get_changelog_source(table))
+            async for e in self._until_highwater(table, self._sources[table])
         })
 
-    def _get_changelog_source(self, table: TableT) -> SourceT:
-        try:
-            return self._sources[table]
-        except KeyError:
-            source = cast(SourceT, aiter(table.changelog_topic))
-            self._sources[table] = source
-            return source
+    def _get_changelog_partitions(self) -> Iterable[TopicPartition]:
+        return {
+            tp for tp in self.app.consumer.assignment()
+            if tp.topic in self._changelogs
+        }
 
     async def _until_highwater(
             self, table: TableT, source: SourceT) -> AsyncIterator[EventT]:
@@ -69,47 +80,53 @@ class TableManager(Service, TableManagerT, FastUserDict):
         # Wait for TopicManager to finish any new subscriptions
         await self.app.sources.wait_for_subscriptions()
 
+        tps: Sequence[TopicPartition]
         for delay in cycle([.1, .2, .3, .5, .8, 1.0]):
-            print('ASSIGNMENT: %r' % (consumer.assignment(),))
-            tps = {
-                tp for tp in consumer.assignment()
-                if tp.topic in source.topic.topics
-            }
+            tps = self._get_changelog_partitions()
             if tps:
                 break
             await self.sleep(delay)
-        highwater = {tp: consumer.highwater(tp) for tp in tps}
-        logger.info('[Table %r]: Recovering from changelog topic (%r entries)',
-                    table.name, sum(h for h in highwater.values() if h))
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
         await consumer.reset_offset_earliest(*tps)
-        print('RESUME PARTITIONS: %r' % (tps,))
-        await consumer.resume_partitions(tps)
-        try:
-            async for event in source:
-                if event.message.offset > highwater[event.message.tp]:
-                    break
-                yield event
-        finally:
-            await consumer.pause_partitions(tps)
-        logger.info('[Table %r]: Recovery completed successfully', table.name)
+        highwater = {tp: consumer.highwater(tp) for tp in tps}
+        print('HIGHWATER: %r' % (highwater,))
+        pending_tps = {tp for tp in tps if highwater[tp] is not None}
+        print('PENDING TPS: %r' % (pending_tps,))
+        if pending_tps:
+            logger.info('[Table %r]: Recover from changelog (%r entries)',
+                        table.name, sum(h for h in highwater.values() if h))
+            await consumer.resume_partitions(pending_tps)
+            try:
+                async for event in source:
+                    message = event.message
+                    cur_hw = highwater.get(message.tp)
+                    if cur_hw is None or message.offset > cur_hw:
+                        pending_tps.discard(message.tp)
+                        if not pending_tps:
+                            break
+                    yield event
+            finally:
+                await consumer.pause_partitions(tps)
+            logger.info('[Table %r]: Recovery completed', table.name)
 
     @Service.task
     async def _new_assignments_handler(self) -> None:
         while not self.should_stop:
             assigned = await self._new_assignments.get()
+            logger.info('[TableManager]: New assignments found')
             changelog_topics = set()
             for table in self.values():
                 changelog_topics.update(set(table.changelog_topic.topics))
-            self.app.consumer.pause_partitions(assigned)
+            await self.app.consumer.pause_partitions(assigned)
             for table in self.values():
                 # TODO If standby ready, just swap and continue.
                 await self._recover_from_changelog(table)
-            self.app.consumer.resume_partitions({
+            await self.app.consumer.resume_partitions({
                 tp for tp in assigned
                 if tp.topic not in changelog_topics
             })
+            logger.info('[TableManager]: New assignments handled')
 
 
 class Table(Service, TableT, ManagedUserDict):
