@@ -32,7 +32,6 @@ logger = get_logger(__name__)
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
-    _topic_to_table: MutableMapping[str, TableT]
     _sources: MutableMapping[TableT, SourceT]
     _new_assignments: asyncio.Queue
 
@@ -41,7 +40,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         Service.__init__(self, **kwargs)
         self.app = app
         self._new_assignments = asyncio.Queue(maxsize=None, loop=self.loop)
-        self._topic_to_table = {}
         self._sources = {}
         self.data = {}
 
@@ -56,17 +54,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         self._new_assignments.put_nowait(assigned)
-
-    def __setitem__(self, key: Any, value: TableT) -> None:
-        super().__setitem__(key, value)
-        for topic in value.changelog_topic.topics:
-            self._topic_to_table[topic] = value
-
-    def __delitem__(self, key: Any) -> None:
-        table = self[key]
-        for topic in table.changelog_topic.topics:
-            self._topic_to_table.pop(topic, None)
-        super().__delitem__(key)
 
     async def _recover_from_changelog(self, table: TableT) -> None:
         cast(Table, table).raw_update({
