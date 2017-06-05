@@ -3,6 +3,7 @@ import asyncio
 import operator
 from collections import defaultdict
 from heapq import heappush, heappop
+from itertools import cycle
 from typing import (
     Any, AsyncIterator, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Type, cast,
@@ -64,16 +65,26 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _until_highwater(
             self, table: TableT, source: SourceT) -> AsyncIterator[EventT]:
         consumer = self.app.consumer
-        tps = {
-            tp for tp in consumer.assignment()
-            if tp.topic in source.topic.topics
-        }
+
+        # Wait for TopicManager to finish any new subscriptions
+        await self.app.sources.wait_for_subscriptions()
+
+        for delay in cycle([.1, .2, .3, .5, .8, 1.0]):
+            print('ASSIGNMENT: %r' % (consumer.assignment(),))
+            tps = {
+                tp for tp in consumer.assignment()
+                if tp.topic in source.topic.topics
+            }
+            if tps:
+                break
+            await self.sleep(delay)
         highwater = {tp: consumer.highwater(tp) for tp in tps}
         logger.info('[Table %r]: Recovering from changelog topic (%r entries)',
-                    table.name, sum(highwater.values()))
+                    table.name, sum(h for h in highwater.values() if h))
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
         await consumer.reset_offset_earliest(*tps)
+        print('RESUME PARTITIONS: %r' % (tps,))
         await consumer.resume_partitions(tps)
         try:
             async for event in source:
@@ -99,7 +110,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 tp for tp in assigned
                 if tp.topic not in changelog_topics
             })
-            logger.info('Done Recovery')
 
 
 class Table(Service, TableT, ManagedUserDict):

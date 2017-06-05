@@ -66,7 +66,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def subscribe(self, pattern: str) -> None:
+    async def subscribe(self, topics: Iterable[str]) -> None:
         ...
 
     @abc.abstractmethod

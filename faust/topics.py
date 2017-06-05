@@ -328,6 +328,8 @@ class TopicManager(TopicManagerT, Service):
     #: the background task responsible for resubscribing.
     _subscription_changed: Optional[asyncio.Event]
 
+    _subscription_done: Optional[asyncio.Future]
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -336,6 +338,7 @@ class TopicManager(TopicManagerT, Service):
         self._pending_tasks = asyncio.Queue(loop=self.loop)
 
         self._subscription_changed = None
+        self._subscription_done = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
         self.on_message = self._compile_message_handler()
@@ -389,19 +392,28 @@ class TopicManager(TopicManagerT, Service):
         # start.
         await self.sleep(2.0)
 
-        # then we compile the subscription topic pattern,
-        self._compile_pattern()
-
-        # tell the consumer to subscribe to our pattern
-        await self.app.consumer.subscribe(self._pattern)
+        # tell the consumer to subscribe to the topics.
+        await self.app.consumer.subscribe(self._update_topicmap())
 
         # Now we wait for changes
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
             await ev.wait()
-            self._compile_pattern()
-            await self.app.consumer.subscribe(self._pattern)
+            print('SUBSCRIPTIONS CHANGED: RESUBSCRIBING')
+            await self.app.consumer.subscribe(self._update_topicmap())
             ev.clear()
+            self._notify_subscription_waiters()
+
+    def _notify_subscription_waiters(self) -> None:
+        fut = self._subscription_done
+        if fut is not None and not fut.done():
+            fut.set_result(None)
+
+    async def wait_for_subscriptions(self) -> None:
+        if self._subscription_done is not None:
+            print("WAIT FOR SUBS")
+            await self._subscription_done
+        print("SUBS DONE")
 
     @Service.task
     async def _gatherer(self) -> None:
@@ -413,12 +425,12 @@ class TopicManager(TopicManagerT, Service):
             finished, unfinished = await wait(waiting, return_when=return_when)
             waiting = unfinished
 
-    def _compile_pattern(self) -> None:
+    def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
         for source in self._sources:
             for topic in source.topic.topics:
                 self._topicmap[topic].add(source)
-        self._pattern = '^' + '$|^'.join(self._topicmap) + '$'
+        return self._topicmap
 
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
@@ -442,16 +454,21 @@ class TopicManager(TopicManagerT, Service):
 
     def add(self, source: SourceT) -> None:
         if source not in self._sources:
+            print("SUBSCRIBE TO: %r" % (source,))
             self._sources.add(source)
             self.beacon.add(source)  # connect to beacon
-            if self._subscription_changed is not None:
-                self._subscription_changed.set()
+            self._flag_changes()
 
     def discard(self, source: SourceT) -> None:
         self._sources.discard(source)
         self.beacon.discard(source)
-        if self._subscription_changed is not None:
-            self._subscription_changed.set()
+        self._flag_changes()
+
+    def _flag_changes(self) -> None:
+            if self._subscription_changed is not None:
+                self._subscription_changed.set()
+            if self._subscription_done is None:
+                self._subscription_done = asyncio.Future(loop=self.loop)
 
     @property
     def label(self) -> str:

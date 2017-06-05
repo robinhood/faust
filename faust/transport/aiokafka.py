@@ -114,10 +114,10 @@ class Consumer(base.Consumer):
         self.beacon.add(self._consumer)
         await self._consumer.start()
 
-    async def subscribe(self, pattern: str) -> None:
+    async def subscribe(self, topics: Iterable[str]) -> None:
         # XXX pattern does not work :/
         self._consumer.subscribe(
-            pattern=pattern,
+            topics=topics,
             listener=self._rebalance_listener,
         )
 
