@@ -2,8 +2,8 @@ import abc
 import asyncio
 import typing
 from typing import (
-    AbstractSet, Any, Awaitable, Callable, ClassVar,
-    Iterator, Mapping, Optional, Sequence, Tuple, Type, Union,
+    AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar,
+    Iterable, Mapping, Optional, Set, Tuple, Type, Union,
 )
 from faust.utils.times import Seconds
 from faust.utils.types.services import ServiceT
@@ -32,8 +32,8 @@ ConsumerCallback = Callable[[Message], Awaitable]
 #: Argument to Consumer.commit to specify topics/tps to commit.
 TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
 
-PartitionsRevokedCallback = Callable[[Sequence[TopicPartition]], None]
-PartitionsAssignedCallback = Callable[[Sequence[TopicPartition]], None]
+PartitionsRevokedCallback = Callable[[Iterable[TopicPartition]], None]
+PartitionsAssignedCallback = Callable[[Iterable[TopicPartition]], None]
 
 
 class ConsumerT(ServiceT):
@@ -73,7 +73,7 @@ class ConsumerT(ServiceT):
     async def getmany(
             self,
             *partitions: TopicPartition,
-            timeout: float) -> Iterator[Tuple[TopicPartition, Message]]:
+            timeout: float) -> AsyncIterator[Tuple[TopicPartition, Message]]:
         ...
 
     @abc.abstractmethod
@@ -81,15 +81,23 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def pause_partitions(self, tps: Sequence[TopicPartition]) -> None:
+    def assignment(self) -> Set[TopicPartition]:
         ...
 
     @abc.abstractmethod
-    def resume_partitions(self, tps: Sequence[TopicPartition]) -> None:
+    def highwater(self, tp: TopicPartition) -> int:
         ...
 
     @abc.abstractmethod
-    def reset_offset_earliest(self, topic_partiton: TopicPartition):
+    async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def resume_partitions(self, tps: Iterable[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def reset_offset_earliest(self, *partitions: TopicPartition) -> None:
         ...
 
     @abc.abstractmethod
@@ -98,14 +106,6 @@ class ConsumerT(ServiceT):
 
     @abc.abstractmethod
     async def on_task_error(self, exc: Exception) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def suspend(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def resume(self) -> None:
         ...
 
 

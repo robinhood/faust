@@ -1,8 +1,8 @@
 """Message transport using :pypi:`aiokafka`."""
 import aiokafka
 from typing import (
-    Any, Awaitable, ClassVar, Iterator, List, Mapping,
-    MutableMapping, Optional, Set, Sequence, Tuple, Type, cast
+    Any, AsyncIterator, Awaitable, ClassVar, Iterable, List,
+    Mapping, MutableMapping, Optional, Set, Tuple, Type, cast
 )
 
 from aiokafka.errors import ConsumerStoppedError
@@ -52,7 +52,7 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
         self.consumer: ConsumerT = consumer
 
     def on_partitions_assigned(self,
-                               assigned: Sequence[_TopicPartition]) -> None:
+                               assigned: Iterable[_TopicPartition]) -> None:
         # have to cast to Consumer since ConsumerT interface does not
         # have this attribute (mypy currently thinks a Callable instance
         # variable is an instance method).  Furthermore we have to cast
@@ -60,13 +60,13 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
         # that way they are typed and decoupled from the actual client
         # implementation.
         return cast(Consumer, self.consumer).on_partitions_assigned(
-            cast(Sequence[TopicPartition], assigned))
+            cast(Iterable[TopicPartition], assigned))
 
     def on_partitions_revoked(self,
-                              revoked: Sequence[_TopicPartition]) -> None:
+                              revoked: Iterable[_TopicPartition]) -> None:
         # see comment in on_partitions_assigned
         return cast(Consumer, self.consumer).on_partitions_revoked(
-            cast(Sequence[TopicPartition], revoked))
+            cast(Iterable[TopicPartition], revoked))
 
 
 class Consumer(base.Consumer):
@@ -124,7 +124,7 @@ class Consumer(base.Consumer):
     async def getmany(
             self,
             *partitions: TopicPartition,
-            timeout: float) -> Iterator[Tuple[TopicPartition, Message]]:
+            timeout: float) -> AsyncIterator[Tuple[TopicPartition, Message]]:
         records = await self._consumer.getmany(
             *partitions,
             timeout_ms=timeout * 1000.0,
@@ -175,29 +175,26 @@ class Consumer(base.Consumer):
     async def _commit(self, offsets: Any) -> None:
         await self._consumer.commit(offsets)
 
-    def pause_partitions(self, tps: Sequence[TopicPartition]) -> None:
+    async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:
         for partition in tps:
             self._consumer._subscription.pause(partition=partition)
 
-    def resume_partitions(self, tps: Sequence[TopicPartition]) -> None:
+    async def resume_partitions(self, tps: Iterable[TopicPartition]) -> None:
         for partition in tps:
             self._consumer._subscription.resume(partition=partition)
+        # XXX This will actually update our paused partitions
+        await self._consumer.position(next(iter(tps)))
 
-    def reset_offset_earliest(self, topic_partiton: TopicPartition):
-        self._consumer._subscription.need_offset_reset(
-            topic_partiton, OffsetResetStrategy.EARLIEST)
+    async def reset_offset_earliest(self, *partitions: TopicPartition) -> None:
+        for partition in partitions:
+            self._consumer._subscription.need_offset_reset(
+                partition, OffsetResetStrategy.EARLIEST)
 
-    def assignment(self):
-        # XXX Need public interface
-        return self._consumer.assignment()
+    def assignment(self) -> Set[TopicPartition]:
+        return cast(Set[TopicPartition], self._consumer.assignment())
 
-    def highwater(self, tp):
-        # XXX Need public interface
+    def highwater(self, tp: TopicPartition) -> int:
         return self._consumer.highwater(tp)
-
-    def position(self, tp):
-        # XXX Need public interface
-        return self._consumer.position(tp)
 
 
 class Producer(base.Producer):

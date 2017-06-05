@@ -4,8 +4,8 @@ import asyncio
 from collections import defaultdict
 from itertools import count
 from typing import (
-    Any, Awaitable, ClassVar, Iterator, List,
-    MutableMapping, Optional, Set, Sequence, Tuple, Type,
+    Any, Awaitable, ClassVar, Iterable, Iterator,
+    List, MutableMapping, Optional, Set, Tuple, Type,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
@@ -105,7 +105,6 @@ class Consumer(Service, ConsumerT):
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
         self._time_to_seek = asyncio.Event(loop=self.transport.loop)
-        self._can_continue = asyncio.Event(loop=self.transport.loop)
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -130,19 +129,13 @@ class Consumer(Service, ConsumerT):
         ...
 
     def on_partitions_assigned(
-            self, assigned: Sequence[TopicPartition]) -> None:
+            self, assigned: Iterable[TopicPartition]) -> None:
         self._on_partitions_assigned(assigned)
         self._time_to_seek.set()
 
     def on_partitions_revoked(
-            self, revoked: Sequence[TopicPartition]) -> None:
+            self, revoked: Iterable[TopicPartition]) -> None:
         self._on_partitions_revoked(revoked)
-
-    async def suspend(self) -> None:
-        self._can_continue.clear()
-
-    async def resume(self) -> None:
-        self._can_continue.set()
 
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
@@ -276,14 +269,10 @@ class Consumer(Service, ConsumerT):
         try:
             while not should_stop():
                 pending: List[Awaitable] = []
-                self.transport.app.tables.recover()
-                await self._can_continue.wait()
-                for tp, messages in await getmany(timeout=1.0):
+                async for tp, message in await getmany(timeout=1.0):
                     offset = get_current_offset(tp)
-                    pending.extend(
-                        deliver(message, tp) for message in messages
-                        if offset is None or message.offset > offset
-                    )
+                    if offset is None or message.offset > offset:
+                        pending.append(deliver(message, tp))
 
                 if pending:
                     await wait(pending, loop=loop, return_when=return_when)

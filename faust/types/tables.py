@@ -1,8 +1,6 @@
 import abc
 import typing
-from typing import (
-    Any, Callable, ClassVar, MutableMapping, Sequence, Type,
-)
+from typing import Any, Callable, ClassVar, Iterable, MutableMapping, Type
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .streams import JoinableT
@@ -73,11 +71,7 @@ class TableManagerT(ServiceT, MutableMapping[str, TableT]):
 
     @abc.abstractmethod
     def on_partitions_assigned(
-            self, assigned: Sequence[TopicPartition]) -> None:
-        ...
-
-    @abc.abstractmethod
-    def recover(self) -> None:
+            self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
 

@@ -4,7 +4,7 @@ import typing
 from collections import defaultdict
 from functools import total_ordering
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, Iterator, Mapping,
+    Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Set, Sequence, Type, Union, cast,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
@@ -421,11 +421,11 @@ class TopicManager(TopicManagerT, Service):
         self._pattern = '^' + '$|^'.join(self._topicmap) + '$'
 
     def on_partitions_assigned(
-            self, assigned: Sequence[TopicPartition]) -> None:
+            self, assigned: Iterable[TopicPartition]) -> None:
         self.app.tables.on_partitions_assigned(assigned)
 
     def on_partitions_revoked(
-            self, revoked: Sequence[TopicPartition]) -> None:
+            self, revoked: Iterable[TopicPartition]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:

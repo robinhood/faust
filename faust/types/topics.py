@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Mapping, MutableSet, Pattern, Sequence, Type, Union,
+    Iterable, Mapping, MutableSet, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.times import Seconds
@@ -202,10 +202,10 @@ class TopicManagerT(ServiceT, MutableSet[SourceT]):
 
     @abc.abstractmethod
     def on_partitions_assigned(self,
-                               assigned: Sequence[TopicPartition]) -> None:
+                               assigned: Iterable[TopicPartition]) -> None:
         ...
 
     @abc.abstractmethod
     def on_partitions_revoked(self,
-                              revoked: Sequence[TopicPartition]) -> None:
+                              revoked: Iterable[TopicPartition]) -> None:
         ...
