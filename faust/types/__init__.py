@@ -4,7 +4,7 @@ from .app import AppT
 from .codecs import CodecArg, CodecT
 from .core import K, V
 from .joins import JoinT
-from .models import ModelOptions, ModelT, FieldDescriptorT
+from .models import ModelArg, ModelOptions, ModelT, FieldDescriptorT
 from .sensors import SensorT
 from .serializers import AsyncSerializerT
 from .stores import StoreT
@@ -34,7 +34,7 @@ __all__ = [
 
     'JoinT',
 
-    'ModelOptions', 'ModelT', 'FieldDescriptorT',
+    'ModelArg', 'ModelOptions', 'ModelT', 'FieldDescriptorT',
 
     'SensorT',
 

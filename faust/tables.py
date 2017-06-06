@@ -7,14 +7,14 @@ from heapq import heappush, heappop
 from itertools import cycle
 from typing import (
     Any, AsyncIterator, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Sequence, Type, cast,
+    MutableMapping, MutableSet, Sequence, cast,
 )
 from . import stores
 from . import windows
 from .types import (
     AppT, EventT, FieldDescriptorT, JoinT, TopicT, TopicPartition,
 )
-from .types.models import ModelT
+from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import TableT, WindowSetT, WindowWrapperT, TableManagerT
@@ -94,7 +94,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         # Wait for TopicManager to finish any new subscriptions
         await self.app.sources.wait_for_subscriptions()
 
-        tps: Sequence[TopicPartition]
+        tps: Iterable[TopicPartition]
         for delay in cycle([.1, .2, .3, .5, .8, 1.0]):
             logger.info('[TableManager] Waiting for assignment to complete...')
             tps = self._get_table_partitions(table)
@@ -156,8 +156,8 @@ class Table(Service, TableT, ManagedUserDict):
                  name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = None,
-                 key_type: Type[ModelT] = None,
-                 value_type: Type[ModelT] = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  partitions: int = None,
                  window: WindowT = None,
                  changelog_topic: TopicT = None,

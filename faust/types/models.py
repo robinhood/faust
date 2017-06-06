@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Any, ClassVar, FrozenSet, Mapping, Type
+from typing import Any, ClassVar, FrozenSet, Mapping, Type, Union
 from .codecs import CodecArg
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -10,7 +10,9 @@ else:
     class Schema: ...   # noqa
     class TopicT: ...   # noqa
 
-__all__ = ['ModelOptions', 'ModelT', 'FieldDescriptorT']
+__all__ = ['ModelArg', 'ModelOptions', 'ModelT', 'FieldDescriptorT']
+
+ModelArg = Union[Type['ModelT'], CodecArg]
 
 
 class ModelOptions(abc.ABC):

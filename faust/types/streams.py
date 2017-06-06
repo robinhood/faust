@@ -3,13 +3,13 @@ import asyncio
 import typing
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable,
-    List, Mapping, Sequence, Tuple, Type, TypeVar, Union,
+    List, Mapping, Sequence, Tuple, TypeVar, Union,
 )
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .core import K
-from .models import FieldDescriptorT, ModelT
+from .models import FieldDescriptorT, ModelArg
 from .topics import EventT, TopicT
 
 if typing.TYPE_CHECKING:
@@ -140,8 +140,8 @@ class StreamT(AsyncIterator[_T], JoinableT, ServiceT):
     @abc.abstractmethod
     def derive_topic(self, name: str,
                      *,
-                     key_type: Type[ModelT] = None,
-                     value_type: Type[ModelT] = None,
+                     key_type: ModelArg = None,
+                     value_type: ModelArg = None,
                      prefix: str = '',
                      suffix: str = '') -> TopicT:
         ...

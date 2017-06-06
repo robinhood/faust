@@ -2,7 +2,7 @@ import abc
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Iterable, Mapping, MutableSet, Pattern, Sequence, Type, Union,
+    Iterable, Mapping, MutableSet, Pattern, Sequence, Union,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.times import Seconds
@@ -13,12 +13,12 @@ from .tuples import Message, TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .models import ModelT
+    from .models import ModelArg
     from .streams import StreamT
     from .transports import ConsumerT, TPorTopicSet
 else:
     class AppT: ...             # noqa
-    class ModelT: ...           # noqa
+    class ModelArg: ...         # noqa
     class StreamT: ...          # noqa
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
@@ -83,8 +83,8 @@ class TopicT(AsyncIterable):
     app: AppT
     topics: Sequence[str]
     pattern: Pattern
-    key_type: Type[ModelT]
-    value_type: Type[ModelT]
+    key_type: ModelArg
+    value_type: ModelArg
     retention: Seconds
     compacting: bool
     deleting: bool
@@ -95,8 +95,8 @@ class TopicT(AsyncIterable):
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
-                 key_type: Type[ModelT] = None,
-                 value_type: Type[ModelT] = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  partitions: int = None,
                  retention: Seconds = None,
                  compacting: bool = None,
@@ -136,8 +136,8 @@ class TopicT(AsyncIterable):
     def derive(self,
                *,
                topics: Sequence[str] = None,
-               key_type: Type[ModelT] = None,
-               value_type: Type[ModelT] = None,
+               key_type: ModelArg = None,
+               value_type: ModelArg = None,
                partitions: int = None,
                retention: Seconds = None,
                compacting: bool = None,

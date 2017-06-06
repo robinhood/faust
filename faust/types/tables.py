@@ -11,10 +11,10 @@ from .windows import WindowT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .models import ModelT
+    from .models import ModelArg
 else:
-    class AppT: ...    # noqa
-    class ModelT: ...  # noqa
+    class AppT: ...      # noqa
+    class ModelArg: ...  # noqa
 
 
 class TableT(MutableMapping, JoinableT, ServiceT):
@@ -23,8 +23,8 @@ class TableT(MutableMapping, JoinableT, ServiceT):
     app: AppT
     name: str
     default: Any  # noqa: E704
-    key_type: Type[ModelT]
-    value_type: Type[ModelT]
+    key_type: ModelArg
+    value_type: ModelArg
     partitions: int
     window: WindowT = None
 
@@ -34,8 +34,8 @@ class TableT(MutableMapping, JoinableT, ServiceT):
                  name: str = None,
                  default: Callable[[], Any] = None,
                  store: str = None,
-                 key_type: Type[ModelT] = None,
-                 value_type: Type[ModelT] = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  partitions: int = None,
                  window: WindowT = None,
                  changelog_topic: TopicT = None,

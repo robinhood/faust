@@ -9,7 +9,7 @@ from itertools import chain
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Sequence, Union, Type, Tuple, cast,
+    Optional, Pattern, Sequence, Union, Tuple, cast,
 )
 
 from . import transport
@@ -18,7 +18,7 @@ from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
-    CodecArg, K, Message, ModelT, PendingMessage,
+    CodecArg, K, Message, ModelArg, PendingMessage,
     StreamCoroutine, TopicT, TopicPartition, V,
 )
 from .types.app import AppT
@@ -251,8 +251,8 @@ class App(AppT, ServiceProxy):
 
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
-              key_type: Type[ModelT] = None,
-              value_type: Type[ModelT] = None,
+              key_type: ModelArg = None,
+              value_type: ModelArg = None,
               partitions: int = None,
               retention: Seconds = None,
               compacting: bool = None,

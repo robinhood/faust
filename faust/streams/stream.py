@@ -7,10 +7,10 @@ import weakref
 from contextlib import suppress
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, List,
-    Mapping, MutableSequence, Optional, Sequence, Tuple, Type, Union, cast,
+    Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
-from ..types import EventT, K, TopicT, Message, ModelT
+from ..types import EventT, K, TopicT, Message, ModelArg
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
@@ -404,8 +404,8 @@ class Stream(StreamT, JoinableT, Service):
 
     def derive_topic(self, name: str,
                      *,
-                     key_type: Type[ModelT] = None,
-                     value_type: Type[ModelT] = None,
+                     key_type: ModelArg = None,
+                     value_type: ModelArg = None,
                      prefix: str = '',
                      suffix: str = '') -> TopicT:
         """Create topic derived from the key/value type of this stream.

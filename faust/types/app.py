@@ -23,10 +23,10 @@ from .windows import WindowT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from ..sensors import Monitor
-    from .models import ModelT
+    from .models import ModelArg
 else:
-    class Monitor: ...  # noqa
-    class ModelT: ...   # noqa
+    class Monitor: ...   # noqa
+    class ModelArg: ...  # noqa
 
 __all__ = ['AppT']
 
@@ -84,8 +84,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
-              key_type: Type[ModelT] = None,
-              value_type: Type[ModelT] = None,
+              key_type: ModelArg = None,
+              value_type: ModelArg = None,
               partitions: int = None,
               retention: Seconds = None,
               compacting: bool = None,

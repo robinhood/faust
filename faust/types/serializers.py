@@ -1,16 +1,17 @@
 import abc
 import typing
-from typing import Any, Mapping, Optional, Type, Union
+from typing import Any, Mapping, Optional
 from ..utils.imports import SymbolArg
 from .codecs import CodecArg
 from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .models import ModelT
+    from .models import ModelArg, ModelT
 else:
-    class AppT: ...    # noqa
-    class ModelT: ...  # noqa
+    class AppT: ...      # noqa
+    class ModelArg: ...  # noqa
+    class ModelT: ...    # noqa
 
 __all__ = ['AsyncSerializerT', 'RegistryT']
 
@@ -50,14 +51,14 @@ class RegistryT(abc.ABC):
     @abc.abstractmethod
     async def loads_key(
             self,
-            typ: Optional[Union[CodecArg, Type[ModelT]]],
+            typ: Optional[ModelArg],
             key: bytes) -> K:
         ...
 
     @abc.abstractmethod
     async def loads_value(
             self,
-            typ: Union[CodecArg, Type[ModelT]],
+            typ: ModelArg,
             value: bytes) -> Any:
         ...
 

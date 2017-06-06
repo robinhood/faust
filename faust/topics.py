@@ -5,11 +5,11 @@ from collections import defaultdict
 from functools import total_ordering
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Set, Sequence, Type, Union, cast,
+    MutableMapping, Optional, Pattern, Set, Sequence, Union, cast,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, Message, ModelT, TopicPartition, K, V,
+    AppT, CodecArg, Message, ModelArg, TopicPartition, K, V,
 )
 from .types.streams import StreamT, StreamCoroutine
 from .types.topics import EventT, SourceT, TopicT, TopicManagerT
@@ -110,8 +110,8 @@ class Topic(TopicT):
         retention
         pattern (Union[str, Pattern]): Regular expression to match.
             You cannot specify both topics and a pattern.
-        key_type (Type[ModelT]): Model used for keys in this topic.
-        value_type (Type[ModelT]): Model used for values in this topic.
+        key_type (ModelArg): Model used for keys in this topic.
+        value_type (ModelArg): Model used for values in this topic.
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
@@ -127,8 +127,8 @@ class Topic(TopicT):
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
-                 key_type: Type[ModelT] = None,
-                 value_type: Type[ModelT] = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  partitions: int = None,
                  retention: Seconds = None,
                  compacting: bool = None,
@@ -180,8 +180,8 @@ class Topic(TopicT):
     def derive(self,
                *,
                topics: Sequence[str] = None,
-               key_type: Type[ModelT] = None,
-               value_type: Type[ModelT] = None,
+               key_type: ModelArg = None,
+               value_type: ModelArg = None,
                partitions: int = None,
                retention: Seconds = None,
                compacting: bool = None,

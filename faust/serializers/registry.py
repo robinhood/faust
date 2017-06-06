@@ -1,7 +1,7 @@
 import sys
-from typing import Any, MutableMapping, Optional, Type, Union, cast
+from typing import Any, MutableMapping, Optional, Type, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
-from ..types import K, V, ModelT
+from ..types import K, V, ModelArg, ModelT
 from ..types.serializers import AsyncSerializerT, RegistryT
 from ..utils.compat import want_bytes
 from ..utils.imports import FactoryMapping, symbol_by_name
@@ -30,9 +30,7 @@ class Registry(RegistryT):
         self.value_serializer = value_serializer
         self._override = {}
 
-    async def loads_key(self,
-                        typ: Optional[Union[CodecArg, Type[ModelT]]],
-                        key: bytes) -> K:
+    async def loads_key(self, typ: Optional[ModelArg], key: bytes) -> K:
         """Deserialize message key.
 
         Arguments:
@@ -45,7 +43,8 @@ class Registry(RegistryT):
             if isinstance(typ, (str, CodecT)):
                 k = await self._loads(self.key_serializer, key)
             else:
-                k = await self._loads_model(typ, self.key_serializer, key)
+                k = await self._loads_model(
+                    cast(Type[ModelT], typ), self.key_serializer, key)
             return cast(K, k)
         except Exception as exc:
             raise KeyDecodeError(
@@ -67,9 +66,7 @@ class Registry(RegistryT):
         else:
             return await ser.loads(data)
 
-    async def loads_value(self,
-                          typ: Union[CodecArg, Type[ModelT]],
-                          value: bytes) -> Any:
+    async def loads_value(self, typ: ModelArg, value: bytes) -> Any:
         """Deserialize value.
 
         Arguments:
@@ -83,7 +80,8 @@ class Registry(RegistryT):
             if isinstance(typ, (str, CodecT)):
                 return await self._loads(serializer, value)
             else:
-                return await self._loads_model(typ, serializer, value)
+                return await self._loads_model(
+                    cast(Type[ModelT], typ), serializer, value)
         except Exception as exc:
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from None
