@@ -253,16 +253,11 @@ class Consumer(Service, ConsumerT):
 
     @Service.task
     async def _drain_messages(self) -> None:
-        print('_DRAIN MESSAGES')
         callback = self.callback
         getmany = self.getmany
         track_message = self.track_message
         should_stop = self._stopped.is_set
-        wait = asyncio.wait
-        return_when = asyncio.ALL_COMPLETED
-        loop = self.loop
         get_current_offset = self._current_offset.__getitem__
-        print('_DRAIN MESSAGES: ')
 
         async def deliver(message: Message, tp: TopicPartition) -> None:
             await track_message(message, tp, message.offset)
@@ -270,16 +265,10 @@ class Consumer(Service, ConsumerT):
 
         try:
             while not should_stop():
-                print('CALLING GETMANY!!!!!!!!!!!!!!!!!!!!!')
-                pending: List[Awaitable] = []
                 async for tp, message in getmany(timeout=1.0):
-                    print('RECEIVED: %r %r' % (tp, message))
                     offset = get_current_offset(tp)
                     if offset is None or message.offset > offset:
-                        pending.append(deliver(message, tp))
-
-                if pending:
-                    await wait(pending, loop=loop, return_when=return_when)
+                        await deliver(message, tp)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore

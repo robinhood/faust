@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Any, Mapping, Optional, Type
+from typing import Any, Mapping, Optional, Type, Union
 from ..utils.imports import SymbolArg
 from .codecs import CodecArg
 from .core import K, V
@@ -48,11 +48,17 @@ class RegistryT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def loads_key(self, typ: Optional[Type[ModelT]], key: bytes) -> K:
+    async def loads_key(
+            self,
+            typ: Optional[Union[CodecArg, Type[ModelT]]],
+            key: bytes) -> K:
         ...
 
     @abc.abstractmethod
-    async def loads_value(self, typ: Type[ModelT], value: bytes) -> Any:
+    async def loads_value(
+            self,
+            typ: Union[CodecArg, Type[ModelT]],
+            value: bytes) -> Any:
         ...
 
     @abc.abstractmethod

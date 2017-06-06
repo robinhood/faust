@@ -1,5 +1,5 @@
 import sys
-from typing import Any, MutableMapping, Optional, Type, cast
+from typing import Any, MutableMapping, Optional, Type, Union, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import K, V, ModelT
 from ..types.serializers import AsyncSerializerT, RegistryT
@@ -30,7 +30,9 @@ class Registry(RegistryT):
         self.value_serializer = value_serializer
         self._override = {}
 
-    async def loads_key(self, typ: Optional[Type[ModelT]], key: bytes) -> K:
+    async def loads_key(self,
+                        typ: Optional[Union[CodecArg, Type[ModelT]]],
+                        key: bytes) -> K:
         """Deserialize message key.
 
         Arguments:
@@ -40,20 +42,34 @@ class Registry(RegistryT):
         if key is None or typ is None:
             return key
         try:
-            typ_serializer = typ._options.serializer
-            serializer = typ_serializer or self.key_serializer
-            try:
-                ser = self._get_serializer(serializer)
-            except KeyError:
-                obj = loads(serializer, key)
+            if isinstance(typ, ModelT):
+                k = await self._loads_model(typ, self.key_serializer, key)
             else:
-                obj = await ser.loads(key)
-            return cast(K, typ(obj))
+                k = await self._loads(self.key_serializer, key)
+            return cast(K, k)
         except Exception as exc:
             raise KeyDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from None
 
-    async def loads_value(self, typ: Type[ModelT], value: bytes) -> Any:
+    async def _loads_model(
+            self,
+            typ: Type[ModelT],
+            default_serializer: CodecArg,
+            data: bytes) -> Any:
+        return typ(await self._loads(
+            typ._options.serializer or default_serializer, data))
+
+    async def _loads(self, serializer: CodecArg, data: bytes) -> Any:
+        try:
+            ser = self._get_serializer(serializer)
+        except KeyError:
+            return loads(serializer, data)
+        else:
+            return await ser.loads(data)
+
+    async def loads_value(self,
+                          typ: Union[CodecArg, Type[ModelT]],
+                          value: bytes) -> Any:
         """Deserialize value.
 
         Arguments:
@@ -63,16 +79,11 @@ class Registry(RegistryT):
         if value is None:
             return None
         try:
-            obj: Any = None
-            typ_serializer = typ._options.serializer
-            serializer = typ_serializer or self.value_serializer
-            try:
-                ser = self._get_serializer(serializer)
-            except KeyError:
-                obj = loads(serializer, value)
+            serializer = self.value_serializer
+            if isinstance(typ, ModelT):
+                return await self._loads_model(typ, serializer, value)
             else:
-                obj = await ser.loads(value)
-            return typ(obj)
+                return await self._loads(serializer, value)
         except Exception as exc:
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from None

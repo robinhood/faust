@@ -201,6 +201,10 @@ class TopicManagerT(ServiceT, MutableSet[SourceT]):
         ...
 
     @abc.abstractmethod
+    async def wait_for_subscriptions(self) -> None:
+        ...
+
+    @abc.abstractmethod
     def on_partitions_assigned(self,
                                assigned: Iterable[TopicPartition]) -> None:
         ...
