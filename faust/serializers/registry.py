@@ -5,7 +5,7 @@ from ..types import K, V, ModelT
 from ..types.serializers import AsyncSerializerT, RegistryT
 from ..utils.compat import want_bytes
 from ..utils.imports import FactoryMapping, symbol_by_name
-from .codecs import CodecArg, dumps, loads
+from .codecs import CodecArg, CodecT, dumps, loads
 
 _flake8_Any_is_really_used: Any  # XXX flake8 bug
 
@@ -42,10 +42,10 @@ class Registry(RegistryT):
         if key is None or typ is None:
             return key
         try:
-            if isinstance(typ, ModelT):
-                k = await self._loads_model(typ, self.key_serializer, key)
-            else:
+            if isinstance(typ, (str, CodecT)):
                 k = await self._loads(self.key_serializer, key)
+            else:
+                k = await self._loads_model(typ, self.key_serializer, key)
             return cast(K, k)
         except Exception as exc:
             raise KeyDecodeError(
@@ -80,10 +80,10 @@ class Registry(RegistryT):
             return None
         try:
             serializer = self.value_serializer
-            if isinstance(typ, ModelT):
-                return await self._loads_model(typ, serializer, value)
-            else:
+            if isinstance(typ, (str, CodecT)):
                 return await self._loads(serializer, value)
+            else:
+                return await self._loads_model(typ, serializer, value)
         except Exception as exc:
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from None

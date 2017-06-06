@@ -30,6 +30,8 @@ from .streams import joins
 
 __all__ = ['Table', 'TableManager']
 
+__flake8_Sequence_is_used: Sequence  # XXX flake8 bug
+
 logger = get_logger(__name__)
 
 
@@ -63,10 +65,15 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._new_assignments.put_nowait(assigned)
 
     async def _recover_from_changelog(self, table: TableT) -> None:
-        cast(Table, table).raw_update({
-            e.key: e.value
-            async for e in self._until_highwater(table, self._sources[table])
-        })
+        buf = {}
+        async for e in self._until_highwater(table, self._sources[table]):
+            # Lists are not hashable, and windowed-keys are json
+            # serialized into a list.
+            k = e.key
+            if isinstance(k, list):
+                k = tuple(tuple(v) if isinstance(v, list) else v for v in k)
+            buf[k] = e.value
+        cast(Table, table).raw_update(buf)
 
     def _get_changelog_partitions(self) -> Iterable[TopicPartition]:
         return {
