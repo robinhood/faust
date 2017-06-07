@@ -1,6 +1,10 @@
 """Logging utilities."""
 import logging
+import sys
+import threading
+import traceback
 from functools import singledispatch
+from pprint import pprint
 from typing import Any, IO, Union
 
 __all__ = ['get_logger', 'level_name', 'level_number', 'setup_logging']
@@ -63,3 +67,27 @@ def _setup_logging(**kwargs: Any) -> None:
     if 'stream' in kwargs:
         del kwargs['filename']
     logging.basicConfig(**kwargs)
+
+
+def cry(file: IO, sepchr: str = '=', seplen: int =49) -> None:
+    """Return stack-trace of all active threads.
+
+    See Also:
+        Taken from https://gist.github.com/737056.
+    """
+    # get a map of threads by their ID so we can print their names
+    # during the traceback dump
+    tmap = {t.ident: t for t in threading.enumerate()}
+
+    sep = sepchr * seplen
+    for tid, frame in sys._current_frames().items():
+        thread = tmap.get(tid)
+        if thread:
+            print(f'{thread.name}', file=file)            # noqa: T003
+            print(sep, file=file)                         # noqa: T003
+            traceback.print_stack(frame, file=file)
+            print(sep, file=file)                         # noqa: T003
+            print('LOCAL VARIABLES', file=file)           # noqa: T003
+            print(sep, file=file)                         # noqa: T003
+            pprint(frame.f_locals, stream=file)
+            print('\n', file=file)                        # noqa: T003

@@ -19,7 +19,7 @@ from progress.spinner import Spinner
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
 from .utils.imports import SymbolArg, symbol_by_name
-from .utils.logging import get_logger, level_name, setup_logging
+from .utils.logging import cry, get_logger, level_name, setup_logging
 from .utils.objects import cached_property
 from .utils.services import Service, ServiceT
 from .web import Web
@@ -215,6 +215,7 @@ class Worker(Service):
     def install_signal_handlers(self) -> None:
         self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
         self.loop.add_signal_handler(signal.SIGTERM, self._on_sigterm)
+        self.loop.add_signal_handler(signal.SIGUSR1, self._on_sigusr1)
 
     def _on_sigint(self) -> None:
         self.carp('-INT- -INT- -INT- -INT- -INT- -INT-')
@@ -222,6 +223,12 @@ class Worker(Service):
 
     def _on_sigterm(self) -> None:
         self.add_future(self._stop_on_signal())
+
+    def _on_sigusr1(self) -> None:
+        self.add_future(self._cry())
+
+    async def _cry(self) -> None:
+        cry(file=self.stderr)
 
     async def _stop_on_signal(self) -> None:
         logger.info('Worker: Stopping on signal received...')
