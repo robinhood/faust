@@ -14,6 +14,8 @@ from .codecs import CodecArg
 from .core import K, V
 from .serializers import RegistryT
 from .sensors import SensorDelegateT
+# mypy requires this for some unknown reason, but it's not used
+from .streams import T  # noqa: F401
 from .streams import Processor, StreamT
 from .tables import TableT, TableManagerT
 from .transports import ConsumerT, TransportT

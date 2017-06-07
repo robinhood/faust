@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import (
     AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar,
-    Iterable, Mapping, Optional, Set, Tuple, Type, Union,
+    Iterable, Mapping, Optional, Set, Tuple, Type, Union, no_type_check,
 )
 from faust.utils.times import Seconds
 from faust.utils.types.services import ServiceT
@@ -70,6 +70,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    @no_type_check
     async def getmany(
             self,
             *partitions: TopicPartition,

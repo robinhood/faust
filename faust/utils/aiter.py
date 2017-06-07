@@ -41,7 +41,7 @@ def _aiter_async(it: AsyncIterable) -> AsyncIterator:
     # XXX mypy thinks AsyncIterable is an iterator, and AsyncIterator is
     # an iterable, so they have mixed them up.  Probably will be fixed at
     # some point.
-    return it.__aiter__()  # type: ignore
+    return it.__aiter__()
 
 
 @aiter.register(Iterable)

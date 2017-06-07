@@ -1,6 +1,6 @@
 """Coroutine utilities."""
 import asyncio
-from typing import Any, AsyncIterable, Awaitable, Coroutine, Generator
+from typing import Any, AsyncIterator, Awaitable, Coroutine, Generator
 from ..types._coroutines import (
     CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback,
 )
@@ -67,7 +67,7 @@ class InputStream(InputStreamT):
     def __next__(self) -> Any:
         return self.queue._get()
 
-    def __aiter__(self) -> 'AsyncIterable':
+    def __aiter__(self) -> 'InputStream':
         return self
 
     async def __anext__(self) -> Awaitable:
@@ -119,10 +119,10 @@ class GeneratorCoroCallback(CoroCallback):
 
 
 class AsyncCoroCallback(CoroCallback):
-    gen: AsyncIterable[Any]
+    gen: AsyncIterator[Any]
 
     def __init__(self,
-                 gen: AsyncIterable[Any],
+                 gen: AsyncIterator[Any],
                  inbox: InputStreamT,
                  callback: StreamCoroutineCallback = None,
                  **kwargs: Any) -> None:
@@ -135,7 +135,7 @@ class AsyncCoroCallback(CoroCallback):
 
 class AsyncGeneratorCoroCallback(CoroCallback):
     coro: Coroutine[Any, None, None]
-    gen: AsyncIterable[Any]
+    gen: AsyncIterator[Any]
     gen_started = False
 
     def __init__(self,
@@ -164,6 +164,6 @@ def wrap_callback(
     gen = fun(inbox)
     if isinstance(gen, Coroutine):
         return AsyncGeneratorCoroCallback(gen, inbox, callback=callback)
-    elif isinstance(gen, AsyncIterable):
+    elif isinstance(gen, AsyncIterator):
         return AsyncCoroCallback(gen, inbox, callback=callback)
     return GeneratorCoroCallback(gen, inbox, callback=callback)

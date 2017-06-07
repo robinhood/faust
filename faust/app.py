@@ -576,7 +576,6 @@ class App(AppT, ServiceProxy):
 
     @property
     def consumer(self) -> ConsumerT:
-        """Default consumer instance."""
         if self._consumer is None:
             self._consumer = self._new_consumer()
         return self._consumer

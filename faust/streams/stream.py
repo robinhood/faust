@@ -6,7 +6,7 @@ import weakref
 
 from contextlib import suppress
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, Iterable, List,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, List,
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
@@ -14,7 +14,7 @@ from ..types import EventT, K, TopicT, Message, ModelArg
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
-    _T, GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
+    T, T_co, GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
 )
 from ..types.topics import SourceT
 from ..utils.aiolocals import Context, Local
@@ -74,7 +74,7 @@ class Stream(StreamT, JoinableT, Service):
     _context: Context = None
     _passive = False
 
-    def __init__(self, source: AsyncIterator[_T] = None,
+    def __init__(self, source: AsyncIterator[T] = None,
                  *,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
@@ -116,7 +116,7 @@ class Stream(StreamT, JoinableT, Service):
                 self._on_stream_event_out = app.sensors.on_stream_event_out
             self._on_message = self._create_message_handler()
 
-    async def _send_to_outbox(self, value: _T) -> None:
+    async def _send_to_outbox(self, value: T) -> None:
         await self.outbox.put(value)
 
     def add_processor(self, processor: Processor) -> None:
@@ -136,7 +136,7 @@ class Stream(StreamT, JoinableT, Service):
     def clone(self, **kwargs: Any) -> Any:
         return self.__class__(**{**self.info(), **kwargs})
 
-    async def items(self) -> AsyncIterator[Tuple[K, _T]]:
+    async def items(self) -> AsyncIterator[Tuple[K, T_co]]:
         """Iterate over the stream as ``key, value`` pairs.
 
         Examples:
@@ -148,9 +148,9 @@ class Stream(StreamT, JoinableT, Service):
                         print(key, value)
         """
         async for event in self.events():
-            yield event.key, cast(_T, event.value)
+            yield event.key, cast(T_co, event.value)
 
-    async def events(self) -> AsyncIterator[EventT]:
+    async def events(self) -> AsyncIterable[EventT]:
         """Iterate over the stream as events exclusively.
 
         This means the messages must be from a topic source.
@@ -160,7 +160,7 @@ class Stream(StreamT, JoinableT, Service):
                 yield self._current_event
 
     async def take(self, max_: int,
-                   within: Seconds = None) -> AsyncIterator[Sequence[_T]]:
+                   within: Seconds = None) -> AsyncIterable[Sequence[T_co]]:
         """Buffer n values at a time and yields a list of buffered values.
 
         Keyword Arguments:
@@ -168,7 +168,7 @@ class Stream(StreamT, JoinableT, Service):
                 and return the list of values that we have.  If this is not
                 set, it can potentially wait forever.
         """
-        buffer: List[_T] = []
+        buffer: List[T_co] = []
         add = buffer.append
         wait_for = asyncio.wait_for
         within_s = want_seconds(within)
@@ -217,7 +217,7 @@ class Stream(StreamT, JoinableT, Service):
             for _ in range(n)
         ]
 
-        async def forward(value: _T) -> _T:
+        async def forward(value: T) -> T:
             for stream in streams:
                 await stream.send(value)
             return value
@@ -225,7 +225,7 @@ class Stream(StreamT, JoinableT, Service):
         return tuple(streams)
 
     def enumerate(self,
-                  start: int = 0) -> AsyncIterator[Tuple[int, _T]]:
+                  start: int = 0) -> AsyncIterable[Tuple[int, T]]:
         """Enumerate values received in this stream.
 
         Akin to Python's built-in ``enumerate``, but works for an asynchronous
@@ -265,7 +265,7 @@ class Stream(StreamT, JoinableT, Service):
         source = aiter(topictopic)
         through = self.clone(source=source, on_start=self.maybe_start)
 
-        async def forward(value: _T) -> _T:
+        async def forward(value: T) -> T:
             nonlocal topic_created
             if not topic_created:
                 await topictopic.maybe_declare()
@@ -297,7 +297,7 @@ class Stream(StreamT, JoinableT, Service):
             for t in topics
         ]
 
-        async def echoing(value: _T) -> _T:
+        async def echoing(value: T) -> T:
             await asyncio.wait(
                 [maybe_forward(value, topic) for topic in _topics],
                 loop=self.loop,
@@ -378,7 +378,7 @@ class Stream(StreamT, JoinableT, Service):
 
         grouped = self.clone(source=aiter(topic), on_start=self.maybe_start)
 
-        async def repartition(value: _T) -> _T:
+        async def repartition(value: T) -> T:
             event = self._current_event
             if event is None:
                 raise RuntimeError(
@@ -397,7 +397,7 @@ class Stream(StreamT, JoinableT, Service):
         self._enable_passive()
         return grouped
 
-    async def _format_key(self, key: GroupByKeyArg, value: _T):
+    async def _format_key(self, key: GroupByKeyArg, value: T):
         if isinstance(key, FieldDescriptorT):
             return getattr(value, key.field)
         return await maybe_async(key(value))
@@ -507,13 +507,13 @@ class Stream(StreamT, JoinableT, Service):
                 await self._send_to_outbox(value)
         return on_message
 
-    async def on_merge(self, value: _T = None) -> Optional[_T]:
+    async def on_merge(self, value: T = None) -> Optional[T]:
         join_strategy = self.join_strategy
         if join_strategy:
             value = await join_strategy.process(value)
         return value
 
-    async def send(self, value: _T) -> None:
+    async def send(self, value: T) -> None:
         """Send value into stream manually."""
         if isinstance(self.source, SourceT):
             await cast(SourceT, self.source).put(value)
@@ -536,14 +536,14 @@ class Stream(StreamT, JoinableT, Service):
     def __iter__(self) -> Any:
         return self
 
-    def __next__(self) -> _T:
+    def __next__(self) -> Any:
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
     def __aiter__(self) -> AsyncIterator:
         self._context = Context(locals=[_locals]).__enter__()
         return self
 
-    async def __anext__(self) -> _T:
+    async def __anext__(self) -> T:
         if not self._anext_started:
             # setup stuff the first time we are iterated over.
             self._anext_started = True
@@ -559,7 +559,7 @@ class Stream(StreamT, JoinableT, Service):
                 await on_stream_event_out(_msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
-        value: _T = None
+        value: T = None
         while not value:  # we iterate until on_merge gives back a value
             await self._on_message()
             value = await self.on_merge(await self.outbox.get())

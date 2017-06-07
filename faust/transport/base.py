@@ -4,8 +4,8 @@ import asyncio
 from collections import defaultdict
 from itertools import count
 from typing import (
-    Any, Awaitable, ClassVar, Iterable, Iterator,
-    List, MutableMapping, Optional, Set, Tuple, Type,
+    Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
+    List, MutableMapping, Optional, Set, Tuple, Type, cast,
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
@@ -264,8 +264,10 @@ class Consumer(Service, ConsumerT):
             await callback(message)
 
         try:
+            # XXX mypy confuses AsyncIterable/AsyncIterator
+            ait = cast(AsyncIterator, getmany(timeout=1.0))
             while not should_stop():
-                async for tp, message in getmany(timeout=1.0):
+                async for tp, message in ait:
                     offset = get_current_offset(tp)
                     if offset is None or message.offset > offset:
                         await deliver(message, tp)

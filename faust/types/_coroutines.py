@@ -1,7 +1,7 @@
 import abc
 import asyncio
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable,
+    Any, AsyncIterator, Awaitable, Callable,
     Coroutine, Generator, Iterable, Union,
 )
 from faust.utils.services import ServiceT
@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-class InputStreamT(Iterable, AsyncIterable):
+class InputStreamT(Iterable, AsyncIterator):
     loop: asyncio.AbstractEventLoop
     queue: asyncio.Queue
 
@@ -54,6 +54,6 @@ class CoroCallbackT(ServiceT):
 
 StreamCoroutine = Union[
     Callable[[InputStreamT], Coroutine[Any, None, None]],
-    Callable[[InputStreamT], AsyncIterable[Any]],
+    Callable[[InputStreamT], AsyncIterator[Any]],
     Callable[[InputStreamT], Generator[Any, None, None]],
 ]
