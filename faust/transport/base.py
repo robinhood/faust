@@ -265,8 +265,8 @@ class Consumer(Service, ConsumerT):
 
         try:
             # XXX mypy confuses AsyncIterable/AsyncIterator
-            ait = cast(AsyncIterator, getmany(timeout=1.0))
             while not should_stop():
+                ait = cast(AsyncIterator, getmany(timeout=1.0))
                 async for tp, message in ait:
                     offset = get_current_offset(tp)
                     if offset is None or message.offset > offset:
@@ -279,6 +279,7 @@ class Consumer(Service, ConsumerT):
             raise
         except Exception as exc:
             logger.exception('Drain messages raised: %r', exc)
+            raise
         finally:
             self.set_shutdown()
 
