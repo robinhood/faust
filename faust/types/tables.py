@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import typing
 from typing import Any, Callable, ClassVar, Iterable, MutableMapping, Type
 from ..utils.times import Seconds
@@ -68,6 +69,7 @@ class TableT(MutableMapping, JoinableT, ServiceT):
 
 class TableManagerT(ServiceT, MutableMapping[str, TableT]):
     app: AppT
+    recovery_completed: asyncio.Event
 
     @abc.abstractmethod
     def on_partitions_assigned(

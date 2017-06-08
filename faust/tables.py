@@ -47,6 +47,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._sources = {}
         self._changelogs = {}
         self._new_assignments = asyncio.Queue(loop=self.loop)
+        self.recovery_completed = asyncio.Event(loop=self.loop)
 
     async def on_start(self) -> None:
         self._sources.update({
@@ -142,6 +143,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if tp.topic not in changelog_topics
             })
             logger.info('[TableManager]: New assignments handled')
+            self.recovery_completed.set()
 
 
 class Table(Service, TableT, ManagedUserDict):

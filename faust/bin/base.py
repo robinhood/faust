@@ -5,6 +5,7 @@ from types import ModuleType
 from typing import Any, Callable, Mapping, Sequence
 from ..types.app import AppT
 from ..utils.imports import import_from_cwd, symbol_by_name
+from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT
 
 
 common_options = [
@@ -12,7 +13,7 @@ common_options = [
                  help='Path to Faust application to use.'),
     click.option('--quiet/--no-quiet', '-q', default=False,
                  help='Do not output warnings to stdout/stderr.'),
-    click.option('--debug/--no-debug', default=False,
+    click.option('--debug/--no-debug', default=DEBUG,
                  help='Enable debugging output'),
     click.option('--workdir',
                  help='Change working directory'),
@@ -24,6 +25,9 @@ worker_options = [
                  help='Path to logfile (stderr is used by default)'),
     click.option('--loglevel', '-l', default='WARN',
                  help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG'),
+    click.option('--blocking-timeout',
+                 default=DEFAULT_BLOCKING_TIMEOUT, type=float,
+                 help='Blocking detector timeout (requires --debug)'),
 ]
 
 

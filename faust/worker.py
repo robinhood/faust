@@ -18,6 +18,7 @@ from pathlib import Path
 from progress.spinner import Spinner
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
+from .utils.debug import BlockingDetector
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import cry, get_logger, level_name, setup_logging
 from .utils.objects import cached_property
@@ -29,13 +30,21 @@ try:  # pragma: no cover
 except ImportError:  # pragma: no cover
     def setproctitle(title: str) -> None: ...  # noqa
 
-__all__ = ['Worker']
+__all__ = ['DEBUG', 'DEFAULT_BLOCKING_TIMEOUT', 'Worker']
 
 #: Path to default Web site class.
 DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
+
+#: Enables debugging features (like blockdetection).
+DEBUG: bool = bool(os.environ.get('F_DEBUG', False))
+
+#: Blocking detection timeout
+DEFAULT_BLOCKING_TIMEOUT: float = float(os.environ.get(
+    'F_BLOCKING_TIMEOUT', 10.0,
+))
 
 #: ASCII-art used in startup banner.
 ARTLINES = """\
@@ -124,6 +133,7 @@ class Worker(Service):
 
     app: AppT
     debug: bool
+    blocking_timeout: float
     sensors: Set[SensorT]
     services: Iterable[ServiceT]
     loglevel: Union[str, int]
@@ -135,18 +145,19 @@ class Worker(Service):
     def __init__(
             self, app: AppT, *services: ServiceT,
             sensors: Iterable[SensorT] = None,
-            debug: bool = False,
+            debug: bool = DEBUG,
             quiet: bool = False,
             loglevel: Union[str, int] = None,
             logfile: Union[str, IO] = None,
             logformat: str = None,
             stdout: IO = sys.stdout,
             stderr: IO = sys.stderr,
-            loop: asyncio.AbstractEventLoop = None,
+            blocking_timeout: float = DEFAULT_BLOCKING_TIMEOUT,
             workdir: str = None,
             Website: SymbolArg = DEFAULT_WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
+            loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
         self.services = services
@@ -158,12 +169,14 @@ class Worker(Service):
         self.logformat = logformat
         self.stdout = stdout
         self.stderr = stderr
-        self.spinner = Spinner(file=self.stdout)
+        self.blocking_timeout = blocking_timeout
         self.workdir = workdir
         self.Website = symbol_by_name(Website)
         self.web_port = web_port
         self.web_bind = web_bind
         super().__init__(loop=loop, **kwargs)
+
+        self.spinner = Spinner(file=self.stdout)
         for service in self.services:
             service.beacon.reattach(self.beacon)
             assert service.beacon.root is self.beacon
@@ -181,9 +194,12 @@ class Worker(Service):
             print(msg, file=file or self.stdout, end=end)  # noqa: T003
 
     async def on_startup_finished(self) -> None:
-        self.loop.call_later(3.0, self._on_startup_finished)
+        self.add_future(self._on_startup_finished())
 
-    def _on_startup_finished(self) -> None:
+    async def _on_startup_finished(self) -> None:
+        await self.app.tables.recovery_completed.wait()
+        if self.debug:
+            await self._blockdetect.maybe_start()
         if self.spinner:
             self.spinner.finish()
             self.spinner = None
@@ -333,6 +349,14 @@ class Worker(Service):
 
     def _setproctitle(self, info: str) -> None:
         setproctitle(f'{PSIDENT} {info}')
+
+    @cached_property
+    def _blockdetect(self) -> BlockingDetector:
+        return BlockingDetector(
+            self.blocking_timeout,
+            beacon=self.beacon,
+            loop=self.loop,
+        )
 
     @cached_property
     def website(self) -> Web:
