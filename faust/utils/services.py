@@ -2,8 +2,10 @@
 import abc
 import asyncio
 from contextlib import suppress
+from types import TracebackType
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Iterable, List, MutableSequence,
+    Any, Awaitable, Callable, ClassVar, Iterable,
+    List, MutableSequence, Type,
 )
 from .collections import Node
 from .logging import get_logger
@@ -25,7 +27,10 @@ class ServiceBase(ServiceT):
         await self.start()
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self,
+                        exc_type: Type[Exception],
+                        exc_val: Exception,
+                        exc_tb: TracebackType) -> None:
         await self.stop()
 
     def __repr__(self) -> str:

@@ -1,5 +1,6 @@
 """Compatibility utilities."""
-from typing import Any, AnyStr
+from types import TracebackType
+from typing import Any, AnyStr, Type
 
 __all__ = ['DummyContext', 'OrderedDict', 'want_bytes', 'want_str']
 
@@ -15,13 +16,19 @@ class DummyContext:
     async def __aenter__(self) -> 'DummyContext':
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self,
+                        exc_type: Type[Exception],
+                        exc_val: Exception,
+                        exc_tb: TracebackType) -> None:
         ...
 
     def __enter__(self) -> 'DummyContext':
         return self
 
-    def __exit__(self, *exc_info: Any) -> Any:
+    def __exit__(self,
+                 exc_type: Type[Exception],
+                 exc_val: Exception,
+                 exc_tb: TracebackType) -> Any:
         ...
 
 

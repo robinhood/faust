@@ -31,6 +31,7 @@ from .streams import joins
 __all__ = ['Table', 'TableManager']
 
 __flake8_Sequence_is_used: Sequence  # XXX flake8 bug
+__falke8_Set_is_used: Set
 
 logger = get_logger(__name__)
 

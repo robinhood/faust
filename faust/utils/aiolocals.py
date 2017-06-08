@@ -7,7 +7,8 @@
 """
 import asyncio
 import threading
-from typing import Any, List, MutableMapping
+from types import TracebackType
+from typing import Any, List, MutableMapping, Type
 
 __all__ = ['Local', 'Context']
 
@@ -77,7 +78,10 @@ class Context:
         _contexts[self.ident] = self
         return self
 
-    def __exit__(self, *exc_info: Any) -> None:
+    def __exit__(self,
+                 exc_type: Type[Exception],
+                 exc_val: Exception,
+                 exc_tb: TracebackType) -> None:
         self.cleanup()
 
     def __repr__(self) -> str:

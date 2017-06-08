@@ -1,5 +1,7 @@
 import abc
 import asyncio
+from types import TracebackType
+from typing import Type
 from .collections import NodeT
 
 __all__ = ['ServiceT']
@@ -22,7 +24,10 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    async def __aexit__(*exc_info) -> None:
+    async def __aexit__(self,
+                        exc_type: Type[Exception],
+                        exc_val: Exception,
+                        exc_tb: TracebackType) -> None:
         ...
 
     @abc.abstractmethod

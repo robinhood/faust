@@ -3,9 +3,10 @@ import re
 import typing
 from collections import defaultdict
 from functools import total_ordering
+from types import TracebackType
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Set, Sequence, Union, cast,
+    MutableMapping, Optional, Pattern, Set, Sequence, Union, Type, cast,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
@@ -84,13 +85,19 @@ class Event(EventT):
     async def __aenter__(self) -> EventT:
         return self
 
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self,
+                        exc_type: Type[Exception],
+                        exc_val: Exception,
+                        exc_tb: TracebackType) -> None:
         self.ack()
 
     def __enter__(self) -> EventT:
         return self
 
-    def __exit__(self, *exc_info: Any) -> None:
+    def __exit__(self,
+                 exc_type: Type[Exception],
+                 exc_val: Exception,
+                 exc_tb: TracebackType) -> None:
         self.ack()
 
 

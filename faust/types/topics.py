@@ -1,8 +1,9 @@
 import abc
 import typing
+from types import TracebackType
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Iterable, Mapping, MutableSet, Pattern, Sequence, Union,
+    Iterable, Mapping, MutableSet, Pattern, Sequence, Union, Type,
 )
 from ._coroutines import StreamCoroutine
 from ..utils.times import Seconds
@@ -67,7 +68,10 @@ class EventT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    async def __aexit__(self, *exc_info: Any) -> None:
+    async def __aexit__(self,
+                        exc_type: Type[Exception],
+                        exc_val: Exception,
+                        exc_tb: TracebackType) -> None:
         ...
 
     @abc.abstractmethod
@@ -75,7 +79,10 @@ class EventT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def __exit__(self, *exc_info: Any) -> None:
+    def __exit__(self,
+                 exc_type: Type[Exception],
+                 exc_val: Exception,
+                 exc_tb: TracebackType) -> None:
         ...
 
 

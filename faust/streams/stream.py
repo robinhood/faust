@@ -532,7 +532,7 @@ class Stream(StreamT, JoinableT, Service):
         if self._current_event is not None:
             self._current_event.ack()
         if self._context is not None:
-            self._context.__exit__()
+            self._context.__exit__(None, None, None)
 
     def __iter__(self) -> Any:
         return self
