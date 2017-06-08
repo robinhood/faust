@@ -7,7 +7,7 @@ from heapq import heappush, heappop
 from itertools import cycle
 from typing import (
     Any, AsyncIterator, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Sequence, cast,
+    MutableMapping, MutableSet, Set, Sequence, cast,
 )
 from . import stores
 from . import windows
@@ -38,6 +38,7 @@ logger = get_logger(__name__)
 class TableManager(Service, TableManagerT, FastUserDict):
     _sources: MutableMapping[TableT, SourceT]
     _changelogs: MutableMapping[str, TableT]
+    _table_offsets: MutableMapping[TopicPartition, int]
     _new_assignments: asyncio.Queue
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
@@ -46,6 +47,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.data = {}
         self._sources = {}
         self._changelogs = {}
+        self._table_offsets = {}
         self._new_assignments = asyncio.Queue(loop=self.loop)
         self.recovery_completed = asyncio.Event(loop=self.loop)
 
@@ -91,6 +93,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _until_highwater(
             self, table: TableT, source: SourceT) -> AsyncIterator[EventT]:
         consumer = self.app.consumer
+        offsets = self._table_offsets
+        get_offset = offsets.get
 
         # Wait for TopicManager to finish any new subscriptions
         await self.app.sources.wait_for_subscriptions()
@@ -104,7 +108,20 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await self.sleep(delay)
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
-        await consumer.reset_offset_earliest(*tps)
+        earliest: Set[TopicPartition] = set()  # tps to seek from earliest
+        for tp in tps:
+            try:
+                # see if we have read this changelog before
+                offset = self._table_offsets[tp]
+            except KeyError:
+                # if not, add it to partitions we seek to beginning
+                earliest.add(tp)
+            else:
+                # if we have read it, seek to that offset
+                await consumer.seek(tp, offset)
+        # seek new changelogs to beginning
+        await consumer.seek_to_beginning(*earliest)
+        # resume changelog partitions for this table
         await consumer.resume_partitions(tps)
         try:
             highwater = lru_cache(maxsize=None)(consumer.highwater)
@@ -113,14 +130,23 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 logger.info('[Table %r]: Recover from changelog', table.name)
                 async for event in source:
                     message = event.message
-                    cur_hw = highwater(message.tp)
-                    if not message.offset % 1000:
+                    tp = message.tp
+                    offset = message.offset
+                    seen_offset = get_offset(tp)
+                    if seen_offset and offset <= seen_offset:
+                        # we've already handled this update
+                        continue
+                    cur_hw = highwater(tp)
+                    if not offset % 1000:
                         logger.info('[Table %r] Still waiting for %r values',
-                                    table.name, cur_hw - message.offset)
-                    if cur_hw is None or message.offset >= cur_hw - 1:
-                        pending_tps.remove(message.tp)
+                                    table.name, cur_hw - offset)
+                    if cur_hw is None or offset >= cur_hw - 1:
+                        # we have read up till highwater, so this partition is
+                        # up to date.
+                        pending_tps.remove(tp)
                         if not pending_tps:
                             break
+                    offsets[tp] = offset
                     yield event
                 logger.info('[Table %r]: Recovery completed', table.name)
         finally:

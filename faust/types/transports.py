@@ -98,7 +98,11 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def reset_offset_earliest(self, *partitions: TopicPartition) -> None:
+    async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def seek(self, partition: TopicPartition, offset: int) -> None:
         ...
 
     @abc.abstractmethod

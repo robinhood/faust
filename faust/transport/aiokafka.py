@@ -186,10 +186,13 @@ class Consumer(base.Consumer):
         for partition in tps:
             await self._consumer.position(partition)
 
-    async def reset_offset_earliest(self, *partitions: TopicPartition) -> None:
+    async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
         for partition in partitions:
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.EARLIEST)
+
+    async def seek(self, partition: TopicPartition, offset: int) -> None:
+        self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TopicPartition]:
         return cast(Set[TopicPartition], self._consumer.assignment())
