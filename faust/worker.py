@@ -204,6 +204,8 @@ class Worker(Service):
             self.spinner.finish()
             self.spinner = None
             self.say('ready- ^')
+        else:
+            logger.info('Worker ready')
 
     def faust_ident(self) -> str:
         return self.f_ident.format(
