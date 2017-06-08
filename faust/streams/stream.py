@@ -14,7 +14,8 @@ from ..types import EventT, K, TopicT, Message, ModelArg
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
-    T, T_co, GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
+    T, T_co, T_contra,
+    GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
 )
 from ..types.topics import SourceT
 from ..utils.aiolocals import Context, Local
@@ -74,7 +75,7 @@ class Stream(StreamT, JoinableT, Service):
     _context: Context = None
     _passive = False
 
-    def __init__(self, source: AsyncIterator[T] = None,
+    def __init__(self, source: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
@@ -116,7 +117,7 @@ class Stream(StreamT, JoinableT, Service):
                 self._on_stream_event_out = app.sensors.on_stream_event_out
             self._on_message = self._create_message_handler()
 
-    async def _send_to_outbox(self, value: T) -> None:
+    async def _send_to_outbox(self, value: T_contra) -> None:
         await self.outbox.put(value)
 
     def add_processor(self, processor: Processor) -> None:
@@ -225,7 +226,7 @@ class Stream(StreamT, JoinableT, Service):
         return tuple(streams)
 
     def enumerate(self,
-                  start: int = 0) -> AsyncIterable[Tuple[int, T]]:
+                  start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         """Enumerate values received in this stream.
 
         Akin to Python's built-in ``enumerate``, but works for an asynchronous
@@ -397,7 +398,7 @@ class Stream(StreamT, JoinableT, Service):
         self._enable_passive()
         return grouped
 
-    async def _format_key(self, key: GroupByKeyArg, value: T):
+    async def _format_key(self, key: GroupByKeyArg, value: T_contra):
         if isinstance(key, FieldDescriptorT):
             return getattr(value, key.field)
         return await maybe_async(key(value))
@@ -513,7 +514,7 @@ class Stream(StreamT, JoinableT, Service):
             value = await join_strategy.process(value)
         return value
 
-    async def send(self, value: T) -> None:
+    async def send(self, value: T_contra) -> None:
         """Send value into stream manually."""
         if isinstance(self.source, SourceT):
             await cast(SourceT, self.source).put(value)

@@ -28,11 +28,13 @@ __all__ = [
     'StreamT',
     'T',
     'T_co',
+    'T_contra',
 ]
 
 # Used for typing StreamT[Withdrawal]
 T = TypeVar('T')
 T_co = TypeVar('T_co', covariant=True)
+T_contra = TypeVar('T_contra', contravariant=True)
 
 Processor = Callable[[T], Union[T, Awaitable[T]]]
 
@@ -71,9 +73,9 @@ class JoinableT(abc.ABC):
         ...
 
 
-class StreamT(AsyncIterator[T], JoinableT, ServiceT):
+class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
 
-    source: AsyncIterator[T] = None
+    source: AsyncIterator[T_co] = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
@@ -81,7 +83,7 @@ class StreamT(AsyncIterator[T], JoinableT, ServiceT):
     children: List[JoinableT] = None
 
     @abc.abstractmethod
-    def __init__(self, source: AsyncIterator[T] = None,
+    def __init__(self, source: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
@@ -124,7 +126,7 @@ class StreamT(AsyncIterator[T], JoinableT, ServiceT):
 
     @abc.abstractmethod
     def enumerate(self,
-                  start: int = 0) -> AsyncIterable[Tuple[int, T]]:
+                  start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         ...
 
     @abc.abstractmethod
@@ -152,7 +154,7 @@ class StreamT(AsyncIterator[T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def send(self, value: T) -> None:
+    async def send(self, value: T_contra) -> None:
         ...
 
     @abc.abstractmethod
@@ -168,7 +170,7 @@ class StreamT(AsyncIterator[T], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator[T]:
+    def __aiter__(self) -> AsyncIterator[T_co]:
         ...
 
     @abc.abstractmethod
