@@ -7,7 +7,10 @@ from functools import singledispatch
 from pprint import pprint
 from typing import Any, IO, Union
 
-__all__ = ['get_logger', 'level_name', 'level_number', 'setup_logging']
+__all__ = [
+    'CompositeLogger',
+    'cry', 'get_logger', 'level_name', 'level_number', 'setup_logging',
+]
 
 DEFAULT_FORMAT = '[%(asctime)s: %(levelname)s] %(message)s'
 
@@ -59,6 +62,43 @@ def setup_logging(
         format=logformat or DEFAULT_FORMAT,
     )
     return _loglevel
+
+
+class CompositeLogger:
+    logger: logging.Logger
+
+    def __init__(self,
+                 obj: Any,
+                 logger: logging.Logger) -> None:
+        self.obj = obj
+        self.logger = logger
+
+    def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.log(logging.DEBUG, msg, *args, **kwargs)
+
+    def info(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.log(logging.INFO, msg, *args, **kwargs)
+
+    def warn(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.log(logging.WARN, msg, *args, **kwargs)
+
+    def error(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.log(logging.ERROR, msg, *args, **kwargs)
+
+    def crit(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.log(logging.CRITICAL, msg, *args, **kwargs)
+
+    def exception(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.log(logging.ERROR, msg, *args, exc_info=1, **kwargs)
+
+    def log(self, severity: int, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.logger.log(
+            severity, self.format(severity, msg, *args, **kwargs),
+            *args, **kwargs)
+
+    def format(self, severity: int, msg: str,
+               *args: Any, **kwargs: Any) -> str:
+        return self.obj._format_log(severity, msg, *args, **kwargs)
 
 
 def _setup_logging(**kwargs: Any) -> None:

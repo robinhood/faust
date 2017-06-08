@@ -13,6 +13,7 @@ import socket
 import sys
 
 from contextlib import suppress
+from itertools import chain
 from typing import Any, Coroutine, IO, Iterable, Set, Tuple, Union, cast
 from pathlib import Path
 from progress.spinner import Spinner
@@ -83,7 +84,6 @@ F_IDENT = """
 ƒaµS† v{faust_v} {system} ({transport_v} {http_v} {py}={py_v})
 """.strip()
 
-
 logger = get_logger(__name__)
 
 
@@ -126,6 +126,7 @@ class Worker(Service):
         stderr (IO): Standard err stream.
         loop (asyncio.AbstractEventLoop): Custom event loop object.
     """
+    logger = logger
 
     art = ARTLINES
     f_ident = F_IDENT
@@ -205,7 +206,7 @@ class Worker(Service):
             self.spinner = None
             self.say('ready- ^')
         else:
-            logger.info('Worker ready')
+            self.log.info('Ready')
 
     def faust_ident(self) -> str:
         return self.f_ident.format(
@@ -249,7 +250,7 @@ class Worker(Service):
         cry(file=self.stderr)
 
     async def _stop_on_signal(self) -> None:
-        logger.info('Worker: Stopping on signal received...')
+        self.log.info('Stopping on signal received...')
         await self.stop()
 
     def execute_from_commandline(self, *coroutines: Coroutine) -> None:
@@ -269,12 +270,12 @@ class Worker(Service):
         try:
             # Wait until loop is fully stopped.
             while self.loop.is_running():
-                logger.info('Worker: Waiting for event loop to shutdown...')
+                self.log.info('Waiting for event loop to shutdown...')
                 self.loop.stop()
                 self.loop.run_until_complete(asyncio.sleep(1.0))
         finally:
             # Then close the loop.
-            logger.info('Worker: Closing event loop')
+            self.log.info('Closing event loop')
             self.loop.close()
 
     def _gather_all(self) -> None:
@@ -307,27 +308,17 @@ class Worker(Service):
         return DummyContext()
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        # App beacon is now a child of worker.
+        self.app.beacon.reattach(self.beacon)
         for sensor in self.sensors:
             self.app.sensors.add(sensor)
-        return self.services
+        self.app.on_startup_finished = self.on_startup_finished
+        return chain([self.website], self.services, [self.app])
 
     async def on_first_start(self) -> None:
         if self.workdir:
             os.chdir(Path(self.workdir).absolute())
         self._setup_logging()
-
-    async def on_start(self) -> None:
-        self.app.on_startup_finished = self.on_startup_finished
-        for sensor in self.sensors:
-            self.app.sensors.add(sensor)
-        await self.app.maybe_start()
-        for service in self.services:
-            await service.maybe_start()
-
-    async def on_stop(self) -> None:
-        for service in reversed(list(self.services)):
-            await service.stop()
-        await self.app.stop()
 
     def _setup_logging(self) -> None:
         _loglevel: int = None

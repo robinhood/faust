@@ -1,6 +1,7 @@
 """Async I/O services that can be started/stopped/shutdown."""
 import abc
 import asyncio
+import logging
 from contextlib import suppress
 from types import TracebackType
 from typing import (
@@ -8,7 +9,7 @@ from typing import (
     List, MutableSequence, Type,
 )
 from .collections import Node
-from .logging import get_logger
+from .logging import CompositeLogger, get_logger
 from .times import Seconds, want_seconds
 from .types.collections import NodeT
 from .types.services import ServiceT
@@ -20,8 +21,18 @@ logger = get_logger(__name__)
 
 class ServiceBase(ServiceT):
     """Base class for services."""
+    logger: logging.Logger = logger
+    log: CompositeLogger
 
     # This contains the common methods for Service and ServiceProxy
+
+    def __init__(self) -> None:
+        self.log = CompositeLogger(self, self.logger)
+
+    def _format_log(self, severity: int, msg: str,
+                    *args: Any, **kwargs: Any) -> str:
+        indent = '-' * self.beacon.depth()
+        return f'[^{indent}{self.shortlabel}]: {msg}'
 
     async def __aenter__(self) -> ServiceT:
         await self.start()
@@ -67,6 +78,9 @@ class Service(ServiceBase):
         beacon (NodeT): Beacon used to track services in a graph.
         loop (asyncio.AbstractEventLoop): Event loop object.
     """
+
+    #: Logger used by this service, subclasses should set their own.
+    logger: logging.Logger = logger
 
     #: Set to True if .stop must wait for the shutdown flag to be set.
     wait_for_shutdown = False
@@ -117,6 +131,7 @@ class Service(ServiceBase):
         self._children = []
         self._futures = []
         self.on_init()
+        super().__init__()
 
     def add_dependency(self, service: ServiceT) -> ServiceT:
         """Add dependency to other service.
@@ -178,28 +193,28 @@ class Service(ServiceBase):
 
     async def start(self) -> None:
         """Start the service."""
-        logger.info('+Starting service %r', self)
         assert not self._started.is_set()
         self._started.set()
         if not self.restart_count:
             self._children.extend(self.on_init_dependencies())
             await self.on_first_start()
+        self.log.info('Starting...')
         await self.on_start()
         for task in self._tasks:
             self.add_future(task(self))
         for child in self._children:
             if child is not None:
                 await child.maybe_start()
-        logger.info('-Started service %r', self)
+        self.log.debug('Started.')
         await self.on_started()
 
     async def _execute_task(self, task: Awaitable) -> None:
         try:
             await task
         except asyncio.CancelledError:
-            logger.info('Terminating cancelled task: %r', task)
+            self.log.info('Terminating cancelled task: %r', task)
         except Exception as exc:
-            logger.exception('Task %r raised: %r', task, exc)
+            self.log.exception('Task %r raised: %r', task, exc)
 
     async def maybe_start(self) -> None:
         """Start the service, if it has not already been started."""
@@ -209,7 +224,7 @@ class Service(ServiceBase):
     async def stop(self) -> None:
         """Stop the service."""
         if not self._stopped.is_set():
-            logger.info('+Stopping service %r', self)
+            self.log.info('Stopping...')
             self._stopped.set()
             await self.on_stop()
             for child in reversed(self._children):
@@ -217,8 +232,8 @@ class Service(ServiceBase):
                     await child.stop()
             for future in reversed(self._futures):
                 future.cancel()
-            logger.info('-Stopped service %r', self)
-            logger.info('+Shutdown service %r', self)
+            self.log.debug('-Stopped!')
+            self.log.info('Shutting down...')
             if self.wait_for_shutdown:
                 await asyncio.wait_for(
                     self._shutdown.wait(), self.shutdown_timeout,
@@ -226,7 +241,7 @@ class Service(ServiceBase):
                 )
             await self._gather_futures()
             await self.on_shutdown()
-            logger.info('-Shutdown service %r', self)
+            self.log.debug('-Shutdown complete!')
 
     async def _gather_futures(self) -> None:
         if self._futures:
@@ -285,6 +300,11 @@ class Service(ServiceBase):
     @property
     def label(self) -> str:
         """Label used for graphs."""
+        return type(self).__name__
+
+    @property
+    def shortlabel(self) -> str:
+        """Label used for logging."""
         return type(self).__name__
 
     @property
@@ -353,7 +373,11 @@ class ServiceProxy(ServiceBase):
 
     @property
     def label(self) -> str:
-        return self._service.label
+        return type(self).__name__
+
+    @property
+    def shortlabel(self) -> str:
+        return type(self).__name__
 
     @property
     def beacon(self) -> NodeT:

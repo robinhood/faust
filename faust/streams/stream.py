@@ -67,6 +67,7 @@ async def maybe_forward(value: Any, topic: TopicT) -> Any:
 
 
 class Stream(StreamT, JoinableT, Service):
+    logger = logger
 
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None

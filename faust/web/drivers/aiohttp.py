@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 
 
 class Web(base.Web):
+    logger = logger
 
     driver_version = f'aiohttp={aiohttp.__version__}'
 
@@ -54,16 +55,16 @@ class Web(base.Web):
         self._handler = self.app.make_handler()
         self._srv = await self.loop.create_server(
             self._handler, self.bind, self.port)
-        logger.info('Web: Serving on %s', self.url)
+        self.log.info('Serving on %s', self.url)
 
     async def on_stop(self) -> None:
-        logger.info('Web: closing server')
+        self.log.info('Closing server')
         self._srv.close()
-        logger.info('Web: waiting for server to close handle')
+        self.log.info('Waiting for server to close handle')
         await self._srv.wait_closed()
-        logger.info('Web: Shutting down web application')
+        self.log.info('Shutting down web application')
         await self.app.shutdown()
-        logger.info('Web: Waiting for handler to shut down')
+        self.log.info('Waiting for handler to shut down')
         await self._handler.shutdown(60.0)
-        logger.info('Web: cleanup')
+        self.log.info('Cleanup')
         await self.app.cleanup()

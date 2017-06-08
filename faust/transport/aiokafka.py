@@ -22,6 +22,7 @@ from ..utils.futures import done_future
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
+from ..utils.services import Service
 from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
@@ -70,6 +71,8 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
 
 
 class Consumer(base.Consumer):
+    logger = logger
+
     RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
@@ -101,7 +104,7 @@ class Consumer(base.Consumer):
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
         await cast(Transport, self.transport)._create_topic(
-            self._consumer._client, topic, partitions, replication,
+            self, self._consumer._client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=int(want_seconds(retention) * 1000.0),
@@ -202,6 +205,7 @@ class Consumer(base.Consumer):
 
 
 class Producer(base.Producer):
+    logger = logger
     _producer: aiokafka.AIOKafkaProducer
 
     def on_init(self) -> None:
@@ -225,7 +229,7 @@ class Producer(base.Producer):
             if retention else None
         )
         await cast(Transport, self.transport)._create_topic(
-            self._producer.client, topic, partitions, replication,
+            self, self._producer.client, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=_retention,
@@ -292,7 +296,9 @@ class Transport(base.Transport):
             config['retention.ms'] = retention
         return config
 
-    async def _create_topic(self, client: aiokafka.AIOKafkaClient,
+    async def _create_topic(self,
+                            owner: Service,
+                            client: aiokafka.AIOKafkaClient,
                             topic: str,
                             partitions: int,
                             replication: int,
@@ -303,7 +309,7 @@ class Transport(base.Transport):
                             compacting: bool = None,
                             deleting: bool = None,
                             ensure_created: bool = False) -> None:
-        logger.info(f'Creating topic {topic}')
+        owner.log.info(f'Creating topic {topic}')
         protocol_version = 1
         config = config or self._topic_config(retention, compacting, deleting)
         node_id = next(broker.nodeId for broker in client.cluster.brokers())
@@ -318,7 +324,7 @@ class Transport(base.Transport):
 
         if code != 0:
             if not ensure_created and code == TopicExists.errno:
-                logger.debug(f'Topic {topic} exists, skipping creation.')
+                owner.log.debug(f'Topic {topic} exists, skipping creation.')
             else:
                 raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
                     f'Cannot create topic: {topic} ({code}): {reason}')

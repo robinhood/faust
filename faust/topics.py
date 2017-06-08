@@ -321,6 +321,7 @@ class TopicManager(TopicManagerT, Service):
     - Consumes messages from topic using a single consumer.
     - Forwards messages to all sources subscribing to a topic.
     """
+    logger = logger
 
     #: Fast index to see if source is registered.
     _sources: Set[SourceT]
@@ -412,7 +413,8 @@ class TopicManager(TopicManagerT, Service):
                 ev.clear()
                 self._notify_subscription_waiters()
         except Exception as exc:
-            logger.exception('ERROR ERROR ERROR: %r', exc)
+            self.log.exception('Subscriber thread raised: %r', exc)
+            raise
 
     def _notify_subscription_waiters(self) -> None:
         fut = self._subscription_done

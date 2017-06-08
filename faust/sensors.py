@@ -11,6 +11,7 @@ from .types import AppT, EventT, Message, StreamT, TableT, TopicPartition
 from .types.sensors import SensorT, SensorDelegateT
 from .types.transports import ConsumerT, ProducerT
 from .utils.graphs.formatter import _label
+from .utils.logging import get_logger
 from .utils.objects import KeywordReduce
 from .utils.services import Service
 
@@ -27,6 +28,8 @@ MAX_MESSAGES = 1_000_000
 MAX_AVG_HISTORY = 100
 MAX_COMMIT_LATENCY_HISTORY = 30
 MAX_SEND_LATENCY_HISTORY = 30
+
+logger = get_logger(__name__)
 
 
 class TableState(KeywordReduce):
@@ -189,6 +192,7 @@ class Sensor(SensorT, Service):
     This sensor does not do anything at all, but can be subclassed
     to create new sensors.
     """
+    logger = logger
 
     async def on_message_in(
             self,

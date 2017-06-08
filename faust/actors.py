@@ -33,6 +33,7 @@ class ActorService(Service):
     # creates the asyncio loop when created, so we separate the
     # actor service in such a way that we can start it lazily.
     # Actor(ServiceProxy) -> ActorService
+    logger = logger
 
     actor: ActorT
     instances: MutableSequence[asyncio.Task]
@@ -58,8 +59,13 @@ class ActorService(Service):
         for instance in self.instances:
             instance.cancel()
 
+    @property
+    def shortlabel(self) -> str:
+        return self.actor.shortlabel
+
 
 class Actor(ActorT, ServiceProxy):
+    logger = logger
 
     def __init__(self, fun: ActorFun,
                  *,
@@ -74,6 +80,7 @@ class Actor(ActorT, ServiceProxy):
         self.topic = topic
         self.concurrency = concurrency
         self._on_error: ActorErrorHandler = on_error
+        ServiceProxy.__init__(self)
 
     def __call__(self) -> Union[Awaitable, AsyncIterable]:
         # The actor function can be reused by other actors/tasks.
@@ -109,7 +116,7 @@ class Actor(ActorT, ServiceProxy):
         # this is used when the actor returns an AsyncIterable,
         # and simply consumes that async iterator.
         async for item in it:
-            logger.debug('Actor %r yielded: %r', self.fun, item)
+            self.log.debug('%r yielded: %r', self.fun, item)
 
     async def _execute_task(self, coro: Awaitable) -> None:
         # This executes the actor task itself, and does exception handling.
@@ -154,3 +161,7 @@ class Actor(ActorT, ServiceProxy):
     @cached_property
     def _service(self) -> ActorService:
         return ActorService(self, beacon=self.app.beacon, loop=self.app.loop)
+
+    @property
+    def shortlabel(self) -> str:
+        return f'{type(self).__name__}{{{qualname(self.fun)}}}'

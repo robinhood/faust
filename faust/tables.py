@@ -37,6 +37,8 @@ logger = get_logger(__name__)
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
+    logger = logger
+
     _sources: MutableMapping[TableT, SourceT]
     _changelogs: MutableMapping[str, TableT]
     _table_offsets: MutableMapping[TopicPartition, int]
@@ -102,7 +104,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
         tps: Iterable[TopicPartition]
         for delay in cycle([.1, .2, .3, .5, .8, 1.0]):
-            logger.info('[TableManager] Waiting for assignment to complete...')
+            self.log.info('Waiting for assignment to complete...')
             tps = self._get_table_partitions(table)
             if tps:
                 break
@@ -128,7 +130,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             highwater = lru_cache(maxsize=None)(consumer.highwater)
             pending_tps = set(tps)
             if pending_tps:
-                logger.info('[Table %r]: Recover from changelog', table.name)
+                self.log.info('Recover %r from changelog', table.name)
                 async for event in source:
                     message = event.message
                     tp = message.tp
@@ -139,8 +141,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                         continue
                     cur_hw = highwater(tp)
                     if not offset % 1000:
-                        logger.info('[Table %r] Still waiting for %r values',
-                                    table.name, cur_hw - offset)
+                        self.log.info('Table %r, still waiting for %r values',
+                                      table.name, cur_hw - offset)
                     if cur_hw is None or offset >= cur_hw - 1:
                         # we have read up till highwater, so this partition is
                         # up to date.
@@ -149,7 +151,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                             break
                     offsets[tp] = offset
                     yield event
-                logger.info('[Table %r]: Recovery completed', table.name)
+                self.log.info('Table %r: Recovery completed!', table.name)
         finally:
             await consumer.pause_partitions(tps)
 
@@ -157,7 +159,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _new_assignments_handler(self) -> None:
         while not self.should_stop:
             assigned = await self._new_assignments.get()
-            logger.info('[TableManager]: New assignments found')
+            self.log.info('New assignments found')
             changelog_topics = set()
             for table in self.values():
                 changelog_topics.update(set(table.changelog_topic.topics))
@@ -169,11 +171,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 tp for tp in assigned
                 if tp.topic not in changelog_topics
             })
-            logger.info('[TableManager]: New assignments handled')
+            self.log.info('New assignments handled')
             self.recovery_completed.set()
 
 
 class Table(Service, TableT, ManagedUserDict):
+    logger = logger
 
     _store: str
     _changelog_topic: TopicT

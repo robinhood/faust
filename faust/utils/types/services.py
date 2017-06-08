@@ -83,6 +83,11 @@ class ServiceT(metaclass=abc.ABCMeta):
         ...
 
     @property
+    @abc.abstractmethod
+    def shortlabel(self) -> str:
+        ...
+
+    @property
     def beacon(self) -> NodeT:
         ...
 

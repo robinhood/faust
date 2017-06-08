@@ -54,6 +54,7 @@ logger = get_logger(__name__)
 
 class Consumer(Service, ConsumerT):
     """Base Consumer."""
+    logger = logger
 
     RebalanceListener: ClassVar[Type]
 
@@ -274,11 +275,11 @@ class Consumer(Service, ConsumerT):
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
-                logger.info('Consumer: stopped, shutting down...')
+                self.log.info('Broker stopped consumer, shutting down...')
                 return
             raise
         except Exception as exc:
-            logger.exception('Drain messages raised: %r', exc)
+            self.log.exception('Drain messages raised: %r', exc)
             raise
         finally:
             self.set_shutdown()
@@ -286,6 +287,7 @@ class Consumer(Service, ConsumerT):
 
 class Producer(Service, ProducerT):
     """Base Producer."""
+    logger = logger
 
     def __init__(self, transport: TransportT, **kwargs: Any) -> None:
         self.transport = transport

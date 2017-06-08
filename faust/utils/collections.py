@@ -77,6 +77,14 @@ class Node(NodeT):
         with suppress(ValueError):
             self.children.remove(data)
 
+    def depth(self) -> int:
+        i = 0
+        node: NodeT = self
+        while node:
+            i += 1
+            node = node.prev
+        return i - 1 if i else i
+
     def as_graph(self) -> DependencyGraphT:
         """Convert to :class:`~faust.utils.graphs.DependencyGraph`."""
         graph = DependencyGraph()

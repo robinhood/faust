@@ -1,7 +1,10 @@
 from typing import Any, Callable
+from ..utils.logging import get_logger
 from ..utils.services import Service
 
 __all__ = ['Request', 'Response', 'Web']
+
+logger = get_logger(__name__)
 
 _bytes = bytes
 
@@ -11,6 +14,7 @@ class Response:
 
 
 class Web(Service):
+    logger = logger
     app: Any
 
     bind: str

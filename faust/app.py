@@ -76,6 +76,7 @@ logger = get_logger(__name__)
 
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
+    logger = logger
 
     # App is created in module scope so we split it up to ensure
     # Service.loop does not create the asyncio event loop
@@ -137,7 +138,11 @@ class AppService(Service):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {self.app.id}@{self.app.url}'
+        return f'{self.shortlabel}: {self.app.id}@{self.app.url}'
+
+    @property
+    def shortlabel(self) -> str:
+        return self.app.shortlabel
 
 
 class App(AppT, ServiceProxy):
@@ -164,6 +169,7 @@ class App(AppT, ServiceProxy):
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
+    logger = logger
 
     web_port: int
     web_bind: str
@@ -248,6 +254,7 @@ class App(AppT, ServiceProxy):
         self._tasks = []
         self._pending_on_commit = defaultdict(list)
         self.on_startup_finished: Callable = on_startup_finished
+        ServiceProxy.__init__(self)
 
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
@@ -501,7 +508,7 @@ class App(AppT, ServiceProxy):
                     value_serializer: CodecArg = None,
                     *,
                     wait: bool = True) -> Awaitable:
-        logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
+        self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
         if not self._producer_started:
             self._producer_started = True
@@ -524,7 +531,7 @@ class App(AppT, ServiceProxy):
             try:
                 await self._consumer.on_task_error(exc)
             except Exception as exc:
-                logger.exception('Consumer error callback raised: %r', exc)
+                self.log.exception('Consumer error callback raised: %r', exc)
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.sources.commit(topics)

@@ -3,10 +3,14 @@ from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Iterator, Tuple
 from ..serializers.codecs import dumps, loads
 from ..types import AppT, CodecArg, StoreT
+from ..utils.logging import get_logger
 from ..utils.services import Service
+
+logger = get_logger(__name__)
 
 
 class Store(StoreT, Service):
+    logger = logger
 
     def __init__(self, url: str, app: AppT,
                  *,

@@ -1,6 +1,7 @@
 """RocksDB storage."""
 from typing import Any, Iterator, Tuple
 from ..types.app import AppT
+from ..utils.logging import get_logger
 from . import base
 
 try:
@@ -8,8 +9,11 @@ try:
 except ImportError:
     rocksdb = None  # noqa
 
+logger = get_logger(__name__)
+
 
 class Store(base.SerializedStore):
+    logger = logger
 
     _db: rocksdb.DB = None
 

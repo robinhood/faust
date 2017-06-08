@@ -29,6 +29,7 @@ class Blocking(RuntimeError):
 
 
 class BlockingDetector(Service):
+    logger = logger
 
     def __init__(self,
                  timeout: Seconds,
@@ -60,6 +61,6 @@ class BlockingDetector(Service):
     def _on_alarm(self, signum: int, frame: FrameType) -> None:
         msg = f'Blocking detected (timeout={self.timeout})'
         stack = ''.join(traceback.format_stack(frame))
-        logger.warning(f'{msg}: {stack}')
+        self.log.warn(f'{msg}: {stack}')
         self._reset_signal()
         raise self.raises(msg)
