@@ -28,6 +28,9 @@ worker_options = [
     click.option('--blocking-timeout',
                  default=DEFAULT_BLOCKING_TIMEOUT, type=float,
                  help='Blocking detector timeout (requires --debug)'),
+    click.option('--web-port',
+                 default=8080, type=int,
+                 help='Port to run webserver on'),
 ]
 
 
