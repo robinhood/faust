@@ -5,8 +5,8 @@ import logging
 from contextlib import suppress
 from types import TracebackType
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Coroutine, Generator,
-    Iterable, List, MutableSequence, Tuple, Type, Union, cast,
+    Any, Awaitable, Callable, ClassVar, Generator,
+    Iterable, List, MutableSequence, Type, Union, cast,
 )
 from .collections import Node
 from .logging import CompositeLogger, get_logger
