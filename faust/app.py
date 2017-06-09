@@ -530,7 +530,7 @@ class App(AppT, ServiceProxy):
                     value_serializer: CodecArg = None,
                     *,
                     wait: bool = True) -> Awaitable:
-        self.log.info('send: topic=%r key=%r value=%r', topic, key, value)
+        self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
         if not self._producer_started:
             self._producer_started = True
