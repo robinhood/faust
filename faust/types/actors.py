@@ -1,6 +1,8 @@
 import abc
 import typing
-from typing import AsyncIterable, AsyncIterator, Awaitable, Callable, Union
+from typing import (
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Union,
+)
 from ..utils.types.services import ServiceT
 from .codecs import CodecArg
 from .core import K, V
@@ -19,6 +21,7 @@ __all__ = [
 
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
 ActorFun = Callable[[AsyncIterator], Union[Awaitable, AsyncIterable]]
+SinkT = Callable[[Any], Union[Awaitable, None]]
 
 
 class ActorT(ServiceT):
@@ -35,11 +38,16 @@ class ActorT(ServiceT):
                  app: AppT = None,
                  topic: TopicT = None,
                  concurrency: int = 1,
+                 sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
         self.fun: ActorFun = fun
 
     @abc.abstractmethod
     def __call__(self) -> Union[Awaitable, AsyncIterable]:
+        ...
+
+    @abc.abstractmethod
+    def add_sink(self, sink: SinkT) -> None:
         ...
 
     @abc.abstractmethod

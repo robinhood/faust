@@ -1,12 +1,13 @@
 import asyncio
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    MutableSequence, Union, Type, cast,
+    Iterable, List, MutableSequence, Union, cast,
 )
 from .types import AppT, CodecArg, K, StreamT, TopicT, V
-from .types.actors import ActorFun, ActorErrorHandler, ActorT
+from .types.actors import ActorFun, ActorErrorHandler, ActorT, SinkT
 from .utils.aiter import aiter
 from .utils.collections import NodeT
+from .utils.futures import maybe_async
 from .utils.imports import qualname
 from .utils.logging import get_logger
 from .utils.objects import cached_property
@@ -14,8 +15,7 @@ from .utils.services import Service, ServiceProxy
 
 logger = get_logger(__name__)
 
-__all__ = ['Actor', 'ActorFun', 'ActorT']
-
+__all__ = ['Actor', 'ActorFun', 'ActorT', 'SinkT']
 
 # --- An actor is an `async def` function, iterating over a stream:
 #
@@ -138,6 +138,7 @@ class ActorService(Service):
 
 
 class Actor(ActorT, ServiceProxy):
+    _sinks: List[SinkT]
 
     logger = logger
 
@@ -147,12 +148,14 @@ class Actor(ActorT, ServiceProxy):
                  app: AppT = None,
                  topic: TopicT = None,
                  concurrency: int = 1,
+                 sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
         self.fun: ActorFun = fun
         self.name = name or qualname(self.fun)
         self.app = app
         self.topic = topic
         self.concurrency = concurrency
+        self._sinks = list(sink) if sink is not None else []
         self._on_error: ActorErrorHandler = on_error
         ServiceProxy.__init__(self)
 
@@ -177,10 +180,13 @@ class Actor(ActorT, ServiceProxy):
         stream = self.stream()
         res = self.fun(stream)
         if isinstance(res, Awaitable):
-            typ = AwaitableActor
-        else:
-            typ = AsyncIterableActor
-        return typ(self, stream, res, loop=self.loop, beacon=self.beacon)
+            return AwaitableActor(self, stream, res,
+                                  loop=self.loop, beacon=self.beacon)
+        return AsyncIterableActor(self, stream, res,
+                                  loop=self.loop, beacon=self.beacon)
+
+    def add_sink(self, sink: SinkT) -> None:
+        self._sinks.append(sink)
 
     def stream(self, **kwargs: Any) -> StreamT:
         return self.app.stream(self.source, loop=self.loop, **kwargs)
@@ -200,8 +206,13 @@ class Actor(ActorT, ServiceProxy):
     async def _slurp(self, it: AsyncIterator):
         # this is used when the actor returns an AsyncIterator,
         # and simply consumes that async iterator.
-        async for item in it:
-            self.log.debug('%r yielded: %r', self.fun, item)
+        async for value in it:
+            self.log.debug('%r yielded: %r', self.fun, value)
+            await self._delegate_to_sinks(value)
+
+    async def _delegate_to_sinks(self, value: Any) -> None:
+        for sink in self._sinks:
+            await maybe_async(sink(value))
 
     async def _execute_task(self, coro: Awaitable) -> None:
         # This executes the actor task itself, and does exception handling.
