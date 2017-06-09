@@ -63,6 +63,6 @@ autodoc_member_order = 'bysource'
 
 # This option is deprecated and raises an error.
 try:
-    del(html_use_smartypants)
+    del(html_use_smartypants)  # noqa
 except NameError:
     pass

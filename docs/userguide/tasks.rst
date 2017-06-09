@@ -58,7 +58,7 @@ statistics every 30 seconds:
         print(f'Logs processed: {stats.logs_received})
 
     if __name__ == '__main__':
-        app.start()
+        app.start_worker()
 
 Actors
 ======

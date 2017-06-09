@@ -186,7 +186,7 @@ KStream
             buffer.flush()
 
         if __name__ == '__main__':
-            app.start()
+            app.start_worker()
 
 - ``join()``
 - ``outerJoin()``
