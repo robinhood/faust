@@ -24,7 +24,3 @@ class KeyDecodeError(FaustError):
 
 class ValueDecodeError(FaustError):
     """Error while decoding/deserialization message value."""
-
-
-class Crash(FaustError):
-    """Worker unexpected error, exit immediately."""
