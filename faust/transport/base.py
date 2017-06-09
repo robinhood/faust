@@ -157,7 +157,6 @@ class Consumer(Service, ConsumerT):
 
     @Service.task
     async def _commit_handler(self) -> None:
-        raise Exception('foo')
         await self.sleep(self.commit_interval)
         while not self.should_stop:
             await self.commit()
