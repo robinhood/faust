@@ -7,7 +7,7 @@ from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
-from .types import AppT, EventT, Message, StreamT, TableT, TopicPartition
+from .types import AppT, EventT, Message, StreamT, CollectionT, TopicPartition
 from .types.sensors import SensorT, SensorDelegateT
 from .types.transports import ConsumerT, ProducerT
 from .utils.graphs.formatter import _label
@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 class TableState(KeywordReduce):
 
     #: The table this object records statistics for.
-    table: TableT = None
+    table: CollectionT = None
 
     #: Number of times a key has been retrieved from this table.
     keys_retrieved: int = 0
@@ -47,12 +47,12 @@ class TableState(KeywordReduce):
     keys_deleted: int = 0
 
     def __init__(self,
-                 table: TableT,
+                 table: CollectionT,
                  *,
                  keys_retrieved: int = 0,
                  keys_updated: int = 0,
                  keys_deleted: int = 0) -> None:
-        self.table: TableT = table
+        self.table: CollectionT = table
         self.keys_retrieved = keys_retrieved
         self.keys_updated = keys_updated
         self.keys_deleted = keys_deleted
@@ -232,15 +232,15 @@ class Sensor(SensorT, Service):
         """Called when all streams have processed the message."""
         ...
 
-    def on_table_get(self, table: TableT, key: Any) -> None:
+    def on_table_get(self, table: CollectionT, key: Any) -> None:
         """Called whenever a key is retrieved from a table."""
         ...
 
-    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+    def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         """Called whenever a key is updated in a table."""
         ...
 
-    def on_table_del(self, table: TableT, key: Any) -> None:
+    def on_table_del(self, table: CollectionT, key: Any) -> None:
         """Called whenever a key is deleted from a table."""
         ...
 
@@ -501,16 +501,16 @@ class Monitor(Sensor, KeywordReduce):
         with suppress(KeyError):
             self.message_index[tp, offset].on_out()
 
-    def on_table_get(self, table: TableT, key: Any) -> None:
+    def on_table_get(self, table: CollectionT, key: Any) -> None:
         self._table_or_create(table).keys_retrieved += 1
 
-    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+    def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         self._table_or_create(table).keys_updated += 1
 
-    def on_table_del(self, table: TableT, key: Any) -> None:
+    def on_table_del(self, table: CollectionT, key: Any) -> None:
         self._table_or_create(table).keys_deleted += 1
 
-    def _table_or_create(self, table: TableT) -> TableState:
+    def _table_or_create(self, table: CollectionT) -> TableState:
         try:
             return self.tables[table.name]
         except KeyError:
@@ -591,15 +591,15 @@ class SensorDelegate(SensorDelegateT):
         for sensor in self._sensors:
             await sensor.on_message_out(consumer_id, tp, offset, message)
 
-    def on_table_get(self, table: TableT, key: Any) -> None:
+    def on_table_get(self, table: CollectionT, key: Any) -> None:
         for sensor in self._sensors:
             sensor.on_table_get(table, key)
 
-    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+    def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         for sensor in self._sensors:
             sensor.on_table_set(table, key, value)
 
-    def on_table_del(self, table: TableT, key: Any) -> None:
+    def on_table_del(self, table: CollectionT, key: Any) -> None:
         for sensor in self._sensors:
             sensor.on_table_del(table, key)
 

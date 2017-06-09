@@ -1,7 +1,9 @@
 import abc
 import asyncio
 import typing
-from typing import Any, Callable, ClassVar, Iterable, MutableMapping, Type
+from typing import (
+    Any, Callable, ClassVar, Iterable, MutableMapping, MutableSet, Type,
+)
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 from .streams import JoinableT
@@ -17,8 +19,17 @@ else:
     class AppT: ...      # noqa
     class ModelArg: ...  # noqa
 
+__all__ = [
+    'CollectionT',
+    'TableT',
+    'SetT',
+    'TableManagerT',
+    'WindowSetT',
+    'WindowWrapperT',
+]
 
-class TableT(MutableMapping, JoinableT, ServiceT):
+
+class CollectionT(JoinableT, ServiceT):
     StateStore: ClassVar[Type[StoreT]] = None
 
     app: AppT
@@ -43,6 +54,18 @@ class TableT(MutableMapping, JoinableT, ServiceT):
                  **kwargs: Any) -> None:
         ...
 
+    @property
+    @abc.abstractmethod
+    def changelog_topic(self) -> TopicT:
+        ...
+
+    @changelog_topic.setter
+    def changelog_topic(self, topic: TopicT) -> None:
+        ...
+
+
+class TableT(CollectionT, MutableMapping):
+
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':
         ...
@@ -57,19 +80,18 @@ class TableT(MutableMapping, JoinableT, ServiceT):
                  expires: Seconds = None) -> 'WindowWrapperT':
         ...
 
-    @property
-    @abc.abstractmethod
-    def changelog_topic(self) -> TopicT:
-        ...
 
-    @changelog_topic.setter
-    def changelog_topic(self, topic: TopicT) -> None:
-        ...
+class SetT(CollectionT, MutableSet):
+    ...
 
 
-class TableManagerT(ServiceT, MutableMapping[str, TableT]):
+class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     app: AppT
     recovery_completed: asyncio.Event
+
+    @abc.abstractmethod
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
 
     @abc.abstractmethod
     def on_partitions_assigned(

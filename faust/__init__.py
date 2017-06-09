@@ -40,7 +40,7 @@ if typing.TYPE_CHECKING:
     from .models import Record                                # noqa: E402
     from .sensors import Monitor, Sensor                      # noqa: E402
     from .streams.stream import Stream, current_event         # noqa: E402
-    from .tables import Table                                 # noqa: E402
+    from .tables import Set, Table                            # noqa: E402
     from .topics import Event, Topic                          # noqa: E402
     from .windows import (                                    # noqa: E402
         HoppingWindow, TumblingWindow, SlidingWindow,
@@ -54,6 +54,7 @@ __all__ = [
     'Monitor',
     'Sensor',
     'Stream', 'current_event',
+    'Set',
     'Table',
     'Topic',
     'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
@@ -78,7 +79,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.streams.stream': ['Stream', 'current_event'],
-    'faust.tables': ['Table'],
+    'faust.tables': ['Set', 'Table'],
     'faust.topics': ['Event', 'Topic'],
     'faust.windows': [
         'HoppingWindow',

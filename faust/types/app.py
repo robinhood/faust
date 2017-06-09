@@ -17,8 +17,8 @@ from .serializers import RegistryT
 from .sensors import SensorDelegateT
 # mypy requires this for some unknown reason, but it's not used
 from .streams import T  # noqa: F401
-from .streams import Processor, StreamT
-from .tables import TableT, TableManagerT
+from .streams import StreamT
+from .tables import CollectionT, SetT, TableT, TableManagerT
 from .transports import ConsumerT, TransportT
 from .topics import TopicT, TopicManagerT
 from .tuples import Message, PendingMessage, TopicPartition
@@ -42,7 +42,9 @@ class AppT(ServiceT):
     """
 
     Stream: Type[StreamT]
-    Table: Type[TableT]
+    TableType: Type[TableT]
+    TableManager: Type[TableManagerT]
+    SetType: Type[SetT]
     Serializers: Type[RegistryT]
 
     id: str
@@ -78,6 +80,8 @@ class AppT(ServiceT):
                  default_partitions: int = 8,
                  Stream: SymbolArg = '',
                  Table: SymbolArg = '',
+                 TableManager: SymbolArg = '',
+                 Set: SymbolArg = '',
                  Serializers: SymbolArg = '',
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
@@ -118,18 +122,24 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def table(self, name: str,
+    def Table(self, name: str,
               *,
               default: Callable[[], Any] = None,
-              coroutine: StreamCoroutine = None,
-              processors: Iterable[Processor] = None,
               window: WindowT = None,
               partitions: int = None,
               **kwargs: Any) -> TableT:
         ...
 
     @abc.abstractmethod
-    def add_table(self, table: TableT) -> None:
+    def Set(self, name: str,
+            *,
+            window: WindowT = None,
+            partitions: int = None,
+            **kwargs: Any) -> SetT:
+        ...
+
+    @abc.abstractmethod
+    def add_collection(self, table: CollectionT) -> None:
         ...
 
     @abc.abstractmethod

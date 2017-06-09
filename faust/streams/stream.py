@@ -563,7 +563,7 @@ class Stream(StreamT, JoinableT, Service):
             value = await self.on_merge(await self.outbox.get())
         return value
 
-    def __and__(self, other: JoinableT) -> StreamT:
+    def __and__(self, other: Any) -> Any:
         return self.combine(self, other)
 
     def __copy__(self) -> Any:

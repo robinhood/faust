@@ -150,7 +150,7 @@ Examples
 
     .. code-block:: python
 
-        orders_by_country = app.table('orders_by_country', default=int)
+        orders_by_country = app.Table('orders_by_country', default=int)
 
         async for order in orders_topic.stream():
             country = order.country_origin
@@ -163,7 +163,7 @@ Examples
 
     .. code-block:: python
 
-        orders_by_country = app.table(
+        orders_by_country = app.Table(
             'orders_by_country',
             default=int,
         ).hopping(timedelta(days=2))

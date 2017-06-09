@@ -14,7 +14,7 @@ from .streams import (
     StreamCoroutine,
     StreamT,
 )
-from .tables import TableT
+from .tables import CollectionT, SetT, TableT
 from .transports import (
     ConsumerCallback,
     ConsumerT,
@@ -46,7 +46,7 @@ __all__ = [
 
     'JoinableT', 'Processor', 'StreamCoroutine', 'StreamT',
 
-    'TableT',
+    'CollectionT', 'SetT', 'TableT',
 
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 

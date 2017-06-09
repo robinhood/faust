@@ -15,11 +15,9 @@ from .topics import EventT, TopicT
 if typing.TYPE_CHECKING:
     from .app import AppT
     from .join import JoinT
-    from .tables import TableT
 else:
     class AppT: ...    # noqa
     class JoinT: ...   # noqa
-    class TableT: ...  # noqa
 
 __all__ = [
     'Processor',
@@ -69,7 +67,7 @@ class JoinableT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def __and__(self, other: 'JoinableT') -> 'StreamT':
+    def __and__(self, other: Any) -> Any:
         ...
 
 

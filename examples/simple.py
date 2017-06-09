@@ -16,8 +16,8 @@ app = faust.App(
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
-user_to_total = app.table('user_to_total', default=int)
-country_to_total = app.table('country_to_total',
+user_to_total = app.Table('user_to_total', default=int)
+country_to_total = app.Table('country_to_total',
                              default=int).tumbling(10.0, expires=10.0)
 
 

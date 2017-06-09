@@ -180,11 +180,18 @@ Parameters
     The :class:`~faust.Stream` class to use for streams, or the fully-qualified
     path to one.
 
-`Table`
-    :type: ``Union[str, Type]``
+`TableType`
+    :type: ``Union[str, Type[TableT]]``
     :default: ``"faust.Table"``
 
     The :class:`~faust.Table` class to use for tables, or the fully-qualified
+    path to one.
+
+`SetType`
+    :type: ``Union[str, Type[SetT]]``
+    :default: ``"faust.Set"``
+
+    The :class:`~faust.Set` class to use for sets, or the fully-qualified
     path to one.
 
 Reference
@@ -211,7 +218,9 @@ Creating streams and tables
 
     .. automethod:: stream
 
-    .. automethod:: table
+    .. automethod:: Table
+
+    .. automethod:: Set
 
 Sending messages
 ^^^^^^^^^^^^^^^^

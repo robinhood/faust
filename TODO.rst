@@ -14,7 +14,7 @@ interface:
 
 .. code-block:: python
 
-    user_to_amount = app.table('user_to_amount', public=True)
+    user_to_amount = app.Table('user_to_amount', public=True)
 
 HTTP API
 --------

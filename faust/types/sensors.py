@@ -1,7 +1,8 @@
 import abc
 from typing import Any, Iterable
 from faust.utils.types.services import ServiceT
-from .streams import StreamT, TableT
+from .streams import StreamT
+from .tables import CollectionT
 from .topics import EventT
 from .transports import ConsumerT, ProducerT
 from .tuples import Message, TopicPartition
@@ -48,15 +49,15 @@ class SensorInterfaceT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def on_table_get(self, table: TableT, key: Any) -> None:
+    def on_table_get(self, table: CollectionT, key: Any) -> None:
         ...
 
     @abc.abstractmethod
-    def on_table_set(self, table: TableT, key: Any, value: Any) -> None:
+    def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         ...
 
     @abc.abstractmethod
-    def on_table_del(self, table: TableT, key: Any) -> None:
+    def on_table_del(self, table: CollectionT, key: Any) -> None:
         ...
 
     @abc.abstractmethod

@@ -1,4 +1,5 @@
 """Tables (changelog stream)."""
+import abc
 import asyncio
 import operator
 from collections import defaultdict
@@ -6,7 +7,7 @@ from functools import lru_cache
 from heapq import heappush, heappop
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Set, Sequence, cast,
+    MutableMapping, MutableSet, Set as _Set, Sequence, cast,
 )
 from . import stores
 from . import windows
@@ -16,21 +17,30 @@ from .types import (
 from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
-from .types.tables import TableT, WindowSetT, WindowWrapperT, TableManagerT
+from .types.tables import (
+    CollectionT, SetT, TableT, WindowSetT, WindowWrapperT, TableManagerT,
+)
 from .types.topics import SourceT
 from .types.windows import WindowRange, WindowT
 from .utils.aiter import aiter
-from .utils.collections import FastUserDict, ManagedUserDict
+from .utils.collections import FastUserDict, ManagedUserDict, ManagedUserSet
 from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
 from .streams import current_event
 from .streams import joins
 
-__all__ = ['Table', 'TableManager']
+__all__ = [
+    'Collection',
+    'Set',
+    'Table',
+    'TableManager',
+    'WindowSet',
+    'WindowWrapper',
+]
 
 __flake8_Sequence_is_used: Sequence  # XXX flake8 bug
-__falke8_Set_is_used: Set
+__falke8_Set_is_used: _Set
 
 logger = get_logger(__name__)
 
@@ -38,8 +48,8 @@ logger = get_logger(__name__)
 class TableManager(Service, TableManagerT, FastUserDict):
     logger = logger
 
-    _sources: MutableMapping[TableT, SourceT]
-    _changelogs: MutableMapping[str, TableT]
+    _sources: MutableMapping[CollectionT, SourceT]
+    _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
     _new_assignments: asyncio.Queue
 
@@ -72,11 +82,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._new_assignments.put_nowait(assigned)
 
     async def _recover_from_changelog(
-            self, table: TableT, assigned: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            assigned: Iterable[TopicPartition]) -> None:
         consumer = self.app.consumer
         buf: MutableMapping = {}
         # Get assigned partitions for this tables changelog topic.
-        tps: Set[TopicPartition] = {
+        tps: _Set[TopicPartition] = {
             tp for tp in assigned
             if tp.topic in table.changelog_topic.topics
         }
@@ -95,7 +107,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> None:
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
-        earliest: Set[TopicPartition] = set()  # tps to seek from earliest
+        earliest: _Set[TopicPartition] = set()  # tps to seek from earliest
         for tp in tps:
             try:
                 # see if we have read this changelog before
@@ -110,7 +122,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self.app.consumer.seek_to_beginning(*earliest)
 
     async def _read_changelog(self,
-                              table: TableT,
+                              table: CollectionT,
                               tps: Iterable[TopicPartition],
                               source: SourceT) -> None:
         buf: MutableMapping[Any, Any] = {}
@@ -175,13 +187,25 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self.recovery_completed.set()
 
 
-class Table(Service, TableT, ManagedUserDict):
+class Collection(Service, CollectionT):
     logger = logger
 
     _store: str
     _changelog_topic: TopicT
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
+
+    @abc.abstractmethod
+    def _get_key(self, key: Any) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def _set_key(self, key: Any, value: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def _del_key(self, key: Any) -> None:
+        ...
 
     def __init__(self, app: AppT,
                  *,
@@ -231,31 +255,8 @@ class Table(Service, TableT, ManagedUserDict):
         # can be registered in the app.tables mapping.
         return object.__hash__(self)
 
-    def __missing__(self, key: Any) -> Any:
-        if self.default is not None:
-            value = self[key] = self.default()
-            return value
-        raise KeyError(key)
-
     async def on_start(self) -> None:
         await self.changelog_topic.maybe_declare()
-
-    def using_window(self, window: WindowT) -> WindowWrapperT:
-        self.window = window
-        self.changelog_topic = self._new_changelog_topic(
-            retention=window.expires,
-            compacting=True,
-            deleting=True,
-        )
-        return WindowWrapper(self)
-
-    def hopping(self, size: Seconds, step: Seconds,
-                expires: Seconds = None) -> WindowWrapperT:
-        return self.using_window(windows.HoppingWindow(size, step, expires))
-
-    def tumbling(self, size: Seconds,
-                 expires: Seconds = None) -> WindowWrapperT:
-        return self.using_window(windows.TumblingWindow(size, expires))
 
     def info(self) -> Mapping[str, Any]:
         # Used to recreate object in .clone()
@@ -269,19 +270,6 @@ class Table(Service, TableT, ManagedUserDict):
             'changelog_topic': self._changelog_topic,
             'window': self.window,
         }
-
-    def on_key_get(self, key: Any) -> None:
-        self._sensor_on_get(self, key)
-
-    def on_key_set(self, key: Any, value: Any) -> None:
-        self._send_changelog(key, value)
-        self._maybe_set_key_ttl(key)
-        self._sensor_on_set(self, key, value)
-
-    def on_key_del(self, key: Any) -> None:
-        self._send_changelog(key, value=None)
-        self._maybe_del_key_ttl(key)
-        self._sensor_on_del(self, key)
 
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
@@ -370,7 +358,7 @@ class Table(Service, TableT, ManagedUserDict):
     def __copy__(self) -> Any:
         return self.clone()
 
-    def __and__(self, other: JoinableT) -> StreamT:
+    def __and__(self, other: Any) -> Any:
         return self.combine(self, other)
 
     def _apply_window_op(self,
@@ -378,17 +366,19 @@ class Table(Service, TableT, ManagedUserDict):
                          key: Any,
                          value: Any,
                          event: EventT = None) -> None:
+        get = self._get_key
+        set = self._set_key
         for window_range in self._window_ranges(event):
-            self[key, window_range] = op(self[key, window_range], value)
+            set((key, window_range), op(get((key, window_range)), value))
 
     def _set_windowed(self, key: Any, value: Any,
                       event: EventT = None) -> None:
         for window_range in self._window_ranges(event):
-            self[key, window_range] = value
+            self._set_key((key, window_range), value)
 
     def _del_windowed(self, key: Any, event: EventT = None) -> None:
         for window_range in self._window_ranges(event):
-            del self[key, window_range]
+            self._del_key((key, window_range))
 
     def _window_ranges(self, event: EventT = None) -> Iterator[WindowRange]:
         timestamp = self._get_timestamp(event)
@@ -396,11 +386,13 @@ class Table(Service, TableT, ManagedUserDict):
             yield window_range
 
     def _windowed_current(self, key: Any, event: EventT = None) -> Any:
-        return self[key, self.window.current(self._get_timestamp(event))]
+        return self._get_key(
+            (key, self.window.current(self._get_timestamp(event))))
 
     def _windowed_delta(self, key: Any, d: Seconds,
                         event: EventT = None) -> Any:
-        return self[key, self.window.delta(self._get_timestamp(event), d)]
+        return self._get_key(
+            (key, self.window.delta(self._get_timestamp(event), d)))
 
     def _get_timestamp(self, event: EventT = None) -> float:
         return (event or current_event()).message.timestamp
@@ -418,6 +410,70 @@ class Table(Service, TableT, ManagedUserDict):
     @changelog_topic.setter
     def changelog_topic(self, topic: TopicT) -> None:
         self._changelog_topic = topic
+
+
+class Table(Collection, TableT, ManagedUserDict):
+
+    def using_window(self, window: WindowT) -> WindowWrapperT:
+        self.window = window
+        self.changelog_topic = self._new_changelog_topic(
+            retention=window.expires,
+            compacting=True,
+            deleting=True,
+        )
+        return WindowWrapper(self)
+
+    def hopping(self, size: Seconds, step: Seconds,
+                expires: Seconds = None) -> WindowWrapperT:
+        return self.using_window(windows.HoppingWindow(size, step, expires))
+
+    def tumbling(self, size: Seconds,
+                 expires: Seconds = None) -> WindowWrapperT:
+        return self.using_window(windows.TumblingWindow(size, expires))
+
+    def __missing__(self, key: Any) -> Any:
+        if self.default is not None:
+            value = self[key] = self.default()
+            return value
+        raise KeyError(key)
+
+    def _get_key(self, key: Any) -> Any:
+        return self[key]
+
+    def _set_key(self, key: Any, value: Any) -> None:
+        self[key] = value
+
+    def _del_key(self, key: Any) -> None:
+        del self[key]
+
+    def on_key_get(self, key: Any) -> None:
+        self._sensor_on_get(self, key)
+
+    def on_key_set(self, key: Any, value: Any) -> None:
+        self._send_changelog(key, value)
+        self._maybe_set_key_ttl(key)
+        self._sensor_on_set(self, key, value)
+
+    def on_key_del(self, key: Any) -> None:
+        self._send_changelog(key, value=None)
+        self._maybe_del_key_ttl(key)
+        self._sensor_on_del(self, key)
+
+
+class Set(Collection, SetT, ManagedUserSet):
+
+    def on_key_get(self, key: Any) -> None:
+        self._sensor_on_get(self, key)
+
+    def on_key_set(self, key: Any) -> None:
+        self._send_changelog(key, value=True)
+        self._maybe_set_key_ttl(key)
+        self._sensor_on_set(self, key, value=True)
+
+    def on_key_del(self, key: Any) -> None:
+        self._send_changelog(key, value=None)
+        self._maybe_del_key_ttl(key)
+        self._sensor_on_del(self, key)
 
 
 class WindowSet(WindowSetT, FastUserDict):

@@ -1,6 +1,6 @@
 from typing import (
     Any, ItemsView, Iterator, KeysView, List,
-    MutableMapping, ValuesView, cast,
+    MutableMapping, MutableSet, ValuesView, cast,
 )
 from collections import UserDict, deque
 from contextlib import suppress
@@ -8,7 +8,11 @@ from .graphs import DependencyGraph
 from .types.collections import NodeT
 from .types.graphs import DependencyGraphT
 
-__all__ = ['Node', 'NodeT', 'FastUserDict', 'ManagedUserDict']
+__all__ = [
+    'Node', 'NodeT',
+    'FastUserDict', 'ManagedUserDict',
+    'FastUserSet', 'ManagedUserSet',
+]
 
 
 class Node(NodeT):
@@ -146,6 +150,65 @@ class FastUserDict(UserDict):
 
     def values(self) -> ValuesView:
         return self.data.values()
+
+
+class FastUserSet(MutableSet):
+    data: MutableMapping[Any, bool]
+
+    def __contains__(self, key: Any) -> bool:
+        return key in self.data
+
+    def __iter__(self) -> Iterator:
+        return iter(self.data)
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def add(self, key: Any) -> None:
+        self.data[key] = True
+
+    def discard(self, key: Any) -> None:
+        self.data.pop(key, None)
+
+    # Rest is fast versions of generic slow MutableSet methods.
+
+    def clear(self) -> None:
+        self.data.clear()
+
+
+class ManagedUserSet(FastUserSet):
+    """A MutableSet that adds callbacks for when keys are get/set/deleted."""
+
+    def on_key_get(self, key: Any) -> None:
+        ...
+
+    def on_key_set(self, key: Any) -> None:
+        ...
+
+    def on_key_del(self, key: Any) -> None:
+        ...
+
+    def on_clear(self) -> None:
+        ...
+
+    def __contains__(self, key: Any) -> bool:
+        self.on_key_get(key)
+        return super().__contains__(key)
+
+    def add(self, key: Any) -> None:
+        self.on_key_set(key)
+        return super().add(key)
+
+    def discard(self, key: Any) -> None:
+        self.on_key_del(key)
+        return super().discard(key)
+
+    def clear(self) -> None:
+        self.on_clear()
+        return super().clear()
+
+    def raw_update(self, *args: Any, **kwargs: Any) -> None:
+        self.data.update(*args, **kwargs)
 
 
 class ManagedUserDict(FastUserDict):

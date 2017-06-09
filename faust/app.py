@@ -24,7 +24,7 @@ from .types import (
 from .types.app import AppT
 from .sensors import Monitor
 from .types.streams import StreamT
-from .types.tables import TableT, TableManagerT
+from .types.tables import CollectionT, SetT, TableT, TableManagerT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
@@ -49,8 +49,11 @@ DEFAULT_STREAM_CLS = 'faust.Stream'
 
 DEFAULT_TABLE_MANAGER_CLS = 'faust.tables.TableManager'
 
-#: Path to default table class used by ``app.table``.
+#: Path to default table class used by ``app.Table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
+
+#: Path to default set class used by ``app.Set``.
+DEFAULT_SET_CLS = 'faust.Set'
 
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
@@ -223,6 +226,7 @@ class App(AppT, ServiceProxy):
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  TableManager: SymbolArg = DEFAULT_TABLE_MANAGER_CLS,
+                 Set: SymbolArg = DEFAULT_SET_CLS,
                  Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
@@ -240,7 +244,8 @@ class App(AppT, ServiceProxy):
         self.default_partitions = default_partitions
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
-        self.Table = symbol_by_name(Table)
+        self.TableType = symbol_by_name(Table)
+        self.SetType = symbol_by_name(Set)
         self.TableManager = symbol_by_name(TableManager)
         self.Serializers = symbol_by_name(Serializers)
         self.serializers = self.Serializers(
@@ -335,7 +340,7 @@ class App(AppT, ServiceProxy):
             beacon=beacon or self.beacon,
             **kwargs)
 
-    def table(self, name: str,
+    def Table(self, name: str,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
@@ -353,7 +358,7 @@ class App(AppT, ServiceProxy):
             window: A windowing strategy to wrap this window in.
 
         Examples:
-            >>> table = app.table('user_to_amount', default=int)
+            >>> table = app.Table('user_to_amount', default=int)
             >>> table['George']
             0
             >>> table['Elaine'] += 1
@@ -361,17 +366,33 @@ class App(AppT, ServiceProxy):
             >>> table['Elaine']
             2
         """
-        table = self.Table(
+        table = self.TableType(
             self,
             name=name,
             default=default,
             beacon=self.beacon,
             partitions=partitions,
             **kwargs)
-        self.add_table(table)
+        self.add_collection(table)
         return table.using_window(window) if window else table
 
-    def add_table(self, table: TableT) -> None:
+    def Set(self, name: str,
+            *,
+            window: WindowT = None,
+            partitions: int = None,
+            **kwargs: Any) -> SetT:
+        set_ = self.SetType(
+            self,
+            name=name,
+            beacon=self.beacon,
+            partitions=partitions,
+            window=window,
+            **kwargs,
+        )
+        self.add_collection(set_)
+        return set_
+
+    def add_collection(self, table: CollectionT) -> None:
         """Register existing table."""
         assert table.name
         if table.name in self.tables:
