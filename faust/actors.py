@@ -1,9 +1,9 @@
 import asyncio
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    MutableSequence, Union, cast,
+    MutableSequence, Union, Type, cast,
 )
-from .types import AppT, CodecArg, K, TopicT, V
+from .types import AppT, CodecArg, K, StreamT, TopicT, V
 from .types.actors import ActorFun, ActorErrorHandler, ActorT
 from .utils.aiter import aiter
 from .utils.collections import NodeT
@@ -28,6 +28,75 @@ __all__ = ['Actor', 'ActorFun', 'ActorT']
 # unlike normal actors they do not implement replies... yet!
 
 
+class ActorInstance(Service):
+    logger = logger
+
+    agent: ActorT
+    stream: StreamT
+    actor_task: asyncio.Task = None
+    #: If multiple instance are started for concurrency, this is its index.
+    index: int = None
+
+    async def on_start(self) -> None:
+        assert self.actor_task
+        self.add_future(self.actor_task)
+
+    async def on_stop(self) -> None:
+        self.cancel()
+
+    def cancel(self) -> None:
+        if self.actor_task:
+            self.actor_task.cancel()
+
+    def __repr__(self) -> str:
+        return f'<{self.shortlabel}>'
+
+    @property
+    def label(self) -> str:
+        return self.shortlabel
+
+    @property
+    def shortlabel(self) -> str:
+        return f'Actor*: {self.agent.name}'
+
+
+class AsyncIterableActor(ActorInstance, AsyncIterable):
+    it: AsyncIterable
+
+    def __init__(self,
+                 agent: ActorT,
+                 stream: StreamT,
+                 it: AsyncIterable,
+                 **kwargs: Any) -> None:
+        self.agent = agent
+        self.stream = stream
+        self.it = it
+        super().__init__(**kwargs)
+
+    def __aiter__(self) -> AsyncIterator:
+        return self.it.__aiter__()
+
+
+class AwaitableActor(ActorInstance, Awaitable):
+    coro: Awaitable
+
+    def __init__(self,
+                 agent: ActorT,
+                 stream: StreamT,
+                 coro: Awaitable,
+                 **kwargs: Any) -> None:
+        self.agent = agent
+        self.stream = stream
+        self.coro = coro
+        super().__init__(**kwargs)
+
+    def __await__(self) -> Any:
+        return self.coro.__await__()
+
+
+ActorInstanceT = Union[AwaitableActor, AsyncIterableActor]
+
+
 class ActorService(Service):
     # Actors are created at module-scope, and the Service class
     # creates the asyncio loop when created, so we separate the
@@ -36,19 +105,19 @@ class ActorService(Service):
     logger = logger
 
     actor: ActorT
-    instances: MutableSequence[asyncio.Task]
+    instances: MutableSequence[ActorInstanceT]
 
-    def __init__(self, actor: 'ActorT', **kwargs: Any) -> None:
+    def __init__(self, actor: ActorT, **kwargs: Any) -> None:
         self.actor = actor
         self.instances = []
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
         # start the actor processor.
-        for _ in range(self.actor.concurrency):
-            task = await cast(Actor, self.actor)._start_task(self.beacon)
-            self.add_future(task)
-            self.instances.append(task)
+        for index in range(self.actor.concurrency):
+            res = await cast(Actor, self.actor)._start_task(index, self.beacon)
+            self.instances.append(res)
+            await res.start()
 
     async def on_stop(self) -> None:
         # Actors iterate over infinite streams, and we cannot wait for it
@@ -57,7 +126,7 @@ class ActorService(Service):
         # last message processed (but not the message causing the error
         # to be raised).
         for instance in self.instances:
-            instance.cancel()
+            await instance.stop()
 
     @property
     def label(self) -> str:
@@ -69,6 +138,7 @@ class ActorService(Service):
 
 
 class Actor(ActorT, ServiceProxy):
+
     logger = logger
 
     def __init__(self, fun: ActorFun,
@@ -86,7 +156,7 @@ class Actor(ActorT, ServiceProxy):
         self._on_error: ActorErrorHandler = on_error
         ServiceProxy.__init__(self)
 
-    def __call__(self) -> Union[Awaitable, AsyncIterable]:
+    def __call__(self) -> ActorInstanceT:
         # The actor function can be reused by other actors/tasks.
         # For example:
         #
@@ -104,9 +174,18 @@ class Actor(ActorT, ServiceProxy):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the actor
         # function is an `async def` function that yields)
-        return self.fun(self.app.stream(self.source, beacon=self.beacon))
+        stream = self.stream()
+        res = self.fun(stream)
+        if isinstance(res, Awaitable):
+            typ = AwaitableActor
+        else:
+            typ = AsyncIterableActor
+        return typ(self, stream, res, loop=self.loop, beacon=self.beacon)
 
-    async def _start_task(self, beacon: NodeT) -> asyncio.Task:
+    def stream(self, **kwargs: Any) -> StreamT:
+        return self.app.stream(self.source, loop=self.loop, **kwargs)
+
+    async def _start_task(self, index: int, beacon: NodeT) -> ActorInstanceT:
         # If the actor is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
@@ -114,10 +193,12 @@ class Actor(ActorT, ServiceProxy):
         coro = res if isinstance(res, Awaitable) else self._slurp(aiter(res))
         task = asyncio.Task(self._execute_task(coro), loop=self.loop)
         task._beacon = beacon  # type: ignore
-        return task
+        res.actor_task = task
+        res.index = index
+        return res
 
     async def _slurp(self, it: AsyncIterator):
-        # this is used when the actor returns an AsyncIterable,
+        # this is used when the actor returns an AsyncIterator,
         # and simply consumes that async iterator.
         async for item in it:
             self.log.debug('%r yielded: %r', self.fun, item)
