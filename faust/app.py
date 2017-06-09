@@ -124,7 +124,6 @@ class AppService(Service):
     async def on_started(self) -> None:
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
-        await self.wait(self._crashed.wait(), self._stopped.wait())
 
     @Service.task
     async def _drain_message_buffer(self) -> None:
@@ -200,9 +199,9 @@ class App(AppT, ServiceProxy):
 
     _tasks: MutableSequence[Callable[[], Awaitable]]
 
-    def start(self, *,
-              argv: Sequence[str] = None,
-              loop: asyncio.AbstractEventLoop = None) -> None:
+    def start_worker(self, *,
+                     argv: Sequence[str] = None,
+                     loop: asyncio.AbstractEventLoop = None) -> None:
         from .bin.base import parse_worker_args
         from .worker import Worker
         from .sensors import Monitor

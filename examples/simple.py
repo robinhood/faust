@@ -49,7 +49,7 @@ def produce(loop):
 
 
 COMMANDS = {
-    'consume': app.start,
+    'consume': app.start_worker,
     'produce': produce,
 }
 
