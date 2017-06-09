@@ -85,7 +85,7 @@ class Stream(StreamT, JoinableT, Service):
                  join_strategy: JoinT = None,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        Service.__init__(self, loop=loop, beacon=None)
+        Service.__init__(self, loop=loop, beacon=beacon)
         self.source = source
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         self.join_strategy = join_strategy
@@ -102,10 +102,6 @@ class Stream(StreamT, JoinableT, Service):
         task = asyncio.Task.current_task(loop=self.loop)
         if task is not None:
             self.task_owner = task
-        if source is not None and hasattr(source, 'beacon'):
-            self.beacon = self.source.beacon.new(self)  # type: ignore
-        elif task is not None and hasattr(task, '_beacon'):
-            self.beacon = task._beacon.new(self)  # type: ignore
 
         # Generate message handler
         self._on_message = None
@@ -581,3 +577,7 @@ class Stream(StreamT, JoinableT, Service):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}: {self.source}'
+
+    @property
+    def shortlabel(self) -> str:
+        return f'{type(self).__name__}{{{self.source}}}'

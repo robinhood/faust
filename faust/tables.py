@@ -4,9 +4,8 @@ import operator
 from collections import defaultdict
 from functools import lru_cache
 from heapq import heappush, heappop
-from itertools import cycle
 from typing import (
-    Any, AsyncIterator, Callable, Iterable, Iterator, List, Mapping,
+    Any, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Set, Sequence, cast,
 )
 from . import stores
@@ -63,52 +62,37 @@ class TableManager(Service, TableManagerT, FastUserDict):
             table.changelog_topic.topics[0]: table
             for table in self.values()
         })
-        await self.app.consumer.pause_partitions(
-            self._get_changelog_partitions())
+        await self.app.consumer.pause_partitions({
+            tp for tp in self.app.consumer.assignment()
+            if tp.topic in self._changelogs
+        })
 
     def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         self._new_assignments.put_nowait(assigned)
 
-    async def _recover_from_changelog(self, table: TableT) -> None:
-        buf = {}
-        async for e in self._until_highwater(table, self._sources[table]):
-            # Lists are not hashable, and windowed-keys are json
-            # serialized into a list.
-            k = e.key
-            if isinstance(k, list):
-                k = tuple(tuple(v) if isinstance(v, list) else v for v in k)
-            buf[k] = e.value
-        cast(Table, table).raw_update(buf)
-
-    def _get_changelog_partitions(self) -> Iterable[TopicPartition]:
-        return {
-            tp for tp in self.app.consumer.assignment()
-            if tp.topic in self._changelogs
-        }
-
-    def _get_table_partitions(self, table: TableT) -> Iterable[TopicPartition]:
-        return {
-            tp for tp in self.app.consumer.assignment()
+    async def _recover_from_changelog(
+            self, table: TableT, assigned: Iterable[TopicPartition]) -> None:
+        consumer = self.app.consumer
+        buf: MutableMapping = {}
+        # Get assigned partitions for this tables changelog topic.
+        tps: Set[TopicPartition] = {
+            tp for tp in assigned
             if tp.topic in table.changelog_topic.topics
         }
+        if tps:
+            # Seek partitions to appropriate offsets
+            await self._seek_changelog(tps)
+            # resume changelog partitions for this table
+            await consumer.resume_partitions(tps)
+            try:
+                await self._read_changelog(table, tps, self._sources[table])
+            finally:
+                await consumer.pause_partitions(tps)
+            cast(Table, table).raw_update(buf)
+            self.log.info('Table %r: Recovery completed!', table.name)
 
-    async def _until_highwater(
-            self, table: TableT, source: SourceT) -> AsyncIterator[EventT]:
-        consumer = self.app.consumer
-        offsets = self._table_offsets
-        get_offset = offsets.get
-
-        # Wait for TopicManager to finish any new subscriptions
-        await self.app.sources.wait_for_subscriptions()
-
-        tps: Iterable[TopicPartition]
-        for delay in cycle([.1, .2, .3, .5, .8, 1.0]):
-            self.log.info('Waiting for assignment to complete...')
-            tps = self._get_table_partitions(table)
-            if tps:
-                break
-            await self.sleep(delay)
+    async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> None:
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
         earliest: Set[TopicPartition] = set()  # tps to seek from earliest
@@ -121,44 +105,60 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 earliest.add(tp)
             else:
                 # if we have read it, seek to that offset
-                await consumer.seek(tp, offset)
+                await self.app.consumer.seek(tp, offset)
         # seek new changelogs to beginning
-        await consumer.seek_to_beginning(*earliest)
-        # resume changelog partitions for this table
-        await consumer.resume_partitions(tps)
-        try:
-            highwater = lru_cache(maxsize=None)(consumer.highwater)
-            pending_tps = set(tps)
-            if pending_tps:
-                self.log.info('Recover %r from changelog', table.name)
-                async for event in source:
-                    message = event.message
-                    tp = message.tp
-                    offset = message.offset
-                    seen_offset = get_offset(tp)
-                    if seen_offset and offset <= seen_offset:
-                        # we've already handled this update
-                        continue
-                    cur_hw = highwater(tp)
-                    if not offset % 1000:
-                        self.log.info('Table %r, still waiting for %r values',
-                                      table.name, cur_hw - offset)
-                    if cur_hw is None or offset >= cur_hw - 1:
-                        # we have read up till highwater, so this partition is
-                        # up to date.
-                        pending_tps.remove(tp)
-                        if not pending_tps:
-                            break
-                    offsets[tp] = offset
-                    yield event
-                self.log.info('Table %r: Recovery completed!', table.name)
-        finally:
-            await consumer.pause_partitions(tps)
+        await self.app.consumer.seek_to_beginning(*earliest)
+
+    async def _read_changelog(self,
+                              table: TableT,
+                              tps: Iterable[TopicPartition],
+                              source: SourceT) -> None:
+        buf: MutableMapping[Any, Any] = {}
+        to_key, to_value = self._to_key, self._to_value
+        offsets = self._table_offsets
+        highwater = lru_cache(maxsize=None)(self.app.consumer.highwater)
+        pending_tps = set(tps)
+        self.log.info('Recover %r from changelog', table.name)
+        async for event in source:
+            message = event.message
+            tp = message.tp
+            offset = message.offset
+            seen_offset = offsets.get(tp)
+
+            if seen_offset is None or offset > seen_offset:
+                cur_hw = highwater(tp)
+                if not offset % 10_000:
+                    self.log.info('Table %r, still waiting for %r values',
+                                  table.name, cur_hw - offset)
+                if cur_hw is None or offset >= cur_hw - 1:
+                    # we have read up till highwater, so this partition is
+                    # up to date.
+                    pending_tps.remove(tp)
+                    if not pending_tps:
+                        break
+                offsets[tp] = offset
+                buf[to_key(event.key)] = to_value(event.value)
+                if len(buf) > 1000:
+                    cast(Table, table).raw_update(buf)
+                    buf.clear()
+
+    def _to_key(self, k: Any) -> Any:
+        if isinstance(k, list):
+            # Lists are not hashable, and windowed-keys are json
+            # serialized into a list.
+            return tuple(tuple(v) if isinstance(v, list) else v for v in k)
+        return k
+
+    def _to_value(self, v: Any) -> Any:
+        return v
 
     @Service.task
     async def _new_assignments_handler(self) -> None:
+        assigned: Iterable[TopicPartition]
         while not self.should_stop:
             assigned = await self._new_assignments.get()
+            # Wait for TopicManager to finish any new subscriptions
+            await self.app.sources.wait_for_subscriptions()
             self.log.info('New assignments found')
             changelog_topics = set()
             for table in self.values():
@@ -166,7 +166,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await self.app.consumer.pause_partitions(assigned)
             for table in self.values():
                 # TODO If standby ready, just swap and continue.
-                await self._recover_from_changelog(table)
+                await self._recover_from_changelog(table, assigned)
             await self.app.consumer.resume_partitions({
                 tp for tp in assigned
                 if tp.topic not in changelog_topics
@@ -291,7 +291,10 @@ class Table(Service, TableT, ManagedUserDict):
             partition = event.message.partition
         else:
             send = self.app.send_soon
-        send(self.changelog_topic, key, value, partition=partition)
+        send(self.changelog_topic, key, value,
+             partition=partition,
+             key_serializer='json',
+             value_serializer='json')
 
     @Service.task
     async def _clean_data(self) -> None:

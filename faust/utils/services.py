@@ -5,8 +5,8 @@ import logging
 from contextlib import suppress
 from types import TracebackType
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Iterable,
-    List, MutableSequence, Type,
+    Any, Awaitable, Callable, ClassVar, Coroutine, Generator,
+    Iterable, List, MutableSequence, Tuple, Type, Union,
 )
 from .collections import Node
 from .logging import CompositeLogger, get_logger
@@ -16,7 +16,39 @@ from .types.services import ServiceT
 
 __all__ = ['Service', 'ServiceBase', 'ServiceProxy', 'ServiceT']
 
+FutureT = Union[asyncio.Future, Generator[Any, None, Any], Awaitable]
+
 logger = get_logger(__name__)
+
+
+class Waiter:
+    coros: Tuple[Coroutine]
+    timeout: float = None
+    loop: asyncio.AbstractEventLoop
+
+    def __init__(self, *coros: Coroutine,
+                 timeout: Seconds = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        self.coros = coros
+        self.timeout = want_seconds(timeout) if timeout is not None else None
+        self.loop = loop
+
+    async def __aenter__(self) -> 'Waiter':
+        await self.acquire()
+        return self
+
+    async def acquire(self) -> None:
+        await asyncio.wait(
+            self.coros,
+            timeout=self.timeout,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+    async def __aexit__(self,
+                        exc_type: Type[Exception],
+                        exc_value: Exception,
+                        exc_tb: TracebackType) -> Any:
+        ...
 
 
 class ServiceBase(ServiceT):
@@ -101,6 +133,7 @@ class Service(ServiceBase):
     #: .add_dependency adds subservices to this list.
     #: They are started/stopped with the service.
     _children: MutableSequence[ServiceT]
+    _active_children: MutableSequence[ServiceT]
 
     #: .add_future adds futures to this list
     #: They are started/stopped with the service.
@@ -129,6 +162,7 @@ class Service(ServiceBase):
         self._shutdown = asyncio.Event(loop=self.loop)
         self._beacon = Node(self) if beacon is None else beacon.new(self)
         self._children = []
+        self._active_children = []
         self._futures = []
         self.on_init()
         super().__init__()
@@ -188,8 +222,20 @@ class Service(ServiceBase):
         try:
             await asyncio.wait_for(
                 self._stopped.wait(), timeout=want_seconds(s), loop=self.loop)
-        except asyncio.TimeoutError:
+        except (asyncio.CancelledError, asyncio.TimeoutError):
             pass
+
+    async def wait(self, *coros: FutureT, timeout: Seconds = None) -> None:
+        await self._wait_first(self._stopped.wait(), *coros, timeout=timeout)
+
+    async def _wait_first(
+            self, *coros: Coroutine, timeout: Seconds = None) -> None:
+        await asyncio.wait(
+            (self._stopped.wait(),) + coros,
+            timeout=want_seconds(timeout) if timeout is not None else None,
+            return_when=asyncio.FIRST_COMPLETED,
+            loop=self.loop,
+        )
 
     async def start(self) -> None:
         """Start the service."""
@@ -205,6 +251,7 @@ class Service(ServiceBase):
         for child in self._children:
             if child is not None:
                 await child.maybe_start()
+                self._active_children.append(child)
         self.log.debug('Started.')
         await self.on_started()
 
@@ -215,6 +262,7 @@ class Service(ServiceBase):
             self.log.info('Terminating cancelled task: %r', task)
         except Exception as exc:
             self.log.exception('Task %r raised: %r', task, exc)
+            raise
 
     async def maybe_start(self) -> None:
         """Start the service, if it has not already been started."""
@@ -227,9 +275,10 @@ class Service(ServiceBase):
             self.log.info('Stopping...')
             self._stopped.set()
             await self.on_stop()
-            for child in reversed(self._children):
+            for child in reversed(self._active_children):
                 if child is not None:
                     await child.stop()
+            self._active_children.clear()
             for future in reversed(self._futures):
                 future.cancel()
             self.log.debug('-Stopped!')

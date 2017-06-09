@@ -314,6 +314,7 @@ class App(AppT, ServiceProxy):
 
     def stream(self, source: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
+               beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from topic.
 
@@ -331,7 +332,7 @@ class App(AppT, ServiceProxy):
         return self.Stream(
             source=aiter(source) if source is not None else None,
             coroutine=coroutine,
-            beacon=self.beacon,
+            beacon=beacon or self.beacon,
             **kwargs)
 
     def table(self, name: str,
@@ -508,7 +509,7 @@ class App(AppT, ServiceProxy):
                     value_serializer: CodecArg = None,
                     *,
                     wait: bool = True) -> Awaitable:
-        self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
+        self.log.info('send: topic=%r key=%r value=%r', topic, key, value)
         producer = self.producer
         if not self._producer_started:
             self._producer_started = True

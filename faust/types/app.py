@@ -7,6 +7,7 @@ from typing import (
 )
 from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
+from ..utils.types.collections import NodeT
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT
@@ -112,6 +113,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def stream(self, source: AsyncIterable,
                coroutine: StreamCoroutine = None,
+               beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         ...
 

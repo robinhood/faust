@@ -60,6 +60,10 @@ class ActorService(Service):
             instance.cancel()
 
     @property
+    def label(self) -> str:
+        return self.actor.label
+
+    @property
     def shortlabel(self) -> str:
         return self.actor.shortlabel
 
@@ -100,7 +104,7 @@ class Actor(ActorT, ServiceProxy):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the actor
         # function is an `async def` function that yields)
-        return self.fun(self.app.stream(self.source))
+        return self.fun(self.app.stream(self.source, beacon=self.beacon))
 
     async def _start_task(self, beacon: NodeT) -> asyncio.Task:
         # If the actor is an async function we simply start it,
@@ -161,6 +165,10 @@ class Actor(ActorT, ServiceProxy):
     @cached_property
     def _service(self) -> ActorService:
         return ActorService(self, beacon=self.app.beacon, loop=self.app.loop)
+
+    @property
+    def label(self) -> str:
+        return f'{type(self).__name__}: {qualname(self.fun)}'
 
     @property
     def shortlabel(self) -> str:
