@@ -238,10 +238,10 @@ class Worker(Service):
 
     def _on_sigint(self) -> None:
         self.carp('-INT- -INT- -INT- -INT- -INT- -INT-')
-        self.add_future(self._stop_on_signal())
+        asyncio.ensure_future(self._stop_on_signal(), loop=self.loop)
 
     def _on_sigterm(self) -> None:
-        self.add_future(self._stop_on_signal())
+        asyncio.ensure_future(self._stop_on_signal(), loop=self.loop)
 
     def _on_sigusr1(self) -> None:
         self.add_future(self._cry())
@@ -259,7 +259,8 @@ class Worker(Service):
                 self.loop.run_until_complete(self.add_future(
                     self._execute_from_commandline(*coroutines)))
         finally:
-            self.loop.run_until_complete(self.stop())
+            if not self._stopped.is_set():
+                self.loop.run_until_complete(self.stop())
             self._shutdown_loop()
 
     def _shutdown_loop(self) -> None:
