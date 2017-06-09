@@ -6,7 +6,7 @@ from contextlib import suppress
 from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, ClassVar, Coroutine, Generator,
-    Iterable, List, MutableSequence, Tuple, Type, Union,
+    Iterable, List, MutableSequence, Tuple, Type, Union, cast,
 )
 from .collections import Node
 from .logging import CompositeLogger, get_logger
@@ -23,36 +23,6 @@ logger = get_logger(__name__)
 
 class Crash(Exception):
     """Worker unexpected error, exit immediately."""
-
-
-class Waiter:
-    coros: Tuple[Coroutine]
-    timeout: float = None
-    loop: asyncio.AbstractEventLoop
-
-    def __init__(self, *coros: Coroutine,
-                 timeout: Seconds = None,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        self.coros = coros
-        self.timeout = want_seconds(timeout) if timeout is not None else None
-        self.loop = loop
-
-    async def __aenter__(self) -> 'Waiter':
-        await self.acquire()
-        return self
-
-    async def acquire(self) -> None:
-        await asyncio.wait(
-            self.coros,
-            timeout=self.timeout,
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-
-    async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_value: Exception,
-                        exc_tb: TracebackType) -> Any:
-        ...
 
 
 class ServiceBase(ServiceT):
@@ -139,7 +109,7 @@ class Service(ServiceBase):
     #: .add_dependency adds subservices to this list.
     #: They are started/stopped with the service.
     _children: MutableSequence[ServiceT]
-    _active_children: MutableSequence[ServiceT]
+    _active_children: List[ServiceT]
 
     #: .add_future adds futures to this list
     #: They are started/stopped with the service.
@@ -237,9 +207,9 @@ class Service(ServiceBase):
         await self._wait_first(self._stopped.wait(), *coros, timeout=timeout)
 
     async def _wait_first(
-            self, *coros: Coroutine, timeout: Seconds = None) -> None:
+            self, *coros: FutureT, timeout: Seconds = None) -> None:
         await asyncio.wait(
-            (self._stopped.wait(),) + coros,
+            (cast(FutureT, self._stopped.wait()),) + coros,
             timeout=want_seconds(timeout) if timeout is not None else None,
             return_when=asyncio.FIRST_COMPLETED,
             loop=self.loop,
