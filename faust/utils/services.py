@@ -21,6 +21,10 @@ FutureT = Union[asyncio.Future, Generator[Any, None, Any], Awaitable]
 logger = get_logger(__name__)
 
 
+class Crash(Exception):
+    """Worker unexpected error, exit immediately."""
+
+
 class Waiter:
     coros: Tuple[Coroutine]
     timeout: float = None
@@ -126,6 +130,8 @@ class Service(ServiceBase):
     _started: asyncio.Event
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
+    _crashed: asyncio.Event
+    _crash_reason: Any
 
     #: The beacon is used to track the graph of services.
     _beacon: NodeT
@@ -160,6 +166,8 @@ class Service(ServiceBase):
         self._started = asyncio.Event(loop=self.loop)
         self._stopped = asyncio.Event(loop=self.loop)
         self._shutdown = asyncio.Event(loop=self.loop)
+        self._crashed = asyncio.Event(loop=self.loop)
+        self._crash_reason = None
         self._beacon = Node(self) if beacon is None else beacon.new(self)
         self._children = []
         self._active_children = []
@@ -261,13 +269,17 @@ class Service(ServiceBase):
         except asyncio.CancelledError:
             self.log.info('Terminating cancelled task: %r', task)
         except Exception as exc:
-            self.log.exception('Task %r raised: %r', task, exc)
-            raise
+            raise self.crash(exc)
 
     async def maybe_start(self) -> None:
         """Start the service, if it has not already been started."""
         if not self._started.is_set():
             await self.start()
+
+    def crash(self, reason: Any) -> Exception:
+        self.log.exception('Crashed reason=%r', reason)
+        self._crashed.set()
+        return Crash(reason)
 
     async def stop(self) -> None:
         """Stop the service."""

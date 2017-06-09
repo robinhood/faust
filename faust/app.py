@@ -121,7 +121,7 @@ class AppService(Service):
     async def on_started(self) -> None:
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
-        await self._stopped.wait()
+        await self.wait(self._crashed.wait(), self._stopped.wait())
 
     @Service.task
     async def _drain_message_buffer(self) -> None:
