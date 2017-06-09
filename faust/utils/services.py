@@ -2,11 +2,10 @@
 import abc
 import asyncio
 import logging
-from contextlib import suppress
 from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator,
-    Iterable, List, MutableSequence, Type, Union, cast,
+    Iterable, List, MutableSequence, Set, Type, Union, cast,
 )
 from .collections import Node
 from .logging import CompositeLogger, get_logger
@@ -16,13 +15,11 @@ from .types.services import ServiceT
 
 __all__ = ['Service', 'ServiceBase', 'ServiceProxy', 'ServiceT']
 
+__flake8_Set_is_used: Set  # XXX flake8 bug
+
 FutureT = Union[asyncio.Future, Generator[Any, None, Any], Awaitable]
 
 logger = get_logger(__name__)
-
-
-class Crash(Exception):
-    """Worker unexpected error, exit immediately."""
 
 
 class ServiceBase(ServiceT):
@@ -204,12 +201,17 @@ class Service(ServiceBase):
             pass
 
     async def wait(self, *coros: FutureT, timeout: Seconds = None) -> None:
-        await self._wait_first(self._stopped.wait(), *coros, timeout=timeout)
+        await self._wait_first(
+            self._crashed.wait(),
+            self._stopped.wait(),
+            *coros,
+            timeout=timeout,
+        )
 
     async def _wait_first(
             self, *coros: FutureT, timeout: Seconds = None) -> None:
         await asyncio.wait(
-            (cast(FutureT, self._stopped.wait()),) + coros,
+            coros,
             timeout=want_seconds(timeout) if timeout is not None else None,
             return_when=asyncio.FIRST_COMPLETED,
             loop=self.loop,
@@ -237,19 +239,41 @@ class Service(ServiceBase):
         try:
             await task
         except asyncio.CancelledError:
-            self.log.info('Terminating cancelled task: %r', task)
+            self.log.debug('Terminating cancelled task: %r', task)
         except Exception as exc:
-            raise self.crash(exc)
+            # the exception will be reraised by the main thread.
+            await self.crash(exc)
 
     async def maybe_start(self) -> None:
         """Start the service, if it has not already been started."""
         if not self._started.is_set():
             await self.start()
 
-    def crash(self, reason: Any) -> Exception:
-        self.log.exception('Crashed reason=%r', reason)
+    async def crash(self, reason: Exception) -> None:
+        if not self._crashed.is_set():
+            # We record the stack by raising the exception.
+            self.log.exception('Crashed reason=%r', reason)
+
+            root = self.beacon.root
+            seen: Set[NodeT] = set()
+            node = self.beacon
+            while node:
+                node = node
+                if node in seen:
+                    self.log.warn(f'Recursive loop in beacon: {node}: {seen}')
+                    if root and root.data is not self:
+                        cast(Service, self.beacon.root.data)._crash(reason)
+                    break
+                seen.add(node)
+                for child in [node.data] + node.children:
+                    if isinstance(child, Service):
+                        child._crash(reason)
+                node = node.prev
+            self._crash(reason)
+
+    def _crash(self, reason: Exception) -> None:
         self._crashed.set()
-        return Crash(reason)
+        self._crash_reason = reason
 
     async def stop(self) -> None:
         """Stop the service."""
@@ -275,15 +299,19 @@ class Service(ServiceBase):
             self.log.debug('-Shutdown complete!')
 
     async def _gather_futures(self) -> None:
-        if self._futures:
+        while self._futures:
             # Gather all futures added via .add_future
-            with suppress(asyncio.CancelledError):
-                await asyncio.wait(
+            try:
+                await asyncio.shield(asyncio.wait(
                     self._futures,
                     return_when=asyncio.ALL_COMPLETED,
                     loop=self.loop,
-                )
-            self._futures.clear()
+                ))
+            except asyncio.CancelledError:
+                continue
+            else:
+                break
+        self._futures.clear()
 
     async def restart(self) -> None:
         """Restart this service."""
@@ -296,7 +324,7 @@ class Service(ServiceBase):
 
     async def wait_until_stopped(self) -> None:
         """Wait until the service is signalled to stop."""
-        await self._stopped.wait()
+        await self.wait()
 
     def set_shutdown(self) -> None:
         """Set the shutdown signal.

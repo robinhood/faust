@@ -198,7 +198,7 @@ class Worker(Service):
         self.add_future(self._on_startup_finished())
 
     async def _on_startup_finished(self) -> None:
-        await self.wait(self.app.tables.recovery_completed.wait())
+        await self.app.tables.recovery_completed.wait()
         if self.debug:
             await self._blockdetect.maybe_start()
         if self.spinner:
@@ -259,13 +259,16 @@ class Worker(Service):
                 self.loop.run_until_complete(self.add_future(
                     self._execute_from_commandline(*coroutines)))
         finally:
+            self.loop.run_until_complete(self.stop())
             self._shutdown_loop()
 
     def _shutdown_loop(self) -> None:
         # Gather futures created by us.
+        self.log.info('Gathering service tasks...')
         with suppress(asyncio.CancelledError):
             self.loop.run_until_complete(self._gather_futures())
         # Gather absolutely all asyncio futures.
+        self.log.info('Gathering all futures...')
         self._gather_all()
         try:
             # Wait until loop is fully stopped.
@@ -277,6 +280,10 @@ class Worker(Service):
             # Then close the loop.
             self.log.info('Closing event loop')
             self.loop.close()
+        if self._crash_reason:
+            self.log.crit(
+                'We experienced a crash! Reraising original exception...')
+            raise self._crash_reason from self._crash_reason
 
     def _gather_all(self) -> None:
         # sleeps for at most 40 * 0.1s

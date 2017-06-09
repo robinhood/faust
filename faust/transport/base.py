@@ -173,7 +173,7 @@ class Consumer(Service, ConsumerT):
     @Service.task
     async def _seeker(self) -> None:
         while not self.should_stop:
-            await self.wait(self._time_to_seek.wait())
+            await self._time_to_seek.wait()
             try:
                 await self._perform_seek()
             finally:

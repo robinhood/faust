@@ -4,10 +4,7 @@ __all__ = [
     'ImproperlyConfigured',
     'KeyDecodeError',
     'ValueDecodeError',
-    'Crash',
 ]
-
-from .utils.services import Crash
 
 
 class FaustError(Exception):
