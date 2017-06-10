@@ -349,7 +349,10 @@ class TopicManager(TopicManagerT, Service):
         self._subscription_done = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
-        self.on_message = self._compile_message_handler()
+        self.on_message = self._compile_message_handler()  # type: ignore
+
+    async def on_message(self, message: Message) -> None:
+        ...  # closure compiled at __init__
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
@@ -364,7 +367,7 @@ class TopicManager(TopicManagerT, Service):
 
     def _compile_message_handler(self) -> ConsumerCallback:
         wait = asyncio.wait
-        return_when = asyncio.ALL_COMPLETED
+        all_completed = asyncio.ALL_COMPLETED
         loop = self.loop
         list_ = list
         # topic str -> list of TopicSource
@@ -384,11 +387,13 @@ class TopicManager(TopicManagerT, Service):
 
             # Then send it to each sources inbox,
             # for TopicSource.__anext__ to pick up.
+            # NOTE: We do this in parallel, so the order of sources'
+            #       does not matter.
             await wait(
                 [add_pending_task(source.deliver(message))
                  for source in sources],
                 loop=loop,
-                return_when=return_when,
+                return_when=all_completed,
             )
         return on_message
 
