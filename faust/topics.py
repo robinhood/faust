@@ -430,10 +430,11 @@ class TopicManager(TopicManagerT, Service):
     async def _gatherer(self) -> None:
         waiting = set()
         wait = asyncio.wait
-        return_when = asyncio.FIRST_COMPLETED
+        first_completed = asyncio.FIRST_COMPLETED
         while not self.should_stop:
             waiting.add(await self._pending_tasks.get())
-            finished, unfinished = await wait(waiting, return_when=return_when)
+            finished, unfinished = await wait(
+                waiting, return_when=first_completed)
             waiting = unfinished
 
     def _update_topicmap(self) -> Iterable[str]:
