@@ -1,9 +1,11 @@
 import asyncio
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Iterable, List, MutableSequence, Union, cast,
+    Iterable, List, Mapping, MutableSequence, Union, cast,
 )
-from .types import AppT, CodecArg, K, StreamT, TopicT, V
+from uuid import uuid4
+from . import Record
+from .types import AppT, CodecArg, K, ModelT, StreamT, TopicT, V
 from .types.actors import ActorFun, ActorErrorHandler, ActorT, SinkT
 from .utils.aiter import aiter
 from .utils.collections import NodeT
@@ -14,7 +16,7 @@ from .utils.services import Service, ServiceProxy
 
 logger = get_logger(__name__)
 
-__all__ = ['Actor', 'ActorFun', 'ActorT', 'SinkT']
+__all__ = ['Actor', 'ActorFun', 'ActorT', 'ReqRepRequest', 'SinkT']
 
 # --- An actor is an `async def` function, iterating over a stream:
 #
@@ -25,6 +27,36 @@ __all__ = ['Actor', 'ActorFun', 'ActorT', 'SinkT']
 #               alert(f'Large withdrawal: {withdrawal}')
 #
 # unlike normal actors they do not implement replies... yet!
+
+
+class ReqRepRequest(Record, serializer='json'):
+    namespace: str
+    value: Any
+    reply_to: str
+    correlation_id: str
+
+    __isareq__: bool = True
+
+
+class ReqRepResponse(Record, serializer='json'):
+    namespace: str
+    value: Any
+    correlation_id: str
+
+
+def _isareq(value: Any) -> bool:
+    return (
+        isinstance(value, ReqRepRequest) or (
+            isinstance(value, Mapping) and value['__isareq__']))
+
+
+class ReplyPromise:
+    actor: ActorT
+    req: ReqRepRequest
+
+    def __init__(self, actor: ActorT, req: ReqRepRequest) -> None:
+        self.actor = actor
+        self.req = req
 
 
 class ActorInstance(Service):
@@ -208,6 +240,44 @@ class Actor(ActorT, ServiceProxy):
     async def _delegate_to_sinks(self, value: Any) -> None:
         for sink in self._sinks:
             await maybe_async(sink(value))
+
+    async def reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
+        await self.app.send(
+            req.reply_to,
+            key=key,
+            value=ReqRepResponse(
+                value=value,
+                namespace=value._options.namespace,
+                correlation_id=req.correlation_id,
+            ),
+        )
+
+    async def cast(
+            self,
+             key: K = None,
+             value: V = None,
+             partition: int = None) -> None:
+        await self.send(key, value, partition=partition)
+
+    async def ask(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            reply_to: Union[str, TopicT] = None,
+            correlation_id: str = None) -> ReplyPromise:
+        correlation_id = correlation_id or str(uuid4())
+        req = ReqRepRequest(
+            value=value,
+            namespace=(
+                cast(ModelT, value)._options.namespace
+                if isinstance(value, ModelT) else None),
+            reply_to=reply_to,
+            correlation_id=correlation_id,
+
+        )
+        await self.send(key, req, partition=partition)
+        return ReplyPromise(self, req)
 
     async def _execute_task(self, coro: Awaitable) -> None:
         # This executes the actor task itself, and does exception handling.
