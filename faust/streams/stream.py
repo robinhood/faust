@@ -27,7 +27,6 @@ from ..utils.times import Seconds, want_seconds
 from ..utils.types.collections import NodeT
 
 from ._coroutines import CoroCallbackT, wrap_callback
-from . import _constants
 from . import joins
 
 __all__ = ['Stream', 'current_event']
@@ -368,7 +367,7 @@ class Stream(StreamT, JoinableT, Service):
         if topic is None:
             if not isinstance(self.source, SourceT):
                 raise ValueError('Need to specify topic for non-topic source')
-            suffix = '-' + name + _constants.REPARTITION_TOPIC_SUFFIX
+            suffix = '-' + name + '-repartition'
             source = cast(SourceT, self.source)
             topic = source.topic.derive(suffix=suffix)
         topic_created = False

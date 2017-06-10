@@ -37,7 +37,6 @@ globals().update(conf.build_config(
         'faust.models',
         'faust.serializers',
         'faust.streams',
-        'faust.streams._constants',
         'faust.streams._coroutines',
         'faust.transport.confluent',
         'faust.types._coroutines',
