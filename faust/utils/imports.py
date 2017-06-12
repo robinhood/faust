@@ -87,7 +87,7 @@ class FactoryMapping(FastUserDict):
 
 def symbol_by_name(
         name: SymbolArg,
-        aliases: Mapping[str, str] = {},
+        aliases: Mapping[str, str] = None,
         imp: Any = None,
         package: str = None,
         sep: str = '.',
@@ -133,7 +133,7 @@ def symbol_by_name(
     if not isinstance(name, str):
         return name                                 # already a class
 
-    name = aliases.get(name) or name
+    name = (aliases or {}).get(name) or name
     sep = ':' if ':' in name else sep
     module_name, _, cls_name = name.rpartition(sep)
     if not module_name:

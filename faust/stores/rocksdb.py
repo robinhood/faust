@@ -53,22 +53,22 @@ class Store(base.SerializedStore):
         return self.db.key_may_exist(key)[0]
 
     def _size(self) -> int:
-        it = self.db.iterkeys()
+        it = self.db.iterkeys()  # noqa: B301
         it.seek_to_first()
         return sum(1 for _ in it)
 
     def _iterkeys(self) -> Iterator[bytes]:
-        it = self.db.iterkeys()
+        it = self.db.iterkeys()  # noqa: B301
         it.seek_to_first()
         yield from it
 
     def _itervalues(self) -> Iterator[bytes]:
-        it = self.db.itervalues()
+        it = self.db.itervalues()  # noqa: B301
         it.seek_to_first()
         yield from it
 
     def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
-        it = self.db.iteritems()
+        it = self.db.iteritems()  # noqa: B301
         it.seek_to_first()
         yield from it
 
