@@ -67,11 +67,8 @@ def setup_logging(
 class CompositeLogger:
     logger: logging.Logger
 
-    def __init__(self,
-                 obj: Any,
-                 logger: logging.Logger) -> None:
-        self.obj = obj
-        self.logger = logger
+    def __init__(self, obj: Any) -> None:
+        self._obj: Any = obj
 
     def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         self.log(logging.DEBUG, msg, *args, **kwargs)
@@ -92,13 +89,13 @@ class CompositeLogger:
         self.log(logging.ERROR, msg, *args, exc_info=1, **kwargs)
 
     def log(self, severity: int, msg: str, *args: Any, **kwargs: Any) -> None:
-        self.logger.log(
+        self._obj._log(
             severity, self.format(severity, msg, *args, **kwargs),
             *args, **kwargs)
 
     def format(self, severity: int, msg: str,
                *args: Any, **kwargs: Any) -> str:
-        return self.obj._format_log(severity, msg, *args, **kwargs)
+        return self._obj._format_log(severity, msg, *args, **kwargs)
 
 
 def _setup_logging(**kwargs: Any) -> None:

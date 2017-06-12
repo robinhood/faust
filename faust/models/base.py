@@ -3,7 +3,7 @@ from typing import Any, ClassVar, Dict, Mapping, MutableMapping, Tuple, Type
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
-from ..utils.imports import qualname
+from ..utils.objects import qualname
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']
 

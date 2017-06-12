@@ -38,7 +38,11 @@ class Store(StoreT, Service):
         return loads(self.value_serializer, value)
 
     def _repr_info(self) -> str:
-        return f'url={self.url!r}'
+        return f'table_name={self.table_name} url={self.url!r}'
+
+    @property
+    def label(self) -> str:
+        return f'{type(self).__name__}: {self.table_name}'
 
 
 class SerializedStoreKeysView(KeysView):

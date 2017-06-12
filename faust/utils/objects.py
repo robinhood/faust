@@ -1,12 +1,14 @@
 """Object utilities."""
 from contextlib import suppress
+from functools import singledispatch
 from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Type, cast
 
 __flake8_Dict_is_used: Dict   # silence flake8 bug
 
 __all__ = [
     'FieldMapping', 'DefaultsMapping', 'KeywordReduce',
-    'annotations', 'iter_mro_reversed', 'cached_property',
+    'qualname', 'label', 'shortlabel', 'annotations',
+    'iter_mro_reversed', 'cached_property',
 ]
 
 #: Mapping of attribute name to attribute type.
@@ -14,6 +16,47 @@ FieldMapping = Mapping[str, Type]
 
 #: Mapping of attribute name to attributes default value.
 DefaultsMapping = Mapping[str, Any]
+
+
+def qualname(obj: Any) -> str:
+    """Get object qualified name."""
+    if not hasattr(obj, '__name__') and hasattr(obj, '__class__'):
+        obj = obj.__class__
+    return '.'.join((obj.__module__, obj.__name__))
+
+
+@singledispatch
+def label(s: Any) -> str:
+    return str(
+        getattr(s, 'label', None) or
+        getattr(s, 'name', None) or
+        getattr(s, '__qualname__', None) or
+        getattr(s, '__name__', None) or
+        getattr(type(s), '__qualname__', None) or
+        type(s).__name__
+    )
+
+
+@label.register(str)
+def _(s: str) -> str:
+    return s
+
+
+@singledispatch
+def shortlabel(s: Any) -> str:
+    return str(
+        getattr(s, 'shortlabel', None) or
+        getattr(s, 'name', None) or
+        getattr(s, '__qualname__', None) or
+        getattr(s, '__name__', None) or
+        getattr(type(s), '__qualname__', None) or
+        type(s).__name__
+    )
+
+
+@shortlabel.register(str)  # noqa
+def _s(s: str) -> str:
+    return s
 
 
 def annotations(cls: Type,

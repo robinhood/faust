@@ -409,7 +409,11 @@ class Collection(Service, CollectionT):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {self.name}@{self._store}'
+        return f'{self.shortlabel}@{self._store}'
+
+    @property
+    def shortlabel(self) -> str:
+        return f'{type(self).__name__}: {self.name}'
 
     @property
     def changelog_topic(self) -> TopicT:

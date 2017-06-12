@@ -10,9 +10,8 @@ from weakref import WeakValueDictionary
 from .types import AppT, EventT, Message, StreamT, CollectionT, TopicPartition
 from .types.sensors import SensorT, SensorDelegateT
 from .types.transports import ConsumerT, ProducerT
-from .utils.graphs.formatter import _label
 from .utils.logging import get_logger
-from .utils.objects import KeywordReduce
+from .utils.objects import KeywordReduce, label
 from .utils.services import Service
 
 __all__ = [
@@ -476,8 +475,8 @@ class Monitor(Sensor, KeywordReduce):
             stream: StreamT,
             event: EventT) -> None:
         self.events_total += 1
-        self.events_by_stream[_label(stream)] += 1
-        self.events_by_task[_label(stream.task_owner)] += 1
+        self.events_by_stream[label(stream)] += 1
+        self.events_by_task[label(stream.task_owner)] += 1
         self.events_active += 1
         self.message_index[tp, offset].on_stream_in(stream, event)
 

@@ -1,12 +1,15 @@
 from typing import (
-    Any, ItemsView, Iterator, KeysView, List,
+    Any, Deque, ItemsView, Iterator, KeysView, List,
     MutableMapping, MutableSet, ValuesView, cast,
 )
 from collections import UserDict, deque
 from contextlib import suppress
 from .graphs import DependencyGraph
+from .objects import shortlabel
 from .types.collections import NodeT
 from .types.graphs import DependencyGraphT
+
+__flake8_Deque_is_used: Deque  # XXX flake8 bug
 
 __all__ = [
     'Node', 'NodeT',
@@ -36,6 +39,9 @@ class Node(NodeT):
         prev (NodeT): Previous node.
         children (List[NodeT]): List of child nodes.
     """
+
+    _root: NodeT = None
+    _prev: NodeT = None
 
     @classmethod
     def _new_node(cls, data: Any, **kwargs: Any) -> NodeT:
@@ -81,13 +87,22 @@ class Node(NodeT):
         with suppress(ValueError):
             self.children.remove(data)
 
-    def depth(self) -> int:
-        i = 0
+    def traverse(self) -> Iterator[NodeT]:
+        stack: Deque[NodeT] = deque([self])
+        while stack:
+            node = stack.popleft()
+            yield node
+            for child in node.children:
+                if isinstance(child, NodeT):
+                    stack.append(child)
+                else:
+                    yield child
+
+    def walk(self) -> Iterator[NodeT]:
         node: NodeT = self
         while node:
-            i += 1
+            yield node
             node = node.prev
-        return i - 1 if i else i
 
     def as_graph(self) -> DependencyGraphT:
         """Convert to :class:`~faust.utils.graphs.DependencyGraph`."""
@@ -103,6 +118,44 @@ class Node(NodeT):
                 else:
                     graph.add_edge(node.data, child)
         return graph
+
+    def __repr__(self) -> str:
+        return f'{type(self).__name__}: {self.path}'
+
+    @property
+    def depth(self) -> int:
+        return self._find_depth()
+
+    def _find_depth(self) -> int:
+        for i, _ in enumerate(self.walk()):
+            ...
+        return i
+
+    @property
+    def path(self) -> str:
+        return '/'.join(reversed([
+            shortlabel(node.data) for node in self.walk()
+        ]))
+
+    @property
+    def prev(self) -> NodeT:
+        return self._prev
+
+    @prev.setter
+    def prev(self, node: NodeT) -> None:
+        if node is self:
+            raise ValueError('Parent node cannot be itself.')
+        self._prev = node
+
+    @property
+    def root(self) -> NodeT:
+        return self._root
+
+    @root.setter
+    def root(self, node: NodeT) -> None:
+        if node is self:
+            raise ValueError('Root node cannot be itself.')
+        self._root = node
 
 
 class FastUserDict(UserDict):

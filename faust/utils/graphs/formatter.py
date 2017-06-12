@@ -1,5 +1,5 @@
-from functools import singledispatch
 from typing import Any, Mapping
+from ..objects import label
 from ..types.graphs import GraphFormatterT
 
 
@@ -26,23 +26,6 @@ class DOT:
     ATTRSEP = ', '
     DIRS = {'graph': '--', 'digraph': '->'}
     TAIL = '{IN}}}'
-
-
-@singledispatch
-def _label(s: Any) -> str:
-    return str(
-        getattr(s, 'label', None) or
-        getattr(s, 'name', None) or
-        getattr(s, '__qualname__', None) or
-        getattr(s, '__name__', None) or
-        getattr(type(s), '__qualname__', None) or
-        type(s).__name__
-    )
-
-
-@_label.register(str)
-def _(s: str) -> str:
-    return s
 
 
 class GraphFormatter(GraphFormatterT):
@@ -115,7 +98,7 @@ class GraphFormatter(GraphFormatterT):
         return self.FMT(self._tail)
 
     def label(self, obj: Any) -> str:
-        return _label(obj)
+        return label(obj)
 
     def node(self, obj: Any, **attrs: Any) -> str:
         return self.draw_node(obj, self.node_scheme, attrs)

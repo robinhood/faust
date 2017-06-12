@@ -172,5 +172,5 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> T:
+    async def __anext__(self) -> T_co:
         ...

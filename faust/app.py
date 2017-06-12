@@ -140,7 +140,7 @@ class AppService(Service):
 
     @property
     def label(self) -> str:
-        return f'{self.shortlabel}: {self.app.id}@{self.app.url}'
+        return self.app.label
 
     @property
     def shortlabel(self) -> str:
@@ -649,3 +649,11 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
         return asyncio.Queue(loop=self.loop)
+
+    @property
+    def label(self) -> str:
+        return f'{self.shortlabel}: {self.id}@{self.url}'
+
+    @property
+    def shortlabel(self) -> str:
+        return type(self).__name__

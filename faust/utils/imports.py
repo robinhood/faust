@@ -4,6 +4,7 @@ import os
 import sys
 import warnings
 from contextlib import contextmanager, suppress
+from functools import singledispatch
 from types import ModuleType
 from typing import (
     Any, Callable, Generator, Iterable,
@@ -15,10 +16,9 @@ from .objects import cached_property
 # - these are taken from kombu.utils.imports
 
 __all__ = [
-    'FactoryMapping', 'SymbolArg', 'qualname', 'symbol_by_name',
-    'load_extension_class_names', 'load_extension_classes',
+    'FactoryMapping', 'SymbolArg',
+    'symbol_by_name', 'load_extension_class_names', 'load_extension_classes',
 ]
-
 
 SymbolArg = Union[str, Type]
 
@@ -84,13 +84,6 @@ class FactoryMapping(FastUserDict):
     @cached_property
     def data(self) -> MutableMapping:  # type: ignore
         return self.aliases
-
-
-def qualname(obj: Any) -> str:
-    """Get object qualified name."""
-    if not hasattr(obj, '__name__') and hasattr(obj, '__class__'):
-        obj = obj.__class__
-    return '.'.join((obj.__module__, obj.__name__))
 
 
 def symbol_by_name(

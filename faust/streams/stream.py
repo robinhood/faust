@@ -573,10 +573,11 @@ class Stream(StreamT, JoinableT, Service):
             return reprlib.repr(self.children)
         return reprlib.repr(self.source)
 
-    @property
-    def label(self) -> str:
-        return f'{type(self).__name__}: {self.source}'
+    def _repr_source(self):
+        if isinstance(self.source, SourceT):
+            return repr(self.source.topic)
+        return reprlib.repr(self.source)
 
     @property
-    def shortlabel(self) -> str:
-        return f'{type(self).__name__}{{{self.source}}}'
+    def label(self) -> str:
+        return f'{type(self).__name__}: {self._repr_source()}'

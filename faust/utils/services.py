@@ -24,18 +24,21 @@ logger = get_logger(__name__)
 
 class ServiceBase(ServiceT):
     """Base class for services."""
-    logger: logging.Logger = logger
     log: CompositeLogger
+
+    logger: logging.Logger = logger
 
     # This contains the common methods for Service and ServiceProxy
 
     def __init__(self) -> None:
-        self.log = CompositeLogger(self, self.logger)
+        self.log = CompositeLogger(self)
 
     def _format_log(self, severity: int, msg: str,
                     *args: Any, **kwargs: Any) -> str:
-        indent = '-' * self.beacon.depth()
-        return f'[^{indent}{self.shortlabel}]: {msg}'
+        return f'[^{"-" * self.beacon.depth}{self.shortlabel}]: {msg}'
+
+    def _log(self, severity: int, msg: str, *args: Any, **kwargs: Any) -> None:
+        self.logger.log(severity, msg, *args, **kwargs)
 
     async def __aenter__(self) -> ServiceT:
         await self.start()
@@ -364,7 +367,7 @@ class Service(ServiceBase):
     @property
     def shortlabel(self) -> str:
         """Label used for logging."""
-        return type(self).__name__
+        return self.label
 
     @property
     def beacon(self) -> NodeT:

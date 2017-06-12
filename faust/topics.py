@@ -349,10 +349,8 @@ class TopicManager(TopicManagerT, Service):
         self._subscription_done = None
         # we compile the closure used for receive messages
         # (this just optimizes symbol lookups, localizing variables etc).
-        self.on_message = self._compile_message_handler()  # type: ignore
-
-    async def on_message(self, message: Message) -> None:
-        ...  # closure compiled at __init__
+        self.on_message: Callable[[Message], Awaitable[None]]
+        self.on_message = self._compile_message_handler()
 
     def ack_message(self, message: Message) -> None:
         if not message.acked:
@@ -484,3 +482,7 @@ class TopicManager(TopicManagerT, Service):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}({len(self._sources)})'
+
+    @property
+    def shortlabel(self) -> str:
+        return type(self).__name__

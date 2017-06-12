@@ -8,9 +8,8 @@ from .types.actors import ActorFun, ActorErrorHandler, ActorT, SinkT
 from .utils.aiter import aiter
 from .utils.collections import NodeT
 from .utils.futures import maybe_async
-from .utils.imports import qualname
 from .utils.logging import get_logger
-from .utils.objects import cached_property
+from .utils.objects import cached_property, qualname
 from .utils.services import Service, ServiceProxy
 
 logger = get_logger(__name__)
@@ -53,10 +52,6 @@ class ActorInstance(Service):
 
     @property
     def label(self) -> str:
-        return self.shortlabel
-
-    @property
-    def shortlabel(self) -> str:
         return f'Actor*: {self.agent.name}'
 
 
@@ -261,7 +256,3 @@ class Actor(ActorT, ServiceProxy):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}: {qualname(self.fun)}'
-
-    @property
-    def shortlabel(self) -> str:
-        return f'{type(self).__name__}{{{qualname(self.fun)}}}'
