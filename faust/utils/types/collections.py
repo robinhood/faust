@@ -8,7 +8,7 @@ __all__ = ['NodeT']
 class NodeT(abc.ABC):
     root: 'NodeT'
     children: List[Any]
-    prev: 'NodeT'
+    parent: 'NodeT'
     data: Any
 
     @classmethod
@@ -46,11 +46,11 @@ class NodeT(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def prev(self) -> 'NodeT':
+    def parent(self) -> 'NodeT':
         ...
 
-    @prev.setter
-    def prev(self, node: 'NodeT') -> None:
+    @parent.setter
+    def parent(self, node: 'NodeT') -> None:
         ...
 
     @property

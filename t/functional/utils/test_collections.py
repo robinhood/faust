@@ -6,16 +6,16 @@ from faust.utils.collections import Node, FastUserDict, ManagedUserDict
 def test_Node():
     node = Node(303)
     assert node.data == 303
-    assert node.prev is None
+    assert node.parent is None
     assert node.root is None
 
     node2 = node.new(808)
-    assert node2.prev is node
+    assert node2.parent is node
     assert node2.root is node
 
     node3 = node2.new(909)
-    assert node3.prev is node2
-    assert node3.prev.prev is node
+    assert node3.parent is node2
+    assert node3.parent.parent is node
     assert node3.root is node
 
     assert node2 in node.children
@@ -34,7 +34,7 @@ def test_Node():
 
     node5 = Node(202)
     node5.reattach(node4)
-    assert node5.prev is node4
+    assert node5.parent is node4
     assert node5.root is node
     assert node5 in node4.children
 

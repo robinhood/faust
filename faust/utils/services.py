@@ -259,9 +259,7 @@ class Service(ServiceBase):
 
             root = self.beacon.root
             seen: Set[NodeT] = set()
-            node = self.beacon
-            while node:
-                node = node
+            for node in self.beacon.walk():
                 if node in seen:
                     self.log.warn(f'Recursive loop in beacon: {node}: {seen}')
                     if root and root.data is not self:
@@ -271,7 +269,6 @@ class Service(ServiceBase):
                 for child in [node.data] + node.children:
                     if isinstance(child, Service):
                         child._crash(reason)
-                node = node.prev
             self._crash(reason)
 
     def _crash(self, reason: Exception) -> None:

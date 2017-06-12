@@ -27,7 +27,7 @@ class Node(NodeT):
         Nodes have a link to
 
             - the ``.root`` node (or None if this is the top-most node)
-            - the ``.prev`` node (if this is a child node).
+            - the ``.parent`` node (if this is a child node).
             - a list of children
 
         A Node may have ``.data`` associated with it, and arbitrary
@@ -38,12 +38,12 @@ class Node(NodeT):
 
     Keyword Arguments:
         root (NodeT): Root node.
-        prev (NodeT): Previous node.
+        parent (NodeT): Parent node.
         children (List[NodeT]): List of child nodes.
     """
 
     _root: NodeT = None
-    _prev: NodeT = None
+    _parent: NodeT = None
 
     @classmethod
     def _new_node(cls, data: Any, **kwargs: Any) -> NodeT:
@@ -52,11 +52,11 @@ class Node(NodeT):
     def __init__(self, data: Any,
                  *,
                  root: NodeT = None,
-                 prev: NodeT = None,
+                 parent: NodeT = None,
                  children: List[NodeT] = None) -> None:
         self.data = data
         self.root = root
-        self.prev = prev
+        self.parent = parent
         self.children = children or []
 
     def new(self, data: Any) -> NodeT:
@@ -64,19 +64,15 @@ class Node(NodeT):
         node = self._new_node(
             data,
             root=self.root if self.root is not None else self,
-            prev=self,
+            parent=self,
         )
         self.children.append(node)
         return node
 
     def reattach(self, parent: NodeT) -> NodeT:
-        """Attach this node to `parent` node.
-
-        The root of this node will be set to ``parent.root``, and the
-        the parent will be previous to this node.
-        """
+        """Attach this node to `parent` node."""
         self.root = parent.root if parent.root is not None else parent
-        self.prev = parent
+        self.parent = parent
         parent.add(self)
         return self
 
@@ -104,7 +100,7 @@ class Node(NodeT):
         node: NodeT = self
         while node:
             yield node
-            node = node.prev
+            node = node.parent
 
     def as_graph(self) -> DependencyGraphT:
         """Convert to :class:`~faust.utils.graphs.DependencyGraph`."""
@@ -140,14 +136,14 @@ class Node(NodeT):
         ]))
 
     @property
-    def prev(self) -> NodeT:
-        return self._prev
+    def parent(self) -> NodeT:
+        return self._parent
 
-    @prev.setter
-    def prev(self, node: NodeT) -> None:
+    @parent.setter
+    def parent(self, node: NodeT) -> None:
         if node is self:
             raise ValueError('Parent node cannot be itself.')
-        self._prev = node
+        self._parent = node
 
     @property
     def root(self) -> NodeT:
