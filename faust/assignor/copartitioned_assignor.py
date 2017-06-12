@@ -56,7 +56,7 @@ class CopartitionedAssignor:
         self._client_assignments = cluster_asgn
 
     def get_assignment(self) -> MutableMapping[str, CopartitionedAssignment]:
-        for client, copartitioned in self._client_assignments.items():
+        for copartitioned in self._client_assignments.values():
             copartitioned.unassign_extras(self.capacity, self.replicas)
         self._assign(active=True)
         self._assign(active=False)
@@ -169,7 +169,7 @@ class CopartitionedAssignor:
             else:
                 # For standbys we offset to round robin start to shuffle
                 # assignment of standbys
-                for i in range(partition):
+                for _ in range(partition):
                     next(candidates)
 
             assert assign_to is None or active

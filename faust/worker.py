@@ -104,7 +104,7 @@ class SpinnerHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         if self.worker.spinner:
-            self.worker.spinner.next()
+            self.worker.spinner.next()  # noqa: B305
 
 
 class Worker(Service):
@@ -288,7 +288,7 @@ class Worker(Service):
 
     def _gather_all(self) -> None:
         # sleeps for at most 40 * 0.1s
-        for i in range(40):
+        for _ in range(40):
             if not asyncio.Task.all_tasks(loop=self.loop):
                 break
             self.loop.run_until_complete(asyncio.sleep(0.1))

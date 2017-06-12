@@ -125,9 +125,7 @@ class Node(NodeT):
         return self._find_depth()
 
     def _find_depth(self) -> int:
-        for i, _ in enumerate(self.walk()):
-            ...
-        return i
+        return sum(1 for _ in enumerate(self.walk()))
 
     @property
     def path(self) -> str:
