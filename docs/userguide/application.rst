@@ -95,6 +95,15 @@ and all of the options described below are optional:
 Parameters
 ----------
 
+`id`
+    :type: ``str``
+
+    A string that uniquely identifies the app, to be shared between all
+    instances of the app.  Two app instances with the same ID is considered
+    to be in the same group.
+
+    This parameter is required.
+
 `url`
     :type: ``str``
     :default: ``"aiokafka://localhost:9092"``
@@ -132,10 +141,16 @@ Parameters
     configured by the user.
 
 `commit_interval`
-    :type: `float`
+    :type: `float`, :class:`~datetime.timedelta`
     :default: ``30.0``
 
     How often we commit messages that have been fully processed (:term:`acked`).
+
+`table_cleanup_interval`
+    :type: `float`, :class:`~datetime.timedelta`
+    :default: ``1.0``
+
+    How often we cleanup tables to remove expired entries.
 
 `key_serializer`
     :type: ``Union[str, Codec]``
@@ -157,7 +172,7 @@ Parameters
     This can be the name of a serializer/codec, or an actual
     :class:`faust.serializers.codecs.Codec` instance.
 
-`num_standy_replicas`
+`num_standby_replicas`
     :type: ``int``
     :default: ``0``
 
@@ -173,6 +188,12 @@ Parameters
     The replication factor for changlog topics and repartition topics created
     by the application.
 
+`default_partitions`
+    :type: ``int``
+    :default: 8
+
+    Default number of partitions for new topics.
+
 `Stream`
     :type: ``Union[str, Type]``
     :default: ``"faust.Stream"``
@@ -180,14 +201,14 @@ Parameters
     The :class:`~faust.Stream` class to use for streams, or the fully-qualified
     path to one.
 
-`TableType`
+`Table`
     :type: ``Union[str, Type[TableT]]``
     :default: ``"faust.Table"``
 
     The :class:`~faust.Table` class to use for tables, or the fully-qualified
     path to one.
 
-`SetType`
+`Set`
     :type: ``Union[str, Type[SetT]]``
     :default: ``"faust.Set"``
 
@@ -199,6 +220,15 @@ Reference
 
 Methods
 -------
+
+Topics
+^^^^^^
+
+.. class:: App
+    :noindex:
+
+    .. automethod:: topic
+        :noindex:
 
 Decorators
 ^^^^^^^^^^
