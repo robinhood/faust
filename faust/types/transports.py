@@ -154,6 +154,7 @@ class ProducerT(ServiceT):
 class TransportT(abc.ABC):
     Consumer: ClassVar[Type[ConsumerT]]
     Producer: ClassVar[Type[ProducerT]]
+    Fetcher: ClassVar[Type[ServiceT]]
 
     app: AppT
     url: str

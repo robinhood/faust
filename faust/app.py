@@ -108,12 +108,14 @@ class AppService(Service):
             [self.app.producer],                      # app.Producer
             # Consumer must be stopped after Topic Manager
             [self.app.consumer],                      # app.Consumer
-            # TableManager
-            [self.app.tables],                        # app.TableManager
+            # Actors
+            self.app.actors.values(),
             # TopicManager
             [self.app.sources],                       # app.TopicManager
-            # Actors last.
-            self.app.actors.values(),
+            # TableManager
+            [self.app.tables],                        # app.TableManager
+            # Fetcher
+            [self.app._fetcher],
         ))
 
     async def on_first_start(self) -> None:
@@ -649,6 +651,10 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
         return asyncio.Queue(loop=self.loop)
+
+    @cached_property
+    def _fetcher(self) -> ServiceT:
+        return self.transport.Fetcher(self, loop=self.loop, beacon=self.beacon)
 
     @property
     def label(self) -> str:

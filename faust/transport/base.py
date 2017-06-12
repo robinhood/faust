@@ -14,7 +14,7 @@ from ..types.transports import (
 )
 from ..utils.functional import consecutive_numbers
 from ..utils.logging import get_logger
-from ..utils.services import Service
+from ..utils.services import Service, ServiceT
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -252,7 +252,6 @@ class Consumer(Service, ConsumerT):
         if self.autoack:
             await self.commit()
 
-    @Service.task
     async def _drain_messages(self) -> None:
         callback = self.callback
         getmany = self.getmany
@@ -283,6 +282,18 @@ class Consumer(Service, ConsumerT):
             raise
         finally:
             self.set_shutdown()
+
+
+class Fetcher(Service):
+    app: AppT
+
+    def __init__(self, app: AppT, **kwargs) -> None:
+        self.app = app
+        super().__init__(**kwargs)
+
+    @Service.task
+    async def _fetcher(self) -> None:
+        await cast(Consumer, self.app.consumer)._drain_messages()
 
 
 class Producer(Service, ProducerT):
@@ -318,6 +329,9 @@ class Transport(TransportT):
 
     #: Producer subclass used for this transport.
     Producer: ClassVar[Type[ProducerT]]
+
+    #: Service that fetches messages from the broker.
+    Fetcher: ClassVar[Type[ServiceT]] = Fetcher
 
     driver_version: str
 

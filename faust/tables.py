@@ -61,9 +61,15 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._changelogs = {}
         self._table_offsets = {}
         self._new_assignments = asyncio.Queue(loop=self.loop)
+        self._recovery_started = asyncio.Event(loop=self.loop)
         self.recovery_completed = asyncio.Event(loop=self.loop)
 
-    async def on_start(self) -> None:
+    def __setitem__(self, key: str, value: CollectionT) -> None:
+        if self._recovery_started.is_set():
+            raise RuntimeError('Too late to add tables at this point')
+        super().__setitem__(key, value)
+
+    async def _update_sources(self) -> None:
         self._sources.update({
             table: cast(SourceT, aiter(table.changelog_topic))
             for table in self.values()
@@ -172,19 +178,21 @@ class TableManager(Service, TableManagerT, FastUserDict):
             # Wait for TopicManager to finish any new subscriptions
             await self.app.sources.wait_for_subscriptions()
             self.log.info('New assignments found')
-            changelog_topics = set()
-            for table in self.values():
-                changelog_topics.update(set(table.changelog_topic.topics))
+            await self._on_recovery_started()
             await self.app.consumer.pause_partitions(assigned)
             for table in self.values():
                 # TODO If standby ready, just swap and continue.
                 await self._recover_from_changelog(table, assigned)
             await self.app.consumer.resume_partitions({
                 tp for tp in assigned
-                if tp.topic not in changelog_topics
+                if tp.topic not in self._changelogs
             })
             self.log.info('New assignments handled')
             await self._on_recovery_completed()
+
+    async def _on_recovery_started(self) -> None:
+        self._recovery_started.set()
+        await self._update_sources()
 
     async def _on_recovery_completed(self) -> None:
         if not self.recovery_completed.is_set():
