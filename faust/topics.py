@@ -26,11 +26,8 @@ else:
 
 __all__ = [
     'Topic',
-    'TopicT',
     'TopicSource',
-    'SourceT',
     'TopicManager',
-    'TopicManagerT',
 ]
 
 logger = get_logger(__name__)

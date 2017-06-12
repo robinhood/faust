@@ -206,9 +206,14 @@ Decorators
 .. class:: App
     :noindex:
 
+    .. automethod:: actor
+        :noindex:
+
     .. automethod:: task
+        :noindex:
 
     .. automethod:: timer
+        :noindex:
 
 Creating streams and tables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -217,10 +222,13 @@ Creating streams and tables
     :noindex:
 
     .. automethod:: stream
+        :noindex:
 
     .. automethod:: Table
+        :noindex:
 
     .. automethod:: Set
+        :noindex:
 
 Sending messages
 ^^^^^^^^^^^^^^^^
@@ -229,12 +237,16 @@ Sending messages
     :noindex:
 
     .. automethod:: send
+        :noindex:
 
     .. automethod:: send_many
+        :noindex:
 
     .. automethod:: send_soon
+        :noindex:
 
     .. automethod:: send_attached
+        :noindex:
 
 Committing topic offsets
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -243,3 +255,4 @@ Committing topic offsets
     :noindex:
 
     .. automethod:: commit
+        :noindex:

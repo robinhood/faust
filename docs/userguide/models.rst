@@ -137,10 +137,13 @@ Serialization/Deserialization
     :noindex:
 
     .. automethod:: loads
+        :noindex:
 
     .. automethod:: dumps
+        :noindex:
 
     .. automethod:: to_representation
+        :noindex:
 
 Schemas
 ^^^^^^^
@@ -149,8 +152,10 @@ Schemas
     :noindex:
 
     .. automethod:: as_schema
+        :noindex:
 
     .. automethod:: as_avro_schema
+        :noindex:
 
 Introspection
 ^^^^^^^^^^^^^

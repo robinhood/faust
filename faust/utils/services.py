@@ -13,7 +13,7 @@ from .times import Seconds, want_seconds
 from .types.collections import NodeT
 from .types.services import ServiceT
 
-__all__ = ['Service', 'ServiceBase', 'ServiceProxy', 'ServiceT']
+__all__ = ['Service', 'ServiceBase', 'ServiceProxy']
 
 __flake8_Set_is_used: Set  # XXX flake8 bug
 

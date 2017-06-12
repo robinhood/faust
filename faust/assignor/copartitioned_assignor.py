@@ -11,17 +11,18 @@ class CopartitionedAssignor:
     All copartitioned topics must have the same number of partitions
 
     The assignment is sticky which uses the following heuristics:
+
     - Maintain existing assignments as long as within capacity for each client
     - Assign actives to standbys when possible (within capacity)
     - Assign in order to fill capacity of the clients
 
     We optimize for not over utilizing resources instead of under-utilizing
     resources. This results in a balanced assignment when capacity is the
-    default value which is ceil(num partitions / num clients)
+    default value which is ``ceil(num partitions / num clients)``
 
-    Note:
+    Notes:
         Currently we raise an exception if number of clients is not enough
-        for the desired `replication
+        for the desired `replication`.
     """
     capacity: int
     num_partitions: int

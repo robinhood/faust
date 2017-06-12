@@ -186,12 +186,16 @@ Joins
     :noindex:
 
     .. automethod:: join
+        :noindex:
 
     .. automethod:: left_join
+        :noindex:
 
     .. automethod:: inner_join
+        :noindex:
 
     .. automethod:: outer_join
+        :noindex:
 
 Iteration tools
 ^^^^^^^^^^^^^^^
@@ -200,16 +204,22 @@ Iteration tools
     :noindex:
 
     .. automethod:: items
+        :noindex:
 
-    .. automethod:: tee(n = 2)
+    .. automethod:: tee
+        :noindex:
 
     .. automethod:: enumerate
+        :noindex:
 
     .. automethod:: through
+        :noindex:
 
     .. automethod:: echo
+        :noindex:
 
     .. automethod:: group_by
+        :noindex:
 
 Processing
 ^^^^^^^^^^
@@ -218,6 +228,7 @@ Processing
     :noindex:
 
     .. automethod:: send
+        :noindex:
 
 Topics
 ^^^^^^
@@ -226,3 +237,4 @@ Topics
     :noindex:
 
     .. automethod:: derive_topic
+        :noindex:

@@ -78,54 +78,71 @@ Monitor Attributes
 
         .. autoattribute:: messages
             :annotation:
+            :noindex:
 
         .. autoattribute:: messages_active
             :annotation:
+            :noindex:
 
         .. autoattribute:: messages_received_total
             :annotation:
+            :noindex:
 
         .. autoattribute:: messages_received_by_topic
             :annotation:
+            :noindex:
 
         .. autoattribute:: messages_s
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_active
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_total
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_s
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_by_stream
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_by_task
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_runtime
             :annotation:
+            :noindex:
 
         .. autoattribute:: events_runtime_avg
             :annotation:
+            :noindex:
 
         .. autoattribute:: tables
             :annotation:
+            :noindex:
 
         .. autoattribute:: commit_latency
             :annotation:
+            :noindex:
 
         .. autoattribute:: send_latency
             :annotation:
+            :noindex:
 
         .. autoattribute:: messages_sent
             :annotation:
+            :noindex:
 
         .. autoattribute:: messages_sent_by_topic
             :annotation:
+            :noindex:
 
 .. _monitor-configuration:
 
@@ -136,12 +153,16 @@ Configuration Attributes
     :noindex:
 
         .. autoattribute:: max_messages
+            :noindex:
 
         .. autoattribute:: max_avg_history
+            :noindex:
 
         .. autoattribute:: max_commit_latency_history
+            :noindex:
 
         .. autoattribute:: max_send_latency_history
+            :noindex:
 
 .. _monitor-messagestate:
 
@@ -152,18 +173,25 @@ Class: ``MessageState``
     :noindex:
 
         .. autoattribute:: consumer_id
+            :noindex:
 
         .. autoattribute:: tp
+            :noindex:
 
         .. autoattribute:: offset
+            :noindex:
 
         .. autoattribute:: time_in
+            :noindex:
 
         .. autoattribute:: time_out
+            :noindex:
 
         .. autoattribute:: time_total
+            :noindex:
 
         .. autoattribute:: streams
+            :noindex:
 
 .. _monitor-eventstate:
 
@@ -174,12 +202,16 @@ Class: ``EventState``
     :noindex:
 
         .. autoattribute:: stream
+            :noindex:
 
         .. autoattribute:: time_in
+            :noindex:
 
         .. autoattribute:: time_out
+            :noindex:
 
         .. autoattribute:: time_total
+            :noindex:
 
 .. _monitor-tablestate:
 
@@ -190,12 +222,16 @@ Class: ``TableState``
     :noindex:
 
         .. autoattribute:: table
+            :noindex:
 
         .. autoattribute:: keys_retrieved
+            :noindex:
 
         .. autoattribute:: keys_updated
+            :noindex:
 
         .. autoattribute:: keys_deleted
+            :noindex:
 
 .. _sensor-reference:
 
@@ -217,8 +253,10 @@ Message Callbacks
     :noindex:
 
         .. automethod:: on_message_in
+            :noindex:
 
         .. automethod:: on_message_out
+            :noindex:
 
 .. _sensor-event:
 
@@ -229,8 +267,10 @@ Event Callbacks
     :noindex:
 
         .. automethod:: on_stream_event_in
+            :noindex:
 
         .. automethod:: on_stream_event_out
+            :noindex:
 
 .. _sensor-table:
 
@@ -241,10 +281,13 @@ Table Callbacks
     :noindex:
 
         .. automethod:: on_table_get
+            :noindex:
 
         .. automethod:: on_table_set
+            :noindex:
 
         .. automethod:: on_table_del
+            :noindex:
 
 .. _sensor-operations:
 
@@ -255,9 +298,13 @@ Operation Callbacks
     :noindex:
 
         .. automethod:: on_commit_initiated
+            :noindex:
 
         .. automethod:: on_commit_completed
+            :noindex:
 
         .. automethod:: on_send_initiated
+            :noindex:
 
         .. automethod:: on_send_completed
+            :noindex:
