@@ -184,8 +184,18 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if tp.topic not in changelog_topics
             })
             self.log.info('New assignments handled')
+            await self._on_recovery_completed()
+
+    async def _on_recovery_completed(self) -> None:
+        if not self.recovery_completed.is_set():
+            for table in self.values():
+                await table.maybe_start()
             self.recovery_completed.set()
 
+    async def on_stop(self) -> None:
+        if self.recovery_completed.is_set():
+            for table in self.values():
+                await table.stop()
 
 class Collection(Service, CollectionT):
     logger = logger
