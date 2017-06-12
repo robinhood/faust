@@ -63,7 +63,11 @@ def cli(ctx: click.Context,
 @cli.command(help='Start worker')
 @_apply_options(worker_options)
 @click.pass_context
-def worker(ctx: click.Context, logfile: str, loglevel: str) -> None:
+def worker(ctx: click.Context,
+           logfile: str,
+           loglevel: str,
+           blocking_timeout: float,
+           web_port: int) -> None:
     app = ctx.obj['app']
     debug = ctx.obj['debug']
     quiet = ctx.obj['quiet']
