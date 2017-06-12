@@ -287,7 +287,7 @@ class Consumer(Service, ConsumerT):
 class Fetcher(Service):
     app: AppT
 
-    def __init__(self, app: AppT, **kwargs) -> None:
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         super().__init__(**kwargs)
 

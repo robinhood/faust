@@ -573,9 +573,9 @@ class Stream(StreamT, JoinableT, Service):
             return reprlib.repr(self.children)
         return reprlib.repr(self.source)
 
-    def _repr_source(self):
+    def _repr_source(self) -> str:
         if isinstance(self.source, SourceT):
-            return repr(self.source.topic)
+            return repr(cast(SourceT, self.source).topic)
         return reprlib.repr(self.source)
 
     @property

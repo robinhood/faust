@@ -205,6 +205,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             for table in self.values():
                 await table.stop()
 
+
 class Collection(Service, CollectionT):
     logger = logger
 

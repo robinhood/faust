@@ -20,6 +20,12 @@ class ServiceT(metaclass=abc.ABCMeta):
     restart_count: int = 0
 
     @abc.abstractmethod
+    def __init__(self, *,
+                 beacon: NodeT = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
+
+    @abc.abstractmethod
     async def __aenter__(self) -> 'ServiceT':
         ...
 

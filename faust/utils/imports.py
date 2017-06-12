@@ -4,7 +4,6 @@ import os
 import sys
 import warnings
 from contextlib import contextmanager, suppress
-from functools import singledispatch
 from types import ModuleType
 from typing import (
     Any, Callable, Generator, Iterable,
