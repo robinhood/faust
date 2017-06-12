@@ -1,6 +1,7 @@
 setuptools>=20.6.7
 wheel>=0.29.0
 flake8>=2.5.4
+flake8-bugbear
 flake8-blind-except
 flake8-comprehensions
 flake8-pyi
