@@ -1,12 +1,19 @@
 from typing import (
-    Any, ClassVar, Dict, Iterable, Mapping, Sequence, Tuple, cast,
+    Any, ClassVar, Dict, Iterable, Mapping, Sequence, Tuple, Type, cast,
 )
 from ..serializers.avro import to_avro_type
 from ..types.models import ModelT, ModelOptions
 from ..utils.objects import annotations
-from .base import FieldDescriptor, Model
+from .base import FieldDescriptor, Model, registry
 
 __all__ = ['Record']
+
+
+def _is_model(cls: Type) -> bool:
+    try:
+        return issubclass(cls, ModelT)
+    except TypeError:  # typing.Any cannot be used with subclass
+        return False
 
 
 class Record(Model):
@@ -62,12 +69,14 @@ class Record(Model):
         options.optionalset = frozenset(defaults)
         # extract all default values, but only for actual fields.
         options.defaults = {
-            k: v for k, v in defaults.items()
+            k: v
+            for k, v in defaults.items()
             if k in fields
         }
         options.models = {
-            field: typ for field, typ in fields.items()
-            if issubclass(typ, ModelT)
+            field: typ
+            for field, typ in fields.items()
+            if _is_model(typ)
         }
         options.modelset = frozenset(options.models)
 
@@ -91,7 +100,8 @@ class Record(Model):
             # Set fields from keyword arguments.
             self._init_fields(fields)
 
-    def _init_fields(self, fields: Mapping) -> None:
+    def _init_fields(self, fields: Dict) -> None:
+        fields.pop('__faust', None)  # remove metadata
         fieldset = frozenset(fields)
         options = self._options
 
@@ -114,7 +124,10 @@ class Record(Model):
         for _field, _typ in self._options.models.items():
             _data = fields.get(_field)
             if _data is not None and not isinstance(_data, ModelT):
-                _data = _typ(_data)
+                if isinstance(_data, Mapping) and '__faust' in _data:
+                    _data = registry[_data['__faust']['ns']](_data)
+                elif _typ is not ModelT:  # is not base class
+                    _data = _typ(_data)
             self.__dict__[_field] = _data
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
@@ -132,9 +145,11 @@ class Record(Model):
         modelset = self._options.modelset
         for key in self._options.fields:
             value = getattr(self, key)
-            if key in modelset and value is not None:
+            if key in modelset and isinstance(value, ModelT):
                 value = value.to_representation()
             yield key, value
+        if self._options.include_metadata:
+            yield '__faust', {'ns': self._options.namespace}
 
     def _humanize(self) -> str:
         # we try to preserve the order of fields specified in the class,

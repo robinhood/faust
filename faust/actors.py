@@ -1,9 +1,12 @@
 import asyncio
+import typing
+from collections import defaultdict
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Iterable, List, Mapping, MutableSequence, Union, cast,
+    Iterable, List, MutableMapping, MutableSequence, Union, cast,
 )
 from uuid import uuid4
+from weakref import WeakSet
 from . import Record
 from .types import AppT, CodecArg, K, ModelT, StreamT, TopicT, V
 from .types.actors import ActorFun, ActorErrorHandler, ActorT, SinkT
@@ -29,34 +32,70 @@ __all__ = ['Actor', 'ActorFun', 'ActorT', 'ReqRepRequest', 'SinkT']
 # unlike normal actors they do not implement replies... yet!
 
 
-class ReqRepRequest(Record, serializer='json'):
-    namespace: str
-    value: Any
+class ReqRepRequest(Record, serializer='json', namespace='@RRReq'):
+    value: ModelT
     reply_to: str
     correlation_id: str
 
-    __isareq__: bool = True
 
-
-class ReqRepResponse(Record, serializer='json'):
-    namespace: str
-    value: Any
+class ReqRepResponse(Record, serializer='json', namespace='@RRRes'):
+    value: ModelT
     correlation_id: str
 
 
-def _isareq(value: Any) -> bool:
-    return (
-        isinstance(value, ReqRepRequest) or (
-            isinstance(value, Mapping) and value['__isareq__']))
-
-
-class ReplyPromise:
+class ReplyPromise(Awaitable):
     actor: ActorT
     req: ReqRepRequest
+    _future: asyncio.Future
 
-    def __init__(self, actor: ActorT, req: ReqRepRequest) -> None:
+    def __init__(self, actor: ActorT, req: ReqRepRequest,
+                 *,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         self.actor = actor
         self.req = req
+        self.loop = loop
+        self._future = asyncio.Future(loop=self.loop)
+
+    def fulfill(self, value: Any):
+        self._future.set_result(value)
+
+    def __await__(self) -> Any:
+        return self._future.__await__()
+
+
+class ReplyConsumer(Service):
+    if typing.TYPE_CHECKING:
+        _waiting: MutableMapping[str, WeakSet[ReplyPromise]]
+    _waiting = None
+    _fetchers: MutableMapping[str, asyncio.Task]
+
+    def __init__(self, app: AppT, **kwargs: Any):
+        self.app = app
+        self._waiting = defaultdict(WeakSet)
+        self._fetchers = {}
+        super().__init__(**kwargs)
+
+    async def on_start(self):
+        self._start_fetcher(self.app.reply_to)
+
+    def add(self, promise: ReplyPromise) -> None:
+        reply_topic = promise.req.reply_to
+        if reply_topic not in self._fetchers:
+            self._start_fetcher(reply_topic)
+        self._waiting[promise.req.correlation_id].add(promise)
+
+    def _start_fetcher(self, topic: str) -> None:
+        if topic not in self._fetchers:
+            self._fetchers[topic] = self.add_future(
+                self._drain_replies(topic))
+
+    async def _drain_replies(self, topic: str):
+        async for reply in self._reply_topic(topic).stream():
+            for promise in self._waiting[reply.correlation_id]:
+                promise.fulfill(reply.value)
+
+    def _reply_topic(self, topic: str) -> TopicT:
+        return self.app.topic(topic, value_type=ReqRepResponse)
 
 
 class ActorInstance(Service):
@@ -216,25 +255,35 @@ class Actor(ActorT, ServiceProxy):
         self._sinks.append(sink)
 
     def stream(self, **kwargs: Any) -> StreamT:
-        return self.app.stream(self.source, loop=self.loop, **kwargs)
+        s = self.app.stream(self.source, loop=self.loop, **kwargs)
+        s.add_processor(self._process_reply)
+        return s
+
+    def _process_reply(self, event: Any) -> Any:
+        if isinstance(event, ReqRepRequest):
+            return event.value
 
     async def _start_task(self, index: int, beacon: NodeT) -> ActorInstanceT:
         # If the actor is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
         res = self()
-        coro = res if isinstance(res, Awaitable) else self._slurp(aiter(res))
+        coro = res if isinstance(res, Awaitable) else self._slurp(
+            res, aiter(res))
         task = asyncio.Task(self._execute_task(coro), loop=self.loop)
         task._beacon = beacon  # type: ignore
         res.actor_task = task
         res.index = index
         return res
 
-    async def _slurp(self, it: AsyncIterator):
+    async def _slurp(self, res: ActorInstanceT, it: AsyncIterator):
         # this is used when the actor returns an AsyncIterator,
         # and simply consumes that async iterator.
         async for value in it:
             self.log.debug('%r yielded: %r', self.fun, value)
+            event = res.stream.current_event
+            if isinstance(event.value, ReqRepRequest):
+                await self.reply(event.key, value, event.value)
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
@@ -242,21 +291,21 @@ class Actor(ActorT, ServiceProxy):
             await maybe_async(sink(value))
 
     async def reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
+        assert req.reply_to
         await self.app.send(
             req.reply_to,
             key=key,
             value=ReqRepResponse(
                 value=value,
-                namespace=value._options.namespace,
                 correlation_id=req.correlation_id,
             ),
         )
 
     async def cast(
             self,
-             key: K = None,
-             value: V = None,
-             partition: int = None) -> None:
+            key: K = None,
+            value: V = None,
+            partition: int = None) -> None:
         await self.send(key, value, partition=partition)
 
     async def ask(
@@ -265,19 +314,18 @@ class Actor(ActorT, ServiceProxy):
             value: V = None,
             partition: int = None,
             reply_to: Union[str, TopicT] = None,
-            correlation_id: str = None) -> ReplyPromise:
+            correlation_id: str = None) -> Any:
         correlation_id = correlation_id or str(uuid4())
         req = ReqRepRequest(
             value=value,
-            namespace=(
-                cast(ModelT, value)._options.namespace
-                if isinstance(value, ModelT) else None),
-            reply_to=reply_to,
+            reply_to=reply_to or self.app.reply_to,
             correlation_id=correlation_id,
 
         )
         await self.send(key, req, partition=partition)
-        return ReplyPromise(self, req)
+        p = ReplyPromise(self, req)
+        self.app._reply_consumer.add(p)
+        return await p
 
     async def _execute_task(self, coro: Awaitable) -> None:
         # This executes the actor task itself, and does exception handling.

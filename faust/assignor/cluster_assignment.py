@@ -7,7 +7,7 @@ MetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 CopartMapping = MutableMapping[str, CopartitionedAssignment]
 
 
-class ClusterAssignment(Record, serializer='json'):
+class ClusterAssignment(Record, serializer='json', include_metadata=False):
     subscriptions: MutableMapping[str, Sequence[str]] = None
     assignments: MutableMapping[str, ClientAssignment] = None
 

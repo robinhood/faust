@@ -18,6 +18,7 @@ ModelArg = Union[Type['ModelT'], CodecArg]
 class ModelOptions(abc.ABC):
     serializer: CodecArg = None
     namespace: str = None
+    include_metadata: bool = True
 
     # Index: Flattened view of __annotations__ in MRO order.
     fields: Mapping[str, Type]

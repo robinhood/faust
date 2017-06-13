@@ -70,7 +70,7 @@ class CopartitionedAssignment:
         )
 
 
-class ClientAssignment(Record, serializer='json'):
+class ClientAssignment(Record, serializer='json', include_metadata=False):
     actives: MutableMapping[str, Sequence[int]]  # Topic -> Partition
     standbys: MutableMapping[str, Sequence[int]]  # Topic -> Partition
 

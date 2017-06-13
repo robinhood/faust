@@ -1,10 +1,11 @@
 import sys
-from typing import Any, MutableMapping, Optional, Type, cast
+from typing import Any, Mapping, MutableMapping, Optional, Type, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import K, V, ModelArg, ModelT
 from ..types.serializers import AsyncSerializerT, RegistryT
 from ..utils.compat import want_bytes
 from ..utils.imports import FactoryMapping, symbol_by_name
+from ..utils.objects import cached_property
 from .codecs import CodecArg, CodecT, dumps, loads
 
 _flake8_Any_is_really_used: Any  # XXX flake8 bug
@@ -55,8 +56,11 @@ class Registry(RegistryT):
             typ: Type[ModelT],
             default_serializer: CodecArg,
             data: bytes) -> Any:
-        return typ(await self._loads(
-            typ._options.serializer or default_serializer, data))
+        data = await self._loads(
+            typ._options.serializer or default_serializer, data)
+        if isinstance(data, Mapping) and '__faust' in data:
+            typ = self.models[data['__faust']['ns']]
+        return typ(data)
 
     async def _loads(self, serializer: CodecArg, data: bytes) -> Any:
         try:
@@ -153,3 +157,8 @@ class Registry(RegistryT):
             ser = self._override[name] = symbol_by_name(
                 self.override_classes.get_alias(name))(self)
             return cast(AsyncSerializerT, ser)
+
+    @cached_property
+    def models(self):
+        from ..models.base import registry
+        return registry
