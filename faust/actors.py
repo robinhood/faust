@@ -19,7 +19,18 @@ from .utils.services import Service, ServiceProxy
 
 logger = get_logger(__name__)
 
-__all__ = ['Actor', 'ActorFun', 'ActorT', 'ReqRepRequest', 'SinkT']
+__all__ = [
+    'ReqRepRequest',
+    'ReqRepResponse',
+    'ReplyPromise',
+    'ReplyConsumer',
+    'ActorInstance',
+    'ActorInstanceT',
+    'AsyncIterableActor',
+    'AwaitableActor',
+    'ActorService',
+    'Actor',
+]
 
 # --- An actor is an `async def` function, iterating over a stream:
 #
@@ -283,6 +294,17 @@ class Actor(ActorT, ServiceProxy):
         res.index = index
         return res
 
+    async def _execute_task(self, coro: Awaitable) -> None:
+        # This executes the actor task itself, and does exception handling.
+        try:
+            await coro
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            if self._on_error is not None:
+                await self._on_error(self, exc)
+            raise
+
     async def _slurp(self, res: ActorInstanceT, it: AsyncIterator):
         # this is used when the actor returns an AsyncIterator,
         # and simply consumes that async iterator.
@@ -290,14 +312,14 @@ class Actor(ActorT, ServiceProxy):
             self.log.debug('%r yielded: %r', self.fun, value)
             event = res.stream.current_event
             if isinstance(event.value, ReqRepRequest):
-                await self.reply(event.key, value, event.value)
+                await self._reply(event.key, value, event.value)
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
         for sink in self._sinks:
             await maybe_async(sink(value))
 
-    async def reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
+    async def _reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
         assert req.reply_to
         await self.app.send(
             req.reply_to,
@@ -323,28 +345,14 @@ class Actor(ActorT, ServiceProxy):
             partition: int = None,
             reply_to: Union[str, TopicT] = None,
             correlation_id: str = None) -> Any:
-        correlation_id = correlation_id or str(uuid4())
-        req = ReqRepRequest(
-            value=value,
+        p = await self.send(
+            key, value,
+            partition=partition,
             reply_to=reply_to or self.app.reply_to,
             correlation_id=correlation_id,
-
         )
-        await self.send(key, req, partition=partition)
-        p = ReplyPromise(self, req)
         self.app._reply_consumer.add(p)  # type: ignore
         return await p
-
-    async def _execute_task(self, coro: Awaitable) -> None:
-        # This executes the actor task itself, and does exception handling.
-        try:
-            await coro
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            if self._on_error is not None:
-                await self._on_error(self, exc)
-            raise
 
     async def send(
             self,
@@ -354,11 +362,31 @@ class Actor(ActorT, ServiceProxy):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             *,
-            wait: bool = True) -> Awaitable:
+            reply_to: Union[str, TopicT, ActorT] = None,
+            correlation_id: str = None,
+            wait: bool = True) -> Union[Awaitable, ReplyPromise]:
         """Send message to topic used by actor."""
-        return await self.topic.send(key, value, partition,
-                                     key_serializer, value_serializer,
-                                     wait=wait)
+        if isinstance(reply_to, ActorT):
+            reply_to = cast(ActorT, reply_to).topic
+        if reply_to:
+            correlation_id = correlation_id or str(uuid4())
+            request = ReqRepRequest(
+                value=value,
+                reply_to=reply_to,
+                correlation_id=correlation_id,
+            )
+            await self.topic.send(
+                key, request, partition,
+                key_serializer, value_serializer,
+                wait=wait,
+            )
+            return ReplyPromise(self, request)
+        else:
+            return await self.topic.send(
+                key, request, partition,
+                key_serializer, value_serializer,
+                wait=wait,
+            )
 
     def send_soon(self, key: K, value: V,
                   partition: int = None,

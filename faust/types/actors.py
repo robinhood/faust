@@ -6,6 +6,7 @@ from typing import (
 from ..utils.types.services import ServiceT
 from .codecs import CodecArg
 from .core import K, V
+from .streams import StreamT
 from .topics import TopicT
 
 if typing.TYPE_CHECKING:
@@ -51,6 +52,28 @@ class ActorT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def stream(self, **kwargs: Any) -> StreamT:
+        ...
+
+    @abc.abstractmethod
+    async def cast(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def ask(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            reply_to: Union[str, TopicT] = None,
+            correlation_id: str = None) -> Any:
+        ...
+
+    @abc.abstractmethod
     async def send(
             self,
             key: K = None,
@@ -59,6 +82,8 @@ class ActorT(ServiceT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             *,
+            reply_to: Union[str, TopicT, 'ActorT'] = None,
+            correlation_id: str = None,
             wait: bool = True) -> Awaitable:
         ...
 
