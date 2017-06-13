@@ -56,7 +56,7 @@ class ReplyPromise(Awaitable):
         self.loop = loop
         self._future = asyncio.Future(loop=self.loop)
 
-    def fulfill(self, value: Any):
+    def fulfill(self, value: Any) -> None:
         self._future.set_result(value)
 
     def __await__(self) -> Any:
@@ -67,15 +67,15 @@ class ReplyConsumer(Service):
     if typing.TYPE_CHECKING:
         _waiting: MutableMapping[str, WeakSet[ReplyPromise]]
     _waiting = None
-    _fetchers: MutableMapping[str, asyncio.Task]
+    _fetchers: MutableMapping[str, asyncio.Future]
 
-    def __init__(self, app: AppT, **kwargs: Any):
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         self._waiting = defaultdict(WeakSet)
         self._fetchers = {}
         super().__init__(**kwargs)
 
-    async def on_start(self):
+    async def on_start(self) -> None:
         self._start_fetcher(self.app.reply_to)
 
     def add(self, promise: ReplyPromise) -> None:
@@ -324,7 +324,7 @@ class Actor(ActorT, ServiceProxy):
         )
         await self.send(key, req, partition=partition)
         p = ReplyPromise(self, req)
-        self.app._reply_consumer.add(p)
+        self.app._reply_consumer.add(p)  # type: ignore
         return await p
 
     async def _execute_task(self, coro: Awaitable) -> None:

@@ -159,6 +159,6 @@ class Registry(RegistryT):
             return cast(AsyncSerializerT, ser)
 
     @cached_property
-    def models(self):
+    def models(self) -> Mapping[str, Type[ModelT]]:
         from ..models.base import registry
         return registry
