@@ -39,6 +39,7 @@ class ReqRepRequest(Record, serializer='json', namespace='@RRReq'):
 
 
 class ReqRepResponse(Record, serializer='json', namespace='@RRRes'):
+    key: K
     value: ModelT
     correlation_id: str
 
@@ -89,13 +90,19 @@ class ReplyConsumer(Service):
             self._fetchers[topic] = self.add_future(
                 self._drain_replies(topic))
 
-    async def _drain_replies(self, topic: str):
-        async for reply in self._reply_topic(topic).stream():
+    async def _drain_replies(self, topic_name: str):
+        topic = self._reply_topic(topic_name)
+        await topic.maybe_declare()
+        async for reply in topic.stream():
             for promise in self._waiting[reply.correlation_id]:
                 promise.fulfill(reply.value)
 
     def _reply_topic(self, topic: str) -> TopicT:
-        return self.app.topic(topic, value_type=ReqRepResponse)
+        return self.app.topic(
+            topic,
+            partitions=1,
+            value_type=ReqRepResponse,
+        )
 
 
 class ActorInstance(Service):
@@ -294,8 +301,9 @@ class Actor(ActorT, ServiceProxy):
         assert req.reply_to
         await self.app.send(
             req.reply_to,
-            key=key,
+            key=None,
             value=ReqRepResponse(
+                key=key,
                 value=value,
                 correlation_id=req.correlation_id,
             ),
