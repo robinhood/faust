@@ -70,6 +70,8 @@ COMMIT_INTERVAL = 30.0
 #: Can be customized by setting ``App(table_cleanup_interval=...)``.
 TABLE_CLEANUP_INTERVAL = 30.0
 
+REPLY_TOPIC_PREFIX = 'f-reply-'
+
 #: Format string for ``repr(app)``.
 APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} actors({actors}) sources({sources})>
@@ -247,7 +249,7 @@ class App(AppT, ServiceProxy):
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
         self.default_partitions = default_partitions
-        self.reply_to = reply_to or str(uuid4())
+        self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.TableType = symbol_by_name(Table)
