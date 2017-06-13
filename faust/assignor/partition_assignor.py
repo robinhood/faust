@@ -46,7 +46,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
             cluster: ClusterMetadata) -> MutableMapping[int, Set[str]]:
         topics_by_partitions: MutableMapping[int, Set] = defaultdict(set)
         for topic in topics:
-            num_partitions = len(cluster.partitions_for_topic(topic))
+            num_partitions = len(cluster.partitions_for_topic(topic) or set())
             topics_by_partitions[num_partitions].add(topic)
         return topics_by_partitions
 
