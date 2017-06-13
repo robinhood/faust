@@ -101,7 +101,7 @@ class Consumer(Service, ConsumerT):
             commit_interval or self._app.commit_interval)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
-        self._current_offset = defaultdict(int)
+        self._current_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
@@ -146,7 +146,8 @@ class Consumer(Service, ConsumerT):
         await self._on_message_in(_id, tp, offset, message)
 
     def ack(self, tp: TopicPartition, offset: int) -> None:
-        if offset > self._current_offset[tp]:
+        current = self._current_offset[tp]
+        if current is None or offset > current:
             acked_index = self._acked_index[tp]
             if offset not in acked_index:
                 acked_index.add(offset)
@@ -217,7 +218,8 @@ class Consumer(Service, ConsumerT):
         )
 
     def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
-        return bool(offset) and offset > self._current_offset[tp]
+        current = self._current_offset[tp]
+        return current is None or bool(offset) and offset > current
 
     def _new_offset(self, tp: TopicPartition) -> Optional[int]:
         # get the new offset for this tp, by going through
