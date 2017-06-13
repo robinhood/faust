@@ -71,7 +71,6 @@ class Stream(StreamT, JoinableT, Service):
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None
     _anext_started: bool = False
-    _current_event: EventT = None
     _context: Context = None
     _passive = False
 
@@ -153,8 +152,8 @@ class Stream(StreamT, JoinableT, Service):
         This means the messages must be from a topic source.
         """
         async for _ in self:  # noqa: F841
-            if self._current_event is not None:
-                yield self._current_event
+            if self.current_event is not None:
+                yield self.current_event
 
     async def take(self, max_: int,
                    within: Seconds = None) -> AsyncIterable[Sequence[T_co]]:
@@ -267,7 +266,7 @@ class Stream(StreamT, JoinableT, Service):
             if not topic_created:
                 await topictopic.maybe_declare()
                 topic_created = True
-            event = self._current_event
+            event = self.current_event
             return await maybe_forward(event, topictopic)
 
         self.add_processor(forward)
@@ -376,7 +375,7 @@ class Stream(StreamT, JoinableT, Service):
         grouped = self.clone(source=aiter(topic), on_start=self.maybe_start)
 
         async def repartition(value: T) -> T:
-            event = self._current_event
+            event = self.current_event
             if event is None:
                 raise RuntimeError(
                     'Cannot repartition stream with non-topic source')
@@ -487,7 +486,7 @@ class Stream(StreamT, JoinableT, Service):
                 # set task-local current_event
                 locals.current_event = create_ref(event)
                 # set Stream._current_event
-                self._current_event = event
+                self.current_event = event
 
                 value = event.value  # Stream yields Event.value
 
@@ -525,8 +524,8 @@ class Stream(StreamT, JoinableT, Service):
             await self._coroutine.start()
 
     async def on_stop(self) -> None:
-        if self._current_event is not None:
-            self._current_event.ack()
+        if self.current_event is not None:
+            self.current_event.ack()
         if self._context is not None:
             self._context.__exit__(None, None, None)
 
@@ -547,7 +546,7 @@ class Stream(StreamT, JoinableT, Service):
             await self.maybe_start()
         else:
             # decrement reference count for previous event processed.
-            _prev, self._current_event = self._current_event, None
+            _prev, self.current_event = self.current_event, None
             if _prev is not None:
                 _prev.ack()
             _msg = _prev.message

@@ -57,6 +57,7 @@ class AppT(ServiceT):
     num_standby_replicas: int
     replication_factor: int
     default_partitions: int  # noqa: E704
+    reply_to: str
     avro_registry_url: str
     store: str
 

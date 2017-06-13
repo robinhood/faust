@@ -11,9 +11,10 @@ from typing import (
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
     Optional, Pattern, Sequence, Union, Tuple, cast,
 )
+from uuid import uuid4
 
 from . import transport
-from .actors import ActorFun, Actor, ActorT
+from .actors import ActorFun, Actor, ActorT, ReplyConsumer
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
@@ -108,6 +109,8 @@ class AppService(Service):
             [self.app.producer],                      # app.Producer
             # Consumer must be stopped after Topic Manager
             [self.app.consumer],                      # app.Consumer
+            # ReplyConsumer
+            [self.app._reply_consumer],
             # Actors
             self.app.actors.values(),
             # TopicManager
@@ -224,6 +227,7 @@ class App(AppT, ServiceProxy):
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
                  default_partitions: int = 8,
+                 reply_to: str = None,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  TableManager: SymbolArg = DEFAULT_TABLE_MANAGER_CLS,
@@ -243,6 +247,7 @@ class App(AppT, ServiceProxy):
         self.num_standby_replicas = num_standby_replicas
         self.replication_factor = replication_factor
         self.default_partitions = default_partitions
+        self.reply_to = reply_to or str(uuid4())
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.TableType = symbol_by_name(Table)
@@ -532,6 +537,7 @@ class App(AppT, ServiceProxy):
                     *,
                     wait: bool = True) -> Awaitable:
         self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
+        assert topic is not None
         producer = self.producer
         if not self._producer_started:
             self._producer_started = True
@@ -655,6 +661,10 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _fetcher(self) -> ServiceT:
         return self.transport.Fetcher(self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def _reply_consumer(self) -> ReplyConsumer:
+        return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
 
     @property
     def label(self) -> str:

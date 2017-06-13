@@ -84,9 +84,10 @@ class Model(ModelT):
                 Note, these are regarded as defaults, and any fields also
                 present in the message takes precedence.
         """
-        return cls(
-            loads(cls._options.serializer or default_serializer, s),
-        )
+        data = loads(cls._options.serializer or default_serializer, s)
+        if isinstance(data, Mapping) and '__faust' in data:
+            return registry[data['__faust']['ns']](data)
+        return cls(data)
 
     @classmethod
     def as_schema(cls) -> Mapping:
@@ -117,6 +118,7 @@ class Model(ModelT):
     def __init_subclass__(cls,
                           serializer: str = None,
                           namespace: str = None,
+                          include_metadata: bool = True,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function to make it
         # possible to initialize subclasses without using metaclasses
@@ -127,12 +129,13 @@ class Model(ModelT):
         # and so thinks we are mutating a ClassVar when setting
         #   cls.__abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
-        cls._init_subclass(serializer, namespace)
+        cls._init_subclass(serializer, namespace, include_metadata)
 
     @classmethod
     def _init_subclass(cls,
                        serializer: str = None,
-                       namespace: str = None) -> None:
+                       namespace: str = None,
+                       include_metadata: bool = True) -> None:
         if cls.__abstract__:
             # Custom base classes can set this to skip class initialization.
             cls.__abstract__ = False
@@ -141,12 +144,18 @@ class Model(ModelT):
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='avro', namespace='com.vandelay.X'):
         #        ...
-        custom_options = getattr(cls, '_options', None)
+        try:
+            custom_options = cls.Options
+        except AttributeError:
+            custom_options = None
+        else:
+            delattr(cls, 'Options')
         options = ModelOptions()
         if custom_options:
             options.__dict__.update(custom_options.__dict__)
         if serializer is not None:
             options.serializer = serializer
+        options.include_metadata = include_metadata
         options.namespace = namespace or qualname(cls)
 
         # Add introspection capabilities

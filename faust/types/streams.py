@@ -77,6 +77,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
+    current_event: EventT = None
 
     children: List[JoinableT] = None
 
