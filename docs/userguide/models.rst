@@ -53,7 +53,7 @@ field is an error:
     Traceback (most recent call last):
     File "<stdin>", line 1, in <module>
     File "/opt/devel/faust/faust/models/record.py", line 96, in __init__
-        self._init_fields(fields, using_args=False)
+        self._init_fields(fields)
     File "/opt/devel/faust/faust/models/record.py", line 106, in _init_fields
         type(self).__name__, ', '.join(sorted(missing))))
     TypeError: Point missing required arguments: y
