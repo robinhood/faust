@@ -4,6 +4,7 @@ from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
     ConsumerProtocolMemberMetadata, ConsumerProtocolMemberAssignment,
 )
+from logging import getLogger
 from typing import MutableMapping, Set, cast
 from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
@@ -11,6 +12,8 @@ from .copartitioned_assignor import CopartitionedAssignor
 
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 ClientAssignmentMapping = MutableMapping[str, ClientAssignment]
+
+logger = getLogger(__name__)
 
 
 class PartitionAssignor(AbstractPartitionAssignor):
@@ -47,6 +50,9 @@ class PartitionAssignor(AbstractPartitionAssignor):
         topics_by_partitions: MutableMapping[int, Set] = defaultdict(set)
         for topic in topics:
             num_partitions = len(cluster.partitions_for_topic(topic) or set())
+            if num_partitions == 0:
+                logger.warning(f'Ignoring missing topic: {topic}')
+                continue
             topics_by_partitions[num_partitions].add(topic)
         return topics_by_partitions
 
