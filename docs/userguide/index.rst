@@ -11,6 +11,7 @@
     :maxdepth: 1
 
     application
+    actors
     tasks
     streams
     tables
