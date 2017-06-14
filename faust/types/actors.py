@@ -1,7 +1,8 @@
 import abc
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, Union,
+    Any, AsyncIterable, AsyncIterator, Awaitable,
+    Callable, Iterable, List, Tuple, Union, no_type_check,
 )
 from ..utils.types.services import ServiceT
 from .codecs import CodecArg
@@ -18,6 +19,7 @@ __all__ = [
     'ActorErrorHandler',
     'ActorFun',
     'ActorT',
+    'ReplyToArg'
 ]
 
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
@@ -26,6 +28,8 @@ ActorFun = Callable[[AsyncIterator], Union[Awaitable, AsyncIterable]]
 #: A sink can be: Actor, Topic,
 #: or callable/async callable taking value as argument.
 SinkT = Union['ActorT', TopicT, Callable[[Any], Union[Awaitable, None]]]
+
+ReplyToArg = Union['ActorT', TopicT, str]
 
 
 class ActorT(ServiceT):
@@ -72,7 +76,7 @@ class ActorT(ServiceT):
             key: K = None,
             value: V = None,
             partition: int = None,
-            reply_to: Union[str, TopicT] = None,
+            reply_to: ReplyToArg = None,
             correlation_id: str = None) -> Any:
         ...
 
@@ -85,7 +89,7 @@ class ActorT(ServiceT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             *,
-            reply_to: Union[str, TopicT, 'ActorT'] = None,
+            reply_to: ReplyToArg = None,
             correlation_id: str = None,
             wait: bool = True) -> Awaitable:
         ...
@@ -95,6 +99,38 @@ class ActorT(ServiceT):
                   partition: int = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    @no_type_check  # XXX mypy bugs out on this
+    async def map(
+            self,
+            values: Union[AsyncIterable, Iterable],
+            key: K = None,
+            reply_to: ReplyToArg = None) -> AsyncIterator:
+        ...
+
+    @abc.abstractmethod
+    @no_type_check  # XXX mypy bugs out on this
+    async def kvmap(
+            self,
+            items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
+            reply_to: ReplyToArg = None) -> AsyncIterator[str]:
+        ...
+
+    @abc.abstractmethod
+    async def join(
+            self,
+            values: Union[AsyncIterable[V], Iterable[V]],
+            key: K = None,
+            reply_to: ReplyToArg = None) -> List[Any]:
+        ...
+
+    @abc.abstractmethod
+    async def kvjoin(
+            self,
+            items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
+            reply_to: ReplyToArg = None) -> List[Any]:
         ...
 
     @property

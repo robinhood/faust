@@ -3,13 +3,15 @@ import typing
 from collections import defaultdict
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Iterable, List, MutableMapping, MutableSequence, Union, cast,
+    Iterable, List, MutableMapping, MutableSequence, Set, Tuple, Union, cast,
 )
 from uuid import uuid4
 from weakref import WeakSet
 from . import Record
 from .types import AppT, CodecArg, K, ModelT, StreamT, TopicT, V
-from .types.actors import ActorFun, ActorErrorHandler, ActorT, SinkT
+from .types.actors import (
+    ActorFun, ActorErrorHandler, ActorT, ReplyToArg, SinkT,
+)
 from .utils.aiter import aiter
 from .utils.collections import NodeT
 from .utils.futures import maybe_async
@@ -55,24 +57,80 @@ class ReqRepResponse(Record, serializer='json', namespace='@RRRes'):
     correlation_id: str
 
 
-class ReplyPromise(Awaitable):
-    actor: ActorT
-    req: ReqRepRequest
-    _future: asyncio.Future
+class ReplyPromise(asyncio.Future):
+    """Reply promise can be awaited to wait until result ready."""
+    reply_to: str
+    correlation_id: str
 
-    def __init__(self, actor: ActorT, req: ReqRepRequest,
-                 *,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        self.actor = actor
-        self.req = req
-        self.loop = loop
-        self._future = asyncio.Future(loop=self.loop)
+    def __init__(self, reply_to: str, correlation_id: str,
+                 **kwargs: Any) -> None:
+        self.reply_to = reply_to
+        self.correlation_id = correlation_id
+        super().__init__(**kwargs)
 
-    def fulfill(self, value: Any) -> None:
-        self._future.set_result(value)
+    def fulfill(self, correlation_id: str, value: Any) -> None:
+        assert correlation_id == self.correlation_id
+        self.set_result(value)
 
-    def __await__(self) -> Any:
-        return self._future.__await__()
+
+class BarrierState(ReplyPromise):
+    #: This is the size while the messages are being sent.
+    #: (it's a tentative total, added to until the total is finalized).
+    size: int = 0
+
+    #: This is the actual total when all messages have been sent.
+    #: It's set by :meth:`finalize`.
+    total: int = 0
+
+    #: The number of results we have received.
+    fulfilled: int = 0
+
+    #: Internal queue where results are added to.
+    _results: asyncio.Queue
+
+    #: Set of pending replies that this barrier is composed of.
+    pending: Set[ReplyPromise]
+
+    def __init__(self, reply_to: str, **kwargs: Any) -> None:
+        super().__init__(reply_to=reply_to, correlation_id=None, **kwargs)
+        self.pending = set()
+        loop: asyncio.AbstractEventLoop = self._loop  # type: ignore
+        self._results = asyncio.Queue(loop=loop)
+
+    def add(self, p: ReplyPromise) -> None:
+        self.pending.add(p)
+        self.size += 1
+
+    def finalize(self) -> None:
+        self.total = self.size
+        # The barrier may have been filled up already at this point,
+        if self.fulfilled >= self.total:
+            self.set_result(True)
+
+    def fulfill(self, correlation_id: str, value: Any) -> None:
+        # ReplyConsumer calls this whenever a new reply is received.
+        self._results.put_nowait((correlation_id, value))
+        self.fulfilled += 1
+        if self.total:
+            if self.fulfilled >= self.total:
+                self.set_result(True)
+
+    def get_nowait(self) -> Tuple[str, Any]:
+        """Return next reply, or raise :exc:`asyncio.QueueEmpty`."""
+        return self._results.get_nowait()
+
+    async def iterate(self) -> AsyncIterator[Tuple[str, Any]]:
+        """Iterate over results as arrive."""
+        get = self._results.get
+        get_nowait = self._results.get_nowait
+        is_done = self.done
+        while not is_done():
+            yield await get()
+        while 1:
+            try:
+                yield get_nowait()
+            except asyncio.QueueEmpty:
+                break
 
 
 class ReplyConsumer(Service):
@@ -90,11 +148,11 @@ class ReplyConsumer(Service):
     async def on_start(self) -> None:
         self._start_fetcher(self.app.reply_to)
 
-    def add(self, promise: ReplyPromise) -> None:
-        reply_topic = promise.req.reply_to
+    def add(self, correlation_id: str, promise: ReplyPromise) -> None:
+        reply_topic = promise.reply_to
         if reply_topic not in self._fetchers:
             self._start_fetcher(reply_topic)
-        self._waiting[promise.req.correlation_id].add(promise)
+        self._waiting[correlation_id].add(promise)
 
     def _start_fetcher(self, topic: str) -> None:
         if topic not in self._fetchers:
@@ -106,7 +164,7 @@ class ReplyConsumer(Service):
         await topic.maybe_declare()
         async for reply in topic.stream():
             for promise in self._waiting[reply.correlation_id]:
-                promise.fulfill(reply.value)
+                promise.fulfill(reply.correlation_id, reply.value)
 
     def _reply_topic(self, topic: str) -> TopicT:
         return self.app.topic(
@@ -350,7 +408,7 @@ class Actor(ActorT, ServiceProxy):
             key: K = None,
             value: V = None,
             partition: int = None,
-            reply_to: Union[str, TopicT] = None,
+            reply_to: ReplyToArg = None,
             correlation_id: str = None) -> Any:
         p = await self.send(
             key, value,
@@ -358,7 +416,7 @@ class Actor(ActorT, ServiceProxy):
             reply_to=reply_to or self.app.reply_to,
             correlation_id=correlation_id,
         )
-        self.app._reply_consumer.add(p)  # type: ignore
+        self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
         return await p
 
     async def send(
@@ -369,17 +427,16 @@ class Actor(ActorT, ServiceProxy):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             *,
-            reply_to: Union[str, TopicT, ActorT] = None,
+            reply_to: ReplyToArg = None,
             correlation_id: str = None,
             wait: bool = True) -> Union[Awaitable, ReplyPromise]:
         """Send message to topic used by actor."""
-        if isinstance(reply_to, ActorT):
-            reply_to = cast(ActorT, reply_to).topic
         if reply_to:
+            topic_name = self._get_strtopic(reply_to)
             correlation_id = correlation_id or str(uuid4())
             request = ReqRepRequest(
                 value=value,
-                reply_to=reply_to,
+                reply_to=topic_name,
                 correlation_id=correlation_id,
             )
             await self.topic.send(
@@ -387,13 +444,20 @@ class Actor(ActorT, ServiceProxy):
                 key_serializer, value_serializer,
                 wait=wait,
             )
-            return ReplyPromise(self, request)
+            return ReplyPromise(request.reply_to, request.correlation_id)
         else:
             return await self.topic.send(
                 key, request, partition,
                 key_serializer, value_serializer,
                 wait=wait,
             )
+
+    def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:
+        if isinstance(topic, ActorT):
+            return self._get_strtopic(cast(ActorT, topic).topic)
+        if isinstance(topic, TopicT):
+            return cast(TopicT, topic).topics[0]
+        return cast(str, topic)
 
     def send_soon(self, key: K, value: V,
                   partition: int = None,
@@ -402,6 +466,102 @@ class Actor(ActorT, ServiceProxy):
         """Send message eventually (non async), to topic used by actor."""
         return self.topic.send_soon(key, value, partition,
                                     key_serializer, value_serializer)
+
+    async def map(
+            self,
+            values: Union[AsyncIterable, Iterable],
+            key: K = None,
+            reply_to: ReplyToArg = None) -> AsyncIterator:
+        # Map takes only values, but can provide one key that is used for all.
+        async for value in self.kvmap(
+                ((key, v) async for v in aiter(values)), reply_to):
+            yield value
+
+    async def kvmap(
+            self,
+            items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
+            reply_to: ReplyToArg = None) -> AsyncIterator[str]:
+        # kvmap takes (key, value) pairs.
+        reply_to = self._get_strtopic(reply_to or self.app.reply_to)
+
+        # BarrierState is the promise that keeps track of pending results.
+        # It contains a list of individual ReplyPromises.
+        barrier = BarrierState(reply_to)
+
+        async for _ in self._barrier_send(barrier, items, reply_to):
+            # Now that we've sent a message, try to see if we have any
+            # replies.
+            try:
+                _, val = barrier.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+            else:
+                yield val
+        # All the messages have been sent so finalize the barrier.
+        barrier.finalize()
+
+        # Then iterate over the results in the group.
+        async for _, value in barrier.iterate():
+            yield value
+
+    async def join(
+            self,
+            values: Union[AsyncIterable[V], Iterable[V]],
+            key: K = None,
+            reply_to: ReplyToArg = None) -> List[Any]:
+        return await self.kvjoin(
+            ((key, value) async for value in aiter(values)),
+            reply_to=reply_to,
+        )
+
+    async def kvjoin(
+            self,
+            items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
+            reply_to: ReplyToArg = None) -> List[Any]:
+        reply_to = self._get_strtopic(reply_to or self.app.reply_to)
+        barrier = BarrierState(reply_to)
+
+        # Map correlation_id -> index
+        posindex: MutableMapping[str, int] = {}
+        i = 0
+        async for cid in self._barrier_send(barrier, items, reply_to):
+            posindex[cid] = i
+            i += 1
+
+        # All the messages have been sent so finalize the barrier.
+        barrier.finalize()
+
+        # wait until all replies received
+        await barrier
+        # then construct a list in the correct order.
+        values: List = [None] * barrier.total
+        async for correlation_id, value in barrier.iterate():
+            values[posindex[correlation_id]] = value
+        return values
+
+    async def _barrier_send(
+            self,
+            barrier: BarrierState,
+            items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
+            reply_to: ReplyToArg) -> AsyncIterator[str]:
+        # Send all the values in the group
+        # while trying to pop incoming results off.
+        async for key, value in aiter(items):
+            correlation_id = str(uuid4())
+            p = cast(ReplyPromise, await self.send(
+                key=key,
+                value=value,
+                reply_to=reply_to,
+                correlation_id=correlation_id))
+            # add reply promise to the barrier
+            barrier.add(p)
+
+            # the ReplyConsumer will call the barrier whenever a new
+            # result comes in.
+            self.app._reply_consumer.add(  # type: ignore
+                p.correlation_id, barrier)
+
+            yield correlation_id
 
     @cached_property
     def source(self) -> AsyncIterator:
