@@ -4,7 +4,7 @@ from typing import (
 from ..serializers.avro import to_avro_type
 from ..types.models import ModelT, ModelOptions
 from ..utils.objects import annotations
-from .base import FieldDescriptor, Model, registry
+from .base import FieldDescriptor, Model
 
 __all__ = ['Record']
 
@@ -124,8 +124,9 @@ class Record(Model):
         for _field, _typ in self._options.models.items():
             _data = fields.get(_field)
             if _data is not None and not isinstance(_data, ModelT):
-                if isinstance(_data, Mapping) and '__faust' in _data:
-                    _data = registry[_data['__faust']['ns']](_data)
+                self_cls = self._maybe_namespace(_data)
+                if self_cls:
+                    _data = self_cls(_data)
                 elif _typ is not ModelT:  # is not base class
                     _data = _typ(_data)
             self.__dict__[_field] = _data

@@ -2,23 +2,25 @@ import faust
 from typing import AsyncIterator
 
 
-class Log(faust.Record, serializer='json'):
-    account: str
-    value: float
+app = faust.App('RPC99')
+pow_topic = app.topic('RPC__pow')
+mul_topic = app.topic('RPC__mul')
 
 
+@app.actor(pow_topic)
+async def pow(stream: AsyncIterator[float]) -> AsyncIterator[float]:
+    async for value in stream:
+        print(f'POW RECEIVED: {value!r}')
+        yield await mul.ask(value=value ** 2)
 
-app = faust.App('RPC')
-topic = app.topic('RPC', value_type=Log)
 
-
-@app.actor(topic)
-async def foo(stream: AsyncIterator[Log]) -> AsyncIterator[float]:
-    async for event in stream:
-        print('RECEIVED: %r' % (event,))
-        yield event.value ** 2
+@app.actor(mul_topic)
+async def mul(stream: AsyncIterator[float]) -> AsyncIterator[float]:
+    async for value in stream:
+        print(f'MUL RECEIVED: {value!r}')
+        yield value * 100.0
 
 
 @app.timer(interval=10.0)
 async def _sender():
-    print(await foo.ask(value=Log(account='foo', value=30.3)))
+    print(await pow.ask(value=30.3))

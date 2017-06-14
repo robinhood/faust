@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Mapping, MutableMapping, Optional, Type, cast
+from typing import Any, MutableMapping, Optional, Type, cast
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import K, V, ModelArg, ModelT
 from ..types.serializers import AsyncSerializerT, RegistryT
@@ -41,8 +41,9 @@ class Registry(RegistryT):
         if key is None or typ is None:
             return key
         try:
-            if isinstance(typ, (str, CodecT)):
-                k = await self._loads(self.key_serializer, key)
+            if typ is None or isinstance(typ, (str, CodecT)):
+                k = self.Model._maybe_reconstruct(
+                    await self._loads(self.key_serializer, key))
             else:
                 k = await self._loads_model(
                     cast(Type[ModelT], typ), self.key_serializer, key)
@@ -58,9 +59,8 @@ class Registry(RegistryT):
             data: bytes) -> Any:
         data = await self._loads(
             typ._options.serializer or default_serializer, data)
-        if isinstance(data, Mapping) and '__faust' in data:
-            typ = self.models[data['__faust']['ns']]
-        return typ(data)
+        self_cls = self.Model._maybe_namespace(data)
+        return self_cls(data) if self_cls else typ(data)
 
     async def _loads(self, serializer: CodecArg, data: bytes) -> Any:
         try:
@@ -81,8 +81,9 @@ class Registry(RegistryT):
             return None
         try:
             serializer = self.value_serializer
-            if isinstance(typ, (str, CodecT)):
-                return await self._loads(serializer, value)
+            if typ is None or isinstance(typ, (str, CodecT)):
+                return self.Model._maybe_reconstruct(
+                    await self._loads(serializer, value))
             else:
                 return await self._loads_model(
                     cast(Type[ModelT], typ), serializer, value)
@@ -159,6 +160,6 @@ class Registry(RegistryT):
             return cast(AsyncSerializerT, ser)
 
     @cached_property
-    def models(self) -> Mapping[str, Type[ModelT]]:
-        from ..models.base import registry
-        return registry
+    def Model(self) -> Type[ModelT]:
+        from ..models.base import Model
+        return Model

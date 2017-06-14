@@ -1,5 +1,7 @@
 """Serializing/deserializing message keys and values."""
-from typing import Any, ClassVar, Dict, Mapping, MutableMapping, Tuple, Type
+from typing import (
+    Any, ClassVar, Dict, Mapping, MutableMapping, Optional, Tuple, Type,
+)
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
@@ -71,6 +73,17 @@ class Model(ModelT):
     _schema_cache: ClassVar[schema.Schema] = None
 
     @classmethod
+    def _maybe_namespace(cls, data: Any) -> Optional[Type[ModelT]]:
+        if isinstance(data, Mapping) and '__faust' in data:
+            return registry[data['__faust']['ns']]
+        return None
+
+    @classmethod
+    def _maybe_reconstruct(cls, data: Any) -> Any:
+        model = cls._maybe_namespace(data)
+        return model(data) if model else data
+
+    @classmethod
     def loads(
             cls, s: bytes,
             *,
@@ -85,9 +98,8 @@ class Model(ModelT):
                 present in the message takes precedence.
         """
         data = loads(cls._options.serializer or default_serializer, s)
-        if isinstance(data, Mapping) and '__faust' in data:
-            return registry[data['__faust']['ns']](data)
-        return cls(data)
+        self_cls = cls._maybe_namespace(data)
+        return self_cls(data) if self_cls else cls(data)
 
     @classmethod
     def as_schema(cls) -> Mapping:
