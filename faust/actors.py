@@ -2,7 +2,7 @@ import asyncio
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
     Iterable, List, MutableMapping, MutableSequence, Union, cast,
 )
 from uuid import uuid4
@@ -319,7 +319,12 @@ class Actor(ActorT, ServiceProxy):
 
     async def _delegate_to_sinks(self, value: Any) -> None:
         for sink in self._sinks:
-            await maybe_async(sink(value))
+            if isinstance(sink, ActorT):
+                await cast(ActorT, sink).send(value=value)
+            elif isinstance(sink, TopicT):
+                await cast(TopicT, sink).send(value=value)
+            else:
+                await maybe_async(cast(Callable, sink)(value))
 
     async def _reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
         assert req.reply_to

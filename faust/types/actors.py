@@ -22,7 +22,10 @@ __all__ = [
 
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
 ActorFun = Callable[[AsyncIterator], Union[Awaitable, AsyncIterable]]
-SinkT = Callable[[Any], Union[Awaitable, None]]
+
+#: A sink can be: Actor, Topic,
+#: or callable/async callable taking value as argument.
+SinkT = Union['ActorT', TopicT, Callable[[Any], Union[Awaitable, None]]]
 
 
 class ActorT(ServiceT):
