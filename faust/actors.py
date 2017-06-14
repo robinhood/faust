@@ -145,6 +145,7 @@ class ActorInstance(Service):
 
 
 class AsyncIterableActor(ActorInstance, AsyncIterable):
+    """Used for actor function that yields."""
     it: AsyncIterable
 
     def __init__(self,
@@ -162,6 +163,7 @@ class AsyncIterableActor(ActorInstance, AsyncIterable):
 
 
 class AwaitableActor(ActorInstance, Awaitable):
+    """Used for actor function that do not yield."""
     coro: Awaitable
 
     def __init__(self,

@@ -243,3 +243,23 @@ anyone wants to learn Python typing.
 
     Not really a task, but a note to keep checking when this is fixed
     in a future mypy version.
+
+
+Workflows
+=========
+
+Things to replace Celery, maybe not in Core but in a separate library.
+
+- Chains
+
+- Chords/Barrier
+
+    synchronization should be possible:
+        ``chord_id = uuid(); requests = [....]``,
+    then each actor forwards a completion message to an actor that keeps
+    track of counts::
+
+        chord_unlock.send(key=chord_id, value=(chord_size, callback)
+
+     when the `chord_unlock` actor sees that ``count > chord_size``, it
+     calls the callback
