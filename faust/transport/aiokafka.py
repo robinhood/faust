@@ -312,7 +312,10 @@ class Transport(base.Transport):
         owner.log.info(f'Creating topic {topic}')
         protocol_version = 1
         config = config or self._topic_config(retention, compacting, deleting)
-        node_id = next(broker.nodeId for broker in client.cluster.brokers())
+        node_id = next((broker.nodeId
+                        for broker in client.cluster.brokers()), None)
+        if node_id is None:
+            raise RuntimeError('Not connected to Kafka broker')
         request = CreateTopicsRequest[protocol_version](
             [(topic, partitions, replication, [], list(config.items()))],
             timeout,
