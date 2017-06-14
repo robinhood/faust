@@ -144,6 +144,14 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def start_client(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def maybe_start_client(self) -> None:
+        ...
+
+    @abc.abstractmethod
     async def send(
             self, topic: Union[TopicT, str],
             key: K = None,

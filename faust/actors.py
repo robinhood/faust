@@ -146,22 +146,26 @@ class ReplyConsumer(Service):
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
-        self._start_fetcher(self.app.reply_to)
+        await self._start_fetcher(self.app.reply_to)
 
-    def add(self, correlation_id: str, promise: ReplyPromise) -> None:
+    async def add(self, correlation_id: str, promise: ReplyPromise) -> None:
         reply_topic = promise.reply_to
         if reply_topic not in self._fetchers:
-            self._start_fetcher(reply_topic)
+            await self._start_fetcher(reply_topic)
         self._waiting[correlation_id].add(promise)
 
-    def _start_fetcher(self, topic: str) -> None:
-        if topic not in self._fetchers:
-            self._fetchers[topic] = self.add_future(
+    async def _start_fetcher(self, topic_name: str) -> None:
+        if topic_name not in self._fetchers:
+            # set the key as a lock, so it doesn't happen twice
+            self._fetchers[topic_name] = None
+            # declare the topic
+            topic = self._reply_topic(topic_name)
+            await topic.maybe_declare()
+            # then create the future
+            self._fetchers[topic_name] = self.add_future(
                 self._drain_replies(topic))
 
-    async def _drain_replies(self, topic_name: str):
-        topic = self._reply_topic(topic_name)
-        await topic.maybe_declare()
+    async def _drain_replies(self, topic: TopicT):
         async for reply in topic.stream():
             for promise in self._waiting[reply.correlation_id]:
                 promise.fulfill(reply.correlation_id, reply.value)
@@ -416,7 +420,8 @@ class Actor(ActorT, ServiceProxy):
             reply_to=reply_to or self.app.reply_to,
             correlation_id=correlation_id,
         )
-        self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
+        await self.app.maybe_start_client()
+        await self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
         return await p
 
     async def send(
@@ -558,7 +563,8 @@ class Actor(ActorT, ServiceProxy):
 
             # the ReplyConsumer will call the barrier whenever a new
             # result comes in.
-            self.app._reply_consumer.add(  # type: ignore
+            await self.app.maybe_start_client()
+            await self.app._reply_consumer.add(  # type: ignore
                 p.correlation_id, barrier)
 
             yield correlation_id

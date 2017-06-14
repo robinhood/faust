@@ -82,17 +82,37 @@ logger = get_logger(__name__)
 
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
+    client_only: bool
+
     logger = logger
 
     # App is created in module scope so we split it up to ensure
     # Service.loop does not create the asyncio event loop
     # when a module is imported.
 
-    def __init__(self, app: 'App', **kwargs: Any) -> None:
+    def __init__(self, app: 'App',
+                 *,
+                 client_only: bool = False,
+                 **kwargs: Any) -> None:
         self.app: App = app
+        self.client_only = client_only
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        if self.client_only:
+            return self._components_client()
+        return self._components_server()
+
+    def _components_client(self) -> Iterable[ServiceT]:
+        return cast(Iterable[ServiceT], chain(
+            [self.app.producer],
+            [self.app.consumer],
+            [self.app._reply_consumer],
+            [self.app.sources],
+            [self.app._fetcher],
+        ))
+
+    def _components_server(self) -> Iterable[ServiceT]:
         # Add all asyncio.Tasks, like timers, etc.
         for task in self.app._tasks:
             self.add_future(task())
@@ -407,6 +427,14 @@ class App(AppT, ServiceProxy):
             raise ValueError(
                 f'Table with name {table.name!r} already exists')
         self.tables[table.name] = table
+
+    async def start_client(self) -> None:
+        self._service.client_only = True
+        await self._service.maybe_start()
+
+    async def maybe_start_client(self) -> None:
+        if not self._service.started:
+            await self.start_client()
 
     async def send(
             self,
