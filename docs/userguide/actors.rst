@@ -141,7 +141,7 @@ argument.
 
     Since having concurrent instances of an actor means that events in
     the stream will be processed out of order, it's very important that
-    you do not mutate :ref:`table <guide-tables>` from witin the
+    you do not mutate :ref:`tables <guide-tables>` from witin the
     actor function:
 
     An actor with `concurrency > 1`, can only read from a table, never write.
