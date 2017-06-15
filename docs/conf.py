@@ -22,6 +22,7 @@ globals().update(conf.build_config(
         'sphinx_autodoc_annotation',
         'sphinxcontrib.asyncio',
         'alabaster',
+        'faustdocs',
     ],
     extra_intersphinx_mapping={
         'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
