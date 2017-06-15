@@ -21,28 +21,36 @@ Actors add a convenient interface on top of the primitives in Faust,
 you don't have to use them but it makes developing application easier.
 
 An actor in Faust is an async function that takes a stream as argument
-and iterates over it:
+and iterates over it.
+
+Here's an example actor that adds numbers:
 
 .. code-block:: python
+
     # examples/actor.py
 
     import faust
 
-    # the record describes the data sent to our actor
+    # The model describes the data sent to our actor,
+    # and in our case we will use a JSON serialized dictionary
+    # with two integer fields: a, and b.
     class Add(faust.Record):
         a: int
         b: int
 
+    # Next, we create the Faust application object that
+    # configures our environment.
     app = faust.App('actor-example')
-    # TIP: You may also reuse topics used by other systems
-    # Faust actors are compatible with any topic, as long as it
-    # can deserialize what's in it (while json is the default
-    # serialization is extensible).
+
+    # The Kafka topic used by our actor is named 'adding',
+    # and we specify that the values in this topic are of the Add model.
+    # (you can also specify the key_type if your topic uses keys).
     topic = app.topic('adding', value_type=Add)
 
     @app.actor(topic)
     async def adding(stream):
         async for value in stream:
+            # here we receive Add objects, add a + b.
             yield value.a + value.b
 
 Starting a worker will now start a single instance of this actor:
@@ -80,6 +88,7 @@ To send values to it, you can open a second console to run this program:
     The same function above can be annotated like this:
 
     .. code-block:: python
+
         from typing import AsyncIterable
         from faust import StreamT
 
@@ -92,6 +101,34 @@ To send values to it, you can open a second console to run this program:
 Defining actors
 ===============
 
+.. _actor-topic:
+
+The topic argument to the actor decorator defines the main topic
+that actor reads from (this implies it's not necessarily the only
+topic, as is the case when using stream joins, for example).
+
+Topics are defined using the :meth:`@topic` helper, and returns a
+:class:`faust.Topic` description:
+
+    topic = app.topic('topic_name1', 'topic_name2',
+                      key_type=Model,
+                      value_type=Model,
+                      ...)
+
+If the topic description provides multiple topic names, the main
+topic of the actor will be the first topic in that list (``"topic_name1"``).
+
+The ``key_type`` and ``value_type`` describes how messages in the topics
+are serialized.  This can either be a model (such as :class:`faust.Record`,
+), a :class:`faust.Codec`, or the name of a serializer.  If not specified
+then the default serializer defined by the app will be used.
+
+.. tip::
+
+    If you don't specify a topic, the actor will use the actor name
+    as topic: the name will be the fully qualified name of the actor function
+    (e.g. ``examples.actor.adder``).
+
 .. _actor-concurrency:
 
 Concurrency
@@ -100,11 +137,12 @@ Concurrency
 You can start multiple instances of an actor by specifying the ``concurrency``
 argument.
 
-Since having concurrent instances of an actor means that events in the
-stream will be processed out of order, it's very important that you do not
-populate tables:
-
 .. warning::
+
+    Since having concurrent instances of an actor means that events in
+    the stream will be processed out of order, it's very important that
+    you do not mutate :ref:`table <guide-tables>` from witin the
+    actor function:
 
     An actor with `concurrency > 1`, can only read from a table, never write.
 
@@ -128,74 +166,66 @@ Sinks
 -----
 
 Sinks can be used to perform additional actions after the actor has processed
-an event in the stream.  A sink can be: callable, async callable, a topic or
+an event in the stream, such as forwarding alerts to a monitoring system,
+logging to Slack, etc. A sink can be callable, async callable, a topic or
 another actor.
 
 Function Callback
-~~~~~~~~~~~~~~~~~
+    Regular functions take a single argument (the value yielded by the actor):
 
-Regular functions take a single argument (the value yielded by the actor):
+    .. code-block:: python
 
-.. code-block:: python
+        def mysink(value):
+            print(f'ACTOR YIELD: {value!r}')
 
-    def mysink(value):
-        print(f'ACTOR YIELD: {value!r}')
-
-    @app.actor(sink=[mysink])
-    async def myactor(stream):
-        ...
+        @app.actor(sink=[mysink])
+        async def myactor(stream):
+            ...
 
 Async Function Callback
-~~~~~~~~~~~~~~~~~~~~~~~
+    Async functions can also be used, in this case the async function will be
+    awaiated by the actor:
 
-Async functions can also be used, in this case the async function will be
-awaiated by the actor:
+    .. code-block:: python3
 
-.. code-block:: python3
+        async def mysink(value):
+            print(f'ACTOR YIELD: {value!r}')
+            # This will force the actor instance that yielded this value
+            # to sleep for 1.0 second before continuing on the next event
+            # in the stream.
+            await asyncio.sleep(1)
 
-    async def mysink(value):
-        print(f'ACTOR YIELD: {value!r}')
-        # This will force the actor instance that yielded this value
-        # to sleep for 1.0 second before continuing on the next event
-        # in the stream.
-        await asyncio.sleep(1)
-
-    @app.actor(sink=[mysink])
-    async def myactor(stream):
-        ...
-
+        @app.actor(sink=[mysink])
+        async def myactor(stream):
+            ...
 
 Topic
-~~~~~
+    Specifying a topic as sink will force the actor to forward yielded values
+    to that topic:
 
-Specifying a topic as sink will force the actor to forward yielded values
-to that topic:
+    .. code-block:: python
 
-.. code-block:: python
+        actor_log_topic = app.topic('actor_log')
 
-    actor_log_topic = app.topic('actor_log')
-
-    @app.actor(sink=[actor_log_topic])
-    async def myactor(stream):
-        ...
+        @app.actor(sink=[actor_log_topic])
+        async def myactor(stream):
+            ...
 
 Another Actor
-~~~~~~~~~~~~~
+    Specyfing another actor as sink will force the actor to forward yielded
+    values to that actor:
 
-Specyfing another actor as sink will force the actor to forward yielded
-values to that actor:
+    .. code-block:: python
 
-.. code-block:: python
+        @app.actor()
+        async def actor_b(stream):
+            async for event in stream:
+                print(f'ACTOR B RECEIVED: {event!r}')
 
-    @app.actor()
-    async def actor_b(stream):
-        async for event in stream:
-            print(f'ACTOR B RECEIVED: {event!r}')
-
-    @app.actor(sink=[actor_b])
-    async def actor_a(stream):
-        async for event in stream:
-            print(f'ACTOR A RECEIVED: {event!r}')
+        @app.actor(sink=[actor_b])
+        async def actor_a(stream):
+            async for event in stream:
+                print(f'ACTOR A RECEIVED: {event!r}')
 
 Using actors
 ============
@@ -212,38 +242,70 @@ replies to the current process.
 Performing a ``cast`` means no reply is expected, you are only sending the
 actor a message, not expecting a reply back.
 
+``cast(value, *, key=None, partition=None)``
+    Casting a value to an actor is asynchronous:
 
-``cast``
-~~~~~~~~
+    .. code-block:: python
 
-Casting a value to an actor is asynchronous:
+        await adder.cast(Add(a=2, b=2))
 
-.. code-block:: python
+    The actor will receive this value, but it will not send a reply.
 
-    await adder.cast(Add(a=2, b=2))
+``ask(value, *, key=None, partition=None, reply_to=None, correlation_id=None)``
 
-The actor will receive this value, but it will not send a reply.
+    Asking an actor will send a reply back to the current process:
 
-``ask``
-~~~~~~~
+    .. code-block:: python
 
-Asking an actor will send a reply back to the current process:
+        value = await adder.ask(Add(a=2, b=2))
+        assert value == 4
 
-.. code-block:: python
+``send(key, value, partition, reply_to=None, correlation_id=None)``
+    The ``Actor.send`` method is the underlying mechanism used by ``cast`` and
+    ``ask``, and enables you to request that a reply is sent to another actor
+    or a specific topic.
 
-    value = await adder.ask(Add(a=2, b=2))
-    assert value == 4
+    Send to another actor:
 
+    .. code-block:: python
 
-``send``
-~~~~~~~~
+        await adder.send(value=Add(a=2, b=2), reply_to=another_actor)
 
-The ``Actor.send`` method is the underlying mechanism used by ``cast`` and
-``ask``, and enables you to request that a reply is sent to another actor or a
-specific topic.
+Streaming Map/Reduce
+--------------------
 
-Send to another actor:
+The actor also provides operations for streaming values to the actors and
+gathering the results: ``map`` streams results as they come in (unordered),
+and ``join`` waits until the operations are complete and return the results
+in order as a list.
 
-.. code-block:: python
+``map(values: Union[AsyncIterable[V], Iterable[V]])``
+    Map takes an async iterable, or a regular iterable, and returns an async
+    iterator yielding results as they come in:
 
-    await adder.send(value=Add(a=2, b=2), reply_to=another_actor)
+    .. code-block:: python
+
+        async for reply in actor.map([1, 2, 3, 4, 5, 6, 7, 8]):
+            print(f'RECEIVED REPLY: {reply!r}')
+
+    The iterator will start before all the messages have been sent, and
+    should be efficient even for infinite lists.  Note that order of replies
+    is not preserved since the map is executed concurrently.
+
+``kvmap(items: Union[AsyncIterable[Tuple[K, V], Iterable[Tuple[K, V]]]])``
+    Same as ``map``, but takes an async iterable/iterable of ``(key, value)`` tuples,
+    where the key in each pair is used as the Kafka message key.
+
+``join(values: Union[AsyncIterable[V], Iterable[V]])``
+    Join works like ``map`` but will wait until all of the values have been
+    processed and returns them as a list in the original order (so
+    cannot be used for infinite lists).
+
+    .. code-block:: python
+
+        results = await pow2.join([1, 2, 3, 4, 5, 6, 7, 8])
+        assert results == [1, 4, 9, 16, 25, 36, 49, 64]
+
+``kvjoin(items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]])``
+    Same as join, but takes an async iterable/iterable of ``(key, value)`` tuples,
+    where the key in each pair is used as the Kafka message key.
