@@ -252,7 +252,6 @@ actor a message, not expecting a reply back.
     The actor will receive this value, but it will not send a reply.
 
 ``ask(value, *, key=None, partition=None, reply_to=None, correlation_id=None)``
-
     Asking an actor will send a reply back to the current process:
 
     .. code-block:: python
