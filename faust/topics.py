@@ -109,16 +109,17 @@ class Topic(TopicT):
         app (AppT): App instance this topic is bound to.
 
     Keyword Arguments:
-        topics: Sequence[str]: List of topic names.
-        partitions: int: Number of partitions for these topics.
+        topics: List of topic names.
+        partitions: Number of partitions for these topics.
             On declaration, topics are created using this.
             Note: kafka cluster configuration is used if message produced
             when topic not declared.
-        retention
-        pattern (Union[str, Pattern]): Regular expression to match.
+        retention: Number of seconds (float/timedelta) to keep messages
+            in the topic before they expire.
+        pattern: Regular expression to match.
             You cannot specify both topics and a pattern.
-        key_type (ModelArg): Model used for keys in this topic.
-        value_type (ModelArg): Model used for values in this topic.
+        key_type: Model used for keys in this topic.
+        value_type: Model used for values in this topic.
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.

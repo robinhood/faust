@@ -39,6 +39,7 @@ if typing.TYPE_CHECKING:
     from .app import App                                      # noqa: E402
     from .models import Record                                # noqa: E402
     from .sensors import Monitor, Sensor                      # noqa: E402
+    from .serializers import Codec                            # noqa: E402
     from .streams.stream import Stream, current_event         # noqa: E402
     from .tables import Set, Table                            # noqa: E402
     from .topics import Event, Topic                          # noqa: E402
@@ -54,6 +55,7 @@ __all__ = [
     'Record',
     'Monitor',
     'Sensor',
+    'Codec',
     'Stream', 'current_event',
     'Set',
     'Table',
@@ -80,6 +82,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.app': ['App'],
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
+    'faust.serializers': ['Codec'],
     'faust.streams.stream': ['Stream', 'current_event'],
     'faust.tables': ['Set', 'Table'],
     'faust.topics': ['Event', 'Topic'],
