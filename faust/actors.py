@@ -16,7 +16,7 @@ from .utils.aiter import aiter
 from .utils.collections import NodeT
 from .utils.futures import maybe_async
 from .utils.logging import get_logger
-from .utils.objects import cached_property, qualname
+from .utils.objects import cached_property, canoname, qualname
 from .utils.services import Service, ServiceProxy
 
 logger = get_logger(__name__)
@@ -295,18 +295,26 @@ class Actor(ActorT, ServiceProxy):
                  *,
                  name: str = None,
                  app: AppT = None,
-                 topic: TopicT = None,
+                 topic: Union[str, TopicT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
-        self.fun: ActorFun = fun
-        self.name = name or qualname(self.fun)
         self.app = app
-        self.topic = topic
+        self.fun: ActorFun = fun
+        self.name = name or canoname(self.fun)
+        self.topic = self._prepare_topic(topic)
         self.concurrency = concurrency
         self._sinks = list(sink) if sink is not None else []
         self._on_error: ActorErrorHandler = on_error
         ServiceProxy.__init__(self)
+
+    def _prepare_topic(self, topic: Union[str, TopicT] = None) -> TopicT:
+        topic = self.name if topic is None else topic
+        if isinstance(topic, TopicT):
+            return cast(TopicT, topic)
+        elif isinstance(topic, str):
+            return self.app.topic(topic)
+        raise TypeError(f'Topic must be Topic, str or None, not {type(topic)}')
 
     def __call__(self) -> ActorInstanceT:
         # The actor function can be reused by other actors/tasks.
@@ -404,15 +412,17 @@ class Actor(ActorT, ServiceProxy):
 
     async def cast(
             self,
-            key: K = None,
             value: V = None,
+            *,
+            key: K = None,
             partition: int = None) -> None:
         await self.send(key, value, partition=partition)
 
     async def ask(
             self,
-            key: K = None,
             value: V = None,
+            *,
+            key: K = None,
             partition: int = None,
             reply_to: ReplyToArg = None,
             correlation_id: str = None) -> Any:

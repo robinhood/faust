@@ -1,13 +1,11 @@
 """Serializing/deserializing message keys and values."""
-import sys
 from typing import (
     Any, ClassVar, Dict, Mapping, MutableMapping, Optional, Tuple, Type,
 )
 from avro import schema
-from pathlib import Path
 from ..serializers.codecs import CodecArg, dumps, loads
 from ..types.models import FieldDescriptorT, ModelT, ModelOptions
-from ..utils.objects import qualname
+from ..utils.objects import canoname
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']
 
@@ -58,23 +56,6 @@ __flake8_ignore_this_Dict: Dict  # XXX
 
 #: Global map of namespace -> Model
 registry: MutableMapping[str, Type[ModelT]] = {}
-
-
-def _detect_namespace(cls: Type) -> str:
-    name = qualname(cls)
-    parts = name.split('.')
-    if parts[0] == '__main__':
-        path = Path(sys.modules['__main__'].__file__).absolute()
-        node = path.parent
-        seen = []
-        while node:
-            if (node / '__init__.py').exists():
-                seen.append(node.stem)
-                node = node.parent
-            else:
-                break
-        return '.'.join(seen + [path.stem] + parts[1:])
-    return name
 
 
 class Model(ModelT):
@@ -187,7 +168,7 @@ class Model(ModelT):
         if serializer is not None:
             options.serializer = serializer
         options.include_metadata = include_metadata
-        options.namespace = namespace or _detect_namespace(cls)
+        options.namespace = namespace or canoname(cls)
 
         # Add introspection capabilities
         cls._contribute_to_options(options)

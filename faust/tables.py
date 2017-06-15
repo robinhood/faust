@@ -200,7 +200,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 await table.maybe_start()
             self.recovery_completed.set()
 
-    async def on_start(self):
+    async def on_start(self) -> None:
         await self.sleep(1.0)
         await self._update_sources()
 

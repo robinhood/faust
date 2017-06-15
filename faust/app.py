@@ -87,7 +87,7 @@ class RecoveryCompleted(Service):
         self.app = app
         super().__init__(**kwargs)
 
-    async def on_start(self):
+    async def on_start(self) -> None:
         self.log.info('Waiting for table recovery to complete...')
         await self.app.tables.recovery_completed.wait()
         self.log.info('Table recovery completed: startup continues')
@@ -321,8 +321,8 @@ class App(AppT, ServiceProxy):
             config=config,
         )
 
-    def actor(self, topic: TopicT,
-              *,
+    def actor(self, *,
+              topic: Union[str, TopicT] = None,
               name: str = None,
               concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
         def _inner(fun: ActorFun) -> ActorT:

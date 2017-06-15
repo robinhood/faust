@@ -44,7 +44,7 @@ class ActorT(ServiceT):
                  *,
                  name: str = None,
                  app: AppT = None,
-                 topic: TopicT = None,
+                 topic: Union[str, TopicT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
@@ -65,16 +65,18 @@ class ActorT(ServiceT):
     @abc.abstractmethod
     async def cast(
             self,
-            key: K = None,
             value: V = None,
+            *,
+            key: K = None,
             partition: int = None) -> None:
         ...
 
     @abc.abstractmethod
     async def ask(
             self,
-            key: K = None,
             value: V = None,
+            *,
+            key: K = None,
             partition: int = None,
             reply_to: ReplyToArg = None,
             correlation_id: str = None) -> Any:

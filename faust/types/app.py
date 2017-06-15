@@ -103,8 +103,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def actor(self, topic: TopicT,
-              *,
+    def actor(self, *,
+              topic: Union[str, TopicT],
               concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
         ...
 

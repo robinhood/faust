@@ -1,6 +1,8 @@
 """Object utilities."""
+import sys
 from contextlib import suppress
 from functools import singledispatch
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Type, cast
 
 __flake8_Dict_is_used: Dict   # silence flake8 bug
@@ -23,6 +25,28 @@ def qualname(obj: Any) -> str:
     if not hasattr(obj, '__name__') and hasattr(obj, '__class__'):
         obj = obj.__class__
     return '.'.join((obj.__module__, obj.__name__))
+
+
+def canoname(obj: Any, *, main_name: str = None) -> str:
+    """Get qualname of obj, trying to resolve the real name of ``__main__``."""
+    name = qualname(obj)
+    parts = name.split('.')
+    if parts[0] == '__main__':
+        return '.'.join([main_name or _detect_main_name()] + parts[1:])
+    return name
+
+
+def _detect_main_name() -> str:
+    path = Path(sys.modules['__main__'].__file__).absolute()
+    node = path.parent
+    seen = []
+    while node:
+        if (node / '__init__.py').exists():
+            seen.append(node.stem)
+            node = node.parent
+        else:
+            break
+    return '.'.join(seen + [path.stem])
 
 
 @singledispatch

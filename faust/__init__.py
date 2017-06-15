@@ -42,6 +42,7 @@ if typing.TYPE_CHECKING:
     from .streams.stream import Stream, current_event         # noqa: E402
     from .tables import Set, Table                            # noqa: E402
     from .topics import Event, Topic                          # noqa: E402
+    from .types import StreamT                                # noqa: E402
     from .windows import (                                    # noqa: E402
         HoppingWindow, TumblingWindow, SlidingWindow,
     )
@@ -57,6 +58,7 @@ __all__ = [
     'Set',
     'Table',
     'Topic',
+    'StreamT',
     'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
     'Worker',
     'use_uvloop',
@@ -81,6 +83,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.streams.stream': ['Stream', 'current_event'],
     'faust.tables': ['Set', 'Table'],
     'faust.topics': ['Event', 'Topic'],
+    'faust.types': ['StreamT'],
     'faust.windows': [
         'HoppingWindow',
         'TumblingWindow',
