@@ -70,10 +70,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         super().__setitem__(key, value)
 
     async def _update_sources(self) -> None:
-        self._sources.update({
-            table: cast(SourceT, aiter(table.changelog_topic))
-            for table in self.values()
-        })
+        for table in self.values():
+            if table not in self._sources:
+                self._sources[table] = cast(SourceT, aiter(
+                    table.changelog_topic))
         self._changelogs.update({
             table.changelog_topic.topics[0]: table
             for table in self.values()
@@ -199,6 +199,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
             for table in self.values():
                 await table.maybe_start()
             self.recovery_completed.set()
+
+    async def on_start(self):
+        await self.sleep(1.0)
+        await self._update_sources()
 
     async def on_stop(self) -> None:
         if self.recovery_completed.is_set():
