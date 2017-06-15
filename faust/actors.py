@@ -161,6 +161,7 @@ class ReplyConsumer(Service):
             # declare the topic
             topic = self._reply_topic(topic_name)
             await topic.maybe_declare()
+            await self.sleep(3.0)
             # then create the future
             self._fetchers[topic_name] = self.add_future(
                 self._drain_replies(topic))
@@ -420,8 +421,8 @@ class Actor(ActorT, ServiceProxy):
             reply_to=reply_to or self.app.reply_to,
             correlation_id=correlation_id,
         )
-        await self.app.maybe_start_client()
         await self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
+        await self.app.maybe_start_client()
         return await p
 
     async def send(

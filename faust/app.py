@@ -80,26 +80,33 @@ APP_REPR = """
 logger = get_logger(__name__)
 
 
+class RecoveryCompleted(Service):
+    app: AppT
+
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        self.app = app
+        super().__init__(**kwargs)
+
+    async def on_start(self):
+        self.log.info('Waiting for table recovery to complete...')
+        await self.app.tables.recovery_completed.wait()
+        self.log.info('Table recovery completed: startup continues')
+
+
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
-    client_only: bool
-
     logger = logger
 
     # App is created in module scope so we split it up to ensure
     # Service.loop does not create the asyncio event loop
     # when a module is imported.
 
-    def __init__(self, app: 'App',
-                 *,
-                 client_only: bool = False,
-                 **kwargs: Any) -> None:
+    def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
-        self.client_only = client_only
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
-        if self.client_only:
+        if self.app.client_only:
             return self._components_client()
         return self._components_server()
 
@@ -141,6 +148,7 @@ class AppService(Service):
             [self.app.tables],                        # app.TableManager
             # Fetcher
             [self.app._fetcher],
+            [RecoveryCompleted(self.app, loop=self.loop, beacon=self.beacon)],
         ))
 
     async def on_first_start(self) -> None:
@@ -202,6 +210,8 @@ class App(AppT, ServiceProxy):
 
     web_port: int
     web_bind: str
+
+    client_only = False
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
@@ -429,7 +439,7 @@ class App(AppT, ServiceProxy):
         self.tables[table.name] = table
 
     async def start_client(self) -> None:
-        self._service.client_only = True
+        self.client_only = True
         await self._service.maybe_start()
 
     async def maybe_start_client(self) -> None:
@@ -568,11 +578,7 @@ class App(AppT, ServiceProxy):
                     wait: bool = True) -> Awaitable:
         self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
-        producer = self.producer
-        if not self._producer_started:
-            self._producer_started = True
-            # producer may also have been started by app.start()
-            await producer.maybe_start()
+        producer = await self.maybe_start_producer()
         if wait:
             state = await self.sensors.on_send_initiated(
                 producer, topic,
@@ -583,6 +589,14 @@ class App(AppT, ServiceProxy):
             await self.sensors.on_send_completed(producer, state)
             return ret
         return producer.send(topic, key, value, partition=partition)
+
+    async def maybe_start_producer(self) -> ProducerT:
+        producer = self.producer
+        if not self._producer_started:
+            self._producer_started = True
+            # producer may also have been started by app.start()
+            await producer.maybe_start()
+        return producer
 
     async def _on_actor_error(
             self, actor: ActorT, exc: Exception) -> None:

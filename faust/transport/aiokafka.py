@@ -16,7 +16,7 @@ from kafka.structs import (
 
 from faust.assignor.partition_assignor import PartitionAssignor
 from . import base
-from ..types import Message, TopicPartition
+from ..types import AppT, Message, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import done_future
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
@@ -84,15 +84,37 @@ class Consumer(base.Consumer):
     )
 
     def on_init(self) -> None:
+        app = self.transport.app
         transport = cast(Transport, self.transport)
+        if app.client_only:
+            self._consumer = self._create_client_consumer(app, transport)
+        else:
+            self._consumer = self._create_worker_consumer(app, transport)
+
+    def _create_worker_consumer(
+            self,
+            app: AppT,
+            transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
         self._assignor = PartitionAssignor()
-        self._consumer = aiokafka.AIOKafkaConsumer(
+        return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
-            client_id=transport.app.client_id,
-            group_id=transport.app.id,
+            client_id=app.client_id,
+            group_id=app.id,
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
+        )
+
+    def _create_client_consumer(
+            self,
+            app: AppT,
+            transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
+        return aiokafka.AIOKafkaConsumer(
+            loop=self.loop,
+            client_id=app.client_id,
+            bootstrap_servers=transport.bootstrap_servers,
+            enable_auto_commit=True,
+            auto_offset_reset='earliest',
         )
 
     async def create_topic(self, topic: str, partitions: int, replication: int,

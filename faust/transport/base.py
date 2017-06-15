@@ -268,7 +268,7 @@ class Consumer(Service, ConsumerT):
         try:
             # XXX mypy confuses AsyncIterable/AsyncIterator
             while not should_stop():
-                ait = cast(AsyncIterator, getmany(timeout=1.0))
+                ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
                     offset = get_current_offset(tp)
                     if offset is None or message.offset > offset:

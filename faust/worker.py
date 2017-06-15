@@ -198,7 +198,6 @@ class Worker(Service):
         self.add_future(self._on_startup_finished())
 
     async def _on_startup_finished(self) -> None:
-        await self.app.tables.recovery_completed.wait()
         if self.debug:
             await self._blockdetect.maybe_start()
         if self.spinner:

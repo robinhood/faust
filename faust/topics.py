@@ -6,7 +6,7 @@ from functools import total_ordering
 from types import TracebackType
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Set, Sequence, Union, Type, cast,
+    MutableMapping, Optional, Pattern, Set, Sequence, Union, Type,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
@@ -219,8 +219,9 @@ class Topic(TopicT):
             await self.declare()
 
     async def declare(self) -> None:
+        producer = await self.app.maybe_start_producer()
         for topic in self.topics:
-            await cast(App, self.app).producer.create_topic(
+            await producer.create_topic(
                 topic=topic,
                 partitions=self.partitions,
                 replication=self.replicas,

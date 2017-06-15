@@ -19,7 +19,7 @@ from .sensors import SensorDelegateT
 from .streams import T  # noqa: F401
 from .streams import StreamT
 from .tables import CollectionT, SetT, TableT, TableManagerT
-from .transports import ConsumerT, TransportT
+from .transports import ConsumerT, ProducerT, TransportT
 from .topics import TopicT, TopicManagerT
 from .tuples import Message, PendingMessage, TopicPartition
 from .windows import WindowT
@@ -50,6 +50,7 @@ class AppT(ServiceT):
     id: str
     url: str
     client_id: str
+    client_only: bool
     commit_interval: float
     table_cleanup_interval: float
     key_serializer: CodecArg
@@ -189,6 +190,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def maybe_start_producer(self) -> ProducerT:
         ...
 
     @property
