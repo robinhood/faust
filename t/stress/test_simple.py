@@ -1,24 +1,30 @@
-import asyncio
 import pytest
-from hypothesis import given
-from hypothesis.strategies import (
-    dictionaries, one_of, integers, booleans,
-    floats, binary, text,
-)
-from .app import app, simple
+from typing import Mapping
+from faust.utils.logging import setup_logging
+from .app import simple
+
+
+setup_logging(loglevel='INFO')
+
+
+def _build_data(i: int) -> Mapping:
+    return {'A': {'the': {'quick': {'brown': {'fox': i}}}}}
 
 
 @pytest.mark.asyncio
-async def test_simple():
-    data = dictionaries(text(),
-                    one_of(integers(),
-                           booleans(),
-                           floats(),
-                           text()))
-    print('RUNNING TEST')
-    value = data.example()
-    print('STARTING: %r' % (value,))
-    reply = await simple.ask(value=data.example())
-    assert reply == value
-    print('ENDED')
+async def test_simple_ask() -> None:
+    for i in range(100):
+        value = _build_data(i)
+        assert await simple.ask(value=value) == value
 
+
+@pytest.mark.asyncio
+async def test_simple_map() -> None:
+    values = [_build_data(i) for i in range(100)]
+    check = set(range(100))
+    replies = set()
+    async for reply in simple.map(values):
+        v = reply['A']['the']['quick']['brown']['fox']
+        assert v in check
+        replies.add(v)
+    assert replies == check
