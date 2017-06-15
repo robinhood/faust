@@ -345,6 +345,7 @@ class Actor(ActorT, ServiceProxy):
     def _process_reply(self, event: Any) -> Any:
         if isinstance(event, ReqRepRequest):
             return event.value
+        return event
 
     async def _start_task(self, index: int, beacon: NodeT) -> ActorInstanceT:
         # If the actor is an async function we simply start it,
