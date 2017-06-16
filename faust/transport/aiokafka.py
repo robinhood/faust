@@ -204,12 +204,20 @@ class Consumer(base.Consumer):
         for partition in tps:
             self._consumer._subscription.pause(partition=partition)
 
+    async def position(self, tp: TopicPartition) -> Optional[int]:
+        return await self._consumer.position(tp)
+
     async def resume_partitions(self, tps: Iterable[TopicPartition]) -> None:
         for partition in tps:
             self._consumer._subscription.resume(partition=partition)
         # XXX This will actually update our paused partitions
         for partition in tps:
             await self._consumer.position(partition)
+
+    async def seek_to_latest(self, *partitions: TopicPartition) -> None:
+        for partition in partitions:
+            self._consumer._subscription.need_offset_reset(
+                partition, OffsetResetStrategy.LATEST)
 
     async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
         for partition in partitions:

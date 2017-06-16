@@ -100,20 +100,28 @@ class TableManager(Service, TableManagerT, FastUserDict):
         }
         if tps:
             # Seek partitions to appropriate offsets
-            await self._seek_changelog(tps)
-            # resume changelog partitions for this table
-            await consumer.resume_partitions(tps)
-            try:
-                await self._read_changelog(table, tps, self._sources[table])
-            finally:
-                await consumer.pause_partitions(tps)
-            cast(Table, table).raw_update(buf)
-            self.log.info('Table %r: Recovery completed!', table.name)
+            if await self._seek_changelog(tps):
+                # at this point we know where are messages in at least
+                # one of the topic partitions:
+                # resume changelog partitions for this table
+                await consumer.resume_partitions(tps)
+                try:
+                    await self._read_changelog(
+                        table, tps, self._sources[table])
+                finally:
+                    await consumer.pause_partitions(tps)
+                cast(Table, table).raw_update(buf)
+                self.log.info('Table %r: Recovery completed!', table.name)
+            else:
+                self.log.info('Table %r: Table empty', table.name)
 
-    async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> None:
+    async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> bool:
         # Set offset of partition to beginning
         # TODO Change to seek_to_beginning once implmented in
         earliest: _Set[TopicPartition] = set()  # tps to seek from earliest
+        latest: _Set[TopicPartition] = set()
+        consumer = self.app.consumer
+        has_positions = False  # set if there are any messages in topics
         for tp in tps:
             try:
                 # see if we have read this changelog before
@@ -122,10 +130,21 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 # if not, add it to partitions we seek to beginning
                 earliest.add(tp)
             else:
+                latest.add(tp)
+                has_positions = True
                 # if we have read it, seek to that offset
-                await self.app.consumer.seek(tp, offset)
-        # seek new changelogs to beginning
-        await self.app.consumer.seek_to_beginning(*earliest)
+                await consumer.seek(tp, offset)
+        if earliest:
+            # first seek to latest, to find position
+            await consumer.seek_to_latest(*earliest)
+            # Check that there are messages in these topics
+            for tp in earliest:
+                if await consumer.position(tp) is not None:
+                    has_positions = True
+                    break
+            # seek new changelogs to beginning
+            await consumer.seek_to_beginning(*earliest)
+        return has_positions
 
     async def _read_changelog(self,
                               table: CollectionT,
@@ -145,7 +164,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
             if seen_offset is None or offset > seen_offset:
                 cur_hw = highwater(tp)
-                if not offset % 10_000:
+                if not offset % 10_000 and cur_hw - offset > 1000:
                     self.log.info('Table %r, still waiting for %r values',
                                   table.name, cur_hw - offset)
                 if cur_hw is None or offset >= cur_hw - 1:

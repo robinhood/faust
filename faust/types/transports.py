@@ -98,6 +98,14 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def position(self, tp: TopicPartition) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    async def seek_to_latest(self, *partitions: TopicPartition) -> None:
+        ...
+
+    @abc.abstractmethod
     async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
         ...
 
