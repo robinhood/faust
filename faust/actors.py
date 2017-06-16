@@ -175,6 +175,8 @@ class ReplyConsumer(Service):
         return self.app.topic(
             topic,
             partitions=1,
+            replicas=0,
+            deleting=True,
             value_type=ReqRepResponse,
         )
 

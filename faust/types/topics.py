@@ -92,9 +92,11 @@ class TopicT(AsyncIterable):
     pattern: Pattern
     key_type: ModelArg
     value_type: ModelArg
+    partitions: int
     retention: Seconds
     compacting: bool
     deleting: bool
+    replicas: int
     config: Mapping[str, Any]
 
     @abc.abstractmethod
@@ -108,6 +110,7 @@ class TopicT(AsyncIterable):
                  retention: Seconds = None,
                  compacting: bool = None,
                  deleting: bool = None,
+                 replicas: int = None,
                  config: Mapping[str, Any] = None) -> None:
         ...
 

@@ -141,14 +141,21 @@ class Topic(TopicT):
                  retention: Seconds = None,
                  compacting: bool = None,
                  deleting: bool = None,
+                 replicas: int = None,
                  config: Mapping[str, Any] = None) -> None:
         if pattern and topics:
             raise TypeError('Cannot specify both topics and pattern.')
         if isinstance(pattern, str):
             pattern = re.compile(pattern)
         self.topics = topics
-        self.partitions = partitions or app.default_partitions
-        self.replicas = app.replication_factor
+        if partitions is None:
+            partitions = app.default_partitions
+        self.partitions = partitions
+        if partitions == 0:
+            raise ValueError('Topic cannot have 0 (zero) partitions.')
+        if replicas is None:
+            replicas = app.replication_factor
+        self.replicas = replicas
         self.retention = retention
         self.compacting = compacting
         self.deleting = deleting
