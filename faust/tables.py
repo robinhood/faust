@@ -101,7 +101,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if tps:
             # Seek partitions to appropriate offsets
             if await self._seek_changelog(tps):
-                # at this point we know where are messages in at least
+                # at this point we know there are messages in at least
                 # one of the topic partitions:
                 # resume changelog partitions for this table
                 await consumer.resume_partitions(tps)
