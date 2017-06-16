@@ -177,6 +177,7 @@ class ReplyConsumer(Service):
             partitions=1,
             replicas=0,
             deleting=True,
+            retention=self.app.reply_expires,
             value_type=ReqRepResponse,
         )
 

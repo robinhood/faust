@@ -3,6 +3,7 @@ import asyncio
 import faust
 
 from collections import defaultdict
+from datetime import timedelta
 from functools import wraps
 from heapq import heappush, heappop
 from itertools import chain
@@ -14,7 +15,7 @@ from typing import (
 from uuid import uuid4
 
 from . import transport
-from .actors import ActorFun, Actor, ActorT, ReplyConsumer
+from .actors import ActorFun, Actor, ActorT, ReplyConsumer, SinkT
 from .exceptions import ImproperlyConfigured
 from .sensors import SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
@@ -70,7 +71,11 @@ COMMIT_INTERVAL = 30.0
 #: Can be customized by setting ``App(table_cleanup_interval=...)``.
 TABLE_CLEANUP_INTERVAL = 30.0
 
+#: Prefix used for reply topics.
 REPLY_TOPIC_PREFIX = 'f-reply-'
+
+#: Default expiry time for replies in seconds (float/timedelta).
+DEFAULT_REPLY_EXPIRES = timedelta(days=1)
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
@@ -260,6 +265,7 @@ class App(AppT, ServiceProxy):
                  replication_factor: int = 1,
                  default_partitions: int = 8,
                  reply_to: str = None,
+                 reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
                  TableManager: SymbolArg = DEFAULT_TABLE_MANAGER_CLS,
@@ -280,6 +286,8 @@ class App(AppT, ServiceProxy):
         self.replication_factor = replication_factor
         self.default_partitions = default_partitions
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
+        self.reply_expires = want_seconds(
+            reply_expires or DEFAULT_REPLY_EXPIRES)
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.TableType = symbol_by_name(Table)
@@ -322,10 +330,12 @@ class App(AppT, ServiceProxy):
             config=config,
         )
 
-    def actor(self, *,
+    def actor(self,
               topic: Union[str, TopicT] = None,
+              *,
               name: str = None,
-              concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
+              concurrency: int = 1,
+              sink: Iterable[SinkT] = None) -> Callable[[ActorFun], ActorT]:
         def _inner(fun: ActorFun) -> ActorT:
             actor = Actor(
                 fun,
@@ -333,6 +343,7 @@ class App(AppT, ServiceProxy):
                 app=self,
                 topic=topic,
                 concurrency=concurrency,
+                sink=sink,
                 on_error=self._on_actor_error,
             )
             self.actors[actor.name] = actor

@@ -10,7 +10,7 @@ from ..utils.times import Seconds
 from ..utils.types.collections import NodeT
 from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
-from .actors import ActorFun, ActorT
+from .actors import ActorFun, ActorT, SinkT
 from .codecs import CodecArg
 from .core import K, V
 from .serializers import RegistryT
@@ -59,6 +59,7 @@ class AppT(ServiceT):
     replication_factor: int
     default_partitions: int  # noqa: E704
     reply_to: str
+    reply_expires: float
     avro_registry_url: str
     store: str
 
@@ -73,13 +74,15 @@ class AppT(ServiceT):
                  store: str = 'memory://',
                  avro_registry_url: str = None,
                  client_id: str = '',
-                 commit_interval: Seconds = 1.0,
-                 table_cleanup_interval: Seconds = 1.0,
+                 commit_interval: Seconds = 9999.0,
+                 table_cleanup_interval: Seconds = 9999.0,
                  key_serializer: CodecArg = 'json',
                  value_serializer: CodecArg = 'json',
                  num_standby_replicas: int = 0,
                  replication_factor: int = 1,
                  default_partitions: int = 8,
+                 reply_to: str = None,
+                 reply_expires: Seconds = 9999.0,
                  Stream: SymbolArg = '',
                  Table: SymbolArg = '',
                  TableManager: SymbolArg = '',
@@ -104,9 +107,12 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def actor(self, *,
-              topic: Union[str, TopicT],
-              concurrency: int = 1) -> Callable[[ActorFun], ActorT]:
+    def actor(self,
+              topic: Union[str, TopicT] = None,
+              *,
+              name: str = None,
+              concurrency: int = 1,
+              sink: Iterable[SinkT] = None) -> Callable[[ActorFun], ActorT]:
         ...
 
     @abc.abstractmethod
