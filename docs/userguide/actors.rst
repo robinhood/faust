@@ -17,26 +17,16 @@
 Basics
 ======
 
-What are actors?
-----------------
-
-The actor model provides a solution for safe concurrent computations
-by using message passing and isolating state:
-
-- they have an inbox that is processed in order
-- the actor may have local state that is mutated as messages are processed.
-- The actor may reply to a request with a return value.
-
-Actors in Faust diverge from the traditional definition in that you do not
-address them directly, instead multiple instances of the actor may share
-the same inbox.
+Faust is not an actor framework in any traditional sense, and the term "actor"
+is used vaguely to refer to a process that receives messages and manages
+state.
 
 What about streaming?
 ---------------------
 
-Stream processing frameworks do not usually have actors, but Faust
-differentiates by fusing stream processing with Python async iterators
-in a way that gives you the flexibility to embed stream processing directly
+Faust differentiates itself from other Stream processing frameworks by fusing
+stream processing with Python async iterators in a way that gives you the
+flexibility to embed stream processing directly
 into your programs, or web servers.
 
 Comparing streams and actors may seem like a strange idea, but while differing in
