@@ -17,8 +17,34 @@
 Basics
 ======
 
-Actors add a convenient interface on top of the primitives in Faust,
-you don't have to use them but it makes developing application easier.
+What are actors?
+----------------
+
+The actor model provides a solution for safe concurrent computations
+by using message passing and isolating state:
+
+- they have an inbox that is processed in order
+- the actor may have local state that is mutated as messages are processed.
+- The actor may reply to a request with a return value.
+
+Actors in Faust diverge from the traditional definition in that you do not
+address them directly, instead multiple instances of the actor may share
+the same inbox.
+
+What about streaming?
+---------------------
+
+Stream processing frameworks do not usually have actors, but Faust
+differentiates by fusing stream processing with Python async iterators
+in a way that gives you the flexibility to embed stream processing directly
+into your programs, or web servers.
+
+Comparing streams and actors may seem like a strange idea, but while differing in
+nomenclature, at the core they are very similar, and can easily share
+implementation.
+
+In Faust actors can be used to define both passive stream processing
+workflows, and active network services, with zero overhead from the features
 
 An actor in Faust is an async function that takes a stream as argument
 and iterates over it.
@@ -97,6 +123,55 @@ To send values to it, you can open a second console to run this program:
             async for value in stream:
                 yield value.a + value.b
 
+
+Under the Hood: The ``@actor`` decorator
+----------------------------------------
+
+You can easily start a stream processor in Faust without using actors.
+Just start an :mod:`asyncio` task that iterates over a stream:
+
+.. code-block:: python
+
+    # examples/noactor.py
+    import asyncio
+
+    app = faust.App('noactor')
+    topic = app.topic('noactor')
+
+    async def mystream():
+        async for event in topic.stream():
+            print(f'Received: {event!r}')
+
+    async def start_streams():
+        await app.start()
+        await mystream()
+
+    if __name__ == '__main__':
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(start_streams())
+
+Essentially what the ``@actor`` decorator does, given a function like this:
+
+.. code-block:: python
+
+    @app.actor(topic)
+    async def mystream(stream):
+        async for event in stream:
+            print(f'Received: {event!r}')
+            yield event
+
+Is that it wraps your function, that returns an async iterator (since it uses
+``yield``) in code similar to this:
+
+.. code-block:: python
+
+    def actor(topic):
+
+        def create_actor_from(fun):
+            async def _start_actor():
+                stream = topic.stream()
+                async for result in fun(stream):
+                    maybe_reply_to_caller(result)
 
 Defining actors
 ===============
