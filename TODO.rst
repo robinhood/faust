@@ -78,6 +78,13 @@ See :file:`faust/joins.py`
 
 API already exposed in faust.streams.Stream, but not implemented.
 
+CLI Commands
+============
+
+- ``faust table``
+
+    Show tables from the command-line (maybe use https://robpol86.github.io/terminaltables/)
+
 Fault Tolerance
 ===============
 
