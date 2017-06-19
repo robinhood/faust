@@ -150,7 +150,7 @@ class Service(ServiceBase):
 
         The service will be started/stopped with this service.
         """
-        if service.beacon.root is None:
+        if service.beacon is not None:
             service.beacon.reattach(self.beacon)
         self._children.append(service)
         return service

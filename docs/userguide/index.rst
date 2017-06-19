@@ -20,3 +20,4 @@
     deployment
     http
     vskafka
+    services
