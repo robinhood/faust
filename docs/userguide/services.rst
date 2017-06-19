@@ -15,15 +15,22 @@
 Basics
 ======
 
+The Service class manages the services and background tasks started
+by the async program, so that we can implement graceful shutdown
+and also helps us visualize the relationships between
+services in a dependency graph.
+
 Anything internally in Faust that can be started/stopped and restarted
-is probably a subclass of the :class:`Service` class.  This is not exposed to
-the user, but if you want to understand the Faust code base, or extend it with
+is probably a subclass of the :class:`Service` class:
+App/Worker/Stream/Actor/TopicManager/TableManager, etc.
+
+If you want to understand the Faust code base, or extend it with
 new services you should read the following guide.
 
 The Service API
 ===============
 
-A service can be started, after which it may start other services,
+A service can be started, and it may start other services
 and background tasks.  Most actions in a service are asynchronous, so needs
 to be executed from within an async function.
 

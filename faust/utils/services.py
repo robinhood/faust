@@ -109,6 +109,10 @@ class Service(ServiceBase):
     #: .add_dependency adds subservices to this list.
     #: They are started/stopped with the service.
     _children: MutableSequence[ServiceT]
+
+    #: After child service is started it's added to this list,
+    #: which is used by ``stop()`` to only stop services that have
+    #: been actually started.
     _active_children: List[ServiceT]
 
     #: .add_future adds futures to this list
@@ -119,6 +123,17 @@ class Service(ServiceBase):
 
     @classmethod
     def task(cls, fun: Callable[..., Awaitable]) -> ServiceTask:
+        """Decorator used to define a service background task.
+
+        Example:
+            >>> class S(Service):
+            ...
+            ... @Service.task
+            ... async def background_task(self):
+            ...     while not self.should_stop:
+            ...         print('Waking up')
+            ...         await self.sleep(1.0)
+        """
         return ServiceTask(fun)
 
     def __init_subclass__(self) -> None:
@@ -196,14 +211,16 @@ class Service(ServiceBase):
         """Callback to be called when the service is restarted."""
         ...
 
-    async def sleep(self, s: Seconds) -> None:
+    async def sleep(self, n: Seconds) -> None:
+        """Sleep for ``n`` seconds, or until service stopped."""
         try:
             await asyncio.wait_for(
-                self._stopped.wait(), timeout=want_seconds(s), loop=self.loop)
+                self._stopped.wait(), timeout=want_seconds(n), loop=self.loop)
         except (asyncio.CancelledError, asyncio.TimeoutError):
             pass
 
     async def wait(self, *coros: FutureT, timeout: Seconds = None) -> None:
+        """Wait for coroutines to complete, or until the service stops."""
         await self._wait_first(
             self._crashed.wait(),
             self._stopped.wait(),
@@ -253,6 +270,7 @@ class Service(ServiceBase):
             await self.start()
 
     async def crash(self, reason: Exception) -> None:
+        """Crash the service and all child services."""
         if not self._crashed.is_set():
             # We record the stack by raising the exception.
             self.log.exception('Crashed reason=%r', reason)
