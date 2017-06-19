@@ -21,22 +21,17 @@ Faust is not an actor framework in any traditional sense, and the term "actor"
 is used vaguely to refer to a process that receives messages and manages
 state.
 
-What about streaming?
----------------------
-
 Faust differentiates itself from other Stream processing frameworks by fusing
 stream processing with Python async iterators in a way that gives you the
 flexibility to embed stream processing directly
-into your programs, or web servers.
+into your programs, or web servers; the actor portion means that you can
+communicate with your stream processors, or create event processing handlers
+that extend the scope of traditional stream processing systems.
 
-Comparing streams and actors may seem like a strange idea, but while differing in
-nomenclature, at the core they are very similar, and can easily share
-implementation.
-
-In Faust actors can be used to define both passive stream processing
+With Faust actors can be used to define both passive stream processing
 workflows, and active network services, with zero overhead from the features
 
-An actor in Faust is an async function that takes a stream as argument
+An actor in Faust is simply an async function that takes a stream as argument
 and iterates over it.
 
 Here's an example actor that adds numbers:
@@ -94,6 +89,11 @@ To send values to it, you can open a second console to run this program:
 
     $ python examples/send_to_actor.py
 
+The :meth:`Actor.ask() <faust.Actor.ask>` method wraps the value sent in
+a special structure that includes the return address (reply-to).  When the
+actor sees this type of structure it will reply with the result yielded
+as a result of processing the value.
+
 .. admonition:: Static types
 
     Faust is typed using the type annotations available in Python 3.6,
@@ -113,12 +113,19 @@ To send values to it, you can open a second console to run this program:
             async for value in stream:
                 yield value.a + value.b
 
+    The ``StreamT`` type used for the actors stream argument is a subclass
+    of :class:`~typing.AsyncIterable` extended with the stream API.
+    You could type this argument using
+    ``AsyncIterable``, but then :pypi:`mypy` would stop you with a typing
+    error should you use stream-specific methods such as ``.group_by()``,
+    ``through()``, etc.
+
 
 Under the Hood: The ``@actor`` decorator
 ----------------------------------------
 
-You can easily start a stream processor in Faust without using actors.
-Just start an :mod:`asyncio` task that iterates over a stream:
+You can easily start a stream processor in Faust without using actors,
+by simply starting an :mod:`asyncio` task that iterates over a stream:
 
 .. code-block:: python
 
@@ -163,10 +170,13 @@ Is that it wraps your function, that returns an async iterator (since it uses
                 async for result in fun(stream):
                     maybe_reply_to_caller(result)
 
-Defining actors
+Defining Actors
 ===============
 
 .. _actor-topic:
+
+The Topic
+---------
 
 The topic argument to the actor decorator defines the main topic
 that actor reads from (this implies it's not necessarily the only
@@ -193,6 +203,95 @@ then the default serializer defined by the app will be used.
     If you don't specify a topic, the actor will use the actor name
     as topic: the name will be the fully qualified name of the actor function
     (e.g. ``examples.actor.adder``).
+
+.. seealso::
+
+    The :ref:`streams` guide for more information about topics.
+
+The Stream
+----------
+
+The decorated function should be unary, acceping a single ``stream`` argument.
+which is created from the actors topic.
+
+This object is async iterable and an instance of the :class:`~faust.Stream`
+class, created from the topic provided to the decorator.
+
+Iterating over this stream, using the :keyword:`async for`, will iterate
+over the messages in the topic.
+
+You can also use the Stream API, for using :meth:`~faust.Stream.group_by`
+to partition the stream differently:
+
+.. code-block:: python
+
+    # examples/groupby.py
+    import faust
+
+    class BankTransfer(faust.Record):
+        account_id: str
+        amount: float
+
+    app = faust.App('groupby')
+    topic = app.topic('groupby', value_type=BankTransfer)
+
+    @app.actor(topic)
+    async def stream(s):
+        async for transfer in s.group_by(BankTransfer.account_id):
+            # transfers will now be distributed such that transfers
+            # with the same account_id always arrives to the same actor
+            # instance
+            ...
+
+Using stream-to-stream joins with actors is a bit more tricky, considering
+that the actor always needs to have one main topic.  You may use one topic
+as the seed and combine that with more topics, but then it will be impossible
+to communicate directly with the actor since you have to send a message to all
+the topics, and that is more than challenging:
+
+.. code-block:: python
+
+    topic1 = app.topic('foo1')
+    topic2 = app.topic('foo2')
+
+    @app.actor(topic)
+    async def mystream(stream):
+        async for event in (stream & topic2.stream()).join(...):
+            ...
+
+What you could do is define a separate topic for communicating with the actor:
+
+.. code-block:: python
+
+    topic1 = app.topic('foo1')
+    topic2 = app.topic('foo2')
+    backchannel_topic = app.topic('foo-backchannel')
+
+    @app.actor(backchannel_topic)
+    async def mystream(backchannel):
+        joined_streams = (topic1.stream() & topic2.stream()).join(...)
+        async for event in (backchannel & joined_streams):
+            if event.topic in backchannel.source.topic.topics:
+                yield 'some_reply'
+            else:
+                # handle joined stream
+
+But even when you want to remotely inquire about the state of this stream processor,
+there are better ways to do so (like using one stream processor task, and one
+actor), so actors are not the best way to process joined streams, instead you
+should use a traditional asyncio Task:
+
+.. code-block:: python
+
+    @app.task()
+    def mystream():
+        async for event in (topic1.stream() & topic2.stream()).join(...):
+            # process merged event
+
+.. seealso::
+
+    The :ref:`streams` guide for more information about streams and topics.
+
 
 .. _actor-concurrency:
 

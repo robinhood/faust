@@ -36,6 +36,7 @@ del(_temp)
 del(re)
 
 if typing.TYPE_CHECKING:
+    from .actors import Actor                                 # noqa: E402
     from .app import App                                      # noqa: E402
     from .models import Record                                # noqa: E402
     from .sensors import Monitor, Sensor                      # noqa: E402
@@ -50,6 +51,7 @@ if typing.TYPE_CHECKING:
     from .worker import Worker                                # noqa: E402
 
 __all__ = [
+    'Actor',
     'App',
     'Event',
     'Record',
@@ -79,6 +81,7 @@ def use_uvloop() -> None:
 from types import ModuleType  # noqa
 
 all_by_module: Mapping[str, Sequence[str]] = {
+    'faust.actors': ['Actor'],
     'faust.app': ['App'],
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
