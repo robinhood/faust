@@ -41,7 +41,6 @@ def test_Node():
     assert node.as_graph()
 
 
-
 class test_FastUserDict:
 
     @pytest.fixture()
@@ -53,7 +52,7 @@ class test_FastUserDict:
 
     def test_setgetdel(self, d):
         with pytest.raises(KeyError):
-           d['foo']
+            d['foo']
         d['foo'] = 303
         assert d['foo'] == 303
         d['foo'] = 606
@@ -64,9 +63,12 @@ class test_FastUserDict:
 
     def test_missing(self):
         m = Mock()
+
         class X(FastUserDict):
+
             def __init__(self):
                 self.data = {}
+
             def __missing__(self, key):
                 return m(key)
 
@@ -108,7 +110,7 @@ class test_FastUserDict:
                 d[k]
 
     def test_keys_items_values(self, d):
-        src = dict(a=1, b=2, c=3)
+        src = {'a': 1, 'b': 2, 'c': 3}
         d.update(src)
         assert list(d.keys()) == list(src.keys())
         assert list(d.items()) == list(src.items())
@@ -158,7 +160,7 @@ class test_ManagedUserDict:
         assert d.key_get.call_count == 3
 
     def test_update__args(self, d):
-        d.update(dict(a=1, b=2, c=3))
+        d.update({'a': 1, 'b': 2, 'c': 3})
         d.key_set.assert_has_calls([
             call('a', 1),
             call('b', 2),
@@ -179,4 +181,3 @@ class test_ManagedUserDict:
         d.clear()
         assert not d
         d.cleared.assert_called_once_with()
-

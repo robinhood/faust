@@ -119,6 +119,8 @@ class Service(ServiceBase):
     #: They are started/stopped with the service.
     _futures: List[asyncio.Future]
 
+    #: The ``@Service.task`` decorator adds :class:`ServiceTask`
+    #: instances to this list (which is a class variable).
     _tasks: ClassVar[List[ServiceTask]] = None
 
     @classmethod
@@ -137,6 +139,8 @@ class Service(ServiceBase):
         return ServiceTask(fun)
 
     def __init_subclass__(self) -> None:
+        # Every new subclass adds @Service.task decorated methods
+        # to the class-local `_tasks` list.
         if self._tasks is None:
             self._tasks = []
         self._tasks.extend([
