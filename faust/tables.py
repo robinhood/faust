@@ -169,7 +169,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             #
             # We cannot look for the number 0 as with log compaction
             # the starting point may have a different value, so
-            # we simply assume that if the numbers are different then there
+            # we simply assume that if the numbers are different there
             # are messages in the topic.
             has_positions = any(
                 border_left[tp] != 0 and border_right[tp]

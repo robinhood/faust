@@ -102,7 +102,6 @@ Faust is...
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
 
-
 .. _installation:
 
 Installation
