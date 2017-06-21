@@ -279,6 +279,12 @@ class Consumer(Service, ConsumerT):
                 self.log.info('Broker stopped consumer, shutting down...')
                 return
             raise
+        except asyncio.CancelledError:
+            if self.transport.app.should_stop:
+                # we're already stopping so ignore
+                self.log.info('Consumer shutting down for user cancel.')
+                return
+            raise
         except Exception as exc:
             self.log.exception('Drain messages raised: %r', exc)
             raise
