@@ -350,6 +350,14 @@ class App(AppT, ServiceProxy):
             return actor
         return _inner
 
+    async def _on_actor_error(
+            self, actor: ActorT, exc: Exception) -> None:
+        if self._consumer:
+            try:
+                await self._consumer.on_task_error(exc)
+            except Exception as exc:
+                self.log.exception('Consumer error callback raised: %r', exc)
+
     def task(self, fun: Callable[[], Awaitable]) -> Callable:
         self._tasks.append(fun)
         return fun
@@ -479,7 +487,7 @@ class App(AppT, ServiceProxy):
             key_serializer (CodecArg): Serializer to use
                 only when key is not a model.
             value_serializer (CodecArg): Serializer to use
-                only when key is not a model.
+                only when value is not a model.
 
         Keyword Arguments:
             wait (bool): Wait for message to be published (default),
@@ -610,14 +618,6 @@ class App(AppT, ServiceProxy):
             await producer.maybe_start()
         return producer
 
-    async def _on_actor_error(
-            self, actor: ActorT, exc: Exception) -> None:
-        if self._consumer:
-            try:
-                await self._consumer.on_task_error(exc)
-            except Exception as exc:
-                self.log.exception('Consumer error callback raised: %r', exc)
-
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.sources.commit(topics)
 
@@ -703,7 +703,7 @@ class App(AppT, ServiceProxy):
     @property
     def monitor(self) -> Monitor:
         if self._monitor is None:
-            self._monitor = Monitor()
+            self._monitor = Monitor(loop=self.loop, beacon=self.beacon)
         return self._monitor
 
     @monitor.setter

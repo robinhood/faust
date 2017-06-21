@@ -416,8 +416,7 @@ class Stream(StreamT, JoinableT, Service):
                 If not set, the value type of this stream will be used.
 
         Raises:
-            TypeError: if the types used by topics in this stream
-                is not uniform.
+            ValueError: if the stream source is not a topic.
         """
         if isinstance(self.source, SourceT):
             return cast(SourceT, self.source).topic.derive(
