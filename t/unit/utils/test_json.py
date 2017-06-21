@@ -23,6 +23,8 @@ def test_str_to_decimal_text_values(x):
 
 @given(decimals())
 def test_str_to_decimal_decimals(x):
+    if isinstance(x, Decimal):
+        assume(not x.is_snan())
     assume(not math.isnan(x))
     assume(not math.isinf(x))
     assert str_to_decimal(str(x)) == x

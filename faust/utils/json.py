@@ -43,7 +43,7 @@ def str_to_decimal(s: str,
 
     Raises:
         ValueError: if length exceeds maximum length, or if value is not
-            a valid number (e.g. Inf or NaN).
+            a valid number (e.g. Inf, NaN or sNaN).
 
     Returns:
         Decimal: Converted number.
@@ -54,7 +54,7 @@ def str_to_decimal(s: str,
         raise ValueError(
             f'string of length {len(s)} is longer than limit ({maxlen})')
     v = Decimal(s)
-    if math.isnan(cast(float, v)) or math.isinf(cast(float, v)):
+    if v.is_snan() or math.isnan(cast(float, v)) or math.isinf(cast(float, v)):
         raise ValueError(f'Illegal value in decimal: {s!r}')
     return v
 
