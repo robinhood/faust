@@ -135,15 +135,26 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 # if we have read it, seek to that offset
                 await consumer.seek(tp, offset)
         if earliest:
-            # first seek to latest, to find position
+            # find end positions of all partitions
             await consumer.seek_to_latest(*earliest)
-            # Check that there are messages in these topics
-            for tp in earliest:
-                if await consumer.position(tp) is not None:
-                    has_positions = True
-                    break
-            # seek new changelogs to beginning
+            border_right = {tp: await consumer.position(tp) for tp in earliest}
+            # find starting positions of all partitions
             await consumer.seek_to_beginning(*earliest)
+            border_left = {tp: await consumer.position(tp) for tp in earliest}
+            # If the topic is newly created and has no messages
+            # the beginning position will be 0, and the latest position will
+            # be 0.  If there is a message in the topic the beginning will be
+            # 0 and the end will be 1.
+            #
+            # We cannot look for the number 0 as with log compaction
+            # the starting point may have a different value, so
+            # we simply assume that if the numbers are different then there
+            # are messages in the topic.
+            has_positions = any(
+                border_left[tp] != 0 and border_right[tp]
+                for tp in earliest
+            )
+            # at this point the topics are rewind at the beginning.
         return has_positions
 
     async def _read_changelog(self,
