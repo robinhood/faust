@@ -87,6 +87,27 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self, assigned: Iterable[TopicPartition]) -> None:
         self._new_assignments.put_nowait(assigned)
 
+    @Service.task
+    async def _new_assignments_handler(self) -> None:
+        assigned: Iterable[TopicPartition]
+        while not self.should_stop:
+            assigned = await self._new_assignments.get()
+            # Wait for TopicManager to finish any new subscriptions
+            await self.app.sources.wait_for_subscriptions()
+            self.log.info('New assignments found')
+            await self._on_recovery_started()
+            await self.app.consumer.pause_partitions(assigned)
+            # TODO Recover multiple tables at the same time.
+            for table in self.values():
+                # TODO If standby ready, just swap and continue.
+                await self._recover_from_changelog(table, assigned)
+            await self.app.consumer.resume_partitions({
+                tp for tp in assigned
+                if tp.topic not in self._changelogs
+            })
+            self.log.info('New assignments handled')
+            await self._on_recovery_completed()
+
     async def _recover_from_changelog(
             self,
             table: CollectionT,
@@ -199,26 +220,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     def _to_value(self, v: Any) -> Any:
         return v
-
-    @Service.task
-    async def _new_assignments_handler(self) -> None:
-        assigned: Iterable[TopicPartition]
-        while not self.should_stop:
-            assigned = await self._new_assignments.get()
-            # Wait for TopicManager to finish any new subscriptions
-            await self.app.sources.wait_for_subscriptions()
-            self.log.info('New assignments found')
-            await self._on_recovery_started()
-            await self.app.consumer.pause_partitions(assigned)
-            for table in self.values():
-                # TODO If standby ready, just swap and continue.
-                await self._recover_from_changelog(table, assigned)
-            await self.app.consumer.resume_partitions({
-                tp for tp in assigned
-                if tp.topic not in self._changelogs
-            })
-            self.log.info('New assignments handled')
-            await self._on_recovery_completed()
 
     async def _on_recovery_started(self) -> None:
         self._recovery_started.set()
