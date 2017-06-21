@@ -1,4 +1,3 @@
-import math
 import pytest
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -16,17 +15,16 @@ def test_str_to_decimal_text_values(x):
     except InvalidOperation:
         reject()
     except ValueError:
-        assume(math.isnan(Decimal(x)))
-        assume(math.isinf(Decimal(x)))
+        try:
+            assume(not Decimal(x).is_finite())
+        except ValueError:
+            pass
         raise
 
 
 @given(decimals())
 def test_str_to_decimal_decimals(x):
-    if isinstance(x, Decimal):
-        assume(not x.is_snan())
-    assume(not math.isnan(x))
-    assume(not math.isinf(x))
+    assume(x.is_finite())
     assert str_to_decimal(str(x)) == x
 
 

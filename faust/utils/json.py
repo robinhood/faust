@@ -1,11 +1,10 @@
 """JSON utilities."""
 import datetime
-import math
 import uuid
 from decimal import Decimal
-from typing import Any, Optional, Tuple, Type, cast
+from typing import Any, List, Optional, Tuple, Type
 
-DEFAULT_TEXTUAL_TYPES = [Decimal, uuid.UUID]
+DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID]
 
 try:  # pragma: no cover
     from django.utils.functional import Promise
@@ -13,7 +12,8 @@ try:  # pragma: no cover
 except ImportError:  # pragma: no cover
     DJANGO_TEXTUAL_TYPES = []
 
-TEXTUAL_TYPES = tuple(DEFAULT_TEXTUAL_TYPES + DJANGO_TEXTUAL_TYPES)
+TEXTUAL_TYPES: Tuple[Type, ...] = tuple(
+    DEFAULT_TEXTUAL_TYPES + DJANGO_TEXTUAL_TYPES)
 
 try:  # pragma no cover
     import simplejson as json
@@ -54,7 +54,7 @@ def str_to_decimal(s: str,
         raise ValueError(
             f'string of length {len(s)} is longer than limit ({maxlen})')
     v = Decimal(s)
-    if v.is_snan() or math.isnan(cast(float, v)) or math.isinf(cast(float, v)):
+    if not v.is_finite():  # check for Inf/NaN/sNaN/qNaN
         raise ValueError(f'Illegal value in decimal: {s!r}')
     return v
 
