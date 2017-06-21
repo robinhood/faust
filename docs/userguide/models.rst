@@ -1,8 +1,8 @@
 .. _guide-models:
 
-========================================================
+=====================================
  Models and Serialization
-========================================================
+=====================================
 
 .. contents::
     :local:
@@ -15,13 +15,105 @@
 Basics
 ======
 
-Models describe how message keys and values are serialized and deserialized.
+Models describe how to serialize/deserialize message keys and values,
+using modern Python type annotation syntax.
+
+It's important to note that you don't actually need to use models to
+describe the content of your messages, streams can happily take any
+value or even work with raw byte strings, but models add value
+by serving as documentation and enabling static type checks of
+for example JSON dictionary fields.
+
+If you're integrating with existing systems Faust's :ref:`codecs
+<codecs-guide>` can help you support serialization and deserialization
+in any format.  Models describe the content of messages, while codecs describe
+how they are serialized/compressed/encoded/etc.
+The default codec is configured by the applications ``key_serializer`` and
+``value_serializer`` arguments, and individual model may override the default
+by specifying the ``serializer`` argument when creating the model class,
+for example:
+
+.. code-block:: python
+
+    class MyRecord(Record, serializer='json')
+        ...
+
+Codecs can also be combined so that they consist of multiple encoding/decoding
+stages, for example data serialized with JSON and then Base64 encoded would
+be ``serializer='json|binary'``.
+
+.. seealso::
+
+    See the :ref:`guide-codecs` section for information about codecs
+    and how to define your own.
+
+.. topic:: Vague vs. Typed
+
+Sending/receiving non-described keys and values is easy:
+
+.. code-block:: python
+
+    # examples/nondescript.py
+    import faust
+
+    app = faust.App('values')
+    transfers_topic = app.topic('transfers')
+    large_transfers_topic = app.topic('large_transfers')
+
+    @app.actor(transfers_topic)
+    async def find_large_transfers(transfers):
+        async for transfer in transfers:
+            if transfer['amount'] > 1000.0:
+                await large_transfers_topic.send(value=transfer)
+
+    async def send_transfer(account_id, amount):
+        await transfers_topic.send(value={
+            'account_id': account_id,
+            'amount': amount,
+        })
+
+Using models to describe topics adds more code, but also value:
+
+.. code-block:: python
+
+    # examples/described.py
+    import faust
+
+    class Transfer(faust.Record):
+        account_id: str
+        amount: float
+
+    app = faust.app('values')
+    transfers_topic = app.topic('transfers', value_type=Transfer)
+    large_transfers_topic = app.topic('large_transfers', value_type=Transfer)
+
+    @app.actor(transfers_topic)
+    async def find_large_transfers(transfers):
+        async for transfer in transfers:
+            if transfer.amount > 1000.0:
+                await large_transfers_topic.send(value=transfer)
+
+    async def send_transfer(account_id, amount):
+        await transfers_topic.send(
+            value=Transfer(account_id=account_id, amount=amount),
+        )
+
+Using static type checks you can now be alerted if something sends
+the wrong type of value for the `account_id` for example.
+The most compelling reason for using non-described messages would
+be to integrate with existing Kafka topics and systems, but if you're
+writing new systems in Faust the best practice would be to describe models.
+
+Model Types
+===========
+
+The first version of Faust only supports dictionary models (records),
+but can easily extended to support other types of models, like arrays.
 
 Records
 -------
 
-A record is a model based on a dictionary/mapping and is probably the most
-commonly used model.
+A record is a model based on a dictionary/mapping.
 
 Here's a simple record describing a 2d point, with two required fields: ``x``
 and ``y``:
@@ -157,8 +249,7 @@ Schemas
     .. automethod:: as_avro_schema
         :noindex:
 
-Introspection
-^^^^^^^^^^^^^
+.. _guide-codecs:
 
 Codecs
 ======

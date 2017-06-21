@@ -39,7 +39,6 @@ Here's an example actor that adds numbers:
 .. code-block:: python
 
     # examples/actor.py
-
     import faust
 
     # The model describes the data sent to our actor,
@@ -206,7 +205,7 @@ then the default serializer defined by the app will be used.
 
 .. seealso::
 
-    The :ref:`streams` guide for more information about topics.
+    The :ref:`guide-streams` guide for more information about topics.
 
 The Stream
 ----------
@@ -290,7 +289,7 @@ should use a traditional asyncio Task:
 
 .. seealso::
 
-    The :ref:`streams` guide for more information about streams and topics.
+    The :ref:`guide-streams` guide for more information about streams and topics.
 
 
 .. _actor-concurrency:

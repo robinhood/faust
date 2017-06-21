@@ -126,16 +126,10 @@ Examples
 
     .. code-block:: python
 
+        session = aiohttp.ClientSession()
         async for order in orders_topic.stream():
-            product_info = await aiohttp.get(f'http://e.com/api/{order.id}/')
+            product_info = await session.get(f'http://e.com/api/{order.id}/')
             await aiohttp.post(f'http://cache/{order.id}/', data=product_info)
-
-.. topic:: Distribute data in iterable across cluster and process it
-
-    .. code-block:: python
-
-        async for item in app.stream([1, 2, 3, 4]):
-            print(item * 2)
 
 .. topic:: Buffer up many events at a time
 
@@ -154,8 +148,8 @@ Examples
 
         async for order in orders_topic.stream():
             country = order.country_origin
-            new_total = orders_by_country.increment(country, 1)
-            print(f'Orders for country {country}: {new_total}')
+            orders_by_country[country] += 1
+            print(f'Orders for country {country}: {orders_by_country[country]}')
 
 .. topic:: Aggregate information using a window
 
@@ -176,16 +170,19 @@ Examples
 
 .. topic:: Send something to be processed later
 
+    TODO This is not implemented yet
+
     async for event in my_topic.stream():
         # forward to other topic, but only after two days
-        event.forward(other_topic, eta=timedelta(days=2))
+        await topic.send(event, eta=timedelta(days=2))
 
 Design considerations
 =====================
 
 Modern Python
     Faust uses modern Python 3 features such as ``async``/``await`` and type
-    annotations.  You can take advantage of type annotations when writing
+    annotations. It's statically typed and verified by the `mypy`_
+    type checker. You can take advantage of type annotations when writing
     Faust applications, but this is not mandatory.
 
 Library
@@ -201,8 +198,10 @@ Live happy, die hard
 
 Extensible
     Faust abstracts away storages, serializers and even message transports,
-    to make it easy for developers to extend it with new capabilities,
+    to make it easy for developers to extend Faust with new capabilities,
     and integrate into your existing systems.
+
+.. _`mypy`: http://mypy-lang.org
 
 .. _`supervisord`: http://supervisord.org
 
