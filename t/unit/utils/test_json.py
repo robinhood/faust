@@ -1,7 +1,6 @@
 import pytest
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
-from six import text_type
 from uuid import uuid4
 from hypothesis import assume, given, reject
 from hypothesis.strategies import decimals, text
@@ -34,7 +33,7 @@ def test_str_to_decimal_None():
 
 def test_str():
     d1 = Decimal('3.3333433434343434343434343434343')
-    assert str_to_decimal(text_type(d1)) == d1
+    assert str_to_decimal(str(d1)) == d1
 
 
 def test_maxlen():
