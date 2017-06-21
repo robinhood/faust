@@ -73,7 +73,8 @@ def test_stream(app):
     assert s.source.app == app
 
 
-def test_stream_with_coroutine(app):
+@pytest.mark.asyncio
+async def test_stream_with_coroutine(app):
 
     async def coro(it):
         ...
