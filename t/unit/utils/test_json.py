@@ -57,6 +57,11 @@ def test_negative_Inf():
         str_to_decimal('-Inf')
 
 
+def test_sNaN():
+    with pytest.raises(ValueError):
+        str_to_decimal('sNaN')
+
+
 def test_JSONEncoder():
     encoder = JSONEncoder()
     assert encoder.default(date(2016, 3, 2))
