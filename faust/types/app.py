@@ -59,6 +59,7 @@ class AppT(ServiceT):
     replication_factor: int
     default_partitions: int  # noqa: E704
     reply_to: str
+    create_reply_topic: float
     reply_expires: float
     avro_registry_url: str
     store: str

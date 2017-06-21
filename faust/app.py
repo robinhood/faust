@@ -265,6 +265,7 @@ class App(AppT, ServiceProxy):
                  replication_factor: int = 1,
                  default_partitions: int = 8,
                  reply_to: str = None,
+                 create_reply_topic: bool = False,
                  reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
@@ -286,6 +287,7 @@ class App(AppT, ServiceProxy):
         self.replication_factor = replication_factor
         self.default_partitions = default_partitions
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
+        self.create_reply_topic = create_reply_topic
         self.reply_expires = want_seconds(
             reply_expires or DEFAULT_REPLY_EXPIRES)
         self.avro_registry_url = avro_registry_url

@@ -2,7 +2,7 @@ import faust
 from typing import AsyncIterator
 
 
-app = faust.App('RPC99')
+app = faust.App('RPC99', create_reply_topic=True)
 pow_topic = app.topic('RPC__pow')
 mul_topic = app.topic('RPC__mul')
 
