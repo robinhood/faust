@@ -37,7 +37,6 @@ class PartitionAssignor(AbstractPartitionAssignor):
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
         self._assignment = cast(ClientAssignment,
                                 ClientAssignment.loads(assignment.user_data))
-        print(self._assignment)
         a = sorted(assignment.assignment)
         b = sorted(self._assignment.kafka_protocol_assignment())
         assert a == b, f'{a!r} != {b!r}'
@@ -114,7 +113,6 @@ class PartitionAssignor(AbstractPartitionAssignor):
                         copart_assn)
 
         res = self._protocol_assignments(assignments)
-        print(res)
         return res
 
     def _protocol_assignments(
