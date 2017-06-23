@@ -79,7 +79,9 @@ def worker(ctx: click.Context,
            debug=debug,
            quiet=quiet,
            logfile=logfile,
-           loglevel=loglevel).execute_from_commandline()
+           loglevel=loglevel,
+           web_port=web_port,
+    ).execute_from_commandline()
 
 
 @click.command()

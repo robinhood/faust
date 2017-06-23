@@ -213,9 +213,6 @@ class App(AppT, ServiceProxy):
     """
     logger = logger
 
-    web_port: int
-    web_bind: str
-
     client_only = False
 
     #: Default producer instance.
