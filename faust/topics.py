@@ -321,7 +321,11 @@ class TopicSource(SourceT):
         return await self.queue.get()
 
     def __repr__(self) -> str:
-        return f'<{type(self).__name__}: {self.topic!r}>'
+        return f'<{self.label}>'
+
+    @property
+    def label(self) -> str:
+        return f'{type(self).__name__}: {self.topic!r}'
 
 
 class TopicManager(TopicManagerT, Service):
