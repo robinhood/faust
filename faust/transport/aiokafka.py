@@ -41,8 +41,16 @@ class TopicExists(errors.BrokerResponseError):
     retriable = False
 
 
+class NotController(errors.BrokerResponseError):
+    errno = 41
+    message = 'NOT_CONTROLLER'
+    description = 'This is not the correct controller for this cluster.'
+    retriable = True
+
+
 EXTRA_ERRORS: Mapping[int, Type[errors.KafkaError]] = {
-    TopicExists.errno: TopicExists
+    TopicExists.errno: TopicExists,
+    NotController.errno: NotController,
 }
 
 
@@ -342,22 +350,35 @@ class Transport(base.Transport):
         owner.log.info(f'Creating topic {topic}')
         protocol_version = 1
         config = config or self._topic_config(retention, compacting, deleting)
-        node_id = next((broker.nodeId
-                        for broker in client.cluster.brokers()), None)
-        if node_id is None:
-            raise RuntimeError('Not connected to Kafka broker')
-        request = CreateTopicsRequest[protocol_version](
-            [(topic, partitions, replication, [], list(config.items()))],
-            timeout,
-            False
-        )
-        response = await client.send(node_id, request)
-        assert len(response.topic_error_codes), 'Single topic requested.'
-        _, code, reason = response.topic_error_codes[0]
 
-        if code != 0:
-            if not ensure_created and code == TopicExists.errno:
-                owner.log.debug(f'Topic {topic} exists, skipping creation.')
-            else:
-                raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
-                    f'Cannot create topic: {topic} ({code}): {reason}')
+        # Create topic request needs to be sent to the kafka cluster controller
+        # Since aiokafka client doesn't currently support MetadataRequest
+        # version 1, client.controller will always be None. Hence we cycle
+        # through all brokers if we get Error 41 (not controller) until we
+        # hit the controller
+        for broker in client.cluster.brokers():
+            node_id = broker.nodeId
+            if node_id is None:
+                raise RuntimeError('Not connected to Kafka broker')
+
+            request = CreateTopicsRequest[protocol_version](
+                [(topic, partitions, replication, [], list(config.items()))],
+                timeout,
+                False
+            )
+            response = await client.send(node_id, request)
+            assert len(response.topic_error_codes), 'Single topic requested.'
+
+            _, code, reason = response.topic_error_codes[0]
+
+            if code != 0:
+                if not ensure_created and code == TopicExists.errno:
+                    owner.log.debug(
+                        f'Topic {topic} exists, skipping creation.')
+                    break
+                elif code == NotController.errno:
+                    owner.log.debug(f'Broker: {node_id} is not controller.')
+                    continue
+                else:
+                    raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
+                        f'Cannot create topic: {topic} ({code}): {reason}')
