@@ -5,13 +5,15 @@ from kafka.coordinator.protocol import (
     ConsumerProtocolMemberMetadata, ConsumerProtocolMemberAssignment,
 )
 from logging import getLogger
-from typing import MutableMapping, Set, cast
+from typing import Iterable, MutableMapping, Sequence, Set, cast
 from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
 
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
+MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 ClientAssignmentMapping = MutableMapping[str, ClientAssignment]
+CopartitionedGroups = MutableMapping[int, Iterable[Set[str]]]
 
 logger = getLogger(__name__)
 
@@ -44,9 +46,26 @@ class PartitionAssignor(AbstractPartitionAssignor):
             self.version, list(topics), self._assignment.dumps())
 
     @classmethod
+    def _group_co_subscribed(cls, topics: Set[str],
+                             member_metadata: MemberMetadataMapping
+                             ) -> Iterable[Set[str]]:
+        topic_subscriptions: MutableMapping[str, Set[str]] = defaultdict(set)
+        for client, metadata in member_metadata.items():
+            for topic in metadata.subscription:
+                topic_subscriptions[topic].add(client)
+        co_subscribed: MutableMapping[Sequence[str], Set[str]] = defaultdict(
+            set)
+        for topic in topics:
+            clients = topic_subscriptions[topic]
+            assert clients, "Subscribed clients for topic cannot be empty"
+            co_subscribed[tuple(clients)].add(topic)
+        return co_subscribed.values()
+
+    @classmethod
     def _get_copartitioned_groups(
             cls, topics: Set[str],
-            cluster: ClusterMetadata) -> MutableMapping[int, Set[str]]:
+            cluster: ClusterMetadata,
+            member_metadata: MemberMetadataMapping) -> CopartitionedGroups:
         topics_by_partitions: MutableMapping[int, Set] = defaultdict(set)
         for topic in topics:
             num_partitions = len(cluster.partitions_for_topic(topic) or set())
@@ -54,16 +73,23 @@ class PartitionAssignor(AbstractPartitionAssignor):
                 logger.warning(f'Ignoring missing topic: {topic}')
                 continue
             topics_by_partitions[num_partitions].add(topic)
-        return topics_by_partitions
+        # We group copartitioned topics by subscribed clients such that
+        # a group of co-subscribed topics with the same number of partitions
+        # are copartitioned
+        copart_grouped = {
+            num_partitions: cls._group_co_subscribed(topics, member_metadata)
+            for num_partitions, topics in topics_by_partitions.items()
+        }
+        return copart_grouped
 
     def assign(self, cluster: ClusterMetadata,
-               member_metadata: MutableMapping[str,
-                                               ConsumerProtocolMemberMetadata]
+               member_metadata: MemberMetadataMapping
                ) -> MemberAssignmentMapping:
         cluster_assgn = ClusterAssignment()
         cluster_assgn.add_clients(member_metadata)
         topics = cluster_assgn.topics()
-        copartitioned_groups = self._get_copartitioned_groups(topics, cluster)
+        copartitioned_groups = self._get_copartitioned_groups(
+            topics, cluster, member_metadata)
 
         # Initialize fresh assignment
         assignments = {
@@ -71,20 +97,23 @@ class PartitionAssignor(AbstractPartitionAssignor):
             for member_id in member_metadata
         }
 
-        for num_partitions, topics in copartitioned_groups.items():
-            assert len(topics) > 0 and num_partitions > 0
-            # Get assignment for unique copartitioned group
-            assgn = cluster_assgn.copartitioned_assignments(topics)
-            assignor = CopartitionedAssignor(
-                topics=topics,
-                cluster_asgn=assgn,
-                num_partitions=num_partitions,
-            )
-            # Update client assignments for copartitioned group
-            for client, copart_assn in assignor.get_assignment().items():
-                assignments[client].add_copartitioned_assignment(copart_assn)
+        for num_partitions, topic_groups in copartitioned_groups.items():
+            for topics in topic_groups:
+                assert len(topics) > 0 and num_partitions > 0
+                # Get assignment for unique copartitioned group
+                assgn = cluster_assgn.copartitioned_assignments(topics)
+                assignor = CopartitionedAssignor(
+                    topics=topics,
+                    cluster_asgn=assgn,
+                    num_partitions=num_partitions,
+                )
+                # Update client assignments for copartitioned group
+                for client, copart_assn in assignor.get_assignment().items():
+                    assignments[client].add_copartitioned_assignment(
+                        copart_assn)
 
-        return self._protocol_assignments(assignments)
+        res = self._protocol_assignments(assignments)
+        return res
 
     def _protocol_assignments(
             self,
