@@ -356,8 +356,8 @@ class Transport(base.Transport):
         # version 1, client.controller will always be None. Hence we cycle
         # through all brokers if we get Error 41 (not controller) until we
         # hit the controller
-        for broker in client.cluster.brokers():
-            node_id = broker.nodeId
+        nodes = [broker.nodeId for broker in client.cluster.brokers()]
+        for node_id in nodes:
             if node_id is None:
                 raise RuntimeError('Not connected to Kafka broker')
 
@@ -375,10 +375,14 @@ class Transport(base.Transport):
                 if not ensure_created and code == TopicExists.errno:
                     owner.log.debug(
                         f'Topic {topic} exists, skipping creation.')
-                    break
+                    return
                 elif code == NotController.errno:
                     owner.log.debug(f'Broker: {node_id} is not controller.')
                     continue
                 else:
                     raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
                         f'Cannot create topic: {topic} ({code}): {reason}')
+            else:
+                owner.log.info(f'Topic {topic} created.')
+                return
+        raise Exception(f'No controller found amount brokers: {nodes}')
