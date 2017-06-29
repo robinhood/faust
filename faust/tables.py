@@ -224,10 +224,10 @@ class Collection(Service, CollectionT):
                          key: Any,
                          value: Any,
                          event: EventT = None) -> None:
-        get = self._get_key
-        set = self._set_key
+        get_ = self._get_key
+        set_ = self._set_key
         for window_range in self._window_ranges(event):
-            set((key, window_range), op(get((key, window_range)), value))
+            set_((key, window_range), op(get_((key, window_range)), value))
 
     def _set_windowed(self, key: Any, value: Any,
                       event: EventT = None) -> None:

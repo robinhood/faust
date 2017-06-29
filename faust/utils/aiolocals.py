@@ -51,17 +51,13 @@ class Context:
         parent: The parent context
     """
 
-    def __init__(self,
+    def __init__(self,  # noqa: T002
                  *,
                  ident: int = None,
                  locals: List = None,
                  parent: 'Context' = None) -> None:
-        if ident is None:
-            ident = _get_ident()
-        if locals is None:
-            locals = []
-        self.ident = ident
-        self.locals = locals
+        self.ident = _get_ident() if ident is None else ident
+        self.locals = [] if locals is None else locals
 
         if parent:
             self.parent = parent

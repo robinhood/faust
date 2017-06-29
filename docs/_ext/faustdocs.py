@@ -118,21 +118,21 @@ def modify_textnode(T, newtarget, node, src_dict, type):
 def maybe_resolve_abbreviations(app, env, node, contnode):
     domainname = node.get('refdomain')
     target = node['reftarget']
-    type = node['reftype']
+    typ = node['reftype']
     if target.startswith('@'):
-        newtarget, src_dict = resolve(target, type)
+        newtarget, src_dict = resolve(target, typ)
         node['reftarget'] = newtarget
         # shorten text if '~' is not enabled.
         if len(contnode) and isinstance(contnode[0], nodes.Text):
                 contnode[0] = modify_textnode(target, newtarget, node,
-                                              src_dict, type)
+                                              src_dict, typ)
         if domainname:
             try:
                 domain = env.domains[node.get('refdomain')]
             except KeyError:
                 raise NoUri
             return domain.resolve_xref(env, node['refdoc'], app.builder,
-                                       type, newtarget,
+                                       typ, newtarget,
                                        node, contnode)
 
 

@@ -579,11 +579,11 @@ class App(AppT, ServiceProxy):
                       partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None) -> None:
-        buffer = self._pending_on_commit[message.tp]
+        buf = self._pending_on_commit[message.tp]
         pending_message = PendingMessage(
             topic, key, value, partition,
             key_serializer, value_serializer)
-        heappush(buffer, (message.offset, pending_message))
+        heappush(buf, (message.offset, pending_message))
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # Get pending messages attached to this TP+offset

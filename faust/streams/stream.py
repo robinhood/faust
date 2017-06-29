@@ -467,7 +467,7 @@ class Stream(StreamT, JoinableT, Service):
         on_stream_event_in = self._on_stream_event_in
 
         # localize this global variable
-        locals = _locals
+        threadlocals = _locals
         create_ref = weakref.ref
 
         async def on_message() -> None:
@@ -483,7 +483,7 @@ class Stream(StreamT, JoinableT, Service):
                     message.tp, message.offset, self, event)
 
                 # set task-local current_event
-                locals.current_event = create_ref(event)
+                threadlocals.current_event = create_ref(event)
                 # set Stream._current_event
                 self.current_event = event
 
