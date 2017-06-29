@@ -2,12 +2,16 @@ PROJ=faust
 PGPIDENT="Celery Security Team"
 PYTHON=python3.6
 PYTEST=py.test
+PIP=pip
 GIT=git
 TOX=tox
 NOSETESTS=nosetests
 ICONV=iconv
 FLAKE8=flake8
+PYDOCSTYLE=pydocstyle
+MYPY=mypy
 SPHINX2RST=sphinx2rst
+BUMPVERSION=bumpversion
 
 TESTDIR=t
 SPHINX_DIR=docs/
@@ -32,7 +36,9 @@ help:
 	@echo "    readmecheck      - Check README.rst encoding."
 	@echo "    contribcheck     - Check CONTRIBUTING.rst encoding"
 	@echo "    flakes --------  - Check code for syntax and style errors."
+	@echo "      typecheck      - Run the mypy type checker"
 	@echo "      flakecheck     - Run flake8 on the source code."
+	@echo "      pep257check    - Run pep257 on the source code."
 	@echo "readme               - Regenerate README.rst file."
 	@echo "contrib              - Regenerate CONTRIBUTING.rst file"
 	@echo "clean-dist --------- - Clean all distribution build artifacts."
@@ -51,16 +57,16 @@ clean: clean-docs clean-pyc clean-build
 clean-dist: clean clean-git-force
 
 bump:
-	bumpversion patch
+	$(BUMPVERSION) patch
 
 bump-minor:
-	bumpversion minor
+	$(BUMPVERSION) minor
 
 bump-major:
-	bumpversion major
+	$(BUMPVERSION) major
 
 release:
-	python setup.py register sdist bdist_wheel upload --sign --identity="$(PGPIDENT)"
+	$(PYTHON) setup.py register sdist bdist_wheel upload --sign --identity="$(PGPIDENT)"
 
 Documentation:
 	(cd "$(SPHINX_DIR)"; $(MAKE) html)
@@ -81,6 +87,9 @@ configcheck:
 
 flakecheck:
 	$(FLAKE8) "$(PROJ)" "$(TESTDIR)" examples/
+
+pep257check:
+	$(PYDOCSTYLE) "$(PROJ)"
 
 flakediag:
 	-$(MAKE) flakecheck
@@ -138,12 +147,12 @@ distcheck: lint test clean
 dist: readme contrib clean-dist build
 
 typecheck:
-	$(PYTHON) -m mypy $(PROJ)
+	$(PYTHON) -m $(MYPY) $(PROJ)
 
 .PHONY: requirements
 requirements:
-	pip install --upgrade pip;\
-	for f in `ls requirements/` ; do pip install -r requirements/$$f ; done
+	$(PIP) install --upgrade pip;\
+	for f in `ls requirements/` ; do $(PIP) install -r requirements/$$f ; done
 
 .PHONY: clean-requirements
 clean-requirements:

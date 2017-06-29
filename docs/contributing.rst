@@ -570,13 +570,13 @@ Verifying your contribution
 ---------------------------
 
 To use these tools you need to install a few dependencies. These dependencies
-can be found in :file:`requirements/pkgutils.txt`.
+can be found in :file:`requirements/dist.txt`.
 
 Installing the dependencies:
 
 .. code-block:: console
 
-    $ pip install -U -r requirements/pkgutils.txt
+    $ pip install -U -r requirements/dist.txt
 
 pyflakes & PEP-8
 ~~~~~~~~~~~~~~~~
@@ -795,7 +795,7 @@ that require third-party libraries must be added.
 
     .. code-block:: console
 
-        $ pip install -U requirements/pkgutils.txt
+        $ pip install -U requirements/dist.txt
         $ make readme
 
 
