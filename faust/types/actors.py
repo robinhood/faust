@@ -4,11 +4,11 @@ from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
     Callable, Iterable, List, Tuple, Union, no_type_check,
 )
-from ..utils.types.services import ServiceT
 from .codecs import CodecArg
 from .core import K, V
 from .streams import StreamT
 from .topics import TopicT
+from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

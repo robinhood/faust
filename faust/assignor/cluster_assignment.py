@@ -1,7 +1,7 @@
-from kafka.coordinator.protocol import ConsumerProtocolMemberMetadata
 from typing import Any, MutableMapping, Sequence, Set, cast
-from faust.models import Record
+from kafka.coordinator.protocol import ConsumerProtocolMemberMetadata
 from .client_assignment import ClientAssignment, CopartitionedAssignment
+from ..models import Record
 
 MetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 CopartMapping = MutableMapping[str, CopartitionedAssignment]

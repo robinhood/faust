@@ -1,8 +1,8 @@
-import click
 import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable, Mapping, Sequence
+import click
 from ..types.app import AppT
 from ..utils.imports import import_from_cwd, symbol_by_name
 from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT

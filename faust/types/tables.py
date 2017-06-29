@@ -4,13 +4,13 @@ import typing
 from typing import (
     Any, Callable, ClassVar, Iterable, MutableMapping, MutableSet, Type,
 )
-from ..utils.times import Seconds
-from ..utils.types.services import ServiceT
+from .stores import StoreT
 from .streams import JoinableT
 from .topics import EventT, TopicT
 from .tuples import TopicPartition
-from .stores import StoreT
 from .windows import WindowT
+from ..utils.times import Seconds
+from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

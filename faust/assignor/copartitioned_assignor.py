@@ -1,7 +1,7 @@
 from collections import Counter
 from itertools import cycle
 from math import ceil
-from typing import Iterable, Iterator, MutableMapping, Optional, Set, Sequence
+from typing import Iterable, Iterator, MutableMapping, Optional, Sequence, Set
 from .client_assignment import CopartitionedAssignment
 
 

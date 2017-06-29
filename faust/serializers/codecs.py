@@ -157,10 +157,10 @@ At this point may want to publish this on PyPI to share
 the extension with other Faust users.
 """
 import pickle as _pickle
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from functools import reduce
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
-from ..types.codecs import CodecT, CodecArg
+from ..types.codecs import CodecArg, CodecT
 from ..utils import json as _json
 from ..utils.compat import want_bytes, want_str
 from ..utils.imports import load_extension_classes

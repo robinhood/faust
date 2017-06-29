@@ -1,12 +1,12 @@
 import sys
 from typing import Any, MutableMapping, Optional, Type, cast
+from .codecs import CodecArg, CodecT, dumps, loads
 from ..exceptions import KeyDecodeError, ValueDecodeError
-from ..types import K, V, ModelArg, ModelT
+from ..types import K, ModelArg, ModelT, V
 from ..types.serializers import AsyncSerializerT, RegistryT
 from ..utils.compat import want_bytes
 from ..utils.imports import FactoryMapping, symbol_by_name
 from ..utils.objects import cached_property
-from .codecs import CodecArg, CodecT, dumps, loads
 
 _flake8_Any_is_really_used: Any  # XXX flake8 bug
 

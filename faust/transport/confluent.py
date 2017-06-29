@@ -1,12 +1,12 @@
 """Message transport using :pypi:`aiokafka`."""
-import confluent_kafka
 from typing import Awaitable, Optional, cast
+import confluent_kafka
+from . import base
 from ..types import Message
 from ..utils.futures import done_future
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
 from ..utils.services import Service
-from . import base
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 

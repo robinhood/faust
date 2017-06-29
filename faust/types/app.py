@@ -5,24 +5,24 @@ from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
-from ..utils.imports import SymbolArg
-from ..utils.times import Seconds
-from ..utils.types.collections import NodeT
-from ..utils.types.services import ServiceT
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT, SinkT
 from .codecs import CodecArg
 from .core import K, V
-from .serializers import RegistryT
 from .sensors import SensorDelegateT
+from .serializers import RegistryT
 # mypy requires this for some unknown reason, but it's not used
 from .streams import T  # noqa: F401
 from .streams import StreamT
-from .tables import CollectionT, SetT, TableT, TableManagerT
+from .tables import CollectionT, SetT, TableManagerT, TableT
+from .topics import TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
-from .topics import TopicT, TopicManagerT
 from .tuples import Message, PendingMessage, TopicPartition
 from .windows import WindowT
+from ..utils.imports import SymbolArg
+from ..utils.times import Seconds
+from ..utils.types.collections import NodeT
+from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from ..sensors import Monitor

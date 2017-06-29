@@ -4,7 +4,7 @@ from typing import (
 )
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
-from ..types.models import FieldDescriptorT, ModelT, ModelOptions
+from ..types.models import FieldDescriptorT, ModelOptions, ModelT
 from ..utils.objects import canoname
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']

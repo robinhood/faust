@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from sphinx_celery import conf
 import sys
+from sphinx_celery import conf
 
 sys.path.append('.')
 

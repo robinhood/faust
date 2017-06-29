@@ -3,7 +3,6 @@
 A worker starts one or more Faust applications.
 """
 import asyncio
-import faust
 import logging
 import os
 import platform
@@ -14,9 +13,12 @@ import sys
 
 from contextlib import suppress
 from itertools import chain
-from typing import Any, Coroutine, IO, Iterable, Set, Tuple, Union, cast
 from pathlib import Path
+from typing import Any, Coroutine, IO, Iterable, Set, Tuple, Union, cast
+
 from progress.spinner import Spinner
+
+from . import __version__ as faust_version
 from .types import AppT, SensorT
 from .utils.compat import DummyContext
 from .utils.debug import BlockingDetector
@@ -210,7 +212,7 @@ class Worker(Service):
     def faust_ident(self) -> str:
         return self.f_ident.format(
             py=platform.python_implementation(),
-            faust_v=faust.__version__,
+            faust_v=faust_version,
             system=platform.system(),
             transport_v=self.app.transport.driver_version,
             http_v=self.website.driver_version,

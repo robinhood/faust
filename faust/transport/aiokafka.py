@@ -1,10 +1,10 @@
 """Message transport using :pypi:`aiokafka`."""
-import aiokafka
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, List,
     Mapping, MutableMapping, Optional, Set, Tuple, Type, cast
 )
 
+import aiokafka
 from aiokafka.errors import ConsumerStoppedError
 from kafka import errors
 from kafka.consumer import subscription_state
@@ -14,8 +14,8 @@ from kafka.structs import (
     TopicPartition as _TopicPartition,
 )
 
-from faust.assignor.partition_assignor import PartitionAssignor
 from . import base
+from ..assignor.partition_assignor import PartitionAssignor
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import done_future

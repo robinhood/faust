@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
-from ..types.models import ModelT
-from ..utils.objects import cached_property
-from ..utils.avro import MessageSerializer, RegistryClient
 from . import base
+from ..types.models import ModelT
+from ..utils.avro import MessageSerializer, RegistryClient
+from ..utils.objects import cached_property
 
 __all__ = ['AvroSerializer', 'to_avro_type']
 

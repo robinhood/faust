@@ -6,14 +6,12 @@ from functools import total_ordering
 from types import TracebackType
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Set, Sequence, Union, Type,
+    MutableMapping, Optional, Pattern, Sequence, Set, Type, Union,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
-from .types import (
-    AppT, CodecArg, Message, ModelArg, TopicPartition, K, V,
-)
-from .types.streams import StreamT, StreamCoroutine
-from .types.topics import EventT, SourceT, TopicT, TopicManagerT
+from .types import AppT, CodecArg, K, Message, ModelArg, TopicPartition, V
+from .types.streams import StreamCoroutine, StreamT
+from .types.topics import EventT, SourceT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.logging import get_logger
 from .utils.services import Service

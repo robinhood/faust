@@ -1,10 +1,10 @@
-import faust
-import pytest
 from case import ANY, Mock
+import faust
 from faust.serializers import codecs
 from faust.types.models import ModelT
 from faust.utils.compat import want_bytes
 from faust.utils.futures import done_future
+import pytest
 
 TEST_TOPIC = 'test'
 

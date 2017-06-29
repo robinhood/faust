@@ -1,9 +1,9 @@
 """Avro schema registry service client (HTTP)."""
 import asyncio
-import aiohttp
 from collections import defaultdict
 from contextlib import suppress
 from typing import DefaultDict, Dict, Iterable, Mapping, Optional, Tuple, cast
+from aiohttp import ClientSession
 from avro.schema import Parse, Schema
 from faust.utils import json
 from faust.utils.logging import get_logger
@@ -44,13 +44,13 @@ class RegistryClient:
     loop: asyncio.AbstractEventLoop
 
     _accept_types: str
-    _session: aiohttp.ClientSession
+    _session: ClientSession
 
     def __init__(self,
                  url: str,
                  *,
                  max_schemas_per_subject: int = 1000,
-                 session: aiohttp.ClientSession = None,
+                 session: ClientSession = None,
                  accept: Iterable[str] = ACCEPT_TYPES,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = url.rstrip('/')
@@ -228,11 +228,11 @@ class RegistryClient:
         raise ClientError(message)
 
     @property
-    def session(self) -> aiohttp.ClientSession:
+    def session(self) -> ClientSession:
         if self._session is None:
-            self._session = aiohttp.ClientSession(loop=self.loop)
+            self._session = ClientSession(loop=self.loop)
         return self._session
 
     @session.setter
-    def session(self, session: aiohttp.ClientSession) -> None:
+    def session(self, session: ClientSession) -> None:
         self._session = session

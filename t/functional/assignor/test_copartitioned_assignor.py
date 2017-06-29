@@ -1,10 +1,10 @@
 import copy
 from collections import Counter
-from hypothesis import assume, given
-from hypothesis.strategies import integers
 from typing import MutableMapping
 from faust.assignor.client_assignment import CopartitionedAssignment
 from faust.assignor.copartitioned_assignor import CopartitionedAssignor
+from hypothesis import assume, given
+from hypothesis.strategies import integers
 
 
 _topics = {'foo', 'bar', 'baz'}

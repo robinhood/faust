@@ -1,11 +1,11 @@
+from collections import Counter
 from functools import partial
 from typing import (
-    Any, Callable, ItemsView, Iterable, Iterator, IO,
-    List, MutableMapping, Set, Sequence, cast,
+    Any, Callable, IO, ItemsView, Iterable, Iterator,
+    List, MutableMapping, Sequence, Set, cast,
 )
-from collections import Counter
-from ..types.graphs import DependencyGraphT, GraphFormatterT
 from .formatter import GraphFormatter
+from ..types.graphs import DependencyGraphT, GraphFormatterT
 
 _flake8_List_is_used: List
 _flake8_Set_is_used: Set

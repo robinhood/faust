@@ -1,5 +1,5 @@
-import pytest
 from faust.utils.objects import cached_property
+import pytest
 
 
 class test_cached_property:

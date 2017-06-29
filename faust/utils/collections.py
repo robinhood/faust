@@ -1,9 +1,9 @@
+from collections import UserDict, deque
+from contextlib import suppress
 from typing import (
     Any, Deque, ItemsView, Iterator, KeysView, List,
     MutableMapping, MutableSet, ValuesView, cast,
 )
-from collections import UserDict, deque
-from contextlib import suppress
 from .graphs import DependencyGraph
 from .objects import shortlabel
 from .types.collections import NodeT

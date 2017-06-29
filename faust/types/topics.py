@@ -3,14 +3,14 @@ import typing
 from types import TracebackType
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
-    Iterable, Mapping, MutableSet, Pattern, Sequence, Union, Type,
+    Iterable, Mapping, MutableSet, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
-from ..utils.times import Seconds
-from ..utils.types.services import ServiceT
 from .codecs import CodecArg
 from .core import K, V
 from .tuples import Message, TopicPartition
+from ..utils.times import Seconds
+from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

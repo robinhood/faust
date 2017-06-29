@@ -1,5 +1,5 @@
-import faust
 from typing import AsyncIterator
+import faust
 
 
 app = faust.App('RPC99', create_reply_topic=True)

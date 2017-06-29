@@ -1,5 +1,5 @@
-import jinja2
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
+import jinja2
 from .base import Request, Web
 from ..types import AppT
 from ..utils.objects import cached_property

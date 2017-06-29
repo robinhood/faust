@@ -1,14 +1,14 @@
 from collections import defaultdict
+from typing import Iterable, MutableMapping, Sequence, Set, cast
 from kafka.cluster import ClusterMetadata
 from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
-    ConsumerProtocolMemberMetadata, ConsumerProtocolMemberAssignment,
+    ConsumerProtocolMemberAssignment, ConsumerProtocolMemberMetadata,
 )
-from logging import getLogger
-from typing import Iterable, MutableMapping, Sequence, Set, cast
 from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
+from ..utils.logging import get_logger
 
 __flake8_Sequence_is_used: Sequence   # XXX flake8 bug
 
@@ -17,7 +17,7 @@ MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 ClientAssignmentMapping = MutableMapping[str, ClientAssignment]
 CopartitionedGroups = MutableMapping[int, Iterable[Set[str]]]
 
-logger = getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PartitionAssignor(AbstractPartitionAssignor):

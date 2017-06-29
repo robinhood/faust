@@ -1,6 +1,6 @@
 import io
-from ..base import Request, Response, Web
 from .. import views
+from ..base import Request, Response, Web
 
 __all__ = ['Graph', 'Site']
 

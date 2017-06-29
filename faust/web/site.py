@@ -1,8 +1,8 @@
 from typing import Any
-from .drivers.aiohttp import Web
-from ..types import AppT
 from .apps import graph
 from .apps import stats
+from .drivers.aiohttp import Web
+from ..types import AppT
 
 __all__ = ['create_site']
 

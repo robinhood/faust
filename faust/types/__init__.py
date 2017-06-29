@@ -1,10 +1,9 @@
 """Abstract types for static typing."""
-from ..utils.types.services import ServiceT
 from .app import AppT
 from .codecs import CodecArg, CodecT
 from .core import K, V
 from .joins import JoinT
-from .models import ModelArg, ModelOptions, ModelT, FieldDescriptorT
+from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT
 from .sensors import SensorT
 from .serializers import AsyncSerializerT
 from .stores import StoreT
@@ -15,44 +14,60 @@ from .streams import (
     StreamT,
 )
 from .tables import CollectionT, SetT, TableT
+from .topics import EventT, TopicT
 from .transports import (
     ConsumerCallback,
     ConsumerT,
     ProducerT,
     TransportT,
 )
-from .topics import EventT, TopicT
-from .tuples import TopicPartition, Message, PendingMessage
-from .windows import WindowT, WindowRange
+from .tuples import Message, PendingMessage, TopicPartition
+from .windows import WindowRange, WindowT
+from ..utils.types.services import ServiceT
 
 __all__ = [
+    # types.app
     'AppT',
 
+    # types.codecs
     'CodecArg', 'CodecT',
 
+    # types.core
     'K', 'V',
 
+    # types.joins
     'JoinT',
 
-    'ModelArg', 'ModelOptions', 'ModelT', 'FieldDescriptorT',
+    # types.models
+    'FieldDescriptorT', 'ModelArg', 'ModelOptions', 'ModelT',
 
+    # types.sensors
     'SensorT',
 
+    # types.serializers
     'AsyncSerializerT',
 
+    # utils.types.services
     'ServiceT',
 
+    # types.stores
     'StoreT',
 
+    # types.streams
     'JoinableT', 'Processor', 'StreamCoroutine', 'StreamT',
 
+    # types.tables
     'CollectionT', 'SetT', 'TableT',
 
-    'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
-
+    # types.topics
     'EventT', 'TopicT',
 
-    'TopicPartition', 'Message', 'PendingMessage',
+    # types.transports
+    'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
-    'WindowT', 'WindowRange',
+    # types.tuples
+    'Message', 'PendingMessage', 'TopicPartition',
+
+    # types.windows
+    'WindowRange', 'WindowT',
 ]

@@ -1,7 +1,7 @@
 import asyncio
-import faust
 import os
 import sys
+import faust
 
 
 class Withdrawal(faust.Record, serializer='json'):

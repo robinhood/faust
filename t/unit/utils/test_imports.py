@@ -1,7 +1,7 @@
 import os
-import pytest
 from case import Mock
 from faust.utils.imports import symbol_by_name
+import pytest
 
 
 @pytest.fixture()

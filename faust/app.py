@@ -1,32 +1,31 @@
 """Faust Application."""
 import asyncio
-import faust
 
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
-from heapq import heappush, heappop
+from heapq import heappop, heappush
 from itertools import chain
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Sequence, Union, Tuple, cast,
+    Optional, Pattern, Sequence, Tuple, Union, cast,
 )
 from uuid import uuid4
 
+from . import __version__ as faust_version
 from . import transport
-from .actors import ActorFun, Actor, ActorT, ReplyConsumer, SinkT
+from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
 from .exceptions import ImproperlyConfigured
-from .sensors import SensorDelegate
+from .sensors import Monitor, SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
     CodecArg, K, Message, ModelArg, PendingMessage,
-    StreamCoroutine, TopicT, TopicPartition, V,
+    StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
-from .sensors import Monitor
 from .types.streams import StreamT
-from .types.tables import CollectionT, SetT, TableT, TableManagerT
+from .types.tables import CollectionT, SetT, TableManagerT, TableT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
@@ -64,7 +63,7 @@ DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
 DEFAULT_MAX_CONCURRENCY = 100_000
 
 #: Default Kafka Client ID.
-CLIENT_ID = f'faust-{faust.__version__}'
+CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit messages.
 #: Can be customized by setting ``App(commit_interval=...)``.

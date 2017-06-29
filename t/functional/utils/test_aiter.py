@@ -1,5 +1,5 @@
-import pytest
 from faust.utils.aiter import aenumerate, aiter, anext
+import pytest
 
 
 @pytest.mark.asyncio

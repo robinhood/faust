@@ -1,9 +1,9 @@
 import abc
 import typing
 from typing import Any, Mapping, Optional
-from ..utils.imports import SymbolArg
 from .codecs import CodecArg
 from .core import K, V
+from ..utils.imports import SymbolArg
 
 if typing.TYPE_CHECKING:
     from .app import AppT

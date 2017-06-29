@@ -32,9 +32,9 @@ request_topic = app.topic(topic, value_type=Request)
 
 
 async def send_requests(app, n=1000):
-    for i in range(10):
+    for _ in range(10):
         time_start = monotonic()
-        for i in range(n):
+        for _ in range(n):
             await app.send(request_topic, key=None, value=Request(
                 id=str(uuid4()),
                 time_start=monotonic(),

@@ -7,8 +7,8 @@ from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
-from .types import AppT, EventT, Message, StreamT, CollectionT, TopicPartition
-from .types.sensors import SensorT, SensorDelegateT
+from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
+from .types.sensors import SensorDelegateT, SensorT
 from .types.transports import ConsumerT, ProducerT
 from .utils.logging import get_logger
 from .utils.objects import KeywordReduce, label

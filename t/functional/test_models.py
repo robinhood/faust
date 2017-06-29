@@ -1,5 +1,5 @@
-import pytest
 from faust import Record
+import pytest
 
 
 class Account(Record):

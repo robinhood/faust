@@ -10,7 +10,7 @@ from weakref import WeakSet
 from . import Record
 from .types import AppT, CodecArg, K, ModelT, StreamT, TopicT, V
 from .types.actors import (
-    ActorFun, ActorErrorHandler, ActorT, ReplyToArg, SinkT,
+    ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
 )
 from .utils.aiter import aiter
 from .utils.collections import NodeT

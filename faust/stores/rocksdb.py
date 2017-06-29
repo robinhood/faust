@@ -1,8 +1,8 @@
 """RocksDB storage."""
 from typing import Any, Iterator, Tuple
+from . import base
 from ..types.app import AppT
 from ..utils.logging import get_logger
-from . import base
 
 try:
     import rocksdb

@@ -1,10 +1,10 @@
-import pytest
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
+from faust.utils.json import JSONEncoder, str_to_decimal
 from hypothesis import assume, given, reject
 from hypothesis.strategies import decimals, text
-from faust.utils.json import JSONEncoder, str_to_decimal
+import pytest
 
 
 @given(text())

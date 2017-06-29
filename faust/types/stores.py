@@ -1,8 +1,8 @@
 import abc
 import typing
 from typing import Any, MutableMapping
-from ..utils.types.services import ServiceT
 from .codecs import CodecArg
+from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

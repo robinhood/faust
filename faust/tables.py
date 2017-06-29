@@ -4,21 +4,23 @@ import asyncio
 import operator
 from collections import defaultdict
 from functools import lru_cache
-from heapq import heappush, heappop
+from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Set as _Set, Sequence, cast,
+    MutableMapping, MutableSet, Sequence, Set as _Set, cast,
 )
 from . import stores
 from . import windows
+from .streams import current_event
+from .streams import joins
 from .types import (
-    AppT, EventT, FieldDescriptorT, JoinT, TopicT, TopicPartition,
+    AppT, EventT, FieldDescriptorT, JoinT, TopicPartition, TopicT,
 )
 from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import (
-    CollectionT, SetT, TableT, WindowSetT, WindowWrapperT, TableManagerT,
+    CollectionT, SetT, TableManagerT, TableT, WindowSetT, WindowWrapperT,
 )
 from .types.topics import SourceT
 from .types.windows import WindowRange, WindowT
@@ -27,8 +29,6 @@ from .utils.collections import FastUserDict, ManagedUserDict, ManagedUserSet
 from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
-from .streams import current_event
-from .streams import joins
 
 __all__ = [
     'Collection',

@@ -1,6 +1,6 @@
-import pytest
 from typing import Mapping
 from faust.utils.logging import setup_logging
+import pytest
 from .app import simple
 
 

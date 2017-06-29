@@ -1,5 +1,5 @@
-import faust
 from typing import Any, AsyncIterator
+import faust
 
 app = faust.App('faust.stress')
 rpc_topic = app.topic('faust.stress.rpc')

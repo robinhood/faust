@@ -1,6 +1,6 @@
-import pytest
 from case import Mock, call
-from faust.utils.collections import Node, FastUserDict, ManagedUserDict
+from faust.utils.collections import FastUserDict, ManagedUserDict, Node
+import pytest
 
 
 def test_Node():

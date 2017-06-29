@@ -1,10 +1,10 @@
 from typing import (
     Any, ClassVar, Dict, Iterable, Mapping, Sequence, Tuple, Type, cast,
 )
-from ..serializers.avro import to_avro_type
-from ..types.models import ModelT, ModelOptions
-from ..utils.objects import annotations
 from .base import FieldDescriptor, Model
+from ..serializers.avro import to_avro_type
+from ..types.models import ModelOptions, ModelT
+from ..utils.objects import annotations
 
 __all__ = ['Record']
 

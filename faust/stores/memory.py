@@ -1,6 +1,6 @@
+from . import base
 from ..utils.collections import FastUserDict
 from ..utils.logging import get_logger
-from . import base
 
 logger = get_logger(__name__)
 

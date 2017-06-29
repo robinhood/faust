@@ -10,12 +10,15 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
-from ..types import EventT, K, TopicT, Message, ModelArg
+from . import joins
+from ._coroutines import CoroCallbackT, wrap_callback
+
+from ..types import EventT, K, Message, ModelArg, TopicT
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
-    T, T_co, T_contra,
     GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
+    T, T_co, T_contra,
 )
 from ..types.topics import SourceT
 from ..utils.aiolocals import Context, Local
@@ -25,9 +28,6 @@ from ..utils.logging import get_logger
 from ..utils.services import Service
 from ..utils.times import Seconds, want_seconds
 from ..utils.types.collections import NodeT
-
-from ._coroutines import CoroCallbackT, wrap_callback
-from . import joins
 
 __all__ = ['Stream', 'current_event']
 

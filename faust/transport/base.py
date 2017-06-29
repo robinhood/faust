@@ -9,8 +9,9 @@ from typing import (
 )
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
-    ConsumerCallback, ConsumerT, ProducerT, TPorTopicSet, TransportT,
+    ConsumerCallback, ConsumerT,
     PartitionsAssignedCallback, PartitionsRevokedCallback,
+    ProducerT, TPorTopicSet, TransportT,
 )
 from ..utils.functional import consecutive_numbers
 from ..utils.logging import get_logger
