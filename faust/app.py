@@ -170,13 +170,11 @@ class AppService(Service):
             print('ON PARTITIONS REVOKED')
             assignment = self.app.consumer.assignment()
             if assignment:
-                self.app.semaphore.pause()
                 await self.app.consumer.pause_partitions(assignment)
                 print('WAITING FOR SEMAPHORE EMPTY')
                 await self.app.semaphore.wait_empty()
                 print('SEM NOW EMPTY - COMMITTTING')
                 await self.app.commit(assignment)
-                self.app.semaphore.resume()
 
     async def on_first_start(self) -> None:
         if not self.app.actors:
