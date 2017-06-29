@@ -16,9 +16,9 @@ topic = app.topic('mytopic', value_type=Withdrawal)
 
 async def combine_withdrawals(it):
     while 1:
-        eventA = await it.next()
+        eventA = await it.next()  # noqa: B305
         try:
-            eventB = await asyncio.wait_for(it.next(), 2.0)
+            eventB = await asyncio.wait_for(it.next(), 2.0)  # noqa: B305
         except asyncio.TimeoutError:
             yield eventA
         else:
