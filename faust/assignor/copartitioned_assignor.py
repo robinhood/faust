@@ -131,7 +131,7 @@ class CopartitionedAssignor:
     def _find_round_robin_assignable(self, partition: int,
                                      candidates: Iterator[
                                          CopartitionedAssignment],
-                                     active: bool
+                                     active: bool,
                                      ) -> Optional[CopartitionedAssignment]:
         # Round robin and assign until we make a full circle
         for _ in range(self._num_clients):

@@ -49,7 +49,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
 
     @classmethod
     def _group_co_subscribed(cls, topics: Set[str],
-                             member_metadata: MemberMetadataMapping
+                             member_metadata: MemberMetadataMapping,
                              ) -> Iterable[Set[str]]:
         topic_subscriptions: MutableMapping[str, Set[str]] = defaultdict(set)
         for client, metadata in member_metadata.items():
@@ -85,7 +85,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
         return copart_grouped
 
     def assign(self, cluster: ClusterMetadata,
-               member_metadata: MemberMetadataMapping
+               member_metadata: MemberMetadataMapping,
                ) -> MemberAssignmentMapping:
         cluster_assgn = ClusterAssignment()
         cluster_assgn.add_clients(member_metadata)
@@ -124,7 +124,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
             client: ConsumerProtocolMemberAssignment(
                 self.version,
                 sorted(assignment.kafka_protocol_assignment()),
-                assignment.dumps()
+                assignment.dumps(),
             )
             for client, assignment in assignments.items()
         }

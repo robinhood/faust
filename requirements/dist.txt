@@ -6,6 +6,7 @@ flake8-blind-except
 flake8-comprehensions
 flake8-pyi
 flake8-import-order
+flake8-commas
 tox>=2.3.1
 sphinx2rst>=1.0
 bumpversion

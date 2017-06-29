@@ -11,7 +11,7 @@ class CreateTopicsResponse_v0(Response):
     SCHEMA = Schema(
         ('topic_error_codes', Array(
             ('topic', String('utf-8')),
-            ('error_code', Int16)))
+            ('error_code', Int16))),
     )
 
 
@@ -22,7 +22,7 @@ class CreateTopicsResponse_v1(Response):
         ('topic_error_codes', Array(
             ('topic', String('utf-8')),
             ('error_code', Int16),
-            ('error_message', String('utf-8'))))
+            ('error_message', String('utf-8')))),
     )
 
 
@@ -41,7 +41,7 @@ class CreateTopicsRequest_v0(Request):
             ('configs', Array(
                 ('config_key', String('utf-8')),
                 ('config_value', String('utf-8')))))),
-        ('timeout', Int32)
+        ('timeout', Int32),
     )
 
 
@@ -61,7 +61,7 @@ class CreateTopicsRequest_v1(Request):
                 ('config_key', String('utf-8')),
                 ('config_value', String('utf-8')))))),
         ('timeout', Int32),
-        ('validate_only', Boolean)
+        ('validate_only', Boolean),
     )
 
 

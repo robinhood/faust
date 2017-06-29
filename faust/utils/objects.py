@@ -57,8 +57,7 @@ def label(s: Any) -> str:
         getattr(s, '__qualname__', None) or
         getattr(s, '__name__', None) or
         getattr(type(s), '__qualname__', None) or
-        type(s).__name__
-    )
+        type(s).__name__)
 
 
 @label.register(str)
@@ -74,8 +73,7 @@ def shortlabel(s: Any) -> str:
         getattr(s, '__qualname__', None) or
         getattr(s, '__name__', None) or
         getattr(type(s), '__qualname__', None) or
-        type(s).__name__
-    )
+        type(s).__name__)
 
 
 @shortlabel.register(str)  # noqa

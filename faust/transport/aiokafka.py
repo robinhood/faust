@@ -1,7 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, List,
-    Mapping, MutableMapping, Optional, Set, Tuple, Type, cast
+    Mapping, MutableMapping, Optional, Set, Tuple, Type, cast,
 )
 
 import aiokafka
@@ -364,7 +364,7 @@ class Transport(base.Transport):
             request = CreateTopicsRequest[protocol_version](
                 [(topic, partitions, replication, [], list(config.items()))],
                 timeout,
-                False
+                False,
             )
             response = await client.send(node_id, request)
             assert len(response.topic_error_codes), 'Single topic requested.'

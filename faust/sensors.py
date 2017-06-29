@@ -410,7 +410,7 @@ class Monitor(Sensor, KeywordReduce):
             'send_latency': self.send_latency,
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
-            }
+            },
         }
 
     @Service.task

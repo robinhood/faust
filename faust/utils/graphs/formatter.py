@@ -114,8 +114,7 @@ class GraphFormatter(GraphFormatterT):
 
     def FMT(self, fmt: str, *args: Any, **kwargs: Any) -> str:
         return self._enc(fmt.format(
-            *args, **dict(kwargs, IN=self.IN, INp=self.INp)
-        ))
+            *args, **dict(kwargs, IN=self.IN, INp=self.INp)))
 
     def draw_edge(self, a: Any, b: Any,
                   scheme: Mapping = None,

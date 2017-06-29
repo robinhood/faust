@@ -19,7 +19,7 @@ __all__ = [
     'ActorErrorHandler',
     'ActorFun',
     'ActorT',
-    'ReplyToArg'
+    'ReplyToArg',
 ]
 
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]

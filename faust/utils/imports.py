@@ -143,7 +143,7 @@ def symbol_by_name(
             module = imp(module_name, package=package, **kwargs)
         except ValueError as exc:
             raise ValueError(
-                f'Cannot import {name!r}: {exc}'
+                f'Cannot import {name!r}: {exc}',
             ).with_traceback(sys.exc_info()[2])
         return getattr(module, cls_name) if cls_name else module
     except (ImportError, AttributeError):

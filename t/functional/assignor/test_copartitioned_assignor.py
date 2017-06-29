@@ -31,7 +31,7 @@ def is_valid(cli_assignments: MutableMapping[str, CopartitionedAssignment],
 
 
 def client_addition_sticky(old: MutableMapping[str, CopartitionedAssignment],
-                           new: MutableMapping[str, CopartitionedAssignment]
+                           new: MutableMapping[str, CopartitionedAssignment],
                            ) -> bool:
     assert all(
         partition in old[client].actives
@@ -42,7 +42,7 @@ def client_addition_sticky(old: MutableMapping[str, CopartitionedAssignment],
 
 
 def client_removal_sticky(old: MutableMapping[str, CopartitionedAssignment],
-                          new: MutableMapping[str, CopartitionedAssignment]
+                          new: MutableMapping[str, CopartitionedAssignment],
                           ) -> bool:
     removed = set(old).difference(set(new))
     reassigned_partitions = {partition
@@ -93,7 +93,7 @@ def test_add_new_clients(partitions, replicas, num_clients,
         valid_assignment[str(client)] = CopartitionedAssignment(topics=_topics)
 
     new_assignments = CopartitionedAssignor(
-        _topics, valid_assignment, partitions, replicas=replicas
+        _topics, valid_assignment, partitions, replicas=replicas,
     ).get_assignment()
 
     assert is_valid(new_assignments, partitions, replicas)
@@ -122,7 +122,7 @@ def test_remove_clients(partitions, replicas, num_clients,
         del valid_assignment[str(client)]
 
     new_assignments = CopartitionedAssignor(
-        _topics, valid_assignment, partitions, replicas=replicas
+        _topics, valid_assignment, partitions, replicas=replicas,
     ).get_assignment()
 
     assert is_valid(new_assignments, partitions, replicas)

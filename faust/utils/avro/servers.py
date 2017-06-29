@@ -21,7 +21,7 @@ ACCEPT_TYPES: Iterable[str] = [
 STATUS_TO_ERROR: Mapping[int, str] = {
     404: 'Not Found',
     409: 'Incompatible Avro schema',
-    422: 'Invalid Avro schema'
+    422: 'Invalid Avro schema',
 }
 
 
