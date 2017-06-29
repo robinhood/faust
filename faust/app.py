@@ -31,6 +31,7 @@ from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
+from .utils.futures import PoolSemaphore
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import cached_property
@@ -59,6 +60,8 @@ DEFAULT_SET_CLS = 'faust.Set'
 
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
+
+DEFAULT_MAX_CONCURRENCY = 100_000
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust.__version__}'
@@ -102,12 +105,15 @@ class AppService(Service):
     """Service responsible for starting/stopping an application."""
     logger = logger
 
+    _revoke_partitions: asyncio.Queue
+
     # App is created in module scope so we split it up to ensure
     # Service.loop does not create the asyncio event loop
     # when a module is imported.
 
     def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
+        self._revoke_partitions = asyncio.Queue(loop=self.loop)
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
@@ -155,6 +161,22 @@ class AppService(Service):
             [self.app._fetcher],
             [RecoveryCompleted(self.app, loop=self.loop, beacon=self.beacon)],
         ))
+
+    @Service.task
+    async def _handle_revoke_partitions(self) -> None:
+        revoked: Iterable[TopicPartition]
+        while not self.should_stop:
+            await self._revoke_partitions.get()
+            print('ON PARTITIONS REVOKED')
+            assignment = self.app.consumer.assignment()
+            if assignment:
+                self.app.semaphore.pause()
+                await self.app.consumer.pause_partitions(assignment)
+                print('WAITING FOR SEMAPHORE EMPTY')
+                await self.app.semaphore.wait_empty()
+                print('SEM NOW EMPTY - COMMITTTING')
+                await self.app.commit(assignment)
+                self.app.semaphore.resume()
 
     async def on_first_start(self) -> None:
         if not self.app.actors:
@@ -263,6 +285,7 @@ class App(AppT, ServiceProxy):
                  default_partitions: int = 8,
                  reply_to: str = None,
                  create_reply_topic: bool = False,
+                 max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
                  reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
                  Stream: SymbolArg = DEFAULT_STREAM_CLS,
                  Table: SymbolArg = DEFAULT_TABLE_CLS,
@@ -285,6 +308,7 @@ class App(AppT, ServiceProxy):
         self.default_partitions = default_partitions
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
         self.create_reply_topic = create_reply_topic
+        self.max_concurrency = max_concurrency
         self.reply_expires = want_seconds(
             reply_expires or DEFAULT_REPLY_EXPIRES)
         self.avro_registry_url = avro_registry_url
@@ -641,6 +665,7 @@ class App(AppT, ServiceProxy):
     def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         self.sources.on_partitions_revoked(revoked)
+        self._service._revoke_partitions.put_nowait(revoked)
 
     def _create_transport(self) -> TransportT:
         return cast(TransportT,
@@ -720,6 +745,10 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def semaphore(self) -> PoolSemaphore:
+        return PoolSemaphore(size=self.max_concurrency, loop=self.loop)
 
     @property
     def label(self) -> str:

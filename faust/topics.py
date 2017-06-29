@@ -123,10 +123,6 @@ class Topic(TopicT):
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
-
-    Returns:
-        faust.types.Topic: a named tuple.
-
     """
 
     _declared = False
@@ -276,6 +272,7 @@ class TopicSource(SourceT):
         ...  # closure compiled at __init__
 
     def _compile_deliver(self) -> Callable[[Message], Awaitable]:
+        acquire_sem = self.app.semaphore.acquire
         app = self.app
         topic = self.topic
         key_type = topic.key_type
@@ -286,6 +283,8 @@ class TopicSource(SourceT):
         create_event = Event
 
         async def deliver(message: Message) -> None:
+            print('ACQ')
+            await acquire_sem()
             try:
                 k = await loads_key(key_type, message.key)
             except KeyDecodeError as exc:

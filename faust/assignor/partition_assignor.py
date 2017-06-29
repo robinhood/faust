@@ -10,6 +10,8 @@ from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
 
+__flake8_Sequence_is_used: Sequence   # XXX flake8 bug
+
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 ClientAssignmentMapping = MutableMapping[str, ClientAssignment]

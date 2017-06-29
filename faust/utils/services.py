@@ -101,7 +101,7 @@ class Service(ServiceBase):
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
     _crashed: asyncio.Event
-    _crash_reason: Any
+    _crash_reason: Exception
 
     #: The beacon is used to track the graph of services.
     _beacon: NodeT

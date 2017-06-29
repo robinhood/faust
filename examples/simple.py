@@ -12,7 +12,7 @@ class Withdrawal(faust.Record, serializer='json'):
 
 app = faust.App(
     'f-simple',
-    url='kafka://10.2.4.44:9092',
+    url='kafka://localhost:9092',
     default_partitions=6,
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)

@@ -75,12 +75,13 @@ def worker(ctx: click.Context,
         raise click.UsageError('Need to specify app using -A parameter')
     app = find_app(app)
     from ..worker import Worker
-    Worker(app,
-           debug=debug,
-           quiet=quiet,
-           logfile=logfile,
-           loglevel=loglevel,
-           web_port=web_port,
+    Worker(
+        app,
+        debug=debug,
+        quiet=quiet,
+        logfile=logfile,
+        loglevel=loglevel,
+        web_port=web_port,
     ).execute_from_commandline()
 
 
