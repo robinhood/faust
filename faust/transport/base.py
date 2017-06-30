@@ -266,6 +266,7 @@ class Consumer(Service, ConsumerT):
         should_stop = self._stopped.is_set
         get_current_offset = self._current_offset.__getitem__
         get_read_offset = self._read_offset.__getitem__
+        set_read_offset = self._read_offset.__setitem__
 
         async def deliver(message: Message, tp: TopicPartition) -> None:
             await track_message(message, tp, message.offset)
@@ -276,11 +277,13 @@ class Consumer(Service, ConsumerT):
             while not should_stop():
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
-                    offset = get_current_offset(tp)
-                    roffset = get_read_offset(tp)
-                    if offset is None or message.offset > offset:
-                        if roffset is None and message.offset > roffset:
+                    offset = message.offset
+                    c_offset = get_current_offset(tp)
+                    r_offset = get_read_offset(tp)
+                    if c_offset is None or offset > c_offset:
+                        if r_offset is None and offset > r_offset:
                             await deliver(message, tp)
+                            set_read_offset(tp, offset)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
