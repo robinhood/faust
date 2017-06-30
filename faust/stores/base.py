@@ -106,6 +106,10 @@ class SerializedStore(Store):
     def _contains(self, key: bytes) -> bool:
         ...
 
+    @abc.abstractmethod
+    def _clear(self) -> None:
+        ...
+
     def __getitem__(self, key: Any) -> Any:
         value = self._get(self._encode_key(key))
         if value is None:
@@ -147,3 +151,6 @@ class SerializedStore(Store):
     def _items_decoded(self) -> Iterator[Tuple[Any, Any]]:
         for key, value in self._iteritems():
             yield self._decode_key(key), self._decode_value(value)
+
+    def clear(self) -> None:
+        self._clear()

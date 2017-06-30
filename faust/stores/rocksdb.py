@@ -91,6 +91,10 @@ class Store(base.SerializedStore):
             ),
         )
 
+    def _clear(self) -> None:
+        # XXX
+        raise NotImplementedError('TODO')
+
     @property
     def db(self) -> rocksdb.DB:
         if self._db is None:

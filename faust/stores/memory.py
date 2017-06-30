@@ -10,3 +10,6 @@ class Store(base.Store, FastUserDict):
 
     def on_init(self) -> None:
         self.data = {}
+
+    def _clear(self) -> None:
+        self.data.clear()
