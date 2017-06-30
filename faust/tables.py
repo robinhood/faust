@@ -542,18 +542,19 @@ class TableManager(Service, TableManagerT, FastUserDict):
         latest: _Set[TopicPartition] = set()
         consumer = self.app.consumer
         has_positions = False  # set if there are any messages in topics
-        for tp in tps:
-            try:
-                # see if we have read this changelog before
-                offset = self._table_offsets[tp]
-            except KeyError:
-                # if not, add it to partitions we seek to beginning
-                earliest.add(tp)
-            else:
-                latest.add(tp)
-                has_positions = True
-                # if we have read it, seek to that offset
-                await consumer.seek(tp, offset)
+        #for tp in tps:
+        #    try:
+        #        # see if we have read this changelog before
+        #        offset = self._table_offsets[tp]
+        #    except KeyError:
+        #        # if not, add it to partitions we seek to beginning
+        #        earliest.add(tp)
+        #    else:
+        #        latest.add(tp)
+        #        has_positions = True
+        #        # if we have read it, seek to that offset
+        #        await consumer.seek(tp, offset)
+        earliest = set(tps)
         if earliest:
             # find end positions of all partitions
             await consumer.seek_to_latest(*earliest)
