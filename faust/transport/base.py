@@ -282,8 +282,16 @@ class Consumer(Service, ConsumerT):
                     r_offset = get_read_offset(tp)
                     if c_offset is None or offset > c_offset:
                         if r_offset is None and offset > r_offset:
+                            print('DELIVER MESSAGE %r: k=%r v=%r' % (
+                                message.offset, message.key, message.value))
                             await deliver(message, tp)
                             set_read_offset(tp, offset)
+                        else:
+                            print('DROPPED MESSAGE ROFF %r: k=%r v=%r' % (
+                                message.offset, message.key, message.value))
+                    else:
+                        print('DROPPED MESSAGE COFF %r: k=%r v=%r' % (
+                            message.offset, message.key, message.value))
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore

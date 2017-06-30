@@ -206,6 +206,7 @@ class Consumer(base.Consumer):
                     seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
+        print('COMMITTING OFFSETS: %r' % (offsets,))
         await self._consumer.commit(offsets)
 
     async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:

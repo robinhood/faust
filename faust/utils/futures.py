@@ -69,7 +69,6 @@ class PoolSemaphore:
         return self._paused or self._val <= 0
 
     async def acquire(self) -> None:
-        print("ACQUIRE: PAUSED? %r" % (self._paused,))
         while self._paused or self._val <= 0:
             fut = self.loop.create_future()
             self._waiters.append(fut)

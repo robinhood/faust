@@ -281,7 +281,6 @@ class TopicSource(SourceT):
         create_event = Event
 
         async def deliver(message: Message) -> None:
-            print('ACQ')
             await acquire_sem()
             try:
                 k = await loads_key(key_type, message.key)
