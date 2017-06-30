@@ -15,5 +15,6 @@ tox>=2.3.1
 sphinx2rst>=1.0
 bumpversion
 twine
+packaging
 pytest-sugar
 asyncio-ipython-magic
