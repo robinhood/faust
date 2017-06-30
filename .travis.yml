@@ -2,7 +2,7 @@ language: python
 sudo: false
 cache: false
 python:
-    - '3.5'
+    - '3.6'
 os:
     - linux
     - osx
@@ -10,13 +10,9 @@ env:
   global:
     PYTHONUNBUFFERED=yes
   matrix:
-    - TOXENV=2.7
-    - TOXENV=3.4
-    - TOXENV=pypy
-    - TOXENV=3.5
-    - TOXENV=pypy3
+    - TOXENV=3.6
     - TOXENV=flake8
-    - TOXENV=flakeplus
+    - TOXENV=typecheck
     - TOXENV=apicheck
 install: travis_retry pip install -U tox
 script: tox -v -- -v
