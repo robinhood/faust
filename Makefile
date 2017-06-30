@@ -69,6 +69,7 @@ release:
 	$(PYTHON) setup.py register sdist bdist_wheel upload --sign --identity="$(PGPIDENT)"
 
 Documentation:
+	$(PIP) install -r requirements/docs.txt
 	(cd "$(SPHINX_DIR)"; $(MAKE) html)
 	mv "$(SPHINX_HTMLDIR)" $(DOCUMENTATION)
 
