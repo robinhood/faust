@@ -16,3 +16,4 @@ sphinx2rst>=1.0
 bumpversion
 twine
 pytest-sugar
+asyncio-ipython-magic
