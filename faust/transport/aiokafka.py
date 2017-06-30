@@ -195,15 +195,14 @@ class Consumer(base.Consumer):
         await self._consumer.stop()
 
     async def _perform_seek(self) -> None:
-        current_offset = self._current_offset
+        read_offset = self._read_offset
         seek = self._consumer.seek
         for tp in self._consumer.assignment():
             tp = cast(TopicPartition, tp)
-            if tp not in current_offset:
-                committed = await self._consumer.committed(tp)
-                if committed and committed >= 0:
-                    current_offset[tp] = committed
-                    seek(tp, committed)
+            committed = await self._consumer.committed(tp)
+            read_offset[tp] = committed
+            print('PERFORM SEEK SOURCE TOPIC: %r -> %r' % (tp, committed))
+            seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
         print('COMMITTING OFFSETS: %r' % (offsets,))
