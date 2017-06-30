@@ -164,16 +164,21 @@ class AppService(Service):
     @Service.task
     async def _handle_revoke_partitions(self) -> None:
         revoked: Iterable[TopicPartition]
-        while not self.should_stop:
-            await self._revoke_partitions.get()
-            print('ON PARTITIONS REVOKED')
-            assignment = self.app.consumer.assignment()
-            if assignment:
-                await self.app.consumer.pause_partitions(assignment)
-                print('WAITING FOR SEMAPHORE EMPTY')
-                await self.app.semaphore.wait_empty()
-                print('SEM NOW EMPTY - COMMITTTING')
-                await self.app.commit(assignment)
+        try:
+            while not self.should_stop:
+                await self._revoke_partitions.get()
+                print('ON PARTITIONS REVOKED')
+                assignment = self.app.consumer.assignment()
+                if assignment:
+                    await self.app.consumer.pause_partitions(assignment)
+                    print('WAITING FOR SEMAPHORE EMPTY')
+                    await self.app.semaphore.wait_empty()
+                    print('SEM NOW EMPTY - COMMITTTING')
+                    await self.app.commit(assignment)
+        except Exception as exc:
+            self.log.exception('HANDLE REVOKE RAISED: %r', exc)
+            raise
+        print('HANDLE REVOKE RETURNING')
 
     async def on_first_start(self) -> None:
         if not self.app.actors:
@@ -661,8 +666,13 @@ class App(AppT, ServiceProxy):
 
     def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
-        self.sources.on_partitions_revoked(revoked)
-        self._service._revoke_partitions.put_nowait(revoked)
+        print('ON PARTITIONS REVOKED!!!! TELL BACKGROUND THREAD')
+        try:
+            self.sources.on_partitions_revoked(revoked)
+            self._service._revoke_partitions.put_nowait(revoked)
+        except BaseException as exc:
+            self.log.exception('ON PARTITIONS REVOKED RAISED: %r', exc)
+            raise
 
     def _create_transport(self) -> TransportT:
         return cast(TransportT,
