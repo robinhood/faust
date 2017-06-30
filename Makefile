@@ -75,6 +75,13 @@ Documentation:
 
 docs: Documentation
 
+dockerimage:
+	docker build -t faust-docbuilder -f docker/docbuilder/Dockerfile .
+
+dockerdocs: dockerimage
+	-rm -rf "$(DOCUMENTATION)"
+	sh docker/docbuilder/make_docs.sh
+
 clean-docs:
 	-rm -rf "$(SPHINX_BUILDDIR)"
 
