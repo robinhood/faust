@@ -72,6 +72,9 @@ class Consumer(Service, ConsumerT):
     #: Fast lookup to see if tp+offset was acked.
     _acked_index: MutableMapping[TopicPartition, Set[int]]
 
+    #: Keeps track of the currently read offset in each TP
+    _read_offset: MutableMapping[TopicPartition, int]
+
     #: Keeps track of the currently commited offset in each TP.
     _current_offset: MutableMapping[TopicPartition, int] = None
 
@@ -102,6 +105,7 @@ class Consumer(Service, ConsumerT):
             commit_interval or self._app.commit_interval)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
+        self._read_offset = defaultdict(lambda: None)
         self._current_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
@@ -261,6 +265,7 @@ class Consumer(Service, ConsumerT):
         track_message = self.track_message
         should_stop = self._stopped.is_set
         get_current_offset = self._current_offset.__getitem__
+        get_read_offset = self._read_offset.__getitem__
 
         async def deliver(message: Message, tp: TopicPartition) -> None:
             await track_message(message, tp, message.offset)
@@ -272,8 +277,10 @@ class Consumer(Service, ConsumerT):
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
                     offset = get_current_offset(tp)
+                    roffset = get_read_offset(tp)
                     if offset is None or message.offset > offset:
-                        await deliver(message, tp)
+                        if roffset is None and message.offset > roffset:
+                            await deliver(message, tp)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
