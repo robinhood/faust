@@ -88,7 +88,7 @@ class SlidingWindow(WindowT):
         """Return list of windows from timestamp.
 
         Notes:
-            .. code-block:: text
+            .. sourcecode:: sql
 
                 SELECT * FROM s1, s2
                 WHERE

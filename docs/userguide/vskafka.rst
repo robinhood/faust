@@ -16,7 +16,7 @@ KStream
 
     Just use the `if` statement:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream:
             if event.amount >= 300.0:
@@ -26,7 +26,7 @@ KStream
 
     Just call the function you want:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for key, event in stream.items():
             yield myfun(key, event)
@@ -42,21 +42,21 @@ KStream
 
 - ``.mapValues()``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream:
             yield myfun(event)
 
 - ``.print()``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream:
             print(event)
 
 - ``.writeAsText()``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for key, event in stream.items():
             with open(path, 'a') as f:
@@ -65,7 +65,7 @@ KStream
 - ``.flatMap()``
 - ``.flatMapValues()``
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream:
             # split sentences into words
@@ -77,7 +77,7 @@ KStream
     This is a special case of `filter` in KS, in Faust just
     write code and forward events as appropriate:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         app = faust.App('transfer-demo')
         tiny_transfers = app.topic('tiny_transfers')
@@ -94,14 +94,14 @@ KStream
 
 - ``.through()``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream.through('topic'):
             yield event
 
 - ``.to()``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         app = faust.App('to-demo')
         other_topic = app.topic('other')
@@ -112,7 +112,7 @@ KStream
 
     Just transform the key yourself:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for key, value in stream.items():
             key = format_key(key)
@@ -120,14 +120,14 @@ KStream
     If you want to transform the key for processors to use, then you
     have to change the current context to have the new key:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream:
             event.req.key = format_key(event.req.key)
 
 - ``groupBy()``
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in stream.group_by(Withdrawal.account):
             yield event
@@ -146,7 +146,7 @@ KStream
     Process in KS calls a Processor and is usually used to also call periodic
     actions (punctuation).  In Faust you'd rather create a background task:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         import asyncio
         import faust
@@ -194,7 +194,7 @@ KStream
 
     NOT IMPLEMENTED
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for event in (s1 & s2).join()
         async for event in (s1 & s2).outer_join()

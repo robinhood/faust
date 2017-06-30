@@ -18,7 +18,7 @@ Basics
 A stream is an infinite async iterable, being passed messages consumed
 from a topic:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     s = app.stream(my_topic)
     async for event in s:
@@ -31,7 +31,7 @@ When iterated over the stream produces :ref:`events <stream-events>`.
 
 An event can either be a deserialized :class:`~faust.models.base.Model`,:
 
-.. code-block:: python
+.. sourcecode:: python
 
     class Withdrawal(faust.Record):
         account: str
@@ -42,7 +42,7 @@ An event can either be a deserialized :class:`~faust.models.base.Model`,:
 
 or just an event containing the value as bytes:
 
-.. code-block:: python
+.. sourcecode:: python
 
     async for event in app.topic('messages').stream():
         print(event.value)  # <-- .value contains the bytes message value.
@@ -65,7 +65,7 @@ for libraries to extend functionality in streams.
 
 A processor takes an Event as argument and returns an Event:
 
-.. code-block:: python
+.. sourcecode:: python
 
     def add_default_language(event: Event) -> Event:
         if not event.language:
@@ -88,7 +88,7 @@ Since the processors are stored in an ordered list, the processors above
 will execute in order, and the final value going out of the stream will be the
 reduction after all processors are applied:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     async for event in s:
         # all processors applied here so `event`
@@ -102,7 +102,7 @@ S-routines
 A Stream can also have a special callback, called an *S-routine*, that
 encapsulates a stream processing chain in a coroutine.
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> def filter_large_withdrawals(it: AsyncIterator) -> AsyncIterator:
     ...     return (e async for e in it if e.value >= 1000.0)
@@ -117,7 +117,7 @@ encapsulates a stream processing chain in a coroutine.
     An S-routine is really just an alternative way of defining a sending and
     receving generator.  Instead of writing that in the traditional way of:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         def filter_large_withdrawals():
             while 1:
@@ -135,7 +135,7 @@ Combining streams
 Streams can be combined, so that you receive events from multiple streams
 in the same iteration:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> s1 = app.stream(topic1)
     >>> s2 = app.stream(topic2)
@@ -148,7 +148,7 @@ can be used in general.
 If you have two streams that you want to process independently you should
 rather start individual tasks:
 
-.. code-block:: python
+.. sourcecode:: python
 
     @app.actor(topic1)
     async def process_stream1(events):

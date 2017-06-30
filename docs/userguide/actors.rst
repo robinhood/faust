@@ -36,7 +36,7 @@ and iterates over it.
 
 Here's an example actor that adds numbers:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/actor.py
     import faust
@@ -65,13 +65,13 @@ Here's an example actor that adds numbers:
 
 Starting a worker will now start a single instance of this actor:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ faust -A examples.actor worker -l info
 
 To send values to it, you can open a second console to run this program:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/send_to_actor.py
     import asyncio
@@ -84,7 +84,7 @@ To send values to it, you can open a second console to run this program:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(send_value())
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ python examples/send_to_actor.py
 
@@ -102,7 +102,7 @@ as a result of processing the value.
 
     The same function above can be annotated like this:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         from typing import AsyncIterable
         from faust import StreamT
@@ -126,7 +126,7 @@ Under the Hood: The ``@actor`` decorator
 You can easily start a stream processor in Faust without using actors,
 by simply starting an :mod:`asyncio` task that iterates over a stream:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/noactor.py
     import asyncio
@@ -148,7 +148,7 @@ by simply starting an :mod:`asyncio` task that iterates over a stream:
 
 Essentially what the ``@actor`` decorator does, given a function like this:
 
-.. code-block:: python
+.. sourcecode:: python
 
     @app.actor(topic)
     async def mystream(stream):
@@ -159,7 +159,7 @@ Essentially what the ``@actor`` decorator does, given a function like this:
 Is that it wraps your function, that returns an async iterator (since it uses
 ``yield``) in code similar to this:
 
-.. code-block:: python
+.. sourcecode:: python
 
     def actor(topic):
 
@@ -182,7 +182,7 @@ that actor reads from (this implies it's not necessarily the only
 topic, as is the case when using stream joins, for example).
 
 Topics are defined using the :meth:`@topic` helper, and returns a
-:class:`faust.Topic` description:
+:class:`faust.Topic` description::
 
     topic = app.topic('topic_name1', 'topic_name2',
                       key_type=Model,
@@ -222,7 +222,7 @@ over the messages in the topic.
 You can also use the Stream API, for using :meth:`~faust.Stream.group_by`
 to partition the stream differently:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/groupby.py
     import faust
@@ -248,7 +248,7 @@ as the seed and combine that with more topics, but then it will be impossible
 to communicate directly with the actor since you have to send a message to all
 the topics, and that is more than challenging:
 
-.. code-block:: python
+.. sourcecode:: python
 
     topic1 = app.topic('foo1')
     topic2 = app.topic('foo2')
@@ -260,7 +260,7 @@ the topics, and that is more than challenging:
 
 What you could do is define a separate topic for communicating with the actor:
 
-.. code-block:: python
+.. sourcecode:: python
 
     topic1 = app.topic('foo1')
     topic2 = app.topic('foo2')
@@ -280,7 +280,7 @@ there are better ways to do so (like using one stream processor task, and one
 actor), so actors are not the best way to process joined streams, instead you
 should use a traditional asyncio Task:
 
-.. code-block:: python
+.. sourcecode:: python
 
     @app.task()
     def mystream():
@@ -313,7 +313,7 @@ Here's an actor example that can safely process the stream out of order:
 whenever a new newsarticle is created something posts to the 'news' topic,
 this actor retrieves that article and stores it in a database.
 
-.. code-block:: python
+.. sourcecode:: python
 
     news_topic = app.topic('news')
 
@@ -336,7 +336,7 @@ another actor.
 Function Callback
     Regular functions take a single argument (the value yielded by the actor):
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         def mysink(value):
             print(f'ACTOR YIELD: {value!r}')
@@ -349,7 +349,7 @@ Async Function Callback
     Async functions can also be used, in this case the async function will be
     awaiated by the actor:
 
-    .. code-block:: python3
+    .. sourcecode:: python
 
         async def mysink(value):
             print(f'ACTOR YIELD: {value!r}')
@@ -366,7 +366,7 @@ Topic
     Specifying a topic as sink will force the actor to forward yielded values
     to that topic:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         actor_log_topic = app.topic('actor_log')
 
@@ -378,7 +378,7 @@ Another Actor
     Specyfing another actor as sink will force the actor to forward yielded
     values to that actor:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         @app.actor()
         async def actor_b(stream):
@@ -408,7 +408,7 @@ actor a message, not expecting a reply back.
 ``cast(value, *, key=None, partition=None)``
     Casting a value to an actor is asynchronous:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         await adder.cast(Add(a=2, b=2))
 
@@ -417,7 +417,7 @@ actor a message, not expecting a reply back.
 ``ask(value, *, key=None, partition=None, reply_to=None, correlation_id=None)``
     Asking an actor will send a reply back to the current process:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         value = await adder.ask(Add(a=2, b=2))
         assert value == 4
@@ -429,7 +429,7 @@ actor a message, not expecting a reply back.
 
     Send to another actor:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         await adder.send(value=Add(a=2, b=2), reply_to=another_actor)
 
@@ -445,7 +445,7 @@ in order as a list.
     Map takes an async iterable, or a regular iterable, and returns an async
     iterator yielding results as they come in:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for reply in actor.map([1, 2, 3, 4, 5, 6, 7, 8]):
             print(f'RECEIVED REPLY: {reply!r}')
@@ -463,7 +463,7 @@ in order as a list.
     processed and returns them as a list in the original order (so
     cannot be used for infinite lists).
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         results = await pow2.join([1, 2, 3, 4, 5, 6, 7, 8])
         assert results == [1, 4, 9, 16, 25, 36, 49, 64]

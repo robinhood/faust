@@ -40,9 +40,7 @@ Faust is...
     set of operations to work from, and since Faust is a library it can
     integrate with just about anything.
 
-    Here's one of the simplest applications you can make:
-
-    .. code-block:: python
+    Here's one of the simplest applications you can make::
 
         import faust
 

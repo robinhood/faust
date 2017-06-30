@@ -164,7 +164,7 @@ class cached_property:
     of the get function.
 
     Examples:
-        .. code-block:: python
+        .. sourcecode:: python
 
             @cached_property
             def connection(self):

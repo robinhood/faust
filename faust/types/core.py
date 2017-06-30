@@ -1,5 +1,5 @@
 import typing
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 if typing.TYPE_CHECKING:
     from .models import ModelT
@@ -13,4 +13,4 @@ K = Optional[Union[bytes, ModelT]]
 
 
 #: Shorthand for the type of a value
-V = Union[bytes, ModelT]
+V = Union[bytes, ModelT, Any]

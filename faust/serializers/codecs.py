@@ -13,21 +13,21 @@ Serialization by name
 The func:`dumps` function takes a codec name and the object to encode,
 the return value is bytes:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> s = dumps('json', obj)
 
 For the reverse direction, the func:`loads` function takes a codec
 name and a encoded payload to decode (bytes):
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> obj = loads('json', s)
 
 You can also combine encoders in the name, like in this case
 where json is combined with gzip compression:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> obj = loads('json|gzip', s)
 
@@ -40,7 +40,7 @@ attribute.
 
 You can add a new codec to this mapping by:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> from faust.serializers import codecs
     >>> codecs.register(custom, custom_serializer())
@@ -48,7 +48,7 @@ You can add a new codec to this mapping by:
 A codec subclass requires two methods to be implemented: ``_loads()``
 and ``_dumps()``:
 
-.. code-block:: python
+.. sourcecode:: python
 
     import msgpack
 
@@ -68,7 +68,7 @@ handling binary data well.  Codecs may be chained together,
 so to add a text encoding like base64, which we use in this case,
 we use the ``|`` operator to form a combined codec:
 
-.. code-block:: python
+.. sourcecode:: python
 
     def msgpack() -> codecs.Codec:
         return raw_msgpack() | codecs.binary()
@@ -78,7 +78,7 @@ we use the ``|`` operator to form a combined codec:
 At this point we monkey-patched Faust to support
 our codec, and we can use it to define records:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> from faust.serializers import Record
     >>> class Point(Record, serializer='msgpack'):
@@ -94,7 +94,7 @@ extension.
 
 To do so we need to define a package with the following directory layout:
 
-.. code-block:: text
+.. sourcecode:: text
 
     faust-msgpack/
         setup.py
@@ -103,7 +103,7 @@ To do so we need to define a package with the following directory layout:
 The first file, :file:`faust-msgpack/setup.py`, defines metadata about our
 package and should look like the following example:
 
-.. code-block:: python
+.. sourcecode:: python
 
     import setuptools
 
@@ -134,7 +134,7 @@ to be ``faust_msgpack:msgpack``. This will be imported by Faust
 as ``from faust_msgpack import msgpack``, so we need to define
 that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
-.. code-block:: python
+.. sourcecode:: python
 
     from faust.serializers import codecs
 
@@ -149,7 +149,7 @@ that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 That's it! To install and use our new extension we do:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ python setup.py install
 

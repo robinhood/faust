@@ -74,7 +74,7 @@ Extensions
 
     You can install multiple bundles at the same time:
 
-    .. code-block:: console
+    .. sourcecode:: console
 
         $ pip install -U faust[fast,rocksdb,uvloop]
 
@@ -82,7 +82,7 @@ Extensions
 
     :file:`requirements.txt`:
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         faust[fast,rocksdb,uvloop]
 
@@ -116,7 +116,7 @@ Examples
 
 .. topic:: Iterate over events in a topic
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         orders_topic = app.topic('orders', value_type=Order)
         async for order in orders_topic.stream():
@@ -124,7 +124,7 @@ Examples
 
 .. topic:: Asynchronously processing events in a topic
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         session = aiohttp.ClientSession()
         async for order in orders_topic.stream():
@@ -135,14 +135,14 @@ Examples
 
     Here we get up to 100 events within a 30 second window:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         async for orders in orders_topic.stream().take(100, within=30.0):
             print(len(orders))
 
 .. topic:: Aggregate information into a table
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         orders_by_country = app.Table('orders_by_country', default=int)
 
@@ -155,7 +155,7 @@ Examples
 
     Count number of orders by country, within the last two days:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         orders_by_country = app.Table(
             'orders_by_country',

@@ -52,7 +52,7 @@ The :class:`faust.Monitor` is a built-in sensor that captures information like:
 When the Faust application is running you can access the state of this monitor
 in ``app.monitor``:
 
-.. code-block:: python
+.. sourcecode:: python
 
     @app.actor(app.topic('topic'))
     def mytask(events):

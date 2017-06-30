@@ -90,7 +90,7 @@ Child services can be added in three ways,
 
 1) Using ``add_dependency()`` in ``on_init``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         class MyService(Service):
 
@@ -99,7 +99,7 @@ Child services can be added in three ways,
 
 2) Using ``add_dependency()`` in ``on_start``:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         class MyService(Service):
 
@@ -111,7 +111,7 @@ Child services can be added in three ways,
     This is is a method that if customized should return an iterable
     of service instances:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         from typing import Iterable
         from faust.utils.services import Service, ServiceT
@@ -205,7 +205,7 @@ logs.
 
 The ``self.log`` delegate contains shortcuts for logging:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/logging.py
 

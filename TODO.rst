@@ -12,7 +12,7 @@ https://cwiki.apache.org/confluence/display/KAFKA/KIP-67%3A+Queryable+state+for+
 User must explicitly mark tables as public for table to be exposed in HTTP
 interface:
 
-.. code-block:: python
+.. sourcecode:: python
 
     user_to_amount = app.Table('user_to_amount', public=True)
 
@@ -21,7 +21,7 @@ HTTP API
 
 * List available tables
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         GET localhost:6666/api/table/
 
@@ -29,7 +29,7 @@ HTTP API
 
 * List of key/value pairs in the table (with pagination)
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         GET localhost:6666/api/table/user_to_amount/?page=
 
@@ -37,7 +37,7 @@ HTTP API
 
 * Get value by key:
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         GET localhost:6666/api/table/user_to_amount/key/
 
@@ -45,7 +45,7 @@ HTTP API
 
 * Set value for key
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         PUT/POST localhost:6666/api/table/user_to_amount/key/
         form data: {"key": "value"}
@@ -54,7 +54,7 @@ HTTP API
 
 * Delete key
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         DELETE localhost:6666/api/table/user_to_amount/key/
         response: 200
@@ -74,7 +74,7 @@ Joins
 
 - Stream/Table, Table/Stream join.
 
-See :file:`faust/joins.py`
+See ``faust/joins.py``
 
 API already exposed in faust.streams.Stream, but not implemented.
 
@@ -129,14 +129,14 @@ Deployment
 
     DONE:
 
-    .. code-block:: console
+    .. sourcecode:: console
 
         $ faust -A examples.simple worker
         $ FAUSTAPP=examples.simple faust worker
 
     TODO(?):
 
-    .. code-block:: console
+    .. sourcecode:: console
 
         $ faust -A examples.simple status
         $ faust -A examples.simple ping
@@ -168,7 +168,7 @@ Sensors
 HTTP interface
 --------------
 
-.. code-block:: text
+.. sourcecode:: text
 
     GET localhost:6666/stats/
     Returns: general stats events processed/s, total events, commit()

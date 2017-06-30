@@ -61,6 +61,8 @@ templates_path = ['_templates']
 
 autodoc_member_order = 'bysource'
 
+pygments_style = 'sphinx'
+
 # This option is deprecated and raises an error.
 try:
     del(html_use_smartypants)  # noqa

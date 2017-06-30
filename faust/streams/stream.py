@@ -136,7 +136,7 @@ class Stream(StreamT, JoinableT, Service):
         """Iterate over the stream as ``key, value`` pairs.
 
         Examples:
-            .. code-block:: python
+            .. sourcecode:: python
 
                 @app.actor(topic)
                 async def mytask(stream):
@@ -192,7 +192,7 @@ class Stream(StreamT, JoinableT, Service):
         This is the stream analog of :func:`itertools.tee`.
 
         Examples:
-            .. code-block:: python
+            .. sourcecode:: python
 
                 async def processor1(stream):
                     async for value in stream:
@@ -240,7 +240,7 @@ class Stream(StreamT, JoinableT, Service):
             applied.
 
         Example:
-            .. code-block:: python
+            .. sourcecode:: python
 
                 topic = app.topic('foo')
 
@@ -325,7 +325,7 @@ class Stream(StreamT, JoinableT, Service):
             Using a field descriptor to use a field in the event as the new
             key:
 
-            .. code-block:: python
+            .. sourcecode:: python
 
                 s = withdrawals_topic.stream()
                 # values in this stream are of type Withdrawal
@@ -334,7 +334,7 @@ class Stream(StreamT, JoinableT, Service):
 
             Using an async callable to extract a new key:
 
-            .. code-block:: python
+            .. sourcecode:: python
 
                 s = withdrawals_topic.stream()
 
@@ -347,7 +347,7 @@ class Stream(StreamT, JoinableT, Service):
 
             Using a regular callable to extract a new key:
 
-            .. code-block:: python
+            .. sourcecode:: python
 
                 s = withdrawals_topic.stream()
 

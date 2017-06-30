@@ -26,7 +26,7 @@ stream, like periodic timers.
 Here is an example Faust app consuming log messages, and also emitting
 statistics every 30 seconds:
 
-.. code-block:: python
+.. sourcecode:: python
 
     import faust
 
@@ -69,7 +69,7 @@ Concurrency
 For idempotent, stateless tasks you may use the ``concurrency`` argument to
 start multiple instances of the same task:
 
-.. code-block:: python
+.. sourcecode:: python
 
     @app.actor(feed_topics, concurrency=100)
     async def import_feeds(feeds):
@@ -82,7 +82,7 @@ Timers
 A shortcut decorator is included for starting background tasks that perform
 some action at regular intervals.
 
-.. code-block:: python
+.. sourcecode:: python
 
     @app.timer(interval=30.0)
     def dump_stats():

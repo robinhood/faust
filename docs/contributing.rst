@@ -212,7 +212,7 @@ spelling or other errors on the website/docs/code.
 
     D) Include the output from the :command:`faust report` command:
 
-        .. code-block:: console
+        .. sourcecode:: console
 
             $ faust -A proj report
 
@@ -283,7 +283,7 @@ You can see the state of any branch by looking at the Changelog:
 If the branch is in active development the topmost version info should
 contain meta-data like:
 
-.. code-block:: restructuredtext
+.. sourcecode:: restructuredtext
 
     2.4.0
     ======
@@ -386,14 +386,14 @@ is in the GitHub Guide: `Fork a Repo`_.
 After you have cloned the repository you should checkout your copy
 to a directory on your machine:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ git clone git@github.com:username/faust.git
 
 When the repository is cloned enter the directory to set up easy access
 to upstream changes:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ cd faust
     $ git remote add upstream git://github.com/robinhoodmarkets/faust.git
@@ -402,7 +402,7 @@ to upstream changes:
 If you need to pull in new changes from upstream you should
 always use the ``--rebase`` option to ``git pull``:
 
-.. code-block:: console
+.. sourcecode:: console
 
     git pull --rebase upstream master
 
@@ -433,7 +433,7 @@ A complete list of the dependencies needed are located in
 Both the stable and the development version have testing related
 dependencies, so install these:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ pip install -U -r requirements/test.txt
     $ pip install -U -r requirements/default.txt
@@ -441,7 +441,7 @@ dependencies, so install these:
 After installing the dependencies required, you can now execute
 the test suite by calling :pypi:`py.test <pytest`:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ py.test
 
@@ -462,7 +462,7 @@ Some useful options to :command:`py.test` are:
 If you want to run the tests for a single test file only
 you can do so like this:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ py.test t/unit/test_app.py
 
@@ -492,7 +492,7 @@ To calculate test coverage you must first install the :pypi:`pytest-cov` module.
 
 Installing the :pypi:`pytest-cov` module:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ pip install -U pytest-cov
 
@@ -501,13 +501,13 @@ Code coverage in HTML format
 
 #. Run :command:`py.test` with the ``--cov-report=html`` argument enabled:
 
-    .. code-block:: console
+    .. sourcecode:: console
 
         $ py.test --cov=faust --cov-report=html
 
 #. The coverage output will then be located in the :file:`htmlcov/` directory:
 
-    .. code-block:: console
+    .. sourcecode:: console
 
         $ open htmlcov/index.html
 
@@ -516,7 +516,7 @@ Code coverage in XML (Cobertura-style)
 
 #. Run :command:`py.test` with the ``--cov-report=xml`` argument enabled:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ py.test --cov=faust --cov-report=xml
 
@@ -532,13 +532,13 @@ distribution.
 
 To run the tests for all supported Python versions simply execute:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ tox
 
 Use the ``tox -e`` option if you only want to test specific Python versions:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ tox -e 2.7
 
@@ -548,14 +548,14 @@ Building the documentation
 To build the documentation you need to install the dependencies
 listed in :file:`requirements/docs.txt`:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ pip install -U -r requirements/docs.txt
 
 After these dependencies are installed you should be able to
 build the docs by running:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ cd docs
     $ rm -rf _build
@@ -574,7 +574,7 @@ can be found in :file:`requirements/dist.txt`.
 
 Installing the dependencies:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ pip install -U -r requirements/dist.txt
 
@@ -584,14 +584,14 @@ pyflakes & PEP-8
 To ensure that your changes conform to :pep:`8` and to run pyflakes
 execute:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ make flakecheck
 
 To not return a negative exit code when this command fails use
 the ``flakes`` target instead:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ make flakes
 
@@ -601,7 +601,7 @@ API reference
 To make sure that all modules have a corresponding section in the API
 reference please execute:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ make apicheck
     $ make indexcheck
@@ -618,14 +618,14 @@ and this module is considered part of the public API, use the following steps:
 
 Use an existing file as a template:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ cd docs/reference/
     $ cp faust.schedules.rst faust.worker.awesome.rst
 
 Edit the file using your favorite editor:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ vim faust.worker.awesome.rst
 
@@ -635,7 +635,7 @@ Edit the file using your favorite editor:
 
 Edit the index using your favorite editor:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ vim index.rst
 
@@ -644,7 +644,7 @@ Edit the index using your favorite editor:
 
 Commit your changes:
 
-.. code-block:: console
+.. sourcecode:: console
 
     # Add the file to git
     $ git add faust.worker.awesome.rst
@@ -671,7 +671,7 @@ is following the conventions.
 
     Do this:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         def method(self, arg: str) -> None:
             """Short description.
@@ -682,7 +682,7 @@ is following the conventions.
 
     or:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         def method(self, arg: str) -> None:
             """Short description."""
@@ -690,7 +690,7 @@ is following the conventions.
 
     but not this:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         def method(self, arg: str) -> None:
             """
@@ -701,7 +701,7 @@ is following the conventions.
 
   You can enforce this in :command:`vim` by setting the ``textwidth`` option:
 
-  .. code-block:: vim
+  .. sourcecode:: vim
 
         set textwidth=78
 
@@ -728,7 +728,7 @@ is following the conventions.
 
     Example:
 
-    .. code-block:: python
+    .. sourcecode:: python
 
         import threading
         import time
@@ -758,7 +758,7 @@ that require third-party libraries must be added.
     For the RocksDB store this is
     :file:`requirements/extras/rocksdb.txt`, and the file looks like this:
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         python-rocksdb
 
@@ -766,7 +766,7 @@ that require third-party libraries must be added.
     multiple packages are separated by newline. A more complex example could
     be:
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         # python-rocksdb 2.0 breaks Foo
         python-rocksdb>=1.0,<2.0
@@ -793,7 +793,7 @@ that require third-party libraries must be added.
     After you've made changes to this file you need to render
     the distro :file:`README` file:
 
-    .. code-block:: console
+    .. sourcecode:: console
 
         $ pip install -U requirements/dist.txt
         $ make readme
@@ -864,19 +864,19 @@ the :file:`README` files. There's a script to convert sphinx syntax
 to generic reStructured Text syntax, and the make target `readme`
 does this for you:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ make readme
 
 Now commit the changes:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ git commit -a -m "Bumps version to X.Y.Z"
 
 and make a new version tag:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ git tag vX.Y.Z
     $ git push --tags
@@ -886,7 +886,7 @@ Releasing
 
 Commands to make a new public stable release:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ make distcheck  # checks pep8, autodoc index, runs tests and more
     $ make dist  # NOTE: Runs git clean -xdf and removes files not in the repo.

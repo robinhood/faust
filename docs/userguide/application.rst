@@ -19,7 +19,7 @@ Basics
 
 To start using Faust you must define an application instance:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> import faust
     >>> app = faust.App('example')
@@ -59,7 +59,7 @@ The application...
 
     - Run multiple application instances in the same process:
 
-        .. code-block:: pycon
+        .. sourcecode:: pycon
 
             >>> app1 = faust.App('demo1')
             >>> app2 = faust.App('demo2')
@@ -77,14 +77,14 @@ form the configuration of your Faust application.
 The only required paramater is the application id, a string shared by
 all instances of the app, that uniquely identifies it:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> app = faust.App('myid')
 
 The rest of the configuration are passed as keyword-only arguments,
 and all of the options described below are optional:
 
-.. code-block:: python
+.. sourcecode:: python
 
     >>> app = faust.App(
     ...     'myid',
@@ -114,7 +114,7 @@ Parameters
 
     You can specify a list of hosts by separating them using semicomma:
 
-    .. code-block:: text
+    .. sourcecode:: text
 
         aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 

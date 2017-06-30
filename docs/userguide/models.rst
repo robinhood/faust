@@ -33,7 +33,7 @@ The default codec is configured by the applications ``key_serializer`` and
 by specifying the ``serializer`` argument when creating the model class,
 for example:
 
-.. code-block:: python
+.. sourcecode:: python
 
     class MyRecord(Record, serializer='json')
         ...
@@ -51,7 +51,7 @@ be ``serializer='json|binary'``.
 
 Sending/receiving non-described keys and values is easy:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/nondescript.py
     import faust
@@ -74,7 +74,7 @@ Sending/receiving non-described keys and values is easy:
 
 Using models to describe topics adds more code, but also value:
 
-.. code-block:: python
+.. sourcecode:: python
 
     # examples/described.py
     import faust
@@ -118,7 +118,7 @@ A record is a model based on a dictionary/mapping.
 Here's a simple record describing a 2d point, with two required fields: ``x``
 and ``y``:
 
-.. code-block:: python
+.. sourcecode:: python
 
     class Point(faust.Record):
         x: int
@@ -127,7 +127,7 @@ and ``y``:
 To create a new point, instantiate it like a regular Python object.  The
 fields are provided as keyword arguments:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> point = Point(x=10, y=20)
     >>> point
@@ -136,11 +136,11 @@ fields are provided as keyword arguments:
 Attempting to instantiate a model without providing a value for a required
 field is an error:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> point = Point(x=10)
 
-.. code-block:: pytb
+.. sourcecode:: pytb
 
     Traceback (most recent call last):
     File "<stdin>", line 1, in <module>
@@ -157,7 +157,7 @@ field is an error:
 
 To describe an optional field, simply set a default value:
 
-.. code-block:: python
+.. sourcecode:: python
 
     class Point(faust.Record, serializer='json'):
         x: int
@@ -165,7 +165,7 @@ To describe an optional field, simply set a default value:
 
 You can now omit the ``y`` field when creating a new point:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> point = Point(x=10)
     >>> point
@@ -173,7 +173,7 @@ You can now omit the ``y`` field when creating a new point:
 
 We can now use ``Point`` objects as message keys, and message values:
 
-.. code-block:: python
+.. sourcecode:: python
 
     await app.send('mytopic', key=Point(x=10, y=20), value=Point(x=30, y=10))
 
@@ -181,7 +181,7 @@ The above will send a message to Kafka, to have a stream automatically
 deserialize these points, use ``faust.topic`` to describe a topic as having
 points as key and value types:
 
-.. code-block:: python
+.. sourcecode:: python
 
     my_topic = faust.topic('mytopic', key_type=Point, value_type=Point)
 
@@ -192,7 +192,7 @@ points as key and value types:
 
 Records can also have other records as fields:
 
-.. code-block:: python
+.. sourcecode:: python
 
     class Account(faust.Record, serializer='json'):
         id: str
@@ -209,13 +209,13 @@ Records can also have other records as fields:
 
 To manually serialize a record use its ``.dumps()`` method:
 
-.. code-block:: python
+.. sourcecode:: python
 
     >>> json = transfer.dumps()
 
 To convert the JSON back into a model use the ``.loads()`` class method:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> transfer = Transfer.loads(json)
 
@@ -267,21 +267,21 @@ Serialization by name
 The func:`dumps` function takes a codec name and the object to encode,
 the return value is bytes:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> s = dumps('json', obj)
 
 For the reverse direction, the func:`loads` function takes a codec
 name and a encoded payload to decode (bytes):
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> obj = loads('json', s)
 
 You can also combine encoders in the name, like in this case
 where json is combined with gzip compression:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> obj = loads('json|gzip', s)
 
@@ -294,7 +294,7 @@ attribute.
 
 You can add a new codec to this mapping by:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> from faust.serializers import codecs
     >>> codecs.register(custom, custom_serializer())
@@ -302,7 +302,7 @@ You can add a new codec to this mapping by:
 A codec subclass requires two methods to be implemented: ``_loads()``
 and ``_dumps()``:
 
-.. code-block:: python
+.. sourcecode:: python
 
     import msgpack
 
@@ -322,7 +322,7 @@ handling binary data well.  Codecs may be chained together,
 so to add a text encoding like base64, which we use in this case,
 we use the ``|`` operator to form a combined codec:
 
-.. code-block:: python
+.. sourcecode:: python
 
     def msgpack() -> codecs.Codec:
         return raw_msgpack() | codecs.binary()
@@ -332,7 +332,7 @@ we use the ``|`` operator to form a combined codec:
 At this point we monkey-patched Faust to support
 our codec, and we can use it to define records:
 
-.. code-block:: pycon
+.. sourcecode:: pycon
 
     >>> from faust import Record
     >>> class Point(Record, serializer='msgpack'):
@@ -348,7 +348,7 @@ extension.
 
 To do so we need to define a package with the following directory layout:
 
-.. code-block:: text
+.. sourcecode:: text
 
     faust-msgpack/
         setup.py
@@ -357,7 +357,7 @@ To do so we need to define a package with the following directory layout:
 The first file, :file:`faust-msgpack/setup.py`, defines metadata about our
 package and should look like the following example:
 
-.. code-block:: python
+.. sourcecode:: python
 
     import setuptools
 
@@ -388,7 +388,7 @@ to be ``faust_msgpack:msgpack``. This will be imported by Faust
 as ``from faust_msgpack import msgpack``, so we need to define
 that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
-.. code-block:: python
+.. sourcecode:: python
 
     from faust.serializers import codecs
 
@@ -403,7 +403,7 @@ that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 That's it! To install and use our new extension we do:
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ python setup.py install
 
