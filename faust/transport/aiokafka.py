@@ -200,9 +200,10 @@ class Consumer(base.Consumer):
         for tp in self._consumer.assignment():
             tp = cast(TopicPartition, tp)
             committed = await self._consumer.committed(tp)
-            read_offset[tp] = committed
-            print('PERFORM SEEK SOURCE TOPIC: %r -> %r' % (tp, committed))
-            seek(tp, committed)
+            if committed is not None:
+                read_offset[tp] = committed
+                print('PERFORM SEEK SOURCE TOPIC: %r -> %r' % (tp, committed))
+                seek(tp, committed)
 
     async def _commit(self, offsets: Any) -> None:
         print('COMMITTING OFFSETS: %r' % (offsets,))
@@ -224,15 +225,18 @@ class Consumer(base.Consumer):
 
     async def seek_to_latest(self, *partitions: TopicPartition) -> None:
         for partition in partitions:
+            print('SEEK TO LATEST: %r' % (partition,))
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.LATEST)
 
     async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
         for partition in partitions:
+            print('SEEK TO BEGINNING: %r' % (partition,))
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.EARLIEST)
 
     async def seek(self, partition: TopicPartition, offset: int) -> None:
+        print('SEEK %r -> %r' % (partition, offset))
         self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TopicPartition]:
