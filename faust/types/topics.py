@@ -215,11 +215,11 @@ class TopicManagerT(ServiceT, MutableSet[SourceT]):
         ...
 
     @abc.abstractmethod
-    def on_partitions_assigned(self,
-                               assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
     @abc.abstractmethod
-    def on_partitions_revoked(self,
-                              revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
         ...

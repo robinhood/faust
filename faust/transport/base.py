@@ -134,14 +134,14 @@ class Consumer(Service, ConsumerT):
     def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
         ...
 
-    def on_partitions_assigned(
+    async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        self._on_partitions_assigned(assigned)
-        self._time_to_seek.set()
+        await self._on_partitions_assigned(assigned)
+        await self._perform_seek()
 
-    def on_partitions_revoked(
+    async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
-        self._on_partitions_revoked(revoked)
+        await self._on_partitions_revoked(revoked)
 
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
@@ -176,14 +176,6 @@ class Consumer(Service, ConsumerT):
             tp, offset = await get()
             await on_message_out(self.id, tp, offset, None)
 
-    @Service.task
-    async def _seeker(self) -> None:
-        while not self.should_stop:
-            await self._time_to_seek.wait()
-            try:
-                await self._perform_seek()
-            finally:
-                self._time_to_seek.clear()
 
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.

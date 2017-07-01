@@ -628,3 +628,6 @@ class SensorDelegate(SensorDelegateT):
     async def on_send_completed(self, producer: ProducerT, state: Any) -> None:
         for sensor in self._sensors:
             await sensor.on_send_completed(producer, state[sensor])
+
+    def __repr__(self):
+        return f'<{type(self).__name__}: {self._sensors!r}>'

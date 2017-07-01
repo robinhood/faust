@@ -104,15 +104,12 @@ class AppService(Service):
     """Service responsible for starting/stopping an application."""
     logger = logger
 
-    _revoke_partitions: asyncio.Queue
-
     # App is created in module scope so we split it up to ensure
     # Service.loop does not create the asyncio event loop
     # when a module is imported.
 
     def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
-        self._revoke_partitions = asyncio.Queue(loop=self.loop)
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
@@ -137,6 +134,8 @@ class AppService(Service):
         # Add the main Monitor sensor.
         self.app.sensors.add(self.app.monitor)
 
+        print('SENSORS: %r' % (self.app.sensors),)
+
         # Then return the list of "subservices",
         # those that'll be started when the app starts,
         # stopped when the app stops,
@@ -160,25 +159,6 @@ class AppService(Service):
             [self.app._fetcher],
             [RecoveryCompleted(self.app, loop=self.loop, beacon=self.beacon)],
         ))
-
-    @Service.task
-    async def _handle_revoke_partitions(self) -> None:
-        revoked: Iterable[TopicPartition]
-        try:
-            while not self.should_stop:
-                await self._revoke_partitions.get()
-                print('ON PARTITIONS REVOKED')
-                assignment = self.app.consumer.assignment()
-                if assignment:
-                    await self.app.consumer.pause_partitions(assignment)
-                    print('WAITING FOR SEMAPHORE EMPTY')
-                    await self.app.semaphore.wait_empty()
-                    print('SEM NOW EMPTY - COMMITTTING')
-                    await self.app.commit(assignment)
-        except Exception as exc:
-            self.log.exception('HANDLE REVOKE RAISED: %r', exc)
-            raise
-        print('HANDLE REVOKE RETURNING')
 
     async def on_first_start(self) -> None:
         if not self.app.actors:
@@ -267,8 +247,6 @@ class App(AppT, ServiceProxy):
                      loop: asyncio.AbstractEventLoop = None) -> None:
         from .bin.base import parse_worker_args
         from .worker import Worker
-        from .sensors import Monitor
-        self.sensors.add(Monitor())
         kwargs = parse_worker_args(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
@@ -659,17 +637,24 @@ class App(AppT, ServiceProxy):
             beacon=self.beacon,
         )
 
-    def on_partitions_assigned(
+    async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        self.sources.on_partitions_assigned(assigned)
-        self.tables.on_partitions_assigned(assigned)
+        await self.sources.on_partitions_assigned(assigned)
+        await self.tables.on_partitions_assigned(assigned)
 
-    def on_partitions_revoked(
+    async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         print('ON PARTITIONS REVOKED!!!! TELL BACKGROUND THREAD')
         try:
-            self.sources.on_partitions_revoked(revoked)
-            self._service._revoke_partitions.put_nowait(revoked)
+            await self.sources.on_partitions_revoked(revoked)
+            print('ON PARTITIONS REVOKED')
+            assignment = self.consumer.assignment()
+            if assignment:
+                await self.consumer.pause_partitions(assignment)
+                print('COMMIT ASSIGNMENT %r' % (assignment,))
+                await self.commit(assignment)
+            else:
+                print('NOT COMMITTING, ASSIGNMENT EMPTY`')
         except BaseException as exc:
             self.log.exception('ON PARTITIONS REVOKED RAISED: %r', exc)
             raise

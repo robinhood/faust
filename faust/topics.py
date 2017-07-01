@@ -451,11 +451,11 @@ class TopicManager(TopicManagerT, Service):
                 self._topicmap[topic].add(source)
         return self._topicmap
 
-    def on_partitions_assigned(
+    async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
-    def on_partitions_revoked(
+    async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         ...
 

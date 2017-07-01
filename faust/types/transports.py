@@ -32,8 +32,8 @@ ConsumerCallback = Callable[[Message], Awaitable]
 #: Argument to Consumer.commit to specify topics/tps to commit.
 TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
 
-PartitionsRevokedCallback = Callable[[Iterable[TopicPartition]], None]
-PartitionsAssignedCallback = Callable[[Iterable[TopicPartition]], None]
+PartitionsRevokedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
+PartitionsAssignedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
 
 
 class ConsumerT(ServiceT):
