@@ -477,10 +477,13 @@ class Stream(StreamT, JoinableT, Service):
             if isinstance(value, EventT):
                 event: EventT = value
                 message: Message = event.message
+                tp = message.tp
+                offset = message.offset
+
+                await event.app.consumer.track_message(message, tp, offset)
 
                 # call Sensors
-                await on_stream_event_in(
-                    message.tp, message.offset, self, event)
+                await on_stream_event_in(tp, offset, self, event)
 
                 # set task-local current_event
                 threadlocals.current_event = create_ref(event)

@@ -283,12 +283,7 @@ class Consumer(Service, ConsumerT):
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
 
-        async def deliver(message: Message, tp: TopicPartition) -> None:
-            await track_message(message, tp, message.offset)
-            await callback(message)
-
         try:
-            # XXX mypy confuses AsyncIterable/AsyncIterator
             while not should_stop():
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
@@ -296,9 +291,7 @@ class Consumer(Service, ConsumerT):
                     c_offset = get_current_offset(tp)
                     r_offset = get_read_offset(tp)
                     if r_offset is None or offset > r_offset:
-                        print('DELIVER MESSAGE %r (%r): k=%r v=%r' % (
-                              message.offset, r_offset, message.key, message.value))
-                        await deliver(message, tp)
+                        await callback(message)
                         set_read_offset(tp, offset)
                     else:
                         print('DROPPED MESSAGE ROFF %r: k=%r v=%r' % (

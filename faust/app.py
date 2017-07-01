@@ -67,7 +67,7 @@ CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit messages.
 #: Can be customized by setting ``App(commit_interval=...)``.
-COMMIT_INTERVAL = 30.0
+COMMIT_INTERVAL = 1.0
 
 #: How often we clean up windowed tables.
 #: Can be customized by setting ``App(table_cleanup_interval=...)``.

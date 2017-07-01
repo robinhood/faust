@@ -573,9 +573,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
             # we simply assume that if the numbers are different there
             # are messages in the topic.
             has_positions = any(
-                border_left[tp] != 0 and border_right[tp]
+                border_left[tp] != border_right[tp]
                 for tp in earliest
             )
+            print('BORDER LEFT: %r' % (border_left,))
+            print('BORDER RIGHT: %r' % (border_right,))
             # at this point the topics are rewind at the beginning.
         return has_positions
 
