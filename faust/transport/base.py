@@ -213,7 +213,7 @@ class Consumer(Service, ConsumerT):
             sensor_state = await self._app.sensors.on_commit_initiated(self)
 
             # Go over the ack list in each topic/partition:
-            for tp in self._filter_tps_with_pending_acks(topics):
+            for tp in list(self._filter_tps_with_pending_acks(topics)):
                 # Find the latest offset we can commit in this tp
                 offset = self._new_offset(tp)
                 # check if we can commit to this offset
