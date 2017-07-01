@@ -652,7 +652,7 @@ class App(AppT, ServiceProxy):
             if assignment:
                 await self.consumer.pause_partitions(assignment)
                 print('COMMIT ASSIGNMENT %r' % (assignment,))
-                await self.commit(assignment)
+                await self.consumer.wait_empty()
             else:
                 print('NOT COMMITTING, ASSIGNMENT EMPTY`')
         except BaseException as exc:

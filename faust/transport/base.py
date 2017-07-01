@@ -84,6 +84,8 @@ class Consumer(Service, ConsumerT):
     #: Event set whenever we resubscribe
     _time_to_seek: asyncio.Event
 
+    _active_count = 0
+
     def __init__(self, transport: TransportT,
                  *,
                  callback: ConsumerCallback = None,
@@ -146,6 +148,7 @@ class Consumer(Service, ConsumerT):
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
         _id = self.id
+        self._active_count += 1
 
         # call sensors
         await self._on_message_in(_id, tp, offset, message)
@@ -155,11 +158,31 @@ class Consumer(Service, ConsumerT):
         if current is None or offset > current:
             acked_index = self._acked_index[tp]
             if offset not in acked_index:
+                self._active_count -= 1
                 acked_index.add(offset)
                 acked_for_tp = self._acked[tp]
                 acked_for_tp.append(offset)
                 acked_for_tp.sort()
                 self._recently_acked.put_nowait((tp, offset))
+
+    async def wait_empty(self):
+        while not self.should_stop and self._active_count:
+            print('STILL WAITING FOR ALL STREAMS TO FINISH')
+            await self.commit()
+            await self.sleep(.1)
+        print('COMMITTING AGAIN')
+        await self.commit()
+
+    async def on_stop(self) -> None:
+        await self.wait_empty()
+
+    def _get_all_pending_tps(self):
+        for tp, read in self._read_offset.items():
+            if read is not None:
+                committed = self._current_offset[tp]
+                if committed is None or committed < read:
+                    print('PENDING: %r %r %r' % (tp, committed, read))
+                    yield tp
 
     @Service.task
     async def _commit_handler(self) -> None:

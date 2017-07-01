@@ -482,7 +482,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
-    def on_partitions_assigned(
+    async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         self._new_assignments.put_nowait(assigned)
 
