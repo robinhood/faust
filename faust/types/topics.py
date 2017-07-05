@@ -60,7 +60,7 @@ class EventT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def ack(self) -> None:
+    async def ack(self) -> None:
         ...
 
     @abc.abstractmethod

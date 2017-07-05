@@ -527,7 +527,7 @@ class Stream(StreamT, JoinableT, Service):
 
     async def on_stop(self) -> None:
         if self.current_event is not None:
-            self.current_event.ack()
+            await self.current_event.ack()
         if self._context is not None:
             self._context.__exit__(None, None, None)
 
@@ -550,7 +550,7 @@ class Stream(StreamT, JoinableT, Service):
             # decrement reference count for previous event processed.
             _prev, self.current_event = self.current_event, None
             if _prev is not None:
-                _prev.ack()
+                await _prev.ack()
             _msg = _prev.message
             on_stream_event_out = self._on_stream_event_out
             if on_stream_event_out is not None:

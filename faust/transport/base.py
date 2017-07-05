@@ -81,12 +81,6 @@ class Consumer(Service, ConsumerT):
     #: Keeps track of the currently commited offset in each TP.
     _current_offset: MutableMapping[TopicPartition, int] = None
 
-    #: Queue for the when-acked-call-sensors background thread.
-    _recently_acked: asyncio.Queue
-
-    #: Event set whenever we resubscribe
-    _time_to_seek: asyncio.Event
-
     #: The consumer.wait_empty() method will set this to be notified
     #: when something acks a message.
     _waiting_for_ack: asyncio.Future = None
@@ -121,8 +115,6 @@ class Consumer(Service, ConsumerT):
         self._current_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
-        self._recently_acked = asyncio.Queue(loop=self.transport.loop)
-        self._time_to_seek = asyncio.Event(loop=self.transport.loop)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         super().__init__(loop=self.transport.loop, **kwargs)
@@ -166,7 +158,7 @@ class Consumer(Service, ConsumerT):
         # call sensors
         await self._on_message_in(self._id, tp, offset, message)
 
-    def ack(self, message: Message) -> None:
+    async def ack(self, message: Message) -> None:
         if not message.acked:
             message.acked = True
             tp = message.tp
@@ -181,7 +173,8 @@ class Consumer(Service, ConsumerT):
                     acked_for_tp.append(offset)
                     acked_for_tp.sort()
                     notify(self._waiting_for_ack)
-                    self._recently_acked.put_nowait((tp, offset))
+                    await self._app.sensors.on_message_out(
+                        self.id, tp, offset, None)
 
     async def wait_empty(self):
         while not self.should_stop and self._unacked_messages:
@@ -209,14 +202,6 @@ class Consumer(Service, ConsumerT):
         while not self.should_stop:
             await self.commit()
             await self.sleep(self.commit_interval)
-
-    @Service.task
-    async def _recently_acked_handler(self) -> None:
-        get = self._recently_acked.get
-        on_message_out = self._app.sensors.on_message_out
-        while not self.should_stop:
-            tp, offset = await get()
-            await on_message_out(self.id, tp, offset, None)
 
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.

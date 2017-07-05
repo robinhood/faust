@@ -70,13 +70,13 @@ class Event(EventT):
             value_serializer=value_serializer,
         )
 
-    def ack(self) -> None:
+    async def ack(self) -> None:
         message = self.message
         # decrement the reference count
         message.decref()
         # if no more references, ack message
         if not message.refcount:
-            self.app.consumer.ack(message)
+            await self.app.consumer.ack(message)
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}: k={self.key!r} v={self.value!r}'
@@ -88,16 +88,7 @@ class Event(EventT):
                         exc_type: Type[Exception],
                         exc_val: Exception,
                         exc_tb: TracebackType) -> None:
-        self.ack()
-
-    def __enter__(self) -> EventT:
-        return self
-
-    def __exit__(self,
-                 exc_type: Type[Exception],
-                 exc_val: Exception,
-                 exc_tb: TracebackType) -> None:
-        self.ack()
+        await self.ack()
 
 
 @total_ordering

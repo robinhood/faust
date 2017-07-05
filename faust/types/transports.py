@@ -78,7 +78,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def ack(self, message: Message) -> None:
+    async def ack(self, message: Message) -> None:
         ...
 
     @abc.abstractmethod

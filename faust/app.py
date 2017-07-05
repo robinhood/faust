@@ -568,7 +568,7 @@ class App(AppT, ServiceProxy):
         heappush(buf, (message.offset, pending_message))
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
-        # Get pending messages attached to this TP+offset
+        # publish pending messages attached to this TP+offset
         for message in list(self._get_attached(tp, offset)):
             await self._send_tuple(message)
 
