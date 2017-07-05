@@ -406,7 +406,6 @@ class TopicManager(TopicManagerT, Service):
         # tell the consumer to subscribe to the topics.
         await self.app.consumer.subscribe(self._update_topicmap())
         notify(self._subscription_done)
-        self._notify_subscription_waiters()
 
         # Now we wait for changes
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
