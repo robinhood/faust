@@ -74,17 +74,6 @@ class EventT(metaclass=abc.ABCMeta):
                         exc_tb: TracebackType) -> None:
         ...
 
-    @abc.abstractmethod
-    def __enter__(self) -> 'EventT':
-        ...
-
-    @abc.abstractmethod
-    def __exit__(self,
-                 exc_type: Type[Exception],
-                 exc_val: Exception,
-                 exc_tb: TracebackType) -> None:
-        ...
-
 
 class TopicT(AsyncIterable):
     app: AppT

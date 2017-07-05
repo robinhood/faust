@@ -480,7 +480,7 @@ class Stream(StreamT, JoinableT, Service):
                 tp = message.tp
                 offset = message.offset
 
-                await event.app.consumer.track_message(message, tp, offset)
+                await event.app.consumer.track_message(message)
 
                 # call Sensors
                 await on_stream_event_in(tp, offset, self, event)

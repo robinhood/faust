@@ -94,7 +94,7 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
         ...
 
     @abc.abstractmethod
-    def on_partitions_assigned(
+    async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         ...
 

@@ -149,14 +149,13 @@ class Consumer(Service, ConsumerT):
             self, revoked: Iterable[TopicPartition]) -> None:
         await self._on_partitions_revoked(revoked)
 
-    async def track_message(
-            self, message: Message, tp: TopicPartition, offset: int) -> None:
+    async def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.
         self._unacked_messages.add(message)
 
         # call sensors
-        await self._on_message_in(self._id, tp, offset, message)
+        await self._on_message_in(self.id, message.tp, message.offset, message)
 
     async def ack(self, message: Message) -> None:
         if not message.acked:
@@ -176,25 +175,17 @@ class Consumer(Service, ConsumerT):
                     await self._app.sensors.on_message_out(
                         self.id, tp, offset, None)
 
-    async def wait_empty(self):
+    async def wait_empty(self) -> None:
         while not self.should_stop and self._unacked_messages:
             print('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
-            await self._waiting_for_ack()
+            await self._waiting_for_ack
         print('COMMITTING AGAIN')
         await self.commit()
 
     async def on_stop(self) -> None:
         await self.wait_empty()
-
-    def _get_all_pending_tps(self):
-        for tp, read in self._read_offset.items():
-            if read is not None:
-                committed = self._current_offset[tp]
-                if committed is None or committed < read:
-                    print('PENDING: %r %r %r' % (tp, committed, read))
-                    yield tp
 
     @Service.task
     async def _commit_handler(self) -> None:

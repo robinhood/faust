@@ -78,7 +78,15 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def track_message(self, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
     async def ack(self, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def wait_empty(self) -> None:
         ...
 
     @abc.abstractmethod
