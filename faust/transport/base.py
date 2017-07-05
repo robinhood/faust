@@ -1,12 +1,14 @@
 """Base message transport implementation."""
 import abc
 import asyncio
+import typing
 from collections import defaultdict
 from itertools import count
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
     List, MutableMapping, Optional, Set, Tuple, Type, cast,
 )
+from weakref import WeakSet
 from ..types import AppT, Message, TopicPartition
 from ..types.transports import (
     ConsumerCallback, ConsumerT,
@@ -14,6 +16,7 @@ from ..types.transports import (
     ProducerT, TPorTopicSet, TransportT,
 )
 from ..utils.functional import consecutive_numbers
+from ..utils.futures import notify
 from ..utils.logging import get_logger
 from ..utils.services import Service, ServiceT
 
@@ -84,7 +87,14 @@ class Consumer(Service, ConsumerT):
     #: Event set whenever we resubscribe
     _time_to_seek: asyncio.Event
 
-    _active_count = 0
+    #: The consumer.wait_empty() method will set this to be notified
+    #: when something acks a message.
+    _waiting_for_ack: asyncio.Future = None
+
+    if typing.TYPE_CHECKING:
+        # This works in mypy, but not in CPython
+        _unacked_messages: WeakSet[Message]
+    _unacked_messages = None
 
     def __init__(self, transport: TransportT,
                  *,
@@ -113,6 +123,8 @@ class Consumer(Service, ConsumerT):
         self._rebalance_listener = self.RebalanceListener(self)
         self._recently_acked = asyncio.Queue(loop=self.transport.loop)
         self._time_to_seek = asyncio.Event(loop=self.transport.loop)
+        self._unacked_messages = WeakSet()
+        self._waiting_for_ack = None
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -147,29 +159,36 @@ class Consumer(Service, ConsumerT):
 
     async def track_message(
             self, message: Message, tp: TopicPartition, offset: int) -> None:
-        _id = self.id
-        self._active_count += 1
+        # add to set of pending messages that must be acked for graceful
+        # shutdown.
+        self._unacked_messages.add(message)
 
         # call sensors
-        await self._on_message_in(_id, tp, offset, message)
+        await self._on_message_in(self._id, tp, offset, message)
 
-    def ack(self, tp: TopicPartition, offset: int) -> None:
-        current = self._current_offset[tp]
-        if current is None or offset > current:
-            acked_index = self._acked_index[tp]
-            if offset not in acked_index:
-                self._active_count -= 1
-                acked_index.add(offset)
-                acked_for_tp = self._acked[tp]
-                acked_for_tp.append(offset)
-                acked_for_tp.sort()
-                self._recently_acked.put_nowait((tp, offset))
+    def ack(self, message: Message) -> None:
+        if not message.acked:
+            message.acked = True
+            tp = message.tp
+            offset = message.offset
+            current = self._current_offset[tp]
+            if current is None or offset > current:
+                acked_index = self._acked_index[tp]
+                if offset not in acked_index:
+                    self._unacked_messages.discard(message)
+                    acked_index.add(offset)
+                    acked_for_tp = self._acked[tp]
+                    acked_for_tp.append(offset)
+                    acked_for_tp.sort()
+                    notify(self._waiting_for_ack)
+                    self._recently_acked.put_nowait((tp, offset))
 
     async def wait_empty(self):
-        while not self.should_stop and self._active_count:
+        while not self.should_stop and self._unacked_messages:
             print('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
-            await self.sleep(.1)
+            self._waiting_for_ack = asyncio.Future(loop=self.loop)
+            await self._waiting_for_ack()
         print('COMMITTING AGAIN')
         await self.commit()
 
@@ -198,7 +217,6 @@ class Consumer(Service, ConsumerT):
         while not self.should_stop:
             tp, offset = await get()
             await on_message_out(self.id, tp, offset, None)
-
 
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
@@ -277,9 +295,7 @@ class Consumer(Service, ConsumerT):
     async def _drain_messages(self) -> None:
         callback = self.callback
         getmany = self.getmany
-        track_message = self.track_message
         should_stop = self._stopped.is_set
-        get_current_offset = self._current_offset.__getitem__
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
 
@@ -288,7 +304,6 @@ class Consumer(Service, ConsumerT):
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
                     offset = message.offset
-                    c_offset = get_current_offset(tp)
                     r_offset = get_read_offset(tp)
                     if r_offset is None or offset > r_offset:
                         await callback(message)

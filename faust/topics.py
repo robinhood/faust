@@ -13,6 +13,7 @@ from .types import AppT, CodecArg, K, Message, ModelArg, TopicPartition, V
 from .types.streams import StreamCoroutine, StreamT
 from .types.topics import EventT, SourceT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
+from .utils.futures import notify
 from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
@@ -75,7 +76,7 @@ class Event(EventT):
         message.decref()
         # if no more references, ack message
         if not message.refcount:
-            self.app.sources.ack_message(message)
+            self.app.consumer.ack(message)
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}: k={self.key!r} v={self.value!r}'
@@ -270,7 +271,6 @@ class TopicSource(SourceT):
         ...  # closure compiled at __init__
 
     def _compile_deliver(self) -> Callable[[Message], Awaitable]:
-        acquire_sem = self.app.semaphore.acquire
         app = self.app
         topic = self.topic
         key_type = topic.key_type
@@ -281,7 +281,6 @@ class TopicSource(SourceT):
         create_event = Event
 
         async def deliver(message: Message) -> None:
-            await acquire_sem()
             try:
                 k = await loads_key(key_type, message.key)
             except KeyDecodeError as exc:
@@ -361,14 +360,6 @@ class TopicManager(TopicManagerT, Service):
         self.on_message: Callable[[Message], Awaitable[None]]
         self.on_message = self._compile_message_handler()
 
-    def ack_message(self, message: Message) -> None:
-        if not message.acked:
-            return self.ack_offset(message.tp, message.offset)
-        message.acked = True
-
-    def ack_offset(self, tp: TopicPartition, offset: int) -> None:
-        return self.app.consumer.ack(tp, offset)
-
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.app.consumer.commit(topics)
 
@@ -414,6 +405,7 @@ class TopicManager(TopicManagerT, Service):
 
         # tell the consumer to subscribe to the topics.
         await self.app.consumer.subscribe(self._update_topicmap())
+        notify(self._subscription_done)
         self._notify_subscription_waiters()
 
         # Now we wait for changes
@@ -422,12 +414,7 @@ class TopicManager(TopicManagerT, Service):
             await ev.wait()
             await self.app.consumer.subscribe(self._update_topicmap())
             ev.clear()
-            self._notify_subscription_waiters()
-
-    def _notify_subscription_waiters(self) -> None:
-        fut = self._subscription_done
-        if fut is not None and not fut.done():
-            fut.set_result(None)
+            notify(self._subscription_done)
 
     async def wait_for_subscriptions(self) -> None:
         if self._subscription_done is not None:

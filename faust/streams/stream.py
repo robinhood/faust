@@ -549,7 +549,6 @@ class Stream(StreamT, JoinableT, Service):
         else:
             # decrement reference count for previous event processed.
             _prev, self.current_event = self.current_event, None
-            _prev.app.semaphore.release()
             if _prev is not None:
                 _prev.ack()
             _msg = _prev.message

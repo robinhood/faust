@@ -30,7 +30,6 @@ from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
-from .utils.futures import PoolSemaphore
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import cached_property
@@ -737,10 +736,6 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
-
-    @cached_property
-    def semaphore(self) -> PoolSemaphore:
-        return PoolSemaphore(size=self.max_concurrency, loop=self.loop)
 
     @property
     def label(self) -> str:

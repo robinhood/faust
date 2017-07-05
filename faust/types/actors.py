@@ -23,7 +23,10 @@ __all__ = [
 ]
 
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
-ActorFun = Callable[[Union[AsyncIterator, StreamT]], Union[Awaitable, AsyncIterable]]
+ActorFun = Callable[
+    [Union[AsyncIterator, StreamT]],
+    Union[Awaitable, AsyncIterable],
+]
 
 #: A sink can be: Actor, Topic,
 #: or callable/async callable taking value as argument.

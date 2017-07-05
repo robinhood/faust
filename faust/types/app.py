@@ -27,11 +27,9 @@ from ..utils.types.services import ServiceT
 if typing.TYPE_CHECKING:  # pragma: no cover
     from ..sensors import Monitor
     from .models import ModelArg
-    from ..utils.futures import PoolSemaphore
 else:
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
-    class PoolSemaphore: ...  # noqa
 
 __all__ = ['AppT']
 
@@ -233,9 +231,4 @@ class AppT(ServiceT):
 
     @monitor.setter
     def monitor(self, value: Monitor) -> None:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def semaphore(self) -> PoolSemaphore:
         ...

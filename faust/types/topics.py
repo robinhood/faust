@@ -199,14 +199,6 @@ class TopicManagerT(ServiceT, MutableSet[SourceT]):
         ...
 
     @abc.abstractmethod
-    def ack_message(self, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    def ack_offset(self, tp: TopicPartition, offset: int) -> None:
-        ...
-
-    @abc.abstractmethod
     async def commit(self, topics: TPorTopicSet) -> bool:
         ...
 
