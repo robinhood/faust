@@ -71,8 +71,8 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
         await cast(Consumer, self.consumer).on_partitions_assigned(
             cast(Iterable[TopicPartition], assigned))
 
-    async def on_partitions_revoked(self,
-                              revoked: Iterable[_TopicPartition]) -> None:
+    async def on_partitions_revoked(
+            self, revoked: Iterable[_TopicPartition]) -> None:
         # see comment in on_partitions_assigned
         await cast(Consumer, self.consumer).on_partitions_revoked(
             cast(Iterable[TopicPartition], revoked))
