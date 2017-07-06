@@ -199,11 +199,17 @@ class Consumer(base.Consumer):
         seek = self._consumer.seek
         for tp in self._consumer.assignment():
             tp = cast(TopicPartition, tp)
-            committed = await self._consumer.committed(tp)
-            if committed is not None:
-                read_offset[tp] = committed
-                print('PERFORM SEEK SOURCE TOPIC: %r -> %r' % (tp, committed))
-                seek(tp, committed)
+            try:
+                checkpoint = self._checkpoints[tp]
+            except KeyError:
+                checkpoint = await self._consumer.committed(tp)
+            if checkpoint is not None:
+                read_offset[tp] = checkpoint
+                print('PERFORM SEEK SOURCE TOPIC: %r -> %r' % (tp, checkpoint))
+                seek(tp, checkpoint)
+            else:
+                print('PERFORM SEEK AT BEGINNING TOPIC: %r' % (tp,))
+                await self.seek_to_beginning(tp)
 
     async def _commit(self, offsets: Any) -> None:
         print('COMMITTING OFFSETS: %r' % (offsets,))

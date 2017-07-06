@@ -32,7 +32,7 @@ from .utils.aiter import aiter
 from .utils.compat import OrderedDict
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
-from .utils.objects import cached_property
+from .utils.objects import Unordered, cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
@@ -235,7 +235,7 @@ class App(AppT, ServiceProxy):
 
     _pending_on_commit: MutableMapping[
         TopicPartition,
-        List[Tuple[int, PendingMessage]]]
+        List[Tuple[int, Unordered[PendingMessage]]]]
 
     _monitor: Monitor = None
 
@@ -565,7 +565,7 @@ class App(AppT, ServiceProxy):
         pending_message = PendingMessage(
             topic, key, value, partition,
             key_serializer, value_serializer)
-        heappush(buf, (message.offset, pending_message))
+        heappush(buf, (message.offset, Unordered(pending_message)))
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
@@ -583,7 +583,7 @@ class App(AppT, ServiceProxy):
             # being committed
             if entry[0] <= commit_offset:
                 # we use it
-                yield entry[1]  # Only yielding Pending Message (not offset)
+                yield entry[1].value  # Only yield PendingMessage (not offset)
             else:
                 # we put it back and exit, as this was the smallest offset.
                 heappush(attached, entry)

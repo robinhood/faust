@@ -1,23 +1,41 @@
 """Object utilities."""
 import sys
 from contextlib import suppress
-from functools import singledispatch
+from functools import singledispatch, total_ordering
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, Mapping, Tuple, Type, cast
-
-__flake8_Dict_is_used: Dict   # silence flake8 bug
+from typing import (
+    Any, Callable, Dict, Generic, Iterable,
+    Mapping, Tuple, Type, TypeVar, cast,
+)
 
 __all__ = [
-    'FieldMapping', 'DefaultsMapping', 'KeywordReduce',
+    'Unordered', 'FieldMapping', 'DefaultsMapping', 'KeywordReduce',
     'qualname', 'label', 'shortlabel', 'annotations',
     'iter_mro_reversed', 'cached_property',
 ]
+
+__flake8_Dict_is_used: Dict   # silence flake8 bug
+
+_T = TypeVar('_T')
 
 #: Mapping of attribute name to attribute type.
 FieldMapping = Mapping[str, Type]
 
 #: Mapping of attribute name to attributes default value.
 DefaultsMapping = Mapping[str, Any]
+
+
+@total_ordering
+class Unordered(Generic[_T]):
+
+    # Used to put anything inside a heapq, even things that can not be ordered
+    # like dicts and lists.
+
+    def __init__(self, value: _T) -> None:
+        self.value = value
+
+    def __le__(self, other: Any) -> bool:
+        return True
 
 
 def qualname(obj: Any) -> str:

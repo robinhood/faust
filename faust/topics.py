@@ -2,7 +2,6 @@ import asyncio
 import re
 import typing
 from collections import defaultdict
-from functools import total_ordering
 from types import TracebackType
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
@@ -91,7 +90,6 @@ class Event(EventT):
         await self.ack()
 
 
-@total_ordering
 class Topic(TopicT):
     """Define new topic description.
 
@@ -236,14 +234,6 @@ class Topic(TopicT):
 
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
-
-    def __lt__(self, other: Any) -> bool:
-        # LT is here for heapq.heappush in app.send_attached
-        if isinstance(other, TopicT):
-            if self.pattern:
-                return self.pattern.pattern < other.pattern.pattern
-            return tuple(self.topics) < tuple(other.topics)
-        return False
 
 
 class TopicSource(SourceT):

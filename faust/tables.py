@@ -130,13 +130,23 @@ class Collection(Service, CollectionT):
 
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
+        topic: str = None
         partition: int = None
+        offset: int = None
         if event is not None:
             send = event.attach
-            partition = event.message.partition
+            message = event.message
+            topic = message.topic
+            partition = message.partition
+            offset = message.offset
         else:
             send = self.app.send_soon
-        send(self.changelog_topic, key, value,
+        send(self.changelog_topic,
+             key,
+             {'topic': topic,
+              'partition': partition,
+              'offset': offset,
+              'value': value},
              partition=partition,
              key_serializer='json',
              value_serializer='json')
@@ -514,6 +524,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if await self._seek_changelog(tps):
                 # at this point we know there are messages in at least
                 # one of the topic partitions:
+
                 # resume changelog partitions for this table
                 await consumer.resume_partitions(tps)
                 try:
@@ -584,6 +595,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
             tp = message.tp
             offset = message.offset
             seen_offset = offsets.get(tp)
+            get_checkpoint = self.app.consumer.get_checkpoint
+            set_checkpoint = self.app.consumer.set_checkpoint
 
             if seen_offset is None or offset > seen_offset:
                 highwater = self.app.consumer.highwater(tp)
@@ -598,7 +611,20 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     if not pending_tps:
                         break
                 offsets[tp] = offset
-                buf[to_key(event.key)] = to_value(event.value)
+
+                topic = event.value['topic']
+                partition = event.value['partition']
+                offset = event.value['offset']
+                value = to_value(event.value['value'])
+
+                if topic and partition is not None and offset is not None:
+                    # may have been sent outside of event context.
+                    if topic == tp.topic and partition == tp.offset:
+                        checkpoint = get_checkpoint(tp)
+                        if checkpoint < offset:
+                            set_checkpoint(tp, offset)
+
+                buf[to_key(event.key)] = value
                 if len(buf) > 1000:
                     cast(Table, table).raw_update(buf)
                     buf.clear()

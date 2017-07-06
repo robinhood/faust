@@ -85,6 +85,16 @@ class Consumer(Service, ConsumerT):
     #: when something acks a message.
     _waiting_for_ack: asyncio.Future = None
 
+    # Checkpoints store the next wanted offset in a partition.
+    # When partitions are assigned, the _perform_seek method should use
+    # this mapping to figure out where to seek, if a partition is not
+    # in this mapping it will use the committed offset for that partition.
+    #
+    # TableManager uses this to read the comitted offsets for all changelog
+    # tables when it starts, so that no rogue instance can change the
+    # committed offset after we have started recovering the tables.
+    _checkpoints: MutableMapping[TopicPartition, int]
+
     if typing.TYPE_CHECKING:
         # This works in mypy, but not in CPython
         _unacked_messages: WeakSet[Message]
@@ -117,6 +127,7 @@ class Consumer(Service, ConsumerT):
         self._rebalance_listener = self.RebalanceListener(self)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
+        self._checkpoints = {}
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -149,7 +160,14 @@ class Consumer(Service, ConsumerT):
             self, revoked: Iterable[TopicPartition]) -> None:
         await self._on_partitions_revoked(revoked)
 
-    async def track_message(self, message: Message) -> None:
+    def set_checkpoint(self, tp: TopicPartition, offset: int) -> None:
+        self._checkpoints[tp] = offset
+
+    def get_checkpoint(self, tp: TopicPartition) -> Optional[int]:
+        return self._checkpoints.get(tp)
+
+    async def track_message(
+            self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.
         self._unacked_messages.add(message)
