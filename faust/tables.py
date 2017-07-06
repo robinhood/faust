@@ -601,7 +601,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if highwater is None or offset >= highwater - 1:
                     # we have read up till highwater, so this partition is
                     # up to date.
-                    pending_tps.remove(tp)
+                    pending_tps.discard(tp)
                     if not pending_tps:
                         break
                 offsets[tp] = offset
