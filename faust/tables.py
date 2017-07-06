@@ -512,12 +512,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if tps:
             # Seek partitions to appropriate offsets
             if await self._seek_changelog(tps):
-                # XXX Remove read offset cache used for deduplication
-                # this should be changed so that we do not have to reread
-                # the data we already have.
-                cast(Table, table).data.clear()
-                for tp in tps:
-                    self.app.consumer._read_offset.pop(tp, None)
                 # at this point we know there are messages in at least
                 # one of the topic partitions:
                 # resume changelog partitions for this table
@@ -551,7 +545,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 has_positions = True
                 # if we have read it, seek to that offset
                 await consumer.seek(tp, offset)
-        earliest = set(tps)
         if earliest:
             # find end positions of all partitions
             await consumer.seek_to_latest(*earliest)
