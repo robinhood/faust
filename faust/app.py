@@ -608,7 +608,6 @@ class App(AppT, ServiceProxy):
                 valsize=len(value) if value else 0)
             ret = await producer.send_and_wait(
                 topic, key, value, partition=partition)
-            await ret
             await self.sensors.on_send_completed(producer, state)
             return ret
         return producer.send(topic, key, value, partition=partition)
