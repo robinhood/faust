@@ -3,7 +3,6 @@ import abc
 import asyncio
 import operator
 from collections import defaultdict
-from functools import lru_cache
 from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
@@ -580,7 +579,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         buf: MutableMapping[Any, Any] = {}
         to_key, to_value = self._to_key, self._to_value
         offsets = self._table_offsets
-        highwater = lru_cache(maxsize=None)(self.app.consumer.highwater)
         pending_tps = set(tps)
         self.log.info('Recover %r from changelog', table.name)
         async for event in source:
@@ -590,11 +588,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
             seen_offset = offsets.get(tp)
 
             if seen_offset is None or offset > seen_offset:
-                cur_hw = highwater(tp)
-                if not offset % 10_000 and cur_hw - offset > 1000:
+                highwater = self.app.consumer.highwater(tp)
+                remaining = highwater - offset
+                if not offset % 10_000 and remaining > 1000:
                     self.log.info('Table %r, still waiting for %r values',
-                                  table.name, cur_hw - offset)
-                if cur_hw is None or offset >= cur_hw - 1:
+                                  table.name, remaining)
+                if highwater is None or offset >= highwater - 1:
                     # we have read up till highwater, so this partition is
                     # up to date.
                     pending_tps.remove(tp)
