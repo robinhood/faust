@@ -304,7 +304,7 @@ class Table(Collection, TableT, ManagedUserDict):
 
     def __missing__(self, key: Any) -> Any:
         if self.default is not None:
-            value = self[key] = self.default()
+            value = self.data[key] = self.default()
             return value
         raise KeyError(key)
 
@@ -512,7 +512,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             table: CollectionT,
             assigned: Iterable[TopicPartition]) -> None:
         consumer = self.app.consumer
-        buf: MutableMapping = {}
 
         # Get assigned partitions for this tables changelog topic.
         tps: _Set[TopicPartition] = {
@@ -532,7 +531,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                         table, tps, self._sources[table])
                 finally:
                     await consumer.pause_partitions(tps)
-                cast(Table, table).raw_update(buf)
                 self.log.info('Table %r: Recovery completed!', table.name)
             else:
                 self.log.info('Table %r: Table empty', table.name)
@@ -628,6 +626,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     pending_tps.discard(tp)
                     if not pending_tps:
                         break
+        if buf:
+            cast(Table, table).raw_update(buf)
+            buf.clear()
 
     def _to_key(self, k: Any) -> Any:
         if isinstance(k, list):

@@ -308,7 +308,8 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> Awaitable:
-        return await self._producer.send_and_wait(topic, value, key=key)
+        return await self._producer.send_and_wait(topic, value, key=key,
+                                                  partition=partition)
 
 
 class Transport(base.Transport):
