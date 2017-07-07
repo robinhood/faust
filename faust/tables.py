@@ -304,7 +304,7 @@ class Table(Collection, TableT, ManagedUserDict):
 
     def __missing__(self, key: Any) -> Any:
         if self.default is not None:
-            value = self[key] = self.default()
+            value = self.data[key] = self.default()
             return value
         raise KeyError(key)
 
