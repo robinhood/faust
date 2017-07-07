@@ -578,7 +578,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             )
             print('BORDER LEFT: %r' % (border_left,))
             print('BORDER RIGHT: %r' % (border_right,))
-            # at this point the topics are rewind at the beginning.
+            # at this point the topics are rewound at the beginning.
         return has_positions
 
     async def _read_changelog(self,
@@ -604,12 +604,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if not offset % 10_000 and remaining > 1000:
                     self.log.info('Table %r, still waiting for %r values',
                                   table.name, remaining)
-                if highwater is None or offset >= highwater - 1:
-                    # we have read up till highwater, so this partition is
-                    # up to date.
-                    pending_tps.discard(tp)
-                    if not pending_tps:
-                        break
                 offsets[tp] = offset
 
                 topic = event.value['topic']
@@ -628,6 +622,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if len(buf) > 1000:
                     cast(Table, table).raw_update(buf)
                     buf.clear()
+                if highwater is None or offset >= highwater - 1:
+                    # we have read up till highwater, so this partition is
+                    # up to date.
+                    pending_tps.discard(tp)
+                    if not pending_tps:
+                        break
 
     def _to_key(self, k: Any) -> Any:
         if isinstance(k, list):
