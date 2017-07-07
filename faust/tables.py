@@ -512,7 +512,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             table: CollectionT,
             assigned: Iterable[TopicPartition]) -> None:
         consumer = self.app.consumer
-        buf: MutableMapping = {}
 
         # Get assigned partitions for this tables changelog topic.
         tps: _Set[TopicPartition] = {
@@ -532,7 +531,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                         table, tps, self._sources[table])
                 finally:
                     await consumer.pause_partitions(tps)
-                cast(Table, table).raw_update(buf)
                 self.log.info('Table %r: Recovery completed!', table.name)
             else:
                 self.log.info('Table %r: Table empty', table.name)
@@ -628,6 +626,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if len(buf) > 1000:
                     cast(Table, table).raw_update(buf)
                     buf.clear()
+        if buf:
+            cast(Table, table).raw_update(buf)
+            buf.clear()
 
     def _to_key(self, k: Any) -> Any:
         if isinstance(k, list):
