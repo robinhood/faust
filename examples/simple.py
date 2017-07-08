@@ -38,15 +38,10 @@ async def find_large_withdrawals(withdrawals):
 
 async def _publish_withdrawals():
     num_countries = 5
-    countries = [
-        ''.join(random.sample(string.ascii_lowercase, 10))
-        for _ in range(num_countries)
-    ]
+    countries = [f'country_{i}' for i in range(num_countries)]
     country_dist = [0.9] + ([0.10/num_countries] * (num_countries - 1))
-    users = [
-        ''.join(random.sample(string.ascii_lowercase, 8))
-        for _ in range(100)
-    ]
+    num_users = 500
+    users = [f'user_{i}' for i in range(num_users)]
     print('Done setting up. SENDING!')
     while True:
         withdrawal = Withdrawal(
