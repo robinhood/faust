@@ -34,7 +34,7 @@ class Stresser(object):
 
     async def _run_stresser(self):
         print('Running stresser')
-        while True and not self._stop_stresser.is_set():
+        while not self._stop_stresser.is_set():
             print('Stresser iteration')
             if self._should():
                 await self._maybe_stop_worker()
@@ -43,7 +43,7 @@ class Stresser(object):
             await asyncio.sleep(random.uniform(1, 20))
 
     def stop_stresser(self):
-        print('Setting queue')
+        print('Stopping stresser')
         self._stop_stresser.set()
 
     def _should(self):
