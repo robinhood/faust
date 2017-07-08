@@ -62,9 +62,9 @@ class BaseKafkaTableBuilder(object):
 class ChangelogTableBuilder(BaseKafkaTableBuilder):
 
     async def _apply(self, message):
-        k = json.loads(message.key)
+        k = json.loads(message.key.decode())
         v = json.loads(message.value.decode())
-        self.table[k] = v['value']
+        self.table[k] = v
         self.key_tps[k].add(message.partition)
 
 
