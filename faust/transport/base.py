@@ -195,11 +195,11 @@ class Consumer(Service, ConsumerT):
 
     async def wait_empty(self) -> None:
         while not self.should_stop and self._unacked_messages:
-            print('STILL WAITING FOR ALL STREAMS TO FINISH')
+            self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
             await self._waiting_for_ack
-        print('COMMITTING AGAIN')
+        self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
         await self.commit()
 
     async def on_stop(self) -> None:
@@ -303,8 +303,8 @@ class Consumer(Service, ConsumerT):
                         await callback(message)
                         set_read_offset(tp, offset)
                     else:
-                        print('DROPPED MESSAGE ROFF %r: k=%r v=%r' % (
-                            message.offset, message.key, message.value))
+                        self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
+                                     offset, message.key, message.value)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore

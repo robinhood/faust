@@ -1,5 +1,6 @@
 """Logging utilities."""
 import logging
+import os
 import sys
 import threading
 import traceback
@@ -12,6 +13,7 @@ __all__ = [
     'cry', 'get_logger', 'level_name', 'level_number', 'setup_logging',
 ]
 
+DEVLOG: bool = bool(os.environ.get('DEVLOG', ''))
 DEFAULT_FORMAT = '[%(asctime)s: %(levelname)s] %(message)s'
 
 
@@ -69,6 +71,10 @@ class CompositeLogger:
 
     def __init__(self, obj: Any) -> None:
         self._obj: Any = obj
+
+    def dev(self, msg: str, *args: Any, **kwargs: Any) -> None:
+        if DEVLOG:
+            self.info(msg, *args, **kwargs)
 
     def debug(self, msg: str, *args: Any, **kwargs: Any) -> None:
         self.log(logging.DEBUG, msg, *args, **kwargs)

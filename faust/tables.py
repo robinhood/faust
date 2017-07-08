@@ -574,8 +574,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 border_left[tp] != border_right[tp]
                 for tp in earliest
             )
-            print('BORDER LEFT: %r' % (border_left,))
-            print('BORDER RIGHT: %r' % (border_right,))
+            self.log.dev('BORDER LEFT: %r', border_left)
+            self.log.dev('BORDER RIGHT: %r', border_right)
             # at this point the topics are rewound at the beginning.
         return has_positions
 
