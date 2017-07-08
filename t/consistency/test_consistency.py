@@ -105,9 +105,8 @@ class Stresser(object):
     async def _stop_worker(self, worker):
         assert worker in self.workers
         print(f'Stopping worker {worker}')
-        proc = self._worker_procs[worker]
+        proc = self._worker_procs.pop(worker)
         await self._stop_process(proc)
-        del self._worker_procs[worker]
 
     async def _start_producer(self, producer):
         assert producer in self.producers
@@ -126,9 +125,8 @@ class Stresser(object):
     async def _stop_producer(self, producer):
         assert producer in self.producers
         print(f'Stopping producer {producer}')
-        proc = self._producer_procs[producer]
+        proc = self._producer_procs.pop(producer)
         await self._stop_process(proc)
-        del self._producer_procs[producer]
 
     async def _stop_process(self, proc):
         try:
@@ -148,7 +146,7 @@ async def test_consistency(loop):
     await stresser.stop_all_producers()
     stresser.stop_stresser()
     print('Waiting for consumer lag to be 0')
-    await asyncio.sleep(45)  # wait for consumer lag to reach 0
+    await asyncio.sleep(60)  # wait for consumer lag to reach 0
     print('Stopping everything')
     await stresser.stop_all()
     checker = ConsistencyChecker('withdrawals',
