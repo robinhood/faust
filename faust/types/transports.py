@@ -78,14 +78,6 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def set_checkpoint(self, tp: TopicPartition, offset: int) -> None:
-        ...
-
-    @abc.abstractmethod
-    def get_checkpoint(self, tp: TopicPartition) -> Optional[int]:
-        ...
-
-    @abc.abstractmethod
     async def track_message(self, message: Message) -> None:
         ...
 

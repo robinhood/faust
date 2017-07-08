@@ -199,10 +199,7 @@ class Consumer(base.Consumer):
         seek = self._consumer.seek
         for tp in self._consumer.assignment():
             tp = cast(TopicPartition, tp)
-            try:
-                checkpoint = self._checkpoints[tp]
-            except KeyError:
-                checkpoint = await self._consumer.committed(tp)
+            checkpoint = await self._consumer.committed(tp)
             if checkpoint is not None:
                 read_offset[tp] = checkpoint
                 self.log.dev('PERFORM SEEK SOURCE TOPIC: %r -> %r',
