@@ -7,13 +7,6 @@ from .utils.times import Seconds, want_seconds
 __all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
 
 
-# XXX mypy doesn't allow methods in NamedTuples
-# but seems like a bug.
-# This should be changed to WindowRange.from_start once that's fixed.
-def _range_from_start(start: float, size: float) -> WindowRange:
-    return WindowRange(start=start, end=start + size)
-
-
 class HoppingWindow(WindowT):
     """Hopping window type.
 
@@ -32,7 +25,7 @@ class HoppingWindow(WindowT):
         curr = self._timestamp_window(timestamp)
         earliest = curr.start - self.size + self.step
         return [
-            _range_from_start(float(start), self.size)
+            WindowRange.from_start(float(start), self.size)
             for start in range(int(earliest), int(curr.end), int(self.step))
         ]
 
@@ -50,7 +43,7 @@ class HoppingWindow(WindowT):
 
     def _timestamp_window(self, timestamp: float) -> WindowRange:
         start = (timestamp // self.step) * self.step
-        return _range_from_start(start, self.size)
+        return WindowRange.from_start(start, self.size)
 
     def _stale_before(self, expires: float) -> float:
         now = datetime.utcnow().timestamp()
