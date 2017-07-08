@@ -1,5 +1,7 @@
 import asyncio
 import os
+import random
+import string
 import sys
 import faust
 
@@ -35,14 +37,26 @@ async def find_large_withdrawals(withdrawals):
 
 
 async def _publish_withdrawals():
-    for i in range(10_000):
-        print(f'+SEND {i!r}')
-        await withdrawals_topic.send(
-            b'K', Withdrawal(user='foo', amount=100.3 + i, country='FOO'))
-        print(f'-SEND {i!r}')
-    await withdrawals_topic.send(
-        b'K', Withdrawal(user='foo', amount=999999.0, country='BAR'))
-    await asyncio.sleep(30)
+    num_countries = 5
+    countries = [
+        ''.join(random.sample(string.ascii_lowercase, 10))
+        for _ in range(num_countries)
+    ]
+    country_dist = [0.9] + ([0.10/num_countries] * (num_countries - 1))
+    users = [
+        ''.join(random.sample(string.ascii_lowercase, 8))
+        for _ in range(100)
+    ]
+    print('Done setting up. SENDING!')
+    while True:
+        withdrawal = Withdrawal(
+            user=random.choice(users),
+            amount=random.uniform(0, 25_000),
+            country=random.choices(countries, country_dist)[0],
+        )
+        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
+        print(f'+SEND {withdrawal}')
+        await asyncio.sleep(random.uniform(0, 0.5))
 
 
 def produce(loop):
