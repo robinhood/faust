@@ -537,7 +537,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> bool:
         # Set offset of partition to beginning
-        # TODO Change to seek_to_beginning once implmented in
         earliest: _Set[TopicPartition] = set()  # tps to seek from earliest
         latest: _Set[TopicPartition] = set()
         consumer = self.app.consumer

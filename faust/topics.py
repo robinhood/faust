@@ -225,10 +225,6 @@ class Topic(TopicT):
         self.app.sources.add(source)
         return source
 
-    async def __anext__(self) -> Any:
-        # XXX Mypy seems to think AsyncIterable sould have __anext__
-        raise NotImplementedError('here because of a mypy bug')
-
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self}>'
 
