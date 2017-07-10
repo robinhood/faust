@@ -317,6 +317,10 @@ class Fetcher(Service):
     async def _fetcher(self) -> None:
         await cast(Consumer, self.app.consumer)._drain_messages()
 
+    async def on_started(self) -> None:
+        ev: asyncio.Event = self.app.tables._recovery_completed  # type: ignore
+        await self.wait(ev.wait())
+
 
 class Producer(Service, ProducerT):
     """Base Producer."""

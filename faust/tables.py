@@ -2,11 +2,13 @@
 import abc
 import asyncio
 import operator
+import shelve
 from collections import defaultdict
 from heapq import heappop, heappush
+from pathlib import Path
 from typing import (
-    Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Sequence, Set as _Set, cast,
+    Any, AsyncIterable, Callable, Iterable, Iterator, List, Mapping,
+    MutableMapping, MutableSet, Sequence, Set as _Set, Tuple, cast,
 )
 from . import stores
 from . import windows
@@ -449,16 +451,19 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _sources: MutableMapping[CollectionT, SourceT]
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
+    _diskcache: MutableMapping[TopicPartition, shelve.Shelf]
     _recovery_started: asyncio.Event
     _recovery_completed: asyncio.Event
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app = app
+        self.cache_path = self.app.table_cache_path
         self.data = {}
         self._sources = {}
         self._changelogs = {}
         self._table_offsets = {}
+        self._diskcache = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
         self._recovery_completed = asyncio.Event(loop=self.loop)
 
@@ -466,6 +471,26 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if self._recovery_started.is_set():
             raise RuntimeError('Too late to add tables at this point')
         super().__setitem__(key, value)
+
+    def _get_cache_for(self, tp: TopicPartition) -> shelve.Shelf:
+        try:
+            return self._diskcache[tp]
+        except KeyError:
+            path = self._get_cache_path_for(tp)
+            c = self._diskcache[tp] = shelve.open(str(path), writeback=True)
+            c.setdefault('offset_left', None)
+            c.setdefault('offset_right', None)
+            c.setdefault('items', {})
+            return c
+
+    def _get_cache_path_for(self, tp: TopicPartition) -> Path:
+        return self.cache_path / f'{tp.topic}-{tp.partition}-cache.db'
+
+    def _cleanup_cache(self) -> None:
+        for shelf in self._diskcache.values():
+            shelf.sync()
+            shelf.close()
+        self._diskcache.clear()
 
     async def _update_sources(self) -> None:
         for table in self.values():
@@ -516,13 +541,40 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 # at this point we know there are messages in at least
                 # one of the topic partitions:
 
-                # resume changelog partitions for this table
-                await consumer.resume_partitions(tps)
                 try:
-                    await self._read_changelog(
-                        table, tps, self._sources[table])
+                    to_remove: _Set[TopicPartition] = set()
+                    for tp in tps:
+                        cache = self._get_cache_for(tp)
+                        loff = cache['offset_left']
+                        roff = cache['offset_right']
+                        if loff is not None:
+                            print(f'READ FROM CACHE: {loff} {roff}')
+                            await self.table_update_from_iterable(
+                                table,
+                                self._read_cache(cache, tp, loff, roff))
+                            self._table_offsets[tp] = roff
+                            rem_left, rem_right = await self._get_border(tp)
+                            # Skip this tp if there are no more messages to
+                            # receive
+                            if roff == rem_right - 1:
+                                print(f'{tp} ALREADY HAD EVERYTHING IN CACHE')
+                                to_remove.add(tp)
+                            await consumer.seek(tp, roff)
+                    for tp in to_remove:
+                        tps.discard(tp)
+
+                    if tps:
+                        # resume changelog partitions for this table
+                        await consumer.resume_partitions(tps)
+                        try:
+                            await self.table_update_from_iterable(
+                                table, self._read_changelog(
+                                    table, tps, self._sources[table]))
+                        finally:
+                            await consumer.pause_partitions(tps)
                 finally:
-                    await consumer.pause_partitions(tps)
+                    # close and sync all cache shelves we have open.
+                    self._cleanup_cache()
                 self.log.info('Table %r: Recovery completed!', table.name)
             else:
                 self.log.info('Table %r: Table empty', table.name)
@@ -547,10 +599,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 await consumer.seek(tp, offset)
         if earliest:
             # find end positions of all partitions
-            await consumer.seek_to_latest(*earliest)
+            await consumer.seek_to_latest(*tps)
             border_right = {tp: await consumer.position(tp) for tp in earliest}
-            # find starting positions of all partitions
-            await consumer.seek_to_beginning(*earliest)
+            await consumer.seek_to_beginning(*tps)
             border_left = {tp: await consumer.position(tp) for tp in earliest}
             # If the topic is newly created and has no messages
             # the beginning position will be 0, and the latest position will
@@ -565,17 +616,21 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 border_left[tp] != border_right[tp]
                 for tp in earliest
             )
-            print('BORDER LEFT: %r' % (border_left,))
-            print('BORDER RIGHT: %r' % (border_right,))
             # at this point the topics are rewound at the beginning.
         return has_positions
 
-    async def _read_changelog(self,
-                              table: CollectionT,
-                              tps: Iterable[TopicPartition],
-                              source: SourceT) -> None:
-        buf: MutableMapping[Any, Any] = {}
-        to_key, to_value = self._to_key, self._to_value
+    async def _get_border(self, tp: TopicPartition) -> Tuple[int, int]:
+        await self.app.consumer.seek_to_latest(tp)
+        border_right = await self.app.consumer.position(tp)
+        await self.app.consumer.seek_to_beginning(tp)
+        border_left = await self.app.consumer.position(tp)
+        return border_left, border_right
+
+    async def _read_changelog(
+            self,
+            table: CollectionT,
+            tps: Iterable[TopicPartition],
+            source: SourceT) -> AsyncIterable[Tuple[bytes, bytes]]:
         offsets = self._table_offsets
         pending_tps = set(tps)
         self.log.info('Recover %r from changelog', table.name)
@@ -593,16 +648,53 @@ class TableManager(Service, TableManagerT, FastUserDict):
                                   table.name, remaining)
                 offsets[tp] = offset
 
-                buf[to_key(event.key)] = to_value(event.value)
-                if len(buf) > 1000:
-                    cast(Table, table).raw_update(buf)
-                    buf.clear()
+                cache = self._get_cache_for(tp)
+
+                # Write entry to cache
+                lod = cache.setdefault('offset_left', offset)
+                if lod is None:
+                    cache['offset_left'] = offset
+                cache['offset_right'] = offset
+                cache['items'][offset] = {
+                    'key': event.message.key,
+                    'value': event.message.value,
+                }
+
+                # See if we are done reading from this changelog
                 if highwater is None or offset >= highwater - 1:
                     # we have read up till highwater, so this partition is
                     # up to date.
                     pending_tps.discard(tp)
                     if not pending_tps:
                         break
+                yield event.key, event.value
+
+    async def _read_cache(
+            self,
+            cache: shelve.Shelf,
+            tp: TopicPartition,
+            start: int,
+            end: int) -> AsyncIterable[Tuple[bytes, bytes]]:
+        contents = cache['items']
+        offsets = self._table_offsets
+        if tp in offsets:
+            start = max(offsets[tp], start)
+        for i in range(start, end):
+            entry = contents[i]
+            offsets[tp] = i
+            yield entry['key'], entry['value']
+
+    async def table_update_from_iterable(
+            self,
+            table: CollectionT,
+            it: AsyncIterable[Tuple[bytes, bytes]]) -> None:
+        buf: MutableMapping[Any, Any] = {}
+        to_key, to_value = self._to_key, self._to_value
+        async for k, v in it:
+            buf[to_key(k)] = to_value(v)
+            if len(buf) > 1000:
+                cast(Table, table).raw_update(buf)
+                buf.clear()
         if buf:
             cast(Table, table).raw_update(buf)
             buf.clear()
@@ -629,9 +721,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def on_start(self) -> None:
         await self.sleep(1.0)
         await self._update_sources()
-        await self.wait(self._recovery_completed.wait())
 
     async def on_stop(self) -> None:
         if self._recovery_completed.is_set():
             for table in self.values():
                 await table.stop()
+        self._cleanup_cache()
