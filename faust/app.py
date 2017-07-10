@@ -86,19 +86,6 @@ APP_REPR = """
 logger = get_logger(__name__)
 
 
-class RecoveryCompleted(Service):
-    app: AppT
-
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
-        self.app = app
-        super().__init__(**kwargs)
-
-    async def on_start(self) -> None:
-        self.log.info('Waiting for table recovery to complete...')
-        await self.app.tables.recovery_completed.wait()
-        self.log.info('Table recovery completed: startup continues')
-
-
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
     logger = logger
@@ -154,7 +141,6 @@ class AppService(Service):
             [self.app.tables],                        # app.TableManager
             # Fetcher
             [self.app._fetcher],
-            [RecoveryCompleted(self.app, loop=self.loop, beacon=self.beacon)],
         ))
 
     async def on_first_start(self) -> None:
