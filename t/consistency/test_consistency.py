@@ -141,12 +141,12 @@ async def test_consistency(loop):
     print('Starting stresser')
     await stresser.start(stopped_at_start=1)
     print('Waiting for stresser to run')
-    await asyncio.sleep(120)  # seconds to run stresser for
+    await asyncio.sleep(180)  # seconds to run stresser for
     print('Stopping all producers')
     await stresser.stop_all_producers()
     stresser.stop_stresser()
     print('Waiting for consumer lag to be 0')
-    await asyncio.sleep(60)  # wait for consumer lag to reach 0
+    await asyncio.sleep(30)  # wait for consumer lag to reach 0
     print('Stopping everything')
     await stresser.stop_all()
     checker = ConsistencyChecker('withdrawals',
