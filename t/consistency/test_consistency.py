@@ -14,6 +14,7 @@ class Stresser(object):
         self.producers = set(range(num_producers))
         self._producer_procs = {}
         self.loop = loop
+        self._stop_stresser = asyncio.Event(loop=loop)
 
     @property
     def _stopped(self):
@@ -24,7 +25,7 @@ class Stresser(object):
         return set(self._worker_procs)
 
     @property
-    def _stopped(self):
+    def _stopped_producers(self):
         return self.producers - self._running_producers
 
     @property
@@ -33,24 +34,32 @@ class Stresser(object):
 
     async def _run_stresser(self):
         print('Running stresser')
-        while True:
-            await asyncio.sleep(random.uniform(5, 30))
+        while not self._stop_stresser.is_set():
             print('Stresser iteration')
-            await self._maybe_stop_worker()
-            await self._maybe_spawn_worker()
+            if self._should():
+                await self._maybe_stop_worker()
+            if self._should():
+                await self._maybe_spawn_worker()
+            await asyncio.sleep(random.uniform(1, 20))
 
-    @classmethod
-    def _should(cls):
-        return random.choices([True, False], [0.75, 0.25], k=1)[0]
+    def stop_stresser(self):
+        print('Stopping stresser')
+        self._stop_stresser.set()
+
+    def _should(self):
+        return (
+            random.choices([True, False], [0.75, 0.25], k=1)[0] and
+            not self._stop_stresser.is_set()
+        )
 
     async def _maybe_stop_worker(self):
         print('Maybe stop')
-        if self._should() and len(self._running) > 1:
+        if len(self._running) > 1:
             await self._stop_worker(random.choice(list(self._running)))
 
     async def _maybe_spawn_worker(self):
         print('Maybe start')
-        if self._should() and self._stopped:
+        if self._stopped:
             await self._start_worker(random.choice(list(self._stopped)))
 
     async def start(self, stopped_at_start=0):
@@ -96,9 +105,8 @@ class Stresser(object):
     async def _stop_worker(self, worker):
         assert worker in self.workers
         print(f'Stopping worker {worker}')
-        proc = self._worker_procs[worker]
+        proc = self._worker_procs.pop(worker)
         await self._stop_process(proc)
-        del self._worker_procs[worker]
 
     async def _start_producer(self, producer):
         assert producer in self.producers
@@ -117,9 +125,8 @@ class Stresser(object):
     async def _stop_producer(self, producer):
         assert producer in self.producers
         print(f'Stopping producer {producer}')
-        proc = self._producer_procs[producer]
+        proc = self._producer_procs.pop(producer)
         await self._stop_process(proc)
-        del self._producer_procs[producer]
 
     async def _stop_process(self, proc):
         try:
@@ -130,15 +137,16 @@ class Stresser(object):
 
 
 async def test_consistency(loop):
-    stresser = Stresser(num_workers=4, num_producers=4, loop=loop)
+    stresser = Stresser(num_workers=3, num_producers=4, loop=loop)
     print('Starting stresser')
     await stresser.start(stopped_at_start=1)
     print('Waiting for stresser to run')
-    await asyncio.sleep(120)  # seconds to run stresser for
+    await asyncio.sleep(180)  # seconds to run stresser for
     print('Stopping all producers')
     await stresser.stop_all_producers()
+    stresser.stop_stresser()
     print('Waiting for consumer lag to be 0')
-    await asyncio.sleep(20)  # wait for consumer lag to reach 0
+    await asyncio.sleep(30)  # wait for consumer lag to reach 0
     print('Stopping everything')
     await stresser.stop_all()
     checker = ConsistencyChecker('withdrawals',
