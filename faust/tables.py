@@ -449,6 +449,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _sources: MutableMapping[CollectionT, SourceT]
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
+    _recovery_started: asyncio.Event
+    _recovery_completed: asyncio.Event
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -458,7 +460,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._changelogs = {}
         self._table_offsets = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
-        self.recovery_completed = asyncio.Event(loop=self.loop)
+        self._recovery_completed = asyncio.Event(loop=self.loop)
 
     def __setitem__(self, key: str, value: CollectionT) -> None:
         if self._recovery_started.is_set():
@@ -622,12 +624,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _on_recovery_completed(self) -> None:
         for table in self.values():
             await table.maybe_start()
+        self._recovery_completed.set()
 
     async def on_start(self) -> None:
         await self.sleep(1.0)
         await self._update_sources()
+        await self.wait(self._recovery_completed.wait())
 
     async def on_stop(self) -> None:
-        if self.recovery_completed.is_set():
+        if self._recovery_completed.is_set():
             for table in self.values():
                 await table.stop()
