@@ -1,4 +1,5 @@
 import asyncio
+import os
 import random
 import subprocess
 from t.consistency.consistency_checker import ConsistencyChecker
@@ -87,6 +88,7 @@ class Stresser(object):
                     '--web-port', str(8080 + worker),
                     stdout=f,
                     stderr=subprocess.STDOUT,
+                    env={**os.environ, **{'DEVLOG': '1'}},
                 )
 
     async def stop_all(self):
