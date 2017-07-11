@@ -690,9 +690,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if start != end:
             self.log.dev(f'READ FROM CACHE: {start} {end}')
             for i in range(start, end + 1):
-                entry = contents[i]
-                offsets[tp] = i
-                yield entry['key'], entry['value']
+                try:
+                    entry = contents[i]
+                except KeyError:
+                    pass  # compacted offset?
+                else:
+                    offsets[tp] = i
+                    yield entry['key'], entry['value']
 
     async def table_update_from_iterable(
             self,
