@@ -548,7 +548,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                         loff = cache['offset_left']
                         roff = cache['offset_right']
                         if loff is not None:
-                            print(f'READ FROM CACHE: {loff} {roff}')
+                            self.log.dev(f'READ FROM CACHE: {loff} {roff}')
                             await self.table_update_from_iterable(
                                 table,
                                 self._read_cache(cache, tp, loff, roff))
@@ -557,7 +557,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                             # Skip this tp if there are no more messages to
                             # receive
                             if roff == rem_right - 1:
-                                print(f'{tp} ALREADY HAD EVERYTHING IN CACHE')
+                                self.log.dev(f'{tp} HAD EVERYTHING IN CACHE')
                                 to_remove.add(tp)
                             await consumer.seek(tp, roff)
                     for tp in to_remove:

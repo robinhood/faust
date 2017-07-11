@@ -186,13 +186,13 @@ class Worker(Service):
 
     def say(self, msg: str) -> None:
         """Write message to standard out."""
-        self._print(msg)
+        self._say(msg)
 
     def carp(self, msg: str) -> None:
         """Write warning to standard err."""
-        self._print(msg, file=self.stderr)
+        self._say(msg, file=self.stderr)
 
-    def _print(self, msg: str, file: IO = None, end: str = '\n') -> None:
+    def _say(self, msg: str, file: IO = None, end: str = '\n') -> None:
         if not self.quiet:
             print(msg, file=file or self.stdout, end=end)  # noqa: T003
 
@@ -230,7 +230,7 @@ class Worker(Service):
             pid=os.getpid(),
             hostname=socket.gethostname(),
         ))
-        self._print('^ ', end='')
+        self._say('^ ', end='')
 
     def install_signal_handlers(self) -> None:
         self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
