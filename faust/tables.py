@@ -496,8 +496,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
         current_offset = cache['offset_left']
         contents = cache['items']
         while current_offset < new_offset:
-            contents.pop(current_offset, None)
-            current_offset = cache['offset_left'] = current_offset + 1
+            offset, current_offset = current_offset, current_offset + 1
+            try:
+                del contents[offset]
+            except KeyError:
+                pass
+            else:
+                cache['offset_left'] = current_offset
 
     async def _update_sources(self) -> None:
         for table in self.values():
