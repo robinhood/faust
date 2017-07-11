@@ -492,6 +492,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
             shelf.close()
         self._diskcache.clear()
 
+    def _prune_cache(self, cache: shelve.Shelf, new_offset: int) -> None:
+        current_offset = cache['offset_left']
+        contents = cache['items']
+        while current_offset < new_offset:
+            contents.pop(current_offset, None)
+            current_offset = cache['offset_left'] = current_offset + 1
+
     async def _update_sources(self) -> None:
         for table in self.values():
             if table not in self._sources:
@@ -556,6 +563,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                             rem_left, rem_right = await self._get_border(tp)
                             # Skip this tp if there are no more messages to
                             # receive
+                            if rem_left > loff:
+                                self._prune_cache(cache, rem_left)
                             if roff == rem_right - 1:
                                 self.log.dev(f'{tp} HAD EVERYTHING IN CACHE')
                                 to_remove.add(tp)
