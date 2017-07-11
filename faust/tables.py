@@ -15,7 +15,7 @@ from . import windows
 from .streams import current_event
 from .streams import joins
 from .types import (
-    AppT, EventT, FieldDescriptorT, JoinT, TopicPartition, TopicT,
+    AppT, EventT, FieldDescriptorT, JoinT, K, TopicPartition, TopicT, V,
 )
 from .types.models import ModelArg
 from .types.stores import StoreT
@@ -562,7 +562,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                         if loff is not None:
                             await self.table_update_from_iterable(
                                 table,
-                                self._read_cache(cache, tp, loff, roff))
+                                self._read_cache(table, cache, tp, loff, roff))
                             self._table_offsets[tp] = roff
                             rem_left, rem_right = await self._get_border(tp)
                             # Skip this tp if there are no more messages to
@@ -643,7 +643,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self,
             table: CollectionT,
             tps: Iterable[TopicPartition],
-            source: SourceT) -> AsyncIterable[Tuple[bytes, bytes]]:
+            source: SourceT) -> AsyncIterable[Tuple[K, V]]:
         offsets = self._table_offsets
         pending_tps = set(tps)
         self.log.info('Recover %r from changelog', table.name)
@@ -684,12 +684,17 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _read_cache(
             self,
+            table: CollectionT,
             cache: shelve.Shelf,
             tp: TopicPartition,
             start: int,
-            end: int) -> AsyncIterable[Tuple[bytes, bytes]]:
+            end: int) -> AsyncIterable[Tuple[K, V]]:
         contents = cache['items']
         offsets = self._table_offsets
+        loads_key = self.app.serializers.loads_key
+        loads_value = self.app.serializers.loads_value
+        key_type = table.key_type
+        value_type = table.value_type
         if tp in offsets:
             start = max(offsets[tp], start)
         if start != end:
@@ -701,12 +706,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     pass  # compacted offset?
                 else:
                     offsets[tp] = i
-                    yield entry['key'], entry['value']
+                    key: K = await loads_key(key_type, entry['key'])
+                    value: V = await loads_value(value_type, entry['value'])
+                    yield key, value
 
     async def table_update_from_iterable(
             self,
             table: CollectionT,
-            it: AsyncIterable[Tuple[bytes, bytes]]) -> None:
+            it: AsyncIterable[Tuple[K, V]]) -> None:
         buf: MutableMapping[Any, Any] = {}
         to_key, to_value = self._to_key, self._to_value
         async for k, v in it:
