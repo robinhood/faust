@@ -687,11 +687,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
         offsets = self._table_offsets
         if tp in offsets:
             start = max(offsets[tp], start)
-        self.log.dev(f'READ FROM CACHE: {start} {end}')
-        for i in range(start, end + 1):
-            entry = contents[i]
-            offsets[tp] = i
-            yield entry['key'], entry['value']
+        if start != end:
+            self.log.dev(f'READ FROM CACHE: {start} {end}')
+            for i in range(start, end + 1):
+                entry = contents[i]
+                offsets[tp] = i
+                yield entry['key'], entry['value']
 
     async def table_update_from_iterable(
             self,
