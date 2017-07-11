@@ -202,14 +202,15 @@ class Consumer(base.Consumer):
             checkpoint = await self._consumer.committed(tp)
             if checkpoint is not None:
                 read_offset[tp] = checkpoint
-                print('PERFORM SEEK SOURCE TOPIC: %r -> %r' % (tp, checkpoint))
+                self.log.dev('PERFORM SEEK SOURCE TOPIC: %r -> %r',
+                             tp, checkpoint)
                 seek(tp, checkpoint)
             else:
-                print('PERFORM SEEK AT BEGINNING TOPIC: %r' % (tp,))
+                self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', tp)
                 await self.seek_to_beginning(tp)
 
     async def _commit(self, offsets: Any) -> None:
-        print('COMMITTING OFFSETS: %r' % (offsets,))
+        self.log.dev('COMMITTING OFFSETS: %r', offsets)
         await self._consumer.commit(offsets)
 
     async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:
@@ -228,18 +229,18 @@ class Consumer(base.Consumer):
 
     async def seek_to_latest(self, *partitions: TopicPartition) -> None:
         for partition in partitions:
-            print('SEEK TO LATEST: %r' % (partition,))
+            self.log.dev('SEEK TO LATEST: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.LATEST)
 
     async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
         for partition in partitions:
-            print('SEEK TO BEGINNING: %r' % (partition,))
+            self.log.dev('SEEK TO BEGINNING: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.EARLIEST)
 
     async def seek(self, partition: TopicPartition, offset: int) -> None:
-        print('SEEK %r -> %r' % (partition, offset))
+        self.log.dev('SEEK %r -> %r', partition, offset)
         self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TopicPartition]:

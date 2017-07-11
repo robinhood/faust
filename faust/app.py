@@ -123,8 +123,6 @@ class AppService(Service):
         # Add the main Monitor sensor.
         self.app.sensors.add(self.app.monitor)
 
-        print('SENSORS: %r' % (self.app.sensors),)
-
         # Then return the list of "subservices",
         # those that'll be started when the app starts,
         # stopped when the app stops,
@@ -634,20 +632,14 @@ class App(AppT, ServiceProxy):
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
-        print('ON PARTITIONS REVOKED!!!! TELL BACKGROUND THREAD')
-        try:
-            await self.sources.on_partitions_revoked(revoked)
-            print('ON PARTITIONS REVOKED')
-            assignment = self.consumer.assignment()
-            if assignment:
-                await self.consumer.pause_partitions(assignment)
-                print('COMMIT ASSIGNMENT %r' % (assignment,))
-                await self.consumer.wait_empty()
-            else:
-                print('NOT COMMITTING, ASSIGNMENT EMPTY`')
-        except BaseException as exc:
-            self.log.exception('ON PARTITIONS REVOKED RAISED: %r', exc)
-            raise
+        self.log.dev('ON PARTITIONS REVOKED')
+        await self.sources.on_partitions_revoked(revoked)
+        assignment = self.consumer.assignment()
+        if assignment:
+            await self.consumer.pause_partitions(assignment)
+            await self.consumer.wait_empty()
+        else:
+            self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
 
     def _create_transport(self) -> TransportT:
         return cast(TransportT,
