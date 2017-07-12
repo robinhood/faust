@@ -673,6 +673,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     'value': event.message.value,
                 }
 
+                yield event.key, event.value
+
                 # See if we are done reading from this changelog
                 if highwater is None or offset >= highwater - 1:
                     # we have read up till highwater, so this partition is
@@ -680,7 +682,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     pending_tps.discard(tp)
                     if not pending_tps:
                         break
-                yield event.key, event.value
 
     async def _read_cache(
             self,
