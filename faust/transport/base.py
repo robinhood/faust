@@ -9,7 +9,7 @@ from typing import (
     List, MutableMapping, Optional, Set, Tuple, Type, cast,
 )
 from weakref import WeakSet
-from ..types import AppT, Message, TopicPartition
+from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import (
     ConsumerCallback, ConsumerT,
     PartitionsAssignedCallback, PartitionsRevokedCallback,
@@ -335,7 +335,7 @@ class Producer(Service, ProducerT):
             topic: str,
             key: Optional[bytes],
             value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable:
+            partition: Optional[int]) -> Awaitable[RecordMetadata]:
         raise NotImplementedError()
 
     async def send_and_wait(
@@ -343,7 +343,7 @@ class Producer(Service, ProducerT):
             topic: str,
             key: Optional[bytes],
             value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable:
+            partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
 

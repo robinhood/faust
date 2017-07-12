@@ -33,21 +33,21 @@ def setup_producer(app):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('key,wait,topic_name,expected_topic,key_serializer', [
-    ('key', True, TEST_TOPIC, TEST_TOPIC, None),
-    (Key(value=10), True, TEST_TOPIC, TEST_TOPIC, None),
-    ({'key': 'k'}, True, TEST_TOPIC, TEST_TOPIC, 'json'),
-    (None, True, 'topic', 'topic', None),
-    (b'key', False, TEST_TOPIC, TEST_TOPIC, None),
-    ('key', False, 'topic', 'topic', None),
+    ('key', TEST_TOPIC, TEST_TOPIC, None),
+    (Key(value=10), TEST_TOPIC, TEST_TOPIC, None),
+    ({'key': 'k'}, TEST_TOPIC, TEST_TOPIC, 'json'),
+    (None, 'topic', 'topic', None),
+    (b'key', TEST_TOPIC, TEST_TOPIC, None),
+    ('key', 'topic', 'topic', None),
 ])
 async def test_send(
-        key, wait, topic_name, expected_topic, key_serializer, app):
+        key, topic_name, expected_topic, key_serializer, app):
     topic = app.topic(topic_name)
     event = Value(amount=0.0)
     setup_producer(app)
-    await app.send(topic, key, event, key_serializer=key_serializer, wait=wait)
+    await app.send(topic, key, event, key_serializer=key_serializer)
     # do it twice so producer_started is also True
-    await app.send(topic, key, event, key_serializer=key_serializer, wait=wait)
+    await app.send(topic, key, event, key_serializer=key_serializer)
     expected_sender = (
         app.producer.send_and_wait
         if wait else app.producer.send

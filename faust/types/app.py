@@ -18,7 +18,7 @@ from .streams import StreamT
 from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
-from .tuples import Message, PendingMessage, TopicPartition
+from .tuples import Message, PendingMessage, RecordMetadata, TopicPartition
 from .windows import WindowT
 from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
@@ -169,9 +169,7 @@ class AppT(ServiceT):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            wait: bool = True) -> Awaitable:
+            value_serializer: CodecArg = None) -> RecordMetadata:
         ...
 
     @abc.abstractmethod

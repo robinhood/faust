@@ -8,7 +8,9 @@ from typing import (
 from uuid import uuid4
 from weakref import WeakSet
 from . import Record
-from .types import AppT, CodecArg, K, ModelT, StreamT, TopicT, V
+from .types import (
+    AppT, CodecArg, K, ModelT, RecordMetadata, StreamT, TopicT, V,
+)
 from .types.actors import (
     ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
 )
@@ -449,8 +451,7 @@ class Actor(ActorT, ServiceProxy):
             value_serializer: CodecArg = None,
             *,
             reply_to: ReplyToArg = None,
-            correlation_id: str = None,
-            wait: bool = True) -> Union[Awaitable, ReplyPromise]:
+            correlation_id: str = None) -> Union[RecordMetadata, ReplyPromise]:
         """Send message to topic used by actor."""
         if reply_to:
             topic_name = self._get_strtopic(reply_to)
@@ -463,14 +464,12 @@ class Actor(ActorT, ServiceProxy):
             await self.topic.send(
                 key, request, partition,
                 key_serializer, value_serializer,
-                wait=wait,
             )
             return ReplyPromise(request.reply_to, request.correlation_id)
         else:
             return await self.topic.send(
                 key, request, partition,
                 key_serializer, value_serializer,
-                wait=wait,
             )
 
     def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:

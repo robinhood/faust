@@ -7,7 +7,7 @@ from typing import (
 )
 from faust.utils.times import Seconds
 from faust.utils.types.services import ServiceT
-from .tuples import Message, TopicPartition
+from .tuples import Message, RecordMetadata, TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -143,7 +143,7 @@ class ProducerT(ServiceT):
             topic: str,
             key: Optional[bytes],
             value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable:
+            partition: Optional[int]) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -152,7 +152,7 @@ class ProducerT(ServiceT):
             topic: str,
             key: Optional[bytes],
             value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable:
+            partition: Optional[int]) -> RecordMetadata:
         ...
 
     @abc.abstractmethod

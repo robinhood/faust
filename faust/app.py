@@ -21,7 +21,7 @@ from .exceptions import ImproperlyConfigured
 from .sensors import Monitor, SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
-    CodecArg, K, Message, ModelArg, PendingMessage,
+    CodecArg, K, Message, ModelArg, PendingMessage, RecordMetadata,
     StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
@@ -464,9 +464,7 @@ class App(AppT, ServiceProxy):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            wait: bool = True) -> Awaitable:
+            value_serializer: CodecArg = None) -> RecordMetadata:
         """Send event to stream.
 
         Arguments:
@@ -479,10 +477,6 @@ class App(AppT, ServiceProxy):
                 only when key is not a model.
             value_serializer (CodecArg): Serializer to use
                 only when value is not a model.
-
-        Keyword Arguments:
-            wait (bool): Wait for message to be published (default),
-                if unset the message will only be appended to the buffer.
         """
         strtopic: str
         if isinstance(topic, TopicT):
@@ -498,7 +492,6 @@ class App(AppT, ServiceProxy):
              if key is not None else None),
             (await self.serializers.dumps_value(
                 strtopic, value, value_serializer)),
-            wait=wait,
             partition=partition,
         )
 
@@ -512,10 +505,8 @@ class App(AppT, ServiceProxy):
         )
 
     async def _send_tuple(
-            self, message: Union[PendingMessage, Tuple],
-            wait: bool = True) -> Awaitable:
-        return await self.send(
-            *self._unpack_message_tuple(*message), wait=wait)
+            self, message: Union[PendingMessage, Tuple]) -> RecordMetadata:
+        return await self.send(*self._unpack_message_tuple(*message))
 
     def _unpack_message_tuple(
             self,
@@ -584,22 +575,18 @@ class App(AppT, ServiceProxy):
                     value: Optional[bytes],
                     partition: int = None,
                     key_serializer: CodecArg = None,
-                    value_serializer: CodecArg = None,
-                    *,
-                    wait: bool = True) -> Awaitable:
+                    value_serializer: CodecArg = None) -> RecordMetadata:
         self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
         producer = await self.maybe_start_producer()
-        if wait:
-            state = await self.sensors.on_send_initiated(
-                producer, topic,
-                keysize=len(key) if key else 0,
-                valsize=len(value) if value else 0)
-            ret = await producer.send_and_wait(
-                topic, key, value, partition=partition)
-            await self.sensors.on_send_completed(producer, state)
-            return ret
-        return producer.send(topic, key, value, partition=partition)
+        state = await self.sensors.on_send_initiated(
+            producer, topic,
+            keysize=len(key) if key else 0,
+            valsize=len(value) if value else 0)
+        ret = await producer.send_and_wait(
+            topic, key, value, partition=partition)
+        await self.sensors.on_send_completed(producer, state)
+        return ret
 
     async def maybe_start_producer(self) -> ProducerT:
         producer = self.producer

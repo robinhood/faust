@@ -8,7 +8,9 @@ from typing import (
     MutableMapping, Optional, Pattern, Sequence, Set, Type, Union,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
-from .types import AppT, CodecArg, K, Message, ModelArg, TopicPartition, V
+from .types import (
+    AppT, CodecArg, K, Message, ModelArg, RecordMetadata, TopicPartition, V,
+)
 from .types.streams import StreamCoroutine, StreamT
 from .types.topics import EventT, SourceT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
@@ -43,11 +45,11 @@ class Event(EventT):
 
     async def send(self, topic: Union[str, TopicT],
                    *,
-                   key: Any = SENTINEL) -> None:
+                   key: Any = SENTINEL) -> RecordMetadata:
         """Serialize and send object to topic."""
         if key is SENTINEL:
             key = self.key
-        await self.app.send(topic, key, self.value)
+        return await self.app.send(topic, key, self.value)
 
     async def forward(self, topic: Union[str, TopicT],
                       *,
@@ -159,13 +161,10 @@ class Topic(TopicT):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            wait: bool = True) -> Awaitable:
+            value_serializer: CodecArg = None) -> RecordMetadata:
         return await self.app.send(
             self, key, value, partition,
             key_serializer, value_serializer,
-            wait=wait,
         )
 
     def send_soon(self, key: K, value: V,

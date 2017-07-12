@@ -16,9 +16,8 @@ from kafka.structs import (
 
 from . import base
 from ..assignor.partition_assignor import PartitionAssignor
-from ..types import AppT, Message, TopicPartition
+from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.futures import done_future
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
@@ -296,18 +295,18 @@ class Producer(base.Producer):
             topic: str,
             key: Optional[bytes],
             value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable:
-        await self._producer.send(topic, value, key=key)
-        return done_future(loop=self.loop)  # interface expects Awaitable
+            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+        return cast(Awaitable[RecordMetadata], self._producer.send(
+            topic, value, key=key, partition=partition))
 
     async def send_and_wait(
             self,
             topic: str,
             key: Optional[bytes],
             value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable:
-        return await self._producer.send_and_wait(topic, value, key=key,
-                                                  partition=partition)
+            partition: Optional[int]) -> RecordMetadata:
+        return cast(RecordMetadata, await self._producer.send_and_wait(
+            topic, value, key=key, partition=partition))
 
 
 class Transport(base.Transport):

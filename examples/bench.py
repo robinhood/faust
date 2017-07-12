@@ -38,7 +38,7 @@ async def send_requests(app, n=1000):
             await app.send(request_topic, key=None, value=Request(
                 id=str(uuid4()),
                 time_start=monotonic(),
-            ), wait=True)
+            ))
         time_end = monotonic() - time_start
         print(f'PRODUCED {n}: {time_end}')
 

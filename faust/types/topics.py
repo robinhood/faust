@@ -2,13 +2,13 @@ import abc
 import typing
 from types import TracebackType
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable,
+    Any, AsyncIterable, AsyncIterator,
     Iterable, Mapping, MutableSet, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
-from .tuples import Message, TopicPartition
+from .tuples import Message, RecordMetadata, TopicPartition
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -42,7 +42,7 @@ class EventT(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def send(self, topic: Union[str, 'TopicT'],
                    *,
-                   key: Any = None) -> None:
+                   key: Any = None) -> RecordMetadata:
         ...
 
     @abc.abstractmethod
@@ -115,9 +115,7 @@ class TopicT(AsyncIterable):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            wait: bool = True) -> Awaitable:
+            value_serializer: CodecArg = None) -> RecordMetadata:
         ...
 
     @abc.abstractmethod
