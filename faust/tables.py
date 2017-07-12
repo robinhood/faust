@@ -15,7 +15,8 @@ from . import windows
 from .streams import current_event
 from .streams import joins
 from .types import (
-    AppT, EventT, FieldDescriptorT, JoinT, K, TopicPartition, TopicT, V,
+    AppT, EventT, FieldDescriptorT, JoinT, K, PendingMessage,
+    RecordMetadata, TopicPartition, TopicT, V,
 )
 from .types.models import ModelArg
 from .types.stores import StoreT
@@ -141,7 +142,16 @@ class Collection(Service, CollectionT):
         send(self.changelog_topic, key, value,
              partition=partition,
              key_serializer='json',
-             value_serializer='json')
+             value_serializer='json',
+             callback=self._on_changelog_sent)
+
+    async def _on_changelog_sent(
+            self, message: PendingMessage, response: RecordMetadata) -> None:
+        tables = cast(TableManager, self.app.tables)
+        if tables._diskcache:
+            await tables._write_cache(
+                response.topic_partition, response.offset,
+                cast(bytes, message.key), cast(bytes, message.value))
 
     @Service.task
     async def _clean_data(self) -> None:
@@ -480,7 +490,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             c = self._diskcache[tp] = shelve.open(str(path), writeback=True)
             c.setdefault('offset_left', None)
             c.setdefault('offset_right', None)
-            c.setdefault('items', {})
             return c
 
     def _get_cache_path_for(self, tp: TopicPartition) -> Path:
@@ -493,16 +502,16 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._diskcache.clear()
 
     def _prune_cache(self, cache: shelve.Shelf, new_offset: int) -> None:
-        current_offset = cache['offset_left']
-        contents = cache['items']
-        while current_offset < new_offset:
-            offset, current_offset = current_offset, current_offset + 1
-            try:
-                del contents[offset]
-            except KeyError:
-                pass
-            else:
-                cache['offset_left'] = current_offset
+        current_offset = cache.get('offset_left')
+        if current_offset is not None:
+            while current_offset < new_offset:
+                offset, current_offset = current_offset, current_offset + 1
+                try:
+                    del cache[str(offset)]
+                except KeyError:
+                    pass
+                else:
+                    cache['offset_left'] = current_offset
 
     async def _update_sources(self) -> None:
         for table in self.values():
@@ -587,7 +596,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                             await consumer.pause_partitions(tps)
                 finally:
                     # close and sync all cache shelves we have open.
-                    self._cleanup_cache()
+                    for cache in self._diskcache.values():
+                        cache.sync()
                 self.log.info('Table %r: Recovery completed!', table.name)
             else:
                 self.log.info('Table %r: Table empty', table.name)
@@ -661,18 +671,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                                   table.name, remaining)
                 offsets[tp] = offset
 
-                cache = self._get_cache_for(tp)
-
-                # Write entry to cache
-                lod = cache.setdefault('offset_left', offset)
-                if lod is None:
-                    cache['offset_left'] = offset
-                cache['offset_right'] = offset
-                cache['items'][offset] = {
-                    'key': event.message.key,
-                    'value': event.message.value,
-                }
-
+                await self._write_cache(
+                    tp, offset, event.message.key, event.message.value)
                 yield event.key, event.value
 
                 # See if we are done reading from this changelog
@@ -683,6 +683,23 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     if not pending_tps:
                         break
 
+    async def _write_cache(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            key: bytes,
+            value: bytes) -> None:
+        cache = self._get_cache_for(tp)
+        offset_left = cache.get('offset_left')
+        cache.update({
+            'offset_left': offset if offset_left is None else offset_left,
+            'offset_right': offset,
+            str(offset): {
+                'key': key,
+                'value': value,
+            },
+        })
+
     async def _read_cache(
             self,
             table: CollectionT,
@@ -690,7 +707,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             tp: TopicPartition,
             start: int,
             end: int) -> AsyncIterable[Tuple[K, V]]:
-        contents = cache['items']
         offsets = self._table_offsets
         loads_key = self.app.serializers.loads_key
         loads_value = self.app.serializers.loads_value
@@ -702,7 +718,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self.log.dev(f'READ FROM CACHE: {start} {end}')
             for i in range(start, end + 1):
                 try:
-                    entry = contents[i]
+                    entry = cache[str(i)]
                 except KeyError:
                     pass  # compacted offset?
                 else:

@@ -12,7 +12,12 @@ else:
     class SourceT: ...   # noqa
     class TopicT: ...    # noqa
 
-__all__ = ['TopicPartition', 'PendingMessage', 'RecordMetadata', 'Message']
+__all__ = [
+    'MessageSentCallback', 'TopicPartition',
+    'PendingMessage', 'RecordMetadata', 'Message',
+]
+
+MessageSentCallback = Any
 
 
 class TopicPartition(NamedTuple):
@@ -27,6 +32,7 @@ class PendingMessage(NamedTuple):
     partition: int
     key_serializer: CodecArg
     value_serializer: CodecArg
+    callback: MessageSentCallback
 
 
 class RecordMetadata(NamedTuple):

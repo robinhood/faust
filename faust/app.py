@@ -21,7 +21,8 @@ from .exceptions import ImproperlyConfigured
 from .sensors import Monitor, SensorDelegate
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
-    CodecArg, K, Message, ModelArg, PendingMessage, RecordMetadata,
+    CodecArg, K, Message, MessageSentCallback, ModelArg,
+    PendingMessage, RecordMetadata,
     StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
@@ -31,6 +32,7 @@ from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
+from .utils.futures import maybe_async
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import Unordered, cached_property
@@ -464,7 +466,8 @@ class App(AppT, ServiceProxy):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> RecordMetadata:
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> RecordMetadata:
         """Send event to stream.
 
         Arguments:
@@ -493,6 +496,7 @@ class App(AppT, ServiceProxy):
             (await self.serializers.dumps_value(
                 strtopic, value, value_serializer)),
             partition=partition,
+            callback=callback,
         )
 
     async def send_many(
@@ -515,22 +519,24 @@ class App(AppT, ServiceProxy):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> PendingMessage:
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> PendingMessage:
         return PendingMessage(
             topic, key, value, partition,
-            key_serializer, value_serializer)
+            key_serializer, value_serializer, callback)
 
     def send_soon(self, topic: Union[TopicT, str], key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
+                  value_serializer: CodecArg = None,
+                  callback: MessageSentCallback = None) -> None:
         """Send event to stream soon.
 
         This is for use by non-async functions.
         """
         self._message_buffer.put(PendingMessage(
             topic, key, value, partition,
-            key_serializer, value_serializer,
+            key_serializer, value_serializer, callback,
         ))
 
     def send_attached(self,
@@ -540,11 +546,12 @@ class App(AppT, ServiceProxy):
                       value: V,
                       partition: int = None,
                       key_serializer: CodecArg = None,
-                      value_serializer: CodecArg = None) -> None:
+                      value_serializer: CodecArg = None,
+                      callback: MessageSentCallback = None) -> None:
         buf = self._pending_on_commit[message.tp]
         pending_message = PendingMessage(
             topic, key, value, partition,
-            key_serializer, value_serializer)
+            key_serializer, value_serializer, callback)
         heappush(buf, (message.offset, Unordered(pending_message)))
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
@@ -553,7 +560,9 @@ class App(AppT, ServiceProxy):
             await self._send_tuple(message)
 
     def _get_attached(
-            self, tp: TopicPartition, commit_offset: int) -> Iterator:
+            self,
+            tp: TopicPartition,
+            commit_offset: int) -> Iterator[PendingMessage]:
         attached = self._pending_on_commit.get(tp)
         while attached:
             # get the entry with the smallest offset in this TP
@@ -569,13 +578,15 @@ class App(AppT, ServiceProxy):
                 heappush(attached, entry)
                 break
 
-    async def _send(self,
-                    topic: str,
-                    key: Optional[bytes],
-                    value: Optional[bytes],
-                    partition: int = None,
-                    key_serializer: CodecArg = None,
-                    value_serializer: CodecArg = None) -> RecordMetadata:
+    async def _send(
+            self,
+            topic: str,
+            key: Optional[bytes],
+            value: Optional[bytes],
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> RecordMetadata:
         self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
         producer = await self.maybe_start_producer()
@@ -586,6 +597,13 @@ class App(AppT, ServiceProxy):
         ret = await producer.send_and_wait(
             topic, key, value, partition=partition)
         await self.sensors.on_send_completed(producer, state)
+        if callback:
+            await maybe_async(callback(
+                self._unpack_message_tuple(
+                    topic, key, value, partition,
+                    key_serializer, value_serializer, callback),
+                ret,
+            ))
         return ret
 
     async def maybe_start_producer(self) -> ProducerT:

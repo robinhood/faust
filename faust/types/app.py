@@ -182,18 +182,21 @@ class AppT(ServiceT):
             self, topic: Union[TopicT, str], key: K, value: V,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> None:
+            value_serializer: CodecArg = None,
+            callback: Callable[[RecordMetadata], None] = None) -> None:
         ...
 
     @abc.abstractmethod
-    def send_attached(self,
-                      message: Message,
-                      topic: Union[str, TopicT],
-                      key: K,
-                      value: V,
-                      partition: int = None,
-                      key_serializer: CodecArg = None,
-                      value_serializer: CodecArg = None) -> None:
+    def send_attached(
+            self,
+            message: Message,
+            topic: Union[str, TopicT],
+            key: K,
+            value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: Callable[[RecordMetadata], None] = None) -> None:
         ...
 
     @abc.abstractmethod

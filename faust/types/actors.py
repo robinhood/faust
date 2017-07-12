@@ -8,6 +8,7 @@ from .codecs import CodecArg
 from .core import K, V
 from .streams import StreamT
 from .topics import TopicT
+from .tuples import RecordMetadata
 from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
@@ -95,7 +96,7 @@ class ActorT(ServiceT):
             value_serializer: CodecArg = None,
             *,
             reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> Any:
+            correlation_id: str = None) -> RecordMetadata:
         ...
 
     @abc.abstractmethod

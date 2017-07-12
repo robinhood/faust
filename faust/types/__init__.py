@@ -21,7 +21,10 @@ from .transports import (
     ProducerT,
     TransportT,
 )
-from .tuples import Message, PendingMessage, RecordMetadata, TopicPartition
+from .tuples import (
+    Message, MessageSentCallback, PendingMessage,
+    RecordMetadata, TopicPartition,
+)
 from .windows import WindowRange, WindowT
 from ..utils.types.services import ServiceT
 
@@ -66,7 +69,8 @@ __all__ = [
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
     # types.tuples
-    'Message', 'PendingMessage', 'RecordMetadata', 'TopicPartition',
+    'Message', 'MessageSentCallback', 'PendingMessage',
+    'RecordMetadata', 'TopicPartition',
 
     # types.windows
     'WindowRange', 'WindowT',

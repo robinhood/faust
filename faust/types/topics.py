@@ -8,7 +8,9 @@ from typing import (
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
-from .tuples import Message, RecordMetadata, TopicPartition
+from .tuples import (
+    Message, MessageSentCallback, RecordMetadata, TopicPartition,
+)
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -56,7 +58,8 @@ class EventT(metaclass=abc.ABCMeta):
                *,
                partition: int = None,
                key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None) -> None:
+               value_serializer: CodecArg = None,
+               callback: MessageSentCallback = None) -> None:
         ...
 
     @abc.abstractmethod

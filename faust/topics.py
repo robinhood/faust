@@ -9,7 +9,8 @@ from typing import (
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, K, Message, ModelArg, RecordMetadata, TopicPartition, V,
+    AppT, CodecArg, K, Message, MessageSentCallback,
+    ModelArg, RecordMetadata, TopicPartition, V,
 )
 from .types.streams import StreamCoroutine, StreamT
 from .types.topics import EventT, SourceT, TopicManagerT, TopicT
@@ -63,12 +64,14 @@ class Event(EventT):
                *,
                partition: int = None,
                key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None) -> None:
+               value_serializer: CodecArg = None,
+               callback: MessageSentCallback = None) -> None:
         self.app.send_attached(
             self.message, topic, key, value,
             partition=partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
+            callback=callback,
         )
 
     async def ack(self) -> None:

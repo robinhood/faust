@@ -432,15 +432,42 @@ class Actor(ActorT, ServiceProxy):
             partition: int = None,
             reply_to: ReplyToArg = None,
             correlation_id: str = None) -> Any:
-        p = await self.send(
-            key, value,
+        p = await self.ask_nowait(
+            value,
+            key=key,
             partition=partition,
-            reply_to=reply_to or self.app.reply_to,
+            reply_to=reply_to,
             correlation_id=correlation_id,
         )
         await self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
         await self.app.maybe_start_client()
         return await p
+
+    async def ask_nowait(
+            self,
+            value: V = None,
+            *,
+            key: K = None,
+            partition: int = None,
+            reply_to: ReplyToArg = None,
+            correlation_id: str = None) -> ReplyPromise:
+        req = self._create_req(key, value, reply_to, correlation_id)
+        await self.topic.send(key, req, partition)
+        return ReplyPromise(req.reply_to, req.correlation_id)
+
+    def _create_req(
+            self,
+            key: K = None,
+            value: V = None,
+            reply_to: ReplyToArg = None,
+            correlation_id: str = None) -> ReqRepRequest:
+        topic_name = self._get_strtopic(reply_to)
+        correlation_id = correlation_id or str(uuid4())
+        return ReqRepRequest(
+            value=value,
+            reply_to=topic_name,
+            correlation_id=correlation_id,
+        )
 
     async def send(
             self,
@@ -451,26 +478,14 @@ class Actor(ActorT, ServiceProxy):
             value_serializer: CodecArg = None,
             *,
             reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> Union[RecordMetadata, ReplyPromise]:
+            correlation_id: str = None) -> RecordMetadata:
         """Send message to topic used by actor."""
         if reply_to:
-            topic_name = self._get_strtopic(reply_to)
-            correlation_id = correlation_id or str(uuid4())
-            request = ReqRepRequest(
-                value=value,
-                reply_to=topic_name,
-                correlation_id=correlation_id,
-            )
-            await self.topic.send(
-                key, request, partition,
-                key_serializer, value_serializer,
-            )
-            return ReplyPromise(request.reply_to, request.correlation_id)
-        else:
-            return await self.topic.send(
-                key, request, partition,
-                key_serializer, value_serializer,
-            )
+            value = self._create_req(key, value, reply_to, correlation_id)
+        return await self.topic.send(
+            key, value, partition,
+            key_serializer, value_serializer,
+        )
 
     def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:
         if isinstance(topic, ActorT):
@@ -568,11 +583,11 @@ class Actor(ActorT, ServiceProxy):
         # while trying to pop incoming results off.
         async for key, value in aiter(items):
             correlation_id = str(uuid4())
-            p = cast(ReplyPromise, await self.send(
+            p = await self.ask_nowait(
                 key=key,
                 value=value,
                 reply_to=reply_to,
-                correlation_id=correlation_id))
+                correlation_id=correlation_id)
             # add reply promise to the barrier
             barrier.add(p)
 
