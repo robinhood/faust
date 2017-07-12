@@ -484,7 +484,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             return c
 
     def _get_cache_path_for(self, tp: TopicPartition) -> Path:
-        return self.cache_path / f'{tp.topic}-{tp.partition}-cache.db'
+        return self.cache_path / f'{tp.topic}-{tp.partition}-cache'
 
     def _cleanup_cache(self) -> None:
         for shelf in self._diskcache.values():
