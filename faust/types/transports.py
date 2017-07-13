@@ -178,6 +178,11 @@ class TransportT(abc.ABC):
     driver_version: str
 
     @abc.abstractmethod
+    def __init__(self, url: str, app: AppT,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
+
+    @abc.abstractmethod
     def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
         ...

@@ -16,7 +16,7 @@ __all__ = ['Registry']
 class Registry(RegistryT):
 
     #: Mapping of serializers that needs to be async
-    override_classes = FactoryMapping(
+    override_classes: FactoryMapping[Type[AsyncSerializerT]] = FactoryMapping(
         avro='faust.serializers.avro.faust:AvroSerializer',
     )
     override_classes.include_setuptools_namespace('faust.async_serializers')

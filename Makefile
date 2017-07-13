@@ -68,11 +68,13 @@ bump-major:
 release:
 	$(PYTHON) setup.py register sdist bdist_wheel upload --sign --identity="$(PGPIDENT)"
 
+. PHONY: Documentation
 Documentation:
 	$(PIP) install -r requirements/docs.txt
 	(cd "$(SPHINX_DIR)"; $(MAKE) html)
 	mv "$(SPHINX_HTMLDIR)" $(DOCUMENTATION)
 
+. PHONY: docs
 docs: Documentation
 
 dockerimage:

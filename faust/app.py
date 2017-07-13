@@ -647,8 +647,7 @@ class App(AppT, ServiceProxy):
             self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
 
     def _create_transport(self) -> TransportT:
-        return cast(TransportT,
-                    transport.by_url(self.url)(self.url, self, loop=self.loop))
+        return transport.by_url(self.url)(self.url, self, loop=self.loop)
 
     def __repr__(self) -> str:
         return APP_REPR.format(

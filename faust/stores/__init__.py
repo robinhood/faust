@@ -1,9 +1,11 @@
 """Storage registry."""
+from typing import Type
 from ..utils.imports import FactoryMapping
+from ..types import StoreT
 
 __all__ = ['by_name', 'by_url']
 
-STORES = FactoryMapping(
+STORES: FactoryMapping[Type[StoreT]] = FactoryMapping(
     memory='faust.stores.memory:Store',
     rocksdb='faust.stores.rocksdb:Store',
 )
