@@ -139,21 +139,25 @@ class Stresser(object):
 
 
 async def test_consistency(loop):
-    stresser = Stresser(num_workers=3, num_producers=4, loop=loop)
+    stresser = Stresser(num_workers=3, num_producers=8, loop=loop)
+    checker = ConsistencyChecker('withdrawals',
+                                 'f-simple-user_to_total-changelog', loop=loop)
     print('Starting stresser')
     await stresser.start(stopped_at_start=1)
     print('Waiting for stresser to run')
     await asyncio.sleep(180)  # seconds to run stresser for
     print('Stopping all producers')
     await stresser.stop_all_producers()
+    await checker.build_source()
+    print('Waiting to stop stresser')
+    await asyncio.sleep(5.0)
     stresser.stop_stresser()
-    print('Waiting for consumer lag to be 0')
-    await asyncio.sleep(30)  # wait for consumer lag to reach 0
+    await checker.wait_no_lag()
     print('Stopping everything')
     await stresser.stop_all()
-    checker = ConsistencyChecker('withdrawals',
-                                 'f-simple-user_to_total-changelog', loop=loop)
+    await checker.build_changelog()
     await checker.check_consistency()
+
 
 
 if __name__ == '__main__':
