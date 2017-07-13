@@ -691,9 +691,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
             value: bytes) -> None:
         cache = self._get_cache_for(tp)
         offset_left = cache.get('offset_left')
+        offset_right = cache.get('offset_right')
         cache.update({
             'offset_left': offset if offset_left is None else offset_left,
-            'offset_right': offset,
+            'offset_right': max(offset, offset_right or 0),
             str(offset): {
                 'key': key,
                 'value': value,
