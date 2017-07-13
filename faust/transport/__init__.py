@@ -1,7 +1,7 @@
 """Transport registry."""
 from typing import Type
-from ..utils.imports import FactoryMapping
 from ..types import TransportT
+from ..utils.imports import FactoryMapping
 
 __all__ = ['by_name', 'by_url']
 

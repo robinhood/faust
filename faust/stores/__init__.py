@@ -1,7 +1,7 @@
 """Storage registry."""
 from typing import Type
-from ..utils.imports import FactoryMapping
 from ..types import StoreT
+from ..utils.imports import FactoryMapping
 
 __all__ = ['by_name', 'by_url']
 
