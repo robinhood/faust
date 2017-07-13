@@ -20,7 +20,8 @@ __all__ = [
 ]
 
 _T = TypeVar('_T')
-SymbolArg = Union[Type, str]
+_T_contra = TypeVar('_T_contra', contravariant=True)
+SymbolArg = Union[_T, str]
 
 
 class FactoryMapping(FastUserDict, Generic[_T]):
@@ -58,7 +59,7 @@ class FactoryMapping(FastUserDict, Generic[_T]):
         # we remove anything after ; so urlparse can recognize the url.
         return self.by_name(url.partition('://')[0])
 
-    def by_name(self, name: SymbolArg) -> _T:
+    def by_name(self, name: SymbolArg[_T_contra]) -> _T:
         self._maybe_finalize()
         return symbol_by_name(name, aliases=self.aliases)
 

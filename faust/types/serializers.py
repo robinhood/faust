@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Type
 from .codecs import CodecArg
 from .core import K, V
 from ..utils.imports import SymbolArg
@@ -38,7 +38,7 @@ class AsyncSerializerT(abc.ABC):
 
 class RegistryT(abc.ABC):
 
-    override_classes: Mapping[CodecArg, SymbolArg]
+    override_classes: Mapping[CodecArg, SymbolArg[Type[AsyncSerializerT]]]
     key_serializer: CodecArg
     value_serializer: CodecArg
 

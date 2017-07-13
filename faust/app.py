@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Sequence, Tuple, Union, cast,
+    Optional, Pattern, Sequence, Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 
@@ -26,6 +26,7 @@ from .types import (
     StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
+from .types.serialization import RegistryT
 from .types.streams import StreamT
 from .types.tables import CollectionT, SetT, TableManagerT, TableT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
@@ -51,7 +52,7 @@ DEFAULT_URL = 'kafka://localhost:9092'
 #: Path to default stream class used by ``app.stream``.
 DEFAULT_STREAM_CLS = 'faust.Stream'
 
-DEFAULT_TABLE_MANAGER_CLS = 'faust.tables.TableManager'
+DEFAULT_TABLE_MAN = 'faust.tables.TableManager'
 
 #: Path to default table class used by ``app.Table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
@@ -240,31 +241,32 @@ class App(AppT, ServiceProxy):
         kwargs = parse_worker_args(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
-    def __init__(self, id: str,
-                 *,
-                 url: str = 'aiokafka://localhost:9092',
-                 store: str = 'memory://',
-                 avro_registry_url: str = None,
-                 client_id: str = CLIENT_ID,
-                 commit_interval: Seconds = COMMIT_INTERVAL,
-                 table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
-                 key_serializer: CodecArg = 'json',
-                 value_serializer: CodecArg = 'json',
-                 num_standby_replicas: int = 0,
-                 replication_factor: int = 1,
-                 default_partitions: int = 8,
-                 reply_to: str = None,
-                 create_reply_topic: bool = False,
-                 table_cache_path: Union[Path, str] = DEFAULT_TABLE_CACHE_PATH,
-                 reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
-                 Stream: SymbolArg = DEFAULT_STREAM_CLS,
-                 Table: SymbolArg = DEFAULT_TABLE_CLS,
-                 TableManager: SymbolArg = DEFAULT_TABLE_MANAGER_CLS,
-                 Set: SymbolArg = DEFAULT_SET_CLS,
-                 Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
-                 monitor: Monitor = None,
-                 on_startup_finished: Callable = None,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(
+            self, id: str,
+            *,
+            url: str = 'aiokafka://localhost:9092',
+            store: str = 'memory://',
+            avro_registry_url: str = None,
+            client_id: str = CLIENT_ID,
+            commit_interval: Seconds = COMMIT_INTERVAL,
+            table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
+            key_serializer: CodecArg = 'json',
+            value_serializer: CodecArg = 'json',
+            num_standby_replicas: int = 0,
+            replication_factor: int = 1,
+            default_partitions: int = 8,
+            reply_to: str = None,
+            create_reply_topic: bool = False,
+            table_cache_path: Union[Path, str] = DEFAULT_TABLE_CACHE_PATH,
+            reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
+            Stream: SymbolArg[Type[StreamT]] = DEFAULT_STREAM_CLS,
+            Table: SymbolArg[Type[TableT]] = DEFAULT_TABLE_CLS,
+            TableManager: SymbolArg[Type[TableManagerT]] = DEFAULT_TABLE_MAN,
+            Set: SymbolArg[Type[SetT]] = DEFAULT_SET_CLS,
+            Serializers: SymbolArg[Type[RegistryT]] = DEFAULT_SERIALIZERS_CLS,
+            monitor: Monitor = None,
+            on_startup_finished: Callable = None,
+            loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
         self.url = url

@@ -165,7 +165,7 @@ class Worker(Service):
             stderr: IO = sys.stderr,
             blocking_timeout: float = DEFAULT_BLOCKING_TIMEOUT,
             workdir: str = None,
-            Website: SymbolArg = DEFAULT_WEBSITE_CLS,
+            Website: SymbolArg[Type[_Website]] = DEFAULT_WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
             loop: asyncio.AbstractEventLoop = None,
