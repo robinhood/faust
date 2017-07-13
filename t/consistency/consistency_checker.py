@@ -1,7 +1,18 @@
 import asyncio
 import json
 from collections import defaultdict
-from aiokafka import AIOKafkaConsumer
+from aiokafka import AIOKafkaConsumer, AIOKafkaClient
+from kafka.structs import TopicPartition
+from kafka.protocol.commit import (
+    GroupCoordinatorRequest_v0, OffsetFetchRequest_v1,
+)
+
+
+class MissingDataException(Exception):
+    pass
+
+
+bootstrap_servers = 'localhost:9092'
 
 
 class BaseKafkaTableBuilder(object):
@@ -34,7 +45,7 @@ class BaseKafkaTableBuilder(object):
             self.consumer = AIOKafkaConsumer(
                 self.topic,
                 loop=self.loop,
-                bootstrap_servers='localhost:9092',
+                bootstrap_servers=bootstrap_servers,
                 auto_offset_reset='earliest',
             )
             await self.consumer.start()
@@ -102,23 +113,65 @@ class ConsistencyChecker(object):
     def __init__(self, source, changelog, loop):
         self.source = source
         self.loop = loop
+        self.client = AIOKafkaClient(bootstrap_servers=bootstrap_servers,
+                                     loop=self.loop)
         self._source_builder = SourceTableBuilder(source, loop)
         self.changelog = changelog
         self._changelog_builder = ChangelogTableBuilder(changelog, loop)
 
+    async def build_source(self):
+        await self._source_builder.build()
+
+    async def build_changelog(self):
+        await self._changelog_builder.build()
+
+    async def wait_no_lag(self):
+        print('Ensuring no lag')
+        consumer_group = 'f-simple'
+        client = self.client
+        await self.client.bootstrap()
+        source = self.source
+        source_builder = self._source_builder
+
+        source_highwaters = source_builder._highwaters()
+        source_tps = source_builder._assignment
+        protocol_tps = [(source, [tp.partition for tp in source_tps])]
+
+        node_id = next(broker.nodeId for broker in client.cluster.brokers())
+        coordinator_request = GroupCoordinatorRequest_v0(consumer_group)
+        coordinator_response = await client.send(node_id, coordinator_request)
+        coordinator_id = coordinator_response.coordinator_id
+
+        while True:
+            consumer_offsets_req = OffsetFetchRequest_v1(
+                consumer_group, protocol_tps)
+            consumer_offsets_resp = await client.send(
+                coordinator_id, consumer_offsets_req)
+            topics = consumer_offsets_resp.topics
+            assert len(topics) == 1, f'{topics!r}'
+            topic, partition_resps = topics[0]
+            assert topic == source, f'{source}'
+            assert len(partition_resps) == len(source_tps)
+
+            # + 1 is to account for the difference in how faust commits
+            positions = {
+                TopicPartition(topic=source, partition=partition): offset + 1
+                for partition, offset, _, _ in partition_resps
+            }
+
+            if positions != source_highwaters:
+                print('There is lag. Waiting!')
+                await asyncio.sleep(2.0)
+            else:
+                return
+
     async def check_consistency(self):
-        await asyncio.wait(
-            [self._source_builder.build(), self._changelog_builder.build()],
-            loop=self.loop, return_when=asyncio.ALL_COMPLETED,
-        )
         self._analyze()
         self._assert_results()
 
     def _analyze(self):
         res = self._changelog_builder.table
         truth = self._source_builder.table
-        res_kps = self._changelog_builder.key_tps
-        truth_kps = self._source_builder.key_tps
         print('Res: {} keys | Truth: {} keys'.format(len(res), len(truth)))
         print('Res keys subset of truth: {}'.format(set(res).issubset(truth)))
 
@@ -167,8 +220,7 @@ class ConsistencyChecker(object):
                     break
                 cl_pos += 1
                 if cl_pos >= len(cl_messages):
-                    assert False, 'Sum less than changelog sum. Missed ' \
-                                  'messages'
+                    raise MissingDataException
 
     def _analyze_key_partitions(self):
         res_kps = self._changelog_builder.key_tps
