@@ -5,6 +5,7 @@ from typing import Any, Callable, Mapping, Sequence
 import click
 from ..types.app import AppT
 from ..utils.imports import import_from_cwd, symbol_by_name
+from ..web.base import DEFAULT_PORT
 from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT
 
 
@@ -29,7 +30,7 @@ worker_options = [
                  default=DEFAULT_BLOCKING_TIMEOUT, type=float,
                  help='Blocking detector timeout (requires --debug)'),
     click.option('--web-port',
-                 default=8080, type=int,
+                 default=DEFAULT_PORT, type=int,
                  help='Port to run webserver on'),
 ]
 

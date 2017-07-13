@@ -1,3 +1,4 @@
+import errno
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
@@ -6,9 +7,6 @@ from .. import base
 from ...types import AppT
 
 __all__ = ['Web']
-
-DEFAULT_PORT = 8080
-DEFAULT_BIND = '0.0.0.0'
 
 _bytes = bytes
 
@@ -25,10 +23,8 @@ class Web(base.Web):
                  port: int = None,
                  bind: str = None,
                  **kwargs: Any) -> None:
-        super().__init__(app, **kwargs)
+        super().__init__(app, port=port, bind=bind, **kwargs)
         self._app: Application = Application()
-        self.port: int = port or DEFAULT_PORT
-        self.bind: str = bind or DEFAULT_BIND
         self._srv: Any = None
         self._handler: Any = None
 
@@ -55,8 +51,15 @@ class Web(base.Web):
 
     async def on_start(self) -> None:
         self._handler = self._app.make_handler()
-        self._srv = await self.loop.create_server(
-            self._handler, self.bind, self.port)
+        for _ in range(4000):
+            try:
+                self._srv = await self.loop.create_server(
+                    self._handler, self.bind, self.port)
+            except OSError as exc:
+                if exc.errno == errno.EADDRINUSE:
+                    self.port += 1
+                else:
+                    raise
         self.log.info('Serving on %s', self.url)
 
     async def on_stop(self) -> None:

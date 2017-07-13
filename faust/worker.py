@@ -15,7 +15,7 @@ from contextlib import suppress
 from itertools import chain
 from pathlib import Path
 from typing import (
-    Any, Coroutine, IO, Iterable, Set, Tuple, Union, Type, cast,
+    Any, Coroutine, IO, Iterable, Set, Tuple, Type, Union, cast,
 )
 
 from progress.spinner import Spinner
@@ -223,7 +223,7 @@ class Worker(Service):
             faust_v=faust_version,
             system=platform.system(),
             transport_v=self.app.transport.driver_version,
-            http_v=self.website.driver_version,
+            http_v=self.website.web.driver_version,
             py_v=platform.python_version(),
         )
 
@@ -232,7 +232,7 @@ class Worker(Service):
             art=self.art,
             ident=self.faust_ident(),
             app=self.app,
-            website=self.website,
+            website=self.website.web,
             logfile=self.logfile if self.logfile else '-stderr-',
             loglevel=level_name(self.loglevel or 'WARN').lower(),
             pid=os.getpid(),

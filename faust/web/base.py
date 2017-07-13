@@ -5,6 +5,9 @@ from ..utils.services import Service
 
 __all__ = ['Request', 'Response', 'Web']
 
+DEFAULT_PORT = 6066
+DEFAULT_BIND = '0.0.0.0'
+
 logger = get_logger(__name__)
 
 _bytes = bytes
@@ -28,7 +31,10 @@ class Web(Service):
                  port: int = None,
                  bind: str = None,
                  **kwargs: Any) -> None:
-        ...
+        self.app = app
+        self.port = port or DEFAULT_PORT
+        self.bind = bind or DEFAULT_BIND
+        super().__init__(**kwargs)
 
     def text(self, value: str) -> Any:
         ...
