@@ -1,4 +1,5 @@
 from typing import Any, Callable
+from ..types import AppT
 from ..utils.logging import get_logger
 from ..utils.services import Service
 
@@ -15,12 +16,19 @@ class Response:
 
 class Web(Service):
     logger = logger
-    app: Any
+    app: AppT
 
     bind: str
     port: int
 
     driver_version: str
+
+    def __init__(self, app: AppT,
+                 *,
+                 port: int = None,
+                 bind: str = None,
+                 **kwargs: Any) -> None:
+        ...
 
     def text(self, value: str) -> Any:
         ...

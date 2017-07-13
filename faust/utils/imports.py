@@ -6,8 +6,8 @@ import warnings
 from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import (
-    Any, Callable, Generator, Iterable,
-    Mapping, MutableMapping, Set, Tuple, Type, Union,
+    Any, Callable, Generator, Generic, Iterable,
+    Mapping, MutableMapping, Set, Tuple, Type, TypeVar, Union,
 )
 from .collections import FastUserDict
 from .objects import cached_property
@@ -19,7 +19,7 @@ __all__ = [
     'symbol_by_name', 'load_extension_class_names', 'load_extension_classes',
 ]
 
-SymbolArg = Union[str, Type]
+SymbolArg = Union[Type, str]
 
 
 class FactoryMapping(FastUserDict):

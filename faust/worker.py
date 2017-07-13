@@ -14,7 +14,9 @@ import sys
 from contextlib import suppress
 from itertools import chain
 from pathlib import Path
-from typing import Any, Coroutine, IO, Iterable, Set, Tuple, Union, cast
+from typing import (
+    Any, Coroutine, IO, Iterable, Set, Tuple, Union, Type, cast,
+)
 
 from progress.spinner import Spinner
 
@@ -26,7 +28,7 @@ from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import cry, get_logger, level_name, setup_logging
 from .utils.objects import cached_property
 from .utils.services import Service, ServiceT
-from .web import Web
+from .web.site import Website as _Website
 
 try:  # pragma: no cover
     from setproctitle import setproctitle
@@ -36,7 +38,7 @@ except ImportError:  # pragma: no cover
 __all__ = ['DEBUG', 'DEFAULT_BLOCKING_TIMEOUT', 'Worker']
 
 #: Path to default Web site class.
-DEFAULT_WEBSITE_CLS = 'faust.web.site:create_site'
+DEFAULT_WEBSITE_CLS = 'faust.web.site:Website'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
@@ -136,13 +138,19 @@ class Worker(Service):
 
     app: AppT
     debug: bool
-    blocking_timeout: float
     sensors: Set[SensorT]
     services: Iterable[ServiceT]
     loglevel: Union[str, int]
     logfile: Union[str, IO]
+    logformat: str
     stdout: IO
     stderr: IO
+    blocking_timeout: float
+    workdir: str
+    web_port: int
+    web_bind: str
+    Website: Type[_Website]
+    spinner: Spinner
     quiet: bool
 
     def __init__(
@@ -361,9 +369,9 @@ class Worker(Service):
         )
 
     @cached_property
-    def website(self) -> Web:
+    def website(self) -> _Website:
         return self.Website(
-            self,
+            self.app,
             bind=self.web_bind,
             port=self.web_port,
             loop=self.loop,
