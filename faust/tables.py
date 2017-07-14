@@ -4,6 +4,7 @@ import asyncio
 import operator
 import shelve
 from collections import defaultdict
+from datetime import datetime
 from heapq import heappop, heappush
 from pathlib import Path
 from typing import (
@@ -254,6 +255,10 @@ class Collection(Service, CollectionT):
         for window_range in self.window.ranges(timestamp):
             yield window_range
 
+    def _windowed_now(self, key: Any) -> Any:
+        now = datetime.utcnow().timestamp()
+        return self._get_key(key, self.window.current(now))
+
     def _windowed_current(self, key: Any, event: EventT = None) -> Any:
         return self._get_key(
             (key, self.window.current(self._get_timestamp(event))))
@@ -365,6 +370,9 @@ class WindowSet(WindowSetT, FastUserDict):
         cast(Table, self.table)._apply_window_op(
             op, self.key, value, event or self.event)
         return self
+
+    def now(self) -> Any:
+        return cast(Table, self.table)._windowed_now(self.key)
 
     def current(self, event: EventT = None) -> Any:
         return cast(Table, self.table)._windowed_current(

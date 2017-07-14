@@ -119,6 +119,10 @@ class WindowSetT(MutableMapping):
         ...
 
     @abc.abstractmethod
+    def now(self) -> Any:
+        ...
+
+    @abc.abstractmethod
     def current(self, event: EventT = None) -> Any:
         ...
 
