@@ -257,7 +257,7 @@ class Collection(Service, CollectionT):
 
     def _windowed_now(self, key: Any) -> Any:
         now = datetime.utcnow().timestamp()
-        return self._get_key(key, self.window.current(now))
+        return self._get_key((key, self.window.current(now)))
 
     def _windowed_current(self, key: Any, event: EventT = None) -> Any:
         return self._get_key(
