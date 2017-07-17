@@ -2,7 +2,7 @@
 *.pyc
 *$py.class
 *~
-.swp
+.sw*
 .*.sw*
 dist/
 *.egg-info
