@@ -26,7 +26,7 @@ from .types import (
     StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
-from .types.serialization import RegistryT
+from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import CollectionT, SetT, TableManagerT, TableT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
