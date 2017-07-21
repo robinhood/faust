@@ -5,6 +5,8 @@ import string
 import sys
 import faust
 
+PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
+
 
 class Withdrawal(faust.Record, serializer='json'):
     user: str
@@ -51,7 +53,8 @@ async def _publish_withdrawals():
         )
         await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
         print(f'+SEND {withdrawal}')
-        await asyncio.sleep(random.uniform(0, 0.5))
+        if PRODUCE_LATENCY:
+            await asyncio.sleep(random.uniform(0, PRODUCE_LATENCY))
 
 
 def produce(loop):
