@@ -79,3 +79,43 @@ are created at module time, for example the module ``t.py``::
 The ServiceProxy makes the initialization of the service part lazy, and
 delegates all service methods to a composite class (App -> AppService, Actor
 -> ActorService).
+
+
+``Worker``
+----------
+
+The worker can be used to start a Faust application, and performs tasks like
+setting up logging, installs signal handlers and debugging tools etc.
+
+``Webserver``
+-------------
+
+The ``Worker`` also starts the web service.  This is a local web server
+running in each Faust instances that exposes things like statistics and
+access to table data.
+
+``App``
+-------
+
+The app configures the Faust instance, and is the entrypoint for just about
+everything that happens in a Faust instance.  Consuming/Producing messages,
+starting streams and actors, etc.
+
+The app is usually started by ``Worker``, but can also be started alone if
+less operating system interaction is wanted, like if you want to embed Faust
+in an application that already sets up signal handling and logging.
+
+``Monitor``
+-----------
+
+The monitor is a feature-complete sensor that collects statistics about
+the running instance.  The monitor data can be exposed by the webserver.
+
+``Producer``
+------------
+
+The producer is used to publish messages to Kafka topics, and is started
+whenever necessary. The App will always starts this when a Faust instance is starting,
+in anticipation of messages to be produced.
+
+

@@ -1,6 +1,7 @@
-"""ƒAµS† Worker
+"""Worker
 
-A worker starts one or more Faust applications.
+A worker starts a Faust application, and includes support for logging
+signal-handling, etc.
 """
 import asyncio
 import logging

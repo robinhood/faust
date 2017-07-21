@@ -221,7 +221,7 @@ A windowed table can be defined as follows:
                 print('Less popular compared to 30 minutes back')
 
 Out of Order Events
-----------
+-------------------
 
 Events can sometimes come out of order due to various reasons such as network
 issues. Windowed Tables in Faust handle out of order events until

@@ -10,6 +10,8 @@
 
 .. include:: ../includes/faq.txt
 
+.. include:: ../includes/code-of-conduct.txt
+
 .. |build-status| image:: https://secure.travis-ci.org/robinhoodmarkets/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/robinhoodmarkets/faust
