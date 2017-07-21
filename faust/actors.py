@@ -21,8 +21,6 @@ from .utils.logging import get_logger
 from .utils.objects import cached_property, canoname, qualname
 from .utils.services import Service, ServiceProxy
 
-logger = get_logger(__name__)
-
 __all__ = [
     'ReqRepRequest',
     'ReqRepResponse',
@@ -36,6 +34,9 @@ __all__ = [
     'Actor',
 ]
 
+logger = get_logger(__name__)
+
+
 # --- An actor is an `async def` function, iterating over a stream:
 #
 #   @app.actor(withdrawals_topic)
@@ -43,17 +44,33 @@ __all__ = [
 #       async for withdrawal in withdrawals:
 #           if withdrawal.amount > 1000.0:
 #               alert(f'Large withdrawal: {withdrawal}')
+
+
+# --- It may also yield a return value, that the caller can request
+#     to receive as a reply:
 #
-# unlike normal actors they do not implement replies... yet!
+#   @app.actor(withdrawals_topic)
+#   async def withdraw(withdrawals):
+#       async for withdrawal in withdrawals:
+#           if withdrawal.amount > 1000.0:
+#               alert(f'Large withdrawal: {withdrawal}')
+#           yield 'OK'
 
 
 class ReqRepRequest(Record, serializer='json', namespace='@RRReq'):
+    """Value wrapped in a Request-Reply request."""
+
+    # actor.ask(value) wraps the value in this record
+    # so that the receiving actor knows where to send the reply.
+
     value: ModelT
     reply_to: str
     correlation_id: str
 
 
 class ReqRepResponse(Record, serializer='json', namespace='@RRRes'):
+    """Request-Reply response."""
+
     key: K
     value: ModelT
     correlation_id: str
@@ -191,6 +208,7 @@ class ActorInstance(Service):
     agent: ActorT
     stream: StreamT
     actor_task: asyncio.Task = None
+
     #: If multiple instance are started for concurrency, this is its index.
     index: int = None
 
@@ -486,6 +504,7 @@ class Actor(ActorT, ServiceProxy):
             key, value, partition,
             key_serializer, value_serializer,
         )
+
 
     def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:
         if isinstance(topic, ActorT):

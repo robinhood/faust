@@ -201,6 +201,10 @@ Extensible
     to make it easy for developers to extend Faust with new capabilities,
     and integrate into your existing systems.
 
+Lean
+    The source code is short and readable, and serves as a good starting point
+    for anyone who wants to learn how Kafka stream processing systems work.
+
 Upcoming Features
 =================
 
