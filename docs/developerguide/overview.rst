@@ -118,4 +118,65 @@ The producer is used to publish messages to Kafka topics, and is started
 whenever necessary. The App will always starts this when a Faust instance is starting,
 in anticipation of messages to be produced.
 
+``Consumer``
+------------
+
+The Consumer is responsible for consuming messages from Kafka topics, to be
+delivered to the streams.  It does not actually fetch messages (the
+``Fetcher`` services does tha), but it handles everything to do with
+consumption, like managing topic subscriptions etc.
+
+``Actor``
+---------
+
+Actors are also services, and any actor decorated using ``@app.actor`` will
+start with the app.
+
+``TopicManager``
+----------------
+
+The topic manager manages topic subscriptions and the streams messages
+in a topic is forwarded to.
+
+``app.stream(topic)`` will iterate over the topic: ``aiter(topic)``.
+The TopicManaager feeds messages into that iteration, so the stream
+receives messages in the topic::
+
+    async for event in stream(event async for event in topic)
+
+``TableManager``
+----------------
+
+Manages tables, including recovery from changelog and caching table contents.
+The table manager also starts the tables themselves, and acts as a registry of
+tables in the Faust instance.
+
+``Table``
+---------
+
+Any user defined table.
+
+``Store``
+---------
+
+Every table has a separate store, the store describes how the table is stored
+in this instance.  It could be stored in-memory (default), or as a RocksDB
+key/value database if the data set is too big to fit in  memory.
+
+``Stream``
+----------
+
+These are individual streams, started after everything is set up.
+
+``Fetcher``
+-----------
+
+The Fetcher is the service that actually retrieves messages from the kafka
+topic.  The fetcher forwards these messages to the TopicManager, which in
+turns forwards it to Topic's and streams.
+
+
+
+
+
 
