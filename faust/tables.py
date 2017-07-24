@@ -499,6 +499,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
             c.setdefault('offset_left', None)
             c.setdefault('offset_right', None)
             return c
+        except Exception as exc:
+            if getattr(exc, 'errno', None) == errno.EAGAIN:
+                raise RuntimeError(f'Cache already in use: {exc!r}')
 
     def _get_cache_path_for(self, tp: TopicPartition) -> Path:
         return self.cache_path / f'{tp.topic}-{tp.partition}-cache'
