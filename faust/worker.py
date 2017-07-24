@@ -80,7 +80,7 @@ F_BANNER = """
   .log         -> {logfile} ({loglevel})
   .pid         -> {pid}
   .hostname    -> {hostname}
-  .transport   -> {app.url}
+  .transport   -> {app.url} {transport_extra}
   .store       -> {app.store} ]
 """.strip()
 
@@ -229,6 +229,9 @@ class Worker(Service):
         )
 
     def print_banner(self) -> None:
+        transport_extra = ''
+        if self.loop.__class__.__module__ == 'uvloop':
+            transport_extra = '+uvloop'
         self.say(self.f_banner.format(
             art=self.art,
             ident=self.faust_ident(),
@@ -238,6 +241,7 @@ class Worker(Service):
             loglevel=level_name(self.loglevel or 'WARN').lower(),
             pid=os.getpid(),
             hostname=socket.gethostname(),
+            transport_extra=transport_extra,
         ))
         self._say('^ ', end='')
 
