@@ -505,7 +505,6 @@ class Actor(ActorT, ServiceProxy):
             key_serializer, value_serializer,
         )
 
-
     def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:
         if isinstance(topic, ActorT):
             return self._get_strtopic(cast(ActorT, topic).topic)

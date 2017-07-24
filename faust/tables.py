@@ -1,6 +1,7 @@
 """Tables (changelog stream)."""
 import abc
 import asyncio
+import errno
 import operator
 import shelve
 from collections import defaultdict
@@ -502,6 +503,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         except Exception as exc:
             if getattr(exc, 'errno', None) == errno.EAGAIN:
                 raise RuntimeError(f'Cache already in use: {exc!r}')
+            raise
 
     def _get_cache_path_for(self, tp: TopicPartition) -> Path:
         return self.cache_path / f'{tp.topic}-{tp.partition}-cache'
