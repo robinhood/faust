@@ -42,7 +42,7 @@ What do I need?
     **Core**
 
     - Python 3.6
-    - Kafka 0.10 or later.
+    - Kafka 0.10.1 or later.
 
     **Extensions**
 
