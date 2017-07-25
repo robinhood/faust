@@ -116,6 +116,61 @@ Fault Tolerance
         standby, or to be used in for example ``repr(table)``.
 
 
+Tables
+======
+
+- Nested data-structures, like ``Mapping[str, List]``, ``Mapping[str, Set]``
+
+    - Can be accomplished by treating the changelog as a database "transaction
+      log"
+
+    - For example, adding a new element to a Mapping of sets::
+
+        class SubReq(faust.Record):
+            topic: str
+
+        class PubReq(faust.Record):
+            topic: str
+            message: str
+
+
+        subscribers = app.Table('subscribers', type=set)
+
+        @app.actor()
+        async def subscribe(subscriptions: Stream[SubReq]) -> AsyncIterable[bool]:
+            async for subsription in subscriptions:
+                subscribers[subscription.topic].add(subscriber.account)
+
+        @app.actor()
+        async def send_to_subscribers(requests):
+            async for req in requests:
+                for account in subscribers[req.topic]:
+                    accounts.get(account).send_message(req.message)
+
+        @route('/(?P<topic>/send/')
+        @accept_methods('POST')
+        async def send_to_subscribers(request):
+            await send_to_subscribers.send(PubReq(
+                topic=request.POST['topic'],
+                message=request.POST['message'],
+            )
+
+    - Adding an element produces the following changelog:
+
+        .. sourcecode:: text
+
+            KEY=topic VALUE={'action': 'add', 'value': new_member}
+
+    - while removing an element produces the changelog:
+
+        .. sourcecode:: text
+
+            KEY=topic VALUE={'action': 'remove', 'value': new_member}
+
+    - NOTE: Not sure how this would coexist with windowing, but maybe it will
+            work just by the Window+key keying.
+
+
 Deployment
 ==========
 
