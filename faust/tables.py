@@ -729,7 +729,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if tp in offsets:
             start = max(offsets[tp], start)
         if start != end:
-            self.log.dev(f'READ FROM CACHE: {start} {end}')
+            self.log.info('Read table %r from cache (start=%r end=%r)...',
+                          table.name, start, end)
             for i in range(start, end + 1):
                 try:
                     entry = cache[str(i)]
