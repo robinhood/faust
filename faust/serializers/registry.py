@@ -100,11 +100,12 @@ class Registry(RegistryT):
             key: The key to be serialized.
             serializer: Custom serializer to use if value is not a Model.
         """
+        serializer = self.key_serializer
         is_model = False
         if isinstance(key, ModelT):
             is_model = True
             key = cast(ModelT, key)
-            serializer = key._options.serializer or self.key_serializer
+            serializer = key._options.serializer or serializer
 
         if serializer:
             try:
