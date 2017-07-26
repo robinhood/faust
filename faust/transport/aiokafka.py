@@ -179,14 +179,11 @@ class Consumer(base.Consumer):
                     tp,
                 )
 
-    def _get_topic_meta(self, topic: str) -> Any:
-        return self._consumer.partitions_for_topic(topic)
-
     def _new_topicpartition(
             self, topic: str, partition: int) -> TopicPartition:
         return cast(TopicPartition, _TopicPartition(topic, partition))
 
-    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
+    def _new_offsetandmetadata(self, offset: int, meta: str) -> Any:
         return OffsetAndMetadata(offset, meta)
 
     async def on_stop(self) -> None:
