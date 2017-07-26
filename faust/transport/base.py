@@ -148,10 +148,12 @@ class Consumer(Service, ConsumerT):
     async def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.
-        self._unacked_messages.add(message)
+        # XXX Try to call this *not* from the stream.
+        if message not in self._unacked_messages:
+            self._unacked_messages.add(message)
 
-        # call sensors
-        await self._on_message_in(self.id, message.tp, message.offset, message)
+            # call sensors
+            await self._on_message_in(self.id, message.tp, message.offset, message)
 
     async def ack(self, message: Message) -> None:
         if not message.acked:
