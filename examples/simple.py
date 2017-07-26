@@ -4,6 +4,7 @@ import random
 import string
 import sys
 import faust
+from datetime import timedelta
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
@@ -23,19 +24,24 @@ withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
 user_to_total = app.Table('user_to_total', default=int)
 country_to_total = app.Table(
-    'country_to_total', default=int).tumbling(10.0, expires=10.0)
+    'country_to_total', default=int).tumbling(timedelta(hours=1),
+                                              expires=timedelta(hours=1))
 
 
 @app.actor(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
         user_to_total[withdrawal.user] += withdrawal.amount
+        await find_large_country_withdrawals.send(key=withdrawal.country,
+                                                  value=withdrawal)
+        print(f'{withdrawal.user} | {user_to_total[withdrawal.user]}')
 
 
-@app.actor(withdrawals_topic)
+@app.actor()
 async def find_large_country_withdrawals(withdrawals):
-    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+    async for withdrawal in withdrawals:
         country_to_total[withdrawal.country] += withdrawal.amount
+        print(f'{withdrawal.country} | {user_to_total[withdrawal.country]}')
 
 
 async def _publish_withdrawals():

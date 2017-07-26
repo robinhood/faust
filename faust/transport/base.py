@@ -128,10 +128,6 @@ class Consumer(Service, ConsumerT):
         ...
 
     @abc.abstractmethod
-    def _get_topic_meta(self, topic: str) -> Any:
-        ...
-
-    @abc.abstractmethod
     def _new_topicpartition(
             self, topic: str, partition: int) -> TopicPartition:
         ...
@@ -218,9 +214,8 @@ class Consumer(Service, ConsumerT):
                     # then, update the current_offset and perform
                     # the commit.
                     self._current_offset[tp] = offset
-                    meta = self._get_topic_meta(tp.topic)
                     did_commit = True
-                    await self._do_commit(tp, offset, meta)
+                    await self._do_commit(tp, offset, meta='')
             await self._app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
 
@@ -261,7 +256,7 @@ class Consumer(Service, ConsumerT):
         return None
 
     async def _do_commit(
-            self, tp: TopicPartition, offset: int, meta: Any) -> None:
+            self, tp: TopicPartition, offset: int, meta: str) -> None:
         await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
     async def on_task_error(self, exc: Exception) -> None:
