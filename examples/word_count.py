@@ -16,7 +16,7 @@ word_counts = app.Table('word_counts', default=int)
 @app.actor(posts_topic)
 async def shuffle_words(posts):
     async for post in posts:
-        for word in post.split(' '):
+        for word in post.split():
             await words_topic.send(key=word, value=word)
 
 
