@@ -57,8 +57,8 @@ class Event(EventT):
                       key: Any = SENTINEL) -> None:
         """Forward original message (will not be reserialized)."""
         if key is SENTINEL:
-            key = self.key
-        await self.app.send(topic, key, self.message.value)
+            key = self.message.key
+        await self.app.send(topic, key=key, value=self.message.value)
 
     def attach(self, topic: Union[str, TopicT], key: K, value: V,
                *,
