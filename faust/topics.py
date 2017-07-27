@@ -37,6 +37,46 @@ SENTINEL = object()
 
 
 class Event(EventT):
+    """An event in a stream.
+
+    You can retrieve the current event in a stream to:
+
+        - Get the app associated with the value.
+        - Attach messages to be published when the offset of the
+          value's message source is committed.
+        - Get access to the serialized key+value.
+        - Get access to message properties like, what topic+partition
+          the value was received on, or its offset.
+
+    A stream can iterate over any value, but when the value is received
+    as a message in a topic, the current value in a stream will be associated
+    with an :class:`Event`.
+
+    The TopicManager passes messages in a topic to a stream as events::
+
+        topic_source: TopicSource
+
+        event = Event(app, deserialized_key, deserialized_value, message)
+        await topic_source.deliver(event)
+
+    The steam iterates over the TopicSource and receives the event,
+    but iterating over the stream yields raw values:
+
+        async for value in stream:   # <- this gets event.value, not event
+            ...
+
+    You can get the event for the current value in a stream by accessing
+    ``stream.current_event``::
+
+        async for value in stream:
+            event = stream.current_event
+
+    Note that if you want access to both key and value, you should use
+    ``stream.items()`` instead::
+
+        async for key, value in stream.items():
+            ...
+    """
 
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
         self.app: AppT = app
