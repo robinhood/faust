@@ -169,6 +169,7 @@ class Worker(Service):
             Website: SymbolArg[Type[_Website]] = DEFAULT_WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
+            with_uvloop: bool = False,
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
