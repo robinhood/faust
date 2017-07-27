@@ -20,7 +20,6 @@ Contents
     :maxdepth: 2
 
     introduction
-    getting-started/index
     userguide/index
 
 .. toctree::
