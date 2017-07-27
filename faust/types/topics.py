@@ -2,8 +2,8 @@ import abc
 import typing
 from types import TracebackType
 from typing import (
-    Any, AsyncIterable, AsyncIterator,
-    Iterable, Mapping, MutableSet, Pattern, Sequence, Type, Union,
+    Any, AsyncIterable, AsyncIterator, Iterable,
+    Mapping, MutableSet, Optional, Pattern, Sequence, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
@@ -84,7 +84,6 @@ class TopicT(AsyncIterable):
     pattern: Pattern
     key_type: ModelArg
     value_type: ModelArg
-    partitions: int
     retention: Seconds
     compacting: bool
     deleting: bool
@@ -104,6 +103,33 @@ class TopicT(AsyncIterable):
                  deleting: bool = None,
                  replicas: int = None,
                  config: Mapping[str, Any] = None) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def pattern(self) -> Optional[Pattern]:
+        ...
+
+    @pattern.setter
+    def pattern(self, pattern: Union[str, Pattern]) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def partitions(self) -> int:
+        ...
+
+    @partitions.setter
+    def partitions(self, partitions: int) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def replicas(self) -> int:
+        ...
+
+    @replicas.setter
+    def replicas(self, replicas: int) -> None:
         ...
 
     @abc.abstractmethod

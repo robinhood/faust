@@ -5,7 +5,7 @@ from collections import defaultdict
 from types import TracebackType
 from typing import (
     Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Sequence, Set, Type, Union,
+    MutableMapping, Optional, Pattern, Sequence, Set, Type, Union, cast,
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
@@ -119,6 +119,9 @@ class Topic(TopicT):
     """
 
     _declared = False
+    _partitions: int = None
+    _replicas: int = None
+    _pattern: Pattern = None
 
     def __init__(self, app: AppT,
                  *,
@@ -131,31 +134,57 @@ class Topic(TopicT):
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
+                 acks: bool = True,
                  config: Mapping[str, Any] = None) -> None:
-        if pattern and topics:
-            raise TypeError('Cannot specify both topics and pattern.')
-        if isinstance(pattern, str):
-            pattern = re.compile(pattern)
+        self.app = app
         self.topics = topics
-        if partitions is None:
-            partitions = app.default_partitions
+        self.pattern = cast(Pattern, pattern)  # XXX mypy does not read setter
+        self.key_type = key_type
+        self.value_type = value_type
         self.partitions = partitions
-        if partitions == 0:
-            raise ValueError('Topic cannot have 0 (zero) partitions.')
-        if replicas is None:
-            replicas = app.replication_factor
-        self.replicas = replicas
         self.retention = retention
         self.compacting = compacting
         self.deleting = deleting
+        self.replicas = replicas
         self.config = config or {}
-        self.app = app
-        self.pattern = pattern
-        self.key_type = key_type
-        self.value_type = value_type
+
+    @property
+    def pattern(self) -> Optional[Pattern]:
+        return self._pattern
+
+    @pattern.setter
+    def pattern(self, pattern: Union[str, Pattern]) -> None:
+        if pattern and self.topics:
+            raise TypeError('Cannot specify both topics and pattern')
+        if isinstance(pattern, str):
+            pattern = re.compile(pattern)
+        self._pattern = pattern
+
+    @property
+    def partitions(self) -> int:
+        return self._partitions
+
+    @partitions.setter
+    def partitions(self, partitions: int) -> None:
+        if partitions is None:
+            partitions = self.app.default_partitions
+        if partitions == 0:
+            raise ValueError('Topic cannot have 0 (zero partitions)')
+        self._partitions = partitions
+
+    @property
+    def replicas(self) -> int:
+        return self._replicas
+
+    @replicas.setter
+    def replicas(self, replicas: int) -> None:
+        if replicas is None:
+            replicas = self.app.replication_factor
+        self._replicas = replicas
 
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
+        """Create stream from topic."""
         return self.app.stream(self, coroutine, **kwargs)
 
     async def send(
@@ -165,6 +194,7 @@ class Topic(TopicT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> RecordMetadata:
+        """Send message to topic."""
         return await self.app.send(
             self, key, value, partition,
             key_serializer, value_serializer,
@@ -174,6 +204,13 @@ class Topic(TopicT):
                   partition: int = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None) -> None:
+        """Send message to topic (asynchronous version).
+
+        Notes:
+            This can be used from non-async functions, but with the caveat
+            that sending of the message will be scheduled in the event loop.
+            This will buffer up the message, making backpressure a concern.
+        """
         return self.app.send_soon(
             self, key, value, partition,
             key_serializer, value_serializer)
@@ -190,13 +227,20 @@ class Topic(TopicT):
                config: Mapping[str, Any] = None,
                prefix: str = '',
                suffix: str = '') -> TopicT:
-        if self.pattern:
-            raise ValueError('Cannot add suffix to Topic with pattern')
-        if topics is None:
-            topics = self.topics
+        """Create new :class:`Topic` derived from this topic.
+
+        Configuration will be copied from this topic, but any parameter
+        overriden as a keyword argument.
+        """
+        topics = self.topics if topics is None else topics
+        if suffix or prefix:
+            if self.pattern:
+                raise ValueError(
+                    'Cannot add prefix/suffix to Topic with pattern')
+                topics = [f'{prefix}{topic}{suffix}' for topic in topics]
         return type(self)(
             self.app,
-            topics=[f'{prefix}{topic}{suffix}' for topic in topics],
+            topics=topics,
             pattern=self.pattern,
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
