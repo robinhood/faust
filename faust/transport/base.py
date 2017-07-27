@@ -153,7 +153,8 @@ class Consumer(Service, ConsumerT):
             self._unacked_messages.add(message)
 
             # call sensors
-            await self._on_message_in(self.id, message.tp, message.offset, message)
+            await self._on_message_in(
+                self.id, message.tp, message.offset, message)
 
     async def ack(self, message: Message) -> None:
         if not message.acked:
