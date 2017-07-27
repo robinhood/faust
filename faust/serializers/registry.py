@@ -1,5 +1,5 @@
 import sys
-from typing import Any, MutableMapping, Optional, Type, cast
+from typing import Any, MutableMapping, Optional, Tuple, Type, cast
 from .codecs import CodecArg, CodecT, dumps, loads
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import K, ModelArg, ModelT, V
@@ -11,6 +11,8 @@ from ..utils.objects import cached_property
 _flake8_Any_is_really_used: Any  # XXX flake8 bug
 
 __all__ = ['Registry']
+
+IsInstanceArg = Tuple[Type, ...]
 
 
 class Registry(RegistryT):
@@ -92,7 +94,9 @@ class Registry(RegistryT):
                 str(exc)).with_traceback(sys.exc_info()[2]) from None
 
     async def dumps_key(self, topic: str, key: K,
-                        serializer: CodecArg = None) -> Optional[bytes]:
+                        serializer: CodecArg = None,
+                        *,
+                        skip: IsInstanceArg = (bytes, str)) -> Optional[bytes]:
         """Serialize key.
 
         Arguments:
@@ -107,7 +111,7 @@ class Registry(RegistryT):
             key = cast(ModelT, key)
             serializer = key._options.serializer or serializer
 
-        if serializer:
+        if serializer and not isinstance(key, skip):
             try:
                 ser = self._get_serializer(serializer)
             except KeyError:
