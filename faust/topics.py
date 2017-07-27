@@ -492,10 +492,10 @@ class TopicManager(TopicManagerT, Service):
         self._flag_changes()
 
     def _flag_changes(self) -> None:
-            if self._subscription_changed is not None:
-                self._subscription_changed.set()
-            if self._subscription_done is None:
-                self._subscription_done = asyncio.Future(loop=self.loop)
+        if self._subscription_changed is not None:
+            self._subscription_changed.set()
+        if self._subscription_done is None:
+            self._subscription_done = asyncio.Future(loop=self.loop)
 
     @property
     def label(self) -> str:
