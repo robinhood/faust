@@ -132,7 +132,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def stream(self, source: AsyncIterable,
+    def stream(self, channel: AsyncIterable,
                coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
@@ -243,7 +243,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def sources(self) -> TopicManagerT:
+    def channels(self) -> TopicManagerT:
         ...
 
     @property

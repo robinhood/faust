@@ -69,9 +69,9 @@ async def test_send(
 
 def test_stream(app):
     s = app.topic(TEST_TOPIC).stream()
-    assert s.source.topic.topics == (TEST_TOPIC,)
-    assert s.source in app.sources
-    assert s.source.app == app
+    assert s.channel.topic.topics == (TEST_TOPIC,)
+    assert s.channel in app.channels
+    assert s.channel.app == app
 
 
 @pytest.mark.asyncio

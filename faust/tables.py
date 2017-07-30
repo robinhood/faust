@@ -26,7 +26,7 @@ from .types.streams import JoinableT, StreamT
 from .types.tables import (
     CollectionT, SetT, TableManagerT, TableT, WindowSetT, WindowWrapperT,
 )
-from .types.topics import SourceT
+from .types.topics import ChannelT
 from .types.windows import WindowRange, WindowT
 from .utils.aiter import aiter
 from .utils.collections import FastUserDict, ManagedUserDict, ManagedUserSet
@@ -470,7 +470,7 @@ class WindowWrapper(WindowWrapperT):
 class TableManager(Service, TableManagerT, FastUserDict):
     logger = logger
 
-    _sources: MutableMapping[CollectionT, SourceT]
+    _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
     _diskcache: MutableMapping[TopicPartition, shelve.Shelf]
@@ -482,7 +482,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.app = app
         self.cache_path = self.app.table_cache_path
         self.data = {}
-        self._sources = {}
+        self._channels = {}
         self._changelogs = {}
         self._table_offsets = {}
         self._diskcache = {}
@@ -529,10 +529,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 else:
                     cache['offset_left'] = current_offset
 
-    async def _update_sources(self) -> None:
+    async def _update_channels(self) -> None:
         for table in self.values():
-            if table not in self._sources:
-                self._sources[table] = cast(SourceT, aiter(
+            if table not in self._channels:
+                self._channels[table] = cast(ChannelT, aiter(
                     table.changelog_topic))
         self._changelogs.update({
             table.changelog_topic.topics[0]: table
@@ -546,7 +546,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         # Wait for TopicManager to finish any new subscriptions
-        await self.app.sources.wait_for_subscriptions()
+        await self.app.channels.wait_for_subscriptions()
         self.log.info('New assignments found')
         await self._on_recovery_started()
         await self.app.consumer.pause_partitions(assigned)
@@ -607,7 +607,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                         try:
                             await self.table_update_from_iterable(
                                 table, self._read_changelog(
-                                    table, tps, self._sources[table]))
+                                    table, tps, self._channels[table]))
                         finally:
                             await consumer.pause_partitions(tps)
                 finally:
@@ -669,11 +669,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self,
             table: CollectionT,
             tps: Iterable[TopicPartition],
-            source: SourceT) -> AsyncIterable[Tuple[K, V]]:
+            channels: ChannelT) -> AsyncIterable[Tuple[K, V]]:
         offsets = self._table_offsets
         pending_tps = set(tps)
         self.log.info('Recover %r from changelog', table.name)
-        async for event in source:
+        async for event in channel:
             message = event.message
             tp = message.tp
             offset = message.offset
@@ -772,7 +772,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _on_recovery_started(self) -> None:
         self._recovery_started.set()
-        await self._update_sources()
+        await self._update_channels()
 
     async def _on_recovery_completed(self) -> None:
         for table in self.values():
@@ -781,7 +781,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def on_start(self) -> None:
         await self.sleep(1.0)
-        await self._update_sources()
+        await self._update_channels()
 
     async def on_stop(self) -> None:
         if self._recovery_completed.is_set():

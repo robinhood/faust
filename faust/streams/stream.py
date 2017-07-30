@@ -20,7 +20,7 @@ from ..types.streams import (
     GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
     T, T_co, T_contra,
 )
-from ..types.topics import SourceT
+from ..types.topics import ChannelT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import maybe_async
@@ -74,7 +74,7 @@ class Stream(StreamT, JoinableT, Service):
     _context: Context = None
     _passive = False
 
-    def __init__(self, source: AsyncIterator[T_co] = None,
+    def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
@@ -84,7 +84,7 @@ class Stream(StreamT, JoinableT, Service):
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
-        self.source = source
+        self.channel = channel
         self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
@@ -96,7 +96,7 @@ class Stream(StreamT, JoinableT, Service):
             self._coroutine.callback = self._send_to_outbox
         self._on_start = on_start
 
-        # attach beacon to source, or if iterable attach to current task.
+        # attach beacon to channel, or if iterable attach to current task.
         task = asyncio.Task.current_task(loop=self.loop)
         if task is not None:
             self.task_owner = task
@@ -105,9 +105,9 @@ class Stream(StreamT, JoinableT, Service):
         self._on_message = None
         self._on_stream_event_in = None
         self._on_stream_event_out = None
-        if self.source:
+        if self.channel:
             with suppress(AttributeError):
-                app = self.source.app  # type: ignore
+                app = self.channel.app  # type: ignore
                 self._on_stream_event_in = app.sensors.on_stream_event_in
                 self._on_stream_event_out = app.sensors.on_stream_event_out
             self._on_message = self._create_message_handler()
@@ -120,7 +120,7 @@ class Stream(StreamT, JoinableT, Service):
 
     def info(self) -> Mapping[str, Any]:
         return {
-            'source': self.source,
+            'channel': self.channel,
             'processors': self._processors,
             'coroutine': self._coroutine,
             'on_start': self._on_start,
@@ -149,7 +149,7 @@ class Stream(StreamT, JoinableT, Service):
     async def events(self) -> AsyncIterable[EventT]:
         """Iterate over the stream as events exclusively.
 
-        This means the messages must be from a topic source.
+        This means the stream must be iterating over a channel.
         """
         async for _ in self:  # noqa: F841
             if self.current_event is not None:
@@ -258,8 +258,8 @@ class Stream(StreamT, JoinableT, Service):
             topictopic = topic
 
         topic_created = False
-        source = aiter(topictopic)
-        through = self.clone(source=source, on_start=self.maybe_start)
+        channel = aiter(topictopic)
+        through = self.clone(channel=channel, on_start=self.maybe_start)
 
         async def forward(value: T) -> T:
             nonlocal topic_created
@@ -364,21 +364,21 @@ class Stream(StreamT, JoinableT, Service):
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
         if topic is None:
-            if not isinstance(self.source, SourceT):
-                raise ValueError('Need to specify topic for non-topic source')
+            if not isinstance(self.channel, ChannelT):
+                raise ValueError('Need to specify topic for non-topic channel')
             suffix = '-' + name + '-repartition'
-            source = cast(SourceT, self.source)
-            topic = source.topic.derive(suffix=suffix)
+            channel = cast(ChannelT, self.channel)
+            topic = channel.topic.derive(suffix=suffix)
         topic_created = False
         format_key = self._format_key
 
-        grouped = self.clone(source=aiter(topic), on_start=self.maybe_start)
+        grouped = self.clone(channel=aiter(topic), on_start=self.maybe_start)
 
         async def repartition(value: T) -> T:
             event = self.current_event
             if event is None:
                 raise RuntimeError(
-                    'Cannot repartition stream with non-topic source')
+                    'Cannot repartition stream with non-topic channel')
             new_key = await format_key(key, value)
             nonlocal topic_created
             if not topic_created:
@@ -416,17 +416,17 @@ class Stream(StreamT, JoinableT, Service):
                 If not set, the value type of this stream will be used.
 
         Raises:
-            ValueError: if the stream source is not a topic.
+            ValueError: if the stream channel is not a topic.
         """
-        if isinstance(self.source, SourceT):
-            return cast(SourceT, self.source).topic.derive(
+        if isinstance(self.channel, ChannelT):
+            return cast(ChannelT, self.channel).topic.derive(
                 topics=[name],
                 key_type=key_type,
                 value_type=value_type,
                 prefix=prefix,
                 suffix=suffix,
             )
-        raise ValueError('Cannot derive topic from non-topic source.')
+        raise ValueError('Cannot derive topic from non-topic channel.')
 
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
         # A combined stream is composed of multiple streams that
@@ -457,8 +457,8 @@ class Stream(StreamT, JoinableT, Service):
         return self.clone(join_strategy=join_strategy)
 
     def _create_message_handler(self) -> Callable[[], Awaitable[None]]:
-        # get from source
-        get_next_value = self.source.__anext__
+        # get from channel
+        get_next_value = self.channel.__anext__
         # Topic description -> processors
         processors = self._processors
         # Topic description -> special coroutine
@@ -471,7 +471,7 @@ class Stream(StreamT, JoinableT, Service):
         create_ref = weakref.ref
 
         async def on_message() -> None:
-            # get message from source
+            # get message from channel
             value: Any = await get_next_value()
 
             if isinstance(value, EventT):
@@ -513,11 +513,11 @@ class Stream(StreamT, JoinableT, Service):
 
     async def send(self, value: T_contra) -> None:
         """Send value into stream manually."""
-        if isinstance(self.source, SourceT):
-            await cast(SourceT, self.source).put(value)
+        if isinstance(self.channel, ChannelT):
+            await cast(ChannelT, self.channel).put(value)
         else:
             raise NotImplementedError(
-                'Cannot send to non-topic source stream.')
+                'Cannot send to non-topic channel stream.')
 
     async def on_start(self) -> None:
         if self._on_start:
@@ -551,10 +551,10 @@ class Stream(StreamT, JoinableT, Service):
             _prev, self.current_event = self.current_event, None
             if _prev is not None:
                 await _prev.ack()
-            _msg = _prev.message
-            on_stream_event_out = self._on_stream_event_out
-            if on_stream_event_out is not None:
-                await on_stream_event_out(_msg.tp, _msg.offset, self, _prev)
+                _msg = _prev.message
+                on_stream_event_out = self._on_stream_event_out
+                if on_stream_event_out is not None:
+                    await on_stream_event_out(_msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
         value: T = None
@@ -572,13 +572,13 @@ class Stream(StreamT, JoinableT, Service):
     def _repr_info(self) -> str:
         if self.children:
             return reprlib.repr(self.children)
-        return reprlib.repr(self.source)
+        return reprlib.repr(self.channel)
 
-    def _repr_source(self) -> str:
-        if isinstance(self.source, SourceT):
-            return repr(cast(SourceT, self.source).topic)
-        return reprlib.repr(self.source)
+    def _repr_channel(self) -> str:
+        if isinstance(self.channel, ChannelT):
+            return repr(cast(ChannelT, self.channel).topic)
+        return reprlib.repr(self.channel)
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {self._repr_source()}'
+        return f'{type(self).__name__}: {self._repr_channel()}'

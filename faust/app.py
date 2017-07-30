@@ -83,7 +83,7 @@ DEFAULT_REPLY_EXPIRES = timedelta(days=1)
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({s.id}): {s.url} {s.state} actors({actors}) sources({sources})>
+<{name}({s.id}): {s.url} {s.state} actors({actors}) channels({channels})>
 """.strip()
 
 logger = get_logger(__name__)
@@ -113,7 +113,7 @@ class AppService(Service):
             [self.app.producer],
             [self.app.consumer],
             [self.app._reply_consumer],
-            [self.app.sources],
+            [self.app.channels],
             [self.app._fetcher],
         ))
 
@@ -141,7 +141,7 @@ class AppService(Service):
             # Actors
             self.app.actors.values(),
             # TopicManager
-            [self.app.sources],                       # app.TopicManager
+            [self.app.channels],                      # app.TopicManager
             # TableManager
             [self.app.tables],                        # app.TableManager
             # Fetcher
@@ -370,14 +370,14 @@ class App(AppT, ServiceProxy):
             return around_timer
         return _inner
 
-    def stream(self, source: Union[AsyncIterable, Iterable],
+    def stream(self, channel: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from topic.
 
         Arguments:
-            source: Async iterable to stream over.
+            channel: Async iterable to stream over.
 
         Keyword Arguments:
             coroutine: Coroutine to filter events in this stream.
@@ -388,7 +388,7 @@ class App(AppT, ServiceProxy):
                 to iterate over events in the stream.
         """
         return self.Stream(
-            source=aiter(source) if source is not None else None,
+            channel=aiter(channel) if channel is not None else None,
             coroutine=coroutine,
             beacon=beacon or self.beacon,
             **kwargs)
@@ -644,7 +644,7 @@ class App(AppT, ServiceProxy):
         return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.sources.commit(topics)
+        return await self.channels.commit(topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
@@ -653,7 +653,7 @@ class App(AppT, ServiceProxy):
 
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
-            callback=self.sources.on_message,
+            callback=self.channels.on_message,
             on_partitions_revoked=self.on_partitions_revoked,
             on_partitions_assigned=self.on_partitions_assigned,
             beacon=self.beacon,
@@ -661,13 +661,13 @@ class App(AppT, ServiceProxy):
 
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        await self.sources.on_partitions_assigned(assigned)
+        await self.channels.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         self.log.dev('ON PARTITIONS REVOKED')
-        await self.sources.on_partitions_revoked(revoked)
+        await self.channels.on_partitions_revoked(revoked)
         assignment = self.consumer.assignment()
         if assignment:
             await self.consumer.pause_partitions(assignment)
@@ -683,7 +683,7 @@ class App(AppT, ServiceProxy):
             name=type(self).__name__,
             s=self,
             actors=self.actors,
-            sources=len(self.sources),
+            channels=len(self.channels),
         )
 
     @property
@@ -728,7 +728,7 @@ class App(AppT, ServiceProxy):
             app=self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
-    def sources(self) -> TopicManagerT:
+    def channels(self) -> TopicManagerT:
         return TopicManager(app=self, loop=self.loop, beacon=self.beacon)
 
     @property

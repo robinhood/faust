@@ -26,7 +26,7 @@ else:
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
 
-__all__ = ['EventT', 'TopicT', 'SourceT', 'TopicManagerT']
+__all__ = ['EventT', 'TopicT', 'ChannelT', 'TopicManagerT']
 
 
 class EventT(metaclass=abc.ABCMeta):
@@ -181,7 +181,7 @@ class TopicT(AsyncIterable):
         ...
 
 
-class SourceT(AsyncIterator):
+class ChannelT(AsyncIterator):
     topic: TopicT
 
     @abc.abstractmethod
@@ -209,7 +209,7 @@ class SourceT(AsyncIterator):
         ...
 
 
-class TopicManagerT(ServiceT, MutableSet[SourceT]):
+class TopicManagerT(ServiceT, MutableSet[ChannelT]):
 
     app: AppT
 

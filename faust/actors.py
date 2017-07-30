@@ -370,7 +370,7 @@ class Actor(ActorT, ServiceProxy):
         self._sinks.append(sink)
 
     def stream(self, **kwargs: Any) -> StreamT:
-        s = self.app.stream(self.source, loop=self.loop, **kwargs)
+        s = self.app.stream(self.channel, loop=self.loop, **kwargs)
         s.add_processor(self._process_reply)
         return s
 
@@ -622,10 +622,10 @@ class Actor(ActorT, ServiceProxy):
             yield correlation_id
 
     @cached_property
-    def source(self) -> AsyncIterator:
-        # The source is reused here, so that when ActorService start
+    def channel(self) -> AsyncIterator:
+        # The channel is reused here, so that when ActorService start
         # is called it will start n * concurrency self._start_task() futures
-        # that all share the same source topic.
+        # that all share the same channel topic.
         return aiter(self.topic)
 
     @cached_property

@@ -13,7 +13,7 @@ from .types import (
     ModelArg, TopicPartition, V,
 )
 from .types.streams import StreamCoroutine, StreamT
-from .types.topics import EventT, SourceT, TopicManagerT, TopicT
+from .types.topics import EventT, ChannelT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.futures import notify
 from .utils.logging import get_logger
@@ -27,7 +27,7 @@ else:
 
 __all__ = [
     'Topic',
-    'TopicSource',
+    'TopicChannel',
     'TopicManager',
 ]
 
@@ -43,7 +43,7 @@ class Event(EventT):
 
         - Get the app associated with the value.
         - Attach messages to be published when the offset of the
-          value's message source is committed.
+          value's source message is committed.
         - Get access to the serialized key+value.
         - Get access to message properties like, what topic+partition
           the value was received on, or its offset.
@@ -52,14 +52,16 @@ class Event(EventT):
     as a message in a topic, the current value in a stream will be associated
     with an :class:`Event`.
 
-    The TopicManager passes messages in a topic to a stream as events::
+    Streams iterates over messages in a channel, and the TopicManager
+    is the service that feeds the channel with messages.  The objects
+    sent tot he channel are Event objects::
 
-        topic_source: TopicSource
+        channel: TopicChannel
 
         event = Event(app, deserialized_key, deserialized_value, message)
-        await topic_source.deliver(event)
+        await channel.deliver(event)
 
-    The steam iterates over the TopicSource and receives the event,
+    The steam iterates over the TopicChannel and receives the event,
     but iterating over the stream yields raw values:
 
         async for value in stream:   # <- this gets event.value, not event
@@ -316,9 +318,9 @@ class Topic(TopicT):
             )
 
     def __aiter__(self) -> AsyncIterator:
-        source = TopicSource(self)
-        self.app.sources.add(source)
-        return source
+        channel = TopicChannel(self)
+        self.app.channels.add(channel)
+        return channel
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self}>'
@@ -327,7 +329,7 @@ class Topic(TopicT):
         return str(self.pattern) if self.pattern else ','.join(self.topics)
 
 
-class TopicSource(SourceT):
+class TopicChannel(ChannelT):
     queue: asyncio.Queue
 
     def __init__(self, topic: TopicT,
@@ -396,23 +398,23 @@ class TopicSource(SourceT):
 
 
 class TopicManager(TopicManagerT, Service):
-    """Manages the sources that subscribe to topics.
+    """Manages the channels that subscribe to topics.
 
     - Consumes messages from topic using a single consumer.
-    - Forwards messages to all sources subscribing to a topic.
+    - Forwards messages to all channels subscribing to a topic.
     """
     logger = logger
 
-    #: Fast index to see if source is registered.
-    _sources: Set[SourceT]
+    #: Fast index to see if channel is registered.
+    _channels: Set[ChannelT]
 
-    #: Map str topic to set of streams that should get a copy
+    #: Map str topic to set of channeos that should get a copy
     #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, Set[SourceT]]
+    _topicmap: MutableMapping[str, Set[ChannelT]]
 
     _pending_tasks: asyncio.Queue
 
-    #: Whenever a change is made, i.e. a source is added/removed, we notify
+    #: Whenever a change is made, i.e. a channel is added/removed, we notify
     #: the background task responsible for resubscribing.
     _subscription_changed: Optional[asyncio.Event]
 
@@ -421,7 +423,7 @@ class TopicManager(TopicManagerT, Service):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self._sources = set()
+        self._channels = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
 
@@ -440,28 +442,28 @@ class TopicManager(TopicManagerT, Service):
         all_completed = asyncio.ALL_COMPLETED
         loop = self.loop
         list_ = list
-        # topic str -> list of TopicSource
-        get_sources_for_topic = self._topicmap.__getitem__
+        # topic str -> list of TopicChannel
+        get_channels_for_topic = self._topicmap.__getitem__
 
         add_pending_task = self._pending_tasks.put
 
         async def on_message(message: Message) -> None:
-            # when a message is received we find all sources
+            # when a message is received we find all channels
             # that subscribe to this message
-            sources = list_(get_sources_for_topic(message.topic))
+            channels = list_(get_channels_for_topic(message.topic))
 
             # we increment the reference count for this message in bulk
             # immediately, so that nothing will get a chance to decref to
-            # zero before we've had the chance to pass it to all sources
-            message.incref_bulk(sources)
+            # zero before we've had the chance to pass it to all channels
+            message.incref_bulk(channels)
 
-            # Then send it to each sources inbox,
-            # for TopicSource.__anext__ to pick up.
-            # NOTE: We do this in parallel, so the order of sources'
+            # Then send it to each channels buffer
+            # for TopicChannel.__anext__ to pick up.
+            # NOTE: We do this in parallel, so the order of channels
             #       does not matter.
             await wait(
-                [add_pending_task(source.deliver(message))
-                 for source in sources],
+                [add_pending_task(channel.deliver(message))
+                 for channel in channels],
                 loop=loop,
                 return_when=all_completed,
             )
@@ -504,9 +506,9 @@ class TopicManager(TopicManagerT, Service):
 
     def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
-        for source in self._sources:
-            for topic in source.topic.topics:
-                self._topicmap[topic].add(source)
+        for channel in self._channels:
+            for topic in channel.topic.topics:
+                self._topicmap[topic].add(channel)
         return self._topicmap
 
     async def on_partitions_assigned(
@@ -518,26 +520,26 @@ class TopicManager(TopicManagerT, Service):
         ...
 
     def __contains__(self, value: Any) -> bool:
-        return value in self._sources
+        return value in self._channels
 
-    def __iter__(self) -> Iterator[SourceT]:
-        return iter(self._sources)
+    def __iter__(self) -> Iterator[ChannelT]:
+        return iter(self._channels)
 
     def __len__(self) -> int:
-        return len(self._sources)
+        return len(self._channels)
 
     def __hash__(self) -> int:
         return object.__hash__(self)
 
-    def add(self, source: SourceT) -> None:
-        if source not in self._sources:
-            self._sources.add(source)
-            self.beacon.add(source)  # connect to beacon
+    def add(self, channel: ChannelT) -> None:
+        if channel not in self._channels:
+            self._channels.add(channel)
+            self.beacon.add(channel)  # connect to beacon
             self._flag_changes()
 
-    def discard(self, source: SourceT) -> None:
-        self._sources.discard(source)
-        self.beacon.discard(source)
+    def discard(self, channel: ChannelT) -> None:
+        self._channels.discard(channel)
+        self.beacon.discard(channel)
         self._flag_changes()
 
     def _flag_changes(self) -> None:
@@ -548,7 +550,7 @@ class TopicManager(TopicManagerT, Service):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}({len(self._sources)})'
+        return f'{type(self).__name__}({len(self._channels)})'
 
     @property
     def shortlabel(self) -> str:

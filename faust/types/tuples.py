@@ -7,10 +7,10 @@ from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .topics import SourceT, TopicT
+    from .topics import ChannelT, TopicT
 else:
     class AppT: ...      # noqa
-    class SourceT: ...   # noqa
+    class ChannelT: ...   # noqa
     class TopicT: ...    # noqa
 
 __all__ = [
@@ -69,7 +69,7 @@ class Message:
         'serialized_value_size',
         'acked',
         'refcount',
-        'sources',
+        'channels',
         'tp',
         '__weakref__',
     )
@@ -95,17 +95,17 @@ class Message:
         self.tp = tp
         if typing.TYPE_CHECKING:
             # mypy supports this, but Python doesn't.
-            self.sources: WeakSet[SourceT] = WeakSet()
+            self.channels: WeakSet[ChannelT] = WeakSet()
         else:
-            self.sources = WeakSet()
+            self.channels = WeakSet()
 
-    def incref(self, source: SourceT = None, n: int = 1) -> None:
-        self.sources.add(source)
+    def incref(self, channel: ChannelT = None, n: int = 1) -> None:
+        self.channels.add(channel)
         self.refcount += n
 
-    def incref_bulk(self, sources: Sequence[SourceT]) -> None:
-        self.sources.update(sources)
-        self.refcount += len(sources)
+    def incref_bulk(self, channels: Sequence[ChannelT]) -> None:
+        self.channels.update(channels)
+        self.refcount += len(channels)
 
     def decref(self, n: int = 1) -> None:
         self.refcount -= n

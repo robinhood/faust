@@ -73,7 +73,7 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
 
-    source: AsyncIterator[T_co] = None
+    channel: AsyncIterator[T_co] = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
@@ -82,7 +82,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     children: List[JoinableT] = None
 
     @abc.abstractmethod
-    def __init__(self, source: AsyncIterator[T_co] = None,
+    def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,

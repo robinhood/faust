@@ -140,9 +140,9 @@ class ActorT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def source(self) -> AsyncIterator:
+    def channel(self) -> AsyncIterator:
         ...
 
-    @source.setter
-    def source(self, source: AsyncIterator) -> None:
+    @channel.setter
+    def channel(self, channel: AsyncIterator) -> None:
         ...
