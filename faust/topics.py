@@ -33,7 +33,7 @@ __all__ = [
 
 logger = get_logger(__name__)
 
-SENTINEL = object()
+USE_EXISTING_KEY = object()
 
 
 class Event(EventT):
@@ -86,17 +86,17 @@ class Event(EventT):
 
     async def send(self, topic: Union[str, TopicT],
                    *,
-                   key: Any = SENTINEL) -> RecordMetadata:
+                   key: Any = USE_EXISTING_KEY) -> RecordMetadata:
         """Serialize and send object to topic."""
-        if key is SENTINEL:
+        if key is USE_EXISTING_KEY:
             key = self.key
         return await self.app.send(topic, key, self.value)
 
     async def forward(self, topic: Union[str, TopicT],
                       *,
-                      key: Any = SENTINEL) -> None:
+                      key: Any = USE_EXISTING_KEY) -> None:
         """Forward original message (will not be reserialized)."""
-        if key is SENTINEL:
+        if key is USE_EXISTING_KEY:
             key = self.message.key
         await self.app.send(topic, key=key, value=self.message.value)
 
