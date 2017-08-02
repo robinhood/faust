@@ -31,7 +31,7 @@ Lets create the file `hello_world.py`:
 
     greetings_topic = app.topic('greetings')
 
-    async for greeting in app.stream(greetings_topic):
+    async for greeting in greetings_topic.stream():
         print(greeting)
 
 
