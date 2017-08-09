@@ -10,6 +10,7 @@
 .. toctree::
     :maxdepth: 1
 
+    quickstart
     application
     actors
     tasks

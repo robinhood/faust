@@ -84,8 +84,8 @@ corresponding Stream partition.
     Due to this reason Table changelogs should have the same number of
     partitions as the source topic.
 
-Disjoint Key Distribution
--------------------------
+Table Sharding
+--------------
 
 Tables should be sharded such that the key distribution across Kafka
 partitions is disjoint. This ensures that all computation for a subset of
@@ -141,7 +141,8 @@ Changelogging
 
 Table updates are published to a Kafka topic for recovery upon failures. We
 use Log Compaction to ensure that the changelog topic doesn't grow
-exponentially.
+exponentially, keeping the number of messages in the changelog topic ``O(number
+ of keys in the table)``.
 
 In order to publish a changelog message into Kafka for fault-tolerance the
 table needs to be set explicitly. Hence, while changing values in Tables by
@@ -179,6 +180,11 @@ Due to changelogging, keys and values should be serializable.
 
     Faust creates an internal changelog topic for each table. The Faust
     application should be the only client producing to the changelog topics.
+
+.. warning::
+
+    The most current key/value pair is serialized and published to changelog
+    upon every update.
 
 Windowing
 =========
