@@ -96,7 +96,7 @@ class Registry(RegistryT):
     async def dumps_key(self, topic: str, key: K,
                         serializer: CodecArg = None,
                         *,
-                        skip: IsInstanceArg = (bytes, str)) -> Optional[bytes]:
+                        skip: IsInstanceArg = (bytes, )) -> Optional[bytes]:
         """Serialize key.
 
         Arguments:
