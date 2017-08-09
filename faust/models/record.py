@@ -100,7 +100,7 @@ class Record(Model):
             # Set fields from keyword arguments.
             self._init_fields(fields)
 
-    def _init_fields(self, fields: Dict, * strict: bool = True) -> None:
+    def _init_fields(self, fields: Dict, *, strict: bool = True) -> None:
         fields.pop('__faust', None)  # remove metadata
         fieldset = frozenset(fields)
         options = self._options
