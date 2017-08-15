@@ -8,6 +8,7 @@ from kafka.coordinator.protocol import (
 from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
+from ..types.assignor import PartitionAssignorT
 from ..utils.logging import get_logger
 
 __flake8_Sequence_is_used: Sequence   # XXX flake8 bug
@@ -20,7 +21,7 @@ CopartitionedGroups = MutableMapping[int, Iterable[Set[str]]]
 logger = get_logger(__name__)
 
 
-class PartitionAssignor(AbstractPartitionAssignor):
+class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     """PartitionAssignor handles internal topic creation.
 
     Further, this assignor needs to be sticky and potentially redundant
@@ -31,9 +32,10 @@ class PartitionAssignor(AbstractPartitionAssignor):
     """
     _assignment: ClientAssignment
 
-    def __init__(self) -> None:
+    def __init__(self, replicas: int = 0) -> None:
         super().__init__()
         self._assignment = ClientAssignment(actives={}, standbys={})
+        self.replicas = replicas
 
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
@@ -41,6 +43,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
                                 ClientAssignment.loads(assignment.user_data))
         a = sorted(assignment.assignment)
         b = sorted(self._assignment.kafka_protocol_assignment())
+        print(self._assignment)
         assert a == b, f'{a!r} != {b!r}'
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
@@ -108,6 +111,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
                     topics=topics,
                     cluster_asgn=assgn,
                     num_partitions=num_partitions,
+                    replicas=self.replicas,
                 )
                 # Update client assignments for copartitioned group
                 for client, copart_assn in assignor.get_assignment().items():
@@ -136,3 +140,9 @@ class PartitionAssignor(AbstractPartitionAssignor):
     @property
     def version(self) -> int:
         return 1
+
+    def assigned_standbys(self) -> MutableMapping[str, Sequence[int]]:
+        return self._assignment.standbys
+
+    def assigned_actives(self) -> MutableMapping[str, Sequence[int]]:
+        return self._assignment.actives

@@ -17,6 +17,7 @@ from uuid import uuid4
 from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
+from .assignor import PartitionAssignor
 from .exceptions import ImproperlyConfigured
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
@@ -293,6 +294,7 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self.assignor = PartitionAssignor(replicas=self.replication_factor)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store

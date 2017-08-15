@@ -36,7 +36,7 @@ class CopartitionedAssignor:
                  topics: Iterable[str],
                  cluster_asgn: MutableMapping[str, CopartitionedAssignment],
                  num_partitions: int,
-                 replicas: int = 0,
+                 replicas: int,
                  capacity: int = None) -> None:
         self._num_clients = len(cluster_asgn)
         assert self._num_clients, "Should assign to at least 1 client"
