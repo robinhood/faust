@@ -85,6 +85,14 @@ class SetT(CollectionT, MutableSet):
     ...
 
 
+class StandbyT(ServiceT):
+    table: TableT
+    table_manager: TableManagerT
+    app: AppT
+    tps: Iterable[TopicPartition]
+    offsets: MutableMapping[TopicPartition, int]
+
+
 class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     app: AppT
     recovery_completed: asyncio.Event

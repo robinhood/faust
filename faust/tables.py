@@ -24,7 +24,8 @@ from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import (
-    CollectionT, SetT, TableManagerT, TableT, WindowSetT, WindowWrapperT,
+    CollectionT, SetT, StandbyT, TableManagerT, TableT,
+    WindowSetT, WindowWrapperT,
 )
 from .types.topics import ChannelT
 from .types.windows import WindowRange, WindowT
@@ -294,6 +295,7 @@ class Collection(Service, CollectionT):
         self._changelog_topic = topic
 
 
+
 class Table(Collection, TableT, ManagedUserDict):
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
@@ -467,6 +469,63 @@ class WindowWrapper(WindowWrapperT):
         return len(self.table)
 
 
+class Standby(Service, StandbyT):
+
+    def __init__(self, table: TableT,
+                 app: AppT,
+                 table_manager: TableManager,
+                 tps: Iterable[TopicPartition],
+                 offsets: MutableMapping[TopicPartition, int] = {},
+                 **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.table = table
+        self.app = app
+        self.table_manager = table_manager
+        self.tps = tps
+        self.offsets = {tp: offsets.get(tp, 0) for tp in self.tps}
+
+    async def on_start(self) -> None:
+        consumer = self.app.consumer
+        tps = self.tps
+        for tp in tps:
+            await consumer.seek(tp, self.offsets[tp])
+        await consumer.resume_partitions(tps)
+
+    async def on_stop(self) -> None:
+        consumer = self.app.consumer
+        tps = self.tps
+        await consumer.pause_partitions(tps)
+
+    def update_tps(self, tps: Iterable[TopicPartition],
+                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
+        self.tps = tps
+        self.offsets = {tp: tp_offsets.get(tp, 0) for tp in self.tps}
+
+    @Service.task
+    async def maintain_standby(self) -> None:
+        table = self.table
+        table_manager = self.table_manager
+        async for k, v in self._read_changelog():
+            table_manager.table_update_from_kv(table, k, v)
+            if self.should_stop:
+                break
+
+    async def _read_changelog(self) -> AsyncIterable[Tuple[K, V]]:
+        offsets = self.offsets
+        table = self.table
+        source = cast(SourceT, aiter(table.changelog_topic))
+
+        async for event in source:
+            message = event.message
+            tp = message.tp
+            offset = message.offset
+            seen_offset = offsets.get(tp)
+
+            if seen_offset is None or offset > seen_offset:
+                offsets[tp] = offset
+                yield event.key, event.value
+
+
 class TableManager(Service, TableManagerT, FastUserDict):
     logger = logger
 
@@ -474,6 +533,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
     _diskcache: MutableMapping[TopicPartition, shelve.Shelf]
+    _standbys: MutableMapping[CollectionT, StandbyT]
     _recovery_started: asyncio.Event
     _recovery_completed: asyncio.Event
 
@@ -486,6 +546,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._changelogs = {}
         self._table_offsets = {}
         self._diskcache = {}
+        self._standbys = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
         self._recovery_completed = asyncio.Event(loop=self.loop)
 
@@ -543,21 +604,51 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
+    def _sync_offsets(self, standby: StandbyT) -> None:
+        self._table_offsets.update(standby.offsets)
+
+    async def _stop_standbys(self) -> None:
+        for coll, standby in self._standbys.items():
+            await standby.stop()
+            self._sync_offsets(standby)
+
+    async def _start_standby_tasks(self,
+                                   tps: Iterable[TopicPartition]) -> None:
+        table_stanby_tps = defaultdict(list)
+        offsets = self._table_offsets
+        for tp in tps:
+            if tp.topic in self._changelogs:
+                table_stanby_tps[self._changelogs[tp.topic]].append(tp)
+        for table, tps in table_stanby_tps.items():
+            tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
+            if table in self._standbys:
+                standby = self._standbys[table]
+                standby.update_tps(tps, tp_offsets)
+                await standby.start()
+            else:
+                standby = Standby(table, self.app, self, tps, tp_offsets)
+                self._standbys[table] = standby
+                await standby.start()
+
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         # Wait for TopicManager to finish any new subscriptions
         await self.app.channels.wait_for_subscriptions()
         self.log.info('New assignments found')
+        standbys = self.app.assignor.assigned_standbys()
         await self._on_recovery_started()
+        await self._stop_standbys()
         await self.app.consumer.pause_partitions(assigned)
         # TODO Recover multiple tables at the same time.
         for table in self.values():
-            # TODO If standby ready, just swap and continue.
             await self._recover_from_changelog(table, assigned)
+            # Make sure we read through any lag
+            await self._recover_from_changelog(table, standbys)
         await self.app.consumer.resume_partitions({
             tp for tp in assigned
             if tp.topic not in self._changelogs
         })
+        await self._start_standby_tasks(standbys)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
 
@@ -618,7 +709,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             else:
                 self.log.info('Table %r: Table empty', table.name)
 
-    async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> bool:
         # Set offset of partition to beginning
         earliest: _Set[TopicPartition] = set()  # tps to seek from earliest
         latest: _Set[TopicPartition] = set()
@@ -759,6 +849,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if buf:
             cast(Table, table).raw_update(buf)
             buf.clear()
+
+    async def table_update_from_kv(
+            self,
+            table: CollectionT,
+            k: K,
+            v: V) -> None:
+        to_key, to_value = self._to_key, self._to_value
+        cast(Table, table).data[to_key(k)] = to_value(v)
 
     def _to_key(self, k: Any) -> Any:
         if isinstance(k, list):

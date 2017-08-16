@@ -1,5 +1,6 @@
 import abc
-from typing import MutableMapping, Sequence
+from typing import Iterable
+from .topics import TopicPartition
 
 
 class PartitionAssignorT(abc.ABC):
@@ -7,9 +8,9 @@ class PartitionAssignorT(abc.ABC):
     replicas: int
 
     @abc.abstractmethod
-    def assigned_standbys(self) -> MutableMapping[str, Sequence[int]]:
+    def assigned_standbys(self) -> Iterable[TopicPartition]:
         ...
 
     @abc.abstractmethod
-    def assigned_actives(self) -> MutableMapping[str, Sequence[int]]:
+    def assigned_actives(self) -> Iterable[TopicPartition]:
         ...
