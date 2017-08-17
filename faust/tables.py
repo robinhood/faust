@@ -24,8 +24,8 @@ from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import (
-    CollectionT, SetT, StandbyT, TableManagerT, TableT,
-    WindowSetT, WindowWrapperT,
+    CollectionT, SetT, StandbyT, TableManagerT, TableStandbyTps,
+    TableT, WindowSetT, WindowWrapperT,
 )
 from .types.topics import ChannelT
 from .types.windows import WindowRange, WindowT
@@ -471,12 +471,12 @@ class WindowWrapper(WindowWrapperT):
 
 class Standby(Service, StandbyT):
 
-    def __init__(self, table: TableT,
+    def __init__(self, table: CollectionT,
                  app: AppT,
                  table_manager: TableManager,
                  tps: Iterable[TopicPartition],
                  offsets: MutableMapping[TopicPartition, int] = {},
-                 **kwargs) -> None:
+                 **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
         self.app = app
@@ -614,7 +614,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _start_standby_tasks(self,
                                    tps: Iterable[TopicPartition]) -> None:
-        table_stanby_tps = defaultdict(list)
+        table_stanby_tps: TableStandbyTps = defaultdict(list)
         offsets = self._table_offsets
         for tp in tps:
             if tp.topic in self._changelogs:
@@ -709,6 +709,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             else:
                 self.log.info('Table %r: Table empty', table.name)
 
+    async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> bool:
         # Set offset of partition to beginning
         earliest: _Set[TopicPartition] = set()  # tps to seek from earliest
         latest: _Set[TopicPartition] = set()
@@ -850,7 +851,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             cast(Table, table).raw_update(buf)
             buf.clear()
 
-    async def table_update_from_kv(
+    def table_update_from_kv(
             self,
             table: CollectionT,
             k: K,

@@ -2,13 +2,15 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Iterable, MutableMapping, MutableSet, Type,
+    Any, Callable, ClassVar, Iterable, List, MutableMapping,
+    MutableSet, Type,
 )
 from .stores import StoreT
 from .streams import JoinableT
 from .topics import EventT, TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
+from ..types.core import K, V
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -26,6 +28,8 @@ __all__ = [
     'TableManagerT',
     'WindowSetT',
     'WindowWrapperT',
+    'StandbyT'
+    'TableStandbyTps',
 ]
 
 
@@ -86,11 +90,18 @@ class SetT(CollectionT, MutableSet):
 
 
 class StandbyT(ServiceT):
-    table: TableT
+    table: CollectionT
     table_manager: TableManagerT
     app: AppT
     tps: Iterable[TopicPartition]
     offsets: MutableMapping[TopicPartition, int]
+
+    def update_tps(self, tps: Iterable[TopicPartition],
+                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
+        ...
+
+
+TableStandbyTps = MutableMapping[CollectionT, List[TopicPartition]]
 
 
 class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
@@ -106,6 +117,8 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
             self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
+    def table_update_from_kv(self, table: CollectionT, k: K, v: V) -> None:
+        ...
 
 class WindowSetT(MutableMapping):
     key: Any
