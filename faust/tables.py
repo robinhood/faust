@@ -473,7 +473,7 @@ class Standby(Service, StandbyT):
 
     def __init__(self, table: CollectionT,
                  app: AppT,
-                 table_manager: TableManager,
+                 table_manager: TableManagerT,
                  tps: Iterable[TopicPartition],
                  offsets: MutableMapping[TopicPartition, int] = {},
                  **kwargs: Any) -> None:
@@ -609,6 +609,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _stop_standbys(self) -> None:
         for coll, standby in self._standbys.items():
+            self.log.info('Stopping standby for tps:', str(standby.tps))
             await standby.stop()
             self._sync_offsets(standby)
 
@@ -620,6 +621,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs:
                 table_stanby_tps[self._changelogs[tp.topic]].append(tp)
         for table, tps in table_stanby_tps.items():
+            self.log.info('Starting standbys for tps:', str(tps))
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
             if table in self._standbys:
                 standby = self._standbys[table]
@@ -632,22 +634,27 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
+        standbys = self.app.assignor.assigned_standbys()
+        await self.app.consumer.add_partitions(standbys)
         # Wait for TopicManager to finish any new subscriptions
         await self.app.channels.wait_for_subscriptions()
         self.log.info('New assignments found')
-        standbys = self.app.assignor.assigned_standbys()
         await self._on_recovery_started()
+        self.log.info('Attempting to stop standbys')
         await self._stop_standbys()
         await self.app.consumer.pause_partitions(assigned)
         # TODO Recover multiple tables at the same time.
         for table in self.values():
+            self.log.info('Recovering for assigned:', str(assigned))
             await self._recover_from_changelog(table, assigned)
             # Make sure we read through any lag
+            self.log.info('Recovering for standbys:', str(standbys))
             await self._recover_from_changelog(table, standbys)
         await self.app.consumer.resume_partitions({
             tp for tp in assigned
             if tp.topic not in self._changelogs
         })
+        self.log.info('Attempting to start standbys:', str(standbys))
         await self._start_standbys(standbys)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()

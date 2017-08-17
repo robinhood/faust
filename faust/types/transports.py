@@ -98,6 +98,10 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def add_partitions(self, tps: Iterable[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
     async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:
         ...
 

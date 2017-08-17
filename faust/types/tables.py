@@ -89,21 +89,6 @@ class SetT(CollectionT, MutableSet):
     ...
 
 
-class StandbyT(ServiceT):
-    table: CollectionT
-    table_manager: TableManagerT
-    app: AppT
-    tps: Iterable[TopicPartition]
-    offsets: MutableMapping[TopicPartition, int]
-
-    def update_tps(self, tps: Iterable[TopicPartition],
-                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
-        ...
-
-
-TableStandbyTps = MutableMapping[CollectionT, List[TopicPartition]]
-
-
 class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     app: AppT
     recovery_completed: asyncio.Event
@@ -119,6 +104,22 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
 
     def table_update_from_kv(self, table: CollectionT, k: K, v: V) -> None:
         ...
+
+
+class StandbyT(ServiceT):
+    table: CollectionT
+    table_manager: TableManagerT
+    app: AppT
+    tps: Iterable[TopicPartition]
+    offsets: MutableMapping[TopicPartition, int]
+
+    def update_tps(self, tps: Iterable[TopicPartition],
+                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
+        ...
+
+
+TableStandbyTps = MutableMapping[CollectionT, List[TopicPartition]]
+
 
 class WindowSetT(MutableMapping):
     key: Any
