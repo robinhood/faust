@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import (
     Any, Callable, ClassVar, Iterable, List, MutableMapping,
-    MutableSet, Type,
+    MutableSet, Set, Type,
 )
 from .stores import StoreT
 from .streams import JoinableT
@@ -102,7 +102,13 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
             self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
+    @abc.abstractmethod
     def table_update_from_kv(self, table: CollectionT, k: K, v: V) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def changelog_topics(self) -> Set[str]:
         ...
 
 

@@ -485,9 +485,11 @@ class Standby(Service, StandbyT):
         self.offsets = {tp: offsets.get(tp, 0) for tp in self.tps}
 
     async def on_start(self) -> None:
+        print('Starting standby')
         consumer = self.app.consumer
         tps = self.tps
         for tp in tps:
+            print('Seeking', tp, 'to offset:', self.offsets[tp])
             await consumer.seek(tp, self.offsets[tp])
         await consumer.resume_partitions(tps)
 
@@ -550,6 +552,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._recovery_started = asyncio.Event(loop=self.loop)
         self._recovery_completed = asyncio.Event(loop=self.loop)
 
+    @property
+    def changelog_topics(self) -> _Set[str]:
+        return set(self._changelogs.keys())
+
     def __setitem__(self, key: str, value: CollectionT) -> None:
         if self._recovery_started.is_set():
             raise RuntimeError('Too late to add tables at this point')
@@ -605,11 +611,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
         })
 
     def _sync_offsets(self, standby: StandbyT) -> None:
+        print('Syncing offsets', standby.offsets)
         self._table_offsets.update(standby.offsets)
 
     async def _stop_standbys(self) -> None:
         for coll, standby in self._standbys.items():
-            self.log.info('Stopping standby for tps:', str(standby.tps))
+            print('Stopping standby for tps:', standby.tps)
             await standby.stop()
             self._sync_offsets(standby)
 
@@ -618,10 +625,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         table_stanby_tps: TableStandbyTps = defaultdict(list)
         offsets = self._table_offsets
         for tp in tps:
-            if tp.topic in self._changelogs:
+            if self._is_changelog_tp(tp):
                 table_stanby_tps[self._changelogs[tp.topic]].append(tp)
         for table, tps in table_stanby_tps.items():
-            self.log.info('Starting standbys for tps:', str(tps))
+            print('Starting standbys for tps:', tps)
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
             if table in self._standbys:
                 standby = self._standbys[table]
@@ -635,7 +642,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         standbys = self.app.assignor.assigned_standbys()
-        await self.app.consumer.add_partitions(standbys)
+        assigned = self.app.assignor.assigned_actives()
         # Wait for TopicManager to finish any new subscriptions
         await self.app.channels.wait_for_subscriptions()
         self.log.info('New assignments found')
@@ -645,19 +652,22 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self.app.consumer.pause_partitions(assigned)
         # TODO Recover multiple tables at the same time.
         for table in self.values():
-            self.log.info('Recovering for assigned:', str(assigned))
+            print('Recovering for assigned:', assigned)
             await self._recover_from_changelog(table, assigned)
             # Make sure we read through any lag
-            self.log.info('Recovering for standbys:', str(standbys))
+            print('Recovering for standbys:', standbys)
             await self._recover_from_changelog(table, standbys)
         await self.app.consumer.resume_partitions({
             tp for tp in assigned
-            if tp.topic not in self._changelogs
+            if not self._is_changelog_tp(tp)
         })
-        self.log.info('Attempting to start standbys:', str(standbys))
+        print('Attempting to start standbys:', standbys)
         await self._start_standbys(standbys)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
+
+    def _is_changelog_tp(self, tp: TopicPartition) -> bool:
+        return tp.topic in self.changelog_topics
 
     async def _recover_from_changelog(
             self,

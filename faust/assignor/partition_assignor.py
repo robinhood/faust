@@ -8,7 +8,9 @@ from kafka.coordinator.protocol import (
 from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
+from ..types.app import AppT
 from ..types.assignor import PartitionAssignorT
+from ..types.tables import TableManagerT
 from ..types.topics import TopicPartition
 from ..utils.logging import get_logger
 
@@ -32,9 +34,12 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         kafka/coordinator/assignors/abstract.py
     """
     _assignment: ClientAssignment
+    _table_manager: TableManagerT
 
-    def __init__(self, replicas: int = 0) -> None:
+    def __init__(self, app: AppT, replicas: int = 0) -> None:
         super().__init__()
+        self.app = app
+        self._table_manager = self.app.tables
         self._assignment = ClientAssignment(actives={}, standbys={})
         self.replicas = replicas
 
@@ -43,8 +48,10 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._assignment = cast(ClientAssignment,
                                 ClientAssignment.loads(assignment.user_data))
         a = sorted(assignment.assignment)
-        b = sorted(self._assignment.kafka_protocol_assignment())
-        print(self._assignment)
+        b = sorted(self._assignment.kafka_protocol_assignment(
+            self._table_manager))
+        print("Got assignment metadata:", self._assignment)
+        print("Got assignement:", a)
         assert a == b, f'{a!r} != {b!r}'
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
@@ -91,6 +98,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def assign(self, cluster: ClusterMetadata,
                member_metadata: MemberMetadataMapping,
                ) -> MemberAssignmentMapping:
+        print("Attempting assignment")
         cluster_assgn = ClusterAssignment()
         cluster_assgn.add_clients(member_metadata)
         topics = cluster_assgn.topics()
@@ -128,7 +136,9 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
-                sorted(assignment.kafka_protocol_assignment()),
+                sorted(
+                    assignment.kafka_protocol_assignment(self._table_manager)
+                ),
                 assignment.dumps(),
             )
             for client, assignment in assignments.items()

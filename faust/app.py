@@ -294,7 +294,8 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
-        self.assignor = PartitionAssignor(replicas=self.replication_factor)
+        self.assignor = PartitionAssignor(self,
+                                          replicas=self.replication_factor)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store
