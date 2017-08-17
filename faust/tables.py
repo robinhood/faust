@@ -612,8 +612,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await standby.stop()
             self._sync_offsets(standby)
 
-    async def _start_standby_tasks(self,
-                                   tps: Iterable[TopicPartition]) -> None:
+    async def _start_standbys(self,
+                              tps: Iterable[TopicPartition]) -> None:
         table_stanby_tps: TableStandbyTps = defaultdict(list)
         offsets = self._table_offsets
         for tp in tps:
@@ -648,7 +648,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             tp for tp in assigned
             if tp.topic not in self._changelogs
         })
-        await self._start_standby_tasks(standbys)
+        await self._start_standbys(standbys)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
 
