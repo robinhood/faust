@@ -8,7 +8,7 @@ from heapq import heappop, heappush
 from itertools import chain
 from pathlib import Path
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
+    Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
     Optional, Pattern, Sequence, Tuple, Type, Union, cast,
 )
@@ -42,9 +42,6 @@ from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
 
 __all__ = ['App']
-
-__flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
-__flake8_please_AsyncIterator_is_OK: AsyncIterator
 
 #: Default broker URL.
 DEFAULT_URL = 'kafka://localhost:9092'

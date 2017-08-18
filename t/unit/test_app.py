@@ -50,6 +50,10 @@ async def test_send(
     await app.send(topic, key, event, key_serializer=key_serializer)
     expected_sender = app.producer.send_and_wait
     if key is not None:
+        if isinstance(key, str):
+            # Default serializer is json, and str should be serialized
+            # (note that a bytes key will be left alone.
+            key_serializer = 'json'
         if isinstance(key, ModelT):
             expected_key = key.dumps(serializer='json')
         elif key_serializer:
