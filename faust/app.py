@@ -30,7 +30,9 @@ from .types.app import AppT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import CollectionT, SetT, TableManagerT, TableT
-from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
+from .types.transports import (
+    ConsumerT, ProducerT,  TPorTopic, TPorTopicSet, TransportT,
+)
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
@@ -646,8 +648,14 @@ class App(AppT, ServiceProxy):
             await producer.maybe_start()
         return producer
 
+    def _should_commit(self, topic: TPorTopic) -> bool:
+        t = topic.topic if isinstance(topic, TopicPartition) else topic
+        # We don't commit changelog tps that are resumed (standbys)
+        return t in self.tables.changelog_topics
+
     async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.channels.commit(topics)
+        commit_topics = filter(self._should_commit, topics)
+        return await self.sources.commit(commit_topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
