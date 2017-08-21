@@ -53,8 +53,12 @@ _locals = cast(_StreamLocal, Local())
 
 def current_event() -> Optional[EventT]:
     """Returns the event being currently processed, or None."""
-    eventref = getattr(_locals, 'current_event', None)
-    return eventref() if eventref is not None else None
+    try:
+        eventref = getattr(_locals, 'current_event', None)
+    except ValueError:  # has no context
+        return None
+    else:
+        return eventref() if eventref is not None else None
 
 
 async def maybe_forward(value: Any, topic: TopicT) -> Any:
@@ -554,7 +558,8 @@ class Stream(StreamT, JoinableT, Service):
                 _msg = _prev.message
                 on_stream_event_out = self._on_stream_event_out
                 if on_stream_event_out is not None:
-                    await on_stream_event_out(_msg.tp, _msg.offset, self, _prev)
+                    await on_stream_event_out(
+                        _msg.tp, _msg.offset, self, _prev)
 
         # fetch next message and get value from outbox
         value: T = None

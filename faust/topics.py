@@ -13,7 +13,7 @@ from .types import (
     ModelArg, TopicPartition, V,
 )
 from .types.streams import StreamCoroutine, StreamT
-from .types.topics import EventT, ChannelT, TopicManagerT, TopicT
+from .types.topics import ChannelT, EventT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.futures import notify
 from .utils.logging import get_logger

@@ -669,7 +669,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self,
             table: CollectionT,
             tps: Iterable[TopicPartition],
-            channels: ChannelT) -> AsyncIterable[Tuple[K, V]]:
+            channel: ChannelT) -> AsyncIterable[Tuple[K, V]]:
         offsets = self._table_offsets
         pending_tps = set(tps)
         self.log.info('Recover %r from changelog', table.name)
