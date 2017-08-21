@@ -656,7 +656,7 @@ class App(AppT, ServiceProxy):
     async def commit(self, topics: TPorTopicSet) -> bool:
         commit_topics = filter(self._should_commit, topics)
         print('Committing topics', commit_topics)
-        return await self.sources.commit(commit_topics)
+        return await self.channels.commit(commit_topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(

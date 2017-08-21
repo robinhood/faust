@@ -528,7 +528,6 @@ class ChangelogReader(Service, ChangelogReaderT):
 
     @Service.task
     async def _read(self) -> None:
-        print('Starting task')
         table = self.table
         consumer = self.app.consumer
         await self._seek_tps()
@@ -537,19 +536,16 @@ class ChangelogReader(Service, ChangelogReaderT):
             table.apply_changelog_kv(k, v)
             # print(table._changelog_topic_name())
             if await self._should_stop_reading():
-                self.log.info('Stopping reading')
                 await consumer.pause_partitions(self.tps)
                 self.set_shutdown()
-                print(self._shutdown.is_set())
-                self.log.info('Stopping reading finally')
                 break
 
     async def _read_changelog(self) -> AsyncIterable[Tuple[K, V]]:
         offsets = self.offsets
         table = self.table
-        source = cast(SourceT, aiter(table.changelog_topic))
+        channel = cast(ChannelT, aiter(table.changelog_topic))
 
-        async for event in source:
+        async for event in channel:
             message = event.message
             tp = message.tp
             offset = message.offset
@@ -635,9 +631,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 else:
                     cache['offset_left'] = current_offset
 
-<<<<<<< HEAD
-    async def _update_channels(self) -> None:
-=======
     async def _write_cache(
         self,
         tp: TopicPartition,
@@ -656,8 +649,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             },
         })
 
-    async def _update_sources(self) -> None:
->>>>>>> Parellel recovery of tables works now
+    async def _update_channels(self) -> None:
         for table in self.values():
             if table not in self._channels:
                 self._channels[table] = cast(ChannelT, aiter(
@@ -704,6 +696,27 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 self._standbys[table] = standby
                 await standby.start()
 
+    def _is_changelog_tp(self, tp: TopicPartition) -> bool:
+        return tp.topic in self.changelog_topics
+
+    async def _on_recovery_started(self) -> None:
+        self._recovery_started.set()
+        await self._update_channels()
+
+    async def _on_recovery_completed(self) -> None:
+        for table in self.values():
+            await table.maybe_start()
+        self._recovery_completed.set()
+
+    async def on_start(self) -> None:
+        await self.sleep(1.0)
+        await self._update_channels()
+
+    async def on_stop(self) -> None:
+        if self._recovery_completed.is_set():
+            for table in self.values():
+                await table.stop()
+
     async def _recover_changelogs(self, tps: Iterable[TopicPartition]) -> None:
         table_recoverers: List[ChangelogReader] = []
         offsets = self._table_offsets
@@ -741,24 +754,3 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._start_standbys(standby_tps)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
-
-    def _is_changelog_tp(self, tp: TopicPartition) -> bool:
-        return tp.topic in self.changelog_topics
-
-    async def _on_recovery_started(self) -> None:
-        self._recovery_started.set()
-        await self._update_channels()
-
-    async def _on_recovery_completed(self) -> None:
-        for table in self.values():
-            await table.maybe_start()
-        self._recovery_completed.set()
-
-    async def on_start(self) -> None:
-        await self.sleep(1.0)
-        await self._update_channels()
-
-    async def on_stop(self) -> None:
-        if self._recovery_completed.is_set():
-            for table in self.values():
-                await table.stop()
