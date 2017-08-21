@@ -72,7 +72,7 @@ CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit messages.
 #: Can be customized by setting ``App(commit_interval=...)``.
-COMMIT_INTERVAL = 1.0
+COMMIT_INTERVAL = 2.0
 
 #: How often we clean up windowed tables.
 #: Can be customized by setting ``App(table_cleanup_interval=...)``.
@@ -655,6 +655,7 @@ class App(AppT, ServiceProxy):
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         commit_topics = filter(self._should_commit, topics)
+        print('Committing topics', commit_topics)
         return await self.sources.commit(commit_topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:

@@ -1,4 +1,5 @@
 import abc
+
 import asyncio
 import typing
 from typing import (
@@ -28,8 +29,8 @@ __all__ = [
     'TableManagerT',
     'WindowSetT',
     'WindowWrapperT',
-    'StandbyT'
-    'TableStandbyTps',
+    'ChangelogReaderT',
+    'CollectionTps',
 ]
 
 
@@ -67,6 +68,13 @@ class CollectionT(JoinableT, ServiceT):
     def changelog_topic(self, topic: TopicT) -> None:
         ...
 
+    @abc.abstractmethod
+    def apply_changelog_kv(self, k: K, v: V) -> None:
+        ...
+
+
+CollectionTps = MutableMapping[CollectionT, List[TopicPartition]]
+
 
 class TableT(CollectionT, MutableMapping):
 
@@ -102,29 +110,23 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
             self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
-    @abc.abstractmethod
-    def table_update_from_kv(self, table: CollectionT, k: K, v: V) -> None:
-        ...
-
     @property
     @abc.abstractmethod
     def changelog_topics(self) -> Set[str]:
         ...
 
 
-class StandbyT(ServiceT):
+class ChangelogReaderT(ServiceT):
     table: CollectionT
-    table_manager: TableManagerT
     app: AppT
+
     tps: Iterable[TopicPartition]
     offsets: MutableMapping[TopicPartition, int]
 
+    @abc.abstractmethod
     def update_tps(self, tps: Iterable[TopicPartition],
                    tp_offsets: MutableMapping[TopicPartition, int]) -> None:
         ...
-
-
-TableStandbyTps = MutableMapping[CollectionT, List[TopicPartition]]
 
 
 class WindowSetT(MutableMapping):
