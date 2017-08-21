@@ -15,7 +15,6 @@ from kafka.structs import (
 )
 
 from . import base
-from ..assignor.partition_assignor import PartitionAssignor
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
@@ -84,7 +83,6 @@ class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
-    _assignor: PartitionAssignor
 
     consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = (
         ConsumerStoppedError,
@@ -102,7 +100,7 @@ class Consumer(base.Consumer):
             self,
             app: AppT,
             transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
-        self._assignor = PartitionAssignor()
+        self._assignor = self._app.assignor
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
             client_id=app.client_id,

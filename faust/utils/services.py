@@ -312,10 +312,12 @@ class Service(ServiceBase):
             self.log.debug('-Stopped!')
             self.log.info('Shutting down...')
             if self.wait_for_shutdown:
+                self.log.info('Waiting for shutdown')
                 await asyncio.wait_for(
                     self._shutdown.wait(), self.shutdown_timeout,
                     loop=self.loop,
                 )
+                self.log.info('Shutting down now')
             await self._gather_futures()
             await self.on_shutdown()
             self.log.debug('-Shutdown complete!')

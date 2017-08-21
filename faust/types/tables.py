@@ -1,14 +1,17 @@
 import abc
+
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Iterable, MutableMapping, MutableSet, Type,
+    Any, Callable, ClassVar, Iterable, List, MutableMapping,
+    MutableSet, Set, Type,
 )
 from .stores import StoreT
 from .streams import JoinableT
 from .topics import EventT, TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
+from ..types.core import K, V
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -26,6 +29,8 @@ __all__ = [
     'TableManagerT',
     'WindowSetT',
     'WindowWrapperT',
+    'ChangelogReaderT',
+    'CollectionTps',
 ]
 
 
@@ -63,6 +68,13 @@ class CollectionT(JoinableT, ServiceT):
     def changelog_topic(self, topic: TopicT) -> None:
         ...
 
+    @abc.abstractmethod
+    def apply_changelog_kv(self, k: K, v: V) -> None:
+        ...
+
+
+CollectionTps = MutableMapping[CollectionT, List[TopicPartition]]
+
 
 class TableT(CollectionT, MutableMapping):
 
@@ -96,6 +108,24 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     @abc.abstractmethod
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def changelog_topics(self) -> Set[str]:
+        ...
+
+
+class ChangelogReaderT(ServiceT):
+    table: CollectionT
+    app: AppT
+
+    tps: Iterable[TopicPartition]
+    offsets: MutableMapping[TopicPartition, int]
+
+    @abc.abstractmethod
+    def update_tps(self, tps: Iterable[TopicPartition],
+                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
         ...
 
 

@@ -36,20 +36,17 @@ class CopartitionedAssignor:
                  topics: Iterable[str],
                  cluster_asgn: MutableMapping[str, CopartitionedAssignment],
                  num_partitions: int,
-                 replicas: int = 0,
+                 replicas: int,
                  capacity: int = None) -> None:
         self._num_clients = len(cluster_asgn)
         assert self._num_clients, "Should assign to at least 1 client"
         self.num_partitions = num_partitions
-        self.replicas = replicas
+        self.replicas = min(replicas, self._num_clients - 1)
         self.capacity = (
             int(ceil(float(self.num_partitions) / self._num_clients))
             if capacity is None else capacity
         )
         self.topics = set(topics)
-
-        assert self._num_clients >= replicas + 1, \
-            f'Not enough clients for {replicas} replicas'
 
         assert self.capacity * self._num_clients >= self.num_partitions, \
             'Not enough capacity'
@@ -86,7 +83,7 @@ class CopartitionedAssignor:
         return self.capacity * self._total_assigns_per_partition(active)
 
     def _total_assigns_per_partition(self, active: bool) -> int:
-        return 1 if active else min(self.replicas, self._num_clients - 1)
+        return 1 if active else self.replicas
 
     def _get_unassigned(self, active: bool) -> Sequence[int]:
         partition_counts = self._assigned_partition_counts(active)
