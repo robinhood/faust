@@ -9,7 +9,7 @@ from uuid import uuid4
 from weakref import WeakSet
 from . import Record
 from .types import (
-    AppT, CodecArg, K, ModelT, RecordMetadata, StreamT, TopicT, V,
+    AppT, CodecArg, FutureMessage, K, ModelT, StreamT, TopicT, V,
 )
 from .types.actors import (
     ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
@@ -456,6 +456,7 @@ class Actor(ActorT, ServiceProxy):
             partition=partition,
             reply_to=reply_to,
             correlation_id=correlation_id,
+            force=True,  # Do not attach since we are waiting for result
         )
         await self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
         await self.app.maybe_start_client()
@@ -468,9 +469,10 @@ class Actor(ActorT, ServiceProxy):
             key: K = None,
             partition: int = None,
             reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> ReplyPromise:
+            correlation_id: str = None,
+            force: bool = False) -> ReplyPromise:
         req = self._create_req(key, value, reply_to, correlation_id)
-        await self.topic.send(key, req, partition)
+        await self.topic.send(key, req, partition, force=force)
         return ReplyPromise(req.reply_to, req.correlation_id)
 
     def _create_req(
@@ -496,13 +498,15 @@ class Actor(ActorT, ServiceProxy):
             value_serializer: CodecArg = None,
             *,
             reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> RecordMetadata:
+            correlation_id: str = None,
+            force: bool = False) -> FutureMessage:
         """Send message to topic used by actor."""
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
         return await self.topic.send(
             key, value, partition,
             key_serializer, value_serializer,
+            force=force,
         )
 
     def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:
@@ -515,7 +519,7 @@ class Actor(ActorT, ServiceProxy):
     def send_soon(self, key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
+                  value_serializer: CodecArg = None) -> FutureMessage:
         """Send message eventually (non async), to topic used by actor."""
         return self.topic.send_soon(key, value, partition,
                                     key_serializer, value_serializer)

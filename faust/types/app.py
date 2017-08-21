@@ -18,7 +18,10 @@ from .streams import StreamT
 from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
-from .tuples import Message, PendingMessage, RecordMetadata, TopicPartition
+from .tuples import (
+    FutureMessage, Message, MessageSentCallback, PendingMessage,
+    RecordMetadata, TopicPartition,
+)
 from .windows import WindowT
 from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
@@ -33,6 +36,8 @@ else:
     class ModelArg: ...       # noqa
 
 __all__ = ['AppT']
+
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
 
 
 class AppT(ServiceT):
@@ -163,13 +168,27 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def maybe_attach(
+            self,
+            topic: Union[TopicT, str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None,
+            force: bool = False) -> FutureMessage:
+        ...
+
+    @abc.abstractmethod
     async def send(
             self, topic: Union[TopicT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> RecordMetadata:
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> FutureMessage:
         ...
 
     @abc.abstractmethod
@@ -183,7 +202,7 @@ class AppT(ServiceT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: Callable[[RecordMetadata], None] = None) -> None:
+            callback: MessageSentCallback = None) -> FutureMessage:
         ...
 
     @abc.abstractmethod
@@ -196,7 +215,7 @@ class AppT(ServiceT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: Callable[[RecordMetadata], None] = None) -> None:
+            callback: MessageSentCallback = None) -> FutureMessage:
         ...
 
     @abc.abstractmethod

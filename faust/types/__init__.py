@@ -22,7 +22,7 @@ from .transports import (
     TransportT,
 )
 from .tuples import (
-    Message, MessageSentCallback, PendingMessage,
+    FutureMessage, Message, MessageSentCallback, PendingMessage,
     RecordMetadata, TopicPartition,
 )
 from .windows import WindowRange, WindowT
@@ -69,7 +69,7 @@ __all__ = [
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
     # types.tuples
-    'Message', 'MessageSentCallback', 'PendingMessage',
+    'FutureMessage', 'Message', 'MessageSentCallback', 'PendingMessage',
     'RecordMetadata', 'TopicPartition',
 
     # types.windows

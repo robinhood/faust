@@ -19,11 +19,11 @@ from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
 from .exceptions import ImproperlyConfigured
 from .sensors import Monitor, SensorDelegate
+from .streams import current_event
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
-    CodecArg, K, Message, MessageSentCallback, ModelArg,
-    PendingMessage, RecordMetadata,
-    StreamCoroutine, TopicPartition, TopicT, V,
+    CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
+    PendingMessage, RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
 from .types.serializers import RegistryT
@@ -87,6 +87,8 @@ APP_REPR = """
 """.strip()
 
 logger = get_logger(__name__)
+
+_flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
 
 
 class AppService(Service):
@@ -160,7 +162,8 @@ class AppService(Service):
         send = self.app.send
         get = self.app._message_buffer.get
         while not self.should_stop:
-            pending = await get()
+            fut: FutureMessage = await get()
+            pending: PendingMessage = fut.message
             send(
                 pending.topic, pending.key, pending.value,
                 partition=pending.partition,
@@ -224,7 +227,7 @@ class App(AppT, ServiceProxy):
 
     _pending_on_commit: MutableMapping[
         TopicPartition,
-        List[Tuple[int, Unordered[PendingMessage]]]]
+        List[Tuple[int, Unordered[FutureMessage]]]]
 
     _monitor: Monitor = None
 
@@ -458,6 +461,34 @@ class App(AppT, ServiceProxy):
         if not self._service.started:
             await self.start_client()
 
+    async def maybe_attach(
+            self,
+            topic: Union[TopicT, str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None,
+            force: bool = False) -> FutureMessage:
+        if not force:
+            event = current_event()
+            if event is not None:
+                return event.attach(
+                    topic, key, value,
+                    partition=partition,
+                    key_serializer=key_serializer,
+                    value_serializer=value_serializer,
+                    callback=callback,
+                )
+        return await self.send(
+            topic, key, value,
+            partition=partition,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            callback=callback,
+        )
+
     async def send(
             self,
             topic: Union[TopicT, str],
@@ -466,7 +497,7 @@ class App(AppT, ServiceProxy):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> RecordMetadata:
+            callback: MessageSentCallback = None) -> FutureMessage:
         """Send event to stream.
 
         Arguments:
@@ -487,16 +518,20 @@ class App(AppT, ServiceProxy):
             strtopic = topictopic.topics[0]
         else:
             strtopic = cast(str, topic)
-        return await self._send(
+
+        fut = FutureMessage(PendingMessage(
             strtopic,
             (await self.serializers.dumps_key(
                 strtopic, key, key_serializer)
              if key is not None else None),
             (await self.serializers.dumps_value(
                 strtopic, value, value_serializer)),
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
             partition=partition,
             callback=callback,
-        )
+        ))
+        return await self._send_future(fut)
 
     async def send_many(
             self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
@@ -508,7 +543,7 @@ class App(AppT, ServiceProxy):
         )
 
     async def _send_tuple(
-            self, message: Union[PendingMessage, Tuple]) -> RecordMetadata:
+            self, message: Union[PendingMessage, Tuple]) -> FutureMessage:
         return await self.send(*self._unpack_message_tuple(*message))
 
     def _unpack_message_tuple(
@@ -528,15 +563,17 @@ class App(AppT, ServiceProxy):
                   partition: int = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
-                  callback: MessageSentCallback = None) -> None:
+                  callback: MessageSentCallback = None) -> FutureMessage:
         """Send event to stream soon.
 
         This is for use by non-async functions.
         """
-        self._message_buffer.put(PendingMessage(
+        fut = FutureMessage(PendingMessage(
             topic, key, value, partition,
             key_serializer, value_serializer, callback,
         ))
+        self._message_buffer.put(fut)
+        return fut
 
     def send_attached(self,
                       message: Message,
@@ -546,22 +583,23 @@ class App(AppT, ServiceProxy):
                       partition: int = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None,
-                      callback: MessageSentCallback = None) -> None:
+                      callback: MessageSentCallback = None) -> FutureMessage:
         buf = self._pending_on_commit[message.tp]
-        pending_message = PendingMessage(
+        fut = FutureMessage(PendingMessage(
             topic, key, value, partition,
-            key_serializer, value_serializer, callback)
-        heappush(buf, (message.offset, Unordered(pending_message)))
+            key_serializer, value_serializer, callback))
+        heappush(buf, (message.offset, Unordered(fut)))
+        return fut
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
-        for message in list(self._get_attached(tp, offset)):
-            await self._send_tuple(message)
+        for fut in list(self._get_attached(tp, offset)):
+            await self._send_tuple(fut.message)
 
     def _get_attached(
             self,
             tp: TopicPartition,
-            commit_offset: int) -> Iterator[PendingMessage]:
+            commit_offset: int) -> Iterator[FutureMessage]:
         attached = self._pending_on_commit.get(tp)
         while attached:
             # get the entry with the smallest offset in this TP
@@ -571,21 +609,17 @@ class App(AppT, ServiceProxy):
             # being committed
             if entry[0] <= commit_offset:
                 # we use it
-                yield entry[1].value  # Only yield PendingMessage (not offset)
+                yield entry[1].value  # Only yield FutureMessage (not offset)
             else:
                 # we put it back and exit, as this was the smallest offset.
                 heappush(attached, entry)
                 break
 
-    async def _send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> RecordMetadata:
+    async def _send_future(self, fut: FutureMessage) -> FutureMessage:
+        message: PendingMessage = fut.message
+        topic: str = cast(str, message.topic)
+        key: bytes = cast(bytes, message.key)
+        value: bytes = cast(bytes, message.value)
         self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
         producer = await self.maybe_start_producer()
@@ -593,17 +627,13 @@ class App(AppT, ServiceProxy):
             producer, topic,
             keysize=len(key) if key else 0,
             valsize=len(value) if value else 0)
-        ret = await producer.send_and_wait(
-            topic, key, value, partition=partition)
+        ret: RecordMetadata = await producer.send_and_wait(
+            topic, key, value, partition=message.partition)
+        fut.set_result(ret)
         await self.sensors.on_send_completed(producer, state)
-        if callback:
-            await maybe_async(callback(
-                self._unpack_message_tuple(
-                    topic, key, value, partition,
-                    key_serializer, value_serializer, callback),
-                ret,
-            ))
-        return ret
+        if message.callback:
+            await maybe_async(message.callback(fut))
+        return fut
 
     async def maybe_start_producer(self) -> ProducerT:
         producer = self.producer

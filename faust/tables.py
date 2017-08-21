@@ -17,7 +17,7 @@ from . import windows
 from .streams import current_event
 from .streams import joins
 from .types import (
-    AppT, EventT, FieldDescriptorT, JoinT, K, PendingMessage,
+    AppT, EventT, FieldDescriptorT, FutureMessage, JoinT, K, PendingMessage,
     RecordMetadata, TopicPartition, TopicT, V,
 )
 from .types.models import ModelArg
@@ -44,6 +44,8 @@ __all__ = [
 ]
 
 __flake8_Sequence_is_used: Sequence  # XXX flake8 bug
+__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
 __flake8_Set_is_used: _Set
 
 logger = get_logger(__name__)
@@ -147,9 +149,10 @@ class Collection(Service, CollectionT):
              value_serializer='json',
              callback=self._on_changelog_sent)
 
-    async def _on_changelog_sent(
-            self, message: PendingMessage, response: RecordMetadata) -> None:
+    async def _on_changelog_sent(self, fut: FutureMessage) -> None:
         tables = cast(TableManager, self.app.tables)
+        response: RecordMetadata = fut.result()
+        message: PendingMessage = fut.message
         if tables._diskcache:
             await tables._write_cache(
                 response.topic_partition, response.offset,

@@ -9,8 +9,8 @@ from typing import (
 )
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, K, Message, MessageSentCallback,
-    ModelArg, RecordMetadata, TopicPartition, V,
+    AppT, CodecArg, FutureMessage, K, Message, MessageSentCallback,
+    ModelArg, TopicPartition, V,
 )
 from .types.streams import StreamCoroutine, StreamT
 from .types.topics import EventT, SourceT, TopicManagerT, TopicT
@@ -86,27 +86,34 @@ class Event(EventT):
 
     async def send(self, topic: Union[str, TopicT],
                    *,
-                   key: Any = USE_EXISTING_KEY) -> RecordMetadata:
+                   key: Any = USE_EXISTING_KEY,
+                   force: bool = False) -> FutureMessage:
         """Serialize and send object to topic."""
-        if key is USE_EXISTING_KEY:
-            key = self.key
-        return await self.app.send(topic, key, self.value)
+        return await self._send(topic, key, self.value, force=force)
 
     async def forward(self, topic: Union[str, TopicT],
                       *,
-                      key: Any = USE_EXISTING_KEY) -> None:
+                      key: Any = USE_EXISTING_KEY,
+                      force: bool = False) -> FutureMessage:
         """Forward original message (will not be reserialized)."""
+        return await self._send(
+            topic, key=key, value=self.message.value, force=force)
+
+    async def _send(self, topic: Union[str, TopicT],
+                    key: Any = USE_EXISTING_KEY,
+                    value: Any = None,
+                    force: bool = False) -> FutureMessage:
         if key is USE_EXISTING_KEY:
             key = self.message.key
-        await self.app.send(topic, key=key, value=self.message.value)
+        return await self.app.maybe_attach(topic, key, value, force=force)
 
     def attach(self, topic: Union[str, TopicT], key: K, value: V,
                *,
                partition: int = None,
                key_serializer: CodecArg = None,
                value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> None:
-        self.app.send_attached(
+               callback: MessageSentCallback = None) -> FutureMessage:
+        return self.app.send_attached(
             self.message, topic, key, value,
             partition=partition,
             key_serializer=key_serializer,
@@ -233,17 +240,19 @@ class Topic(TopicT):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> RecordMetadata:
+            value_serializer: CodecArg = None,
+            force: bool = False) -> FutureMessage:
         """Send message to topic."""
-        return await self.app.send(
+        return await self.app.maybe_attach(
             self, key, value, partition,
             key_serializer, value_serializer,
+            force=force,
         )
 
     def send_soon(self, key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
+                  value_serializer: CodecArg = None) -> FutureMessage:
         """Send message to topic (asynchronous version).
 
         Notes:

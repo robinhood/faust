@@ -9,7 +9,7 @@ from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
 from .tuples import (
-    Message, MessageSentCallback, RecordMetadata, TopicPartition,
+    FutureMessage, Message, MessageSentCallback, TopicPartition,
 )
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
@@ -44,13 +44,15 @@ class EventT(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def send(self, topic: Union[str, 'TopicT'],
                    *,
-                   key: Any = None) -> RecordMetadata:
+                   key: Any = None,
+                   force: bool = False) -> FutureMessage:
         ...
 
     @abc.abstractmethod
     async def forward(self, topic: Union[str, 'TopicT'],
                       *,
-                      key: Any = None) -> None:
+                      key: Any = None,
+                      force: bool = False) -> FutureMessage:
         ...
 
     @abc.abstractmethod
@@ -59,7 +61,7 @@ class EventT(metaclass=abc.ABCMeta):
                partition: int = None,
                key_serializer: CodecArg = None,
                value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> None:
+               callback: MessageSentCallback = None) -> FutureMessage:
         ...
 
     @abc.abstractmethod
@@ -144,14 +146,15 @@ class TopicT(AsyncIterable):
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> RecordMetadata:
+            value_serializer: CodecArg = None,
+            force: bool = False) -> FutureMessage:
         ...
 
     @abc.abstractmethod
     def send_soon(self, key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
+                  value_serializer: CodecArg = None) -> FutureMessage:
         ...
 
     @abc.abstractmethod

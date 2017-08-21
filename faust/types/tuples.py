@@ -1,5 +1,6 @@
+import asyncio
 import typing
-from typing import Any, NamedTuple, Sequence, Union
+from typing import Any, Awaitable, Callable, NamedTuple, Sequence, Union
 from weakref import WeakSet
 from .codecs import CodecArg
 from .core import K, V
@@ -13,16 +14,23 @@ else:
     class TopicT: ...    # noqa
 
 __all__ = [
-    'MessageSentCallback', 'TopicPartition',
+    'FutureMessage', 'MessageSentCallback', 'TopicPartition',
     'PendingMessage', 'RecordMetadata', 'Message',
 ]
 
-MessageSentCallback = Any
+MessageSentCallback = Callable[['FutureMessage'], Union[None, Awaitable[None]]]
 
 
 class TopicPartition(NamedTuple):
     topic: str
     partition: int
+
+
+class RecordMetadata(NamedTuple):
+    topic: str
+    partition: int
+    topic_partition: TopicPartition
+    offset: int
 
 
 class PendingMessage(NamedTuple):
@@ -35,11 +43,15 @@ class PendingMessage(NamedTuple):
     callback: MessageSentCallback
 
 
-class RecordMetadata(NamedTuple):
-    topic: str
-    partition: int
-    topic_partition: TopicPartition
-    offset: int
+class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
+    message: PendingMessage
+
+    def __init__(self, message: PendingMessage) -> None:
+        self.message = message
+        super().__init__()
+
+    def set_result(self, result: RecordMetadata) -> None:
+        super().set_result(result)
 
 
 class Message:
