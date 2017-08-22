@@ -32,7 +32,6 @@ from .types.windows import WindowRange, WindowT
 from .utils.aiter import aiter
 from .utils.collections import FastUserDict, ManagedUserDict, ManagedUserSet
 from .utils.logging import get_logger
-from .utils.objects import cached_property
 from .utils.services import Service
 from .utils.times import Seconds
 
