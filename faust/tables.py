@@ -499,13 +499,13 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.table = table
         self.app = app
         self.tps = tps
-        self.offsets = {tp: offsets.get(tp, 0) for tp in self.tps}
+        self.offsets = {tp: offsets.get(tp, -1) for tp in self.tps}
         self._started_reading = asyncio.Event(loop=self.loop)
 
     def update_tps(self, tps: Iterable[TopicPartition],
                    tp_offsets: MutableMapping[TopicPartition, int]) -> None:
         self.tps = tps
-        self.offsets = {tp: tp_offsets.get(tp, 0) for tp in self.tps}
+        self.offsets = {tp: tp_offsets.get(tp, -1) for tp in self.tps}
 
     async def _build_highwaters(self) -> None:
         consumer = self.app.consumer
@@ -525,8 +525,10 @@ class ChangelogReader(Service, ChangelogReaderT):
         consumer = self.app.consumer
         tps = self.tps
         for tp in tps:
-            print('Seeking', tp, 'to offset:', self.offsets[tp])
-            await consumer.seek(tp, self.offsets[tp])
+            offset = max(self.offsets[tp], 0)
+            print('Seeking', tp, 'to offset:', offset)
+            await consumer.seek(tp, offset)
+            assert await consumer.position(tp) == offset
 
     async def _should_start_reading(self) -> bool:
         await self._build_highwaters()
@@ -539,18 +541,20 @@ class ChangelogReader(Service, ChangelogReaderT):
         print('Pausing partitions', self.tps)
         await consumer.pause_partitions(self.tps)
         if not await self._should_start_reading():
+            self.log.info('Not Starting reading')
             self.set_shutdown()
             return
-        print('Fetche-able partitions',
-              consumer._consumer._subscription.fetchable_partitions())
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
-        async for k, v in self._read_changelog():
-            table.apply_changelog_kv(k, v)
-            if await self._should_stop_reading():
-                await consumer.pause_partitions(self.tps)
-                self.set_shutdown()
-                break
+        self.log.info('Started reading')
+        try:
+            async for k, v in self._read_changelog():
+                table.apply_changelog_kv(k, v)
+                if await self._should_stop_reading():
+                    break
+        finally:
+            await consumer.pause_partitions(self.tps)
+            self.set_shutdown()
 
     async def _read_changelog(self) -> AsyncIterable[Tuple[K, V]]:
         offsets = self.offsets
@@ -562,7 +566,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             tp = message.tp
             offset = message.offset
             seen_offset = offsets.get(tp)
-            if seen_offset is None or offset > seen_offset:
+            if offset > seen_offset:
                 offsets[tp] = offset
                 yield event.key, event.value
 
@@ -687,6 +691,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             print('Stopping standby for tps:', standby.tps)
             await standby.stop()
             self._sync_offsets(standby)
+        self._standbys = {}
 
     def _group_table_tps(self, tps: Iterable[TopicPartition]) -> CollectionTps:
         table_tps: CollectionTps = defaultdict(list)
