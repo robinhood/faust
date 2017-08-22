@@ -357,6 +357,7 @@ class Service(ServiceBase):
             If :attr:`wait_for_shutdown` is set, stopping the service
             will wait for this flag to be set.
         """
+        self.log.info('Set for shutdown')
         self._shutdown.set()
 
     @property

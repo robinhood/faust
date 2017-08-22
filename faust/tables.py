@@ -488,6 +488,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     shutdown_timeout = None
 
     _started_reading: asyncio.Event
+    _highwaters: MutableMapping[TopicPartition, int] = None
 
     def __init__(self, table: CollectionT,
                  app: AppT,
@@ -506,15 +507,16 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.tps = tps
         self.offsets = {tp: tp_offsets.get(tp, 0) for tp in self.tps}
 
-    @cached_property
-    def _highwaters(self) -> MutableMapping[TopicPartition, int]:
+    async def _build_highwaters(self) -> None:
         consumer = self.app.consumer
-        # FIXME the -1 is due to how we deal with offsets currently
-        highwaters = {
-            tp: consumer.highwater(tp) - 1
-            for tp in self.tps
+        tps = self.tps
+        await consumer.seek_to_latest(*tps)
+        # FIXME the -1 here is because of the way we commit offsets
+        self._highwaters = {
+            tp: await consumer.position(tp) - 1
+            for tp in tps
         }
-        return highwaters
+        print(self._highwaters)
 
     async def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
@@ -526,15 +528,25 @@ class ChangelogReader(Service, ChangelogReaderT):
             print('Seeking', tp, 'to offset:', self.offsets[tp])
             await consumer.seek(tp, self.offsets[tp])
 
+    async def _should_start_reading(self) -> bool:
+        await self._build_highwaters()
+        return self._highwaters != self.offsets
+
     @Service.task
     async def _read(self) -> None:
         table = self.table
         consumer = self.app.consumer
+        print('Pausing partitions', self.tps)
+        await consumer.pause_partitions(self.tps)
+        if not await self._should_start_reading():
+            self.set_shutdown()
+            return
+        print('Fetche-able partitions',
+              consumer._consumer._subscription.fetchable_partitions())
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         async for k, v in self._read_changelog():
             table.apply_changelog_kv(k, v)
-            # print(table._changelog_topic_name())
             if await self._should_stop_reading():
                 await consumer.pause_partitions(self.tps)
                 self.set_shutdown()
@@ -556,6 +568,9 @@ class ChangelogReader(Service, ChangelogReaderT):
 
 
 class StandbyReader(ChangelogReader):
+
+    async def _should_start_reading(self) -> bool:
+        return True
 
     async def _should_stop_reading(self) -> bool:
         return self.should_stop
@@ -727,6 +742,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
             table_recoverers.append(
                 ChangelogReader(table, self.app, table_tps, tp_offsets))
         [await recoverer.start() for recoverer in table_recoverers]
+        # FIXME currently we need this as there is a race condition between
+        # starting and the Service.task actually starting. Need to fix that
         await self.sleep(5)
         for recoverer in table_recoverers:
             await recoverer.stop()
@@ -744,7 +761,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._on_recovery_started()
         self.log.info('Attempting to stop standbys')
         await self._stop_standbys()
-        await self.app.consumer.pause_partitions(assigned)
         await self._recover_changelogs(assigned_tps)
         await self.app.consumer.resume_partitions({
             tp for tp in assigned
