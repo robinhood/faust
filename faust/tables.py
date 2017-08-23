@@ -564,7 +564,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             message = event.message
             tp = message.tp
             offset = message.offset
-            seen_offset = offsets.get(tp)
+            seen_offset = offsets.get(tp, -1)
             if offset > seen_offset:
                 offsets[tp] = offset
                 yield event.key, event.value
