@@ -238,9 +238,12 @@ class Topic(Channel, TopicT):
             )
 
     def __aiter__(self) -> ChannelT:
-        channel = self.clone(is_iterator=True)
-        self.app.channels.add(channel)
-        return channel
+        if self.is_iterator:
+            return self
+        else:
+            channel = self.clone(is_iterator=True)
+            self.app.channels.add(channel)
+            return channel
 
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
