@@ -4,7 +4,7 @@ import typing
 from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
-    Iterable, Mapping, MutableMapping, Pattern, Tuple, Type, Union,
+    Iterable, Mapping, MutableMapping, Pattern, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT, SinkT
@@ -20,7 +20,7 @@ from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import ChannelT, TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import (
-    FutureMessage, Message, MessageSentCallback, PendingMessage,
+    FutureMessage, Message, MessageSentCallback,
     RecordMetadata, TopicPartition,
 )
 from .windows import WindowT
@@ -198,11 +198,6 @@ class AppT(ServiceT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
-        ...
-
-    @abc.abstractmethod
-    async def send_many(
-            self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
         ...
 
     @abc.abstractmethod

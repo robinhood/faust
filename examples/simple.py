@@ -21,6 +21,8 @@ app = faust.App(
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
+withdrawals_channel = app.channel(value_type=Withdrawal)
+
 user_to_total = app.Table('user_to_total', default=int)
 country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
@@ -29,6 +31,7 @@ country_to_total = app.Table(
 @app.actor(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
+        print('RECEIVED: %r' %(withdrawal,))
         user_to_total[withdrawal.user] += withdrawal.amount
 
 

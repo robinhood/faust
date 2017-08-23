@@ -110,6 +110,22 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
+    def as_future_message(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> FutureMessage:
+        ...
+
+    @abc.abstractmethod
+    async def publish_message(self, fut: FutureMessage,
+                              wait: bool = True) -> FutureMessage:
+        ...
+
+    @abc.abstractmethod
     def send_soon(self, key: K, value: V,
                   partition: int = None,
                   key_serializer: CodecArg = None,
@@ -126,17 +142,15 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def prepare_key(self,
-                          topic: Union[str, 'ChannelT'],
-                          key: K,
-                          key_serializer: CodecArg) -> Any:
+    def prepare_key(self,
+                    key: K,
+                    key_serializer: CodecArg) -> Any:
         ...
 
     @abc.abstractmethod
-    async def prepare_value(self,
-                            topic: Union[str, 'ChannelT'],
-                            value: V,
-                            value_serializer: CodecArg) -> Any:
+    def prepare_value(self,
+                      value: V,
+                      value_serializer: CodecArg) -> Any:
         ...
 
     @abc.abstractmethod

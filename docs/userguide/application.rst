@@ -269,9 +269,6 @@ Sending messages
     .. automethod:: send
         :noindex:
 
-    .. automethod:: send_many
-        :noindex:
-
     .. automethod:: send_soon
         :noindex:
 

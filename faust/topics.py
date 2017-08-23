@@ -180,13 +180,14 @@ class Topic(Channel, TopicT):
     def get_topic_name(self) -> str:
         return self.topics[0]
 
-    async def _publish_message(self, fut: FutureMessage) -> FutureMessage:
+    async def publish_message(self, fut: FutureMessage,
+                              wait: bool = True) -> FutureMessage:
         app = self.app
         message: PendingMessage = fut.message
-        if isinstance(message.topic, str):
-            topic = message.topic
-        elif isinstance(message.topic, TopicT):
-            topic = cast(TopicT, message.topic).get_topic_name()
+        if isinstance(message.channel, str):
+            topic = message.channel
+        elif isinstance(message.channel, TopicT):
+            topic = cast(TopicT, message.channel).get_topic_name()
         else:
             topic = self.get_topic_name()
         key: bytes = cast(bytes, message.key)
@@ -198,28 +199,28 @@ class Topic(Channel, TopicT):
             producer, topic,
             keysize=len(key) if key else 0,
             valsize=len(value) if value else 0)
-        ret: RecordMetadata = await producer.send_and_wait(
-            topic, key, value, partition=message.partition)
-        await app.sensors.on_send_completed(producer, state)
-        return await self._finalize_message(fut, ret)
+        if wait:
+            ret: RecordMetadata = await producer.send_and_wait(
+                topic, key, value, partition=message.partition)
+            await app.sensors.on_send_completed(producer, state)
+            return await self._finalize_message(fut, ret)
+        else:
+            await producer.send(topic, key, value, partition=message.partition)
+            # XXX add done callback
+            # XXX call sensors
+            return fut
 
-    async def prepare_key(self,
-                          topic: Union[str, ChannelT],
-                          key: K,
-                          key_serializer: CodecArg) -> Any:
-        strtopic = topic if isinstance(topic, str) else self.get_topic_name()
+    def prepare_key(self,
+                    key: K,
+                    key_serializer: CodecArg) -> Any:
         if key is not None:
-            return await self.app.serializers.dumps_key(
-                strtopic, key, key_serializer)
+            return self.app.serializers.dumps_key(key, key_serializer)
         return None
 
-    async def prepare_value(self,
-                            topic: Union[str, ChannelT],
-                            value: V,
-                            value_serializer: CodecArg) -> Any:
-        strtopic = topic if isinstance(topic, str) else self.get_topic_name()
-        return await self.app.serializers.dumps_value(
-            strtopic, value, value_serializer)
+    def prepare_value(self,
+                      value: V,
+                      value_serializer: CodecArg) -> Any:
+        return self.app.serializers.dumps_value(value, value_serializer)
 
     async def maybe_declare(self) -> None:
         if not self._declared:
@@ -355,7 +356,6 @@ class TopicManager(TopicManagerT, Service):
     def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
         for channel in self._topics:
-            print('GOT CHANNEL: %r' % (channel,))
             for topic in channel.topics:
                 self._topicmap[topic].add(channel)
         return self._topicmap

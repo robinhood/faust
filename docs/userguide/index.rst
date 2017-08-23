@@ -14,6 +14,7 @@
     application
     actors
     tasks
+    channels
     streams
     tables
     models

@@ -33,7 +33,7 @@ class RecordMetadata(NamedTuple):
 
 
 class PendingMessage(NamedTuple):
-    topic: Union[str, ChannelT]
+    channel: ChannelT
     key: K
     value: V
     partition: int

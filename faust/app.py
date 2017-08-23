@@ -25,7 +25,7 @@ from .streams import current_event
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
     CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
-    PendingMessage, RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
+    RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
 from .types.serializers import RegistryT
@@ -162,17 +162,11 @@ class AppService(Service):
 
     @Service.task
     async def _drain_message_buffer(self) -> None:
-        send = self.app.send
         get = self.app._message_buffer.get
         while not self.should_stop:
             fut: FutureMessage = await get()
-            pending: PendingMessage = fut.message
-            send(
-                pending.topic, pending.key, pending.value,
-                partition=pending.partition,
-                key_serializer=pending.key_serializer,
-                value_serializer=pending.value_serializer,
-            )
+            pending = fut.message
+            pending.channel.publish_message(fut)
 
     @property
     def label(self) -> str:
@@ -534,32 +528,6 @@ class App(AppT, ServiceProxy):
             key_serializer, value_serializer, callback,
         )
 
-    async def send_many(
-            self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
-        """Send a list of messages (unordered)."""
-        await asyncio.wait(
-            [self._send_tuple(msg) for msg in it],
-            loop=self.loop,
-            return_when=asyncio.ALL_COMPLETED,
-        )
-
-    async def _send_tuple(
-            self, message: Union[PendingMessage, Tuple]) -> FutureMessage:
-        return await self.send(*self._unpack_message_tuple(*message))
-
-    def _unpack_message_tuple(
-            self,
-            topic: str,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> PendingMessage:
-        return PendingMessage(
-            topic, key, value, partition,
-            key_serializer, value_serializer, callback)
-
     def send_soon(self,
                   channel: Union[ChannelT, str],
                   key: K = None,
@@ -572,10 +540,9 @@ class App(AppT, ServiceProxy):
 
         This is for use by non-async functions.
         """
-        fut = FutureMessage(PendingMessage(
-            channel, key, value, partition,
-            key_serializer, value_serializer, callback,
-        ))
+        chan = self.topic(channel) if isinstance(channel, str) else channel
+        fut = chan.as_future_message(
+            key, value, partition, key_serializer, value_serializer, callback)
         self._message_buffer.put(fut)
         return fut
 
@@ -589,16 +556,23 @@ class App(AppT, ServiceProxy):
                       value_serializer: CodecArg = None,
                       callback: MessageSentCallback = None) -> FutureMessage:
         buf = self._pending_on_commit[message.tp]
-        fut = FutureMessage(PendingMessage(
-            channel, key, value, partition,
-            key_serializer, value_serializer, callback))
+        chan = self.topic(channel) if isinstance(channel, str) else channel
+        fut = chan.as_future_message(
+            key, value, partition,
+            key_serializer, value_serializer, callback)
         heappush(buf, (message.offset, Unordered(fut)))
         return fut
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
-        for fut in list(self._get_attached(tp, offset)):
-            await self._send_tuple(fut.message)
+        await asyncio.wait(
+            [asyncio.ensure_future(
+                fut.message.channel.publish_message(fut, wait=False),
+                loop=self.loop)
+             for fut in list(self._get_attached(tp, offset))],
+            return_when=asyncio.ALL_COMPLETED,
+            loop=self.loop,
+        )
 
     def _get_attached(
             self,

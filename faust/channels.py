@@ -135,7 +135,7 @@ class Channel(ChannelT):
     loop: asyncio.AbstractEventLoop = None
     is_iterator: bool
 
-    _queue: asyncio.Queue
+    queue: asyncio.Queue = None
 
     def __init__(self, app: AppT,
                  *,
@@ -148,7 +148,11 @@ class Channel(ChannelT):
         self.key_type = key_type
         self.value_type = value_type
         self.is_iterator = is_iterator
-        self._queue = None
+        if self.is_iterator:
+            # this should only be set after clone = channel.__aiter__()
+            # which means the loop is not accessed by merely defining a
+            # channel at module scope.
+            self.queue = asyncio.Queue(loop=self.loop or self.app.loop)
         self.deliver = self._compile_deliver()  # type: ignore
 
     def clone(self, *, is_iterator: bool = None) -> ChannelT:
@@ -164,13 +168,6 @@ class Channel(ChannelT):
             'key_type': self.key_type,
             'value_type': self.value_type,
         }
-
-    @property
-    def queue(self) -> asyncio.Queue:
-        # loads self.loop lazily, as channel may be created at compile-time.
-        if self._queue is None:
-            self._queue = asyncio.Queue(loop=self.loop or self.app.loop)
-        return self._queue
 
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
@@ -205,6 +202,24 @@ class Channel(ChannelT):
             callback=callback,
         )
 
+    def as_future_message(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> FutureMessage:
+        return FutureMessage(PendingMessage(
+            self,
+            self.prepare_key(key, key_serializer),
+            self.prepare_value(value, value_serializer),
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            partition=partition,
+            callback=callback,
+        ))
+
     async def _send_now(
             self,
             key: K = None,
@@ -213,17 +228,11 @@ class Channel(ChannelT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
-        return await self._publish_message(FutureMessage(PendingMessage(
-            self,
-            await self.prepare_key(self, key, key_serializer),
-            await self.prepare_value(self, value, value_serializer),
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-            partition=partition,
-            callback=callback,
-        )))
+        return await self.publish_message(self.as_future_message(
+            key, value, partition, key_serializer, value_serializer, callback))
 
-    async def _publish_message(self, fut: FutureMessage) -> FutureMessage:
+    async def publish_message(self, fut: FutureMessage,
+                              wait: bool = True) -> FutureMessage:
         event = self._create_event(fut.message.key, fut.message.value)
         await self.put(event)
         return await self._finalize_message(
@@ -260,16 +269,10 @@ class Channel(ChannelT):
     async def declare(self) -> None:
         ...
 
-    async def prepare_key(self,
-                          topic: Union[str, ChannelT],
-                          key: K,
-                          key_serializer: CodecArg) -> Any:
+    def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
         return key
 
-    async def prepare_value(self,
-                            topic: Union[str, ChannelT],
-                            value: V,
-                            value_serializer: CodecArg) -> Any:
+    def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
         return value
 
     async def deliver(self, message: Message) -> None:
@@ -290,12 +293,12 @@ class Channel(ChannelT):
                 # NOTE circumvents self.put, using queue directly
                 put = self.queue.put
             try:
-                k = await loads_key(key_type, message.key)
+                k = loads_key(key_type, message.key)
             except KeyDecodeError as exc:
                 await self.on_key_decode_error(exc, message)
             else:
                 try:
-                    v = await loads_value(value_type, message.value)
+                    v = loads_value(value_type, message.value)
                 except ValueDecodeError as exc:
                     await self.on_value_decode_error(exc, message)
                 else:
@@ -307,6 +310,8 @@ class Channel(ChannelT):
         return Event(self.app, key, value, message)
 
     async def put(self, value: Any) -> None:
+        if self.queue is None:
+            raise RuntimeError('Cannot put on a channel before aiter(channel)')
         await self.queue.put(value)
 
     async def get(self) -> Any:
