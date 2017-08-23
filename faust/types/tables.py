@@ -6,9 +6,10 @@ from typing import (
     Any, Callable, ClassVar, Iterable, List, MutableMapping,
     MutableSet, Set, Type,
 )
+from .channels import EventT
 from .stores import StoreT
 from .streams import JoinableT
-from .topics import EventT, TopicT
+from .topics import TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
 from ..types.core import K, V

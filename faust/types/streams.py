@@ -6,9 +6,10 @@ from typing import (
     List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
 )
 from ._coroutines import StreamCoroutine
+from .channels import ChannelT, EventT
 from .core import K
 from .models import FieldDescriptorT, ModelArg
-from .topics import EventT, TopicT
+from .topics import TopicT
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -129,11 +130,11 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def through(self, topic: Union[str, TopicT]) -> 'StreamT':
+    def through(self, channel: Union[str, ChannelT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
-    def echo(self, *topics: Union[str, TopicT]) -> 'StreamT':
+    def echo(self, *channels: Union[str, ChannelT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod

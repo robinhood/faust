@@ -1,5 +1,6 @@
 """Abstract types for static typing."""
 from .app import AppT
+from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
 from .core import K, V
 from .joins import JoinT
@@ -14,7 +15,7 @@ from .streams import (
     StreamT,
 )
 from .tables import CollectionT, SetT, TableT
-from .topics import EventT, TopicT
+from .topics import TopicT
 from .transports import (
     ConsumerCallback,
     ConsumerT,
@@ -63,7 +64,7 @@ __all__ = [
     'CollectionT', 'SetT', 'TableT',
 
     # types.topics
-    'EventT', 'TopicT',
+    'ChannelT', 'EventT', 'TopicT',
 
     # types.transports
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',

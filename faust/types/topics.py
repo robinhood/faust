@@ -1,16 +1,11 @@
 import abc
 import typing
-from types import TracebackType
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Iterable,
-    Mapping, MutableSet, Optional, Pattern, Sequence, Type, Union,
+    Any, Iterable,
+    Mapping, MutableSet, Optional, Pattern, Sequence, Union,
 )
-from ._coroutines import StreamCoroutine
-from .codecs import CodecArg
-from .core import K, V
-from .tuples import (
-    FutureMessage, Message, MessageSentCallback, TopicPartition,
-)
+from .channels import ChannelT
+from .tuples import TopicPartition
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -26,66 +21,12 @@ else:
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
 
-__all__ = ['EventT', 'TopicT', 'ChannelT', 'TopicManagerT']
+__all__ = ['TopicT', 'TopicManagerT']
 
 
-class EventT(metaclass=abc.ABCMeta):
-    app: AppT
-    key: K
-    value: V
-    message: Message
-
-    __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
-
-    @abc.abstractmethod
-    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def send(self, topic: Union[str, 'TopicT'],
-                   *,
-                   key: Any = None,
-                   force: bool = False) -> FutureMessage:
-        ...
-
-    @abc.abstractmethod
-    async def forward(self, topic: Union[str, 'TopicT'],
-                      *,
-                      key: Any = None,
-                      force: bool = False) -> FutureMessage:
-        ...
-
-    @abc.abstractmethod
-    def attach(self, topic: Union[str, 'TopicT'], key: K, value: V,
-               *,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> FutureMessage:
-        ...
-
-    @abc.abstractmethod
-    async def ack(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def __aenter__(self) -> 'EventT':
-        ...
-
-    @abc.abstractmethod
-    async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
-        ...
-
-
-class TopicT(AsyncIterable):
-    app: AppT
+class TopicT(ChannelT):
     topics: Sequence[str]
     pattern: Pattern
-    key_type: ModelArg
-    value_type: ModelArg
     retention: Seconds
     compacting: bool
     deleting: bool
@@ -135,33 +76,6 @@ class TopicT(AsyncIterable):
         ...
 
     @abc.abstractmethod
-    def stream(self, coroutine: StreamCoroutine = None,
-               **kwargs: Any) -> StreamT:
-        ...
-
-    @abc.abstractmethod
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            force: bool = False) -> FutureMessage:
-        ...
-
-    @abc.abstractmethod
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> FutureMessage:
-        ...
-
-    @abc.abstractmethod
-    async def maybe_declare(self) -> None:
-        ...
-
-    @abc.abstractmethod
     def derive(self,
                *,
                topics: Sequence[str] = None,
@@ -177,35 +91,7 @@ class TopicT(AsyncIterable):
         ...
 
     @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator:
-        ...
-
-
-class ChannelT(AsyncIterator):
-    topic: TopicT
-
-    @abc.abstractmethod
-    def __init__(self, topic: TopicT) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def deliver(self, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def put(self, value: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def get(self) -> Any:
-        ...
-
-    @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator:
-        ...
-
-    @abc.abstractmethod
-    async def __anext__(self) -> EventT:
+    def get_topic_name(self) -> str:
         ...
 
 

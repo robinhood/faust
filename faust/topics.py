@@ -2,18 +2,16 @@ import asyncio
 import re
 import typing
 from collections import defaultdict
-from types import TracebackType
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Sequence, Set, Type, Union, cast,
+    Any, Awaitable, Callable, Iterable, Iterator, Mapping,
+    MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
 )
-from .exceptions import KeyDecodeError, ValueDecodeError
+from .channels import Channel
 from .types import (
-    AppT, CodecArg, FutureMessage, K, Message, MessageSentCallback,
-    ModelArg, TopicPartition, V,
+    AppT, CodecArg, FutureMessage, K, Message,
+    ModelArg, PendingMessage, RecordMetadata, TopicPartition, V,
 )
-from .types.streams import StreamCoroutine, StreamT
-from .types.topics import ChannelT, EventT, TopicManagerT, TopicT
+from .types.topics import ChannelT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
 from .utils.futures import notify
 from .utils.logging import get_logger
@@ -27,124 +25,18 @@ else:
 
 __all__ = [
     'Topic',
-    'TopicChannel',
     'TopicManager',
 ]
 
+__flake8_Awaitable_is_used: Awaitable            # XXX flake8 bug
+__flake8_Callable_is_used: Callable              # XXX flake8 bug
+__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
+
 logger = get_logger(__name__)
 
-USE_EXISTING_KEY = object()
 
-
-class Event(EventT):
-    """An event in a stream.
-
-    You can retrieve the current event in a stream to:
-
-        - Get the app associated with the value.
-        - Attach messages to be published when the offset of the
-          value's source message is committed.
-        - Get access to the serialized key+value.
-        - Get access to message properties like, what topic+partition
-          the value was received on, or its offset.
-
-    A stream can iterate over any value, but when the value is received
-    as a message in a topic, the current value in a stream will be associated
-    with an :class:`Event`.
-
-    Streams iterates over messages in a channel, and the TopicManager
-    is the service that feeds the channel with messages.  The objects
-    sent tot he channel are Event objects::
-
-        channel: TopicChannel
-
-        event = Event(app, deserialized_key, deserialized_value, message)
-        await channel.deliver(event)
-
-    The steam iterates over the TopicChannel and receives the event,
-    but iterating over the stream yields raw values:
-
-        async for value in stream:   # <- this gets event.value, not event
-            ...
-
-    You can get the event for the current value in a stream by accessing
-    ``stream.current_event``::
-
-        async for value in stream:
-            event = stream.current_event
-
-    Note that if you want access to both key and value, you should use
-    ``stream.items()`` instead::
-
-        async for key, value in stream.items():
-            ...
-    """
-
-    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
-        self.app: AppT = app
-        self.key: K = key
-        self.value: V = value
-        self.message: Message = message
-
-    async def send(self, topic: Union[str, TopicT],
-                   *,
-                   key: Any = USE_EXISTING_KEY,
-                   force: bool = False) -> FutureMessage:
-        """Serialize and send object to topic."""
-        return await self._send(topic, key, self.value, force=force)
-
-    async def forward(self, topic: Union[str, TopicT],
-                      *,
-                      key: Any = USE_EXISTING_KEY,
-                      force: bool = False) -> FutureMessage:
-        """Forward original message (will not be reserialized)."""
-        return await self._send(
-            topic, key=key, value=self.message.value, force=force)
-
-    async def _send(self, topic: Union[str, TopicT],
-                    key: Any = USE_EXISTING_KEY,
-                    value: Any = None,
-                    force: bool = False) -> FutureMessage:
-        if key is USE_EXISTING_KEY:
-            key = self.message.key
-        return await self.app.maybe_attach(topic, key, value, force=force)
-
-    def attach(self, topic: Union[str, TopicT], key: K, value: V,
-               *,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> FutureMessage:
-        return self.app.send_attached(
-            self.message, topic, key, value,
-            partition=partition,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-            callback=callback,
-        )
-
-    async def ack(self) -> None:
-        message = self.message
-        # decrement the reference count
-        message.decref()
-        # if no more references, ack message
-        if not message.refcount:
-            await self.app.consumer.ack(message)
-
-    def __repr__(self) -> str:
-        return f'{type(self).__name__}: k={self.key!r} v={self.value!r}'
-
-    async def __aenter__(self) -> EventT:
-        return self
-
-    async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
-        await self.ack()
-
-
-class Topic(TopicT):
+class Topic(Channel, TopicT):
     """Define new topic description.
 
     Arguments:
@@ -178,24 +70,42 @@ class Topic(TopicT):
                  pattern: Union[str, Pattern] = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
+                 is_iterator: bool = False,
                  partitions: int = None,
                  retention: Seconds = None,
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
                  acks: bool = True,
-                 config: Mapping[str, Any] = None) -> None:
-        self.app = app
+                 config: Mapping[str, Any] = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics
+        super().__init__(
+            app,
+            key_type=key_type,
+            value_type=value_type,
+            loop=loop,
+            is_iterator=is_iterator,
+        )
         self.pattern = cast(Pattern, pattern)  # XXX mypy does not read setter
-        self.key_type = key_type
-        self.value_type = value_type
         self.partitions = partitions
         self.retention = retention
         self.compacting = compacting
         self.deleting = deleting
         self.replicas = replicas
         self.config = config or {}
+
+    def _clone_args(self) -> Mapping:
+        return {**super()._clone_args(), **{
+            'topics': self.topics,
+            'pattern': self.pattern,
+            'partitions': self.partitions,
+            'retention': self.retention,
+            'compacting': self.compacting,
+            'deleting': self.deleting,
+            'replicas': self.replicas,
+            'config': self.config,
+        }}
 
     @property
     def pattern(self) -> Optional[Pattern]:
@@ -230,41 +140,6 @@ class Topic(TopicT):
         if replicas is None:
             replicas = self.app.replication_factor
         self._replicas = replicas
-
-    def stream(self, coroutine: StreamCoroutine = None,
-               **kwargs: Any) -> StreamT:
-        """Create stream from topic."""
-        return self.app.stream(self, coroutine, **kwargs)
-
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            force: bool = False) -> FutureMessage:
-        """Send message to topic."""
-        return await self.app.maybe_attach(
-            self, key, value, partition,
-            key_serializer, value_serializer,
-            force=force,
-        )
-
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> FutureMessage:
-        """Send message to topic (asynchronous version).
-
-        Notes:
-            This can be used from non-async functions, but with the caveat
-            that sending of the message will be scheduled in the event loop.
-            This will buffer up the message, making backpressure a concern.
-        """
-        return self.app.send_soon(
-            self, key, value, partition,
-            key_serializer, value_serializer)
 
     def derive(self,
                *,
@@ -302,6 +177,50 @@ class Topic(TopicT):
             config=self.config if config is None else config,
         )
 
+    def get_topic_name(self) -> str:
+        return self.topics[0]
+
+    async def _publish_message(self, fut: FutureMessage) -> FutureMessage:
+        app = self.app
+        message: PendingMessage = fut.message
+        if isinstance(message.topic, str):
+            topic = message.topic
+        elif isinstance(message.topic, TopicT):
+            topic = cast(TopicT, message.topic).get_topic_name()
+        else:
+            topic = self.get_topic_name()
+        key: bytes = cast(bytes, message.key)
+        value: bytes = cast(bytes, message.value)
+        logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
+        assert topic is not None
+        producer = await app.maybe_start_producer()
+        state = await app.sensors.on_send_initiated(
+            producer, topic,
+            keysize=len(key) if key else 0,
+            valsize=len(value) if value else 0)
+        ret: RecordMetadata = await producer.send_and_wait(
+            topic, key, value, partition=message.partition)
+        await app.sensors.on_send_completed(producer, state)
+        return await self._finalize_message(fut, ret)
+
+    async def prepare_key(self,
+                          topic: Union[str, ChannelT],
+                          key: K,
+                          key_serializer: CodecArg) -> Any:
+        strtopic = topic if isinstance(topic, str) else self.get_topic_name()
+        if key is not None:
+            return await self.app.serializers.dumps_key(
+                strtopic, key, key_serializer)
+        return None
+
+    async def prepare_value(self,
+                            topic: Union[str, ChannelT],
+                            value: V,
+                            value_serializer: CodecArg) -> Any:
+        strtopic = topic if isinstance(topic, str) else self.get_topic_name()
+        return await self.app.serializers.dumps_value(
+            strtopic, value, value_serializer)
+
     async def maybe_declare(self) -> None:
         if not self._declared:
             self._declared = True
@@ -317,84 +236,13 @@ class Topic(TopicT):
                 config=self.config,
             )
 
-    def __aiter__(self) -> AsyncIterator:
-        channel = TopicChannel(self)
+    def __aiter__(self) -> ChannelT:
+        channel = self.clone(is_iterator=True)
         self.app.channels.add(channel)
         return channel
 
-    def __repr__(self) -> str:
-        return f'<{type(self).__name__}: {self}>'
-
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
-
-
-class TopicChannel(ChannelT):
-    queue: asyncio.Queue
-
-    def __init__(self, topic: TopicT,
-                 *,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        self.topic = topic
-        self.app = self.topic.app
-        self.loop = loop or self.app.loop
-        self.queue = asyncio.Queue(loop=self.loop)
-        self.deliver = self._compile_deliver()  # type: ignore
-
-    async def deliver(self, message: Message) -> None:
-        ...  # closure compiled at __init__
-
-    def _compile_deliver(self) -> Callable[[Message], Awaitable]:
-        app = self.app
-        topic = self.topic
-        key_type = topic.key_type
-        value_type = topic.value_type
-        loads_key = self.app.serializers.loads_key
-        loads_value = self.app.serializers.loads_value
-        put = self.queue.put  # NOTE circumvents self.put, using queue directly
-        create_event = Event
-
-        async def deliver(message: Message) -> None:
-            try:
-                k = await loads_key(key_type, message.key)
-            except KeyDecodeError as exc:
-                await self.on_key_decode_error(exc, message)
-            else:
-                try:
-                    v = await loads_value(value_type, message.value)
-                except ValueDecodeError as exc:
-                    await self.on_value_decode_error(exc, message)
-                else:
-                    await put(create_event(app, k, v, message))
-        return deliver
-
-    async def put(self, value: Any) -> None:
-        await self.queue.put(value)
-
-    async def get(self) -> Any:
-        return await self.queue.get()
-
-    async def on_key_decode_error(
-            self, exc: Exception, message: Message) -> None:
-        logger.exception('Cannot decode key: %r: %r', message.key, exc)
-
-    async def on_value_decode_error(
-            self, exc: Exception, message: Message) -> None:
-        logger.exception('Cannot decode value for key=%r (%r): %r',
-                         message.key, message.value, exc)
-
-    def __aiter__(self) -> AsyncIterator:
-        return self
-
-    async def __anext__(self) -> EventT:
-        return await self.queue.get()
-
-    def __repr__(self) -> str:
-        return f'<{self.label}>'
-
-    @property
-    def label(self) -> str:
-        return f'{type(self).__name__}: {self.topic!r}'
 
 
 class TopicManager(TopicManagerT, Service):
@@ -405,16 +253,16 @@ class TopicManager(TopicManagerT, Service):
     """
     logger = logger
 
-    #: Fast index to see if channel is registered.
-    _channels: Set[ChannelT]
+    #: Fast index to see if Topic is registered.
+    _topics: Set[TopicT]
 
     #: Map str topic to set of channeos that should get a copy
     #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, Set[ChannelT]]
+    _topicmap: MutableMapping[str, Set[TopicT]]
 
     _pending_tasks: asyncio.Queue
 
-    #: Whenever a change is made, i.e. a channel is added/removed, we notify
+    #: Whenever a change is made, i.e. a Topic is added/removed, we notify
     #: the background task responsible for resubscribing.
     _subscription_changed: Optional[asyncio.Event]
 
@@ -423,7 +271,7 @@ class TopicManager(TopicManagerT, Service):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self._channels = set()
+        self._topics = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = asyncio.Queue(loop=self.loop)
 
@@ -442,7 +290,7 @@ class TopicManager(TopicManagerT, Service):
         all_completed = asyncio.ALL_COMPLETED
         loop = self.loop
         list_ = list
-        # topic str -> list of TopicChannel
+        # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
 
         add_pending_task = self._pending_tasks.put
@@ -458,7 +306,7 @@ class TopicManager(TopicManagerT, Service):
             message.incref_bulk(channels)
 
             # Then send it to each channels buffer
-            # for TopicChannel.__anext__ to pick up.
+            # for Channel.__anext__ to pick up.
             # NOTE: We do this in parallel, so the order of channels
             #       does not matter.
             await wait(
@@ -506,8 +354,9 @@ class TopicManager(TopicManagerT, Service):
 
     def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
-        for channel in self._channels:
-            for topic in channel.topic.topics:
+        for channel in self._topics:
+            print('GOT CHANNEL: %r' % (channel,))
+            for topic in channel.topics:
                 self._topicmap[topic].add(channel)
         return self._topicmap
 
@@ -520,26 +369,26 @@ class TopicManager(TopicManagerT, Service):
         ...
 
     def __contains__(self, value: Any) -> bool:
-        return value in self._channels
+        return value in self._topics
 
-    def __iter__(self) -> Iterator[ChannelT]:
-        return iter(self._channels)
+    def __iter__(self) -> Iterator[TopicT]:
+        return iter(self._topics)
 
     def __len__(self) -> int:
-        return len(self._channels)
+        return len(self._topics)
 
     def __hash__(self) -> int:
         return object.__hash__(self)
 
-    def add(self, channel: ChannelT) -> None:
-        if channel not in self._channels:
-            self._channels.add(channel)
-            self.beacon.add(channel)  # connect to beacon
+    def add(self, topic: Any) -> None:
+        if topic not in self._topics:
+            self._topics.add(topic)
+            self.beacon.add(topic)  # connect to beacon
             self._flag_changes()
 
-    def discard(self, channel: ChannelT) -> None:
-        self._channels.discard(channel)
-        self.beacon.discard(channel)
+    def discard(self, topic: Any) -> None:
+        self._topics.discard(topic)
+        self.beacon.discard(topic)
         self._flag_changes()
 
     def _flag_changes(self) -> None:
@@ -550,7 +399,7 @@ class TopicManager(TopicManagerT, Service):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}({len(self._channels)})'
+        return f'{type(self).__name__}({len(self._topics)})'
 
     @property
     def shortlabel(self) -> str:

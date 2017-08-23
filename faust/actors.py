@@ -9,7 +9,7 @@ from uuid import uuid4
 from weakref import WeakSet
 from . import Record
 from .types import (
-    AppT, CodecArg, FutureMessage, K, ModelT, StreamT, TopicT, V,
+    AppT, ChannelT, CodecArg, FutureMessage, K, ModelT, StreamT, TopicT, V,
 )
 from .types.actors import (
     ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
@@ -186,8 +186,8 @@ class ReplyConsumer(Service):
             self._fetchers[topic_name] = self.add_future(
                 self._drain_replies(topic))
 
-    async def _drain_replies(self, topic: TopicT):
-        async for reply in topic.stream():
+    async def _drain_replies(self, channel: ChannelT):
+        async for reply in channel.stream():
             for promise in self._waiting[reply.correlation_id]:
                 promise.fulfill(reply.correlation_id, reply.value)
 
@@ -319,26 +319,28 @@ class Actor(ActorT, ServiceProxy):
                  *,
                  name: str = None,
                  app: AppT = None,
-                 topic: Union[str, TopicT] = None,
+                 channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
         self.app = app
         self.fun: ActorFun = fun
         self.name = name or canoname(self.fun)
-        self.topic = self._prepare_topic(topic)
+        self.channel = self._prepare_channel(channel)
         self.concurrency = concurrency
         self._sinks = list(sink) if sink is not None else []
         self._on_error: ActorErrorHandler = on_error
         ServiceProxy.__init__(self)
 
-    def _prepare_topic(self, topic: Union[str, TopicT] = None) -> TopicT:
-        topic = self.name if topic is None else topic
-        if isinstance(topic, TopicT):
-            return cast(TopicT, topic)
-        elif isinstance(topic, str):
-            return self.app.topic(topic)
-        raise TypeError(f'Topic must be Topic, str or None, not {type(topic)}')
+    def _prepare_channel(self,
+                         channel: Union[str, ChannelT] = None) -> ChannelT:
+        channel = self.name if channel is None else channel
+        if isinstance(channel, ChannelT):
+            return cast(ChannelT, channel)
+        elif isinstance(channel, str):
+            return self.app.topic(channel)
+        raise TypeError(
+            f'Channel must be channel, topic, or str; not {type(channel)}')
 
     def __call__(self) -> ActorInstanceT:
         # The actor function can be reused by other actors/tasks.
@@ -370,7 +372,7 @@ class Actor(ActorT, ServiceProxy):
         self._sinks.append(sink)
 
     def stream(self, **kwargs: Any) -> StreamT:
-        s = self.app.stream(self.channel, loop=self.loop, **kwargs)
+        s = self.app.stream(self.channel_iterator, loop=self.loop, **kwargs)
         s.add_processor(self._process_reply)
         return s
 
@@ -417,7 +419,7 @@ class Actor(ActorT, ServiceProxy):
         for sink in self._sinks:
             if isinstance(sink, ActorT):
                 await cast(ActorT, sink).send(value=value)
-            elif isinstance(sink, TopicT):
+            elif isinstance(sink, ChannelT):
                 await cast(TopicT, sink).send(value=value)
             else:
                 await maybe_async(cast(Callable, sink)(value))
@@ -472,7 +474,7 @@ class Actor(ActorT, ServiceProxy):
             correlation_id: str = None,
             force: bool = False) -> ReplyPromise:
         req = self._create_req(key, value, reply_to, correlation_id)
-        await self.topic.send(key, req, partition, force=force)
+        await self.channel.send(key, req, partition, force=force)
         return ReplyPromise(req.reply_to, req.correlation_id)
 
     def _create_req(
@@ -503,17 +505,20 @@ class Actor(ActorT, ServiceProxy):
         """Send message to topic used by actor."""
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
-        return await self.topic.send(
+        return await self.channel.send(
             key, value, partition,
             key_serializer, value_serializer,
             force=force,
         )
 
-    def _get_strtopic(self, topic: Union[str, TopicT, ActorT]) -> str:
+    def _get_strtopic(
+            self, topic: Union[str, ChannelT, TopicT, ActorT]) -> str:
         if isinstance(topic, ActorT):
-            return self._get_strtopic(cast(ActorT, topic).topic)
+            return self._get_strtopic(cast(ActorT, topic).channel)
         if isinstance(topic, TopicT):
             return cast(TopicT, topic).topics[0]
+        if isinstance(topic, ChannelT):
+            raise ValueError('Channels are unnamed topics')
         return cast(str, topic)
 
     def send_soon(self, key: K, value: V,
@@ -521,8 +526,8 @@ class Actor(ActorT, ServiceProxy):
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None) -> FutureMessage:
         """Send message eventually (non async), to topic used by actor."""
-        return self.topic.send_soon(key, value, partition,
-                                    key_serializer, value_serializer)
+        return self.channel.send_soon(key, value, partition,
+                                      key_serializer, value_serializer)
 
     async def map(
             self,
@@ -622,11 +627,11 @@ class Actor(ActorT, ServiceProxy):
             yield correlation_id
 
     @cached_property
-    def channel(self) -> AsyncIterator:
+    def channel_iterator(self) -> AsyncIterator:
         # The channel is reused here, so that when ActorService start
         # is called it will start n * concurrency self._start_task() futures
         # that all share the same channel topic.
-        return aiter(self.topic)
+        return aiter(self.channel)
 
     @cached_property
     def _service(self) -> ActorService:

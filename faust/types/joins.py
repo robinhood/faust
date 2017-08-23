@@ -1,8 +1,8 @@
 import abc
 from typing import MutableMapping, Optional, Tuple, Type
+from .channels import EventT
 from .models import FieldDescriptorT, ModelT
 from .streams import JoinableT
-from .topics import EventT
 
 __all__ = ['JoinT']
 

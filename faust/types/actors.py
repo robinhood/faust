@@ -7,7 +7,7 @@ from typing import (
 from .codecs import CodecArg
 from .core import K, V
 from .streams import StreamT
-from .topics import TopicT
+from .topics import ChannelT
 from .tuples import FutureMessage
 from ..utils.types.services import ServiceT
 
@@ -29,18 +29,18 @@ ActorFun = Callable[
     Union[Awaitable, AsyncIterable],
 ]
 
-#: A sink can be: Actor, Topic,
+#: A sink can be: Actor, Channel
 #: or callable/async callable taking value as argument.
-SinkT = Union['ActorT', TopicT, Callable[[Any], Union[Awaitable, None]]]
+SinkT = Union['ActorT', ChannelT, Callable[[Any], Union[Awaitable, None]]]
 
-ReplyToArg = Union['ActorT', TopicT, str]
+ReplyToArg = Union['ActorT', ChannelT, str]
 
 
 class ActorT(ServiceT):
 
     name: str
     app: AppT
-    topic: TopicT
+    channel: ChannelT
     concurrency: int
 
     @abc.abstractmethod
@@ -48,7 +48,7 @@ class ActorT(ServiceT):
                  *,
                  name: str = None,
                  app: AppT = None,
-                 topic: Union[str, TopicT] = None,
+                 channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
@@ -140,9 +140,9 @@ class ActorT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def channel(self) -> AsyncIterator:
+    def channel_iterator(self) -> AsyncIterator:
         ...
 
-    @channel.setter
-    def channel(self, channel: AsyncIterator) -> None:
+    @channel_iterator.setter
+    def channel_iterator(self, channel: AsyncIterator) -> None:
         ...

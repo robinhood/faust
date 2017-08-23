@@ -61,11 +61,11 @@ def current_event() -> Optional[EventT]:
         return eventref() if eventref is not None else None
 
 
-async def maybe_forward(value: Any, topic: TopicT) -> Any:
+async def maybe_forward(value: Any, channel: ChannelT) -> Any:
     if isinstance(value, EventT):
-        await value.forward(topic)
+        await value.forward(channel)
     else:
-        await topic.send(value=value)
+        await channel.send(value=value)
     return value
 
 
@@ -145,7 +145,7 @@ class Stream(StreamT, JoinableT, Service):
                 @app.actor(topic)
                 async def mytask(stream):
                     async for key, value in stream.items():
-                        print(key, value)
+                        print(key, kvalue)
         """
         async for event in self.events():
             yield event.key, cast(T_co, event.value)
@@ -233,11 +233,11 @@ class Stream(StreamT, JoinableT, Service):
         """
         return aenumerate(self, start)
 
-    def through(self, topic: Union[str, TopicT]) -> StreamT:
-        """Forward values to new topic and consume from that topic.
+    def through(self, channel: Union[str, ChannelT]) -> StreamT:
+        """Forward values to in this stream to channel.
 
-        Send messages received on this stream to another topic,
-        and return a new stream that consumes from that topic.
+        Send messages received on this stream to another channel,
+        and return a new stream that consumes from that channel.
 
         Notes:
             The messages are forwarded after any processors have been
@@ -256,22 +256,22 @@ class Stream(StreamT, JoinableT, Service):
                         print(value)
         """
         # ridiculous mypy
-        if isinstance(topic, str):
-            topictopic = self.derive_topic(topic)
+        if isinstance(channel, str):
+            channelchannel = cast(ChannelT, self.derive_topic(channel))
         else:
-            topictopic = topic
+            channelchannel = channel
 
-        topic_created = False
-        channel = aiter(topictopic)
-        through = self.clone(channel=channel, on_start=self.maybe_start)
+        channel_created = False
+        it = aiter(channelchannel)
+        through = self.clone(channel=it, on_start=self.maybe_start)
 
         async def forward(value: T) -> T:
-            nonlocal topic_created
-            if not topic_created:
-                await topictopic.maybe_declare()
-                topic_created = True
+            nonlocal channel_created
+            if not channel_created:
+                await channelchannel.maybe_declare()
+                channel_created = True
             event = self.current_event
-            return await maybe_forward(event, topictopic)
+            return await maybe_forward(event, channelchannel)
 
         self.add_processor(forward)
         self._enable_passive()
@@ -287,19 +287,19 @@ class Stream(StreamT, JoinableT, Service):
         async for item in self:  # noqa
             await sleep(0)
 
-    def echo(self, *topics: Union[str, TopicT]) -> StreamT:
-        """Forward values to one or more topics.
+    def echo(self, *channels: Union[str, ChannelT]) -> StreamT:
+        """Forward values to one or more channels.
 
-        Unlike :meth:`through`, we don't consume from these topics.
+        Unlike :meth:`through`, we don't consume from these channels.
         """
-        _topics = [
-            self.derive_topic(t) if isinstance(t, str) else t
-            for t in topics
+        _channels = [
+            self.derive_topic(c) if isinstance(c, str) else c
+            for c in channels
         ]
 
         async def echoing(value: T) -> T:
             await asyncio.wait(
-                [maybe_forward(value, topic) for topic in _topics],
+                [maybe_forward(value, channel) for channel in _channels],
                 loop=self.loop,
                 return_when=asyncio.ALL_COMPLETED,
             )
@@ -368,11 +368,10 @@ class Stream(StreamT, JoinableT, Service):
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
         if topic is None:
-            if not isinstance(self.channel, ChannelT):
+            if not isinstance(self.channel, TopicT):
                 raise ValueError('Need to specify topic for non-topic channel')
             suffix = '-' + name + '-repartition'
-            channel = cast(ChannelT, self.channel)
-            topic = channel.topic.derive(suffix=suffix)
+            topic = cast(TopicT, self.channel).derive(suffix=suffix)
         topic_created = False
         format_key = self._format_key
 
@@ -422,8 +421,8 @@ class Stream(StreamT, JoinableT, Service):
         Raises:
             ValueError: if the stream channel is not a topic.
         """
-        if isinstance(self.channel, ChannelT):
-            return cast(ChannelT, self.channel).topic.derive(
+        if isinstance(self.channel, TopicT):
+            return cast(TopicT, self.channel).derive(
                 topics=[name],
                 key_type=key_type,
                 value_type=value_type,
@@ -580,8 +579,6 @@ class Stream(StreamT, JoinableT, Service):
         return reprlib.repr(self.channel)
 
     def _repr_channel(self) -> str:
-        if isinstance(self.channel, ChannelT):
-            return repr(cast(ChannelT, self.channel).topic)
         return reprlib.repr(self.channel)
 
     @property

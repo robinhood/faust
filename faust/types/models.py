@@ -5,10 +5,8 @@ from .codecs import CodecArg
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from avro.schema import Schema
-    from .topics import TopicT
 else:
     class Schema: ...   # noqa
-    class TopicT: ...   # noqa
 
 __all__ = ['ModelArg', 'ModelOptions', 'ModelT', 'FieldDescriptorT']
 

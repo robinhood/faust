@@ -7,11 +7,10 @@ from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .topics import ChannelT, TopicT
+    from .channels import ChannelT
 else:
     class AppT: ...      # noqa
     class ChannelT: ...   # noqa
-    class TopicT: ...    # noqa
 
 __all__ = [
     'FutureMessage', 'MessageSentCallback', 'TopicPartition',
@@ -34,7 +33,7 @@ class RecordMetadata(NamedTuple):
 
 
 class PendingMessage(NamedTuple):
-    topic: Union[str, TopicT]
+    topic: Union[str, ChannelT]
     key: K
     value: V
     partition: int

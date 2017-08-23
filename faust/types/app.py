@@ -17,7 +17,7 @@ from .serializers import RegistryT
 from .streams import T  # noqa: F401
 from .streams import StreamT
 from .tables import CollectionT, SetT, TableManagerT, TableT
-from .topics import TopicManagerT, TopicT
+from .topics import ChannelT, TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import (
     FutureMessage, Message, MessageSentCallback, PendingMessage,
@@ -117,8 +117,15 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def channel(self, *,
+                key_type: ModelArg = None,
+                value_type: ModelArg = None,
+                loop: asyncio.AbstractEventLoop = None) -> ChannelT:
+        ...
+
+    @abc.abstractmethod
     def actor(self,
-              topic: Union[str, TopicT] = None,
+              channel: Union[str, ChannelT] = None,
               *,
               name: str = None,
               concurrency: int = 1,
@@ -172,7 +179,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     async def maybe_attach(
             self,
-            topic: Union[TopicT, str],
+            channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
@@ -184,7 +191,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def send(
-            self, topic: Union[TopicT, str],
+            self, channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
@@ -200,7 +207,9 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def send_soon(
-            self, topic: Union[TopicT, str], key: K, value: V,
+            self, channel: Union[ChannelT, str],
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
@@ -211,7 +220,7 @@ class AppT(ServiceT):
     def send_attached(
             self,
             message: Message,
-            topic: Union[str, TopicT],
+            channel: Union[str, ChannelT],
             key: K,
             value: V,
             partition: int = None,
