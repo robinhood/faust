@@ -2,11 +2,11 @@ import abc
 import asyncio
 import typing
 from types import TracebackType
-from typing import Any, AsyncIterator, Type, Union
+from typing import Any, AsyncIterator, Awaitable, Type, Union
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
-from .tuples import FutureMessage, Message, MessageSentCallback
+from .tuples import FutureMessage, Message, MessageSentCallback, RecordMetadata
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -37,25 +37,26 @@ class EventT(metaclass=abc.ABCMeta):
     async def send(self, topic: Union[str, 'ChannelT'],
                    *,
                    key: Any = None,
-                   force: bool = False) -> FutureMessage:
+                   force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
     async def forward(self, topic: Union[str, 'ChannelT'],
                       *,
                       key: Any = None,
-                      force: bool = False) -> FutureMessage:
+                      force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    def attach(self,
-               channel: Union['ChannelT', str],
-               key: K = None,
-               value: V = None,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> FutureMessage:
+    def attach(
+            self,
+            channel: Union['ChannelT', str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -106,7 +107,7 @@ class ChannelT(AsyncIterator):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
-            force: bool = False) -> FutureMessage:
+            force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -122,15 +123,16 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     async def publish_message(self, fut: FutureMessage,
-                              wait: bool = True) -> FutureMessage:
+                              wait: bool = True) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None,
-                  callback: MessageSentCallback = None) -> FutureMessage:
+    def send_soon(
+            self, key: K, value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod

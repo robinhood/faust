@@ -71,14 +71,14 @@ class Event(EventT):
     async def send(self, topic: Union[str, ChannelT],
                    *,
                    key: Any = USE_EXISTING_KEY,
-                   force: bool = False) -> FutureMessage:
+                   force: bool = False) -> Awaitable[RecordMetadata]:
         """Serialize and send object to topic."""
         return await self._send(topic, key, self.value, force=force)
 
     async def forward(self, topic: Union[str, ChannelT],
                       *,
                       key: Any = USE_EXISTING_KEY,
-                      force: bool = False) -> FutureMessage:
+                      force: bool = False) -> Awaitable[RecordMetadata]:
         """Forward original message (will not be reserialized)."""
         return await self._send(
             topic, key=key, value=self.message.value, force=force)
@@ -86,19 +86,20 @@ class Event(EventT):
     async def _send(self, topic: Union[str, ChannelT],
                     key: Any = USE_EXISTING_KEY,
                     value: Any = None,
-                    force: bool = False) -> FutureMessage:
+                    force: bool = False) -> Awaitable[RecordMetadata]:
         if key is USE_EXISTING_KEY:
             key = self.message.key
         return await self.app.maybe_attach(topic, key, value, force=force)
 
-    def attach(self,
-               channel: Union[ChannelT, str],
-               key: K = None,
-               value: V = None,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> FutureMessage:
+    def attach(
+            self,
+            channel: Union[ChannelT, str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return self.app.send_attached(
             self.message, channel, key, value,
             partition=partition,
@@ -182,7 +183,7 @@ class Channel(ChannelT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
-            force: bool = False) -> FutureMessage:
+            force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to topic."""
         if not force:
             event = current_event()
@@ -227,12 +228,13 @@ class Channel(ChannelT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(self.as_future_message(
             key, value, partition, key_serializer, value_serializer, callback))
 
-    async def publish_message(self, fut: FutureMessage,
-                              wait: bool = True) -> FutureMessage:
+    async def publish_message(
+            self, fut: FutureMessage,
+            wait: bool = True) -> Awaitable[RecordMetadata]:
         event = self._create_event(fut.message.key, fut.message.value)
         await self.put(event)
         return await self._finalize_message(
@@ -245,13 +247,14 @@ class Channel(ChannelT):
             await maybe_async(fut.message.callback(fut))
         return fut
 
-    def send_soon(self,
-                  key: K = None,
-                  value: V = None,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None,
-                  callback: MessageSentCallback = None) -> FutureMessage:
+    def send_soon(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send message to topic (asynchronous version).
 
         Notes:

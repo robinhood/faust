@@ -9,7 +9,7 @@ from uuid import uuid4
 from weakref import WeakSet
 from . import Record
 from .types import (
-    AppT, ChannelT, CodecArg, FutureMessage, K, ModelT, StreamT, TopicT, V,
+    AppT, ChannelT, CodecArg, K, ModelT, RecordMetadata, StreamT, TopicT, V,
 )
 from .types.actors import (
     ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
@@ -501,7 +501,7 @@ class Actor(ActorT, ServiceProxy):
             *,
             reply_to: ReplyToArg = None,
             correlation_id: str = None,
-            force: bool = False) -> FutureMessage:
+            force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to topic used by actor."""
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
@@ -521,10 +521,11 @@ class Actor(ActorT, ServiceProxy):
             raise ValueError('Channels are unnamed topics')
         return cast(str, topic)
 
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> FutureMessage:
+    def send_soon(
+            self, key: K, value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None) -> Awaitable[RecordMetadata]:
         """Send message eventually (non async), to topic used by actor."""
         return self.channel.send_soon(key, value, partition,
                                       key_serializer, value_serializer)

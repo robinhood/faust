@@ -180,8 +180,9 @@ class Topic(Channel, TopicT):
     def get_topic_name(self) -> str:
         return self.topics[0]
 
-    async def publish_message(self, fut: FutureMessage,
-                              wait: bool = True) -> FutureMessage:
+    async def publish_message(
+            self, fut: FutureMessage,
+            wait: bool = True) -> Awaitable[RecordMetadata]:
         app = self.app
         message: PendingMessage = fut.message
         if isinstance(message.channel, str):
@@ -205,10 +206,10 @@ class Topic(Channel, TopicT):
             await app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
         else:
-            await producer.send(topic, key, value, partition=message.partition)
+            return await producer.send(
+                topic, key, value, partition=message.partition)
             # XXX add done callback
             # XXX call sensors
-            return fut
 
     def prepare_key(self,
                     key: K,

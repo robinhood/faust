@@ -20,8 +20,7 @@ from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import ChannelT, TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import (
-    FutureMessage, Message, MessageSentCallback,
-    RecordMetadata, TopicPartition,
+    Message, MessageSentCallback, RecordMetadata, TopicPartition,
 )
 from .windows import WindowT
 from ..utils.imports import SymbolArg
@@ -186,7 +185,7 @@ class AppT(ServiceT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
-            force: bool = False) -> FutureMessage:
+            force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -197,7 +196,7 @@ class AppT(ServiceT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -208,7 +207,7 @@ class AppT(ServiceT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -221,7 +220,7 @@ class AppT(ServiceT):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod

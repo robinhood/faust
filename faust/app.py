@@ -480,7 +480,7 @@ class App(AppT, ServiceProxy):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
-            force: bool = False) -> FutureMessage:
+            force: bool = False) -> Awaitable[RecordMetadata]:
         if not force:
             event = current_event()
             if event is not None:
@@ -507,7 +507,7 @@ class App(AppT, ServiceProxy):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> FutureMessage:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send event to stream.
 
         Arguments:
@@ -528,14 +528,15 @@ class App(AppT, ServiceProxy):
             key_serializer, value_serializer, callback,
         )
 
-    def send_soon(self,
-                  channel: Union[ChannelT, str],
-                  key: K = None,
-                  value: V = None,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None,
-                  callback: MessageSentCallback = None) -> FutureMessage:
+    def send_soon(
+            self,
+            channel: Union[ChannelT, str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send event to stream soon.
 
         This is for use by non-async functions.
@@ -546,15 +547,16 @@ class App(AppT, ServiceProxy):
         self._message_buffer.put(fut)
         return fut
 
-    def send_attached(self,
-                      message: Message,
-                      channel: Union[str, ChannelT],
-                      key: K,
-                      value: V,
-                      partition: int = None,
-                      key_serializer: CodecArg = None,
-                      value_serializer: CodecArg = None,
-                      callback: MessageSentCallback = None) -> FutureMessage:
+    def send_attached(
+            self,
+            message: Message,
+            channel: Union[str, ChannelT],
+            key: K,
+            value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         buf = self._pending_on_commit[message.tp]
         chan = self.topic(channel) if isinstance(channel, str) else channel
         fut = chan.as_future_message(
@@ -566,9 +568,7 @@ class App(AppT, ServiceProxy):
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
         await asyncio.wait(
-            [asyncio.ensure_future(
-                fut.message.channel.publish_message(fut, wait=False),
-                loop=self.loop)
+            [await fut.message.channel.publish_message(fut, wait=False)
              for fut in list(self._get_attached(tp, offset))],
             return_when=asyncio.ALL_COMPLETED,
             loop=self.loop,
