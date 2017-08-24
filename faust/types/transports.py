@@ -30,7 +30,8 @@ __all__ = [
 ConsumerCallback = Callable[[Message], Awaitable]
 
 #: Argument to Consumer.commit to specify topics/tps to commit.
-TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
+TPorTopic = Union[str, TopicPartition]
+TPorTopicSet = AbstractSet[TPorTopic]
 
 PartitionsRevokedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
 PartitionsAssignedCallback = Callable[[Iterable[TopicPartition]], Awaitable]

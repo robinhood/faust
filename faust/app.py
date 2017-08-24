@@ -17,6 +17,7 @@ from uuid import uuid4
 from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
+from .assignor import PartitionAssignor
 from .exceptions import ImproperlyConfigured
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
@@ -29,7 +30,9 @@ from .types.app import AppT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import CollectionT, SetT, TableManagerT, TableT
-from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
+from .types.transports import (
+    ConsumerT, ProducerT,  TPorTopic, TPorTopicSet, TransportT,
+)
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
@@ -69,7 +72,7 @@ CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit messages.
 #: Can be customized by setting ``App(commit_interval=...)``.
-COMMIT_INTERVAL = 1.0
+COMMIT_INTERVAL = 2.0
 
 #: How often we clean up windowed tables.
 #: Can be customized by setting ``App(table_cleanup_interval=...)``.
@@ -293,6 +296,8 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self.assignor = PartitionAssignor(self,
+                                          replicas=self.replication_factor)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store

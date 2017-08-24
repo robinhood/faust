@@ -8,6 +8,7 @@ from typing import (
 )
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT, SinkT
+from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
 from .sensors import SensorDelegateT
@@ -70,6 +71,7 @@ class AppT(ServiceT):
     reply_expires: float
     avro_registry_url: str
     store: str
+    assignor: PartitionAssignorT
 
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT

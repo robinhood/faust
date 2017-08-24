@@ -77,7 +77,7 @@ class Stresser(object):
 
     async def _start_worker(self, worker):
         assert worker in self.workers
-        with open(f'worker_{worker}.logs', 'w') as f:
+        with open(f'worker_{worker}.logs', 'a') as f:
             if worker not in self._worker_procs:
                 print(f'Starting worker {worker}')
                 self._worker_procs[worker] = await asyncio.create_subprocess_exec(
@@ -113,7 +113,7 @@ class Stresser(object):
     async def _start_producer(self, producer):
         assert producer in self.producers
         if producer not in self._producer_procs:
-            with open(f'producer_{producer}.logs', 'w') as f:
+            with open(f'producer_{producer}.logs', 'a') as f:
                 print(f'Starting producer: {producer}')
                 self._producer_procs[producer] = await asyncio.create_subprocess_exec(
                     'python',
@@ -139,7 +139,7 @@ class Stresser(object):
 
 
 async def test_consistency(loop):
-    stresser = Stresser(num_workers=3, num_producers=8, loop=loop)
+    stresser = Stresser(num_workers=4, num_producers=4, loop=loop)
     checker = ConsistencyChecker('withdrawals',
                                  'f-simple-user_to_total-changelog', loop=loop)
     print('Starting stresser')
