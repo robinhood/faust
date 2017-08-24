@@ -133,9 +133,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
-                sorted(
-                    assignment.kafka_protocol_assignment(self._table_manager)
-                ),
+                sorted(assignment.kafka_protocol_assignment(
+                    self._table_manager)),
                 assignment.dumps(),
             )
             for client, assignment in assignments.items()

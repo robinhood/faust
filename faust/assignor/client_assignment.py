@@ -76,10 +76,10 @@ class ClientAssignment(Record, serializer='json', include_metadata=False):
     actives: MutableMapping[str, List[int]]  # Topic -> Partition
     standbys: MutableMapping[str, List[int]]  # Topic -> Partition
 
-    def kafka_protocol_assignment(self,
-                                  table_manager: TableManagerT
-                                  ) -> Sequence[Tuple[str, List[int]]]:
-        assignment:  MutableMapping[str, List[int]] = copy.deepcopy(
+    def kafka_protocol_assignment(
+            self,
+            table_manager: TableManagerT) -> Sequence[Tuple[str, List[int]]]:
+        assignment: MutableMapping[str, List[int]] = copy.deepcopy(
             self.actives)
         for topic, partitions in self.standbys.items():
             if topic in table_manager.changelog_topics:
