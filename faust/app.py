@@ -6,6 +6,7 @@ from datetime import timedelta
 from functools import wraps
 from heapq import heappop, heappush
 from itertools import chain
+from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
@@ -29,7 +30,9 @@ from .types import (
 from .types.app import AppT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
-from .types.tables import CollectionT, SetT, TableManagerT, TableT
+from .types.tables import (
+    CheckpointManagerT, CollectionT, SetT, TableManagerT, TableT,
+)
 from .types.transports import (
     ConsumerT, ProducerT, TPorTopicSet, TransportT,
 )
@@ -48,10 +51,14 @@ __all__ = ['App']
 #: Default broker URL.
 DEFAULT_URL = 'kafka://localhost:9092'
 
+CHECKPOINT_PATH = '.checkpoint'
+
 #: Path to default stream class used by ``app.stream``.
 DEFAULT_STREAM_CLS = 'faust.Stream'
 
 DEFAULT_TABLE_MAN = 'faust.tables.TableManager'
+
+DEFAULT_CHECKPOINT_MAN = _DCPM = 'faust.tables.CheckpointManager'
 
 #: Path to default table class used by ``app.Table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
@@ -130,6 +137,8 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             # Sensors must always be started first, and stopped last.
             self.app.sensors,
+            # Checkpoint Manager
+            [self.app.checkpoints],                   # app.CheckpointManager
             # Producer must be stoppped after consumer.
             [self.app.producer],                      # app.Producer
             # Consumer must be stopped after Topic Manager
@@ -240,6 +249,7 @@ class App(AppT, ServiceProxy):
             client_id: str = CLIENT_ID,
             commit_interval: Seconds = COMMIT_INTERVAL,
             table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
+            checkpoint_path: Union[Path, str] = CHECKPOINT_PATH,
             key_serializer: CodecArg = 'json',
             value_serializer: CodecArg = 'json',
             num_standby_replicas: int = 0,
@@ -251,6 +261,7 @@ class App(AppT, ServiceProxy):
             Stream: SymbolArg[Type[StreamT]] = DEFAULT_STREAM_CLS,
             Table: SymbolArg[Type[TableT]] = DEFAULT_TABLE_CLS,
             TableManager: SymbolArg[Type[TableManagerT]] = DEFAULT_TABLE_MAN,
+            CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _DCPM,
             Set: SymbolArg[Type[SetT]] = DEFAULT_SET_CLS,
             Serializers: SymbolArg[Type[RegistryT]] = DEFAULT_SERIALIZERS_CLS,
             monitor: Monitor = None,
@@ -262,6 +273,7 @@ class App(AppT, ServiceProxy):
         self.client_id = client_id
         self.commit_interval = want_seconds(commit_interval)
         self.table_cleanup_interval = want_seconds(table_cleanup_interval)
+        self.checkpoint_path = Path(checkpoint_path)
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
@@ -276,6 +288,7 @@ class App(AppT, ServiceProxy):
         self.TableType = symbol_by_name(Table)
         self.SetType = symbol_by_name(Set)
         self.TableManager = symbol_by_name(TableManager)
+        self.CheckpointManager = symbol_by_name(CheckpointManager)
         self.Serializers = symbol_by_name(Serializers)
         self.serializers = self.Serializers(
             key_serializer=self.key_serializer,
@@ -675,6 +688,11 @@ class App(AppT, ServiceProxy):
     def tables(self) -> TableManagerT:
         return self.TableManager(
             app=self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def checkpoints(self) -> CheckpointManagerT:
+        return self.CheckpointManager(
+            self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def channels(self) -> TopicManagerT:

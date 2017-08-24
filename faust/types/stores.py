@@ -32,11 +32,6 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
-    def on_changelog_sent(self, tp: TopicPartition, offset: int,
-                          key: bytes, value: bytes) -> None:
-        ...
-
-    @abc.abstractmethod
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         ...
 

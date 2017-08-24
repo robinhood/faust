@@ -23,6 +23,7 @@ else:
     class ModelArg: ...  # noqa
 
 __all__ = [
+    'CheckpointManagerT',
     'CollectionT',
     'TableT',
     'SetT',
@@ -32,6 +33,21 @@ __all__ = [
     'ChangelogReaderT',
     'CollectionTps',
 ]
+
+
+class CheckpointManagerT(ServiceT):
+
+    @abc.abstractmethod
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def get_offset(self, tp: TopicPartition) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    def set_offset(self, tp: TopicPartition, offset: int) -> None:
+        ...
 
 
 class CollectionT(JoinableT, ServiceT):

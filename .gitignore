@@ -31,3 +31,4 @@ cover/
 .mypy_cache/
 htmlcov/
 *-cache*
+.checkpoint

@@ -1,5 +1,5 @@
 """RocksDB storage."""
-from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple
+from typing import Any, Callable, Iterable, Iterator, Optional, Tuple
 from . import base
 from ..types import AppT, EventT, TopicPartition
 from ..utils.logging import get_logger
@@ -16,9 +16,6 @@ class Store(base.SerializedStore):
     logger = logger
 
     _db: rocksdb.DB = None
-    _dirty: Dict
-
-    offset_key_prefix = '__FAUST-OFFSET-{topic}-{partition}'
 
     def __init__(self, url: str, app: AppT,
                  *,
@@ -41,54 +38,23 @@ class Store(base.SerializedStore):
         _, _, rest = self.url.partition('://')
         if not rest:
             self.url = self.url + self.table_name
-        self._dirty = {}
         self._db = None
 
-    def _offset_key(self, tp: TopicPartition) -> bytes:
-        return self.offset_key_prefix.format(
-            topic=tp.topic, partition=tp.partition).encode()
-
-    def on_changelog_sent(self, tp: TopicPartition, offset: int,
-                          key: bytes, value: bytes) -> None:
-        offset_key = self._offset_key(tp)
-        cur_offset_bytes = self.db.get(offset_key)
-        if cur_offset_bytes is not None:
-            cur_offset = self._decode_value(cur_offset_bytes)
-            if offset > cur_offset:
-                batch = rocksdb.WriteBatch()
-                batch.put(key, value)
-                batch.put(offset_key, self._encode_value(offset))
-                self.db.write(batch)
-                return None
-        self.db.put(key, value)
-
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
-        val = self.db.get(self._offset_key(tp))
-        return self._decode_value(val) if val is not None else None
+        return self.app.checkpoints.get_offset(tp)
 
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
-        offsets: Dict[TopicPartition, int] = {}
         w = rocksdb.WriteBatch()
         for event in batch:
-            tp = event.message.tp
-            msg_offset, cur_offset = event.message.offset, offsets.get(tp)
-            if cur_offset is None or cur_offset < msg_offset:
-                offsets[tp] = msg_offset
             w.put(event.message.key, event.message.value)
-        for tp, offset in offsets.items():
-            w.put(self._offset_key(tp), self._encode_value(offset))
         self.db.write(w)
 
     def _get(self, key: bytes) -> bytes:
-        dirty = self._dirty
-        if key in dirty:
-            return dirty[key]
         return self.db.get(key)
 
     def _set(self, key: bytes, value: bytes) -> None:
-        self._dirty[key] = value
         self.db.put(key, value)
 
     def _del(self, key: bytes) -> None:

@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import typing
+from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Mapping, MutableMapping, Pattern, Type, Union,
@@ -15,7 +16,9 @@ from .serializers import RegistryT
 # mypy requires this for some unknown reason, but it's not used
 from .streams import T  # noqa: F401
 from .streams import StreamT
-from .tables import CollectionT, SetT, TableManagerT, TableT
+from .tables import (
+    CheckpointManagerT, CollectionT, SetT, TableManagerT, TableT,
+)
 from .topics import ChannelT, TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import (
@@ -49,6 +52,7 @@ class AppT(ServiceT):
     Stream: Type[StreamT]
     TableType: Type[TableT]
     TableManager: Type[TableManagerT]
+    CheckpointManager: Type[CheckpointManagerT]
     SetType: Type[SetT]
     Serializers: Type[RegistryT]
 
@@ -58,6 +62,7 @@ class AppT(ServiceT):
     client_only: bool
     commit_interval: float
     table_cleanup_interval: float
+    checkpoint_path: Path
     key_serializer: CodecArg
     value_serializer: CodecArg
     num_standby_replicas: int
@@ -93,6 +98,7 @@ class AppT(ServiceT):
                  Stream: SymbolArg[Type[StreamT]] = '',
                  Table: SymbolArg[Type[TableT]] = '',
                  TableManager: SymbolArg[Type[TableManagerT]] = '',
+                 CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = '',
                  Set: SymbolArg[Type[SetT]] = '',
                  Serializers: SymbolArg[Type[RegistryT]] = '',
                  monitor: Monitor = None,
@@ -242,6 +248,11 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def tables(self) -> TableManagerT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def checkpoints(self) -> CheckpointManagerT:
         ...
 
     @property

@@ -25,10 +25,6 @@ class Store(StoreT, Service):
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
 
-    def on_changelog_sent(self, tp: TopicPartition, offset: int,
-                          key: bytes, value: bytes) -> None:
-        ...
-
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         raise NotImplementedError('In-memory store only, does not persist.')
 

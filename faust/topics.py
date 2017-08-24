@@ -2,6 +2,7 @@ import asyncio
 import re
 import typing
 from collections import defaultdict
+from functools import partial
 from typing import (
     Any, Awaitable, Callable, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
@@ -208,10 +209,17 @@ class Topic(Channel, TopicT):
             await app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
         else:
-            return await producer.send(
+            fut2 = await producer.send(
                 topic, key, value, partition=message.partition)
-            # XXX add done callback
-            # XXX call sensors
+            fut2.add_done_callback(partial(self._on_published, message=fut))
+            return fut2
+
+    def _on_published(
+            self, fut: asyncio.Future, message: FutureMessage) -> None:
+        res: RecordMetadata = fut.result()
+        message.set_result(res)
+        if message.message.callback:
+            message.message.callback(message)
 
     def prepare_key(self,
                     key: K,

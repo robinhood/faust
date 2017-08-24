@@ -147,7 +147,7 @@ class Worker(Service):
     stdout: IO
     stderr: IO
     blocking_timeout: float
-    workdir: str
+    workdir: Path
     web_port: int
     web_bind: str
     Website: Type[_Website]
@@ -165,7 +165,7 @@ class Worker(Service):
             stdout: IO = sys.stdout,
             stderr: IO = sys.stderr,
             blocking_timeout: float = DEFAULT_BLOCKING_TIMEOUT,
-            workdir: str = None,
+            workdir: Union[Path, str] = None,
             Website: SymbolArg[Type[_Website]] = DEFAULT_WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
@@ -183,7 +183,7 @@ class Worker(Service):
         self.stdout = stdout
         self.stderr = stderr
         self.blocking_timeout = blocking_timeout
-        self.workdir = workdir
+        self.workdir = Path(workdir or Path.cwd())
         self.Website = symbol_by_name(Website)
         self.web_port = web_port
         self.web_bind = web_bind

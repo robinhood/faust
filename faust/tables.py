@@ -1,6 +1,7 @@
 """Tables (changelog stream)."""
 import abc
 import asyncio
+import json
 import operator
 from collections import defaultdict
 from datetime import datetime
@@ -21,7 +22,7 @@ from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import (
-    ChangelogReaderT, CollectionT, CollectionTps, SetT,
+    ChangelogReaderT, CheckpointManagerT, CollectionT, CollectionTps, SetT,
     TableManagerT, TableT, WindowSetT, WindowWrapperT,
 )
 from .types.topics import ChannelT
@@ -150,14 +151,10 @@ class Collection(Service, CollectionT):
              value_serializer='json',
              callback=self._on_changelog_sent)
 
-    async def _on_changelog_sent(self, fut: FutureMessage) -> None:
-        response: RecordMetadata = fut.result()
-        message: PendingMessage = fut.message
-        self.data.on_changelog_sent(
-            response.topic_partition, response.offset,
-            cast(bytes, message.key),
-            cast(bytes, message.value),
-        )
+    def _on_changelog_sent(self, fut: FutureMessage) -> None:
+        print('SETTING CHECKPOINT!!!!!!!!!!!')
+        res: RecordMetadata = fut.result()
+        self.app.checkpoints.set_offset(res.topic_partition, res.offset)
 
     @Service.task
     async def _clean_data(self) -> None:
@@ -733,3 +730,37 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._start_standbys(standby_tps)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
+
+
+class CheckpointManager(CheckpointManagerT, Service):
+    _offsets: MutableMapping[TopicPartition, int]
+
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        self.app = app
+        self._offsets = {}
+        Service.__init__(self, **kwargs)
+
+    async def on_start(self) -> None:
+        try:
+            with open(self.app.checkpoint_path, 'r') as fh:
+                data = json.load(fh)
+            self._offsets.update((
+                (TopicPartition(*k.split('\0')), int(v))
+                for k, v in data.items()
+            ))
+        except FileNotFoundError:
+            pass
+
+    async def on_stop(self) -> None:
+        with open(self.app.checkpoint_path, 'w') as fh:
+            json.dump({
+                f'{tp.topic}\0{tp.partition}': v
+                for tp, v in self._offsets.items()
+            }, fh)
+
+    def get_offset(self, tp: TopicPartition) -> Optional[int]:
+        return self._offsets.get(tp)
+
+    def set_offset(self, tp: TopicPartition, offset: int) -> None:
+        print('SET OFFSET %r -> %r' % (tp, offset))
+        self._offsets[tp] = offset

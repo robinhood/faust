@@ -291,7 +291,7 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> Awaitable[RecordMetadata]:
-        return cast(Awaitable[RecordMetadata], self._producer.send(
+        return cast(Awaitable[RecordMetadata], await self._producer.send(
             topic, value, key=key, partition=partition))
 
     async def send_and_wait(
