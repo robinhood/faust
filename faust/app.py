@@ -6,7 +6,6 @@ from datetime import timedelta
 from functools import wraps
 from heapq import heappop, heappush
 from itertools import chain
-from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
@@ -32,7 +31,7 @@ from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import CollectionT, SetT, TableManagerT, TableT
 from .types.transports import (
-    ConsumerT, ProducerT,  TPorTopic, TPorTopicSet, TransportT,
+    ConsumerT, ProducerT, TPorTopicSet, TransportT,
 )
 from .types.windows import WindowT
 from .utils.aiter import aiter
@@ -62,10 +61,6 @@ DEFAULT_SET_CLS = 'faust.Set'
 
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
-
-#: Path to keep table changelog cache.  If None (default) the current
-#: directory is used.
-DEFAULT_TABLE_CACHE_PATH = None
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
@@ -198,8 +193,6 @@ class App(AppT, ServiceProxy):
             table.  Default: ``0``.
         replication_factor (int): The replication factor for changelog topics
             and repartition topics created by the application.  Default: ``1``.
-        table_cache_path (Union[str, pathlib.Path]): Path to store cached table
-            changelog keys.
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
@@ -254,7 +247,6 @@ class App(AppT, ServiceProxy):
             default_partitions: int = 8,
             reply_to: str = None,
             create_reply_topic: bool = False,
-            table_cache_path: Union[Path, str] = DEFAULT_TABLE_CACHE_PATH,
             reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
             Stream: SymbolArg[Type[StreamT]] = DEFAULT_STREAM_CLS,
             Table: SymbolArg[Type[TableT]] = DEFAULT_TABLE_CLS,
@@ -277,7 +269,6 @@ class App(AppT, ServiceProxy):
         self.default_partitions = default_partitions
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
         self.create_reply_topic = create_reply_topic
-        self.table_cache_path = Path(table_cache_path or Path.cwd())
         self.reply_expires = want_seconds(
             reply_expires or DEFAULT_REPLY_EXPIRES)
         self.avro_registry_url = avro_registry_url

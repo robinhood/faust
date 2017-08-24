@@ -1,13 +1,10 @@
 """Tables (changelog stream)."""
 import abc
 import asyncio
-import errno
 import operator
-import shelve
 from collections import defaultdict
 from datetime import datetime
 from heapq import heappop, heappush
-from pathlib import Path
 from typing import (
     Any, AsyncIterable, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Sequence, Set as _Set, Tuple, cast,
@@ -151,13 +148,13 @@ class Collection(Service, CollectionT):
              callback=self._on_changelog_sent)
 
     async def _on_changelog_sent(self, fut: FutureMessage) -> None:
-        tables = cast(TableManager, self.app.tables)
         response: RecordMetadata = fut.result()
         message: PendingMessage = fut.message
-        if tables._diskcache:
-            await tables._write_cache(
-                response.topic_partition, response.offset,
-                cast(bytes, message.key), cast(bytes, message.value))
+        self.data.on_changelog_sent(
+            response.topic_partition, response.offset,
+            cast(bytes, message.key),
+            cast(bytes, message.value),
+        )
 
     @Service.task
     async def _clean_data(self) -> None:
@@ -492,12 +489,13 @@ class ChangelogReader(Service, ChangelogReaderT):
     def __init__(self, table: CollectionT,
                  app: AppT,
                  tps: Iterable[TopicPartition],
-                 offsets: MutableMapping[TopicPartition, int] = {},
+                 offsets: MutableMapping[TopicPartition, int] = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
         self.app = app
         self.tps = tps
+        offsets = {} if offsets is None else offsets
         self.offsets = {tp: offsets.get(tp, -1) for tp in self.tps}
         self._started_reading = asyncio.Event(loop=self.loop)
 
@@ -583,7 +581,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
-    _diskcache: MutableMapping[TopicPartition, shelve.Shelf]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
     _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
@@ -592,12 +589,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app = app
-        self.cache_path = self.app.table_cache_path
         self.data = {}
         self._channels = {}
         self._changelogs = {}
         self._table_offsets = {}
-        self._diskcache = {}
         self._standbys = {}
         self._changelog_readers = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
@@ -611,59 +606,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if self._recovery_started.is_set():
             raise RuntimeError('Too late to add tables at this point')
         super().__setitem__(key, value)
-
-    def _get_cache_for(self, tp: TopicPartition) -> shelve.Shelf:
-        try:
-            return self._diskcache[tp]
-        except KeyError:
-            path = self._get_cache_path_for(tp)
-            c = self._diskcache[tp] = shelve.open(str(path), writeback=True)
-            c.setdefault('offset_left', None)
-            c.setdefault('offset_right', None)
-            return c
-        except Exception as exc:
-            if getattr(exc, 'errno', None) == errno.EAGAIN:
-                raise RuntimeError(f'Cache already in use: {exc!r}')
-            raise
-
-    def _get_cache_path_for(self, tp: TopicPartition) -> Path:
-        return self.cache_path / f'{tp.topic}-{tp.partition}-cache'
-
-    def _cleanup_cache(self) -> None:
-        for shelf in self._diskcache.values():
-            shelf.sync()
-            shelf.close()
-        self._diskcache.clear()
-
-    def _prune_cache(self, cache: shelve.Shelf, new_offset: int) -> None:
-        current_offset = cache.get('offset_left')
-        if current_offset is not None:
-            while current_offset < new_offset:
-                offset, current_offset = current_offset, current_offset + 1
-                try:
-                    del cache[str(offset)]
-                except KeyError:
-                    pass
-                else:
-                    cache['offset_left'] = current_offset
-
-    async def _write_cache(
-        self,
-        tp: TopicPartition,
-        offset: int,
-        key: bytes,
-        value: bytes) -> None:
-        cache = self._get_cache_for(tp)
-        offset_left = cache.get('offset_left')
-        offset_right = cache.get('offset_right')
-        cache.update({
-            'offset_left': offset if offset_left is None else offset_left,
-            'offset_right': max(offset, offset_right or 0),
-            str(offset): {
-                'key': key,
-                'value': value,
-            },
-        })
 
     async def _update_channels(self) -> None:
         for table in self.values():
@@ -684,7 +626,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._table_offsets.update(reader.offsets)
 
     async def _stop_standbys(self) -> None:
-        for coll, standby in self._standbys.items():
+        for _, standby in self._standbys.items():
             self.log.info(f'Stopping standby for tps: {standby.tps}')
             await standby.stop()
             self._sync_offsets(standby)

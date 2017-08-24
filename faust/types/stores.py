@@ -2,6 +2,7 @@ import abc
 import typing
 from typing import Any, MutableMapping
 from .codecs import CodecArg
+from .tuples import TopicPartition
 from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
@@ -27,4 +28,13 @@ class StoreT(ServiceT, MutableMapping):
                  key_serializer: CodecArg = '',
                  value_serializer: CodecArg = '',
                  **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_changelog_sent(self, tp: TopicPartition, offset: int,
+                          key: bytes, value: bytes) -> None:
+        ...
+
+    @abc.abstractmethod
+    def persisted_offset(self, tp: TopicPartition) -> int:
         ...

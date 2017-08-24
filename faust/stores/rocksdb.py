@@ -1,7 +1,7 @@
 """RocksDB storage."""
-from typing import Any, Iterator, Tuple
+from typing import Any, Dict, Iterator, Tuple
 from . import base
-from ..types.app import AppT
+from ..types import AppT, TopicPartition
 from ..utils.logging import get_logger
 
 try:
@@ -16,6 +16,9 @@ class Store(base.SerializedStore):
     logger = logger
 
     _db: rocksdb.DB = None
+    _dirty: Dict
+
+    offset_key_prefix = '__FAUST-OFFSET-{topic}-{partition}'
 
     def __init__(self, url: str, app: AppT,
                  *,
@@ -38,12 +41,36 @@ class Store(base.SerializedStore):
         _, _, rest = self.url.partition('://')
         if not rest:
             self.url = self.url + self.table_name
+        self._dirty = {}
         self._db = None
 
+    def _offset_key(self, tp: TopicPartition) -> bytes:
+        return self.offset_key_prefix.format(
+            topic=tp.topic, partition=tp.partition).encode()
+
+    def on_changelog_sent(self, tp: TopicPartition, offset: int,
+                          key: bytes, value: bytes) -> None:
+        offset_key = self._offset_key(tp)
+        cur_offset = self._db.get(offset_key)
+        if offset > cur_offset:
+            batch = rocksdb.WriteBatch()
+            batch.put(key, value)
+            batch.put(offset_key, offset)
+            self._db.write(batch)
+        else:
+            self._db.put(key, value)
+
+    def persisted_offset(self, tp: TopicPartition) -> int:
+        return self._db.get(self._offset_key(tp))
+
     def _get(self, key: bytes) -> bytes:
+        dirty = self._dirty
+        if key in dirty:
+            return dirty[key]
         return self.db.get(key)
 
     def _set(self, key: bytes, value: bytes) -> None:
+        self._dirty[key] = value
         self.db.put(key, value)
 
     def _del(self, key: bytes) -> None:

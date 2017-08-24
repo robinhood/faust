@@ -1,7 +1,6 @@
 import abc
 import asyncio
 import typing
-from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Mapping, MutableMapping, Pattern, Type, Union,
@@ -66,7 +65,6 @@ class AppT(ServiceT):
     default_partitions: int  # noqa: E704
     reply_to: str
     create_reply_topic: float
-    table_cache_path: Path
     reply_expires: float
     avro_registry_url: str
     store: str

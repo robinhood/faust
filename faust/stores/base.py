@@ -2,7 +2,7 @@ import abc
 from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Iterator, Tuple
 from ..serializers.codecs import dumps, loads
-from ..types import AppT, CodecArg, StoreT
+from ..types import AppT, CodecArg, StoreT, TopicPartition
 from ..utils.logging import get_logger
 from ..utils.services import Service
 
@@ -24,6 +24,13 @@ class Store(StoreT, Service):
         self.table_name = table_name
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
+
+    def on_changelog_sent(self, tp: TopicPartition, offset: int,
+                          key: bytes, value: bytes) -> None:
+        ...
+
+    def persisted_offset(self, tp: TopicPartition) -> int:
+        raise NotImplementedError('In-memory store only, does not persist.')
 
     def _encode_key(self, key: Any) -> bytes:
         return dumps(self.key_serializer, key)
