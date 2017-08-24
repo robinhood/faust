@@ -322,7 +322,8 @@ class Channel(ChannelT):
 
     async def put(self, value: Any) -> None:
         if not self.is_iterator and not self.clone_shares_queue:
-            raise RuntimeError('Cannot put on this channel before aiter(channel)')
+            raise RuntimeError(
+                'Cannot put on this channel before aiter(channel)')
         await self.queue.put(value)
 
     async def get(self) -> Any:
