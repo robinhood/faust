@@ -699,19 +699,15 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _start_standbys(self,
                               tps: Iterable[TopicPartition]) -> None:
+        assert not self._standbys
         table_stanby_tps = self._group_table_tps(tps)
         offsets = self._table_offsets
         for table, tps in table_stanby_tps.items():
             self.log.info(f'Starting standbys for tps: {tps}')
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
-            if table in self._standbys:
-                standby = self._standbys[table]
-                standby.update_tps(tps, tp_offsets)
-                await standby.start()
-            else:
-                standby = StandbyReader(table, self.app, tps, tp_offsets)
-                self._standbys[table] = standby
-                await standby.start()
+            standby = StandbyReader(table, self.app, tps, tp_offsets)
+            self._standbys[table] = standby
+            await standby.start()
 
     def _is_changelog_tp(self, tp: TopicPartition) -> bool:
         return tp.topic in self.changelog_topics
