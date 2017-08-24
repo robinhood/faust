@@ -4,7 +4,7 @@ import asyncio
 import typing
 from typing import (
     Any, Callable, ClassVar, Iterable, List, MutableMapping,
-    MutableSet, Set, Type,
+    MutableSet, Optional, Set, Type,
 )
 from .channels import EventT
 from .stores import StoreT
@@ -70,6 +70,10 @@ class CollectionT(JoinableT, ServiceT):
 
     @abc.abstractmethod
     def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         ...
 
 

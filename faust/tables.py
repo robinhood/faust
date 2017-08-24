@@ -7,7 +7,7 @@ from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any, AsyncIterable, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Sequence, Set as _Set, cast,
+    MutableMapping, MutableSet, Optional, Sequence, Set as _Set, cast,
 )
 from . import stores
 from . import windows
@@ -132,6 +132,9 @@ class Collection(Service, CollectionT):
             'changelog_topic': self._changelog_topic,
             'window': self.window,
         }
+
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        return self.data.persisted_offset(tp)
 
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
@@ -632,6 +635,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
+    def _sync_persisted_offsets(self, table: CollectionT,
+                                tps: Iterable[TopicPartition]) -> None:
+        for tp in tps:
+            persisted_offset = table.persisted_offset(tp)
+            if persisted_offset is not None:
+                curr_offset = self._table_offsets.get(tp, -1)
+                self._table_offsets[tp] = max(curr_offset, persisted_offset)
+
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
         self.log.info(f'Syncing offsets {reader.offsets}')
         self._table_offsets.update(reader.offsets)
@@ -657,6 +668,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         offsets = self._table_offsets
         for table, tps in table_stanby_tps.items():
             self.log.info(f'Starting standbys for tps: {tps}')
+            self._sync_persisted_offsets(table, tps)
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
             standby = StandbyReader(table, self.app, tps, tp_offsets)
             self._standbys[table] = standby
@@ -689,6 +701,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for table in self.values():
             table_tps = {tp for tp in tps
                          if tp.topic == table._changelog_topic_name()}
+            self._sync_persisted_offsets(table, table_tps)
             tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
             table_recoverers.append(
                 ChangelogReader(table, self.app, table_tps, tp_offsets))
