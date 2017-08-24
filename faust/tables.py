@@ -515,7 +515,6 @@ class ChangelogReader(Service, ChangelogReaderT):
             tp: await consumer.position(tp) - 1
             for tp in tps
         }
-        print(self._highwaters)
 
     async def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
@@ -525,7 +524,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         tps = self.tps
         for tp in tps:
             offset = max(self.offsets[tp], 0)
-            print('Seeking', tp, 'to offset:', offset)
+            self.log.info(f'Seeking {tp} to offset: {offset}')
             await consumer.seek(tp, offset)
             assert await consumer.position(tp) == offset
 
@@ -537,10 +536,9 @@ class ChangelogReader(Service, ChangelogReaderT):
     async def _read(self) -> None:
         table = self.table
         consumer = self.app.consumer
-        print('Pausing partitions', self.tps)
         await consumer.pause_partitions(self.tps)
         if not await self._should_start_reading():
-            self.log.info('Not Starting reading')
+            self.log.info('Not reading')
             self.set_shutdown()
             return
         await self._seek_tps()
@@ -682,12 +680,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
         })
 
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
-        print('Syncing offsets', reader.offsets)
+        self.log.info(f'Syncing offsets {reader.offsets}')
         self._table_offsets.update(reader.offsets)
 
     async def _stop_standbys(self) -> None:
         for coll, standby in self._standbys.items():
-            print('Stopping standby for tps:', standby.tps)
+            self.log.info(f'Stopping standby for tps: {standby.tps}')
             await standby.stop()
             self._sync_offsets(standby)
         self._standbys = {}
@@ -704,7 +702,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         table_stanby_tps = self._group_table_tps(tps)
         offsets = self._table_offsets
         for table, tps in table_stanby_tps.items():
-            print('Starting standbys for tps:', tps)
+            self.log.info(f'Starting standbys for tps: {tps}')
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
             if table in self._standbys:
                 standby = self._standbys[table]
@@ -770,7 +768,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             tp for tp in assigned
             if not self._is_changelog_tp(tp)
         })
-        print('Attempting to start standbys:', standby_tps)
         await self._start_standbys(standby_tps)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()

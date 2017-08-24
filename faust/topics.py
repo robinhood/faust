@@ -478,7 +478,6 @@ class TopicManager(TopicManagerT, Service):
         await self.sleep(2.0)
 
         # tell the consumer to subscribe to the topics.
-        print(self._update_topicmap())
         await self.app.consumer.subscribe(self._update_topicmap())
         notify(self._subscription_done)
 

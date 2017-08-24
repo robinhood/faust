@@ -50,8 +50,6 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         a = sorted(assignment.assignment)
         b = sorted(self._assignment.kafka_protocol_assignment(
             self._table_manager))
-        print("Got assignment metadata:", self._assignment)
-        print("Got assignement:", a)
         assert a == b, f'{a!r} != {b!r}'
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
@@ -98,7 +96,6 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def assign(self, cluster: ClusterMetadata,
                member_metadata: MemberMetadataMapping,
                ) -> MemberAssignmentMapping:
-        print("Attempting assignment")
         cluster_assgn = ClusterAssignment()
         cluster_assgn.add_clients(member_metadata)
         topics = cluster_assgn.topics()

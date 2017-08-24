@@ -648,15 +648,8 @@ class App(AppT, ServiceProxy):
             await producer.maybe_start()
         return producer
 
-    def _should_commit(self, topic: TPorTopic) -> bool:
-        t = topic.topic if isinstance(topic, TopicPartition) else topic
-        # We don't commit changelog tps that are resumed (standbys)
-        return t in self.tables.changelog_topics
-
     async def commit(self, topics: TPorTopicSet) -> bool:
-        commit_topics = filter(self._should_commit, topics)
-        print('Committing topics', commit_topics)
-        return await self.channels.commit(commit_topics)
+        return await self.channels.commit(topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
