@@ -58,6 +58,7 @@ class Topic(Channel, TopicT):
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
     """
+    clone_shares_queue = False
 
     _declared = False
     _partitions: int = None
@@ -78,6 +79,7 @@ class Topic(Channel, TopicT):
                  replicas: int = None,
                  acks: bool = True,
                  config: Mapping[str, Any] = None,
+                 queue: asyncio.Queue = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics
         super().__init__(

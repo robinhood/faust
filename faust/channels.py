@@ -135,26 +135,33 @@ class Channel(ChannelT):
     value_type: ModelArg
     loop: asyncio.AbstractEventLoop = None
     is_iterator: bool
+    clone_shares_queue: bool = True
 
-    queue: asyncio.Queue = None
+    _queue: asyncio.Queue = None
 
     def __init__(self, app: AppT,
                  *,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  is_iterator: bool = False,
+                 queue: asyncio.Queue = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
         self.key_type = key_type
         self.value_type = value_type
         self.is_iterator = is_iterator
-        if self.is_iterator:
+        self._queue = queue
+        self.deliver = self._compile_deliver()  # type: ignore
+
+    @property
+    def queue(self) -> asyncio.Queue:
+        if self._queue is None:
             # this should only be set after clone = channel.__aiter__()
             # which means the loop is not accessed by merely defining a
             # channel at module scope.
-            self.queue = asyncio.Queue(loop=self.loop or self.app.loop)
-        self.deliver = self._compile_deliver()  # type: ignore
+            self._queue = asyncio.Queue(loop=self.loop or self.app.loop)
+        return self._queue
 
     def clone(self, *, is_iterator: bool = None) -> ChannelT:
         return type(self)(
@@ -168,6 +175,7 @@ class Channel(ChannelT):
             'loop': self.loop,
             'key_type': self.key_type,
             'value_type': self.value_type,
+            'queue': self.queue if self.clone_shares_queue else None,
         }
 
     def stream(self, coroutine: StreamCoroutine = None,
@@ -313,8 +321,8 @@ class Channel(ChannelT):
         return Event(self.app, key, value, message)
 
     async def put(self, value: Any) -> None:
-        if self.queue is None:
-            raise RuntimeError('Cannot put on a channel before aiter(channel)')
+        if not self.is_iterator and not self.clone_shares_queue:
+            raise RuntimeError('Cannot put on this channel before aiter(channel)')
         await self.queue.put(value)
 
     async def get(self) -> Any:
