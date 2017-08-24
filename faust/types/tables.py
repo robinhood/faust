@@ -12,7 +12,6 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
-from ..types.core import K, V
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -70,7 +69,7 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def apply_changelog_kv(self, k: K, v: V) -> None:
+    def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
         ...
 
 

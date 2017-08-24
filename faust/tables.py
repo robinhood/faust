@@ -7,15 +7,15 @@ from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any, AsyncIterable, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Sequence, Set as _Set, Tuple, cast,
+    MutableMapping, MutableSet, Sequence, Set as _Set, cast,
 )
 from . import stores
 from . import windows
 from .streams import current_event
 from .streams import joins
 from .types import (
-    AppT, EventT, FieldDescriptorT, FutureMessage, JoinT, K, PendingMessage,
-    RecordMetadata, TopicPartition, TopicT, V,
+    AppT, EventT, FieldDescriptorT, FutureMessage, JoinT, PendingMessage,
+    RecordMetadata, TopicPartition, TopicT,
 )
 from .types.models import ModelArg
 from .types.stores import StoreT
@@ -291,8 +291,12 @@ class Collection(Service, CollectionT):
     def changelog_topic(self, topic: TopicT) -> None:
         self._changelog_topic = topic
 
-    def apply_changelog_kv(self, k: K, v: V) -> None:
-        self.data[self._to_key(k)] = self._to_value(v)
+    def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
+        self.data.apply_changelog_batch(
+            batch,
+            to_key=self._to_key,
+            to_value=self._to_value,
+        )
 
     def _to_key(self, k: Any) -> Any:
         if isinstance(k, list):
@@ -542,16 +546,23 @@ class ChangelogReader(Service, ChangelogReaderT):
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         self.log.info('Started reading')
+        buf: List[EventT] = []
         try:
-            async for k, v in self._read_changelog():
-                table.apply_changelog_kv(k, v)
+            async for event in self._read_changelog():
+                buf.append(event)
+                if not len(buf) % 1000:
+                    table.apply_changelog_batch(buf)
+                    buf.clear()
                 if await self._should_stop_reading():
                     break
         finally:
+            if buf:
+                table.apply_changelog_batch(buf)
+                buf.clear()
             await consumer.pause_partitions(self.tps)
             self.set_shutdown()
 
-    async def _read_changelog(self) -> AsyncIterable[Tuple[K, V]]:
+    async def _read_changelog(self) -> AsyncIterable[EventT]:
         offsets = self.offsets
         table = self.table
         channel = cast(ChannelT, aiter(table.changelog_topic))
@@ -563,7 +574,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             seen_offset = offsets.get(tp, -1)
             if offset > seen_offset:
                 offsets[tp] = offset
-                yield event.key, event.value
+                yield event
 
 
 class StandbyReader(ChangelogReader):
