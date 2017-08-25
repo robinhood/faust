@@ -152,7 +152,6 @@ class Collection(Service, CollectionT):
              callback=self._on_changelog_sent)
 
     def _on_changelog_sent(self, fut: FutureMessage) -> None:
-        print('SETTING CHECKPOINT!!!!!!!!!!!')
         res: RecordMetadata = fut.result()
         self.app.checkpoints.set_offset(res.topic_partition, res.offset)
 
@@ -771,5 +770,4 @@ class CheckpointManager(CheckpointManagerT, Service):
         return self._offsets.get(tp)
 
     def set_offset(self, tp: TopicPartition, offset: int) -> None:
-        print('SET OFFSET %r -> %r' % (tp, offset))
         self._offsets[tp] = offset

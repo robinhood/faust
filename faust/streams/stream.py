@@ -90,7 +90,8 @@ class Stream(StreamT, JoinableT, Service):
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
         self.channel = channel
-        self.outbox = self.app.FlowControlQueue(maxsize=1, loop=self.loop)
+        self.outbox = self.app.FlowControlQueue(
+            maxsize=1, loop=self.loop, clear_on_resume=True)
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
 

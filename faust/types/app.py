@@ -241,6 +241,7 @@ class AppT(ServiceT):
             self,
             maxsize: int = None,
             *,
+            clear_on_resume: bool = False,
             loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
         ...
 

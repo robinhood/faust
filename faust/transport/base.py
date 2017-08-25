@@ -79,7 +79,7 @@ class Consumer(Service, ConsumerT):
     _read_offset: MutableMapping[TopicPartition, int]
 
     #: Keeps track of the currently commited offset in each TP.
-    _current_offset: MutableMapping[TopicPartition, int] = None
+    _committed_offset: MutableMapping[TopicPartition, int] = None
 
     #: The consumer.wait_empty() method will set this to be notified
     #: when something acks a message.
@@ -112,7 +112,7 @@ class Consumer(Service, ConsumerT):
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
-        self._current_offset = defaultdict(lambda: None)
+        self._committed_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
         self._unacked_messages = WeakSet()
@@ -140,6 +140,12 @@ class Consumer(Service, ConsumerT):
             self, assigned: Iterable[TopicPartition]) -> None:
         await self._on_partitions_assigned(assigned)
         await self._perform_seek()
+        # All internal queues/buffers have now been cleared,
+        # so the registered read offsets may now be out of date.
+        # We have to refetch all messages that we had in the buffers
+        # and did not committ, to do so we reset read offsets to the committed
+        # offsets.
+        self._read_offset.update(self._committed_offset)
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
@@ -161,8 +167,8 @@ class Consumer(Service, ConsumerT):
             message.acked = True
             tp = message.tp
             offset = message.offset
-            current = self._current_offset[tp]
-            if current is None or offset > current:
+            committed = self._committed_offset[tp]
+            if committed is None or offset > committed:
                 acked_index = self._acked_index[tp]
                 if offset not in acked_index:
                     self._unacked_messages.discard(message)
@@ -214,9 +220,9 @@ class Consumer(Service, ConsumerT):
                     # if so, first send all messages attached to the new
                     # offset
                     await self._app.commit_attached(tp, offset)
-                    # then, update the current_offset and perform
+                    # then, update the committed_offset and perform
                     # the commit.
-                    self._current_offset[tp] = offset
+                    self._committed_offset[tp] = offset
                     did_commit = True
                     await self._do_commit(tp, offset, meta='')
             await self._app.sensors.on_commit_completed(self, sensor_state)
@@ -230,8 +236,8 @@ class Consumer(Service, ConsumerT):
         )
 
     def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
-        current = self._current_offset[tp]
-        return current is None or bool(offset) and offset > current
+        committed = self._committed_offset[tp]
+        return committed is None or bool(offset) and offset > committed
 
     def _new_offset(self, tp: TopicPartition) -> Optional[int]:
         # get the new offset for this tp, by going through

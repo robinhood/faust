@@ -1,7 +1,9 @@
 """Async I/O Future utilities."""
 import asyncio
+import typing
 from functools import singledispatch
 from typing import Any, Awaitable, Optional
+from weakref import WeakSet
 
 __all__ = [
     'FlowControlEvent', 'FlowControlQueue',
@@ -41,11 +43,18 @@ async def _(res: Awaitable) -> Any:
 
 
 class FlowControlEvent:
+    if typing.TYPE_CHECKING:
+        _queues: WeakSet['FlowControlQueue']
+    _queues = None
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
         self._resume = asyncio.Event(loop=self.loop)
         self._suspend = asyncio.Event(loop=self.loop)
+        self._queues = WeakSet()
+
+    def manage_queue(self, queue: 'FlowControlQueue') -> None:
+        self._queues.add(queue)
 
     def suspend(self) -> None:
         self._resume.clear()
@@ -57,6 +66,8 @@ class FlowControlEvent:
     def resume(self) -> None:
         self._suspend.clear()
         self._resume.set()
+        for queue in self._queues:
+            queue.clear()
 
     async def acquire(self) -> None:
         if self._suspend.is_set():
@@ -68,9 +79,16 @@ class FlowControlQueue(asyncio.Queue):
     def __init__(self, maxsize: int = 0,
                  *,
                  flow_control: FlowControlEvent = None,
+                 clear_on_resume: bool = False,
                  **kwargs: Any) -> None:
         self._flow_control = flow_control
+        self._clear_on_resume = clear_on_resume
+        if self._clear_on_resume:
+            self._flow_control.manage_queue(self)
         super().__init__(maxsize, **kwargs)
+
+    def clear(self) -> None:
+        self._queue.clear()  # type: ignore
 
     async def get(self) -> Any:  # type: ignore
         await self._flow_control.acquire()

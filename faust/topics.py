@@ -290,7 +290,7 @@ class TopicManager(TopicManagerT, Service):
         self._topics = set()
         self._topicmap = defaultdict(set)
         self._pending_tasks = self.app.FlowControlQueue(
-            maxsize=100, loop=self.loop)
+            maxsize=100, loop=self.loop, clear_on_resume=True)
 
         self._subscription_changed = None
         self._subscription_done = None

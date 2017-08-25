@@ -648,9 +648,11 @@ class App(AppT, ServiceProxy):
             self,
             maxsize: int = None,
             *,
+            clear_on_resume: bool = False,
             loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
         return FlowControlQueue(
             flow_control=self.flow_control,
+            clear_on_resume=clear_on_resume,
             loop=loop or self.loop,
         )
 
@@ -724,7 +726,10 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
-        return self.FlowControlQueue(maxsize=1000, loop=self.loop)
+        return self.FlowControlQueue(
+            # it's important that we don't clear the buffered messages
+            # on_partitions_assigned
+            maxsize=1000, loop=self.loop, clear_on_resume=False)
 
     @cached_property
     def _fetcher(self) -> ServiceT:
