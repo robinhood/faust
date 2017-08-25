@@ -1,4 +1,4 @@
-from typing import AsyncIterator, AsyncIterable
+from typing import AsyncIterable
 import faust
 from faust import StreamT
 

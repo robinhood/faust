@@ -1,7 +1,6 @@
 import asyncio
 import os
 import random
-import string
 import sys
 import faust
 
@@ -30,7 +29,7 @@ country_to_total = app.Table(
 @app.actor(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
-        print('RECEIVED: %r' %(withdrawal,))
+        print(f'RECEIVED: {withdrawal}')
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
@@ -43,7 +42,7 @@ async def find_large_country_withdrawals(withdrawals):
 async def _publish_withdrawals():
     num_countries = 5
     countries = [f'country_{i}' for i in range(num_countries)]
-    country_dist = [0.9] + ([0.10/num_countries] * (num_countries - 1))
+    country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
     num_users = 500
     users = [f'user_{i}' for i in range(num_users)]
     print('Done setting up. SENDING!')
