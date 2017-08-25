@@ -39,6 +39,7 @@ from .types.transports import (
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
+from .utils.futures import FlowControlEvent, FlowControlQueue
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import Unordered, cached_property
@@ -402,6 +403,7 @@ class App(AppT, ServiceProxy):
                 to iterate over events in the stream.
         """
         return self.Stream(
+            app=self,
             channel=aiter(channel) if channel is not None else None,
             coroutine=coroutine,
             beacon=beacon or self.beacon,
@@ -625,6 +627,7 @@ class App(AppT, ServiceProxy):
             self, assigned: Iterable[TopicPartition]) -> None:
         await self.channels.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
+        self.flow_control.resume()
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
@@ -632,6 +635,7 @@ class App(AppT, ServiceProxy):
         await self.channels.on_partitions_revoked(revoked)
         assignment = self.consumer.assignment()
         if assignment:
+            self.flow_control.suspend()
             await self.consumer.pause_partitions(assignment)
             await self.consumer.wait_empty()
         else:
@@ -639,6 +643,16 @@ class App(AppT, ServiceProxy):
 
     def _create_transport(self) -> TransportT:
         return transport.by_url(self.url)(self.url, self, loop=self.loop)
+
+    def FlowControlQueue(
+            self,
+            maxsize: int = None,
+            *,
+            loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+        return FlowControlQueue(
+            flow_control=self.flow_control,
+            loop=loop or self.loop,
+        )
 
     def __repr__(self) -> str:
         return APP_REPR.format(
@@ -710,7 +724,7 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
-        return asyncio.Queue(maxsize=1000, loop=self.loop)
+        return self.FlowControlQueue(maxsize=1000, loop=self.loop)
 
     @cached_property
     def _fetcher(self) -> ServiceT:
@@ -727,3 +741,7 @@ class App(AppT, ServiceProxy):
     @property
     def shortlabel(self) -> str:
         return type(self).__name__
+
+    @cached_property
+    def flow_control(self) -> FlowControlEvent:
+        return FlowControlEvent(loop=self.loop)

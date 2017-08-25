@@ -160,8 +160,7 @@ class Channel(ChannelT):
             # this should only be set after clone = channel.__aiter__()
             # which means the loop is not accessed by merely defining a
             # channel at module scope.
-            self._queue = asyncio.Queue(
-                maxsize=1, loop=self.loop or self.app.loop)
+            self._queue = self.app.FlowControlQueue(maxsize=1, loop=self.loop)
         return self._queue
 
     def clone(self, *, is_iterator: bool = None) -> ChannelT:

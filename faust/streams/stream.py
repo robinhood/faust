@@ -4,7 +4,6 @@ import reprlib
 import typing
 import weakref
 
-from contextlib import suppress
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, List,
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
@@ -13,7 +12,7 @@ from typing import (
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
 
-from ..types import EventT, K, Message, ModelArg, TopicT
+from ..types import AppT, EventT, K, Message, ModelArg, TopicT
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
@@ -80,6 +79,7 @@ class Stream(StreamT, JoinableT, Service):
 
     def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
+                 app: AppT = None,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
@@ -88,8 +88,9 @@ class Stream(StreamT, JoinableT, Service):
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
+        self.app = app
         self.channel = channel
-        self.outbox = asyncio.Queue(maxsize=1, loop=self.loop)
+        self.outbox = self.app.FlowControlQueue(maxsize=1, loop=self.loop)
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
 
@@ -109,12 +110,9 @@ class Stream(StreamT, JoinableT, Service):
         self._on_message = None
         self._on_stream_event_in = None
         self._on_stream_event_out = None
-        if self.channel:
-            with suppress(AttributeError):
-                app = self.channel.app  # type: ignore
-                self._on_stream_event_in = app.sensors.on_stream_event_in
-                self._on_stream_event_out = app.sensors.on_stream_event_out
-            self._on_message = self._create_message_handler()
+        self._on_stream_event_in = self.app.sensors.on_stream_event_in
+        self._on_stream_event_out = self.app.sensors.on_stream_event_out
+        self._on_message = self._create_message_handler()
 
     async def _send_to_outbox(self, value: T_contra) -> None:
         await self.outbox.put(value)
@@ -124,6 +122,7 @@ class Stream(StreamT, JoinableT, Service):
 
     def info(self) -> Mapping[str, Any]:
         return {
+            'app': self.app,
             'channel': self.channel,
             'processors': self._processors,
             'coroutine': self._coroutine,

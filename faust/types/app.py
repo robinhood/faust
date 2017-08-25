@@ -25,6 +25,7 @@ from .tuples import (
     Message, MessageSentCallback, RecordMetadata, TopicPartition,
 )
 from .windows import WindowT
+from ..utils.futures import FlowControlEvent
 from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
 from ..utils.types.collections import NodeT
@@ -235,6 +236,14 @@ class AppT(ServiceT):
     async def maybe_start_producer(self) -> ProducerT:
         ...
 
+    @abc.abstractmethod
+    def FlowControlQueue(
+            self,
+            maxsize: int = None,
+            *,
+            loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+        ...
+
     @property
     @abc.abstractmethod
     def transport(self) -> TransportT:
@@ -268,3 +277,8 @@ class AppT(ServiceT):
     @monitor.setter
     def monitor(self, value: Monitor) -> None:
         ...
+
+    @property
+    @abc.abstractmethod
+    def flow_control(self) -> FlowControlEvent:
+        return FlowControlEvent(loop=self.loop)

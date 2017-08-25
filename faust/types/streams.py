@@ -74,6 +74,7 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
 
+    app: AppT
     channel: AsyncIterator[T_co] = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
