@@ -114,7 +114,7 @@ class BarrierState(ReplyPromise):
         super().__init__(reply_to=reply_to, correlation_id=None, **kwargs)
         self.pending = set()
         loop: asyncio.AbstractEventLoop = self._loop  # type: ignore
-        self._results = asyncio.Queue(loop=loop)
+        self._results = asyncio.Queue(maxsize=1000, loop=loop)
 
     def add(self, p: ReplyPromise) -> None:
         self.pending.add(p)

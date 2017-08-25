@@ -710,7 +710,7 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
-        return asyncio.Queue(loop=self.loop)
+        return asyncio.Queue(maxsize=1000, loop=self.loop)
 
     @cached_property
     def _fetcher(self) -> ServiceT:

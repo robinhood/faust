@@ -288,7 +288,7 @@ class TopicManager(TopicManagerT, Service):
         self.app = app
         self._topics = set()
         self._topicmap = defaultdict(set)
-        self._pending_tasks = asyncio.Queue(loop=self.loop)
+        self._pending_tasks = asyncio.Queue(maxsize=100, loop=self.loop)
 
         self._subscription_changed = None
         self._subscription_done = None
