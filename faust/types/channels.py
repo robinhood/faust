@@ -34,14 +34,14 @@ class EventT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    async def send(self, topic: Union[str, 'ChannelT'],
+    async def send(self, channel: Union[str, 'ChannelT'],
                    *,
                    key: Any = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    async def forward(self, topic: Union[str, 'ChannelT'],
+    async def forward(self, channel: Union[str, 'ChannelT'],
                       *,
                       key: Any = None,
                       force: bool = False) -> Awaitable[RecordMetadata]:

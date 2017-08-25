@@ -68,28 +68,28 @@ class Event(EventT):
         self.value: V = value
         self.message: Message = message
 
-    async def send(self, topic: Union[str, ChannelT],
+    async def send(self, channel: Union[str, ChannelT],
                    *,
                    key: Any = USE_EXISTING_KEY,
                    force: bool = False) -> Awaitable[RecordMetadata]:
-        """Serialize and send object to topic."""
-        return await self._send(topic, key, self.value, force=force)
+        """Send object to channel."""
+        return await self._send(channel, key, self.value, force=force)
 
-    async def forward(self, topic: Union[str, ChannelT],
+    async def forward(self, channel: Union[str, ChannelT],
                       *,
                       key: Any = USE_EXISTING_KEY,
                       force: bool = False) -> Awaitable[RecordMetadata]:
         """Forward original message (will not be reserialized)."""
         return await self._send(
-            topic, key=key, value=self.message.value, force=force)
+            channel, key=key, value=self.message.value, force=force)
 
-    async def _send(self, topic: Union[str, ChannelT],
+    async def _send(self, channel: Union[str, ChannelT],
                     key: Any = USE_EXISTING_KEY,
                     value: Any = None,
                     force: bool = False) -> Awaitable[RecordMetadata]:
         if key is USE_EXISTING_KEY:
             key = self.message.key
-        return await self.app.maybe_attach(topic, key, value, force=force)
+        return await self.app.maybe_attach(channel, key, value, force=force)
 
     def attach(
             self,
@@ -181,7 +181,7 @@ class Channel(ChannelT):
 
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
-        """Create stream from topic."""
+        """Create stream from channel."""
         return self.app.stream(self, coroutine, **kwargs)
 
     async def send(
@@ -193,7 +193,7 @@ class Channel(ChannelT):
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
             force: bool = False) -> Awaitable[RecordMetadata]:
-        """Send message to topic."""
+        """Send message to channel."""
         if not force:
             event = current_event()
             if event is not None:
@@ -264,7 +264,7 @@ class Channel(ChannelT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        """Send message to topic (asynchronous version).
+        """Send message to channel (asynchronous version).
 
         Notes:
             This can be used from non-async functions, but with the caveat
