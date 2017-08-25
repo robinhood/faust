@@ -61,7 +61,11 @@ class Store(base.SerializedStore):
         self.db.delete(key)
 
     def _contains(self, key: bytes) -> bool:
-        return self.db.key_may_exist(key)[0]
+        # bloom filter: false positives possible, but not false negatives
+        db = self.db
+        if db.key_may_exist(key)[0]:
+            return db.get(key) is not None
+        return False
 
     def _size(self) -> int:
         it = self.db.iterkeys()  # noqa: B301
