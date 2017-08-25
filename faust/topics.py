@@ -211,7 +211,8 @@ class Topic(Channel, TopicT):
         else:
             fut2 = await producer.send(
                 topic, key, value, partition=message.partition)
-            fut2.add_done_callback(partial(self._on_published, message=fut))
+            cast(asyncio.Future, fut2).add_done_callback(
+                cast(Callable, partial(self._on_published, message=fut)))
             return fut2
 
     def _on_published(
