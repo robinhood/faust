@@ -6,7 +6,7 @@ from .core import K, V
 from .joins import JoinT
 from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT
 from .sensors import SensorT
-from .serializers import AsyncSerializerT
+from .serializers import RegistryT
 from .stores import StoreT
 from .streams import (
     JoinableT,
@@ -49,7 +49,7 @@ __all__ = [
     'SensorT',
 
     # types.serializers
-    'AsyncSerializerT',
+    'RegistryT',
 
     # utils.types.services
     'ServiceT',
