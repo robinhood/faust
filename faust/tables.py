@@ -667,7 +667,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self.log.info(f'Starting standbys for tps: {tps}')
             self._sync_persisted_offsets(table, tps)
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
-            standby = StandbyReader(table, self.app, tps, tp_offsets)
+            standby = StandbyReader(
+                table, self.app, tps, tp_offsets,
+                loop=self.loop,
+                beacon=self.beacon,
+            )
             self._standbys[table] = standby
             await standby.start()
 
@@ -700,8 +704,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
                          if tp.topic == table._changelog_topic_name()}
             self._sync_persisted_offsets(table, table_tps)
             tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
-            table_recoverers.append(
-                ChangelogReader(table, self.app, table_tps, tp_offsets))
+            table_recoverers.append(ChangelogReader(
+                table, self.app, table_tps, tp_offsets,
+                loop=self.loop,
+                beacon=self.beacon,
+            ))
         [await recoverer.start() for recoverer in table_recoverers]
         # FIXME currently we need this as there is a race condition between
         # starting and the Service.task actually starting. Need to fix that
