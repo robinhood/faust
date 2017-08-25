@@ -388,7 +388,7 @@ class Stream(StreamT, JoinableT, Service):
                 await topic.maybe_declare()
                 topic_created = True
             await event.forward(
-                event.message.topic + suffix,
+                topic.get_topic_name(),
                 key=new_key,
             )
             return value

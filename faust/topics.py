@@ -166,7 +166,7 @@ class Topic(Channel, TopicT):
             if self.pattern:
                 raise ValueError(
                     'Cannot add prefix/suffix to Topic with pattern')
-                topics = [f'{prefix}{topic}{suffix}' for topic in topics]
+            topics = [f'{prefix}{topic}{suffix}' for topic in topics]
         return type(self)(
             self.app,
             topics=topics,
