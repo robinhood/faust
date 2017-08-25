@@ -487,7 +487,6 @@ class ChangelogReader(Service, ChangelogReaderT):
     wait_for_shutdown = True
     shutdown_timeout = None
 
-    _started_reading: asyncio.Event
     _highwaters: MutableMapping[TopicPartition, int] = None
 
     def __init__(self, table: CollectionT,
@@ -501,7 +500,6 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.tps = tps
         offsets = {} if offsets is None else offsets
         self.offsets = {tp: offsets.get(tp, -1) for tp in self.tps}
-        self._started_reading = asyncio.Event(loop=self.loop)
 
     def update_tps(self, tps: Iterable[TopicPartition],
                    tp_offsets: MutableMapping[TopicPartition, int]) -> None:
