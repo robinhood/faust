@@ -5,7 +5,7 @@ import logging
 from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator,
-    Iterable, List, MutableSequence, Set, Type, Union, cast,
+    Iterable, List, MutableSequence, Sequence, Set, Type, Union, cast,
 )
 from .collections import Node
 from .logging import CompositeLogger, get_logger
@@ -190,6 +190,18 @@ class Service(ServiceBase):
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         """Callback to be used to add service dependencies."""
         return []
+
+    async def join_services(self, services: Sequence[ServiceT]) -> None:
+        for service in services:
+            try:
+                await service.maybe_start()
+            except Exception as exc:
+                await self.crash(exc)
+        # FIXME currently we need this as there is a race condition between
+        # starting and the Service.task actually starting. Need to fix that
+        await self.sleep(5)
+        for service in reversed(services):
+            await service.stop()
 
     async def on_first_start(self) -> None:
         """Callback to be called the first time the service is started."""

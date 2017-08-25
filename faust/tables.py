@@ -697,26 +697,30 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 await table.stop()
 
     async def _recover_changelogs(self, tps: Iterable[TopicPartition]) -> None:
-        table_recoverers: List[ChangelogReader] = []
-        offsets = self._table_offsets
-        for table in self.values():
-            table_tps = {tp for tp in tps
-                         if tp.topic == table._changelog_topic_name()}
-            self._sync_persisted_offsets(table, table_tps)
-            tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
-            table_recoverers.append(ChangelogReader(
-                table, self.app, table_tps, tp_offsets,
-                loop=self.loop,
-                beacon=self.beacon,
-            ))
-        [await recoverer.start() for recoverer in table_recoverers]
-        # FIXME currently we need this as there is a race condition between
-        # starting and the Service.task actually starting. Need to fix that
-        await self.sleep(5)
+        self.log.info('Recovering from changelog topics...')
+        table_recoverers: List[ChangelogReaderT] = [
+            self._create_recoverer(table, tps)
+            for table in self.values()
+        ]
+        await self.join_services(table_recoverers)
         for recoverer in table_recoverers:
-            await recoverer.stop()
             self._sync_offsets(recoverer)
-            self.log.info('Done recovering')
+        self.log.info('Done recovering from changelog topics')
+
+    def _create_recoverer(self,
+                          table: CollectionT,
+                          tps: Iterable[TopicPartition]) -> ChangelogReaderT:
+        table = cast(Table, table)
+        offsets = self._table_offsets
+        table_tps = {tp for tp in tps
+                     if tp.topic == table._changelog_topic_name()}
+        self._sync_persisted_offsets(table, table_tps)
+        tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
+        return ChangelogReader(
+            table, self.app, table_tps, tp_offsets,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
 
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
