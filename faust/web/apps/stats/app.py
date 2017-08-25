@@ -43,5 +43,5 @@ class Assignment(views.View):
 class Site(views.Site):
     views = {
         '/': Stats,
-        '/assignment': Assignment,
+        '/assignment/': Assignment,
     }
