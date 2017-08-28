@@ -14,7 +14,7 @@ from .types import (
 )
 from .types.topics import ChannelT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, TPorTopicSet
-from .utils.futures import notify
+from .utils.futures import notify, stampede
 from .utils.logging import get_logger
 from .utils.services import Service
 from .utils.times import Seconds
@@ -61,7 +61,6 @@ class Topic(Channel, TopicT):
     """
     clone_shares_queue = False
 
-    _declared = False
     _partitions: int = None
     _replicas: int = None
     _pattern: Pattern = None
@@ -234,10 +233,9 @@ class Topic(Channel, TopicT):
                       value_serializer: CodecArg) -> Any:
         return self.app.serializers.dumps_value(value, value_serializer)
 
+    @stampede
     async def maybe_declare(self) -> None:
-        if not self._declared:
-            self._declared = True
-            await self.declare()
+        await self.declare()
 
     async def declare(self) -> None:
         producer = await self.app.maybe_start_producer()

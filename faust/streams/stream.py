@@ -22,7 +22,7 @@ from ..types.streams import (
 from ..types.topics import ChannelT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate, aiter
-from ..utils.futures import maybe_async
+from ..utils.futures import StampedeWrapper, maybe_async
 from ..utils.logging import get_logger
 from ..utils.services import Service
 from ..utils.times import Seconds, want_seconds
@@ -68,7 +68,7 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
     return value
 
 
-class Stream(StreamT, JoinableT, Service):
+class Stream(StreamT, Service):
     logger = logger
 
     _processors: MutableSequence[Processor] = None
@@ -145,7 +145,7 @@ class Stream(StreamT, JoinableT, Service):
                 @app.actor(topic)
                 async def mytask(stream):
                     async for key, value in stream.items():
-                        print(key, kvalue)
+                        print(key, value)
         """
         async for event in self.events():
             yield event.key, cast(T_co, event.value)
@@ -265,10 +265,12 @@ class Stream(StreamT, JoinableT, Service):
         it = aiter(channelchannel)
         through = self.clone(channel=it, on_start=self.maybe_start)
 
+        declare = StampedeWrapper(channelchannel.maybe_declare)
+
         async def forward(value: T) -> T:
             nonlocal channel_created
             if not channel_created:
-                await channelchannel.maybe_declare()
+                await declare()
                 channel_created = True
             event = self.current_event
             return await maybe_forward(event, channelchannel)
@@ -377,15 +379,18 @@ class Stream(StreamT, JoinableT, Service):
 
         grouped = self.clone(channel=aiter(topic), on_start=self.maybe_start)
 
+        declare = StampedeWrapper(topic.maybe_declare)
+
         async def repartition(value: T) -> T:
             event = self.current_event
             if event is None:
                 raise RuntimeError(
                     'Cannot repartition stream with non-topic channel')
             new_key = await format_key(key, value)
+
             nonlocal topic_created
             if not topic_created:
-                await topic.maybe_declare()
+                await declare()
                 topic_created = True
             await event.forward(
                 topic.get_topic_name(),

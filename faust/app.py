@@ -39,7 +39,7 @@ from .types.transports import (
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
-from .utils.futures import FlowControlEvent, FlowControlQueue
+from .utils.futures import FlowControlEvent, FlowControlQueue, stampede
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import Unordered, cached_property
@@ -212,9 +212,6 @@ class App(AppT, ServiceProxy):
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
-
-    #: Set when producer is started.
-    _producer_started: bool = False
 
     #: Default consumer instance.
     _consumer: Optional[ConsumerT] = None
@@ -599,12 +596,11 @@ class App(AppT, ServiceProxy):
                 heappush(attached, entry)
                 break
 
+    @stampede
     async def maybe_start_producer(self) -> ProducerT:
         producer = self.producer
-        if not self._producer_started:
-            self._producer_started = True
-            # producer may also have been started by app.start()
-            await producer.maybe_start()
+        # producer may also have been started by app.start()
+        await producer.maybe_start()
         return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:

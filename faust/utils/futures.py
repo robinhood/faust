@@ -2,13 +2,55 @@
 import asyncio
 import typing
 from functools import singledispatch
-from typing import Any, Awaitable, Optional
+from typing import Any, Awaitable, Callable, Optional, Type
 from weakref import WeakSet
 
 __all__ = [
     'FlowControlEvent', 'FlowControlQueue',
     'done_future', 'maybe_async', 'notify',
 ]
+
+
+class StampedeWrapper:
+    fut: asyncio.Future = None
+
+    def __init__(self,
+                 get: Callable,
+                 *args: Any,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        self.get = get
+        self.args = args
+        self.loop = loop
+
+    async def __call__(self) -> Any:
+        fut = self.fut
+        if fut is None:
+            fut = self.fut = asyncio.Future(loop=self.loop)
+            result = await self.get(*self.args)
+            fut.set_result(result)
+            return result
+        else:
+            if fut.done():
+                return fut.result()
+            return await fut
+
+
+class stampede:
+
+    def __init__(self, fget: Callable, *, doc: str = None) -> None:
+        self.__get = fget
+        self.__doc__ = doc or fget.__doc__
+        self.__name__ = fget.__name__
+        self.__module__ = fget.__module__
+
+    def __get__(self, obj: Any, type: Type = None) -> Any:
+        if obj is None:
+            return self
+        try:
+            w = obj.__dict__[self.__name__]
+        except KeyError:
+            w = obj.__dict__[self.__name__] = StampedeWrapper(self.__get, obj)
+        return w
 
 
 def done_future(result: Any = None, *,

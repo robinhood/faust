@@ -85,6 +85,11 @@ class Consumer(Service, ConsumerT):
     #: when something acks a message.
     _waiting_for_ack: asyncio.Future = None
 
+    #: Used by .commit to ensure only one thread is comitting at a time.
+    #: Other thread starting to commit while a commit is already active,
+    #: will wait for the original request to finish, and do nothing.
+    _commit_fut: asyncio.Future = None
+
     if typing.TYPE_CHECKING:
         # This works in mypy, but not in CPython
         _unacked_messages: WeakSet[Message]
@@ -207,6 +212,15 @@ class Consumer(Service, ConsumerT):
         """
         did_commit = False
 
+        # Only one coroutine allowed to commit at a time,
+        # and other coroutines should wait for the original commit to finish
+        # then do nothing.
+        if self._commit_fut is not None:
+            await self._commit_fut
+            return False
+        else:
+            self._commit_fut = asyncio.Future(loop=self.loop)
+
         # Only one coroutine can commit at a time.
         async with self._commit_mutex:
             sensor_state = await self._app.sensors.on_commit_initiated(self)
@@ -226,6 +240,7 @@ class Consumer(Service, ConsumerT):
                     did_commit = True
                     await self._do_commit(tp, offset, meta='')
             await self._app.sensors.on_commit_completed(self, sensor_state)
+        self._commit_fut.set_result(None)
         return did_commit
 
     def _filter_tps_with_pending_acks(

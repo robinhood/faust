@@ -14,6 +14,7 @@ async def aenumerate(it: AsyncIterator[Any],
 
 
 class AsyncIterWrapper(AsyncIterator):
+    """Wraps regular Iterator in an AsyncIterator."""
 
     def __init__(self, it: Iterator) -> None:
         self._it = it
