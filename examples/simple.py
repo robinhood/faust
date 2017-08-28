@@ -29,7 +29,6 @@ country_to_total = app.Table(
 @app.actor(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
-        print(f'RECEIVED: {withdrawal}')
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
