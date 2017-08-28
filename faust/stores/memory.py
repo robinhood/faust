@@ -1,6 +1,6 @@
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Optional
 from . import base
-from ..types import EventT
+from ..types import EventT, TopicPartition
 from ..utils.collections import FastUserDict
 from ..utils.logging import get_logger
 
@@ -26,3 +26,6 @@ class Store(base.Store, FastUserDict):
             (to_key(event.key), to_value(event.value))
             for event in batch
         ))
+
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        return None
