@@ -80,6 +80,7 @@ F_BANNER = """
   .log         -> {logfile} ({loglevel})
   .pid         -> {pid}
   .hostname    -> {hostname}
+  .loop        -> {loop}
   .transport   -> {app.url} {transport_extra}
   .store       -> {app.store} ]
 """.strip()
@@ -243,6 +244,7 @@ class Worker(Service):
             pid=os.getpid(),
             hostname=socket.gethostname(),
             transport_extra=transport_extra,
+            loop=asyncio.get_event_loop(),
         ))
         self._say('^ ', end='')
 
