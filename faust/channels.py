@@ -343,7 +343,7 @@ class Channel(ChannelT):
                          message.key, message.value, exc)
 
     def __aiter__(self) -> ChannelT:
-        return self.clone(is_iterator=True)
+        return self if self.is_iterator else self.clone(is_iterator=True)
 
     async def __anext__(self) -> EventT:
         if not self.is_iterator:
