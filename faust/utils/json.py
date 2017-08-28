@@ -96,7 +96,7 @@ if ujson is not None:
         return json.dumps(obj)
 
     def loads(s: str, **kwargs: Any) -> Any:
-        return json.loads(obj)
+        return json.loads(s)
 else:
     def dumps(obj: Any,
               cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
