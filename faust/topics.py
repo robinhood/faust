@@ -274,8 +274,6 @@ class TopicManager(TopicManagerT, Service):
     #: of each message sent to that topic.
     _topicmap: MutableMapping[str, Set[TopicT]]
 
-    _pending_tasks: asyncio.Queue
-
     #: Whenever a change is made, i.e. a Topic is added/removed, we notify
     #: the background task responsible for resubscribing.
     _subscription_changed: Optional[asyncio.Event]
@@ -287,9 +285,6 @@ class TopicManager(TopicManagerT, Service):
         self.app = app
         self._topics = set()
         self._topicmap = defaultdict(set)
-        self._pending_tasks = self.app.FlowControlQueue(
-            maxsize=100, loop=self.loop, clear_on_resume=True)
-
         self._subscription_changed = None
         self._subscription_done = None
         # we compile the closure used for receive messages
@@ -308,8 +303,6 @@ class TopicManager(TopicManagerT, Service):
         # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
 
-        add_pending_task = self._pending_tasks.put
-
         async def on_message(message: Message) -> None:
             # when a message is received we find all channels
             # that subscribe to this message
@@ -322,14 +315,10 @@ class TopicManager(TopicManagerT, Service):
 
             # Then send it to each channels buffer
             # for Channel.__anext__ to pick up.
-            # NOTE: We do this in parallel, so the order of channels
+            # NOTE: We do this in parallel, as the order of channels
             #       does not matter.
-            await wait(
-                [add_pending_task(channel.deliver(message))
-                 for channel in channels],
-                loop=loop,
-                return_when=all_completed,
-            )
+            for channel in channels:
+                await channel.deliver(message)
         return on_message
 
     @Service.task
@@ -355,17 +344,6 @@ class TopicManager(TopicManagerT, Service):
     async def wait_for_subscriptions(self) -> None:
         if self._subscription_done is not None:
             await self._subscription_done
-
-    @Service.task
-    async def _gatherer(self) -> None:
-        waiting = set()
-        wait = asyncio.wait
-        first_completed = asyncio.FIRST_COMPLETED
-        while not self.should_stop:
-            waiting.add(await self._pending_tasks.get())
-            finished, unfinished = await wait(
-                waiting, return_when=first_completed)
-            waiting = unfinished
 
     def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
