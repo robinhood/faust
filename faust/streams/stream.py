@@ -108,9 +108,6 @@ class Stream(StreamT, Service):
             self.task_owner = task
 
         # Generate message handler
-        self._on_message = None
-        self._on_stream_event_in = None
-        self._on_stream_event_out = None
         self._on_stream_event_in = self.app.sensors.on_stream_event_in
         self._on_stream_event_out = self.app.sensors.on_stream_event_out
         self._on_message = self._create_message_handler()
@@ -161,12 +158,13 @@ class Stream(StreamT, Service):
 
     async def take(self, max_: int,
                    within: Seconds = None) -> AsyncIterable[Sequence[T_co]]:
-        """Buffer n values at a time and yields a list of buffered values.
+        """Buffer n values at a time and yield a list of buffered values.
 
         Keyword Arguments:
             within: Timeout for when we give up waiting for another value,
-                and return the list of values that we have.  If this is not
-                set, it can potentially wait forever.
+                and return the list of values that we have.
+                Warning: If this is not set, it can potentially wait forever
+                for a new value, and buffered items will not be processed.
         """
         buffer: List[T_co] = []
         add = buffer.append
