@@ -26,21 +26,6 @@ country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-@app.task
-async def foo1():
-    print('WAITIN FOR PRODUCER TO START')
-    await app.maybe_start_producer()
-
-@app.task
-async def foo2():
-    print('WAITIN FOR PRODUCER TO START')
-    await app.maybe_start_producer()
-
-@app.task
-async def foo3():
-    print('WAITIN FOR PRODUCER TO START')
-    await app.maybe_start_producer()
-
 @app.actor(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
