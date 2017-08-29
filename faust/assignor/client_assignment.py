@@ -115,3 +115,8 @@ class ClientAssignment(Record, serializer='json', include_metadata=False):
         topic_assignments = (set(assignment.get(t, set())) for t in topics)
         valid_partitions = (p for p in topic_assignments if p)
         return next(valid_partitions, set())
+
+
+class ClientMetadata(Record, serializer='json', include_metadata=False):
+    assignment: ClientAssignment
+    url: str

@@ -1,9 +1,9 @@
-from typing import Any, MutableMapping, Sequence, Set, cast
-from kafka.coordinator.protocol import ConsumerProtocolMemberMetadata
-from .client_assignment import ClientAssignment, CopartitionedAssignment
+from typing import Any, List, MutableMapping, Sequence, Set, cast
+from .client_assignment import (
+    ClientAssignment, ClientMetadata, CopartitionedAssignment,
+)
 from ..models import Record
 
-MetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 CopartMapping = MutableMapping[str, CopartitionedAssignment]
 
 
@@ -28,19 +28,11 @@ class ClusterAssignment(Record, serializer='json', include_metadata=False):
             for topic in sub
         }
 
-    def add_clients(self, client_metadata: MetadataMapping) -> None:
-        for client, metadata in client_metadata.items():
-            self._add_client_assignment(client, metadata)
-
-    def _add_client_assignment(
-            self, client: str,
-            metadata: ConsumerProtocolMemberMetadata) -> None:
-        self.subscriptions[client] = list(metadata.subscription)
-        self.assignments[client] = (
-            cast(ClientAssignment, ClientAssignment.loads(metadata.user_data))
-            if metadata.user_data
-            else ClientAssignment(actives={}, standbys={})
-        )
+    def add_client(self, client: str,
+                   subscription: List[str],
+                   metadata: ClientMetadata) -> None:
+        self.subscriptions[client] = list(subscription)
+        self.assignments[client] = metadata.assignment
 
     def copartitioned_assignments(
             self, copartitioned_topics: Set[str]) -> CopartMapping:

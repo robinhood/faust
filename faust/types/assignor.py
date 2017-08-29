@@ -1,7 +1,12 @@
 import abc
 import typing
-from typing import Iterable
+from typing import Iterable, MutableMapping
+from .core import K
+from .tables import CollectionT
 from .topics import TopicPartition
+
+
+HostPartitionsMap = MutableMapping[str, Iterable[int]]
 
 
 if typing.TYPE_CHECKING:
@@ -21,4 +26,12 @@ class PartitionAssignorT(abc.ABC):
 
     @abc.abstractmethod
     def assigned_actives(self) -> Iterable[TopicPartition]:
+        ...
+
+    @abc.abstractmethod
+    def key_store(self, table: CollectionT, key: K) -> str:
+        ...
+
+    @abc.abstractmethod
+    def table_metadata(self, table: CollectionT) -> HostPartitionsMap:
         ...
