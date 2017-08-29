@@ -36,6 +36,27 @@ class StampedeWrapper:
 
 
 class stampede:
+    """Descriptor for cached async operations providing stampede protection.
+
+    See also thundering herd problem.
+
+    Adding the decorator to an async callable method:
+
+    Examples:
+
+        class Client:
+
+            @stampede
+            async def maybe_connect(self):
+                await self._connect()
+
+            async def _connect(self):
+                return Connection()
+
+    In the above example, if multiple coroutines call `maybe_connect` at the
+    same time, then only one of them will actually perform the operation,
+    while the rest of the coroutines will wait for the result.
+    """
 
     def __init__(self, fget: Callable, *, doc: str = None) -> None:
         self.__get = fget
