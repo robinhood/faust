@@ -180,7 +180,6 @@ class Consumer(Service, ConsumerT):
                     acked_index.add(offset)
                     acked_for_tp = self._acked[tp]
                     acked_for_tp.append(offset)
-                    acked_for_tp.sort()
                     notify(self._waiting_for_ack)
                     await self._app.sensors.on_message_out(
                         self.id, tp, offset, None)
@@ -269,6 +268,7 @@ class Consumer(Service, ConsumerT):
         #          ^--- gap
         # the return value will be: 36
         if acked:
+            acked.sort()
             # Note: acked is always kept sorted.
             # find first list of consecutive numbers
             batch = next(consecutive_numbers(acked))
