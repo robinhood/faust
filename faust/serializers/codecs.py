@@ -203,16 +203,16 @@ class Codec(CodecT):
     def dumps(self, obj: Any) -> bytes:
         """Encode object ``obj``."""
         # send _dumps to this instance, and all children.
-        return reduce(
-            lambda obj, e: cast(Codec, e)._dumps(obj),
-            self.nodes, obj)
+        for node in self.nodes:
+            obj = cast(Codec, node)._dumps(obj)
+        return obj
 
     def loads(self, s: bytes) -> Any:
         """Decode object from string."""
         # send _loads to this instance, and all children in reverse order
-        return reduce(
-            lambda s, d: cast(Codec, d)._loads(s),
-            reversed(self.nodes), s)
+        for node in reversed(self.nodes):
+            s = cast(Codec, node)._loads(s)
+        return s
 
     def clone(self, *children: CodecT) -> CodecT:
         """Create a clone of this codec, with optional children added."""
@@ -306,8 +306,14 @@ def get_codec(name_or_codec: CodecArg) -> CodecT:
     if isinstance(name_or_codec, str):
         if '|' in name_or_codec:
             nodes = name_or_codec.split('|')
-            # simple reduce operation, OR (|) them all together:
-            return cast(Codec, reduce(_reduce_node, nodes))
+            codec = None
+            for node in nodes:
+                if codec:
+                    codec |= codecs[node]
+                else:
+                    codec = codecs.get(node, node)
+
+            return cast(Codec, codec)
         return codecs[name_or_codec]
     return cast(Codec, name_or_codec)
 
