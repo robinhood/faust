@@ -1,8 +1,9 @@
-import errno
+import asyncio
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
 from faust.utils.logging import get_logger
+from faust.utils.services import Service, ServiceThread
 from .. import base
 from ...types import AppT
 
@@ -17,6 +18,21 @@ class Web(base.Web):
     logger = logger
 
     driver_version = f'aiohttp={aiohttp_version}'
+
+    #: We serve the webserver in a separate thread, with its own even loop.
+    _thread: ServiceThread = None
+
+    class WebserverServiceThread(Service):
+
+        def __init__(self, web: 'Web', **kwargs: Any) -> None:
+            self.web = web
+            super().__init__(**kwargs)
+
+        async def on_start(self) -> None:
+            await self.web.start_server(self.loop)
+
+        async def on_stop(self) -> None:
+            await self.web.stop_server(self.loop)
 
     def __init__(self, app: AppT,
                  *,
@@ -50,19 +66,22 @@ class Web(base.Web):
         self._app.router.add_route('*', pattern, handler)
 
     async def on_start(self) -> None:
-        self._handler = self._app.make_handler()
-        for _ in range(4000):
-            try:
-                self._srv = await self.loop.create_server(
-                    self._handler, self.bind, self.port)
-            except OSError as exc:
-                if exc.errno == errno.EADDRINUSE:
-                    self.port += 1
-                else:
-                    raise
-        self.log.info('Serving on %s', self.url)
+        self._thread = ServiceThread(self.WebserverServiceThread(
+            self,
+            beacon=self.beacon,
+        ))
+        self._thread.start()
 
     async def on_stop(self) -> None:
+        self._thread.stop()
+
+    async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._handler = self._app.make_handler()
+        self._srv = await loop.create_server(
+            self._handler, self.bind, self.port)
+        self.log.info('Serving on %s', self.url)
+
+    async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:
         self.log.info('Closing server')
         self._srv.close()
         self.log.info('Waiting for server to close handle')
