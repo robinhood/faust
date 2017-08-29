@@ -69,7 +69,7 @@ async def test_send(
 
 def test_stream(app):
     s = app.topic(TEST_TOPIC).stream()
-    assert s.channel.topic.topics == (TEST_TOPIC,)
+    assert s.channel.topics == (TEST_TOPIC,)
     assert s.channel in app.channels
     assert s.channel.app == app
 
