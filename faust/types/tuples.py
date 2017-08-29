@@ -107,8 +107,7 @@ class Message:
         self.refcount += len(channels)
 
     def decref(self, n: int = 1) -> None:
-        self.refcount -= n
-        assert self.refcount >= 0
+        self.refcount = max(self.refcount - 1, 0)
 
     @classmethod
     def from_message(cls, message: Any, tp: TopicPartition) -> 'Message':

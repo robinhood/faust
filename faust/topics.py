@@ -296,9 +296,6 @@ class TopicManager(TopicManagerT, Service):
         return await self.app.consumer.commit(topics)
 
     def _compile_message_handler(self) -> ConsumerCallback:
-        wait = asyncio.wait
-        all_completed = asyncio.ALL_COMPLETED
-        loop = self.loop
         list_ = list
         # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
@@ -307,18 +304,25 @@ class TopicManager(TopicManagerT, Service):
             # when a message is received we find all channels
             # that subscribe to this message
             channels = list_(get_channels_for_topic(message.topic))
+            if channels:
+                # we increment the reference count for this message in bulk
+                # immediately, so that nothing will get a chance to decref to
+                # zero before we've had the chance to pass it to all channels
+                message.incref_bulk(channels)
 
-            # we increment the reference count for this message in bulk
-            # immediately, so that nothing will get a chance to decref to
-            # zero before we've had the chance to pass it to all channels
-            message.incref_bulk(channels)
+                first_channel = channels[0]
+                keyid = first_channel.key_type, first_channel.value_type
+                event = await first_channel.decode(message)
 
-            # Then send it to each channels buffer
-            # for Channel.__anext__ to pick up.
-            # NOTE: We do this in parallel, as the order of channels
-            #       does not matter.
-            for channel in channels:
-                await channel.deliver(message)
+                for channel in channels:
+                    if (channel.key_type, channel.value_type) == keyid:
+                        await channel.put(event)
+                    else:
+                        await channel.deliver(message)
+
+                # then send it to each channel
+                for channel in channels:
+                    await channel.deliver(message)
         return on_message
 
     @Service.task

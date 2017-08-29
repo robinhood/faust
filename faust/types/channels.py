@@ -156,6 +156,10 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
+    async def decode(self, message: Message) -> EventT:
+        ...
+
+    @abc.abstractmethod
     async def deliver(self, message: Message) -> None:
         ...
 

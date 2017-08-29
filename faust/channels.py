@@ -153,6 +153,7 @@ class Channel(ChannelT):
         self.is_iterator = is_iterator
         self._queue = queue
         self.deliver = self._compile_deliver()  # type: ignore
+        self.decode = self._compile_decode()    # type: ignore
 
     @property
     def queue(self) -> asyncio.Queue:
@@ -290,10 +291,35 @@ class Channel(ChannelT):
     def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
         return value
 
+    async def decode(self, message: Message) -> EventT:
+        ...  # closure compiled at __init__
+
+    def _compile_decode(self) -> Callable[[Message], Awaitable[EventT]]:
+        app = self.app
+        key_type = self.key_type
+        value_type = self.value_type
+        loads_key = app.serializers.loads_key
+        loads_value = app.serializers.loads_value
+        create_event = self._create_event
+
+        async def decode(message: Message) -> Any:
+            try:
+                k = loads_key(key_type, message.key)
+            except KeyDecodeError as exc:
+                await self.on_key_decode_error(exc, message)
+            else:
+                try:
+                    v = loads_value(value_type, message.value)
+                except ValueDecodeError as exc:
+                    await self.on_value_decode_error(exc, message)
+                else:
+                    return create_event(k, v, message)
+        return decode
+
     async def deliver(self, message: Message) -> None:
         ...  # closure compiled at __init__
 
-    def _compile_deliver(self) -> Callable[[Message], Awaitable]:
+    def _compile_deliver(self) -> Callable[[Message], Awaitable[None]]:
         app = self.app
         key_type = self.key_type
         value_type = self.value_type
