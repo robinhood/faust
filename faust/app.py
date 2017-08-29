@@ -570,12 +570,14 @@ class App(AppT, ServiceProxy):
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
-        await asyncio.wait(
-            [await fut.message.channel.publish_message(fut, wait=False)
-             for fut in list(self._get_attached(tp, offset))],
-            return_when=asyncio.ALL_COMPLETED,
-            loop=self.loop,
-        )
+        attached = list(self._get_attached(tp, offset))
+        if attached:
+            await asyncio.wait(
+                [await fut.message.channel.publish_message(fut, wait=False)
+                 for fut in attached],
+                return_when=asyncio.ALL_COMPLETED,
+                loop=self.loop,
+            )
 
     def _get_attached(
             self,
