@@ -92,7 +92,8 @@ class JSONEncoder(json.JSONEncoder):
 
 
 if ujson is not None:
-    def dumps(obj: Any, **kwargs: Any) -> str:
+    def dumps(obj: Any,
+              cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
         return json.dumps(obj)
 
     def loads(s: str, **kwargs: Any) -> Any:
@@ -101,7 +102,7 @@ else:
     def dumps(obj: Any,
               cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
         """Serialize to json.  See :func:`json.dumps`."""
-        return json.dumps(obj, cls=cls, **_JSON_DEFAULT_KWARGS, **kwargs)
+        return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 
     def loads(s: str, **kwargs: Any) -> Any:
         """Deserialize json string.  See :func:`json.loads`."""
