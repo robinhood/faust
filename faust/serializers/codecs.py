@@ -158,7 +158,6 @@ the extension with other Faust users.
 """
 import pickle as _pickle
 from base64 import b64decode, b64encode
-from functools import reduce
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 from ..types.codecs import CodecArg, CodecT
 from ..utils import json as _json
@@ -294,10 +293,6 @@ def _maybe_load_extension_classes(
             name: cls()
             for name, cls in load_extension_classes(namespace)
         })
-
-
-def _reduce_node(a: Any, b: Any) -> Any:
-    return cast(CodecT, codecs.get(a, a)) | codecs[b]
 
 
 def get_codec(name_or_codec: CodecArg) -> CodecT:
