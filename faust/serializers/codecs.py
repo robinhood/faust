@@ -289,6 +289,7 @@ def register(name: str, codec: CodecT) -> None:
 def _maybe_load_extension_classes(
         namespace: str = 'faust.codecs') -> None:
     if namespace not in _extensions_finalized:
+        _extensions_finalized[namespace] = True
         codecs.update({
             name: cls()
             for name, cls in load_extension_classes(namespace)
