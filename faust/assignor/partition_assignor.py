@@ -10,7 +10,9 @@ from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
 from ..types.app import AppT
-from ..types.assignor import HostPartitionsMap, PartitionAssignorT
+from ..types.assignor import (
+    TopicPartitionsMap, HostPartitionsMap, PartitionAssignorT,
+)
 from ..types.core import K
 from ..types.tables import CollectionT, TableManagerT
 from ..types.topics import TopicPartition
@@ -48,20 +50,27 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._url = '' # FIXME
         self._table_manager = self.app.tables
         self._assignment = ClientAssignment(actives={}, standbys={})
-        self._metadata = ClientMetadata(assignment=self._assignment,
-                                        url=self._url)
+        self._changelog_distribution: HostPartitionsMap = {}
+        self._metadata = ClientMetadata(
+            assignment=self._assignment,
+            url=self._url,
+            changelog_distribution=self._changelog_distribution
+        )
         self.replicas = replicas
         self._member_urls = {}
 
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
-        self._metadata = cast(ClientMetadata,
-                              ClientMetadata.loads(assignment.user_data))
-        self._assignment = self._metadata.assignment
+        metadata = cast(ClientMetadata,
+                        ClientMetadata.loads(assignment.user_data))
+        self._metadata = metadata
+        self._assignment = metadata.assignment
+        self._changelog_distribution = metadata.changelog_distribution
         a = sorted(assignment.assignment)
         b = sorted(self._assignment.kafka_protocol_assignment(
             self._table_manager))
         assert a == b, f'{a!r} != {b!r}'
+        assert metadata.url == self._url
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
         return ConsumerProtocolMemberMetadata(
@@ -164,12 +173,14 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                     assignments[client].add_copartitioned_assignment(
                         copart_assn)
 
-        res = self._protocol_assignments(assignments)
+        changelog_distribution = self._get_changelog_distribution(assignments)
+        res = self._protocol_assignments(assignments, changelog_distribution)
         return res
 
     def _protocol_assignments(
             self,
-            assignments: ClientAssignmentMapping) -> MemberAssignmentMapping:
+            assignments: ClientAssignmentMapping,
+            cl_distribution: HostPartitionsMap) -> MemberAssignmentMapping:
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
@@ -178,8 +189,28 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                 ClientMetadata(
                     assignment=assignment,
                     url=self._member_urls[client],
+                    changelog_distribution=cl_distribution,
                 ).dumps(),
             )
+            for client, assignment in assignments.items()
+        }
+
+    @classmethod
+    def _topics_filtered(cls, assignment: TopicPartitionsMap,
+                         topics: Set[str]) -> TopicPartitionsMap:
+        return {
+            topic: partitions
+            for topic, partitions in assignment.items()
+            if topic in topics
+        }
+
+    def _get_changelog_distribution(
+            self,
+            assignments: ClientAssignmentMapping) -> HostPartitionsMap:
+        topics = self._table_manager.changelog_topics
+        return {
+            self._member_urls[client]:
+                self._topics_filtered(assignment.actives, topics)
             for client, assignment in assignments.items()
         }
 
@@ -206,7 +237,14 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         ]
 
     def table_metadata(self, table: CollectionT) -> HostPartitionsMap:
-        return {}
+        topic = table.changelog_topic.topics[0]
+        return {
+            host: self._topics_filtered(assignment, {topic})
+            for host, assignment in self._changelog_distribution.items()
+        }
+
+    def tables_metadata(self) -> HostPartitionsMap:
+        return self._changelog_distribution
 
     def key_store(self, table: CollectionT, key: K) -> str:
         return ''

@@ -40,8 +40,16 @@ class Assignment(views.View):
         })
 
 
+class TablesMetadata(views.View):
+    package = 'faust.web.apps.stats'
+
+    async def get(self, web: Web, request: Request) -> Response:
+        return web.json(self.app.assignor.tables_metadata())
+
+
 class Site(views.Site):
     views = {
         '/': Stats,
         '/assignment/': Assignment,
+        '/metadata/': TablesMetadata,
     }

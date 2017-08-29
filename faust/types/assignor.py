@@ -1,12 +1,13 @@
 import abc
 import typing
-from typing import Iterable, MutableMapping
+from typing import Iterable, List, MutableMapping
 from .core import K
 from .tables import CollectionT
 from .topics import TopicPartition
 
 
-HostPartitionsMap = MutableMapping[str, Iterable[int]]
+TopicPartitionsMap = MutableMapping[str, List[int]]
+HostPartitionsMap = MutableMapping[str, TopicPartitionsMap]
 
 
 if typing.TYPE_CHECKING:
