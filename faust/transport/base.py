@@ -228,24 +228,38 @@ class Consumer(Service, ConsumerT):
                 sensor_state = await self._app.sensors.on_commit_initiated(
                     self)
 
-                # Go over the ack list in each topic/partition:
-                for tp in list(self._filter_tps_with_pending_acks(topics)):
-                    # Find the latest offset we can commit in this tp
-                    offset = self._new_offset(tp)
-                    # check if we can commit to this offset
-                    if offset is not None and self._should_commit(tp, offset):
-                        # if so, first send all messages attached to the new
-                        # offset
-                        await self._app.commit_attached(tp, offset)
-                        # then, update the committed_offset and perform
-                        # the commit.
-                        self._committed_offset[tp] = offset
-                        did_commit = True
-                        await self._do_commit(tp, offset, meta='')
+                # Go over the ack list in each topic/partition
+                commit_tps = list(self._filter_tps_with_pending_acks(topics))
+                did_commit = await self._commit_tps(commit_tps)
+
                 await self._app.sensors.on_commit_completed(self, sensor_state)
         finally:
             fut, self._commit_fut = self._commit_fut, None
             fut.set_result(None)
+        return did_commit
+
+    async def _commit_tps(self, tps: Iterable[TopicPartition]) -> bool:
+        did_commit = False
+        if tps:
+            coros = [self._commit_tp(tp) for tp in tps]
+            done, _ = await asyncio.wait(coros, loop=self.loop)
+            did_commit = any(fut.result() for fut in done)
+        return did_commit
+
+    async def _commit_tp(self, tp: TopicPartition) -> bool:
+        did_commit = False
+        # Find the latest offset we can commit in this tp
+        offset = self._new_offset(tp)
+        # check if we can commit to this offset
+        if offset is not None and self._should_commit(tp, offset):
+            # if so, first send all messages attached to the new
+            # offset
+            await self._app.commit_attached(tp, offset)
+            # then, update the committed_offset and perform
+            # the commit.
+            self._committed_offset[tp] = offset
+            did_commit = True
+            await self._do_commit(tp, offset, meta='')
         return did_commit
 
     def _filter_tps_with_pending_acks(
