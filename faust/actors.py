@@ -17,7 +17,7 @@ from .types.actors import (
     ActorErrorHandler, ActorFun, ActorInstanceT, ActorRefT, ActorT,
     AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
 )
-from .utils.aiter import aiter
+from .utils.aiter import aenumerate, aiter
 from .utils.collections import NodeT
 from .utils.futures import maybe_async
 from .utils.logging import get_logger
@@ -572,11 +572,11 @@ class Actor(ActorT, ServiceProxy):
         barrier = BarrierState(reply_to)
 
         # Map correlation_id -> index
-        posindex: MutableMapping[str, int] = {}
-        i = 0
-        async for cid in self._barrier_send(barrier, items, reply_to):
-            posindex[cid] = i
-            i += 1
+        posindex: MutableMapping[str, int] = {
+            cid: i
+            async for i, cid in aenumerate(
+                self._barrier_send(barrier, items, reply_to))
+        }
 
         # All the messages have been sent so finalize the barrier.
         barrier.finalize()
