@@ -462,7 +462,8 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    def _create_message_handler(self) -> Callable[[], Awaitable[None]]:
+    def _create_message_handler(
+            self) -> Callable[[], Awaitable[Tuple[bool, Any]]]:
         # get from channel
         get_next_value = self.channel.__anext__
         # Topic description -> processors
@@ -476,7 +477,7 @@ class Stream(StreamT, Service):
         threadlocals = _locals
         create_ref = weakref.ref
 
-        async def on_message() -> None:
+        async def on_message() -> Tuple[bool, Any]:
             # get message from channel
             value: Any = await get_next_value()
 
@@ -506,9 +507,9 @@ class Stream(StreamT, Service):
                 # if there is an S-routine we apply that and delegate
                 # on done to its callback.
                 await coroutine.send(value)
+                return True, None
             else:
-                # otherwise we send directly to outbox
-                await self._send_to_outbox(value)
+                return False, value
         return on_message
 
     async def on_merge(self, value: T = None) -> Optional[T]:
@@ -548,26 +549,26 @@ class Stream(StreamT, Service):
         return self
 
     async def __anext__(self) -> T:
-        if not self._anext_started:
-            # setup stuff the first time we are iterated over.
-            self._anext_started = True
-            await self.maybe_start()
-        else:
-            # decrement reference count for previous event processed.
-            _prev, self.current_event = self.current_event, None
-            if _prev is not None:
-                await _prev.ack()
-                _msg = _prev.message
-                on_stream_event_out = self._on_stream_event_out
-                if on_stream_event_out is not None:
-                    await on_stream_event_out(
-                        _msg.tp, _msg.offset, self, _prev)
-
         # fetch next message and get value from outbox
         value: T = None
-        while not value:  # we iterate until on_merge gives back a value
-            await self._on_message()
-            value = await self.on_merge(await self.outbox.get())
+        while value is None:  # we iterate until on_merge gives back a value
+            if not self._anext_started:
+                # setup stuff the first time we are iterated over.
+                self._anext_started = True
+                await self.maybe_start()
+            else:
+                # decrement reference count for previous event processed.
+                _prev, self.current_event = self.current_event, None
+                if _prev is not None:
+                    await _prev.ack()
+                    _msg = _prev.message
+                    await self._on_stream_event_out(
+                        _msg.tp, _msg.offset, self, _prev)
+
+            delegated_to_outbox, value = await self._on_message()
+            if delegated_to_outbox:
+                value = await self.outbox.get()
+            value = await self.on_merge(value)
         return value
 
     def __and__(self, other: Any) -> Any:
