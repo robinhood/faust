@@ -2,8 +2,9 @@ import asyncio
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Iterable, List, MutableMapping, MutableSequence, Set, Tuple, Union, cast,
+    Any, AsyncIterable, AsyncIterator, Awaitable,
+    Callable, Iterable, List, MutableMapping,
+    MutableSequence, Set, Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 from weakref import WeakSet
@@ -13,7 +14,8 @@ from .types import (
     RecordMetadata, StreamT, TopicT, V,
 )
 from .types.actors import (
-    ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
+    ActorErrorHandler, ActorFun, ActorInstanceT, ActorRefT, ActorT,
+    AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
 )
 from .utils.aiter import aiter
 from .utils.collections import NodeT
@@ -28,7 +30,6 @@ __all__ = [
     'ReplyPromise',
     'ReplyConsumer',
     'ActorInstance',
-    'ActorInstanceT',
     'AsyncIterableActor',
     'AwaitableActor',
     'ActorService',
@@ -203,15 +204,20 @@ class ReplyConsumer(Service):
         )
 
 
-class ActorInstance(Service):
+class ActorInstance(ActorInstanceT, Service):
     logger = logger
 
-    agent: ActorT
-    stream: StreamT
-    actor_task: asyncio.Task = None
-
-    #: If multiple instance are started for concurrency, this is its index.
-    index: int = None
+    def __init__(self,
+                 agent: ActorT,
+                 stream: StreamT,
+                 it: _T,
+                 **kwargs: Any) -> None:
+        self.agent = agent
+        self.stream = stream
+        self.it = it
+        self.index = None
+        self.actor_task = None
+        Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
         assert self.actor_task
@@ -232,43 +238,18 @@ class ActorInstance(Service):
         return f'Actor*: {self.agent.name}'
 
 
-class AsyncIterableActor(ActorInstance, AsyncIterable):
+class AsyncIterableActor(AsyncIterableActorT, ActorInstance):
     """Used for actor function that yields."""
-    it: AsyncIterable
-
-    def __init__(self,
-                 agent: ActorT,
-                 stream: StreamT,
-                 it: AsyncIterable,
-                 **kwargs: Any) -> None:
-        self.agent = agent
-        self.stream = stream
-        self.it = it
-        super().__init__(**kwargs)
 
     def __aiter__(self) -> AsyncIterator:
         return self.it.__aiter__()
 
 
-class AwaitableActor(ActorInstance, Awaitable):
+class AwaitableActor(AwaitableActorT, ActorInstance):
     """Used for actor function that do not yield."""
-    coro: Awaitable
-
-    def __init__(self,
-                 agent: ActorT,
-                 stream: StreamT,
-                 coro: Awaitable,
-                 **kwargs: Any) -> None:
-        self.agent = agent
-        self.stream = stream
-        self.coro = coro
-        super().__init__(**kwargs)
 
     def __await__(self) -> Any:
-        return self.coro.__await__()
-
-
-ActorInstanceT = Union[AwaitableActor, AsyncIterableActor]
+        return self.it.__await__()
 
 
 class ActorService(Service):
@@ -279,7 +260,7 @@ class ActorService(Service):
     logger = logger
 
     actor: ActorT
-    instances: MutableSequence[ActorInstanceT]
+    instances: MutableSequence[ActorRefT]
 
     def __init__(self, actor: ActorT, **kwargs: Any) -> None:
         self.actor = actor
@@ -343,7 +324,7 @@ class Actor(ActorT, ServiceProxy):
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
 
-    def __call__(self) -> ActorInstanceT:
+    def __call__(self) -> ActorRefT:
         # The actor function can be reused by other actors/tasks.
         # For example:
         #
@@ -363,11 +344,12 @@ class Actor(ActorT, ServiceProxy):
         # function is an `async def` function that yields)
         stream = self.stream()
         res = self.fun(stream)
-        if isinstance(res, Awaitable):
-            return AwaitableActor(self, stream, res,
-                                  loop=self.loop, beacon=self.beacon)
-        return AsyncIterableActor(self, stream, res,
-                                  loop=self.loop, beacon=self.beacon)
+        typ = cast(Type[ActorInstance], (
+            AwaitableActor if isinstance(res, Awaitable)
+            else AsyncIterableActor
+        ))
+        return typ(self, stream, res,
+                   loop=self.loop, beacon=self.beacon)
 
     def add_sink(self, sink: SinkT) -> None:
         self._sinks.append(sink)
@@ -382,7 +364,7 @@ class Actor(ActorT, ServiceProxy):
             return event.value
         return event
 
-    async def _start_task(self, index: int, beacon: NodeT) -> ActorInstanceT:
+    async def _start_task(self, index: int, beacon: NodeT) -> ActorRefT:
         # If the actor is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
@@ -406,7 +388,7 @@ class Actor(ActorT, ServiceProxy):
                 await self._on_error(self, exc)
             raise
 
-    async def _slurp(self, res: ActorInstanceT, it: AsyncIterator):
+    async def _slurp(self, res: ActorRefT, it: AsyncIterator):
         # this is used when the actor returns an AsyncIterator,
         # and simply consumes that async iterator.
         async for value in it:
