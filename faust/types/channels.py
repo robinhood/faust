@@ -35,15 +35,23 @@ class EventT(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def send(self, channel: Union[str, 'ChannelT'],
-                   *,
-                   key: Any = None,
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
     async def forward(self, channel: Union[str, 'ChannelT'],
-                      *,
                       key: Any = None,
+                      value: Any = None,
+                      partition: int = None,
+                      key_serializer: CodecArg = None,
+                      value_serializer: CodecArg = None,
+                      callback: MessageSentCallback = None,
                       force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
@@ -128,7 +136,8 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     def send_soon(
-            self, key: K, value: V,
+            self, key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,

@@ -16,44 +16,40 @@ __all__ = ['Event', 'Channel']
 logger = get_logger(__name__)
 
 USE_EXISTING_KEY = object()
+USE_EXISTING_VALUE = object()
 
 
 class Event(EventT):
-    """An event in a stream.
+    """An event received on a channel.
+
+    Notes:
+        - Events are delivered to channels/topics::
+
+            async for event in channel:
+                ...
+
+        - Streams consume channels and iterates as ``event.value``::
+
+            async for value in channel.stream()  # value is event.value
+                ...
+
+        - Stream can also iterate over original event::
+
+            async for event in channel.stream.events():
+                ...
+
+        - And you can also access the current_event related to a value
+          in a stream::
+
+            stream = channel.stream()
+            async for value in stream:
+                event = stream.current_event
 
     You can retrieve the current event in a stream to:
 
-        - Get the app associated with the value.
-        - Attach messages to be published when the offset of the
-          value's source message is committed.
         - Get access to the serialized key+value.
         - Get access to message properties like, what topic+partition
           the value was received on, or its offset.
-
-    A stream can iterate over any value, but when the value is received
-    as a message in a topic, the current value in a stream will be associated
-    with an :class:`Event`.
-
-    Streams iterates over messages in a channel, and the TopicManager
-    is the service that feeds the channel with messages.  The objects
-    sent tot he channel are Event objects::
-
-        channel: ChannelT
-
-        event = Event(app, deserialized_key, deserialized_value, message)
-        await channel.deliver(event)
-
-    The stream iterates over the Channel and receives the event,
-    but iterating over the stream yields raw values:
-
-        async for value in stream:   # <- this gets event.value, not event
-            ...
-
-    You can get the event for the current value in a stream by accessing
-    ``stream.current_event``::
-
-        async for value in stream:
-            event = stream.current_event
 
     Note that if you want access to both key and value, you should use
     ``stream.items()`` instead::
@@ -62,34 +58,66 @@ class Event(EventT):
             ...
     """
 
-    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
+    def __init__(self,
+                 app: AppT,
+                 key: K,
+                 value: V,
+                 message: Message) -> None:
         self.app: AppT = app
         self.key: K = key
         self.value: V = value
         self.message: Message = message
 
     async def send(self, channel: Union[str, ChannelT],
-                   *,
-                   key: Any = USE_EXISTING_KEY,
+                   key: K = USE_EXISTING_KEY,
+                   value: V = USE_EXISTING_VALUE,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
         """Send object to channel."""
-        return await self._send(channel, key, self.value, force=force)
+        if key is USE_EXISTING_KEY:
+            key = self.key
+        if value is USE_EXISTING_VALUE:
+            value = self.value
+        return await self._send(
+            channel, key, value, partition,
+            key_serializer, value_serializer, callback,
+            force=force,
+        )
 
     async def forward(self, channel: Union[str, ChannelT],
-                      *,
-                      key: Any = USE_EXISTING_KEY,
+                      key: K = USE_EXISTING_KEY,
+                      value: V = USE_EXISTING_VALUE,
+                      partition: int = None,
+                      key_serializer: CodecArg = None,
+                      value_serializer: CodecArg = None,
+                      callback: MessageSentCallback = None,
                       force: bool = False) -> Awaitable[RecordMetadata]:
         """Forward original message (will not be reserialized)."""
-        return await self._send(
-            channel, key=key, value=self.message.value, force=force)
-
-    async def _send(self, channel: Union[str, ChannelT],
-                    key: Any = USE_EXISTING_KEY,
-                    value: Any = None,
-                    force: bool = False) -> Awaitable[RecordMetadata]:
         if key is USE_EXISTING_KEY:
             key = self.message.key
-        return await self.app.maybe_attach(channel, key, value, force=force)
+        if value is USE_EXISTING_VALUE:
+            value = self.message.value
+        return await self._send(
+            channel, key, value, partition,
+            key_serializer, value_serializer, callback,
+            force=force,
+        )
+
+    async def _send(self, channel: Union[str, ChannelT],
+                    key: K = None,
+                    value: V = None,
+                    partition: int = None,
+                    key_serializer: CodecArg = None,
+                    value_serializer: CodecArg = None,
+                    callback: MessageSentCallback = None,
+                    force: bool = False) -> Awaitable[RecordMetadata]:
+        return await self.app.maybe_attach(
+            channel, key, value, partition,
+            key_serializer, value_serializer, callback,
+            force=force)
 
     def attach(
             self,

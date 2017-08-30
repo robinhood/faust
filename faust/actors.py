@@ -9,7 +9,8 @@ from uuid import uuid4
 from weakref import WeakSet
 from . import Record
 from .types import (
-    AppT, ChannelT, CodecArg, K, ModelT, RecordMetadata, StreamT, TopicT, V,
+    AppT, ChannelT, CodecArg, K, MessageSentCallback, ModelT,
+    RecordMetadata, StreamT, TopicT, V,
 )
 from .types.actors import (
     ActorErrorHandler, ActorFun, ActorT, ReplyToArg, SinkT,
@@ -498,6 +499,7 @@ class Actor(ActorT, ServiceProxy):
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None,
             *,
             reply_to: ReplyToArg = None,
             correlation_id: str = None,
@@ -522,10 +524,13 @@ class Actor(ActorT, ServiceProxy):
         return cast(str, topic)
 
     def send_soon(
-            self, key: K, value: V,
+            self,
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> Awaitable[RecordMetadata]:
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send message eventually (non async), to topic used by actor."""
         return self.channel.send_soon(key, value, partition,
                                       key_serializer, value_serializer)

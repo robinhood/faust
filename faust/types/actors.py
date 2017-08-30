@@ -101,7 +101,9 @@ class ActorT(ServiceT):
 
     @abc.abstractmethod
     def send_soon(
-            self, key: K, value: V,
+            self,
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None) -> Awaitable[RecordMetadata]:
