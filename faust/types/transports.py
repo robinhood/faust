@@ -49,7 +49,6 @@ class ConsumerT(ServiceT):
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
-                 autoack: bool = True,
                  commit_interval: float = None,
                  **kwargs: Any) -> None:
         self._on_partitions_revoked: PartitionsRevokedCallback

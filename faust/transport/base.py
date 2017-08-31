@@ -100,7 +100,6 @@ class Consumer(Service, ConsumerT):
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
-                 autoack: bool = True,
                  commit_interval: float = None,
                  **kwargs: Any) -> None:
         assert callback is not None
@@ -108,7 +107,6 @@ class Consumer(Service, ConsumerT):
         self.transport = transport
         self._app = self.transport.app
         self.callback = callback
-        self.autoack = autoack
         self._on_message_in = self._app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
@@ -307,8 +305,7 @@ class Consumer(Service, ConsumerT):
         await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
     async def on_task_error(self, exc: Exception) -> None:
-        if self.autoack:
-            await self.commit()
+        await self.commit()
 
     async def _drain_messages(self) -> None:
         callback = self.callback
