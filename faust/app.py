@@ -312,6 +312,7 @@ class App(AppT, ServiceProxy):
               compacting: bool = None,
               deleting: bool = None,
               replicas: int = None,
+              acks: bool = True,
               config: Mapping[str, Any] = None) -> TopicT:
         return Topic(
             self,
@@ -323,6 +324,8 @@ class App(AppT, ServiceProxy):
             retention=retention,
             compacting=compacting,
             deleting=deleting,
+            replicas=replicas,
+            acks=acks,
             config=config,
         )
 

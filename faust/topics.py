@@ -304,7 +304,7 @@ class TopicManager(TopicManagerT, Service):
         list_ = list
         # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
-        consumer = self.app.consumer
+        consumer = None
 
         async def on_message(message: Message) -> None:
             nonlocal consumer

@@ -117,6 +117,7 @@ class AppT(ServiceT):
               compacting: bool = None,
               deleting: bool = None,
               replicas: int = None,
+              acks: bool = True,
               config: Mapping[str, Any] = None) -> TopicT:
         ...
 
