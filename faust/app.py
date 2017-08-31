@@ -327,6 +327,7 @@ class App(AppT, ServiceProxy):
             replicas=replicas,
             acks=acks,
             config=config,
+            acks=acks,
         )
 
     def channel(self, *,
