@@ -32,6 +32,7 @@ class TopicT(ChannelT):
     deleting: bool
     replicas: int
     config: Mapping[str, Any]
+    acks: bool
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -45,6 +46,7 @@ class TopicT(ChannelT):
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
+                 acks: bool = True,
                  config: Mapping[str, Any] = None) -> None:
         ...
 
@@ -101,6 +103,10 @@ class TopicManagerT(ServiceT, MutableSet[ChannelT]):
 
     @abc.abstractmethod
     def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def acks_enabled_for(self, topic: str) -> bool:
         ...
 
     @abc.abstractmethod

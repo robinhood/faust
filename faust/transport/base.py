@@ -172,19 +172,22 @@ class Consumer(Service, ConsumerT):
             message.acked = True
             tp = message.tp
             offset = message.offset
-            committed = self._committed_offset[tp]
             await self._app.sensors.on_message_out(
                 self.id, tp, offset, None)
-            try:
-                if committed is None or offset > committed:
-                    acked_index = self._acked_index[tp]
-                    if offset not in acked_index:
-                        self._unacked_messages.discard(message)
-                        acked_index.add(offset)
-                        acked_for_tp = self._acked[tp]
-                        acked_for_tp.append(offset)
-            finally:
-                notify(self._waiting_for_ack)
+            if self._app.channels.acks_enabled_for(message.topic):
+                committed = self._committed_offset[tp]
+                try:
+                    if committed is None or offset > committed:
+                        acked_index = self._acked_index[tp]
+                        if offset not in acked_index:
+                            self._unacked_messages.discard(message)
+                            acked_index.add(offset)
+                            acked_for_tp = self._acked[tp]
+                            acked_for_tp.append(offset)
+                finally:
+                    notify(self._waiting_for_ack)
+            else:
+                assert message not in self._unacked_messages
 
     async def wait_empty(self) -> None:
         while not self.should_stop and self._unacked_messages:

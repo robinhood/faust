@@ -77,6 +77,7 @@ class Topic(Channel, TopicT):
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
+                 acks: bool = True,
                  config: Mapping[str, Any] = None,
                  queue: asyncio.Queue = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -94,6 +95,7 @@ class Topic(Channel, TopicT):
         self.compacting = compacting
         self.deleting = deleting
         self.replicas = replicas
+        self.acks = acks
         self.config = config or {}
 
     def _clone_args(self) -> Mapping:
@@ -105,6 +107,7 @@ class Topic(Channel, TopicT):
             'compacting': self.compacting,
             'deleting': self.deleting,
             'replicas': self.replicas,
+            'acks': self.acks,
             'config': self.config,
         }}
 
@@ -279,11 +282,14 @@ class TopicManager(TopicManagerT, Service):
 
     _subscription_done: Optional[asyncio.Future]
 
+    _acking_topics: Set[str]
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
         self._topics = set()
         self._topicmap = defaultdict(set)
+        self._acking_topics = set()
         self._subscription_changed = None
         self._subscription_done = None
         # we compile the closure used for receive messages
@@ -306,13 +312,15 @@ class TopicManager(TopicManagerT, Service):
                 consumer = self.app.consumer
             # when a message is received we find all channels
             # that subscribe to this message
-            channels = list_(get_channels_for_topic(message.topic))
+            topic = message.topic
+            channels = list_(get_channels_for_topic(topic))
             if channels:
                 # we increment the reference count for this message in bulk
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
                 message.incref_bulk(channels)
-                await consumer.track_message(message)
+                if topic in self._acking_topics:
+                    await consumer.track_message(message)
 
                 first_channel = channels[0]
                 keyid = first_channel.key_type, first_channel.value_type
@@ -323,11 +331,10 @@ class TopicManager(TopicManagerT, Service):
                         await channel.put(event)
                     else:
                         await channel.deliver(message)
-
-                # then send it to each channel
-                for channel in channels:
-                    await channel.deliver(message)
         return on_message
+
+    def acks_enabled_for(self, topic: str) -> bool:
+        return topic in self._acking_topics
 
     @Service.task
     async def _subscriber(self) -> None:
@@ -357,6 +364,8 @@ class TopicManager(TopicManagerT, Service):
         self._topicmap.clear()
         for channel in self._topics:
             for topic in channel.topics:
+                if channel.acks:
+                    self._acking_topics.add(topic)
                 self._topicmap[topic].add(channel)
         return self._topicmap
 

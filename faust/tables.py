@@ -224,6 +224,7 @@ class Collection(Service, CollectionT):
             retention=retention,
             compacting=compacting,
             deleting=deleting,
+            acks=False,
         )
 
     def __copy__(self) -> Any:
