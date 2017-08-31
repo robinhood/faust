@@ -77,7 +77,6 @@ class Topic(Channel, TopicT):
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
-                 acks: bool = True,
                  config: Mapping[str, Any] = None,
                  queue: asyncio.Queue = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -299,8 +298,12 @@ class TopicManager(TopicManagerT, Service):
         list_ = list
         # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
+        consumer = self.app.consumer
 
         async def on_message(message: Message) -> None:
+            nonlocal consumer
+            if consumer is None:
+                consumer = self.app.consumer
             # when a message is received we find all channels
             # that subscribe to this message
             channels = list_(get_channels_for_topic(message.topic))
@@ -309,6 +312,7 @@ class TopicManager(TopicManagerT, Service):
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
                 message.incref_bulk(channels)
+                await consumer.track_message(message)
 
                 first_channel = channels[0]
                 keyid = first_channel.key_type, first_channel.value_type
