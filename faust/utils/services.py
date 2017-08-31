@@ -201,9 +201,6 @@ class Service(ServiceBase):
                 await service.maybe_start()
             except Exception as exc:
                 await self.crash(exc)
-        # FIXME currently we need this as there is a race condition between
-        # starting and the Service.task actually starting. Need to fix that
-        await self.sleep(5)
         for service in reversed(services):
             await service.stop()
 
