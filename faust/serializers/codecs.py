@@ -18,7 +18,7 @@ the return value is bytes:
     >>> s = dumps('json', obj)
 
 For the reverse direction, the func:`loads` function takes a codec
-name and a encoded payload to decode (bytes):
+name and an encoded payload to decode (bytes):
 
 .. sourcecode:: pycon
 
