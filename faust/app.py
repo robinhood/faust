@@ -312,7 +312,8 @@ class App(AppT, ServiceProxy):
               compacting: bool = None,
               deleting: bool = None,
               replicas: int = None,
-              config: Mapping[str, Any] = None) -> TopicT:
+              config: Mapping[str, Any] = None,
+              acks: bool = True) -> TopicT:
         return Topic(
             self,
             topics=topics,
@@ -324,6 +325,7 @@ class App(AppT, ServiceProxy):
             compacting=compacting,
             deleting=deleting,
             config=config,
+            acks=acks,
         )
 
     def channel(self, *,
