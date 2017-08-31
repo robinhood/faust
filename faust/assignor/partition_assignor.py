@@ -41,29 +41,33 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _assignment: ClientAssignment
     _table_manager: TableManagerT
     _partitioner: DefaultPartitioner
-    _url: str
     _member_urls: MutableMapping[str, str]
 
     def __init__(self, app: AppT, replicas: int = 0) -> None:
         super().__init__()
         self.app = app
-        self._url = '' # FIXME
         self._table_manager = self.app.tables
         self._assignment = ClientAssignment(actives={}, standbys={})
         self._changelog_distribution: HostPartitionsMap = {}
-        self._metadata = ClientMetadata(
-            assignment=self._assignment,
-            url=self._url,
-            changelog_distribution=self._changelog_distribution
-        )
         self.replicas = replicas
         self._member_urls = {}
+
+    @property
+    def _metadata(self) -> ClientMetadata:
+        return ClientMetadata(
+            assignment=self._assignment,
+            url=self._url,
+            changelog_distribution=self._changelog_distribution,
+        )
+
+    @property
+    def _url(self) -> str:
+        return self.app.advertised_url
 
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
         metadata = cast(ClientMetadata,
                         ClientMetadata.loads(assignment.user_data))
-        self._metadata = metadata
         self._assignment = metadata.assignment
         self._changelog_distribution = metadata.changelog_distribution
         a = sorted(assignment.assignment)

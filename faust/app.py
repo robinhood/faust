@@ -296,6 +296,7 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self.advertised_url = ''
         self.assignor = PartitionAssignor(self,
                                           replicas=self.replication_factor)
         self.actors = OrderedDict()

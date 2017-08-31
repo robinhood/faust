@@ -5,7 +5,7 @@ from typing import Any, Callable, Mapping, Sequence
 import click
 from ..types.app import AppT
 from ..utils.imports import import_from_cwd, symbol_by_name
-from ..web.base import DEFAULT_PORT
+from ..web.base import DEFAULT_PORT, DEFAULT_BIND
 from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT
 
 
@@ -29,12 +29,14 @@ worker_options = [
     click.option('--blocking-timeout',
                  default=DEFAULT_BLOCKING_TIMEOUT, type=float,
                  help='Blocking detector timeout (requires --debug)'),
-    click.option('--web-port',
+    click.option('--advertised-host', '-h',
+                 default=DEFAULT_BIND, type=str,
+                 help='Advertised host for the webserver'),
+    click.option('--web-port', '-p',
                  default=DEFAULT_PORT, type=int,
                  help='Port to run webserver on'),
     click.option('--with-uvloop/--without-uvloop',
                  help='Use fast uvloop event loop'),
-
 ]
 
 
@@ -71,6 +73,7 @@ def worker(ctx: click.Context,
            logfile: str,
            loglevel: str,
            blocking_timeout: float,
+           advertised_host: str,
            web_port: int,
            with_uvloop: bool) -> None:
     if with_uvloop:
@@ -82,6 +85,7 @@ def worker(ctx: click.Context,
     if not app:
         raise click.UsageError('Need to specify app using -A parameter')
     app = find_app(app)
+    app.advertised_url = f'{advertised_host}:{web_port}'
     from ..worker import Worker
     Worker(
         app,

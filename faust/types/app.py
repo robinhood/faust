@@ -70,6 +70,7 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
     assignor: PartitionAssignorT
+    advertised_url: str
 
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT
