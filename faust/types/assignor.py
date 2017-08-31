@@ -36,3 +36,7 @@ class PartitionAssignorT(abc.ABC):
     @abc.abstractmethod
     def table_metadata(self, table: CollectionT) -> HostPartitionsMap:
         ...
+
+    @abc.abstractmethod
+    def tables_metadata(self) -> HostPartitionsMap:
+        ...
