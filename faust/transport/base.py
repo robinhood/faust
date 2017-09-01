@@ -22,7 +22,15 @@ from ..utils.services import Service, ServiceT
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
+CONSUMER_FETCHING = 'FETCHING'
+CONSUMER_PARTITIONS_REVOKED = 'PARTITIONS_REVOKED'
+CONSUMER_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
+CONSUMER_COMMITTING = 'COMMITTING'
+CONSUMER_SEEKING = 'SEEKING'
+CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
+
 logger = get_logger(__name__)
+
 
 # The Transport is responsible for:
 #
@@ -139,17 +147,19 @@ class Consumer(Service, ConsumerT):
     def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
         ...
 
+    @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         await self._on_partitions_assigned(assigned)
-        await self._perform_seek()
+        await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
         # All internal queues/buffers have now been cleared,
         # so the registered read offsets may now be out of date.
         # We have to refetch all messages that we had in the buffers
-        # and did not committ, to do so we reset read offsets to the committed
-        # offsets.
+        # and did not committ, to do so we reset read offsets to the
+        # committed offsets.
         self._read_offset.update(self._committed_offset)
 
+    @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         await self._on_partitions_revoked(revoked)
@@ -187,6 +197,7 @@ class Consumer(Service, ConsumerT):
             else:
                 assert message not in self._unacked_messages
 
+    @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
         while not self.should_stop and self._unacked_messages:
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
@@ -206,6 +217,7 @@ class Consumer(Service, ConsumerT):
             await self.commit()
             await self.sleep(self.commit_interval)
 
+    @Service.transitions_to(CONSUMER_COMMITTING)
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
 
@@ -313,9 +325,13 @@ class Consumer(Service, ConsumerT):
         should_stop = self._stopped.is_set
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
+        flag_consumer_fetching = CONSUMER_FETCHING
+        set_flag = self.diag.set_flag
+        unset_flag = self.diag.unset_flag
 
         try:
             while not should_stop():
+                set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
                     offset = message.offset
@@ -326,6 +342,7 @@ class Consumer(Service, ConsumerT):
                     else:
                         self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
                                      offset, message.key, message.value)
+                unset_flag(flag_consumer_fetching)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
@@ -342,6 +359,7 @@ class Consumer(Service, ConsumerT):
             self.log.exception('Drain messages raised: %r', exc)
             raise
         finally:
+            unset_flag(flag_consumer_fetching)
             self.set_shutdown()
 
 

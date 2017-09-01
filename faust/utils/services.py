@@ -6,6 +6,8 @@ import os
 import sys
 import threading
 import traceback
+from functools import wraps
+from time import monotonic
 from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator,
@@ -15,9 +17,11 @@ from .collections import Node
 from .logging import CompositeLogger, get_logger
 from .times import Seconds, want_seconds
 from .types.collections import NodeT
-from .types.services import ServiceT
+from .types.services import DiagT, ServiceT
 
-__all__ = ['Service', 'ServiceBase', 'ServiceProxy', 'ServiceThread']
+__all__ = [
+    'Service', 'ServiceBase', 'ServiceProxy', 'ServiceThread', 'Diag',
+]
 
 __flake8_Set_is_used: Set  # XXX flake8 bug
 
@@ -66,6 +70,23 @@ class ServiceBase(ServiceT):
         return ''
 
 
+class Diag(DiagT):
+
+    def __init__(self, service: ServiceT) -> None:
+        self.service = service
+        self.flags = set()
+        self.last_transition = {}
+
+    def set_flag(self, flag: str) -> None:
+        print('--> %s: +%s' % (self.service.shortlabel, flag,))
+        self.flags.add(flag)
+        self.last_transition[flag] = monotonic()
+
+    def unset_flag(self, flag: str) -> None:
+        print('<-- %s: -%s' % (self.service.shortlabel, flag,))
+        self.flags.discard(flag)
+
+
 class ServiceTask:
 
     def __init__(self, fun: Callable[..., Awaitable]) -> None:
@@ -88,6 +109,7 @@ class Service(ServiceBase):
         beacon (NodeT): Beacon used to track services in a graph.
         loop (asyncio.AbstractEventLoop): Event loop object.
     """
+    Diag: Type[DiagT] = Diag
 
     #: Logger used by this service, subclasses should set their own.
     logger: logging.Logger = logger
@@ -142,6 +164,21 @@ class Service(ServiceBase):
         """
         return ServiceTask(fun)
 
+    @classmethod
+    def transitions_to(cls, flag: str) -> Callable:
+        def _decorate(
+                fun: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
+            @wraps(fun)
+            async def _and_transition(self: ServiceT,
+                                      *args: Any, **kwargs: Any) -> Any:
+                self.diag.set_flag(flag)
+                try:
+                    return await fun(self, *args, **kwargs)
+                finally:
+                    self.diag.unset_flag(flag)
+            return _and_transition
+        return _decorate
+
     def __init_subclass__(self) -> None:
         # Every new subclass adds @Service.task decorated methods
         # to the class-local `_tasks` list.
@@ -155,6 +192,7 @@ class Service(ServiceBase):
     def __init__(self, *,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
+        self.diag = self.Diag(self)
         self.loop = loop or asyncio.get_event_loop()
         self._started = asyncio.Event(loop=self.loop)
         self._stopped = asyncio.Event(loop=self.loop)
@@ -167,6 +205,14 @@ class Service(ServiceBase):
         self._futures = []
         self.on_init()
         super().__init__()
+
+    async def transition_with(self, flag: str, fut: Awaitable,
+                              *args: Any, **kwargs: Any) -> Any:
+        self.diag.set_flag(flag)
+        try:
+            return await fut
+        finally:
+            self.diag.unset_flag(flag)
 
     def add_dependency(self, service: ServiceT) -> ServiceT:
         """Add dependency to other service.
@@ -386,13 +432,16 @@ class Service(ServiceBase):
     @property
     def state(self) -> str:
         """Current service state - as a human readable string."""
-        if not self._started.is_set():
+        if self._crashed.is_set():
+            return 'crashed'
+        elif not self._started.is_set():
             return 'init'
-        if not self._stopped.is_set():
+        elif not self._stopped.is_set():
             return 'running'
-        if not self._shutdown.is_set():
+        elif not self._shutdown.is_set():
             return 'stopping'
-        return 'shutdown'
+        else:
+            return 'shutdown'
 
     @property
     def label(self) -> str:

@@ -42,6 +42,16 @@ __all__ = [
     'WindowWrapper',
 ]
 
+CHANGELOG_SEEKING = 'SEEKING'
+CHANGELOG_STARTING = 'STARTING'
+CHANGELOG_READING = 'READING'
+TABLE_CLEANING = 'CLEANING'
+TABLEMAN_UPDATE = 'UPDATE'
+TABLEMAN_START_STANDBYS = 'START_STANDBYS'
+TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
+TABLEMAN_RECOVER = 'RECOVER'
+TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
+
 __flake8_Sequence_is_used: Sequence  # XXX flake8 bug
 __flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
 __flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
@@ -156,6 +166,7 @@ class Collection(Service, CollectionT):
         self.app.checkpoints.set_offset(res.topic_partition, res.offset)
 
     @Service.task
+    @Service.transitions_to(TABLE_CLEANING)
     async def _clean_data(self) -> None:
         if self._should_expire_keys():
             timestamps = self._timestamps
@@ -519,6 +530,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     async def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
 
+    @Service.transitions_to(CHANGELOG_SEEKING)
     async def _seek_tps(self) -> None:
         consumer = self.app.consumer
         tps = self.tps
@@ -533,6 +545,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         return self._highwaters != self.offsets
 
     @Service.task
+    @Service.transitions_to(CHANGELOG_STARTING)
     async def _read(self) -> None:
         table = self.table
         consumer = self.app.consumer
@@ -545,6 +558,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         await consumer.resume_partitions(self.tps)
         self.log.info('Started reading')
         buf: List[EventT] = []
+        self.diag.set_flag(CHANGELOG_READING)
         try:
             async for event in self._read_changelog():
                 buf.append(event)
@@ -554,6 +568,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                 if await self._should_stop_reading():
                     break
         finally:
+            self.diag.unset_flag(CHANGELOG_READING)
             if buf:
                 table.apply_changelog_batch(buf)
                 buf.clear()
@@ -616,6 +631,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             raise RuntimeError('Too late to add tables at this point')
         super().__setitem__(key, value)
 
+    @Service.transitions_to(TABLEMAN_UPDATE)
     async def _update_channels(self) -> None:
         for table in self.values():
             if table not in self._channels:
@@ -642,6 +658,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.log.info(f'Syncing offsets {reader.offsets}')
         self._table_offsets.update(reader.offsets)
 
+    @Service.transitions_to(TABLEMAN_STOP_STANDBYS)
     async def _stop_standbys(self) -> None:
         for _, standby in self._standbys.items():
             self.log.info(f'Stopping standby for tps: {standby.tps}')
@@ -656,6 +673,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 table_tps[self._changelogs[tp.topic]].append(tp)
         return table_tps
 
+    @Service.transitions_to(TABLEMAN_START_STANDBYS)
     async def _start_standbys(self,
                               tps: Iterable[TopicPartition]) -> None:
         assert not self._standbys
@@ -694,6 +712,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             for table in self.values():
                 await table.stop()
 
+    @Service.transitions_to(TABLEMAN_RECOVER)
     async def _recover_changelogs(self, tps: Iterable[TopicPartition]) -> None:
         self.log.info('Recovering from changelog topics...')
         table_recoverers: List[ChangelogReaderT] = [
@@ -720,6 +739,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             beacon=self.beacon,
         )
 
+    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()

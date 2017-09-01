@@ -1,10 +1,27 @@
 import abc
 import asyncio
 from types import TracebackType
-from typing import Type
+from typing import MutableMapping, Set, Type
 from .collections import NodeT
 
 __all__ = ['ServiceT']
+
+
+class DiagT(abc.ABC):
+    flags: Set[str]
+    last_transition: MutableMapping[str, float]
+
+    @abc.abstractmethod
+    def __init__(self, service: 'ServiceT') -> None:
+        ...
+
+    @abc.abstractmethod
+    def set_flag(self, flag: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    def unset_flag(self, flag: str) -> None:
+        ...
 
 
 class ServiceT(metaclass=abc.ABCMeta):
@@ -13,6 +30,9 @@ class ServiceT(metaclass=abc.ABCMeta):
     See Also:
         :class:`faust.utils.services.Service`.
     """
+
+    Diag: Type[DiagT]
+    diag: DiagT
 
     shutdown_timeout: float
     wait_for_shutdown = False
