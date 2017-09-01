@@ -78,12 +78,10 @@ class Diag(DiagT):
         self.last_transition = {}
 
     def set_flag(self, flag: str) -> None:
-        print('--> %s: +%s' % (self.service.shortlabel, flag,))
         self.flags.add(flag)
         self.last_transition[flag] = monotonic()
 
     def unset_flag(self, flag: str) -> None:
-        print('<-- %s: -%s' % (self.service.shortlabel, flag,))
         self.flags.discard(flag)
 
 
