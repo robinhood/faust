@@ -589,6 +589,14 @@ class ChangelogReader(Service, ChangelogReaderT):
                 offsets[tp] = offset
                 yield event
 
+    @property
+    def label(self) -> str:
+        return self.shortlabel
+
+    @property
+    def shortlabel(self) -> str:
+        return f'{type(self).__name__}: {self.table.name}'
+
 
 class StandbyReader(ChangelogReader):
 
