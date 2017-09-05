@@ -13,8 +13,6 @@ from .codecs import CodecArg
 from .core import K, V
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
-# mypy requires this for some unknown reason, but it's not used
-from .streams import T  # noqa: F401
 from .streams import StreamT
 from .tables import CheckpointManagerT, SetT, TableManagerT, TableT
 from .topics import ChannelT, TopicManagerT, TopicT

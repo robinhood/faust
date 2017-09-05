@@ -34,25 +34,27 @@ class EventT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    async def send(self, channel: Union[str, 'ChannelT'],
-                   key: K = None,
-                   value: V = None,
-                   partition: int = None,
-                   key_serializer: CodecArg = None,
-                   value_serializer: CodecArg = None,
-                   callback: MessageSentCallback = None,
-                   force: bool = False) -> Awaitable[RecordMetadata]:
+    async def send(
+            self, channel: Union[str, 'ChannelT'],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None,
+            force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    async def forward(self, channel: Union[str, 'ChannelT'],
-                      key: Any = None,
-                      value: Any = None,
-                      partition: int = None,
-                      key_serializer: CodecArg = None,
-                      value_serializer: CodecArg = None,
-                      callback: MessageSentCallback = None,
-                      force: bool = False) -> Awaitable[RecordMetadata]:
+    async def forward(
+            self, channel: Union[str, 'ChannelT'],
+            key: Any = None,
+            value: Any = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None,
+            force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -90,11 +92,12 @@ class ChannelT(AsyncIterator):
     loop: asyncio.AbstractEventLoop = None
 
     @abc.abstractmethod
-    def __init__(self, app: AppT,
-                 *,
-                 key_type: ModelArg = None,
-                 value_type: ModelArg = None,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(
+            self, app: AppT,
+            *,
+            key_type: ModelArg = None,
+            value_type: ModelArg = None,
+            loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
     @abc.abstractmethod

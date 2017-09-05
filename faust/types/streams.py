@@ -126,8 +126,8 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def enumerate(self,
-                  start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
+    def enumerate(
+            self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         ...
 
     @abc.abstractmethod
@@ -146,12 +146,13 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def derive_topic(self, name: str,
-                     *,
-                     key_type: ModelArg = None,
-                     value_type: ModelArg = None,
-                     prefix: str = '',
-                     suffix: str = '') -> TopicT:
+    def derive_topic(
+            self, name: str,
+            *,
+            key_type: ModelArg = None,
+            value_type: ModelArg = None,
+            prefix: str = '',
+            suffix: str = '') -> TopicT:
         ...
 
     @abc.abstractmethod
