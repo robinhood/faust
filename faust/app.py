@@ -8,31 +8,38 @@ from heapq import heappop, heappush
 from itertools import chain
 from pathlib import Path
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
+    Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Sequence, Tuple, Union, cast,
+    Optional, Pattern, Sequence, Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 
 from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
+from .assignor import PartitionAssignor
+from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured
 from .sensors import Monitor, SensorDelegate
+from .streams import current_event
 from .topics import Topic, TopicManager, TopicManagerT
 from .types import (
-    CodecArg, K, Message, MessageSentCallback, ModelArg,
-    PendingMessage, RecordMetadata,
-    StreamCoroutine, TopicPartition, TopicT, V,
+    CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
+    RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
+from .types.serializers import RegistryT
 from .types.streams import StreamT
-from .types.tables import CollectionT, SetT, TableManagerT, TableT
-from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
+from .types.tables import (
+    CheckpointManagerT, CollectionT, SetT, TableManagerT, TableT,
+)
+from .types.transports import (
+    ConsumerT, ProducerT, TPorTopicSet, TransportT,
+)
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
-from .utils.futures import maybe_async
+from .utils.futures import FlowControlEvent, FlowControlQueue, stampede
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import Unordered, cached_property
@@ -42,16 +49,17 @@ from .utils.types.collections import NodeT
 
 __all__ = ['App']
 
-__flake8_please_Any_is_OK: Any   # flake8 thinks Any is unused :/
-__flake8_please_AsyncIterator_is_OK: AsyncIterator
-
 #: Default broker URL.
 DEFAULT_URL = 'kafka://localhost:9092'
+
+CHECKPOINT_PATH = '.checkpoint'
 
 #: Path to default stream class used by ``app.stream``.
 DEFAULT_STREAM_CLS = 'faust.Stream'
 
-DEFAULT_TABLE_MANAGER_CLS = 'faust.tables.TableManager'
+DEFAULT_TABLE_MAN = 'faust.tables.TableManager'
+
+DEFAULT_CHECKPOINT_MAN = _DCPM = 'faust.tables.CheckpointManager'
 
 #: Path to default table class used by ``app.Table``.
 DEFAULT_TABLE_CLS = 'faust.Table'
@@ -62,16 +70,12 @@ DEFAULT_SET_CLS = 'faust.Set'
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
 
-#: Path to keep table changelog cache.  If None (default) the current
-#: directory is used.
-DEFAULT_TABLE_CACHE_PATH = None
-
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit messages.
 #: Can be customized by setting ``App(commit_interval=...)``.
-COMMIT_INTERVAL = 1.0
+COMMIT_INTERVAL = 3.0
 
 #: How often we clean up windowed tables.
 #: Can be customized by setting ``App(table_cleanup_interval=...)``.
@@ -85,10 +89,12 @@ DEFAULT_REPLY_EXPIRES = timedelta(days=1)
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({s.id}): {s.url} {s.state} actors({actors}) sources({sources})>
+<{name}({s.id}): {s.url} {s.state} actors({actors}) channels({channels})>
 """.strip()
 
 logger = get_logger(__name__)
+
+_flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
 
 
 class AppService(Service):
@@ -113,7 +119,7 @@ class AppService(Service):
             [self.app.producer],
             [self.app.consumer],
             [self.app._reply_consumer],
-            [self.app.sources],
+            [self.app.channels],
             [self.app._fetcher],
         ))
 
@@ -132,6 +138,8 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             # Sensors must always be started first, and stopped last.
             self.app.sensors,
+            # Checkpoint Manager
+            [self.app.checkpoints],                   # app.CheckpointManager
             # Producer must be stoppped after consumer.
             [self.app.producer],                      # app.Producer
             # Consumer must be stopped after Topic Manager
@@ -141,7 +149,7 @@ class AppService(Service):
             # Actors
             self.app.actors.values(),
             # TopicManager
-            [self.app.sources],                       # app.TopicManager
+            [self.app.channels],                      # app.TopicManager
             # TableManager
             [self.app.tables],                        # app.TableManager
             # Fetcher
@@ -159,16 +167,11 @@ class AppService(Service):
 
     @Service.task
     async def _drain_message_buffer(self) -> None:
-        send = self.app.send
         get = self.app._message_buffer.get
         while not self.should_stop:
-            pending = await get()
-            send(
-                pending.topic, pending.key, pending.value,
-                partition=pending.partition,
-                key_serializer=pending.key_serializer,
-                value_serializer=pending.value_serializer,
-            )
+            fut: FutureMessage = await get()
+            pending = fut.message
+            pending.channel.publish_message(fut)
 
     @property
     def label(self) -> str:
@@ -200,8 +203,6 @@ class App(AppT, ServiceProxy):
             table.  Default: ``0``.
         replication_factor (int): The replication factor for changelog topics
             and repartition topics created by the application.  Default: ``1``.
-        table_cache_path (Union[str, pathlib.Path]): Path to store cached table
-            changelog keys.
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
@@ -211,9 +212,6 @@ class App(AppT, ServiceProxy):
 
     #: Default producer instance.
     _producer: Optional[ProducerT] = None
-
-    #: Set when producer is started.
-    _producer_started: bool = False
 
     #: Default consumer instance.
     _consumer: Optional[ConsumerT] = None
@@ -226,7 +224,7 @@ class App(AppT, ServiceProxy):
 
     _pending_on_commit: MutableMapping[
         TopicPartition,
-        List[Tuple[int, Unordered[PendingMessage]]]]
+        List[Tuple[int, Unordered[FutureMessage]]]]
 
     _monitor: Monitor = None
 
@@ -240,37 +238,40 @@ class App(AppT, ServiceProxy):
         kwargs = parse_worker_args(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
-    def __init__(self, id: str,
-                 *,
-                 url: str = 'aiokafka://localhost:9092',
-                 store: str = 'memory://',
-                 avro_registry_url: str = None,
-                 client_id: str = CLIENT_ID,
-                 commit_interval: Seconds = COMMIT_INTERVAL,
-                 table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
-                 key_serializer: CodecArg = 'json',
-                 value_serializer: CodecArg = 'json',
-                 num_standby_replicas: int = 0,
-                 replication_factor: int = 1,
-                 default_partitions: int = 8,
-                 reply_to: str = None,
-                 create_reply_topic: bool = False,
-                 table_cache_path: Union[Path, str] = DEFAULT_TABLE_CACHE_PATH,
-                 reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
-                 Stream: SymbolArg = DEFAULT_STREAM_CLS,
-                 Table: SymbolArg = DEFAULT_TABLE_CLS,
-                 TableManager: SymbolArg = DEFAULT_TABLE_MANAGER_CLS,
-                 Set: SymbolArg = DEFAULT_SET_CLS,
-                 Serializers: SymbolArg = DEFAULT_SERIALIZERS_CLS,
-                 monitor: Monitor = None,
-                 on_startup_finished: Callable = None,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(
+            self, id: str,
+            *,
+            url: str = 'aiokafka://localhost:9092',
+            store: str = 'memory://',
+            avro_registry_url: str = None,
+            client_id: str = CLIENT_ID,
+            commit_interval: Seconds = COMMIT_INTERVAL,
+            table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
+            checkpoint_path: Union[Path, str] = CHECKPOINT_PATH,
+            key_serializer: CodecArg = 'json',
+            value_serializer: CodecArg = 'json',
+            num_standby_replicas: int = 0,
+            replication_factor: int = 1,
+            default_partitions: int = 8,
+            reply_to: str = None,
+            create_reply_topic: bool = False,
+            reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
+            Stream: SymbolArg[Type[StreamT]] = DEFAULT_STREAM_CLS,
+            Table: SymbolArg[Type[TableT]] = DEFAULT_TABLE_CLS,
+            TableManager: SymbolArg[Type[TableManagerT]] = DEFAULT_TABLE_MAN,
+            CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _DCPM,
+            Set: SymbolArg[Type[SetT]] = DEFAULT_SET_CLS,
+            Serializers: SymbolArg[Type[RegistryT]] = DEFAULT_SERIALIZERS_CLS,
+            monitor: Monitor = None,
+            on_startup_finished: Callable = None,
+            loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
         self.url = url
         self.client_id = client_id
         self.commit_interval = want_seconds(commit_interval)
         self.table_cleanup_interval = want_seconds(table_cleanup_interval)
+        self.checkpoint_path = Path(checkpoint_path)
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
@@ -278,7 +279,6 @@ class App(AppT, ServiceProxy):
         self.default_partitions = default_partitions
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
         self.create_reply_topic = create_reply_topic
-        self.table_cache_path = Path(table_cache_path or Path.cwd())
         self.reply_expires = want_seconds(
             reply_expires or DEFAULT_REPLY_EXPIRES)
         self.avro_registry_url = avro_registry_url
@@ -286,11 +286,14 @@ class App(AppT, ServiceProxy):
         self.TableType = symbol_by_name(Table)
         self.SetType = symbol_by_name(Set)
         self.TableManager = symbol_by_name(TableManager)
+        self.CheckpointManager = symbol_by_name(CheckpointManager)
         self.Serializers = symbol_by_name(Serializers)
         self.serializers = self.Serializers(
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self.assignor = PartitionAssignor(self,
+                                          replicas=self.replication_factor)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store
@@ -309,6 +312,7 @@ class App(AppT, ServiceProxy):
               compacting: bool = None,
               deleting: bool = None,
               replicas: int = None,
+              acks: bool = True,
               config: Mapping[str, Any] = None) -> TopicT:
         return Topic(
             self,
@@ -320,11 +324,24 @@ class App(AppT, ServiceProxy):
             retention=retention,
             compacting=compacting,
             deleting=deleting,
+            replicas=replicas,
+            acks=acks,
             config=config,
         )
 
+    def channel(self, *,
+                key_type: ModelArg = None,
+                value_type: ModelArg = None,
+                loop: asyncio.AbstractEventLoop = None) -> ChannelT:
+        return Channel(
+            self,
+            key_type=key_type,
+            value_type=value_type,
+            loop=loop,
+        )
+
     def actor(self,
-              topic: Union[str, TopicT] = None,
+              channel: Union[str, ChannelT] = None,
               *,
               name: str = None,
               concurrency: int = 1,
@@ -334,7 +351,7 @@ class App(AppT, ServiceProxy):
                 fun,
                 name=name,
                 app=self,
-                topic=topic,
+                channel=channel,
                 concurrency=concurrency,
                 sink=sink,
                 on_error=self._on_actor_error,
@@ -368,14 +385,14 @@ class App(AppT, ServiceProxy):
             return around_timer
         return _inner
 
-    def stream(self, source: Union[AsyncIterable, Iterable],
+    def stream(self, channel: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
-        """Create new stream from topic.
+        """Create new stream from channel.
 
         Arguments:
-            source: Async iterable to stream over.
+            channel: Async iterable to stream over.
 
         Keyword Arguments:
             coroutine: Coroutine to filter events in this stream.
@@ -386,7 +403,8 @@ class App(AppT, ServiceProxy):
                 to iterate over events in the stream.
         """
         return self.Stream(
-            source=aiter(source) if source is not None else None,
+            app=self,
+            channel=aiter(channel) if channel is not None else None,
             coroutine=coroutine,
             beacon=beacon or self.beacon,
             **kwargs)
@@ -459,19 +477,47 @@ class App(AppT, ServiceProxy):
         if not self._service.started:
             await self.start_client()
 
-    async def send(
+    async def maybe_attach(
             self,
-            topic: Union[TopicT, str],
+            channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> RecordMetadata:
+            callback: MessageSentCallback = None,
+            force: bool = False) -> Awaitable[RecordMetadata]:
+        if not force:
+            event = current_event()
+            if event is not None:
+                return event.attach(
+                    channel, key, value,
+                    partition=partition,
+                    key_serializer=key_serializer,
+                    value_serializer=value_serializer,
+                    callback=callback,
+                )
+        return await self.send(
+            channel, key, value,
+            partition=partition,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            callback=callback,
+        )
+
+    async def send(
+            self,
+            channel: Union[ChannelT, str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send event to stream.
 
         Arguments:
-            topic (Union[TopicT, str]): Topic to send event to.
+            channel (Union[ChannelT, str]): Channel to send event to.
             key (K): Message key.
             value (V): Message value.
             partition (int): Specific partition to send to.
@@ -481,88 +527,65 @@ class App(AppT, ServiceProxy):
             value_serializer (CodecArg): Serializer to use
                 only when value is not a model.
         """
-        strtopic: str
-        if isinstance(topic, TopicT):
-            # ridiculous casting
-            topictopic = cast(TopicT, topic)
-            strtopic = topictopic.topics[0]
-        else:
-            strtopic = cast(str, topic)
-        return await self._send(
-            strtopic,
-            (await self.serializers.dumps_key(
-                strtopic, key, key_serializer)
-             if key is not None else None),
-            (await self.serializers.dumps_value(
-                strtopic, value, value_serializer)),
-            partition=partition,
-            callback=callback,
+        if isinstance(channel, str):
+            channel = self.topic(channel)
+        return await channel.send(
+            key, value, partition,
+            key_serializer, value_serializer, callback,
         )
 
-    async def send_many(
-            self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
-        """Send a list of messages (unordered)."""
-        await asyncio.wait(
-            [self._send_tuple(msg) for msg in it],
-            loop=self.loop,
-            return_when=asyncio.ALL_COMPLETED,
-        )
-
-    async def _send_tuple(
-            self, message: Union[PendingMessage, Tuple]) -> RecordMetadata:
-        return await self.send(*self._unpack_message_tuple(*message))
-
-    def _unpack_message_tuple(
+    def send_soon(
             self,
-            topic: str,
+            channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> PendingMessage:
-        return PendingMessage(
-            topic, key, value, partition,
-            key_serializer, value_serializer, callback)
-
-    def send_soon(self, topic: Union[TopicT, str], key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None,
-                  callback: MessageSentCallback = None) -> None:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send event to stream soon.
 
         This is for use by non-async functions.
         """
-        self._message_buffer.put(PendingMessage(
-            topic, key, value, partition,
-            key_serializer, value_serializer, callback,
-        ))
+        chan = self.topic(channel) if isinstance(channel, str) else channel
+        fut = chan.as_future_message(
+            key, value, partition, key_serializer, value_serializer, callback)
+        self._message_buffer.put(fut)
+        return fut
 
-    def send_attached(self,
-                      message: Message,
-                      topic: Union[str, TopicT],
-                      key: K,
-                      value: V,
-                      partition: int = None,
-                      key_serializer: CodecArg = None,
-                      value_serializer: CodecArg = None,
-                      callback: MessageSentCallback = None) -> None:
+    def send_attached(
+            self,
+            message: Message,
+            channel: Union[str, ChannelT],
+            key: K,
+            value: V,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         buf = self._pending_on_commit[message.tp]
-        pending_message = PendingMessage(
-            topic, key, value, partition,
+        chan = self.topic(channel) if isinstance(channel, str) else channel
+        fut = chan.as_future_message(
+            key, value, partition,
             key_serializer, value_serializer, callback)
-        heappush(buf, (message.offset, Unordered(pending_message)))
+        heappush(buf, (message.offset, Unordered(fut)))
+        return fut
 
     async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
-        for message in list(self._get_attached(tp, offset)):
-            await self._send_tuple(message)
+        attached = list(self._get_attached(tp, offset))
+        if attached:
+            await asyncio.wait(
+                [await fut.message.channel.publish_message(fut, wait=False)
+                 for fut in attached],
+                return_when=asyncio.ALL_COMPLETED,
+                loop=self.loop,
+            )
 
     def _get_attached(
             self,
             tp: TopicPartition,
-            commit_offset: int) -> Iterator[PendingMessage]:
+            commit_offset: int) -> Iterator[FutureMessage]:
         attached = self._pending_on_commit.get(tp)
         while attached:
             # get the entry with the smallest offset in this TP
@@ -572,50 +595,21 @@ class App(AppT, ServiceProxy):
             # being committed
             if entry[0] <= commit_offset:
                 # we use it
-                yield entry[1].value  # Only yield PendingMessage (not offset)
+                yield entry[1].value  # Only yield FutureMessage (not offset)
             else:
                 # we put it back and exit, as this was the smallest offset.
                 heappush(attached, entry)
                 break
 
-    async def _send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> RecordMetadata:
-        self.log.debug('send: topic=%r key=%r value=%r', topic, key, value)
-        assert topic is not None
-        producer = await self.maybe_start_producer()
-        state = await self.sensors.on_send_initiated(
-            producer, topic,
-            keysize=len(key) if key else 0,
-            valsize=len(value) if value else 0)
-        ret = await producer.send_and_wait(
-            topic, key, value, partition=partition)
-        await self.sensors.on_send_completed(producer, state)
-        if callback:
-            await maybe_async(callback(
-                self._unpack_message_tuple(
-                    topic, key, value, partition,
-                    key_serializer, value_serializer, callback),
-                ret,
-            ))
-        return ret
-
+    @stampede
     async def maybe_start_producer(self) -> ProducerT:
         producer = self.producer
-        if not self._producer_started:
-            self._producer_started = True
-            # producer may also have been started by app.start()
-            await producer.maybe_start()
+        # producer may also have been started by app.start()
+        await producer.maybe_start()
         return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.sources.commit(topics)
+        return await self.channels.commit(topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
@@ -624,7 +618,7 @@ class App(AppT, ServiceProxy):
 
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
-            callback=self.sources.on_message,
+            callback=self.channels.on_message,
             on_partitions_revoked=self.on_partitions_revoked,
             on_partitions_assigned=self.on_partitions_assigned,
             beacon=self.beacon,
@@ -632,30 +626,43 @@ class App(AppT, ServiceProxy):
 
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        await self.sources.on_partitions_assigned(assigned)
+        await self.channels.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
+        self.flow_control.resume()
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         self.log.dev('ON PARTITIONS REVOKED')
-        await self.sources.on_partitions_revoked(revoked)
+        await self.channels.on_partitions_revoked(revoked)
         assignment = self.consumer.assignment()
         if assignment:
+            self.flow_control.suspend()
             await self.consumer.pause_partitions(assignment)
             await self.consumer.wait_empty()
         else:
             self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
 
     def _create_transport(self) -> TransportT:
-        return cast(TransportT,
-                    transport.by_url(self.url)(self.url, self, loop=self.loop))
+        return transport.by_url(self.url)(self.url, self, loop=self.loop)
+
+    def FlowControlQueue(
+            self,
+            maxsize: int = None,
+            *,
+            clear_on_resume: bool = False,
+            loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+        return FlowControlQueue(
+            flow_control=self.flow_control,
+            clear_on_resume=clear_on_resume,
+            loop=loop or self.loop,
+        )
 
     def __repr__(self) -> str:
         return APP_REPR.format(
             name=type(self).__name__,
             s=self,
             actors=self.actors,
-            sources=len(self.sources),
+            channels=len(self.channels),
         )
 
     @property
@@ -700,7 +707,12 @@ class App(AppT, ServiceProxy):
             app=self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
-    def sources(self) -> TopicManagerT:
+    def checkpoints(self) -> CheckpointManagerT:
+        return self.CheckpointManager(
+            self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def channels(self) -> TopicManagerT:
         return TopicManager(app=self, loop=self.loop, beacon=self.beacon)
 
     @property
@@ -715,7 +727,10 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def _message_buffer(self) -> asyncio.Queue:
-        return asyncio.Queue(loop=self.loop)
+        return self.FlowControlQueue(
+            # it's important that we don't clear the buffered messages
+            # on_partitions_assigned
+            maxsize=1000, loop=self.loop, clear_on_resume=False)
 
     @cached_property
     def _fetcher(self) -> ServiceT:
@@ -732,3 +747,7 @@ class App(AppT, ServiceProxy):
     @property
     def shortlabel(self) -> str:
         return type(self).__name__
+
+    @cached_property
+    def flow_control(self) -> FlowControlEvent:
+        return FlowControlEvent(loop=self.loop)

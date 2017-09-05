@@ -1,16 +1,11 @@
 import abc
 import typing
-from types import TracebackType
 from typing import (
-    Any, AsyncIterable, AsyncIterator,
-    Iterable, Mapping, MutableSet, Pattern, Sequence, Type, Union,
+    Any, Iterable,
+    Mapping, MutableSet, Optional, Pattern, Sequence, Union,
 )
-from ._coroutines import StreamCoroutine
-from .codecs import CodecArg
-from .core import K, V
-from .tuples import (
-    Message, MessageSentCallback, RecordMetadata, TopicPartition,
-)
+from .channels import ChannelT
+from .tuples import TopicPartition
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -26,70 +21,18 @@ else:
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
 
-__all__ = ['EventT', 'TopicT', 'SourceT', 'TopicManagerT']
+__all__ = ['TopicT', 'TopicManagerT']
 
 
-class EventT(metaclass=abc.ABCMeta):
-    app: AppT
-    key: K
-    value: V
-    message: Message
-
-    __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
-
-    @abc.abstractmethod
-    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def send(self, topic: Union[str, 'TopicT'],
-                   *,
-                   key: Any = None) -> RecordMetadata:
-        ...
-
-    @abc.abstractmethod
-    async def forward(self, topic: Union[str, 'TopicT'],
-                      *,
-                      key: Any = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    def attach(self, topic: Union[str, 'TopicT'], key: K, value: V,
-               *,
-               partition: int = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None,
-               callback: MessageSentCallback = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def ack(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def __aenter__(self) -> 'EventT':
-        ...
-
-    @abc.abstractmethod
-    async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
-        ...
-
-
-class TopicT(AsyncIterable):
-    app: AppT
+class TopicT(ChannelT):
     topics: Sequence[str]
     pattern: Pattern
-    key_type: ModelArg
-    value_type: ModelArg
-    partitions: int
     retention: Seconds
     compacting: bool
     deleting: bool
     replicas: int
     config: Mapping[str, Any]
+    acks: bool
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -103,33 +46,35 @@ class TopicT(AsyncIterable):
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
+                 acks: bool = True,
                  config: Mapping[str, Any] = None) -> None:
         ...
 
+    @property
     @abc.abstractmethod
-    def stream(self, coroutine: StreamCoroutine = None,
-               **kwargs: Any) -> StreamT:
+    def pattern(self) -> Optional[Pattern]:
         ...
 
-    @abc.abstractmethod
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> RecordMetadata:
+    @pattern.setter
+    def pattern(self, pattern: Union[str, Pattern]) -> None:
         ...
 
+    @property
     @abc.abstractmethod
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
+    def partitions(self) -> int:
         ...
 
+    @partitions.setter
+    def partitions(self, partitions: int) -> None:
+        ...
+
+    @property
     @abc.abstractmethod
-    async def maybe_declare(self) -> None:
+    def replicas(self) -> int:
+        ...
+
+    @replicas.setter
+    def replicas(self, replicas: int) -> None:
         ...
 
     @abc.abstractmethod
@@ -148,44 +93,20 @@ class TopicT(AsyncIterable):
         ...
 
     @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator:
+    def get_topic_name(self) -> str:
         ...
 
 
-class SourceT(AsyncIterator):
-    topic: TopicT
-
-    @abc.abstractmethod
-    def __init__(self, topic: TopicT) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def deliver(self, message: Message) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def put(self, value: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def get(self) -> Any:
-        ...
-
-    @abc.abstractmethod
-    def __aiter__(self) -> AsyncIterator:
-        ...
-
-    @abc.abstractmethod
-    async def __anext__(self) -> EventT:
-        ...
-
-
-class TopicManagerT(ServiceT, MutableSet[SourceT]):
+class TopicManagerT(ServiceT, MutableSet[ChannelT]):
 
     app: AppT
 
     @abc.abstractmethod
     def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def acks_enabled_for(self, topic: str) -> bool:
         ...
 
     @abc.abstractmethod

@@ -18,7 +18,7 @@ the return value is bytes:
     >>> s = dumps('json', obj)
 
 For the reverse direction, the func:`loads` function takes a codec
-name and a encoded payload to decode (bytes):
+name and an encoded payload to decode (bytes):
 
 .. sourcecode:: pycon
 
@@ -158,7 +158,6 @@ the extension with other Faust users.
 """
 import pickle as _pickle
 from base64 import b64decode, b64encode
-from functools import reduce
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 from ..types.codecs import CodecArg, CodecT
 from ..utils import json as _json
@@ -203,16 +202,16 @@ class Codec(CodecT):
     def dumps(self, obj: Any) -> bytes:
         """Encode object ``obj``."""
         # send _dumps to this instance, and all children.
-        return reduce(
-            lambda obj, e: cast(Codec, e)._dumps(obj),
-            self.nodes, obj)
+        for node in self.nodes:
+            obj = cast(Codec, node)._dumps(obj)
+        return obj
 
     def loads(self, s: bytes) -> Any:
         """Decode object from string."""
         # send _loads to this instance, and all children in reverse order
-        return reduce(
-            lambda s, d: cast(Codec, d)._loads(s),
-            reversed(self.nodes), s)
+        for node in reversed(self.nodes):
+            s = cast(Codec, node)._loads(s)
+        return s
 
     def clone(self, *children: CodecT) -> CodecT:
         """Create a clone of this codec, with optional children added."""
@@ -289,14 +288,11 @@ def register(name: str, codec: CodecT) -> None:
 def _maybe_load_extension_classes(
         namespace: str = 'faust.codecs') -> None:
     if namespace not in _extensions_finalized:
+        _extensions_finalized[namespace] = True
         codecs.update({
             name: cls()
             for name, cls in load_extension_classes(namespace)
         })
-
-
-def _reduce_node(a: Any, b: Any) -> Any:
-    return cast(CodecT, codecs.get(a, a)) | codecs[b]
 
 
 def get_codec(name_or_codec: CodecArg) -> CodecT:
@@ -305,8 +301,14 @@ def get_codec(name_or_codec: CodecArg) -> CodecT:
     if isinstance(name_or_codec, str):
         if '|' in name_or_codec:
             nodes = name_or_codec.split('|')
-            # simple reduce operation, OR (|) them all together:
-            return cast(Codec, reduce(_reduce_node, nodes))
+            codec = None
+            for node in nodes:
+                if codec:
+                    codec |= codecs[node]
+                else:
+                    codec = codecs.get(node, node)
+
+            return cast(Codec, codec)
         return codecs[name_or_codec]
     return cast(Codec, name_or_codec)
 

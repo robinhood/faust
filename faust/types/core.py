@@ -9,7 +9,7 @@ else:
 __all__ = ['K', 'V']
 
 #: Shorthand for the type of a key
-K = Optional[Union[bytes, ModelT]]
+K = Optional[Union[bytes, ModelT, Any]]
 
 
 #: Shorthand for the type of a value

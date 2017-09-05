@@ -2,18 +2,26 @@
 import abc
 import asyncio
 import logging
+import os
+import sys
+import threading
+import traceback
+from functools import wraps
+from time import monotonic
 from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator,
-    Iterable, List, MutableSequence, Set, Type, Union, cast,
+    Iterable, List, MutableSequence, Sequence, Set, Type, Union, cast,
 )
 from .collections import Node
 from .logging import CompositeLogger, get_logger
 from .times import Seconds, want_seconds
 from .types.collections import NodeT
-from .types.services import ServiceT
+from .types.services import DiagT, ServiceT
 
-__all__ = ['Service', 'ServiceBase', 'ServiceProxy']
+__all__ = [
+    'Service', 'ServiceBase', 'ServiceProxy', 'ServiceThread', 'Diag',
+]
 
 __flake8_Set_is_used: Set  # XXX flake8 bug
 
@@ -62,6 +70,21 @@ class ServiceBase(ServiceT):
         return ''
 
 
+class Diag(DiagT):
+
+    def __init__(self, service: ServiceT) -> None:
+        self.service = service
+        self.flags = set()
+        self.last_transition = {}
+
+    def set_flag(self, flag: str) -> None:
+        self.flags.add(flag)
+        self.last_transition[flag] = monotonic()
+
+    def unset_flag(self, flag: str) -> None:
+        self.flags.discard(flag)
+
+
 class ServiceTask:
 
     def __init__(self, fun: Callable[..., Awaitable]) -> None:
@@ -84,6 +107,7 @@ class Service(ServiceBase):
         beacon (NodeT): Beacon used to track services in a graph.
         loop (asyncio.AbstractEventLoop): Event loop object.
     """
+    Diag: Type[DiagT] = Diag
 
     #: Logger used by this service, subclasses should set their own.
     logger: logging.Logger = logger
@@ -138,6 +162,21 @@ class Service(ServiceBase):
         """
         return ServiceTask(fun)
 
+    @classmethod
+    def transitions_to(cls, flag: str) -> Callable:
+        def _decorate(
+                fun: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
+            @wraps(fun)
+            async def _and_transition(self: ServiceT,
+                                      *args: Any, **kwargs: Any) -> Any:
+                self.diag.set_flag(flag)
+                try:
+                    return await fun(self, *args, **kwargs)
+                finally:
+                    self.diag.unset_flag(flag)
+            return _and_transition
+        return _decorate
+
     def __init_subclass__(self) -> None:
         # Every new subclass adds @Service.task decorated methods
         # to the class-local `_tasks` list.
@@ -151,6 +190,7 @@ class Service(ServiceBase):
     def __init__(self, *,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
+        self.diag = self.Diag(self)
         self.loop = loop or asyncio.get_event_loop()
         self._started = asyncio.Event(loop=self.loop)
         self._stopped = asyncio.Event(loop=self.loop)
@@ -163,6 +203,14 @@ class Service(ServiceBase):
         self._futures = []
         self.on_init()
         super().__init__()
+
+    async def transition_with(self, flag: str, fut: Awaitable,
+                              *args: Any, **kwargs: Any) -> Any:
+        self.diag.set_flag(flag)
+        try:
+            return await fut
+        finally:
+            self.diag.unset_flag(flag)
 
     def add_dependency(self, service: ServiceT) -> ServiceT:
         """Add dependency to other service.
@@ -190,6 +238,19 @@ class Service(ServiceBase):
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         """Callback to be used to add service dependencies."""
         return []
+
+    async def join_services(self, services: Sequence[ServiceT]) -> None:
+        for service in services:
+            try:
+                await service.maybe_start()
+            except Exception as exc:
+                await self.crash(exc)
+        # XXX Need to find a way to remove this
+        # Required by ChangelogReader/StandbyReader since we start
+        # and then stop, need to find some way to synchronize on start.
+        await self.sleep(5.0)
+        for service in reversed(services):
+            await service.stop()
 
     async def on_first_start(self) -> None:
         """Callback to be called the first time the service is started."""
@@ -312,10 +373,12 @@ class Service(ServiceBase):
             self.log.debug('-Stopped!')
             self.log.info('Shutting down...')
             if self.wait_for_shutdown:
+                self.log.info('Waiting for shutdown')
                 await asyncio.wait_for(
                     self._shutdown.wait(), self.shutdown_timeout,
                     loop=self.loop,
                 )
+                self.log.info('Shutting down now')
             await self._gather_futures()
             await self.on_shutdown()
             self.log.debug('-Shutdown complete!')
@@ -355,6 +418,7 @@ class Service(ServiceBase):
             If :attr:`wait_for_shutdown` is set, stopping the service
             will wait for this flag to be set.
         """
+        self.log.info('Set for shutdown')
         self._shutdown.set()
 
     @property
@@ -370,13 +434,16 @@ class Service(ServiceBase):
     @property
     def state(self) -> str:
         """Current service state - as a human readable string."""
-        if not self._started.is_set():
+        if self._crashed.is_set():
+            return 'crashed'
+        elif not self._started.is_set():
             return 'init'
-        if not self._stopped.is_set():
+        elif not self._stopped.is_set():
             return 'running'
-        if not self._shutdown.is_set():
+        elif not self._shutdown.is_set():
             return 'stopping'
-        return 'shutdown'
+        else:
+            return 'shutdown'
 
     @property
     def label(self) -> str:
@@ -467,3 +534,78 @@ class ServiceProxy(ServiceBase):
     @beacon.setter
     def beacon(self, beacon: NodeT) -> None:
         self._service.beacon = beacon
+
+
+class ServiceThread(threading.Thread):
+    _shutdown: threading.Event
+    _stopped: threading.Event
+
+    def __init__(self, service: ServiceT,
+                 *,
+                 daemon: bool = False,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        self.service = service
+        self._shutdown = threading.Event()
+        self._stopped = threading.Event()
+        self._loop = loop
+        super().__init__(daemon=daemon)
+
+    def run(self) -> None:
+        if self._loop is None:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+        self._loop.run_until_complete(self._serve(self._loop))
+
+    async def _start_service(self, loop: asyncio.AbstractEventLoop) -> None:
+        service = self.service
+        service.loop = loop
+        await service.start()
+        await self.on_start()
+
+    async def on_start(self) -> None:
+        ...
+
+    async def _stop_service(self) -> None:
+        await self.service.stop()
+        await self.on_stop()
+
+    async def on_stop(self) -> None:
+        ...
+
+    async def _serve(self, loop: asyncio.AbstractEventLoop) -> None:
+        shutdown_set = self._shutdown.is_set
+        await self._start_service(loop)
+        try:
+            while not shutdown_set():
+                try:
+                    await asyncio.sleep(1, loop=loop)
+                except Exception as exc:  # pylint: disable=broad-except
+                    try:
+                        self.on_crash('{0!r} crashed: {1!r}', self.name, exc)
+                        self._set_stopped()
+                    finally:
+                        os._exit(1)  # exiting by normal means won't work
+        finally:
+            try:
+                await self._stop_service()
+            finally:
+                self._set_stopped()
+
+    def on_crash(self, msg: str, *fmt: Any, **kwargs: Any) -> None:
+        print(msg.format(*fmt), file=sys.stderr)
+        traceback.print_exc(None, sys.stderr)
+
+    def _set_stopped(self) -> None:
+        try:
+            self._stopped.set()
+        except TypeError:  # pragma: no cover
+            # we lost the race at interpreter shutdown,
+            # so gc collected built-in modules.
+            pass
+
+    def stop(self) -> None:
+        """Graceful shutdown."""
+        self._shutdown.set()
+        self._stopped.wait()
+        if self.is_alive():
+            self.join(threading.TIMEOUT_MAX)

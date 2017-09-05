@@ -14,8 +14,6 @@ __all__ = [
     'iter_mro_reversed', 'cached_property',
 ]
 
-__flake8_Dict_is_used: Dict   # silence flake8 bug
-
 _T = TypeVar('_T')
 
 #: Mapping of attribute name to attribute type.

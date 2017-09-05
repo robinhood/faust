@@ -1,5 +1,7 @@
-from typing import MutableMapping, Sequence, Set
+import copy
+from typing import List, MutableMapping, Sequence, Set, Tuple
 from faust.models import Record
+from faust.types.tables import TableManagerT
 
 R_COPART_ASSIGNMENT = """
 <{name} actives={self.actives} standbys={self.standbys} topics={self.topics}>
@@ -71,11 +73,20 @@ class CopartitionedAssignment:
 
 
 class ClientAssignment(Record, serializer='json', include_metadata=False):
-    actives: MutableMapping[str, Sequence[int]]  # Topic -> Partition
-    standbys: MutableMapping[str, Sequence[int]]  # Topic -> Partition
+    actives: MutableMapping[str, List[int]]  # Topic -> Partition
+    standbys: MutableMapping[str, List[int]]  # Topic -> Partition
 
-    def kafka_protocol_assignment(self) -> Sequence:
-        return list(self.actives.items())
+    def kafka_protocol_assignment(
+            self,
+            table_manager: TableManagerT) -> Sequence[Tuple[str, List[int]]]:
+        assignment: MutableMapping[str, List[int]] = copy.deepcopy(
+            self.actives)
+        for topic, partitions in self.standbys.items():
+            if topic in table_manager.changelog_topics:
+                if topic not in assignment:
+                    assignment[topic] = []
+                assignment[topic].extend(partitions)
+        return list(assignment.items())
 
     def add_copartitioned_assignment(
             self, assignment: CopartitionedAssignment) -> None:

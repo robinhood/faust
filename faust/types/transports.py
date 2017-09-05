@@ -30,7 +30,8 @@ __all__ = [
 ConsumerCallback = Callable[[Message], Awaitable]
 
 #: Argument to Consumer.commit to specify topics/tps to commit.
-TPorTopicSet = AbstractSet[Union[str, TopicPartition]]
+TPorTopic = Union[str, TopicPartition]
+TPorTopicSet = AbstractSet[TPorTopic]
 
 PartitionsRevokedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
 PartitionsAssignedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
@@ -48,7 +49,6 @@ class ConsumerT(ServiceT):
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
-                 autoack: bool = True,
                  commit_interval: float = None,
                  **kwargs: Any) -> None:
         self._on_partitions_revoked: PartitionsRevokedCallback
@@ -176,6 +176,11 @@ class TransportT(abc.ABC):
     url: str
     loop: asyncio.AbstractEventLoop
     driver_version: str
+
+    @abc.abstractmethod
+    def __init__(self, url: str, app: AppT,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
 
     @abc.abstractmethod
     def create_consumer(self, callback: ConsumerCallback,

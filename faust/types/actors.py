@@ -1,13 +1,14 @@
 import abc
+import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable,
-    Callable, Iterable, List, Tuple, Union, no_type_check,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
+    Generic, Iterable, List, Tuple, TypeVar, Union, no_type_check,
 )
 from .codecs import CodecArg
 from .core import K, V
 from .streams import StreamT
-from .topics import TopicT
+from .topics import ChannelT
 from .tuples import RecordMetadata
 from ..utils.types.services import ServiceT
 
@@ -19,28 +20,70 @@ else:
 __all__ = [
     'ActorErrorHandler',
     'ActorFun',
+    'ActorInstanceT',
+    'ActorRefT',
     'ActorT',
+    'AsyncIterableActorT',
+    'AwaitableActorT',
     'ReplyToArg',
+    'SinkT',
 ]
 
+_T = TypeVar('_T')
 ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
 ActorFun = Callable[
     [Union[AsyncIterator, StreamT]],
     Union[Awaitable, AsyncIterable],
 ]
 
-#: A sink can be: Actor, Topic,
+#: A sink can be: Actor, Channel
 #: or callable/async callable taking value as argument.
-SinkT = Union['ActorT', TopicT, Callable[[Any], Union[Awaitable, None]]]
+SinkT = Union['ActorT', ChannelT, Callable[[Any], Union[Awaitable, None]]]
 
-ReplyToArg = Union['ActorT', TopicT, str]
+ReplyToArg = Union['ActorT', ChannelT, str]
+
+
+class ActorInstanceT(Generic[_T], ServiceT):
+
+    agent: 'ActorT'
+    stream: StreamT
+    it: _T
+    actor_task: asyncio.Task = None
+
+    #: If multiple instance are started for concurrency, this is its index.
+    index: int = None
+
+    @abc.abstractmethod
+    def __init__(self,
+                 agent: 'ActorT',
+                 stream: StreamT,
+                 it: _T,
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def cancel(self) -> None:
+        ...
+
+
+class AsyncIterableActorT(ActorInstanceT[AsyncIterable], AsyncIterable):
+    """Used for actor function that yields."""
+    ...
+
+
+class AwaitableActorT(ActorInstanceT[Awaitable], Awaitable):
+    """Used for actor function that do not yield."""
+    ...
+
+
+ActorRefT = ActorInstanceT[Union[AsyncIterable, Awaitable]]
 
 
 class ActorT(ServiceT):
 
     name: str
     app: AppT
-    topic: TopicT
+    channel: ChannelT
     concurrency: int
 
     @abc.abstractmethod
@@ -48,14 +91,14 @@ class ActorT(ServiceT):
                  *,
                  name: str = None,
                  app: AppT = None,
-                 topic: Union[str, TopicT] = None,
+                 channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: ActorErrorHandler = None) -> None:
         self.fun: ActorFun = fun
 
     @abc.abstractmethod
-    def __call__(self) -> Union[Awaitable, AsyncIterable]:
+    def __call__(self) -> ActorRefT:
         ...
 
     @abc.abstractmethod
@@ -96,14 +139,17 @@ class ActorT(ServiceT):
             value_serializer: CodecArg = None,
             *,
             reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> RecordMetadata:
+            correlation_id: str = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    def send_soon(self, key: K, value: V,
-                  partition: int = None,
-                  key_serializer: CodecArg = None,
-                  value_serializer: CodecArg = None) -> None:
+    def send_soon(
+            self,
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -140,9 +186,9 @@ class ActorT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def source(self) -> AsyncIterator:
+    def channel_iterator(self) -> AsyncIterator:
         ...
 
-    @source.setter
-    def source(self, source: AsyncIterator) -> None:
+    @channel_iterator.setter
+    def channel_iterator(self, channel: AsyncIterator) -> None:
         ...

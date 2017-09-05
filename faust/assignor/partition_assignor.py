@@ -8,6 +8,10 @@ from kafka.coordinator.protocol import (
 from .client_assignment import ClientAssignment
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
+from ..types.app import AppT
+from ..types.assignor import PartitionAssignorT
+from ..types.tables import TableManagerT
+from ..types.topics import TopicPartition
 from ..utils.logging import get_logger
 
 __flake8_Sequence_is_used: Sequence   # XXX flake8 bug
@@ -20,7 +24,7 @@ CopartitionedGroups = MutableMapping[int, Iterable[Set[str]]]
 logger = get_logger(__name__)
 
 
-class PartitionAssignor(AbstractPartitionAssignor):
+class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     """PartitionAssignor handles internal topic creation.
 
     Further, this assignor needs to be sticky and potentially redundant
@@ -30,17 +34,22 @@ class PartitionAssignor(AbstractPartitionAssignor):
         kafka/coordinator/assignors/abstract.py
     """
     _assignment: ClientAssignment
+    _table_manager: TableManagerT
 
-    def __init__(self) -> None:
+    def __init__(self, app: AppT, replicas: int = 0) -> None:
         super().__init__()
+        self.app = app
+        self._table_manager = self.app.tables
         self._assignment = ClientAssignment(actives={}, standbys={})
+        self.replicas = replicas
 
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
         self._assignment = cast(ClientAssignment,
                                 ClientAssignment.loads(assignment.user_data))
         a = sorted(assignment.assignment)
-        b = sorted(self._assignment.kafka_protocol_assignment())
+        b = sorted(self._assignment.kafka_protocol_assignment(
+            self._table_manager))
         assert a == b, f'{a!r} != {b!r}'
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
@@ -108,6 +117,7 @@ class PartitionAssignor(AbstractPartitionAssignor):
                     topics=topics,
                     cluster_asgn=assgn,
                     num_partitions=num_partitions,
+                    replicas=self.replicas,
                 )
                 # Update client assignments for copartitioned group
                 for client, copart_assn in assignor.get_assignment().items():
@@ -123,7 +133,8 @@ class PartitionAssignor(AbstractPartitionAssignor):
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
-                sorted(assignment.kafka_protocol_assignment()),
+                sorted(assignment.kafka_protocol_assignment(
+                    self._table_manager)),
                 assignment.dumps(),
             )
             for client, assignment in assignments.items()
@@ -136,3 +147,17 @@ class PartitionAssignor(AbstractPartitionAssignor):
     @property
     def version(self) -> int:
         return 1
+
+    def assigned_standbys(self) -> Iterable[TopicPartition]:
+        return [
+            TopicPartition(topic=topic, partition=partition)
+            for topic, partitions in self._assignment.standbys.items()
+            for partition in partitions
+        ]
+
+    def assigned_actives(self) -> Iterable[TopicPartition]:
+        return [
+            TopicPartition(topic=topic, partition=partition)
+            for topic, partitions in self._assignment.actives.items()
+            for partition in partitions
+        ]

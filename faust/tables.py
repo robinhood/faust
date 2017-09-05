@@ -1,30 +1,31 @@
 """Tables (changelog stream)."""
 import abc
 import asyncio
+import json
 import operator
-import shelve
 from collections import defaultdict
+from datetime import datetime
 from heapq import heappop, heappush
-from pathlib import Path
 from typing import (
     Any, AsyncIterable, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Sequence, Set as _Set, Tuple, cast,
+    MutableMapping, MutableSet, Optional, Sequence, Set as _Set, cast,
 )
 from . import stores
 from . import windows
 from .streams import current_event
 from .streams import joins
 from .types import (
-    AppT, EventT, FieldDescriptorT, JoinT, K, PendingMessage,
-    RecordMetadata, TopicPartition, TopicT, V,
+    AppT, EventT, FieldDescriptorT, FutureMessage, JoinT, PendingMessage,
+    RecordMetadata, TopicPartition, TopicT,
 )
 from .types.models import ModelArg
 from .types.stores import StoreT
 from .types.streams import JoinableT, StreamT
 from .types.tables import (
-    CollectionT, SetT, TableManagerT, TableT, WindowSetT, WindowWrapperT,
+    ChangelogReaderT, CheckpointManagerT, CollectionT, CollectionTps, SetT,
+    TableManagerT, TableT, WindowSetT, WindowWrapperT,
 )
-from .types.topics import SourceT
+from .types.topics import ChannelT
 from .types.windows import WindowRange, WindowT
 from .utils.aiter import aiter
 from .utils.collections import FastUserDict, ManagedUserDict, ManagedUserSet
@@ -41,7 +42,19 @@ __all__ = [
     'WindowWrapper',
 ]
 
+CHANGELOG_SEEKING = 'SEEKING'
+CHANGELOG_STARTING = 'STARTING'
+CHANGELOG_READING = 'READING'
+TABLE_CLEANING = 'CLEANING'
+TABLEMAN_UPDATE = 'UPDATE'
+TABLEMAN_START_STANDBYS = 'START_STANDBYS'
+TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
+TABLEMAN_RECOVER = 'RECOVER'
+TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
+
 __flake8_Sequence_is_used: Sequence  # XXX flake8 bug
+__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
 __flake8_Set_is_used: _Set
 
 logger = get_logger(__name__)
@@ -131,6 +144,9 @@ class Collection(Service, CollectionT):
             'window': self.window,
         }
 
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        return self.data.persisted_offset(tp)
+
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
         partition: int = None
@@ -145,15 +161,12 @@ class Collection(Service, CollectionT):
              value_serializer='json',
              callback=self._on_changelog_sent)
 
-    async def _on_changelog_sent(
-            self, message: PendingMessage, response: RecordMetadata) -> None:
-        tables = cast(TableManager, self.app.tables)
-        if tables._diskcache:
-            await tables._write_cache(
-                response.topic_partition, response.offset,
-                cast(bytes, message.key), cast(bytes, message.value))
+    def _on_changelog_sent(self, fut: FutureMessage) -> None:
+        res: RecordMetadata = fut.result()
+        self.app.checkpoints.set_offset(res.topic_partition, res.offset)
 
     @Service.task
+    @Service.transitions_to(TABLE_CLEANING)
     async def _clean_data(self) -> None:
         if self._should_expire_keys():
             timestamps = self._timestamps
@@ -222,6 +235,7 @@ class Collection(Service, CollectionT):
             retention=retention,
             compacting=compacting,
             deleting=deleting,
+            acks=False,
         )
 
     def __copy__(self) -> Any:
@@ -254,6 +268,10 @@ class Collection(Service, CollectionT):
         for window_range in self.window.ranges(timestamp):
             yield window_range
 
+    def _windowed_now(self, key: Any) -> Any:
+        now = datetime.utcnow().timestamp()
+        return self._get_key((key, self.window.current(now)))
+
     def _windowed_current(self, key: Any, event: EventT = None) -> Any:
         return self._get_key(
             (key, self.window.current(self._get_timestamp(event))))
@@ -283,6 +301,23 @@ class Collection(Service, CollectionT):
     @changelog_topic.setter
     def changelog_topic(self, topic: TopicT) -> None:
         self._changelog_topic = topic
+
+    def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
+        self.data.apply_changelog_batch(
+            batch,
+            to_key=self._to_key,
+            to_value=self._to_value,
+        )
+
+    def _to_key(self, k: Any) -> Any:
+        if isinstance(k, list):
+            # Lists are not hashable, and windowed-keys are json
+            # serialized into a list.
+            return tuple(tuple(v) if isinstance(v, list) else v for v in k)
+        return k
+
+    def _to_value(self, v: Any) -> Any:
+        return v
 
 
 class Table(Collection, TableT, ManagedUserDict):
@@ -365,6 +400,9 @@ class WindowSet(WindowSetT, FastUserDict):
         cast(Table, self.table)._apply_window_op(
             op, self.key, value, event or self.event)
         return self
+
+    def now(self) -> Any:
+        return cast(Table, self.table)._windowed_now(self.key)
 
     def current(self, event: EventT = None) -> Any:
         return cast(Table, self.table)._windowed_current(
@@ -455,68 +493,157 @@ class WindowWrapper(WindowWrapperT):
         return len(self.table)
 
 
+class ChangelogReader(Service, ChangelogReaderT):
+
+    wait_for_shutdown = True
+    shutdown_timeout = None
+
+    _highwaters: MutableMapping[TopicPartition, int] = None
+
+    def __init__(self, table: CollectionT,
+                 app: AppT,
+                 tps: Iterable[TopicPartition],
+                 offsets: MutableMapping[TopicPartition, int] = None,
+                 **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.table = table
+        self.app = app
+        self.tps = tps
+        offsets = {} if offsets is None else offsets
+        self.offsets = {tp: offsets.get(tp, -1) for tp in self.tps}
+
+    def update_tps(self, tps: Iterable[TopicPartition],
+                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
+        self.tps = tps
+        self.offsets = {tp: tp_offsets.get(tp, -1) for tp in self.tps}
+
+    async def _build_highwaters(self) -> None:
+        consumer = self.app.consumer
+        tps = self.tps
+        await consumer.seek_to_latest(*tps)
+        # FIXME the -1 here is because of the way we commit offsets
+        self._highwaters = {
+            tp: await consumer.position(tp) - 1
+            for tp in tps
+        }
+
+    async def _should_stop_reading(self) -> bool:
+        return self._highwaters == self.offsets
+
+    @Service.transitions_to(CHANGELOG_SEEKING)
+    async def _seek_tps(self) -> None:
+        consumer = self.app.consumer
+        tps = self.tps
+        for tp in tps:
+            offset = max(self.offsets[tp], 0)
+            self.log.info(f'Seeking {tp} to offset: {offset}')
+            await consumer.seek(tp, offset)
+            assert await consumer.position(tp) == offset
+
+    async def _should_start_reading(self) -> bool:
+        await self._build_highwaters()
+        return self._highwaters != self.offsets
+
+    @Service.task
+    @Service.transitions_to(CHANGELOG_STARTING)
+    async def _read(self) -> None:
+        table = self.table
+        consumer = self.app.consumer
+        await consumer.pause_partitions(self.tps)
+        if not await self._should_start_reading():
+            self.log.info('Not reading')
+            self.set_shutdown()
+            return
+        await self._seek_tps()
+        await consumer.resume_partitions(self.tps)
+        self.log.info('Started reading')
+        buf: List[EventT] = []
+        self.diag.set_flag(CHANGELOG_READING)
+        try:
+            async for event in self._read_changelog():
+                buf.append(event)
+                if not len(buf) % 1000:
+                    table.apply_changelog_batch(buf)
+                    buf.clear()
+                if await self._should_stop_reading():
+                    break
+        finally:
+            self.diag.unset_flag(CHANGELOG_READING)
+            if buf:
+                table.apply_changelog_batch(buf)
+                buf.clear()
+            await consumer.pause_partitions(self.tps)
+            self.set_shutdown()
+
+    async def _read_changelog(self) -> AsyncIterable[EventT]:
+        offsets = self.offsets
+        table = self.table
+        channel = cast(ChannelT, aiter(table.changelog_topic))
+
+        async for event in channel:
+            message = event.message
+            tp = message.tp
+            offset = message.offset
+            seen_offset = offsets.get(tp, -1)
+            if offset > seen_offset:
+                offsets[tp] = offset
+                yield event
+
+    @property
+    def label(self) -> str:
+        return self.shortlabel
+
+    @property
+    def shortlabel(self) -> str:
+        return f'{type(self).__name__}: {self.table.name}'
+
+
+class StandbyReader(ChangelogReader):
+
+    async def _should_start_reading(self) -> bool:
+        return True
+
+    async def _should_stop_reading(self) -> bool:
+        return self.should_stop
+
+
 class TableManager(Service, TableManagerT, FastUserDict):
     logger = logger
 
-    _sources: MutableMapping[CollectionT, SourceT]
+    _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: MutableMapping[TopicPartition, int]
-    _diskcache: MutableMapping[TopicPartition, shelve.Shelf]
+    _standbys: MutableMapping[CollectionT, ChangelogReaderT]
+    _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
     _recovery_completed: asyncio.Event
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app = app
-        self.cache_path = self.app.table_cache_path
         self.data = {}
-        self._sources = {}
+        self._channels = {}
         self._changelogs = {}
         self._table_offsets = {}
-        self._diskcache = {}
+        self._standbys = {}
+        self._changelog_readers = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
         self._recovery_completed = asyncio.Event(loop=self.loop)
+
+    @property
+    def changelog_topics(self) -> _Set[str]:
+        return set(self._changelogs.keys())
 
     def __setitem__(self, key: str, value: CollectionT) -> None:
         if self._recovery_started.is_set():
             raise RuntimeError('Too late to add tables at this point')
         super().__setitem__(key, value)
 
-    def _get_cache_for(self, tp: TopicPartition) -> shelve.Shelf:
-        try:
-            return self._diskcache[tp]
-        except KeyError:
-            path = self._get_cache_path_for(tp)
-            c = self._diskcache[tp] = shelve.open(str(path), writeback=True)
-            c.setdefault('offset_left', None)
-            c.setdefault('offset_right', None)
-            return c
-
-    def _get_cache_path_for(self, tp: TopicPartition) -> Path:
-        return self.cache_path / f'{tp.topic}-{tp.partition}-cache'
-
-    def _cleanup_cache(self) -> None:
-        for shelf in self._diskcache.values():
-            shelf.sync()
-            shelf.close()
-        self._diskcache.clear()
-
-    def _prune_cache(self, cache: shelve.Shelf, new_offset: int) -> None:
-        current_offset = cache.get('offset_left')
-        if current_offset is not None:
-            while current_offset < new_offset:
-                offset, current_offset = current_offset, current_offset + 1
-                try:
-                    del cache[str(offset)]
-                except KeyError:
-                    pass
-                else:
-                    cache['offset_left'] = current_offset
-
-    async def _update_sources(self) -> None:
+    @Service.transitions_to(TABLEMAN_UPDATE)
+    async def _update_channels(self) -> None:
         for table in self.values():
-            if table not in self._sources:
-                self._sources[table] = cast(SourceT, aiter(
+            if table not in self._channels:
+                self._channels[table] = cast(ChannelT, aiter(
                     table.changelog_topic))
         self._changelogs.update({
             table.changelog_topic.topics[0]: table
@@ -527,235 +654,57 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
-        # Wait for TopicManager to finish any new subscriptions
-        await self.app.sources.wait_for_subscriptions()
-        self.log.info('New assignments found')
-        await self._on_recovery_started()
-        await self.app.consumer.pause_partitions(assigned)
-        # TODO Recover multiple tables at the same time.
-        for table in self.values():
-            # TODO If standby ready, just swap and continue.
-            await self._recover_from_changelog(table, assigned)
-        await self.app.consumer.resume_partitions({
-            tp for tp in assigned
-            if tp.topic not in self._changelogs
-        })
-        self.log.info('New assignments handled')
-        await self._on_recovery_completed()
-
-    async def _recover_from_changelog(
-            self,
-            table: CollectionT,
-            assigned: Iterable[TopicPartition]) -> None:
-        consumer = self.app.consumer
-
-        # Get assigned partitions for this tables changelog topic.
-        tps: _Set[TopicPartition] = {
-            tp for tp in assigned
-            if tp.topic in table.changelog_topic.topics
-        }
-        if tps:
-            # Seek partitions to appropriate offsets
-            if await self._seek_changelog(tps):
-                # at this point we know there are messages in at least
-                # one of the topic partitions:
-
-                try:
-                    to_remove: _Set[TopicPartition] = set()
-                    for tp in tps:
-                        cache = self._get_cache_for(tp)
-                        loff = cache['offset_left']
-                        roff = cache['offset_right']
-                        if loff is not None:
-                            await self.table_update_from_iterable(
-                                table,
-                                self._read_cache(table, cache, tp, loff, roff))
-                            self._table_offsets[tp] = roff
-                            rem_left, rem_right = await self._get_border(tp)
-                            # Skip this tp if there are no more messages to
-                            # receive
-                            if rem_left > loff:
-                                self._prune_cache(cache, rem_left)
-                            if roff == rem_right - 1:
-                                self.log.dev(f'{tp} HAD EVERYTHING IN CACHE')
-                                to_remove.add(tp)
-                            await consumer.seek(tp, roff)
-                    for tp in to_remove:
-                        tps.discard(tp)
-
-                    if tps:
-                        # resume changelog partitions for this table
-                        await consumer.resume_partitions(tps)
-                        try:
-                            await self.table_update_from_iterable(
-                                table, self._read_changelog(
-                                    table, tps, self._sources[table]))
-                        finally:
-                            await consumer.pause_partitions(tps)
-                finally:
-                    # close and sync all cache shelves we have open.
-                    for cache in self._diskcache.values():
-                        cache.sync()
-                self.log.info('Table %r: Recovery completed!', table.name)
-            else:
-                self.log.info('Table %r: Table empty', table.name)
-
-    async def _seek_changelog(self, tps: Iterable[TopicPartition]) -> bool:
-        # Set offset of partition to beginning
-        earliest: _Set[TopicPartition] = set()  # tps to seek from earliest
-        latest: _Set[TopicPartition] = set()
-        consumer = self.app.consumer
-        has_positions = False  # set if there are any messages in topics
+    def _sync_persisted_offsets(self, table: CollectionT,
+                                tps: Iterable[TopicPartition]) -> None:
         for tp in tps:
-            try:
-                # see if we have read this changelog before
-                offset = self._table_offsets[tp]
-            except KeyError:
-                # if not, add it to partitions we seek to beginning
-                earliest.add(tp)
-            else:
-                latest.add(tp)
-                has_positions = True
-                # if we have read it, seek to that offset
-                await consumer.seek(tp, offset)
-        if earliest:
-            # find end positions of all partitions
-            await consumer.seek_to_latest(*tps)
-            border_right = {tp: await consumer.position(tp) for tp in earliest}
-            await consumer.seek_to_beginning(*tps)
-            border_left = {tp: await consumer.position(tp) for tp in earliest}
-            # If the topic is newly created and has no messages
-            # the beginning position will be 0, and the latest position will
-            # be 0.  If there is a message in the topic the beginning will be
-            # 0 and the end will be 1.
-            #
-            # We cannot look for the number 0 as with log compaction
-            # the starting point may have a different value, so
-            # we simply assume that if the numbers are different there
-            # are messages in the topic.
-            has_positions = any(
-                border_left[tp] != border_right[tp]
-                for tp in earliest
+            persisted_offset = table.persisted_offset(tp)
+            if persisted_offset is not None:
+                curr_offset = self._table_offsets.get(tp, -1)
+                self._table_offsets[tp] = max(curr_offset, persisted_offset)
+
+    def _sync_offsets(self, reader: ChangelogReaderT) -> None:
+        self.log.info(f'Syncing offsets {reader.offsets}')
+        self._table_offsets.update(reader.offsets)
+
+    @Service.transitions_to(TABLEMAN_STOP_STANDBYS)
+    async def _stop_standbys(self) -> None:
+        for _, standby in self._standbys.items():
+            self.log.info(f'Stopping standby for tps: {standby.tps}')
+            await standby.stop()
+            self._sync_offsets(standby)
+        self._standbys = {}
+
+    def _group_table_tps(self, tps: Iterable[TopicPartition]) -> CollectionTps:
+        table_tps: CollectionTps = defaultdict(list)
+        for tp in tps:
+            if self._is_changelog_tp(tp):
+                table_tps[self._changelogs[tp.topic]].append(tp)
+        return table_tps
+
+    @Service.transitions_to(TABLEMAN_START_STANDBYS)
+    async def _start_standbys(self,
+                              tps: Iterable[TopicPartition]) -> None:
+        assert not self._standbys
+        table_stanby_tps = self._group_table_tps(tps)
+        offsets = self._table_offsets
+        for table, tps in table_stanby_tps.items():
+            self.log.info(f'Starting standbys for tps: {tps}')
+            self._sync_persisted_offsets(table, tps)
+            tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
+            standby = StandbyReader(
+                table, self.app, tps, tp_offsets,
+                loop=self.loop,
+                beacon=self.beacon,
             )
-            # at this point the topics are rewound at the beginning.
-        return has_positions
+            self._standbys[table] = standby
+            await standby.start()
 
-    async def _get_border(self, tp: TopicPartition) -> Tuple[int, int]:
-        await self.app.consumer.seek_to_latest(tp)
-        border_right = await self.app.consumer.position(tp)
-        await self.app.consumer.seek_to_beginning(tp)
-        border_left = await self.app.consumer.position(tp)
-        return border_left, border_right
-
-    async def _read_changelog(
-            self,
-            table: CollectionT,
-            tps: Iterable[TopicPartition],
-            source: SourceT) -> AsyncIterable[Tuple[K, V]]:
-        offsets = self._table_offsets
-        pending_tps = set(tps)
-        self.log.info('Recover %r from changelog', table.name)
-        async for event in source:
-            message = event.message
-            tp = message.tp
-            offset = message.offset
-            seen_offset = offsets.get(tp)
-
-            if seen_offset is None or offset > seen_offset:
-                highwater = self.app.consumer.highwater(tp)
-                remaining = highwater - offset
-                if not offset % 10_000 and remaining > 1000:
-                    self.log.info('Table %r, still waiting for %r values',
-                                  table.name, remaining)
-                offsets[tp] = offset
-
-                await self._write_cache(
-                    tp, offset, event.message.key, event.message.value)
-                yield event.key, event.value
-
-                # See if we are done reading from this changelog
-                if highwater is None or offset >= highwater - 1:
-                    # we have read up till highwater, so this partition is
-                    # up to date.
-                    pending_tps.discard(tp)
-                    if not pending_tps:
-                        break
-
-    async def _write_cache(
-            self,
-            tp: TopicPartition,
-            offset: int,
-            key: bytes,
-            value: bytes) -> None:
-        cache = self._get_cache_for(tp)
-        offset_left = cache.get('offset_left')
-        offset_right = cache.get('offset_right')
-        cache.update({
-            'offset_left': offset if offset_left is None else offset_left,
-            'offset_right': max(offset, offset_right or 0),
-            str(offset): {
-                'key': key,
-                'value': value,
-            },
-        })
-
-    async def _read_cache(
-            self,
-            table: CollectionT,
-            cache: shelve.Shelf,
-            tp: TopicPartition,
-            start: int,
-            end: int) -> AsyncIterable[Tuple[K, V]]:
-        offsets = self._table_offsets
-        loads_key = self.app.serializers.loads_key
-        loads_value = self.app.serializers.loads_value
-        key_type = table.key_type
-        value_type = table.value_type
-        if tp in offsets:
-            start = max(offsets[tp], start)
-        if start != end:
-            self.log.dev(f'READ FROM CACHE: {start} {end}')
-            for i in range(start, end + 1):
-                try:
-                    entry = cache[str(i)]
-                except KeyError:
-                    pass  # compacted offset?
-                else:
-                    offsets[tp] = i
-                    key: K = await loads_key(key_type, entry['key'])
-                    value: V = await loads_value(value_type, entry['value'])
-                    yield key, value
-
-    async def table_update_from_iterable(
-            self,
-            table: CollectionT,
-            it: AsyncIterable[Tuple[K, V]]) -> None:
-        buf: MutableMapping[Any, Any] = {}
-        to_key, to_value = self._to_key, self._to_value
-        async for k, v in it:
-            buf[to_key(k)] = to_value(v)
-            if len(buf) > 1000:
-                cast(Table, table).raw_update(buf)
-                buf.clear()
-        if buf:
-            cast(Table, table).raw_update(buf)
-            buf.clear()
-
-    def _to_key(self, k: Any) -> Any:
-        if isinstance(k, list):
-            # Lists are not hashable, and windowed-keys are json
-            # serialized into a list.
-            return tuple(tuple(v) if isinstance(v, list) else v for v in k)
-        return k
-
-    def _to_value(self, v: Any) -> Any:
-        return v
+    def _is_changelog_tp(self, tp: TopicPartition) -> bool:
+        return tp.topic in self.changelog_topics
 
     async def _on_recovery_started(self) -> None:
         self._recovery_started.set()
-        await self._update_sources()
+        await self._update_channels()
 
     async def _on_recovery_completed(self) -> None:
         for table in self.values():
@@ -764,10 +713,90 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def on_start(self) -> None:
         await self.sleep(1.0)
-        await self._update_sources()
+        await self._update_channels()
 
     async def on_stop(self) -> None:
         if self._recovery_completed.is_set():
             for table in self.values():
                 await table.stop()
-        self._cleanup_cache()
+
+    @Service.transitions_to(TABLEMAN_RECOVER)
+    async def _recover_changelogs(self, tps: Iterable[TopicPartition]) -> None:
+        self.log.info('Recovering from changelog topics...')
+        table_recoverers: List[ChangelogReaderT] = [
+            self._create_recoverer(table, tps)
+            for table in self.values()
+        ]
+        await self.join_services(table_recoverers)
+        for recoverer in table_recoverers:
+            self._sync_offsets(recoverer)
+        self.log.info('Done recovering from changelog topics')
+
+    def _create_recoverer(self,
+                          table: CollectionT,
+                          tps: Iterable[TopicPartition]) -> ChangelogReaderT:
+        table = cast(Table, table)
+        offsets = self._table_offsets
+        table_tps = {tp for tp in tps
+                     if tp.topic == table._changelog_topic_name()}
+        self._sync_persisted_offsets(table, table_tps)
+        tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
+        return ChangelogReader(
+            table, self.app, table_tps, tp_offsets,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
+
+    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        standby_tps = self.app.assignor.assigned_standbys()
+        assigned_tps = self.app.assignor.assigned_actives()
+        assert set(assigned_tps).issubset(set(assigned))
+        # Wait for TopicManager to finish any new subscriptions
+        await self.app.channels.wait_for_subscriptions()
+        self.log.info('New assignments found')
+        await self._on_recovery_started()
+        self.log.info('Attempting to stop standbys')
+        await self._stop_standbys()
+        await self._recover_changelogs(assigned_tps)
+        await self.app.consumer.resume_partitions({
+            tp for tp in assigned
+            if not self._is_changelog_tp(tp)
+        })
+        await self._start_standbys(standby_tps)
+        self.log.info('New assignments handled')
+        await self._on_recovery_completed()
+
+
+class CheckpointManager(CheckpointManagerT, Service):
+    _offsets: MutableMapping[TopicPartition, int]
+
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        self.app = app
+        self._offsets = {}
+        Service.__init__(self, **kwargs)
+
+    async def on_start(self) -> None:
+        try:
+            with open(self.app.checkpoint_path, 'r') as fh:
+                data = json.load(fh)
+            self._offsets.update((
+                (TopicPartition(*k.split('\0')), int(v))
+                for k, v in data.items()
+            ))
+        except FileNotFoundError:
+            pass
+
+    async def on_stop(self) -> None:
+        with open(self.app.checkpoint_path, 'w') as fh:
+            json.dump({
+                f'{tp.topic}\0{tp.partition}': v
+                for tp, v in self._offsets.items()
+            }, fh)
+
+    def get_offset(self, tp: TopicPartition) -> Optional[int]:
+        return self._offsets.get(tp)
+
+    def set_offset(self, tp: TopicPartition, offset: int) -> None:
+        self._offsets[tp] = offset

@@ -1,12 +1,15 @@
 import abc
+
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Iterable, MutableMapping, MutableSet, Type,
+    Any, Callable, ClassVar, Iterable, List, MutableMapping,
+    MutableSet, Optional, Set, Type,
 )
+from .channels import EventT
 from .stores import StoreT
 from .streams import JoinableT
-from .topics import EventT, TopicT
+from .topics import TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
 from ..utils.times import Seconds
@@ -20,13 +23,31 @@ else:
     class ModelArg: ...  # noqa
 
 __all__ = [
+    'CheckpointManagerT',
     'CollectionT',
     'TableT',
     'SetT',
     'TableManagerT',
     'WindowSetT',
     'WindowWrapperT',
+    'ChangelogReaderT',
+    'CollectionTps',
 ]
+
+
+class CheckpointManagerT(ServiceT):
+
+    @abc.abstractmethod
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def get_offset(self, tp: TopicPartition) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    def set_offset(self, tp: TopicPartition, offset: int) -> None:
+        ...
 
 
 class CollectionT(JoinableT, ServiceT):
@@ -63,6 +84,17 @@ class CollectionT(JoinableT, ServiceT):
     def changelog_topic(self, topic: TopicT) -> None:
         ...
 
+    @abc.abstractmethod
+    def apply_changelog_batch(self, batch: Iterable[EventT]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        ...
+
+
+CollectionTps = MutableMapping[CollectionT, List[TopicPartition]]
+
 
 class TableT(CollectionT, MutableMapping):
 
@@ -98,6 +130,24 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
             self, assigned: Iterable[TopicPartition]) -> None:
         ...
 
+    @property
+    @abc.abstractmethod
+    def changelog_topics(self) -> Set[str]:
+        ...
+
+
+class ChangelogReaderT(ServiceT):
+    table: CollectionT
+    app: AppT
+
+    tps: Iterable[TopicPartition]
+    offsets: MutableMapping[TopicPartition, int]
+
+    @abc.abstractmethod
+    def update_tps(self, tps: Iterable[TopicPartition],
+                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
+        ...
+
 
 class WindowSetT(MutableMapping):
     key: Any
@@ -116,6 +166,10 @@ class WindowSetT(MutableMapping):
               op: Callable[[Any, Any], Any],
               value: Any,
               event: EventT = None) -> 'WindowSetT':
+        ...
+
+    @abc.abstractmethod
+    def now(self) -> Any:
         ...
 
     @abc.abstractmethod

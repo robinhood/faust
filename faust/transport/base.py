@@ -22,7 +22,15 @@ from ..utils.services import Service, ServiceT
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
+CONSUMER_FETCHING = 'FETCHING'
+CONSUMER_PARTITIONS_REVOKED = 'PARTITIONS_REVOKED'
+CONSUMER_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
+CONSUMER_COMMITTING = 'COMMITTING'
+CONSUMER_SEEKING = 'SEEKING'
+CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
+
 logger = get_logger(__name__)
+
 
 # The Transport is responsible for:
 #
@@ -79,11 +87,16 @@ class Consumer(Service, ConsumerT):
     _read_offset: MutableMapping[TopicPartition, int]
 
     #: Keeps track of the currently commited offset in each TP.
-    _current_offset: MutableMapping[TopicPartition, int] = None
+    _committed_offset: MutableMapping[TopicPartition, int] = None
 
     #: The consumer.wait_empty() method will set this to be notified
     #: when something acks a message.
     _waiting_for_ack: asyncio.Future = None
+
+    #: Used by .commit to ensure only one thread is comitting at a time.
+    #: Other thread starting to commit while a commit is already active,
+    #: will wait for the original request to finish, and do nothing.
+    _commit_fut: asyncio.Future = None
 
     if typing.TYPE_CHECKING:
         # This works in mypy, but not in CPython
@@ -95,7 +108,6 @@ class Consumer(Service, ConsumerT):
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
-                 autoack: bool = True,
                  commit_interval: float = None,
                  **kwargs: Any) -> None:
         assert callback is not None
@@ -103,7 +115,6 @@ class Consumer(Service, ConsumerT):
         self.transport = transport
         self._app = self.transport.app
         self.callback = callback
-        self.autoack = autoack
         self._on_message_in = self._app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
@@ -112,7 +123,7 @@ class Consumer(Service, ConsumerT):
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
-        self._current_offset = defaultdict(lambda: None)
+        self._committed_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
         self._unacked_messages = WeakSet()
@@ -128,10 +139,6 @@ class Consumer(Service, ConsumerT):
         ...
 
     @abc.abstractmethod
-    def _get_topic_meta(self, topic: str) -> Any:
-        ...
-
-    @abc.abstractmethod
     def _new_topicpartition(
             self, topic: str, partition: int) -> TopicPartition:
         ...
@@ -140,11 +147,19 @@ class Consumer(Service, ConsumerT):
     def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
         ...
 
+    @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
         await self._on_partitions_assigned(assigned)
-        await self._perform_seek()
+        await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
+        # All internal queues/buffers have now been cleared,
+        # so the registered read offsets may now be out of date.
+        # We have to refetch all messages that we had in the buffers
+        # and did not committ, to do so we reset read offsets to the
+        # committed offsets.
+        self._read_offset.update(self._committed_offset)
 
+    @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         await self._on_partitions_revoked(revoked)
@@ -152,29 +167,37 @@ class Consumer(Service, ConsumerT):
     async def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.
-        self._unacked_messages.add(message)
+        # XXX Try to call this *not* from the stream.
+        if message not in self._unacked_messages:
+            self._unacked_messages.add(message)
 
-        # call sensors
-        await self._on_message_in(self.id, message.tp, message.offset, message)
+            # call sensors
+            await self._on_message_in(
+                self.id, message.tp, message.offset, message)
 
     async def ack(self, message: Message) -> None:
         if not message.acked:
             message.acked = True
             tp = message.tp
             offset = message.offset
-            current = self._current_offset[tp]
-            if current is None or offset > current:
-                acked_index = self._acked_index[tp]
-                if offset not in acked_index:
-                    self._unacked_messages.discard(message)
-                    acked_index.add(offset)
-                    acked_for_tp = self._acked[tp]
-                    acked_for_tp.append(offset)
-                    acked_for_tp.sort()
+            await self._app.sensors.on_message_out(
+                self.id, tp, offset, None)
+            if self._app.channels.acks_enabled_for(message.topic):
+                committed = self._committed_offset[tp]
+                try:
+                    if committed is None or offset > committed:
+                        acked_index = self._acked_index[tp]
+                        if offset not in acked_index:
+                            self._unacked_messages.discard(message)
+                            acked_index.add(offset)
+                            acked_for_tp = self._acked[tp]
+                            acked_for_tp.append(offset)
+                finally:
                     notify(self._waiting_for_ack)
-                    await self._app.sensors.on_message_out(
-                        self.id, tp, offset, None)
+            else:
+                assert message not in self._unacked_messages
 
+    @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
         while not self.should_stop and self._unacked_messages:
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
@@ -194,6 +217,7 @@ class Consumer(Service, ConsumerT):
             await self.commit()
             await self.sleep(self.commit_interval)
 
+    @Service.transitions_to(CONSUMER_COMMITTING)
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
 
@@ -202,26 +226,53 @@ class Consumer(Service, ConsumerT):
         """
         did_commit = False
 
-        # Only one coroutine can commit at a time.
-        async with self._commit_mutex:
-            sensor_state = await self._app.sensors.on_commit_initiated(self)
+        # Only one coroutine allowed to commit at a time,
+        # and other coroutines should wait for the original commit to finish
+        # then do nothing.
+        if self._commit_fut is not None:
+            await self._commit_fut
+            return False
+        else:
+            self._commit_fut = asyncio.Future(loop=self.loop)
 
-            # Go over the ack list in each topic/partition:
-            for tp in list(self._filter_tps_with_pending_acks(topics)):
-                # Find the latest offset we can commit in this tp
-                offset = self._new_offset(tp)
-                # check if we can commit to this offset
-                if offset is not None and self._should_commit(tp, offset):
-                    # if so, first send all messages attached to the new
-                    # offset
-                    await self._app.commit_attached(tp, offset)
-                    # then, update the current_offset and perform
-                    # the commit.
-                    self._current_offset[tp] = offset
-                    meta = self._get_topic_meta(tp.topic)
-                    did_commit = True
-                    await self._do_commit(tp, offset, meta)
-            await self._app.sensors.on_commit_completed(self, sensor_state)
+        try:
+            # Only one coroutine can commit at a time.
+            async with self._commit_mutex:
+                sensor_state = await self._app.sensors.on_commit_initiated(
+                    self)
+
+                # Go over the ack list in each topic/partition
+                commit_tps = list(self._filter_tps_with_pending_acks(topics))
+                did_commit = await self._commit_tps(commit_tps)
+
+                await self._app.sensors.on_commit_completed(self, sensor_state)
+        finally:
+            fut, self._commit_fut = self._commit_fut, None
+            fut.set_result(None)
+        return did_commit
+
+    async def _commit_tps(self, tps: Iterable[TopicPartition]) -> bool:
+        did_commit = False
+        if tps:
+            coros = [self._commit_tp(tp) for tp in tps]
+            done, _ = await asyncio.wait(coros, loop=self.loop)
+            did_commit = any(fut.result() for fut in done)
+        return did_commit
+
+    async def _commit_tp(self, tp: TopicPartition) -> bool:
+        did_commit = False
+        # Find the latest offset we can commit in this tp
+        offset = self._new_offset(tp)
+        # check if we can commit to this offset
+        if offset is not None and self._should_commit(tp, offset):
+            # if so, first send all messages attached to the new
+            # offset
+            await self._app.commit_attached(tp, offset)
+            # then, update the committed_offset and perform
+            # the commit.
+            self._committed_offset[tp] = offset
+            did_commit = True
+            await self._do_commit(tp, offset, meta='')
         return did_commit
 
     def _filter_tps_with_pending_acks(
@@ -232,8 +283,8 @@ class Consumer(Service, ConsumerT):
         )
 
     def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
-        current = self._current_offset[tp]
-        return current is None or bool(offset) and offset > current
+        committed = self._committed_offset[tp]
+        return committed is None or bool(offset) and offset > committed
 
     def _new_offset(self, tp: TopicPartition) -> Optional[int]:
         # get the new offset for this tp, by going through
@@ -250,6 +301,7 @@ class Consumer(Service, ConsumerT):
         #          ^--- gap
         # the return value will be: 36
         if acked:
+            acked.sort()
             # Note: acked is always kept sorted.
             # find first list of consecutive numbers
             batch = next(consecutive_numbers(acked))
@@ -261,12 +313,11 @@ class Consumer(Service, ConsumerT):
         return None
 
     async def _do_commit(
-            self, tp: TopicPartition, offset: int, meta: Any) -> None:
+            self, tp: TopicPartition, offset: int, meta: str) -> None:
         await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
     async def on_task_error(self, exc: Exception) -> None:
-        if self.autoack:
-            await self.commit()
+        await self.commit()
 
     async def _drain_messages(self) -> None:
         callback = self.callback
@@ -274,9 +325,13 @@ class Consumer(Service, ConsumerT):
         should_stop = self._stopped.is_set
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
+        flag_consumer_fetching = CONSUMER_FETCHING
+        set_flag = self.diag.set_flag
+        unset_flag = self.diag.unset_flag
 
         try:
             while not should_stop():
+                set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
                     offset = message.offset
@@ -287,6 +342,7 @@ class Consumer(Service, ConsumerT):
                     else:
                         self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
                                      offset, message.key, message.value)
+                unset_flag(flag_consumer_fetching)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
@@ -303,6 +359,7 @@ class Consumer(Service, ConsumerT):
             self.log.exception('Drain messages raised: %r', exc)
             raise
         finally:
+            unset_flag(flag_consumer_fetching)
             self.set_shutdown()
 
 

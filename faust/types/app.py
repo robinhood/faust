@@ -4,10 +4,11 @@ import typing
 from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
-    Iterable, Mapping, MutableMapping, Pattern, Tuple, Type, Union,
+    Iterable, Mapping, MutableMapping, Pattern, Type, Union,
 )
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT, SinkT
+from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
 from .sensors import SensorDelegateT
@@ -15,11 +16,16 @@ from .serializers import RegistryT
 # mypy requires this for some unknown reason, but it's not used
 from .streams import T  # noqa: F401
 from .streams import StreamT
-from .tables import CollectionT, SetT, TableManagerT, TableT
-from .topics import TopicManagerT, TopicT
+from .tables import (
+    CheckpointManagerT, CollectionT, SetT, TableManagerT, TableT,
+)
+from .topics import ChannelT, TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
-from .tuples import Message, PendingMessage, RecordMetadata, TopicPartition
+from .tuples import (
+    Message, MessageSentCallback, RecordMetadata, TopicPartition,
+)
 from .windows import WindowT
+from ..utils.futures import FlowControlEvent
 from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
 from ..utils.types.collections import NodeT
@@ -34,6 +40,8 @@ else:
 
 __all__ = ['AppT']
 
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
+
 
 class AppT(ServiceT):
     """Abstract type for the Faust application.
@@ -45,6 +53,7 @@ class AppT(ServiceT):
     Stream: Type[StreamT]
     TableType: Type[TableT]
     TableManager: Type[TableManagerT]
+    CheckpointManager: Type[CheckpointManagerT]
     SetType: Type[SetT]
     Serializers: Type[RegistryT]
 
@@ -54,6 +63,7 @@ class AppT(ServiceT):
     client_only: bool
     commit_interval: float
     table_cleanup_interval: float
+    checkpoint_path: Path
     key_serializer: CodecArg
     value_serializer: CodecArg
     num_standby_replicas: int
@@ -61,10 +71,10 @@ class AppT(ServiceT):
     default_partitions: int  # noqa: E704
     reply_to: str
     create_reply_topic: float
-    table_cache_path: Path
     reply_expires: float
     avro_registry_url: str
     store: str
+    assignor: PartitionAssignorT
 
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT
@@ -86,11 +96,12 @@ class AppT(ServiceT):
                  default_partitions: int = 8,
                  reply_to: str = None,
                  reply_expires: Seconds = 9999.0,
-                 Stream: SymbolArg = '',
-                 Table: SymbolArg = '',
-                 TableManager: SymbolArg = '',
-                 Set: SymbolArg = '',
-                 Serializers: SymbolArg = '',
+                 Stream: SymbolArg[Type[StreamT]] = '',
+                 Table: SymbolArg[Type[TableT]] = '',
+                 TableManager: SymbolArg[Type[TableManagerT]] = '',
+                 CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = '',
+                 Set: SymbolArg[Type[SetT]] = '',
+                 Serializers: SymbolArg[Type[RegistryT]] = '',
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -106,12 +117,20 @@ class AppT(ServiceT):
               compacting: bool = None,
               deleting: bool = None,
               replicas: int = None,
+              acks: bool = True,
               config: Mapping[str, Any] = None) -> TopicT:
         ...
 
     @abc.abstractmethod
+    def channel(self, *,
+                key_type: ModelArg = None,
+                value_type: ModelArg = None,
+                loop: asyncio.AbstractEventLoop = None) -> ChannelT:
+        ...
+
+    @abc.abstractmethod
     def actor(self,
-              topic: Union[str, TopicT] = None,
+              channel: Union[str, ChannelT] = None,
               *,
               name: str = None,
               concurrency: int = 1,
@@ -127,7 +146,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def stream(self, source: AsyncIterable,
+    def stream(self, channel: AsyncIterable,
                coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
@@ -163,40 +182,51 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def send(
-            self, topic: Union[TopicT, str],
+    async def maybe_attach(
+            self,
+            channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> RecordMetadata:
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None,
+            force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    async def send_many(
-            self, it: Iterable[Union[PendingMessage, Tuple]]) -> None:
+    async def send(
+            self, channel: Union[ChannelT, str],
+            key: K = None,
+            value: V = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
     def send_soon(
-            self, topic: Union[TopicT, str], key: K, value: V,
+            self, channel: Union[ChannelT, str],
+            key: K = None,
+            value: V = None,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: Callable[[RecordMetadata], None] = None) -> None:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
     def send_attached(
             self,
             message: Message,
-            topic: Union[str, TopicT],
+            channel: Union[str, ChannelT],
             key: K,
             value: V,
             partition: int = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            callback: Callable[[RecordMetadata], None] = None) -> None:
+            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -205,6 +235,15 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def maybe_start_producer(self) -> ProducerT:
+        ...
+
+    @abc.abstractmethod
+    def FlowControlQueue(
+            self,
+            maxsize: int = None,
+            *,
+            clear_on_resume: bool = False,
+            loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
         ...
 
     @property
@@ -224,7 +263,12 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def sources(self) -> TopicManagerT:
+    def checkpoints(self) -> CheckpointManagerT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def channels(self) -> TopicManagerT:
         ...
 
     @property
@@ -235,3 +279,8 @@ class AppT(ServiceT):
     @monitor.setter
     def monitor(self, value: Monitor) -> None:
         ...
+
+    @property
+    @abc.abstractmethod
+    def flow_control(self) -> FlowControlEvent:
+        return FlowControlEvent(loop=self.loop)

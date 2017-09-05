@@ -95,12 +95,12 @@ class Record(Model):
     def __init__(self, _data: Any = None, **fields: Any) -> None:
         if _data is not None:
             assert not fields
-            self._init_fields(_data)
+            self._init_fields(_data, strict=False)
         else:
             # Set fields from keyword arguments.
             self._init_fields(fields)
 
-    def _init_fields(self, fields: Dict) -> None:
+    def _init_fields(self, fields: Dict, *, strict: bool = True) -> None:
         fields.pop('__faust', None)  # remove metadata
         fieldset = frozenset(fields)
         options = self._options
@@ -111,11 +111,12 @@ class Record(Model):
             raise TypeError('{} missing required arguments: {}'.format(
                 type(self).__name__, ', '.join(sorted(missing))))
 
-        # Check for unknown arguments.
-        extraneous = fieldset - options.fieldset
-        if extraneous:
-            raise TypeError('{} got unexpected arguments: {}'.format(
-                type(self).__name__, ', '.join(sorted(extraneous))))
+        if strict:
+            # Check for unknown arguments.
+            extraneous = fieldset - options.fieldset
+            if extraneous:
+                raise TypeError('{} got unexpected arguments: {}'.format(
+                    type(self).__name__, ', '.join(sorted(extraneous))))
 
         # Fast: This sets attributes from kwargs.
         self.__dict__.update(fields)

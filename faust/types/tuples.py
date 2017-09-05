@@ -1,23 +1,23 @@
+import asyncio
 import typing
-from typing import Any, NamedTuple, Sequence, Union
+from typing import Any, Awaitable, Callable, NamedTuple, Sequence, Union
 from weakref import WeakSet
 from .codecs import CodecArg
 from .core import K, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .topics import SourceT, TopicT
+    from .channels import ChannelT
 else:
     class AppT: ...      # noqa
-    class SourceT: ...   # noqa
-    class TopicT: ...    # noqa
+    class ChannelT: ...   # noqa
 
 __all__ = [
-    'MessageSentCallback', 'TopicPartition',
+    'FutureMessage', 'MessageSentCallback', 'TopicPartition',
     'PendingMessage', 'RecordMetadata', 'Message',
 ]
 
-MessageSentCallback = Any
+MessageSentCallback = Callable[['FutureMessage'], Union[None, Awaitable[None]]]
 
 
 class TopicPartition(NamedTuple):
@@ -25,8 +25,15 @@ class TopicPartition(NamedTuple):
     partition: int
 
 
+class RecordMetadata(NamedTuple):
+    topic: str
+    partition: int
+    topic_partition: TopicPartition
+    offset: int
+
+
 class PendingMessage(NamedTuple):
-    topic: Union[str, TopicT]
+    channel: ChannelT
     key: K
     value: V
     partition: int
@@ -35,11 +42,15 @@ class PendingMessage(NamedTuple):
     callback: MessageSentCallback
 
 
-class RecordMetadata(NamedTuple):
-    topic: str
-    partition: int
-    topic_partition: TopicPartition
-    offset: int
+class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
+    message: PendingMessage
+
+    def __init__(self, message: PendingMessage) -> None:
+        self.message = message
+        super().__init__()
+
+    def set_result(self, result: RecordMetadata) -> None:
+        super().set_result(result)
 
 
 class Message:
@@ -57,7 +68,7 @@ class Message:
         'serialized_value_size',
         'acked',
         'refcount',
-        'sources',
+        'channels',
         'tp',
         '__weakref__',
     )
@@ -83,21 +94,20 @@ class Message:
         self.tp = tp
         if typing.TYPE_CHECKING:
             # mypy supports this, but Python doesn't.
-            self.sources: WeakSet[SourceT] = WeakSet()
+            self.channels: WeakSet[ChannelT] = WeakSet()
         else:
-            self.sources = WeakSet()
+            self.channels = WeakSet()
 
-    def incref(self, source: SourceT = None, n: int = 1) -> None:
-        self.sources.add(source)
+    def incref(self, channel: ChannelT = None, n: int = 1) -> None:
+        self.channels.add(channel)
         self.refcount += n
 
-    def incref_bulk(self, sources: Sequence[SourceT]) -> None:
-        self.sources.update(sources)
-        self.refcount += len(sources)
+    def incref_bulk(self, channels: Sequence[ChannelT]) -> None:
+        self.channels.update(channels)
+        self.refcount += len(channels)
 
     def decref(self, n: int = 1) -> None:
-        self.refcount -= n
-        assert self.refcount >= 0
+        self.refcount = max(self.refcount - 1, 0)
 
     @classmethod
     def from_message(cls, message: Any, tp: TopicPartition) -> 'Message':

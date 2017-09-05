@@ -1,11 +1,12 @@
 """Abstract types for static typing."""
 from .app import AppT
+from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
 from .core import K, V
 from .joins import JoinT
 from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT
 from .sensors import SensorT
-from .serializers import AsyncSerializerT
+from .serializers import RegistryT
 from .stores import StoreT
 from .streams import (
     JoinableT,
@@ -14,7 +15,7 @@ from .streams import (
     StreamT,
 )
 from .tables import CollectionT, SetT, TableT
-from .topics import EventT, TopicT
+from .topics import TopicT
 from .transports import (
     ConsumerCallback,
     ConsumerT,
@@ -22,7 +23,7 @@ from .transports import (
     TransportT,
 )
 from .tuples import (
-    Message, MessageSentCallback, PendingMessage,
+    FutureMessage, Message, MessageSentCallback, PendingMessage,
     RecordMetadata, TopicPartition,
 )
 from .windows import WindowRange, WindowT
@@ -48,7 +49,7 @@ __all__ = [
     'SensorT',
 
     # types.serializers
-    'AsyncSerializerT',
+    'RegistryT',
 
     # utils.types.services
     'ServiceT',
@@ -63,13 +64,13 @@ __all__ = [
     'CollectionT', 'SetT', 'TableT',
 
     # types.topics
-    'EventT', 'TopicT',
+    'ChannelT', 'EventT', 'TopicT',
 
     # types.transports
     'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
 
     # types.tuples
-    'Message', 'MessageSentCallback', 'PendingMessage',
+    'FutureMessage', 'Message', 'MessageSentCallback', 'PendingMessage',
     'RecordMetadata', 'TopicPartition',
 
     # types.windows

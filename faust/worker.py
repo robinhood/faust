@@ -1,6 +1,7 @@
-"""ƒAµS† Worker
+"""Worker
 
-A worker starts one or more Faust applications.
+A worker starts a Faust application, and includes support for logging
+signal-handling, etc.
 """
 import asyncio
 import logging
@@ -79,7 +80,8 @@ F_BANNER = """
   .log         -> {logfile} ({loglevel})
   .pid         -> {pid}
   .hostname    -> {hostname}
-  .transport   -> {app.url}
+  .loop        -> {loop}
+  .transport   -> {app.url} {transport_extra}
   .store       -> {app.store} ]
 """.strip()
 
@@ -146,7 +148,7 @@ class Worker(Service):
     stdout: IO
     stderr: IO
     blocking_timeout: float
-    workdir: str
+    workdir: Path
     web_port: int
     web_bind: str
     Website: Type[_Website]
@@ -164,10 +166,11 @@ class Worker(Service):
             stdout: IO = sys.stdout,
             stderr: IO = sys.stderr,
             blocking_timeout: float = DEFAULT_BLOCKING_TIMEOUT,
-            workdir: str = None,
-            Website: SymbolArg = DEFAULT_WEBSITE_CLS,
+            workdir: Union[Path, str] = None,
+            Website: SymbolArg[Type[_Website]] = DEFAULT_WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
+            with_uvloop: bool = False,
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
@@ -181,7 +184,7 @@ class Worker(Service):
         self.stdout = stdout
         self.stderr = stderr
         self.blocking_timeout = blocking_timeout
-        self.workdir = workdir
+        self.workdir = Path(workdir or Path.cwd())
         self.Website = symbol_by_name(Website)
         self.web_port = web_port
         self.web_bind = web_bind
@@ -228,6 +231,9 @@ class Worker(Service):
         )
 
     def print_banner(self) -> None:
+        transport_extra = ''
+        if self.loop.__class__.__module__ == 'uvloop':
+            transport_extra = '+uvloop'
         self.say(self.f_banner.format(
             art=self.art,
             ident=self.faust_ident(),
@@ -237,6 +243,8 @@ class Worker(Service):
             loglevel=level_name(self.loglevel or 'WARN').lower(),
             pid=os.getpid(),
             hostname=socket.gethostname(),
+            transport_extra=transport_extra,
+            loop=asyncio.get_event_loop(),
         ))
         self._say('^ ', end='')
 

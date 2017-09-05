@@ -2,7 +2,7 @@
 *.pyc
 *$py.class
 *~
-.swp
+.sw*
 .*.sw*
 dist/
 *.egg-info
@@ -30,3 +30,5 @@ cover/
 .hypothesis/
 .mypy_cache/
 htmlcov/
+*-cache*
+.checkpoint

@@ -1,11 +1,11 @@
 =====================================================
- ``faust.serializers.base``
+ ``faust.channels``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.serializers.base
+.. currentmodule:: faust.channels
 
-.. automodule:: faust.serializers.base
+.. automodule:: faust.channels
     :members:
     :undoc-members:

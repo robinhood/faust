@@ -1,7 +1,7 @@
 """RocksDB storage."""
-from typing import Any, Iterator, Tuple
+from typing import Any, Callable, Iterable, Iterator, Optional, Tuple
 from . import base
-from ..types.app import AppT
+from ..types import AppT, EventT, TopicPartition
 from ..utils.logging import get_logger
 
 try:
@@ -40,6 +40,17 @@ class Store(base.SerializedStore):
             self.url = self.url + self.table_name
         self._db = None
 
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        return self.app.checkpoints.get_offset(tp)
+
+    def apply_changelog_batch(self, batch: Iterable[EventT],
+                              to_key: Callable[[Any], Any],
+                              to_value: Callable[[Any], Any]) -> None:
+        w = rocksdb.WriteBatch()
+        for event in batch:
+            w.put(event.message.key, event.message.value)
+        self.db.write(w)
+
     def _get(self, key: bytes) -> bytes:
         return self.db.get(key)
 
@@ -50,7 +61,11 @@ class Store(base.SerializedStore):
         self.db.delete(key)
 
     def _contains(self, key: bytes) -> bool:
-        return self.db.key_may_exist(key)[0]
+        # bloom filter: false positives possible, but not false negatives
+        db = self.db
+        if db.key_may_exist(key)[0]:
+            return db.get(key) is not None
+        return False
 
     def _size(self) -> int:
         it = self.db.iterkeys()  # noqa: B301

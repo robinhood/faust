@@ -1,9 +1,8 @@
 import abc
 import typing
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 from .codecs import CodecArg
 from .core import K, V
-from ..utils.imports import SymbolArg
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -13,32 +12,11 @@ else:
     class ModelArg: ...  # noqa
     class ModelT: ...    # noqa
 
-__all__ = ['AsyncSerializerT', 'RegistryT']
-
-
-class AsyncSerializerT(abc.ABC):
-    app: AppT
-
-    @abc.abstractmethod
-    def __init__(self, app: AppT) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def loads(self, s: bytes) -> Any:
-        ...
-
-    @abc.abstractmethod
-    async def dumps_key(self, topic: str, s: ModelT) -> bytes:
-        ...
-
-    @abc.abstractmethod
-    async def dumps_value(self, topic: str, s: ModelT) -> bytes:
-        ...
+__all__ = ['RegistryT']
 
 
 class RegistryT(abc.ABC):
 
-    override_classes: Mapping[CodecArg, SymbolArg]
     key_serializer: CodecArg
     value_serializer: CodecArg
 
@@ -49,25 +27,25 @@ class RegistryT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def loads_key(
+    def loads_key(
             self,
             typ: Optional[ModelArg],
             key: bytes) -> K:
         ...
 
     @abc.abstractmethod
-    async def loads_value(
+    def loads_value(
             self,
             typ: ModelArg,
             value: bytes) -> Any:
         ...
 
     @abc.abstractmethod
-    async def dumps_key(self, topic: str, key: K,
-                        serializer: CodecArg = None) -> Optional[bytes]:
+    def dumps_key(self, key: K,
+                  serializer: CodecArg = None) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod
-    async def dumps_value(self, topic: str, value: V,
-                          serializer: CodecArg = None) -> Optional[bytes]:
+    def dumps_value(self, value: V,
+                    serializer: CodecArg = None) -> Optional[bytes]:
         ...

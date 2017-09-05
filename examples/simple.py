@@ -1,9 +1,12 @@
 import asyncio
+import aiohttp
 import os
 import random
-import string
 import sys
 import faust
+from time import monotonic
+
+PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
 
 class Withdrawal(faust.Record, serializer='json'):
@@ -14,7 +17,8 @@ class Withdrawal(faust.Record, serializer='json'):
 
 app = faust.App(
     'f-simple',
-    url='kafka://localhost:9092',
+    url='kafka://127.0.0.1:9092',
+    store='rocksdb://',
     default_partitions=6,
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
@@ -24,34 +28,51 @@ country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-@app.actor(withdrawals_topic)
-async def find_large_withdrawals(withdrawals):
+@app.actor(withdrawals_topic, concurrency=10)
+async def find_large_user_withdrawals(withdrawals):
+    events = 0
+    time_start = monotonic()
+    time_first_start = monotonic()
     async for withdrawal in withdrawals:
-        user_to_total[withdrawal.user] += withdrawal.amount
-        country_to_total[withdrawal.country] += withdrawal.amount
-        print('{!r} User Total: {!r}, Country Total: {!r}'.format(
-            withdrawal,
-            user_to_total[withdrawal.user],
-            country_to_total[withdrawal.country].current(),
-        ))
+        events += 1
+        if not events % 10_000:
+            time_now = monotonic()
+            print('TIME PROCESSING 10k: %r' % (time_now - time_start))
+            time_start = time_now
+        if not events % 100_000:
+            time_now = monotonic()
+            print('----TIME PROCESSING 100k: %r' % (time_now - time_first_start))
+            time_first_start = time_now
+
+        #user_to_total[withdrawal.user] += withdrawal.amount
+
+
+#@app.actor(withdrawals_topic)
+#async def find_large_country_withdrawals(withdrawals):
+#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+#        country_to_total[withdrawal.country] += withdrawal.amount
 
 
 async def _publish_withdrawals():
     num_countries = 5
     countries = [f'country_{i}' for i in range(num_countries)]
-    country_dist = [0.9] + ([0.10/num_countries] * (num_countries - 1))
+    country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
     num_users = 500
     users = [f'user_{i}' for i in range(num_users)]
     print('Done setting up. SENDING!')
+    i = 0
     while True:
+        i += 1
         withdrawal = Withdrawal(
             user=random.choice(users),
             amount=random.uniform(0, 25_000),
             country=random.choices(countries, country_dist)[0],
         )
         await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
-        print(f'+SEND {withdrawal}')
-        await asyncio.sleep(random.uniform(0, 0.5))
+        if not i % 10000:
+            print(f'+SEND {i}')
+        if PRODUCE_LATENCY:
+            await asyncio.sleep(random.uniform(0, PRODUCE_LATENCY))
 
 
 def produce(loop):

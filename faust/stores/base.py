@@ -1,8 +1,8 @@
 import abc
 from collections import ItemsView, KeysView, ValuesView
-from typing import Any, Iterator, Tuple
+from typing import Any, Callable, Iterable, Iterator, Optional, Tuple
 from ..serializers.codecs import dumps, loads
-from ..types import AppT, CodecArg, StoreT
+from ..types import AppT, CodecArg, EventT, StoreT, TopicPartition
 from ..utils.logging import get_logger
 from ..utils.services import Service
 
@@ -24,6 +24,9 @@ class Store(StoreT, Service):
         self.table_name = table_name
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
+
+    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        raise NotImplementedError('In-memory store only, does not persist.')
 
     def _encode_key(self, key: Any) -> bytes:
         return dumps(self.key_serializer, key)
@@ -109,6 +112,13 @@ class SerializedStore(Store):
     @abc.abstractmethod
     def _clear(self) -> None:
         ...
+
+    def apply_changelog_batch(self, batch: Iterable[EventT],
+                              to_key: Callable[[Any], Any],
+                              to_value: Callable[[Any], Any]) -> None:
+        for event in batch:
+            # keys/values are already JSON serialized in the message
+            self._set(event.message.key, event.message.value)
 
     def __getitem__(self, key: Any) -> Any:
         value = self._get(self._encode_key(key))

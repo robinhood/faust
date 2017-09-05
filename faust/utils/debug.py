@@ -7,6 +7,8 @@ from .logging import get_logger
 from .services import Service
 from .times import Seconds, want_seconds
 
+__all__ = ['Blocking', 'BlockingDetector']
+
 if hasattr(signal, 'setitimer'):
     def arm_alarm(seconds: float) -> None:
         signal.setitimer(signal.ITIMER_REAL, seconds)
@@ -40,7 +42,7 @@ class BlockingDetector(Service):
         super().__init__(**kwargs)
 
     @Service.task
-    async def _detector(self) -> None:
+    async def _deadman_switch(self) -> None:
         try:
             while 1:
                 self._reset_signal()

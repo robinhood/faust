@@ -32,6 +32,9 @@ worker_options = [
     click.option('--web-port',
                  default=DEFAULT_PORT, type=int,
                  help='Port to run webserver on'),
+    click.option('--with-uvloop/--without-uvloop',
+                 help='Use fast uvloop event loop'),
+
 ]
 
 
@@ -68,7 +71,11 @@ def worker(ctx: click.Context,
            logfile: str,
            loglevel: str,
            blocking_timeout: float,
-           web_port: int) -> None:
+           web_port: int,
+           with_uvloop: bool) -> None:
+    if with_uvloop:
+        from .. import use_uvloop
+        use_uvloop()
     app = ctx.obj['app']
     debug = ctx.obj['debug']
     quiet = ctx.obj['quiet']

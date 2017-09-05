@@ -1,11 +1,11 @@
 import asyncio
 import json
 from collections import defaultdict
-from aiokafka import AIOKafkaConsumer, AIOKafkaClient
-from kafka.structs import TopicPartition
+from aiokafka import AIOKafkaClient, AIOKafkaConsumer
 from kafka.protocol.commit import (
     GroupCoordinatorRequest_v0, OffsetFetchRequest_v1,
 )
+from kafka.structs import TopicPartition
 
 
 class MissingDataException(Exception):
@@ -35,10 +35,10 @@ class BaseKafkaTableBuilder(object):
         await self._build_table()
 
     def get_key(self, message):
-        ...
+        return json.loads(message.key.decode())
 
     def get_value(self, message):
-        ...
+        return json.loads(message.value.decode())
 
     async def _init_consumer(self):
         if not self.consumer:
@@ -80,12 +80,6 @@ class BaseKafkaTableBuilder(object):
 
 class ChangelogTableBuilder(BaseKafkaTableBuilder):
 
-    def get_key(self, message):
-        return json.loads(message.key.decode())
-
-    def get_value(self, message):
-        return json.loads(message.value.decode())
-
     async def _apply(self, message):
         k = self.get_key(message)
         v = self.get_value(message)
@@ -94,12 +88,6 @@ class ChangelogTableBuilder(BaseKafkaTableBuilder):
 
 
 class SourceTableBuilder(BaseKafkaTableBuilder):
-
-    def get_key(self, message):
-        return message.key.decode()
-
-    def get_value(self, message):
-        return json.loads(message.value.decode())
 
     async def _apply(self, message):
         k = self.get_key(message)

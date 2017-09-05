@@ -17,6 +17,7 @@ Faust
     faust.exceptions
     faust.actors
     faust.app
+    faust.channels
     faust.sensors
     faust.topics
     faust.windows
@@ -38,7 +39,6 @@ Serializers
     :maxdepth: 1
 
     faust.serializers.avro
-    faust.serializers.base
     faust.serializers.codecs
     faust.serializers.registry
 
@@ -99,6 +99,8 @@ Types
 
     faust.types.actors
     faust.types.app
+    faust.types.assignor
+    faust.types.channels
     faust.types.codecs
     faust.types.core
     faust.types.joins

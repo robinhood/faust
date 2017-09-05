@@ -6,8 +6,8 @@ import warnings
 from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import (
-    Any, Callable, Generator, Iterable,
-    Mapping, MutableMapping, Set, Tuple, Type, Union,
+    Any, Callable, Generator, Generic, Iterable,
+    Mapping, MutableMapping, Set, Tuple, Type, TypeVar, Union,
 )
 from .collections import FastUserDict
 from .objects import cached_property
@@ -19,10 +19,12 @@ __all__ = [
     'symbol_by_name', 'load_extension_class_names', 'load_extension_classes',
 ]
 
-SymbolArg = Union[Type, str]
+_T = TypeVar('_T')
+_T_contra = TypeVar('_T_contra', contravariant=True)
+SymbolArg = Union[_T, str]
 
 
-class FactoryMapping(FastUserDict):
+class FactoryMapping(FastUserDict, Generic[_T]):
     """Class plugin system.
 
     This is an utility to maintain a mapping from name to fully
@@ -52,16 +54,16 @@ class FactoryMapping(FastUserDict):
         self.aliases = dict(*args, **kwargs)  # type: ignore
         self.namespaces = set()
 
-    def by_url(self, url: str) -> Type:
+    def by_url(self, url: str) -> _T:
         """Get class associated with URL (scheme is used as alias key)."""
         # we remove anything after ; so urlparse can recognize the url.
         return self.by_name(url.partition('://')[0])
 
-    def by_name(self, name: SymbolArg) -> Any:
+    def by_name(self, name: SymbolArg[_T_contra]) -> _T:
         self._maybe_finalize()
         return symbol_by_name(name, aliases=self.aliases)
 
-    def get_alias(self, name: str) -> Any:
+    def get_alias(self, name: str) -> str:
         self._maybe_finalize()
         return self.aliases[name]
 

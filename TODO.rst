@@ -2,6 +2,35 @@
  TODO
 ======
 
+Sending should always be attached to current_event
+==================================================
+
+- Actors sending messages to topic should always attach to the current event
+
+- This means examples like this will be consistent if crashing after sending
+  some words:
+
+    .. sourcecode:: python
+
+        @app.actor()
+        async def count_words(sentences):
+            async for sentence in sentences:
+                for word in sentence.split():
+                    await topic.send(key=word, value=word)
+
+- topic.send(immediately=True) will send it immediately, without attaching,
+  and Actor.ask, .map etc will have to use this.
+
+
+- app.send stays as it is.
+
+- adds app.maybe_attach()
+
+- Topic.send uses maybe_attach,
+    so that sending to a topic when in a stream, will attach to the current
+    messsage, but calling app.send() directly will send message immediately.
+
+
 HTTP Table view
 ===============
 
@@ -114,6 +143,61 @@ Fault Tolerance
 
         Can be used for introspection only, to quickly check if a stream is
         standby, or to be used in for example ``repr(table)``.
+
+
+Tables
+======
+
+- Nested data-structures, like ``Mapping[str, List]``, ``Mapping[str, Set]``
+
+    - Can be accomplished by treating the changelog as a database "transaction
+      log"
+
+    - For example, adding a new element to a Mapping of sets::
+
+        class SubReq(faust.Record):
+            topic: str
+
+        class PubReq(faust.Record):
+            topic: str
+            message: str
+
+
+        subscribers = app.Table('subscribers', type=set)
+
+        @app.actor()
+        async def subscribe(subscriptions: Stream[SubReq]) -> AsyncIterable[bool]:
+            async for subsription in subscriptions:
+                subscribers[subscription.topic].add(subscriber.account)
+
+        @app.actor()
+        async def send_to_subscribers(requests):
+            async for req in requests:
+                for account in subscribers[req.topic]:
+                    accounts.get(account).send_message(req.message)
+
+        @route('/(?P<topic>/send/')
+        @accept_methods('POST')
+        async def send_to_subscribers(request):
+            await send_to_subscribers.send(PubReq(
+                topic=request.POST['topic'],
+                message=request.POST['message'],
+            )
+
+    - Adding an element produces the following changelog:
+
+        .. sourcecode:: text
+
+            KEY=topic VALUE={'action': 'add', 'value': new_member}
+
+    - while removing an element produces the changelog:
+
+        .. sourcecode:: text
+
+            KEY=topic VALUE={'action': 'remove', 'value': new_member}
+
+    - NOTE: Not sure how this would coexist with windowing, but maybe it will
+            work just by the Window+key keying.
 
 
 Deployment

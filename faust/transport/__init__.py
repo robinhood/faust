@@ -1,9 +1,11 @@
 """Transport registry."""
+from typing import Type
+from ..types import TransportT
 from ..utils.imports import FactoryMapping
 
 __all__ = ['by_name', 'by_url']
 
-TRANSPORTS = FactoryMapping(
+TRANSPORTS: FactoryMapping[Type[TransportT]] = FactoryMapping(
     aiokafka='faust.transport.aiokafka:Transport',
     kafka='faust.transport.aiokafka:Transport',
     confluent='faust.transport.confluent:Transport',

@@ -15,7 +15,6 @@ from kafka.structs import (
 )
 
 from . import base
-from ..assignor.partition_assignor import PartitionAssignor
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
@@ -84,7 +83,6 @@ class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
-    _assignor: PartitionAssignor
 
     consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = (
         ConsumerStoppedError,
@@ -102,7 +100,7 @@ class Consumer(base.Consumer):
             self,
             app: AppT,
             transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
-        self._assignor = PartitionAssignor()
+        self._assignor = self._app.assignor
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
             client_id=app.client_id,
@@ -179,14 +177,11 @@ class Consumer(base.Consumer):
                     tp,
                 )
 
-    def _get_topic_meta(self, topic: str) -> Any:
-        return self._consumer.partitions_for_topic(topic)
-
     def _new_topicpartition(
             self, topic: str, partition: int) -> TopicPartition:
         return cast(TopicPartition, _TopicPartition(topic, partition))
 
-    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
+    def _new_offsetandmetadata(self, offset: int, meta: str) -> Any:
         return OffsetAndMetadata(offset, meta)
 
     async def on_stop(self) -> None:
@@ -296,7 +291,7 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> Awaitable[RecordMetadata]:
-        return cast(Awaitable[RecordMetadata], self._producer.send(
+        return cast(Awaitable[RecordMetadata], await self._producer.send(
             topic, value, key=key, partition=partition))
 
     async def send_and_wait(

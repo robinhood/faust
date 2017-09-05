@@ -6,9 +6,10 @@ from typing import (
     List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
 )
 from ._coroutines import StreamCoroutine
+from .channels import ChannelT, EventT
 from .core import K
 from .models import FieldDescriptorT, ModelArg
-from .topics import EventT, TopicT
+from .topics import TopicT
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
 
@@ -73,7 +74,8 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
 
-    source: AsyncIterator[T_co] = None
+    app: AppT
+    channel: AsyncIterator[T_co] = None
     outbox: asyncio.Queue = None
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
@@ -82,7 +84,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     children: List[JoinableT] = None
 
     @abc.abstractmethod
-    def __init__(self, source: AsyncIterator[T_co] = None,
+    def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor] = None,
                  coroutine: StreamCoroutine = None,
@@ -129,11 +131,11 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def through(self, topic: Union[str, TopicT]) -> 'StreamT':
+    def through(self, channel: Union[str, ChannelT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
-    def echo(self, *topics: Union[str, TopicT]) -> 'StreamT':
+    def echo(self, *channels: Union[str, ChannelT]) -> 'StreamT':
         ...
 
     @abc.abstractmethod
