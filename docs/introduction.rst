@@ -86,6 +86,14 @@ Extensions
 
         faust[fast,rocksdb,uvloop]
 
+What is Kafka?
+==============================================
+
+
+.. include:: includes/kafka.txt
+
+
+
 How do I use it?
 ================
 
