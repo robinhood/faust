@@ -153,6 +153,6 @@ class FlowControlQueue(asyncio.Queue):
     def clear(self) -> None:
         self._queue.clear()  # type: ignore
 
-    async def get(self) -> Any:  # type: ignore
+    async def put(self, value: Any) -> None:  # type: ignore
         await self._flow_control.acquire()
-        return await super().get()
+        await super().put(value)
