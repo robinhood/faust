@@ -9,8 +9,8 @@ from typing import (
 )
 from .channels import Channel
 from .types import (
-    AppT, FutureMessage, Message,
-    ModelArg, PendingMessage, RecordMetadata, TopicPartition,
+    AppT, CodecArg, FutureMessage, K, Message,
+    ModelArg, PendingMessage, RecordMetadata, TopicPartition, V,
 )
 from .types.topics import ChannelT, TopicManagerT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
@@ -220,6 +220,18 @@ class Topic(Channel, TopicT):
         message.set_result(res)
         if message.message.callback:
             message.message.callback(message)
+
+    def prepare_key(self,
+                    key: K,
+                    key_serializer: CodecArg) -> Any:
+        if key is not None:
+            return self.app.serializers.dumps_key(key, key_serializer)
+        return None
+
+    def prepare_value(self,
+                      value: V,
+                      value_serializer: CodecArg) -> Any:
+        return self.app.serializers.dumps_value(value, value_serializer)
 
     @stampede
     async def maybe_declare(self) -> None:
