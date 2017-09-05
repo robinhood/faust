@@ -7,8 +7,6 @@ from ..types.serializers import RegistryT
 from ..utils.compat import want_bytes
 from ..utils.objects import cached_property
 
-_flake8_Any_is_really_used: Any  # XXX flake8 bug
-
 __all__ = ['Registry']
 
 IsInstanceArg = Tuple[Type, ...]
@@ -123,3 +121,6 @@ class Registry(RegistryT):
     def Model(self) -> Type[ModelT]:
         from ..models.base import Model
         return Model
+
+
+__flake8_Any_is_really_used: Any  # XXX flake8 bug

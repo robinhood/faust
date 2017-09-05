@@ -9,9 +9,6 @@ from ..utils.objects import canoname
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']
 
-# flake8 thinks Dict is unused for some reason
-__flake8_ignore_this_Dict: Dict  # XXX
-
 # NOTES:
 # - Records are described in the same notation as named tuples in Python 3.6.
 #   To accomplish this ``__init_subclass__`` defined in :pep:`487` is used.
@@ -290,3 +287,7 @@ class FieldDescriptor(FieldDescriptorT):
     @property
     def ident(self) -> str:
         return f'{self.model.__name__}.{self.field}'
+
+
+# flake8 thinks Dict is unused for some reason
+__flake8_ignore_this_Dict: Dict  # XXX

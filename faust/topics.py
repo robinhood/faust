@@ -9,11 +9,11 @@ from typing import (
 )
 from .channels import Channel
 from .types import (
-    AppT, CodecArg, FutureMessage, K, Message,
-    ModelArg, PendingMessage, RecordMetadata, TopicPartition, V,
+    AppT, FutureMessage, Message,
+    ModelArg, PendingMessage, RecordMetadata, TopicPartition,
 )
 from .types.topics import ChannelT, TopicManagerT, TopicT
-from .types.transports import ConsumerCallback, TPorTopicSet
+from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
 from .utils.futures import notify, stampede
 from .utils.logging import get_logger
 from .utils.services import Service
@@ -28,11 +28,6 @@ __all__ = [
     'Topic',
     'TopicManager',
 ]
-
-__flake8_Awaitable_is_used: Awaitable            # XXX flake8 bug
-__flake8_Callable_is_used: Callable              # XXX flake8 bug
-__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
-__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
 
 logger = get_logger(__name__)
 
@@ -184,6 +179,9 @@ class Topic(Channel, TopicT):
     def get_topic_name(self) -> str:
         return self.topics[0]
 
+    async def _get_producer(self) -> ProducerT:
+        return await self.app.maybe_start_producer()
+
     async def publish_message(
             self, fut: FutureMessage,
             wait: bool = True) -> Awaitable[RecordMetadata]:
@@ -199,7 +197,7 @@ class Topic(Channel, TopicT):
         value: bytes = cast(bytes, message.value)
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
-        producer = await app.maybe_start_producer()
+        producer = await self._get_producer()
         state = await app.sensors.on_send_initiated(
             producer, topic,
             keysize=len(key) if key else 0,
@@ -223,24 +221,12 @@ class Topic(Channel, TopicT):
         if message.message.callback:
             message.message.callback(message)
 
-    def prepare_key(self,
-                    key: K,
-                    key_serializer: CodecArg) -> Any:
-        if key is not None:
-            return self.app.serializers.dumps_key(key, key_serializer)
-        return None
-
-    def prepare_value(self,
-                      value: V,
-                      value_serializer: CodecArg) -> Any:
-        return self.app.serializers.dumps_value(value, value_serializer)
-
     @stampede
     async def maybe_declare(self) -> None:
         await self.declare()
 
     async def declare(self) -> None:
-        producer = await self.app.maybe_start_producer()
+        producer = await self._get_producer()
         for topic in self.topics:
             await producer.create_topic(
                 topic=topic,
@@ -413,3 +399,9 @@ class TopicManager(TopicManagerT, Service):
     @property
     def shortlabel(self) -> str:
         return type(self).__name__
+
+
+__flake8_Awaitable_is_used: Awaitable            # XXX flake8 bug
+__flake8_Callable_is_used: Callable              # XXX flake8 bug
+__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug

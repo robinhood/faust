@@ -7,9 +7,6 @@ from typing import (
 from .formatter import GraphFormatter
 from ..types.graphs import DependencyGraphT, GraphFormatterT
 
-_flake8_List_is_used: List
-_flake8_Set_is_used: Set
-
 
 class CycleError(Exception):
     """A cycle was detected in an acyclic graph."""
@@ -211,3 +208,7 @@ class DependencyGraph(DependencyGraphT):
                 output.extend(
                     self._repr_node(other, level + 1).split('\n')[1:])
         return '\n'.join(output)
+
+
+__flake8_List_is_used: List  # XXX flake8 bug
+__flake8_Set_is_used: Set

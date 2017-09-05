@@ -23,8 +23,6 @@ __all__ = [
     'Service', 'ServiceBase', 'ServiceProxy', 'ServiceThread', 'Diag',
 ]
 
-__flake8_Set_is_used: Set  # XXX flake8 bug
-
 FutureT = Union[asyncio.Future, Generator[Any, None, Any], Awaitable]
 
 logger = get_logger(__name__)
@@ -605,3 +603,6 @@ class ServiceThread(threading.Thread):
         self._stopped.wait()
         if self.is_alive():
             self.join(threading.TIMEOUT_MAX)
+
+
+__flake8_Set_is_used: Set  # XXX flake8 bug

@@ -52,11 +52,6 @@ TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
 TABLEMAN_RECOVER = 'RECOVER'
 TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
-__flake8_Sequence_is_used: Sequence  # XXX flake8 bug
-__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
-__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
-__flake8_Set_is_used: _Set
-
 logger = get_logger(__name__)
 
 
@@ -808,3 +803,9 @@ class CheckpointManager(CheckpointManagerT, Service):
 
     def set_offset(self, tp: TopicPartition, offset: int) -> None:
         self._offsets[tp] = offset
+
+
+__flake8_Sequence_is_used: Sequence  # XXX flake8 bug
+__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
+__flake8_Set_is_used: _Set

@@ -14,8 +14,6 @@ from ..types.tables import TableManagerT
 from ..types.topics import TopicPartition
 from ..utils.logging import get_logger
 
-__flake8_Sequence_is_used: Sequence   # XXX flake8 bug
-
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
 ClientAssignmentMapping = MutableMapping[str, ClientAssignment]
@@ -161,3 +159,6 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             for topic, partitions in self._assignment.actives.items()
             for partition in partitions
         ]
+
+
+__flake8_Sequence_is_used: Sequence   # XXX flake8 bug

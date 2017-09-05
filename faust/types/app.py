@@ -36,8 +36,6 @@ else:
 
 __all__ = ['AppT']
 
-__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
-
 
 class AppT(ServiceT):
     """Abstract type for the Faust application.
@@ -276,3 +274,6 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def flow_control(self) -> FlowControlEvent:
         return FlowControlEvent(loop=self.loop)
+
+
+__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug

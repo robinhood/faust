@@ -27,10 +27,6 @@ __all__ = ['Consumer', 'Producer', 'Transport']
 
 logger = get_logger(__name__)
 
-__flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug
-__flake8_Set_is_used: Set
-__flake8_List_is_used: List
-
 
 class TopicExists(errors.BrokerResponseError):
     errno = 36
@@ -389,3 +385,8 @@ class Transport(base.Transport):
                 owner.log.info(f'Topic {topic} created.')
                 return
         raise Exception(f'No controller found amount brokers: {nodes}')
+
+
+__flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug
+__flake8_Set_is_used: Set
+__flake8_List_is_used: List

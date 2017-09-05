@@ -9,8 +9,6 @@ from .objects import shortlabel
 from .types.collections import NodeT
 from .types.graphs import DependencyGraphT
 
-__flake8_Deque_is_used: Deque  # XXX flake8 bug
-
 __all__ = [
     'Node',
     'FastUserDict',
@@ -305,3 +303,6 @@ class ManagedUserDict(FastUserDict):
 
     def raw_update(self, *args: Any, **kwargs: Any) -> None:
         self.data.update(*args, **kwargs)
+
+
+__flake8_Deque_is_used: Deque  # XXX flake8 bug

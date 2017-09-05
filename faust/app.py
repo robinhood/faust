@@ -94,8 +94,6 @@ APP_REPR = """
 
 logger = get_logger(__name__)
 
-_flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
-
 
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
@@ -739,3 +737,6 @@ class App(AppT, ServiceProxy):
     @cached_property
     def flow_control(self) -> FlowControlEvent:
         return FlowControlEvent(loop=self.loop)
+
+
+_flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug
