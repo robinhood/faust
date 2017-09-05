@@ -245,10 +245,6 @@ class Service(ServiceBase):
                 await service.maybe_start()
             except Exception as exc:
                 await self.crash(exc)
-        # XXX Need to find a way to remove this
-        # Required by ChangelogReader/StandbyReader since we start
-        # and then stop, need to find some way to synchronize on start.
-        await self.sleep(5.0)
         for service in reversed(services):
             await service.stop()
 

@@ -509,13 +509,15 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.table = table
         self.app = app
         self.tps = tps
-        offsets = {} if offsets is None else offsets
-        self.offsets = {tp: offsets.get(tp, -1) for tp in self.tps}
+        self.offsets = {} if offsets is None else offsetsa
+        for tp in self.tps:
+            offsets.setdefault(tp, -1)
+        self._started_reading = asyncio.Event(loop=self.loop)
 
-    def update_tps(self, tps: Iterable[TopicPartition],
-                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
-        self.tps = tps
-        self.offsets = {tp: tp_offsets.get(tp, -1) for tp in self.tps}
+    async def on_started(self) -> None:
+        # We wait for the background task to start reading
+        # before considering this service to be started.
+        await self.wait(self._started_reading.wait())
 
     async def _build_highwaters(self) -> None:
         consumer = self.app.consumer
@@ -552,11 +554,13 @@ class ChangelogReader(Service, ChangelogReaderT):
         await consumer.pause_partitions(self.tps)
         if not await self._should_start_reading():
             self.log.info('Not reading')
+            self._started_reading.set()
             self.set_shutdown()
             return
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         self.log.info('Started reading')
+        self._started_reading.set()
         buf: List[EventT] = []
         self.diag.set_flag(CHANGELOG_READING)
         try:
