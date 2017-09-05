@@ -312,6 +312,7 @@ class TopicManager(TopicManagerT, Service):
             # that subscribe to this message
             topic = message.topic
             channels = list_(get_channels_for_topic(topic))
+            await self.app.flow_control.acquire()
             if channels:
                 # we increment the reference count for this message in bulk
                 # immediately, so that nothing will get a chance to decref to

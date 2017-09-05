@@ -496,12 +496,14 @@ class ChangelogReader(Service, ChangelogReaderT):
     _highwaters: MutableMapping[TopicPartition, int] = None
 
     def __init__(self, table: CollectionT,
+                 channel: ChannelT,
                  app: AppT,
                  tps: Iterable[TopicPartition],
                  offsets: MutableMapping[TopicPartition, int] = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
+        self.channel = channel
         self.app = app
         self.tps = tps
         self.offsets = {} if offsets is None else offsets
@@ -576,10 +578,8 @@ class ChangelogReader(Service, ChangelogReaderT):
 
     async def _read_changelog(self) -> AsyncIterable[EventT]:
         offsets = self.offsets
-        table = self.table
-        channel = cast(ChannelT, aiter(table.changelog_topic))
 
-        async for event in channel:
+        async for event in self.channel:
             message = event.message
             tp = message.tp
             offset = message.offset
@@ -694,8 +694,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self.log.info(f'Starting standbys for tps: {tps}')
             self._sync_persisted_offsets(table, tps)
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
+            channel = self._channels[table]
             standby = StandbyReader(
-                table, self.app, tps, tp_offsets,
+                table, channel, self.app, tps, tp_offsets,
                 loop=self.loop,
                 beacon=self.beacon,
             )
@@ -744,8 +745,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
                      if tp.topic == table._changelog_topic_name()}
         self._sync_persisted_offsets(table, table_tps)
         tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
+        channel = self._channels[table]
         return ChangelogReader(
-            table, self.app, table_tps, tp_offsets,
+            table, channel, self.app, table_tps, tp_offsets,
             loop=self.loop,
             beacon=self.beacon,
         )
