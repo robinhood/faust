@@ -25,7 +25,7 @@ APPDIRECT = {
     'num_standby_replicas', 'replication_factor', 'default_partitions',
     'reply_to', 'avro_registry_url', 'store', 'actors',
     'topic', 'actor', 'task', 'timer', 'stream', 'Table', 'Set',
-    'add_collection', 'start_client', 'maybe_start_client', 'send',
+    'start_client', 'maybe_start_client', 'send',
     'send_soon', 'send_attached', 'commit_attached',
     'maybe_start_producer',
 }

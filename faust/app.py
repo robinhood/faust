@@ -435,14 +435,13 @@ class App(AppT, ServiceProxy):
             >>> table['Elaine']
             2
         """
-        table = self.TableType(
+        table = self.tables.add(self.TableType(
             self,
             name=name,
             default=default,
             beacon=self.beacon,
             partitions=partitions,
-            **kwargs)
-        self.add_collection(table)
+            **kwargs))
         return table.using_window(window) if window else table
 
     def Set(self, name: str,
@@ -450,24 +449,13 @@ class App(AppT, ServiceProxy):
             window: WindowT = None,
             partitions: int = None,
             **kwargs: Any) -> SetT:
-        set_ = self.SetType(
+        return self.tables.add(self.SetType(
             self,
             name=name,
             beacon=self.beacon,
             partitions=partitions,
             window=window,
-            **kwargs,
-        )
-        self.add_collection(set_)
-        return set_
-
-    def add_collection(self, table: CollectionT) -> None:
-        """Register existing table."""
-        assert table.name
-        if table.name in self.tables:
-            raise ValueError(
-                f'Table with name {table.name!r} already exists')
-        self.tables[table.name] = table
+            **kwargs))
 
     async def start_client(self) -> None:
         self.client_only = True

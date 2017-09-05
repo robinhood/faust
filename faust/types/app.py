@@ -170,10 +170,6 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_collection(self, table: CollectionT) -> None:
-        ...
-
-    @abc.abstractmethod
     async def start_client(self) -> None:
         ...
 

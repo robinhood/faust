@@ -634,10 +634,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
     def changelog_topics(self) -> _Set[str]:
         return set(self._changelogs.keys())
 
-    def __setitem__(self, key: str, value: CollectionT) -> None:
+    def add(self, table: CollectionT) -> CollectionT:
         if self._recovery_started.is_set():
             raise RuntimeError('Too late to add tables at this point')
-        super().__setitem__(key, value)
+        assert table.name is not None
+        if table.name in self:
+            raise ValueError(f'Table with name {key!r} already exists')
+        self[table.name] = table
+        return table
 
     @Service.transitions_to(TABLEMAN_UPDATE)
     async def _update_channels(self) -> None:
