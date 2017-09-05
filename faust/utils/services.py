@@ -319,6 +319,9 @@ class Service(ServiceBase):
             await task
         except asyncio.CancelledError:
             self.log.debug('Terminating cancelled task: %r', task)
+        except RuntimeError as exc:
+            if 'Event loop is closed' in str(exc):
+                self.log.info('Cancelled task %r: %s', task, exc)
         except Exception as exc:
             # the exception will be reraised by the main thread.
             await self.crash(exc)

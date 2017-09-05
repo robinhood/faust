@@ -294,21 +294,31 @@ class Worker(Service):
                 self.log.info('Waiting for event loop to shutdown...')
                 self.loop.stop()
                 self.loop.run_until_complete(asyncio.sleep(1.0))
+        except Exception as exc:
+            self.log.exception('Got exception while waiting: %r', exc)
         finally:
             # Then close the loop.
+            fut = asyncio.ensure_future(self._sentinel_task(), loop=self.loop)
+            self.loop.run_until_complete(fut)
+            self.loop.stop()
             self.log.info('Closing event loop')
             self.loop.close()
-        if self._crash_reason:
-            self.log.crit(
-                'We experienced a crash! Reraising original exception...')
-            raise self._crash_reason from self._crash_reason
+            if self._crash_reason:
+                self.log.crit(
+                    'We experienced a crash! Reraising original exception...')
+                raise self._crash_reason from self._crash_reason
+
+    async def _sentinel_task(self) -> None:
+        await asyncio.sleep(1.0, loop=self.loop)
 
     def _gather_all(self) -> None:
         # sleeps for at most 40 * 0.1s
-        for _ in range(40):
-            if not asyncio.Task.all_tasks(loop=self.loop):
+        for _ in range(50):
+            if not len(asyncio.Task.all_tasks(loop=self.loop)):
                 break
             self.loop.run_until_complete(asyncio.sleep(0.1))
+        for task in asyncio.Task.all_tasks(loop=self.loop):
+            task.cancel()
 
     async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
         setproctitle('[Faust:Worker] init')

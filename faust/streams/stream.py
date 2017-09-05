@@ -285,7 +285,7 @@ class Stream(StreamT, Service):
     async def _drainer(self) -> None:
         sleep = self.sleep
         async for item in self:  # noqa
-            await sleep(0)
+            ...
 
     def echo(self, *channels: Union[str, ChannelT]) -> StreamT:
         """Forward values to one or more channels.
