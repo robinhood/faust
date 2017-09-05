@@ -264,7 +264,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def channels(self) -> TopicManagerT:
+    def topics(self) -> TopicManagerT:
         ...
 
     @property

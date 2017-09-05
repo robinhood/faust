@@ -254,7 +254,7 @@ class Topic(Channel, TopicT):
             return self
         else:
             channel = self.clone(is_iterator=True)
-            self.app.channels.add(channel)
+            self.app.topics.add(channel)
             return channel
 
     def __str__(self) -> str:

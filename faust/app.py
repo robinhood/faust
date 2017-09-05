@@ -89,7 +89,7 @@ DEFAULT_REPLY_EXPIRES = timedelta(days=1)
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({s.id}): {s.url} {s.state} actors({actors}) channels({channels})>
+<{name}({s.id}): {s.url} {s.state} actors({actors}) topics({topics})>
 """.strip()
 
 logger = get_logger(__name__)
@@ -119,7 +119,7 @@ class AppService(Service):
             [self.app.producer],
             [self.app.consumer],
             [self.app._reply_consumer],
-            [self.app.channels],
+            [self.app.topics],
             [self.app._fetcher],
         ))
 
@@ -149,7 +149,7 @@ class AppService(Service):
             # Actors
             self.app.actors.values(),
             # TopicManager
-            [self.app.channels],                      # app.TopicManager
+            [self.app.topics],                        # app.TopicManager
             # TableManager
             [self.app.tables],                        # app.TableManager
             # Fetcher
@@ -597,7 +597,7 @@ class App(AppT, ServiceProxy):
         return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.channels.commit(topics)
+        return await self.topics.commit(topics)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
@@ -606,7 +606,7 @@ class App(AppT, ServiceProxy):
 
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
-            callback=self.channels.on_message,
+            callback=self.topics.on_message,
             on_partitions_revoked=self.on_partitions_revoked,
             on_partitions_assigned=self.on_partitions_assigned,
             beacon=self.beacon,
@@ -614,14 +614,14 @@ class App(AppT, ServiceProxy):
 
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        await self.channels.on_partitions_assigned(assigned)
+        await self.topics.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
         self.flow_control.resume()
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
         self.log.dev('ON PARTITIONS REVOKED')
-        await self.channels.on_partitions_revoked(revoked)
+        await self.topics.on_partitions_revoked(revoked)
         assignment = self.consumer.assignment()
         if assignment:
             self.flow_control.suspend()
@@ -650,7 +650,7 @@ class App(AppT, ServiceProxy):
             name=type(self).__name__,
             s=self,
             actors=self.actors,
-            channels=len(self.channels),
+            topics=len(self.topics),
         )
 
     @property
@@ -700,7 +700,7 @@ class App(AppT, ServiceProxy):
             self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
-    def channels(self) -> TopicManagerT:
+    def topics(self) -> TopicManagerT:
         return TopicManager(app=self, loop=self.loop, beacon=self.beacon)
 
     @property
