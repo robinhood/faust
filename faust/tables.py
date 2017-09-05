@@ -509,7 +509,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.table = table
         self.app = app
         self.tps = tps
-        self.offsets = {} if offsets is None else offsetsa
+        self.offsets = {} if offsets is None else offsets
         for tp in self.tps:
             offsets.setdefault(tp, -1)
         self._started_reading = asyncio.Event(loop=self.loop)
@@ -643,7 +643,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             raise RuntimeError('Too late to add tables at this point')
         assert table.name is not None
         if table.name in self:
-            raise ValueError(f'Table with name {key!r} already exists')
+            raise ValueError(f'Table with name {table.name!r} already exists')
         self[table.name] = table
         return table
 

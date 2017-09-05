@@ -31,7 +31,7 @@ from .types.app import AppT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import (
-    CheckpointManagerT, CollectionT, SetT, TableManagerT, TableT,
+    CheckpointManagerT, SetT, TableManagerT, TableT,
 )
 from .types.transports import (
     ConsumerT, ProducerT, TPorTopicSet, TransportT,

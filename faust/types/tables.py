@@ -147,11 +147,6 @@ class ChangelogReaderT(ServiceT):
     tps: Iterable[TopicPartition]
     offsets: MutableMapping[TopicPartition, int]
 
-    @abc.abstractmethod
-    def update_tps(self, tps: Iterable[TopicPartition],
-                   tp_offsets: MutableMapping[TopicPartition, int]) -> None:
-        ...
-
 
 class WindowSetT(MutableMapping):
     key: Any
