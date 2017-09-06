@@ -638,6 +638,7 @@ class App(AppT, ServiceProxy):
             clear_on_resume: bool = False,
             loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
         return FlowControlQueue(
+            maxsize=maxsize,
             flow_control=self.flow_control,
             clear_on_resume=clear_on_resume,
             loop=loop or self.loop,
