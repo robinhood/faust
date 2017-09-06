@@ -8,6 +8,7 @@ import signal
 import sys
 import threading
 import traceback
+import typing
 from contextlib import suppress
 from functools import wraps
 from time import monotonic
@@ -18,12 +19,16 @@ from typing import (
 )
 from .collections import Node
 from .compat import DummyContext
-from .debug import BlockingDetector
 from .logging import CompositeLogger, cry, get_logger, setup_logging
 from .objects import cached_property
 from .times import Seconds, want_seconds
 from .types.collections import NodeT
 from .types.services import DiagT, ServiceT
+
+if typing.TYPE_CHECKING:
+    from .debug import BlockingDetector
+else:
+    class BlockingDetector: ...  # noqa
 
 __all__ = [
     'Service',
@@ -804,7 +809,8 @@ class ServiceWorker(Service):
 
     @cached_property
     def _blockdetect(self) -> BlockingDetector:
-        return BlockingDetector(
+        from . import debug
+        return debug.BlockingDetector(
             self.blocking_timeout,
             beacon=self.beacon,
             loop=self.loop,
