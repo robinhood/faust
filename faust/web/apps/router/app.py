@@ -8,7 +8,8 @@ class TablesMetadata(views.View):
     package = 'faust.web.apps.router'
 
     async def get(self, web: Web, request: Request) -> Response:
-        return web.json(self.app.assignor.tables_metadata())
+        router = self.app.router
+        return web.json(router.tables_metadata())
 
 
 class TableMetadata(views.View):
@@ -17,10 +18,8 @@ class TableMetadata(views.View):
     async def get(self, web: Web, request: Request) -> Response:
         # FIXME request.match_info is an attribute of aiohttp.Request
         table_name = request.match_info['name']
-        table = self.app.tables.get_table(table_name)
-        if table is None:
-            raise Exception
-        return web.json(self.app.assignor.table_metadata(table))
+        router = self.app.router
+        return web.json(router.table_metadata(table_name))
 
 
 class KeyMetadata(views.View):
@@ -29,10 +28,8 @@ class KeyMetadata(views.View):
     async def get(self, web: Web, request: Request) -> Response:
         table_name = request.match_info['name']
         key = request.match_info['key']
-        table = self.app.tables.get_table(table_name)
-        if table is None:
-            raise Exception
-        return web.json(self.app.assignor.key_store(table, key))
+        router = self.app.router
+        return web.json(router.key_store(table_name, key))
 
 
 class Site(views.Site):

@@ -13,6 +13,7 @@ from .actors import ActorFun, ActorT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
+from .router import RouterT
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
@@ -70,6 +71,7 @@ class AppT(ServiceT):
     avro_registry_url: str
     store: str
     assignor: PartitionAssignorT
+    router: RouterT
     advertised_url: str
 
     actors: MutableMapping[str, ActorT]

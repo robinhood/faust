@@ -258,8 +258,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             for partition in partitions
         ]
 
-    def table_metadata(self, table: CollectionT) -> HostPartitionsMap:
-        topic = table.changelog_topic.topics[0]
+    def table_metadata(self, topic: str) -> HostPartitionsMap:
         return {
             host: self._topics_filtered(assignment, {topic})
             for host, assignment in self.changelog_distribution.items()
@@ -268,7 +267,5 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def tables_metadata(self) -> HostPartitionsMap:
         return self.changelog_distribution
 
-    def key_store(self, table: CollectionT, key: K) -> str:
-        topic = table.changelog_topic.topics[0]
-        k = table.changelog_topic.prepare_key(key, 'json')
-        return self._tps_url[self.app.producer.key_partition(topic, k)]
+    def key_store(self, topic: str, key: bytes) -> str:
+        return self._tps_url[self.app.producer.key_partition(topic, key)]

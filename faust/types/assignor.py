@@ -1,8 +1,6 @@
 import abc
 import typing
 from typing import Iterable, List, MutableMapping
-from .core import K
-from .tables import CollectionT
 from .topics import TopicPartition
 
 
@@ -30,11 +28,11 @@ class PartitionAssignorT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def key_store(self, table: CollectionT, key: K) -> str:
+    def key_store(self, topic: str, key: bytes) -> str:
         ...
 
     @abc.abstractmethod
-    def table_metadata(self, table: CollectionT) -> HostPartitionsMap:
+    def table_metadata(self, topic: str) -> HostPartitionsMap:
         ...
 
     @abc.abstractmethod
