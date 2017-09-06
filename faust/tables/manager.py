@@ -2,7 +2,9 @@
 import asyncio
 import typing
 from collections import defaultdict
-from typing import Any, AsyncIterable, Iterable, List, MutableMapping, cast
+from typing import (
+    Any, AsyncIterable, Iterable, List, MutableMapping, Optional, cast
+)
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
@@ -162,6 +164,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
     _recovery_completed: asyncio.Event
+    _table_index: MutableMapping[str, CollectionT]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -172,6 +175,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._table_offsets = {}
         self._standbys = {}
         self._changelog_readers = {}
+        self._table_index = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
         self._recovery_completed = asyncio.Event(loop=self.loop)
 
@@ -188,6 +192,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self[table.name] = table
         return table
 
+    def get_table(self, name: str) -> Optional[CollectionT]:
+        return self._table_index[name]
+
     @Service.transitions_to(TABLEMAN_UPDATE)
     async def _update_channels(self) -> None:
         for table in self.values():
@@ -196,6 +203,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
                     table.changelog_topic))
         self._changelogs.update({
             table.changelog_topic.topics[0]: table
+            for table in self.values()
+        })
+        self._table_index.update({
+            table.name: table
             for table in self.values()
         })
         await self.app.consumer.pause_partitions({
