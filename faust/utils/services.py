@@ -389,8 +389,6 @@ class Service(ServiceBase):
                 if child is not None:
                     await child.stop()
             self._active_children.clear()
-            for future in reversed(self._futures):
-                future.cancel()
             self.log.debug('-Stopped!')
             self.log.info('Shutting down...')
             if self.wait_for_shutdown:
@@ -400,6 +398,8 @@ class Service(ServiceBase):
                     loop=self.loop,
                 )
                 self.log.info('Shutting down now')
+            for future in reversed(self._futures):
+                future.cancel()
             await self._gather_futures()
             await self.on_shutdown()
             self.log.debug('-Shutdown complete!')
