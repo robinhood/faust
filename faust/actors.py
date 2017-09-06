@@ -443,7 +443,7 @@ class Actor(ActorT, ServiceProxy):
             partition=partition,
             reply_to=reply_to,
             correlation_id=correlation_id,
-            force=True,  # Do not attach since we are waiting for result
+            force=True,  # Send immediately, since we are waiting for result.
         )
         await self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
         await self.app.maybe_start_client()

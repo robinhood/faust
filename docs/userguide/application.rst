@@ -272,9 +272,6 @@ Sending messages
     .. automethod:: send_soon
         :noindex:
 
-    .. automethod:: send_attached
-        :noindex:
-
 Committing topic offsets
 ^^^^^^^^^^^^^^^^^^^^^^^^
 

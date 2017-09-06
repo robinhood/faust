@@ -2,34 +2,11 @@
  TODO
 ======
 
-Sending should always be attached to current_event
-==================================================
+"ExactlyOnce" / Transactions (KIP-98)
+=====================================
 
-- Actors sending messages to topic should always attach to the current event
-
-- This means examples like this will be consistent if crashing after sending
-  some words:
-
-    .. sourcecode:: python
-
-        @app.actor()
-        async def count_words(sentences):
-            async for sentence in sentences:
-                for word in sentence.split():
-                    await topic.send(key=word, value=word)
-
-- topic.send(immediately=True) will send it immediately, without attaching,
-  and Actor.ask, .map etc will have to use this.
-
-
-- app.send stays as it is.
-
-- adds app.maybe_attach()
-
-- Topic.send uses maybe_attach,
-    so that sending to a topic when in a stream, will attach to the current
-    messsage, but calling app.send() directly will send message immediately.
-
+- "Attaching" should be deprecated and transactions should be used to
+  send messages as we commit.
 
 HTTP Table view
 ===============

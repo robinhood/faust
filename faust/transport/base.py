@@ -2,6 +2,7 @@
 import abc
 import asyncio
 import typing
+
 from collections import defaultdict
 from itertools import count
 from typing import (
@@ -9,6 +10,7 @@ from typing import (
     List, MutableMapping, Optional, Set, Tuple, Type, cast,
 )
 from weakref import WeakSet
+
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import (
     ConsumerCallback, ConsumerT,
@@ -19,6 +21,11 @@ from ..utils.functional import consecutive_numbers
 from ..utils.futures import notify
 from ..utils.logging import get_logger
 from ..utils.services import Service, ServiceT
+
+if typing.TYPE_CHECKING:
+    from ..app import App
+else:
+    class App: ...  # noqa
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -267,7 +274,7 @@ class Consumer(Service, ConsumerT):
         if offset is not None and self._should_commit(tp, offset):
             # if so, first send all messages attached to the new
             # offset
-            await self._app.commit_attached(tp, offset)
+            await cast(App, self._app)._commit_attached(tp, offset)
             # then, update the committed_offset and perform
             # the commit.
             self._committed_offset[tp] = offset

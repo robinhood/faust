@@ -58,18 +58,6 @@ class EventT(metaclass=abc.ABCMeta):
         ...
 
     @abc.abstractmethod
-    def attach(
-            self,
-            channel: Union['ChannelT', str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        ...
-
-    @abc.abstractmethod
     async def ack(self) -> None:
         ...
 

@@ -15,6 +15,7 @@ from typing import (
 
 from . import stores
 from . import windows
+from .channels import Event
 from .streams import current_event
 from .streams import joins
 from .types import (
@@ -149,7 +150,7 @@ class Collection(Service, CollectionT):
         event = current_event()
         partition: int = None
         if event is not None:
-            send = event.attach
+            send = cast(Event, event)._attach
             partition = event.message.partition
         else:
             send = self.app.send_soon

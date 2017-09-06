@@ -26,8 +26,7 @@ APPDIRECT = {
     'reply_to', 'avro_registry_url', 'store', 'actors',
     'topic', 'actor', 'task', 'timer', 'stream', 'Table', 'Set',
     'start_client', 'maybe_start_client', 'send',
-    'send_soon', 'send_attached', 'commit_attached',
-    'maybe_start_producer',
+    'send_soon', 'maybe_start_producer',
 }
 
 APPATTRS.update({x: 'faust.App.{0}'.format(x) for x in APPDIRECT})

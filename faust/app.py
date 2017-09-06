@@ -1,5 +1,6 @@
 """Faust Application."""
 import asyncio
+import typing
 
 from collections import defaultdict
 from datetime import timedelta
@@ -46,6 +47,11 @@ from .utils.objects import Unordered, cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
+
+if typing.TYPE_CHECKING:
+    from .channels import Event
+else:
+    class Event: ...  # noqa
 
 __all__ = ['App']
 
@@ -463,7 +469,7 @@ class App(AppT, ServiceProxy):
         if not self._service.started:
             await self.start_client()
 
-    async def maybe_attach(
+    async def _maybe_attach(
             self,
             channel: Union[ChannelT, str],
             key: K = None,
@@ -476,7 +482,7 @@ class App(AppT, ServiceProxy):
         if not force:
             event = current_event()
             if event is not None:
-                return event.attach(
+                return cast(Event, event)._attach(
                     channel, key, value,
                     partition=partition,
                     key_serializer=key_serializer,
@@ -539,7 +545,7 @@ class App(AppT, ServiceProxy):
         self._message_buffer.put(fut)
         return fut
 
-    def send_attached(
+    def _send_attached(
             self,
             message: Message,
             channel: Union[str, ChannelT],
@@ -557,7 +563,7 @@ class App(AppT, ServiceProxy):
         heappush(buf, (message.offset, Unordered(fut)))
         return fut
 
-    async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
+    async def _commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
         attached = list(self._get_attached(tp, offset))
         if attached:

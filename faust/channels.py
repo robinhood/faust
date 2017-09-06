@@ -1,6 +1,7 @@
 import asyncio
+import typing
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Mapping, Type, Union
+from typing import Any, Awaitable, Callable, Mapping, Type, Union, cast
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .streams import current_event
 from .types import (
@@ -11,6 +12,11 @@ from .types.channels import ChannelT, EventT
 from .types.streams import StreamCoroutine, StreamT
 from .utils.futures import maybe_async
 from .utils.logging import get_logger
+
+if typing.TYPE_CHECKING:
+    from .app import App
+else:
+    class App: ...  # noqa
 
 __all__ = ['Event', 'Channel']
 logger = get_logger(__name__)
@@ -114,12 +120,12 @@ class Event(EventT):
                     value_serializer: CodecArg = None,
                     callback: MessageSentCallback = None,
                     force: bool = False) -> Awaitable[RecordMetadata]:
-        return await self.app.maybe_attach(
+        return await cast(App, self.app)._maybe_attach(
             channel, key, value, partition,
             key_serializer, value_serializer, callback,
             force=force)
 
-    def attach(
+    def _attach(
             self,
             channel: Union[ChannelT, str],
             key: K = None,
@@ -128,7 +134,7 @@ class Event(EventT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        return self.app.send_attached(
+        return cast(App, self.app)._send_attached(
             self.message, channel, key, value,
             partition=partition,
             key_serializer=key_serializer,
@@ -229,7 +235,7 @@ class Channel(ChannelT):
         if not force:
             event = current_event()
             if event is not None:
-                return event.attach(
+                return cast(Event, event)._attach(
                     self, key, value,
                     partition=partition,
                     key_serializer=key_serializer,

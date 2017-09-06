@@ -1,11 +1,13 @@
 import abc
 import asyncio
 import typing
+
 from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Mapping, MutableMapping, Pattern, Type, Union,
 )
+
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT, SinkT
 from .assignor import PartitionAssignorT
@@ -17,10 +19,9 @@ from .streams import StreamT
 from .tables import CheckpointManagerT, SetT, TableManagerT, TableT
 from .topics import ChannelT, TopicManagerT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
-from .tuples import (
-    Message, MessageSentCallback, RecordMetadata, TopicPartition,
-)
+from .tuples import MessageSentCallback, RecordMetadata
 from .windows import WindowT
+
 from ..utils.futures import FlowControlEvent
 from ..utils.imports import SymbolArg
 from ..utils.times import Seconds
@@ -172,19 +173,6 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def maybe_attach(
-            self,
-            channel: Union[ChannelT, str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
-        ...
-
-    @abc.abstractmethod
     async def send(
             self, channel: Union[ChannelT, str],
             key: K = None,
@@ -204,23 +192,6 @@ class AppT(ServiceT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        ...
-
-    @abc.abstractmethod
-    def send_attached(
-            self,
-            message: Message,
-            channel: Union[str, ChannelT],
-            key: K,
-            value: V,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        ...
-
-    @abc.abstractmethod
-    async def commit_attached(self, tp: TopicPartition, offset: int) -> None:
         ...
 
     @abc.abstractmethod
