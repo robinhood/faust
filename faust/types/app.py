@@ -215,6 +215,11 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
+    def producer(self) -> ProducerT:
+        ...
+
+    @property
+    @abc.abstractmethod
     def consumer(self) -> ConsumerT:
         ...
 

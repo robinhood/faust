@@ -5,7 +5,6 @@ from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
     ConsumerProtocolMemberAssignment, ConsumerProtocolMemberMetadata,
 )
-from kafka.partitioner.default import DefaultPartitioner
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
@@ -40,24 +39,43 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _metadata: ClientMetadata
     _assignment: ClientAssignment
     _table_manager: TableManagerT
-    _partitioner: DefaultPartitioner
     _member_urls: MutableMapping[str, str]
+    _changelog_distribution: HostPartitionsMap
+    _tps_url: MutableMapping[TopicPartition, str]
 
     def __init__(self, app: AppT, replicas: int = 0) -> None:
         super().__init__()
         self.app = app
         self._table_manager = self.app.tables
         self._assignment = ClientAssignment(actives={}, standbys={})
-        self._changelog_distribution: HostPartitionsMap = {}
+        self._changelog_distribution = {}
         self.replicas = replicas
         self._member_urls = {}
+        self._tps_url = {}
+
+    @property
+    def changelog_distribution(self) -> HostPartitionsMap:
+        return self._changelog_distribution
+
+    @changelog_distribution.setter
+    def changelog_distribution(self, value: HostPartitionsMap) -> None:
+        self._changelog_distribution = value
+        self._tps_url = {
+            TopicPartition(topic=topic, partition=partition): url
+            for url, tps in self._changelog_distribution.items()
+            for topic, partitions in tps.items()
+            for partition in partitions
+        }
+
+    def _tp_url(self, tp: TopicPartition) -> str:
+        return self._tps_url[tp]
 
     @property
     def _metadata(self) -> ClientMetadata:
         return ClientMetadata(
             assignment=self._assignment,
             url=self._url,
-            changelog_distribution=self._changelog_distribution,
+            changelog_distribution=self.changelog_distribution,
         )
 
     @property
@@ -69,7 +87,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         metadata = cast(ClientMetadata,
                         ClientMetadata.loads(assignment.user_data))
         self._assignment = metadata.assignment
-        self._changelog_distribution = metadata.changelog_distribution
+        self.changelog_distribution = metadata.changelog_distribution
         a = sorted(assignment.assignment)
         b = sorted(self._assignment.kafka_protocol_assignment(
             self._table_manager))
@@ -244,11 +262,13 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         topic = table.changelog_topic.topics[0]
         return {
             host: self._topics_filtered(assignment, {topic})
-            for host, assignment in self._changelog_distribution.items()
+            for host, assignment in self.changelog_distribution.items()
         }
 
     def tables_metadata(self) -> HostPartitionsMap:
-        return self._changelog_distribution
+        return self.changelog_distribution
 
     def key_store(self, table: CollectionT, key: K) -> str:
-        return ''
+        topic = table.changelog_topic.topics[0]
+        k = table.changelog_topic.prepare_key(key, 'json')
+        return self._tps_url[self.app.producer.key_partition(topic, k)]

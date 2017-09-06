@@ -299,6 +299,19 @@ class Producer(base.Producer):
         return cast(RecordMetadata, await self._producer.send_and_wait(
             topic, value, key=key, partition=partition))
 
+    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
+        return TopicPartition(
+            topic=topic,
+            partition=self._producer._partition(
+                topic,
+                partition=None,
+                key=None,
+                value=None,
+                serialized_key=key,
+                serialized_value=None,
+            ),
+        )
+
 
 class Transport(base.Transport):
     Consumer: ClassVar[Type[ConsumerT]] = Consumer
