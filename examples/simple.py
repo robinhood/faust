@@ -1,10 +1,9 @@
 import asyncio
-import aiohttp
 import os
 import random
 import sys
-import faust
 from time import monotonic
+import faust
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
@@ -28,23 +27,24 @@ country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-@app.actor(withdrawals_topic, concurrency=100)
+@app.actor(withdrawals_topic, concurrency=1)
 async def find_large_user_withdrawals(withdrawals):
     events = 0
     time_start = monotonic()
     time_first_start = monotonic()
-    async for withdrawal in withdrawals:
+    async for withdrawal in withdrawals.through('bar'):
         events += 1
         if not events % 10_000:
             time_now = monotonic()
-            print('TIME PROCESSING 10k: %r' % (time_now - time_start))
+            print('TIME PROCESSING 10k: %r' % (
+                time_now - time_start))
             time_start = time_now
         if not events % 100_000:
             time_now = monotonic()
-            print('----TIME PROCESSING 100k: %r' % (time_now - time_first_start))
+            print('----TIME PROCESSING 100k: %r' % (
+                time_now - time_first_start))
             time_first_start = time_now
-
-        #user_to_total[withdrawal.user] += withdrawal.amount
+        user_to_total[withdrawal.user] += withdrawal.amount
 
 
 #@app.actor(withdrawals_topic)
