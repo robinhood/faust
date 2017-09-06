@@ -573,7 +573,8 @@ class ChangelogReader(Service, ChangelogReaderT):
             if buf:
                 table.apply_changelog_batch(buf)
                 buf.clear()
-            await consumer.pause_partitions(self.tps)
+            pause_tps = {tp for tp in self.tps if tp in consumer.assignment()}
+            await consumer.pause_partitions(pause_tps)
             self.set_shutdown()
 
     async def _read_changelog(self) -> AsyncIterable[EventT]:
@@ -688,9 +689,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _start_standbys(self,
                               tps: Iterable[TopicPartition]) -> None:
         assert not self._standbys
-        table_stanby_tps = self._group_table_tps(tps)
+        table_standby_tps = self._group_table_tps(tps)
         offsets = self._table_offsets
-        for table, tps in table_stanby_tps.items():
+        for table, tps in table_standby_tps.items():
             self.log.info(f'Starting standbys for tps: {tps}')
             self._sync_persisted_offsets(table, tps)
             tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
