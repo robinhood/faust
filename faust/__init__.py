@@ -3,6 +3,20 @@
 # :copyright: (c) 2017, Robinhood Markets
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
+
+# -- Faust is a Python stream processing library
+# mainly used with Kafka, but is generic enough to be used for general
+# actor and channel based programming.
+
+# If you are here to read the code, we suggest you start with:
+#
+#  faust/app.py            - Configures the Faust instance.
+#  faust/channels.py       - Actors and streams receive messages on channels.
+#  faust/topics.py         - A topic is a named channel (e.g. a Kafka topic)
+#  faust/streams/stream.py - The stream iterates over events in a channel.
+#  faust/tables.py         - Data is stored in tables.
+#  faust/actors.py         - Actors use all of the above.
+# --- ~~~~~ ~ ~  ~           ~             ~   ~                   ~
 import re
 import sys
 import typing
@@ -35,6 +49,9 @@ VERSION = version_info = version_info_t(
 del(_temp)
 del(re)
 
+# This module loads attributes lazily so that `import faust` loads
+# quickly.  The next section provides static type checkers
+# information about the contents of this module.
 if typing.TYPE_CHECKING:
     from .actors import Actor                                 # noqa: E402
     from .app import App                                      # noqa: E402
@@ -75,6 +92,7 @@ __all__ = [
 
 
 def use_uvloop() -> None:
+    """Use uvloop as the event loop implementation (if available)."""
     with suppress(ImportError):
         import uvloop
         import asyncio

@@ -1,6 +1,7 @@
 """Faust exceptions."""
 
 __all__ = [
+    'FaustError',
     'ImproperlyConfigured',
     'KeyDecodeError',
     'ValueDecodeError',
@@ -8,7 +9,7 @@ __all__ = [
 
 
 class FaustError(Exception):
-    ...
+    """Base-class for all Faust exceptions."""
 
 
 class ImproperlyConfigured(FaustError):

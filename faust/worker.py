@@ -313,7 +313,7 @@ class Worker(Service):
 
     def _gather_all(self) -> None:
         # sleeps for at most 40 * 0.1s
-        for _ in range(50):
+        for _ in range(40):
             if not len(asyncio.Task.all_tasks(loop=self.loop)):
                 break
             self.loop.run_until_complete(asyncio.sleep(0.1))
