@@ -283,7 +283,6 @@ class Stream(StreamT, Service):
             self.add_future(self._drainer())
 
     async def _drainer(self) -> None:
-        sleep = self.sleep
         async for item in self:  # noqa
             ...
 

@@ -27,10 +27,23 @@ logger = get_logger(__name__)
 
 
 class Blocking(RuntimeError):
+    """Exception raised when event loop is blocked."""
     ...
 
 
 class BlockingDetector(Service):
+    """Service that detects blocking code using alarm/itimer.
+
+    Examples:
+        blockdetect = BlockingDetector(timeout=10.0)
+        await blockdetect.start()
+
+    Keyword Arguments:
+        timeout (Seconds): number of seconds that the event loop can
+            be blocked.
+        raises (Type[Exception]): Exception to raise when the blocking
+            timeout is exceeded.  Defaults to :exc:`Blocking`.
+    """
     logger = logger
 
     def __init__(self,

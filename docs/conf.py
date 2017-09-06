@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
+from contextlib import suppress
 from sphinx_celery import conf
 
 sys.path.append('.')
@@ -64,7 +65,5 @@ autodoc_member_order = 'bysource'
 pygments_style = 'sphinx'
 
 # This option is deprecated and raises an error.
-try:
+with suppress(NameError):
     del(html_use_smartypants)  # noqa
-except NameError:
-    pass

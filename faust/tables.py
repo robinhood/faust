@@ -3,13 +3,16 @@ import abc
 import asyncio
 import json
 import operator
+
 from collections import defaultdict
+from contextlib import suppress
 from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any, AsyncIterable, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Optional, Sequence, Set as _Set, cast,
 )
+
 from . import stores
 from . import windows
 from .streams import current_event
@@ -783,15 +786,13 @@ class CheckpointManager(CheckpointManagerT, Service):
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
-        try:
+        with suppress(FileNotFoundError):
             with open(self.app.checkpoint_path, 'r') as fh:
                 data = json.load(fh)
             self._offsets.update((
                 (TopicPartition(*k.split('\0')), int(v))
                 for k, v in data.items()
             ))
-        except FileNotFoundError:
-            pass
 
     async def on_stop(self) -> None:
         with open(self.app.checkpoint_path, 'w') as fh:

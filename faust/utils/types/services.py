@@ -4,10 +4,11 @@ from types import TracebackType
 from typing import MutableMapping, Set, Type
 from .collections import NodeT
 
-__all__ = ['ServiceT']
+__all__ = ['DiagT', 'ServiceT']
 
 
 class DiagT(abc.ABC):
+    """Diag keeps track of a services diagnostic flags."""
     flags: Set[str]
     last_transition: MutableMapping[str, float]
 

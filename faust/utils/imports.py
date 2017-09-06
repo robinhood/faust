@@ -15,8 +15,13 @@ from .objects import cached_property
 # - these are taken from kombu.utils.imports
 
 __all__ = [
-    'FactoryMapping', 'SymbolArg',
-    'symbol_by_name', 'load_extension_class_names', 'load_extension_classes',
+    'FactoryMapping',
+    'SymbolArg',
+    'symbol_by_name',
+    'load_extension_class_names',
+    'load_extension_classes',
+    'cwd_in_path',
+    'import_from_cwd',
 ]
 
 _T = TypeVar('_T')
@@ -33,6 +38,9 @@ class FactoryMapping(FastUserDict, Generic[_T]):
 
     Example:
 
+        >>> # Specifying the type enables mypy to know that
+        >>> # this factory returns Driver subclasses.
+        >>> drivers: FactoryMapping[Type[Driver]]
         >>> drivers = FactoryMapping({
         ...    'rabbitmq': 'my.drivers.rabbitmq:Driver',
         ...    'kafka': 'my.drivers.kafka:Driver',
@@ -154,17 +162,23 @@ def symbol_by_name(
     return default
 
 
-def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
-    try:
-        from pkg_resources import iter_entry_points
-    except ImportError:  # pragma: no cover
-        return
-
-    for ep in iter_entry_points(namespace):
-        yield ep.name, ':'.join([ep.module_name, ep.attrs[0]])
-
-
 def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
+    """Yield extension classes for setuptools entrypoint namespace.
+
+    If an entrypoint is defined in ``setup.py``::
+
+        entry_points={
+            'faust.codecs': [
+                'msgpack = faust_msgpack:msgpack',
+            ],
+
+    Iterating over the 'faust.codecs' namespace will yield
+    the actual attributes specified in the path (``faust_msgpack:msgpack``)::
+
+        >>> from faust_msgpack import msgpack
+        >>> attrs = list(load_extension_classes('faust.codecs'))
+        assert msgpack in attrs
+    """
     for name, cls_name in load_extension_class_names(namespace):
         try:
             cls = symbol_by_name(cls_name)
@@ -173,6 +187,30 @@ def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
                 f'Cannot load {namespace} extension {cls_name!r}: {exc!r}')
         else:
             yield name, cls
+
+
+def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
+    """Get setuptools entrypoint extension class names.
+
+    If the entrypoint is defined in ``setup.py`` as::
+
+        entry_points={
+            'faust.codecs': [
+                'msgpack = faust_msgpack:msgpack',
+            ],
+
+    Iterating over the 'faust.codecs' namespace will yield the name::
+
+        >>> list(load_extension_class_names('faust.codecs'))
+        [('msgpack', 'faust_msgpack:msgpack')]
+    """
+    try:
+        from pkg_resources import iter_entry_points
+    except ImportError:  # pragma: no cover
+        return
+
+    for ep in iter_entry_points(namespace):
+        yield ep.name, ':'.join([ep.module_name, ep.attrs[0]])
 
 
 @contextmanager

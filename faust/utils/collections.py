@@ -1,4 +1,4 @@
-from collections import UserDict, deque
+from collections import UserDict, UserList, deque
 from contextlib import suppress
 from typing import (
     Any, Deque, ItemsView, Iterator, KeysView, List,
@@ -12,8 +12,9 @@ from .types.graphs import DependencyGraphT
 __all__ = [
     'Node',
     'FastUserDict',
-    'ManagedUserDict',
     'FastUserSet',
+    'FastUserList',
+    'ManagedUserDict',
     'ManagedUserSet',
 ]
 
@@ -79,11 +80,13 @@ class Node(NodeT):
         self.children.append(data)
 
     def discard(self, data: Any) -> None:
+        """Remove node so it's no longer a child of this node."""
         # XXX slow
         with suppress(ValueError):
             self.children.remove(data)
 
     def traverse(self) -> Iterator[NodeT]:
+        """Iterator traversing the tree in BFS order."""
         stack: Deque[NodeT] = deque([self])
         while stack:
             node = stack.popleft()
@@ -95,6 +98,10 @@ class Node(NodeT):
                     yield child
 
     def walk(self) -> Iterator[NodeT]:
+        """Iterate over hierarchy backwards.
+
+        This will yield parent nodes all the way up to the root.
+        """
         node: NodeT = self
         while node:
             yield node
@@ -153,7 +160,7 @@ class Node(NodeT):
 
 
 class FastUserDict(UserDict):
-    """Like UserDict but reimplements some methods for speed."""
+    """Like UserDict but reimplements some methods for better performance."""
 
     data: MutableMapping
 
@@ -221,6 +228,10 @@ class FastUserSet(MutableSet):
 
     def clear(self) -> None:
         self.data.clear()
+
+
+class FastUserList(UserList):
+    ...  # UserList is already fast.
 
 
 class ManagedUserSet(FastUserSet):

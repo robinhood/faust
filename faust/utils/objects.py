@@ -9,9 +9,17 @@ from typing import (
 )
 
 __all__ = [
-    'Unordered', 'FieldMapping', 'DefaultsMapping', 'KeywordReduce',
-    'qualname', 'label', 'shortlabel', 'annotations',
-    'iter_mro_reversed', 'cached_property',
+    'FieldMapping',
+    'DefaultsMapping',
+    'Unordered',
+    'KeywordReduce',
+    'qualname',
+    'canoname',
+    'label',
+    'shortlabel',
+    'annotations',
+    'iter_mro_reversed',
+    'cached_property',
 ]
 
 _T = TypeVar('_T')
@@ -34,6 +42,30 @@ class Unordered(Generic[_T]):
 
     def __le__(self, other: Any) -> bool:
         return True
+
+
+def _restore_from_keywords(typ: Type, kwargs: Dict) -> Any:
+    # This function is used to restore pickled KeywordReduce object.
+    return typ(**kwargs)
+
+
+class KeywordReduce:
+    """Mixin class for objects that can be pickled.
+
+    Traditionally Python's __reduce__ method operates on
+    positional arguments, this adds support for restoring
+    an object using keyword arguments.
+
+    Your class needs to define a ``__reduce_keywords__`` method
+    that returns the keyword arguments used to reconstruct the object
+    as a mapping.
+    """
+
+    def __reduce_keywords__(self) -> Mapping:
+        raise NotImplemented()
+
+    def __reduce__(self) -> Tuple:
+        return _restore_from_keywords, (type(self), self.__reduce_keywords__())
 
 
 def qualname(obj: Any) -> str:
@@ -239,27 +271,3 @@ class cached_property:
 
     def deleter(self, fdel: Callable) -> 'cached_property':
         return self.__class__(self.__get, self.__set, fdel)
-
-
-def _restore_from_keywords(typ: Type, kwargs: Dict) -> Any:
-    # This function is used to restore pickled KeywordReduce object.
-    return typ(**kwargs)
-
-
-class KeywordReduce:
-    """Mixin class for objects that can be pickled.
-
-    Traditionally Python's __reduce__ method operates on
-    positional arguments, this adds support for restoring
-    an object using keyword arguments.
-
-    Your class needs to define a ``__reduce_keywords__`` method
-    that returns the keyword arguments used to reconstruct the object
-    as a mapping.
-    """
-
-    def __reduce_keywords__(self) -> Mapping:
-        raise NotImplemented()
-
-    def __reduce__(self) -> Tuple:
-        return _restore_from_keywords, (type(self), self.__reduce_keywords__())

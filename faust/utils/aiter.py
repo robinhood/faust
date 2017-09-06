@@ -1,12 +1,12 @@
 from functools import singledispatch
 from typing import Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple
 
-__all__ = ['aenumerate', 'anext']
+__all__ = ['aenumerate', 'aiter', 'anext']
 
 
 async def aenumerate(it: AsyncIterator[Any],
                      start: int = 0) -> AsyncIterator[Tuple[int, Any]]:
-    """Asynchronous version of ``enumerate``."""
+    """``async for`` version of ``enumerate``."""
     i = start
     async for item in it:
         yield i, item
@@ -34,6 +34,7 @@ class AsyncIterWrapper(AsyncIterator):
 
 @singledispatch
 def aiter(it: Any) -> AsyncIterator:
+    """``aiter(x) -> x.__aiter__()``."""
     raise TypeError(f'{it!r} object is not an iterable')
 
 
@@ -48,7 +49,7 @@ def _aiter_iter(it: Iterable) -> AsyncIterator:
 
 
 async def anext(it: AsyncIterator, *default: Any) -> Any:
-    """``anext(it) -> it.__anext__()``."""
+    """``await anext(it) -> await it.__anext__()``."""
     if default:
         try:
             return await it.__anext__()

@@ -9,6 +9,7 @@ OrderedDict = dict
 
 
 class DummyContext:
+    """Context for with-statement doing nothing."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         ...
