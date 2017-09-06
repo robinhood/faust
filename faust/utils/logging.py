@@ -1,4 +1,5 @@
 """Logging utilities."""
+import asyncio
 import logging
 import os
 import sys
@@ -10,7 +11,11 @@ from typing import Any, IO, Union
 
 __all__ = [
     'CompositeLogger',
-    'cry', 'get_logger', 'level_name', 'level_number', 'setup_logging',
+    'cry',
+    'get_logger',
+    'level_name',
+    'level_number',
+    'setup_logging',
 ]
 
 DEVLOG: bool = bool(os.environ.get('DEVLOG', ''))
@@ -112,7 +117,12 @@ def _setup_logging(**kwargs: Any) -> None:
     logging.basicConfig(**kwargs)
 
 
-def cry(file: IO, sepchr: str = '=', seplen: int =49) -> None:
+def cry(file: IO,
+        *,
+        sep1: str = '=',
+        sep2: str = '-',
+        sep3: str = '~',
+        seplen: int = 49) -> None:
     """Return stack-trace of all active threads.
 
     See Also:
@@ -122,15 +132,40 @@ def cry(file: IO, sepchr: str = '=', seplen: int =49) -> None:
     # during the traceback dump
     tmap = {t.ident: t for t in threading.enumerate()}
 
-    sep = sepchr * seplen
+    current_thread = threading.current_thread()
+    sep1 = sep1 * seplen
+    sep2 = sep2 * seplen
+    sep3 = sep3 * seplen
+
     for tid, frame in sys._current_frames().items():
         thread = tmap.get(tid)
         if thread:
-            print(f'{thread.name}', file=file)            # noqa: T003
-            print(sep, file=file)                         # noqa: T003
+            if thread.ident == current_thread.ident:
+                loop = asyncio.get_event_loop()
+            else:
+                loop = getattr(thread, 'loop', None)
+            print(f'THREAD {thread.name}', file=file)            # noqa: T003
+            print(sep1, file=file)                               # noqa: T003
             traceback.print_stack(frame, file=file)
-            print(sep, file=file)                         # noqa: T003
-            print('LOCAL VARIABLES', file=file)           # noqa: T003
-            print(sep, file=file)                         # noqa: T003
+            print(sep2, file=file)                               # noqa: T003
+            print('LOCAL VARIABLES', file=file)                  # noqa: T003
+            print(sep2, file=file)                               # noqa: T003
             pprint(frame.f_locals, stream=file)
-            print('\n', file=file)                        # noqa: T003
+            if loop is not None:
+                print('TASKS', file=file)
+                print(sep2, file=file)
+                for task in asyncio.Task.all_tasks(loop=loop):
+                    coro = task._coro  # type: ignore
+                    print(f'  TASK {coro.__name__}', file=file)  # noqa: T003
+                    print(f'  {task!r}', file=file)              # noqa: T003
+                    print(f'  {sep3}', file=file)                # noqa: T003
+                    frames = task.get_stack()
+                    if frames:
+                        frame = frames[0]
+                        traceback.print_stack(frame, file=file)
+                        print(sep3, file=file)                   # noqa: T003
+                        print('  LOCAL VARIABLES', file=file)    # noqa: T003
+                        print(f'  {sep3}', file=file)            # noqa: T003
+                        pprint(frame.f_locals, stream=file)
+                    print('\n', file=file)
+            print('\n', file=file)                               # noqa: T003
