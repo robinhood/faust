@@ -7,28 +7,21 @@ import asyncio
 import logging
 import os
 import platform
-import reprlib
-import signal
 import socket
 import sys
 
-from contextlib import suppress
 from itertools import chain
 from pathlib import Path
-from typing import (
-    Any, Coroutine, IO, Iterable, Set, Tuple, Type, Union, cast,
-)
+from typing import Any, IO, Iterable, Set, Type, Union
 
 from progress.spinner import Spinner
 
 from . import __version__ as faust_version
 from .types import AppT, SensorT
-from .utils.compat import DummyContext
-from .utils.debug import BlockingDetector
 from .utils.imports import SymbolArg, symbol_by_name
-from .utils.logging import cry, get_logger, level_name, setup_logging
+from .utils.logging import get_logger, level_name
 from .utils.objects import cached_property
-from .utils.services import Service, ServiceT
+from .utils.services import ServiceT, ServiceWorker
 from .web.site import Website as _Website
 
 try:  # pragma: no cover
@@ -93,14 +86,6 @@ F_IDENT = """
 logger = get_logger(__name__)
 
 
-class _TupleAsListRepr(reprlib.Repr):
-
-    def repr_tuple(self, x: Tuple, level: int) -> str:
-        return self.repr_list(cast(list, x), level)
-# this repr formats tuples as if they are lists.
-_repr = _TupleAsListRepr().repr  # noqa: E305
-
-
 class SpinnerHandler(logging.Handler):
     """A logger handler that iterates our progress spinner for each log."""
 
@@ -113,7 +98,7 @@ class SpinnerHandler(logging.Handler):
             self.worker.spinner.next()  # noqa: B305
 
 
-class Worker(Service):
+class Worker(ServiceWorker):
     """Worker.
 
     Arguments:
@@ -139,21 +124,12 @@ class Worker(Service):
     f_banner = F_BANNER
 
     app: AppT
-    debug: bool
     sensors: Set[SensorT]
-    services: Iterable[ServiceT]
-    loglevel: Union[str, int]
-    logfile: Union[str, IO]
-    logformat: str
-    stdout: IO
-    stderr: IO
-    blocking_timeout: float
     workdir: Path
     web_port: int
     web_bind: str
     Website: Type[_Website]
     spinner: Spinner
-    quiet: bool
 
     def __init__(
             self, app: AppT, *services: ServiceT,
@@ -174,45 +150,30 @@ class Worker(Service):
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
-        self.services = services
         self.sensors = set(sensors or [])
-        self.debug = debug
-        self.quiet = quiet
-        self.loglevel = loglevel
-        self.logfile = logfile
-        self.logformat = logformat
-        self.stdout = stdout
-        self.stderr = stderr
-        self.blocking_timeout = blocking_timeout
         self.workdir = Path(workdir or Path.cwd())
         self.Website = symbol_by_name(Website)
         self.web_port = web_port
         self.web_bind = web_bind
-        super().__init__(loop=loop, **kwargs)
-
+        super().__init__(
+            *services,
+            debug=debug,
+            quiet=quiet,
+            loglevel=loglevel,
+            logfile=logfile,
+            logformat=logformat,
+            stdout=stdout,
+            stderr=stderr,
+            blocking_timeout=blocking_timeout,
+            loop=loop,
+            **kwargs)
         self.spinner = Spinner(file=self.stdout)
-        for service in self.services:
-            service.beacon.reattach(self.beacon)
-            assert service.beacon.root is self.beacon
-
-    def say(self, msg: str) -> None:
-        """Write message to standard out."""
-        self._say(msg)
-
-    def carp(self, msg: str) -> None:
-        """Write warning to standard err."""
-        self._say(msg, file=self.stderr)
-
-    def _say(self, msg: str, file: IO = None, end: str = '\n') -> None:
-        if not self.quiet:
-            print(msg, file=file or self.stdout, end=end)  # noqa: T003
 
     async def on_startup_finished(self) -> None:
         self.add_future(self._on_startup_finished())
 
     async def _on_startup_finished(self) -> None:
-        if self.debug:
-            await self._blockdetect.maybe_start()
+        await self.maybe_start_blockdetection()
         if self.spinner:
             self.spinner.finish()
             self.spinner = None
@@ -248,100 +209,6 @@ class Worker(Service):
         ))
         self._say('^ ', end='')
 
-    def install_signal_handlers(self) -> None:
-        self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
-        self.loop.add_signal_handler(signal.SIGTERM, self._on_sigterm)
-        self.loop.add_signal_handler(signal.SIGUSR1, self._on_sigusr1)
-
-    def _on_sigint(self) -> None:
-        self.carp('-INT- -INT- -INT- -INT- -INT- -INT-')
-        asyncio.ensure_future(self._stop_on_signal(), loop=self.loop)
-
-    def _on_sigterm(self) -> None:
-        asyncio.ensure_future(self._stop_on_signal(), loop=self.loop)
-
-    def _on_sigusr1(self) -> None:
-        self.add_future(self._cry())
-
-    async def _cry(self) -> None:
-        cry(file=self.stderr)
-
-    async def _stop_on_signal(self) -> None:
-        self.log.info('Stopping on signal received...')
-        await self.stop()
-
-    def execute_from_commandline(self, *coroutines: Coroutine) -> None:
-        try:
-            with suppress(asyncio.CancelledError):
-                self.loop.run_until_complete(self.add_future(
-                    self._execute_from_commandline(*coroutines)))
-        finally:
-            if not self._stopped.is_set():
-                self.loop.run_until_complete(self.stop())
-            self._shutdown_loop()
-
-    def _shutdown_loop(self) -> None:
-        # Gather futures created by us.
-        self.log.info('Gathering service tasks...')
-        with suppress(asyncio.CancelledError):
-            self.loop.run_until_complete(self._gather_futures())
-        # Gather absolutely all asyncio futures.
-        self.log.info('Gathering all futures...')
-        self._gather_all()
-        try:
-            # Wait until loop is fully stopped.
-            while self.loop.is_running():
-                self.log.info('Waiting for event loop to shutdown...')
-                self.loop.stop()
-                self.loop.run_until_complete(asyncio.sleep(1.0))
-        except Exception as exc:
-            self.log.exception('Got exception while waiting: %r', exc)
-        finally:
-            # Then close the loop.
-            fut = asyncio.ensure_future(self._sentinel_task(), loop=self.loop)
-            self.loop.run_until_complete(fut)
-            self.loop.stop()
-            self.log.info('Closing event loop')
-            self.loop.close()
-            if self._crash_reason:
-                self.log.crit(
-                    'We experienced a crash! Reraising original exception...')
-                raise self._crash_reason from self._crash_reason
-
-    async def _sentinel_task(self) -> None:
-        await asyncio.sleep(1.0, loop=self.loop)
-
-    def _gather_all(self) -> None:
-        # sleeps for at most 40 * 0.1s
-        for _ in range(40):
-            if not len(asyncio.Task.all_tasks(loop=self.loop)):
-                break
-            self.loop.run_until_complete(asyncio.sleep(0.1))
-        for task in asyncio.Task.all_tasks(loop=self.loop):
-            task.cancel()
-
-    async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
-        setproctitle('[Faust:Worker] init')
-        self.print_banner()
-        with self._monitor():
-            self.install_signal_handlers()
-            if coroutines:
-                await asyncio.wait(
-                    [asyncio.ensure_future(coro, loop=self.loop)
-                     for coro in coroutines],
-                    loop=self.loop,
-                    return_when=asyncio.ALL_COMPLETED,
-                )
-            await self.start()
-            await self.wait_until_stopped()
-
-    def _monitor(self) -> Any:
-        if self.debug:
-            with suppress(ImportError):
-                import aiomonitor
-                return aiomonitor.start_monitor(loop=self.loop)
-        return DummyContext()
-
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         # App beacon is now a child of worker.
         self.app.beacon.reattach(self.beacon)
@@ -353,38 +220,26 @@ class Worker(Service):
     async def on_first_start(self) -> None:
         if self.workdir:
             os.chdir(Path(self.workdir).absolute())
-        self._setup_logging()
-
-    def _setup_logging(self) -> None:
-        _loglevel: int = None
-        if self.loglevel:
-            _loglevel = setup_logging(
-                loglevel=self.loglevel,
-                logfile=self.logfile,
-                logformat=self.logformat,
-            )
-        if _loglevel and _loglevel < logging.WARN:
-            self.spinner = None
-
-        if self.spinner:
-            logging.root.handlers[0].setLevel(_loglevel)
-            logging.root.addHandler(
-                SpinnerHandler(self, level=logging.DEBUG))
-            logging.root.setLevel(logging.DEBUG)
-
-    def _repr_info(self) -> str:
-        return _repr(self.services)
+        await super().on_first_start()  # <-- sets up logging
 
     def _setproctitle(self, info: str) -> None:
         setproctitle(f'{PSIDENT} {info}')
 
-    @cached_property
-    def _blockdetect(self) -> BlockingDetector:
-        return BlockingDetector(
-            self.blocking_timeout,
-            beacon=self.beacon,
-            loop=self.loop,
-        )
+    async def on_execute(self) -> None:
+        self._setproctitle('init')
+        self.print_banner()
+
+    def on_setup_root_logger(self,
+                             logger: logging.Logger,
+                             level: int) -> None:
+        if level and level < logging.WARN:
+            self.spinner = None
+
+        if self.spinner:
+            logger.handlers[0].setLevel(level)
+            logger.addHandler(
+                SpinnerHandler(self, level=logging.DEBUG))
+            logger.setLevel(logging.DEBUG)
 
     @cached_property
     def website(self) -> _Website:
