@@ -67,9 +67,6 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             for partition in partitions
         }
 
-    def _tp_url(self, tp: TopicPartition) -> str:
-        return self._tps_url[tp]
-
     @property
     def _metadata(self) -> ClientMetadata:
         return ClientMetadata(
