@@ -6,8 +6,10 @@ from typing import (
 
 import aiokafka
 from aiokafka.errors import ConsumerStoppedError
-from kafka import errors
 from kafka.consumer import subscription_state
+from kafka.errors import (
+    TopicAlreadyExistsError as TopicExistsError, NotControllerError, for_code,
+)
 from kafka.protocol.offset import OffsetResetStrategy
 from kafka.structs import (
     OffsetAndMetadata,
@@ -27,26 +29,6 @@ from ..utils.times import Seconds, want_seconds
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 logger = get_logger(__name__)
-
-
-class TopicExists(errors.BrokerResponseError):
-    errno = 36
-    message = 'TOPIC_ALREADY_EXISTS'
-    description = 'Topic creation was requested, but topic already exists.'
-    retriable = False
-
-
-class NotController(errors.BrokerResponseError):
-    errno = 41
-    message = 'NOT_CONTROLLER'
-    description = 'This is not the correct controller for this cluster.'
-    retriable = True
-
-
-EXTRA_ERRORS: Mapping[int, Type[errors.KafkaError]] = {
-    TopicExists.errno: TopicExists,
-    NotController.errno: NotController,
-}
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -300,6 +282,19 @@ class Producer(base.Producer):
         return cast(RecordMetadata, await self._producer.send_and_wait(
             topic, value, key=key, partition=partition))
 
+    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
+        return TopicPartition(
+            topic=topic,
+            partition=self._producer._partition(
+                topic,
+                partition=None,
+                key=None,
+                value=None,
+                serialized_key=key,
+                serialized_value=None,
+            ),
+        )
+
 
 class Transport(base.Transport):
     Consumer: ClassVar[Type[ConsumerT]] = Consumer
@@ -397,15 +392,15 @@ class Transport(base.Transport):
             _, code, reason = response.topic_error_codes[0]
 
             if code != 0:
-                if not ensure_created and code == TopicExists.errno:
+                if not ensure_created and code == TopicExistsError.errno:
                     owner.log.debug(
                         f'Topic {topic} exists, skipping creation.')
                     return
-                elif code == NotController.errno:
+                elif code == NotControllerError.errno:
                     owner.log.debug(f'Broker: {node_id} is not controller.')
                     continue
                 else:
-                    raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
+                    raise for_code(code)(
                         f'Cannot create topic: {topic} ({code}): {reason}')
             else:
                 owner.log.info(f'Topic {topic} created.')

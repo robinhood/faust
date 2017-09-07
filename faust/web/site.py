@@ -1,5 +1,6 @@
 from typing import Any, Sequence, Tuple, Type, Union
 from .apps import graph
+from .apps import router
 from .apps import stats
 from .base import Web
 from .views import Site
@@ -18,6 +19,7 @@ class Website(Service):
     pages: Sequence[Tuple[str, Type[Site]]] = [
         ('/graph', graph.Site),
         ('', stats.Site),
+        ('/router', router.Site),
     ]
 
     def __init__(self, app: AppT,

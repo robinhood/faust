@@ -410,6 +410,9 @@ class Producer(Service, ProducerT):
             partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
+    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
+        raise NotImplementedError()
+
 
 class Transport(TransportT):
     """Message transport implementation."""
