@@ -3,7 +3,7 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Iterable, List, MutableMapping,
+    Any, Callable, ClassVar, Counter, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type,
 )
 from .channels import EventT
@@ -145,7 +145,7 @@ class ChangelogReaderT(ServiceT):
     app: AppT
 
     tps: Iterable[TopicPartition]
-    offsets: MutableMapping[TopicPartition, int]
+    offsets: Counter[TopicPartition]
 
 
 class WindowSetT(MutableMapping):

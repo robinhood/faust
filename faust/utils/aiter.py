@@ -4,7 +4,7 @@ from typing import Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple
 __all__ = ['aenumerate', 'aiter', 'anext']
 
 
-async def aenumerate(it: AsyncIterator[Any],
+async def aenumerate(it: AsyncIterable[Any],
                      start: int = 0) -> AsyncIterator[Tuple[int, Any]]:
     """``async for`` version of ``enumerate``."""
     i = start

@@ -2,14 +2,16 @@
 import asyncio
 import typing
 from collections import defaultdict
-from typing import Any, AsyncIterable, Iterable, List, MutableMapping, cast
+from typing import (
+    Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
+)
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
 )
 from ..types.topics import ChannelT
-from ..utils.aiter import aiter
+from ..utils.aiter import aenumerate, aiter
 from ..utils.collections import FastUserDict
 from ..utils.logging import get_logger
 from ..utils.services import Service
@@ -37,22 +39,23 @@ class ChangelogReader(Service, ChangelogReaderT):
     wait_for_shutdown = True
     shutdown_timeout = None
 
-    _highwaters: MutableMapping[TopicPartition, int] = None
+    _highwaters: Counter[TopicPartition] = None
 
     def __init__(self, table: CollectionT,
                  channel: ChannelT,
                  app: AppT,
                  tps: Iterable[TopicPartition],
-                 offsets: MutableMapping[TopicPartition, int] = None,
+                 offsets: Counter[TopicPartition] = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
         self.channel = channel
         self.app = app
         self.tps = tps
-        self.offsets = {} if offsets is None else offsets
+        self.offsets = Counter() if offsets is None else offsets
         for tp in self.tps:
             offsets.setdefault(tp, -1)
+        self._highwaters = Counter()
         self._started_reading = asyncio.Event(loop=self.loop)
 
     async def on_started(self) -> None:
@@ -64,14 +67,21 @@ class ChangelogReader(Service, ChangelogReaderT):
         consumer = self.app.consumer
         tps = self.tps
         await consumer.seek_to_latest(*tps)
-        # FIXME the -1 here is because of the way we commit offsets
-        self._highwaters = {
+        self._highwaters.clear()
+        self._highwaters.update({
+            # FIXME the -1 here is because of the way we commit offsets
             tp: await consumer.position(tp) - 1
             for tp in tps
-        }
+        })
 
-    async def _should_stop_reading(self) -> bool:
+    def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
+
+    def _remaining(self) -> Counter[TopicPartition]:
+        return self._highwaters - self.offsets
+
+    def _remaining_total(self) -> int:
+        return sum(self._remaining().values())
 
     @Service.transitions_to(CHANGELOG_SEEKING)
     async def _seek_tps(self) -> None:
@@ -83,8 +93,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             await consumer.seek(tp, offset)
             assert await consumer.position(tp) == offset
 
-    async def _should_start_reading(self) -> bool:
-        await self._build_highwaters()
+    def _should_start_reading(self) -> bool:
         return self._highwaters != self.offsets
 
     @Service.task
@@ -93,25 +102,29 @@ class ChangelogReader(Service, ChangelogReaderT):
         table = self.table
         consumer = self.app.consumer
         await consumer.pause_partitions(self.tps)
-        if not await self._should_start_reading():
-            self.log.info('Not reading')
+        await self._build_highwaters()
+        if not self._should_start_reading():
+            self.log.info('No updates needed')
             self._started_reading.set()
             self.set_shutdown()
             return
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
-        self.log.info('Started reading')
+        self.log.info(f'Reading %s records...', self._remaining_total())
         self._started_reading.set()
         buf: List[EventT] = []
         self.diag.set_flag(CHANGELOG_READING)
         try:
-            async for event in self._read_changelog():
+            async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
-                if not len(buf) % 1000:
+                if len(buf) >= 1000:
                     table.apply_changelog_batch(buf)
                     buf.clear()
-                if await self._should_stop_reading():
+                if self._should_stop_reading():
                     break
+                if not i % 100_000:
+                    self.log.info('Still waiting for %s records...',
+                                  self._remaining_total())
         finally:
             self.diag.unset_flag(CHANGELOG_READING)
             if buf:
@@ -145,10 +158,10 @@ class ChangelogReader(Service, ChangelogReaderT):
 class StandbyReader(ChangelogReader):
     logger = logger
 
-    async def _should_start_reading(self) -> bool:
+    def _should_start_reading(self) -> bool:
         return True
 
-    async def _should_stop_reading(self) -> bool:
+    def _should_stop_reading(self) -> bool:
         return self.should_stop
 
 
@@ -157,7 +170,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
-    _table_offsets: MutableMapping[TopicPartition, int]
+    _table_offsets: Counter[TopicPartition]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
     _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
@@ -169,7 +182,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.data = {}
         self._channels = {}
         self._changelogs = {}
-        self._table_offsets = {}
+        self._table_offsets = Counter()
         self._standbys = {}
         self._changelog_readers = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
@@ -239,7 +252,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for table, tps in table_standby_tps.items():
             self.log.info(f'Starting standbys for tps: {tps}')
             self._sync_persisted_offsets(table, tps)
-            tp_offsets = {tp: offsets[tp] for tp in tps if tp in offsets}
+            tp_offsets: Counter[TopicPartition] = Counter({
+                tp: offsets[tp]
+                for tp in tps if tp in offsets
+            })
             channel = self._channels[table]
             standby = StandbyReader(
                 table, channel, self.app, tps, tp_offsets,
@@ -290,7 +306,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         table_tps = {tp for tp in tps
                      if tp.topic == table._changelog_topic_name()}
         self._sync_persisted_offsets(table, table_tps)
-        tp_offsets = {tp: offsets[tp] for tp in table_tps if tp in offsets}
+        tp_offsets: Counter[TopicPartition] = Counter({
+            tp: offsets[tp]
+            for tp in table_tps if tp in offsets
+        })
         channel = self._channels[table]
         return ChangelogReader(
             table, channel, self.app, table_tps, tp_offsets,

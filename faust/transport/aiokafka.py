@@ -17,6 +17,7 @@ from kafka.structs import (
 from . import base
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
+from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property
@@ -307,6 +308,12 @@ class Transport(base.Transport):
     default_port = 9092
     driver_version = f'aiokafka={aiokafka.__version__}'
 
+    _topic_waiters: MutableMapping[str, StampedeWrapper]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._topic_waiters = {}
+
     @cached_property
     def bootstrap_servers(self) -> str:
         # remove the scheme
@@ -339,13 +346,32 @@ class Transport(base.Transport):
                             topic: str,
                             partitions: int,
                             replication: int,
-                            *,
-                            config: Mapping[str, Any] = None,
-                            timeout: int = 10000,
-                            retention: int = None,
-                            compacting: bool = None,
-                            deleting: bool = None,
-                            ensure_created: bool = False) -> None:
+                            **kwargs: Any) -> None:
+        try:
+            print('GONNA CREATE TOPIC %r' % (topic,))
+            wrap = self._topic_waiters[topic]
+        except KeyError:
+            wrap = self._topic_waiters[topic] = StampedeWrapper(
+                self._really_create_topic,
+                owner, client, topic, partitions, replication,
+                loop=self.loop, **kwargs)
+        else:
+            print(f'Waiting for other thread to create topic {topic}...')
+        await wrap()
+
+    async def _really_create_topic(self,
+                                   owner: Service,
+                                   client: aiokafka.AIOKafkaClient,
+                                   topic: str,
+                                   partitions: int,
+                                   replication: int,
+                                   *,
+                                   config: Mapping[str, Any] = None,
+                                   timeout: int = 10000,
+                                   retention: int = None,
+                                   compacting: bool = None,
+                                   deleting: bool = None,
+                                   ensure_created: bool = False) -> None:
         owner.log.info(f'Creating topic {topic}')
         protocol_version = 1
         config = config or self._topic_config(retention, compacting, deleting)
