@@ -257,9 +257,10 @@ Codecs
 Supported codecs
 ----------------
 
+* **raw**     - no encoding/serialization (bytes only).
 * **json**    - json with utf-8 encoding.
-* **pickle**  - pickle with base64 encoding (not urlsafe)
-* **binary**  - base64 encoding (not urlsafe)
+* **pickle**  - pickle with base64 encoding (not urlsafe).
+* **binary**  - base64 encoding (not urlsafe).
 
 Serialization by name
 ---------------------

@@ -3,9 +3,10 @@
 Supported codecs
 ================
 
+* **raw**     - No encoding/serialization (bytes only).
 * **json**    - json with utf-8 encoding.
-* **pickle**  - pickle with base64 encoding (not urlsafe)
-* **binary**  - base64 encoding (not urlsafe)
+* **pickle**  - pickle with base64 encoding (not urlsafe).
+* **binary**  - base64 encoding (not urlsafe).
 
 Serialization by name
 =====================
@@ -268,11 +269,22 @@ class binary(Codec):
         return b64encode(want_bytes(s))
 
 
+class raw(Codec):
+    """Codec that does nothing at all."""
+
+    def _loads(self, s: bytes) -> bytes:
+        return s
+
+    def _dumps(self, s: bytes) -> bytes:
+        return s
+
+
 #: Codec registry, mapping of name to :class:`Codec` instance.
 codecs: MutableMapping[str, CodecT] = {
     'json': json(),
     'pickle': pickle(),
     'binary': binary(),
+    'raw': raw(),
 }
 
 #: Cached extension classes.
