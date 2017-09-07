@@ -166,6 +166,7 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await self.commit()
         await self._consumer.stop()
+        cast(Transport, self.transport)._topic_waiters.clear()
 
     async def _perform_seek(self) -> None:
         read_offset = self._read_offset
@@ -262,6 +263,7 @@ class Producer(base.Producer):
         await self._producer.start()
 
     async def on_stop(self) -> None:
+        cast(Transport, self.transport)._topic_waiters.clear()
         await self._producer.stop()
 
     async def send(
@@ -343,16 +345,17 @@ class Transport(base.Transport):
                             replication: int,
                             **kwargs: Any) -> None:
         try:
-            print('GONNA CREATE TOPIC %r' % (topic,))
             wrap = self._topic_waiters[topic]
         except KeyError:
             wrap = self._topic_waiters[topic] = StampedeWrapper(
                 self._really_create_topic,
                 owner, client, topic, partitions, replication,
                 loop=self.loop, **kwargs)
-        else:
-            print(f'Waiting for other thread to create topic {topic}...')
-        await wrap()
+        try:
+            await wrap()
+        except Exception as exc:
+            self._topic_waiters.pop(topic, None)
+            raise
 
     async def _really_create_topic(self,
                                    owner: Service,
