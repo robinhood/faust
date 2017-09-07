@@ -108,9 +108,9 @@ Parameters
     :type: ``str``
     :default: ``"aiokafka://localhost:9092"``
 
-    The transport URL defines something like a broker that Faust will use to
-    send and receive messages.
-    Currently the only supported transport is ``aiokafka://``.
+    Faust needs the URL of a transport to send and receive messages.
+
+    Currently the only supported transport is the ``aiokafka://`` Kafka client.
 
     You can specify a list of hosts by separating them using semicomma:
 
@@ -123,7 +123,10 @@ Parameters
     :default: ``memory://``
 
     The backend used for table storage.
-    Tables are stored in-memory only by default.
+    Tables are stored in-memory only by default, but this is only really
+    suitable for testing and development purposes.
+
+    In production a persistent store, such as ``rocksdb://`` should be used.
 
 `avro_registry_url`
     :type: ``str``
@@ -132,6 +135,8 @@ Parameters
     The URL of an Avro schema registry server.
 
     See http://docs.confluent.io/1.0/schema-registry/docs/intro.html
+
+    NOTE:: Currently unsupported.
 
 `client_id`
     :type: ``str``
@@ -142,15 +147,25 @@ Parameters
 
 `commit_interval`
     :type: `float`, :class:`~datetime.timedelta`
-    :default: ``30.0``
+    :default: ``3.0``
 
     How often we commit messages that have been fully processed (:term:`acked`).
 
 `table_cleanup_interval`
     :type: `float`, :class:`~datetime.timedelta`
-    :default: ``1.0``
+    :default: ``30.0``
 
     How often we cleanup tables to remove expired entries.
+
+`checkpoint_path`
+    :type: `str`
+    :default: ``".checkpoint"``
+
+    The checkpoint file is used to store table changelog offsets at shutdown,
+    so that we only need to read changelog entries we don't have at startup.
+
+    This path will also be relative to the
+    :option:`--workdir <faust --workdir>` option.
 
 `key_serializer`
     :type: ``Union[str, Codec]``
@@ -162,6 +177,10 @@ Parameters
     This can be the name of a serializer/codec, or an actual
     :class:`faust.serializers.codecs.Codec` instance.
 
+    .. seealso::
+
+        :ref:`guide-codecs`
+
 `value_serializer`
     :type: ``Union[str, Codec]``
     :default: ``"json"``
@@ -172,14 +191,15 @@ Parameters
     This can be the name of a serializer/codec, or an actual
     :class:`faust.serializers.codecs.Codec` instance.
 
+    .. seealso::
+
+        :ref:`guide-codecs`
+
 `num_standby_replicas`
     :type: ``int``
     :default: ``0``
 
-    The number of standby replicas for each task.
-
-        replication_factor (int): The replication factor for changelog topics
-            and repartition topics created by the application.  Default: ``1``.
+    The number of standby replicas for each table.
 
 `replication_factor`
     :type: ``int``
@@ -190,9 +210,15 @@ Parameters
 
 `default_partitions`
     :type: ``int``
-    :default: 8
+    :default: ``8``
 
     Default number of partitions for new topics.
+
+`create_reply_topic`
+    :type: ``bool``
+    :default: :const:`False`
+
+    Set this to :const:`True` if you plan on using the RPC features of actors.
 
 `Stream`
     :type: ``Union[str, Type]``
@@ -215,19 +241,44 @@ Parameters
     The :class:`~faust.Set` class to use for sets, or the fully-qualified
     path to one.
 
+`TableManager`
+    :type: ``Union[str, Type[TableManagerT]]``
+    :default: ``"faust.tables.TableManager"``
+
+    The :class:`~faust.tables.TableManager` used for managing tables,
+    or the fully-qualified path to one.
+
+`CheckpointManager`
+    :type: ``Union[str, Type[CheckpointManagerT]]``
+    :default: ``"faust.tables.CheckpointManager"``
+
+    The :class:`~faust.tables.CheckpointManager` used for reading
+    and writing the checkpoint file at startup/shutdown;
+    or the fully-qualified path to one.
+
+`Serializers`
+    :type: ``Union[str, Type[RegistryT]]``
+    :default: ``"faust.serializers.Registry"``
+
+    The :class:`~faust.serializers.Registry` class used for
+    serializing/deserializing messages; or the fully-qualified path to one.
+
 Reference
 =========
 
 Methods
 -------
 
-Topics
-^^^^^^
+Topics & Channels
+^^^^^^^^^^^^^^^^^
 
 .. class:: App
     :noindex:
 
     .. automethod:: topic
+        :noindex:
+
+    .. automethod:: channel
         :noindex:
 
 Decorators
