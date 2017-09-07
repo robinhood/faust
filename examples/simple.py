@@ -27,12 +27,12 @@ country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-@app.actor(withdrawals_topic, concurrency=100)
+@app.actor(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     events = 0
     time_start = monotonic()
     time_first_start = monotonic()
-    async for withdrawal in withdrawals.through('bar'):
+    async for withdrawal in withdrawals:
         events += 1
         if not events % 10_000:
             time_now = monotonic()
