@@ -1,8 +1,12 @@
 import faust
 
-app = faust.App('hello-world', url='kafka://localhost:9092')
+app = faust.App(
+    'hello-world',
+    url='kafka://localhost:9092',
+    value_serializer='raw',
+)
 
-greetings_topic = app.topic('greetings', value_type=str)
+greetings_topic = app.topic('greetings')
 
 
 @app.actor(greetings_topic)
