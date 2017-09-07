@@ -147,6 +147,7 @@ class Worker(ServiceWorker):
             web_port: int = None,
             web_bind: str = None,
             with_uvloop: bool = False,
+            advertised_host: str = None,
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
