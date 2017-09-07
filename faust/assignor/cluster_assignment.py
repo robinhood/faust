@@ -1,4 +1,4 @@
-from typing import Any, List, MutableMapping, Sequence, Set, cast
+from typing import Any, List, MutableMapping, Sequence, Set
 from .client_assignment import (
     ClientAssignment, ClientMetadata, CopartitionedAssignment,
 )

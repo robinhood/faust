@@ -10,10 +10,9 @@ from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
 from ..types.app import AppT
 from ..types.assignor import (
-    TopicPartitionsMap, HostPartitionsMap, PartitionAssignorT,
+    HostPartitionsMap, PartitionAssignorT, TopicPartitionsMap,
 )
-from ..types.core import K
-from ..types.tables import CollectionT, TableManagerT
+from ..types.tables import TableManagerT
 from ..types.topics import TopicPartition
 from ..utils.logging import get_logger
 
@@ -266,3 +265,6 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     def key_store(self, topic: str, key: bytes) -> str:
         return self._tps_url[self.app.producer.key_partition(topic, key)]
+
+
+__flake8_Sequence_is_used: Sequence  # XXX flake8 bug

@@ -8,7 +8,7 @@ import aiokafka
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.errors import (
-    TopicAlreadyExistsError as TopicExistsError, NotControllerError, for_code,
+    NotControllerError, TopicAlreadyExistsError as TopicExistsError, for_code,
 )
 from kafka.protocol.offset import OffsetResetStrategy
 from kafka.structs import (

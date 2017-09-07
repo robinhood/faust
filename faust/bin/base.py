@@ -5,7 +5,7 @@ from typing import Any, Callable, Mapping, Sequence
 import click
 from ..types.app import AppT
 from ..utils.imports import import_from_cwd, symbol_by_name
-from ..web.base import DEFAULT_PORT, DEFAULT_BIND
+from ..web.base import DEFAULT_BIND, DEFAULT_PORT
 from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT
 
 
