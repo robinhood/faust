@@ -8,7 +8,7 @@ import aiokafka
 from aiokafka.errors import ConsumerStoppedError
 from kafka.consumer import subscription_state
 from kafka.errors import (
-    TopicAlreadyExistsError, NotControllerError, for_code,
+    TopicAlreadyExistsError as TopicExistsError, NotControllerError, for_code,
 )
 from kafka.protocol.offset import OffsetResetStrategy
 from kafka.structs import (
@@ -352,10 +352,8 @@ class Transport(base.Transport):
 
             _, code, reason = response.topic_error_codes[0]
 
-            _TopicExistsError = TopicAlreadyExistsError
-
             if code != 0:
-                if not ensure_created and code == _TopicExistsError.errno:
+                if not ensure_created and code == TopicExistsError.errno:
                     owner.log.debug(
                         f'Topic {topic} exists, skipping creation.')
                     return
