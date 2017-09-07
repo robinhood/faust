@@ -6,8 +6,10 @@ from typing import (
 
 import aiokafka
 from aiokafka.errors import ConsumerStoppedError
-from kafka import errors
 from kafka.consumer import subscription_state
+from kafka.errors import (
+    TopicAlreadyExistsError, NotControllerError, for_code,
+)
 from kafka.protocol.offset import OffsetResetStrategy
 from kafka.structs import (
     OffsetAndMetadata,
@@ -26,26 +28,6 @@ from ..utils.times import Seconds, want_seconds
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 logger = get_logger(__name__)
-
-
-class TopicExists(errors.BrokerResponseError):
-    errno = 36
-    message = 'TOPIC_ALREADY_EXISTS'
-    description = 'Topic creation was requested, but topic already exists.'
-    retriable = False
-
-
-class NotController(errors.BrokerResponseError):
-    errno = 41
-    message = 'NOT_CONTROLLER'
-    description = 'This is not the correct controller for this cluster.'
-    retriable = True
-
-
-EXTRA_ERRORS: Mapping[int, Type[errors.KafkaError]] = {
-    TopicExists.errno: TopicExists,
-    NotController.errno: NotController,
-}
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -370,16 +352,18 @@ class Transport(base.Transport):
 
             _, code, reason = response.topic_error_codes[0]
 
+            _TopicExistsError = TopicAlreadyExistsError
+
             if code != 0:
-                if not ensure_created and code == TopicExists.errno:
+                if not ensure_created and code == _TopicExistsError.errno:
                     owner.log.debug(
                         f'Topic {topic} exists, skipping creation.')
                     return
-                elif code == NotController.errno:
+                elif code == NotControllerError.errno:
                     owner.log.debug(f'Broker: {node_id} is not controller.')
                     continue
                 else:
-                    raise (EXTRA_ERRORS.get(code) or errors.for_code(code))(
+                    raise for_code(code)(
                         f'Cannot create topic: {topic} ({code}): {reason}')
             else:
                 owner.log.info(f'Topic {topic} created.')
