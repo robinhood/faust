@@ -139,10 +139,6 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     def changelog_topics(self) -> Set[str]:
         ...
 
-    @abc.abstractmethod
-    def get_table(self, name: str) -> Optional[CollectionT]:
-        ...
-
 
 class ChangelogReaderT(ServiceT):
     table: CollectionT

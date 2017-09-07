@@ -36,4 +36,4 @@ class Router(RouterT):
         return table.changelog_topic.prepare_key(key, 'json')
 
     def _get_table(self, name: str) -> CollectionT:
-        return self.app.tables.get_table(name)
+        return self.app.tables[name]
