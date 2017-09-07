@@ -53,6 +53,10 @@ class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
         super().set_result(result)
 
 
+def _get_len(s: bytes):
+    return len(s) if s is not None else s
+
+
 class Message:
 
     __slots__ = (
@@ -87,8 +91,12 @@ class Message:
         self.key: bytes = key
         self.value: bytes = value
         self.checksum: bytes = checksum
-        self.serialized_key_size: int = serialized_key_size or len(key)
-        self.serialized_value_size: int = serialized_value_size or len(value)
+        self.serialized_key_size: int = (
+            _get_len(key)
+            if serialized_key_size is None else serialized_key_size)
+        self.serialized_value_size: int = (
+            _get_len(value)
+            if serialized_value_size is None else serialized_value_size)
         self.acked: bool = False
         self.refcount: int = 0
         self.tp = tp
