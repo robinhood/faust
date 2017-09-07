@@ -12,6 +12,7 @@ from typing import (
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
 
+from ..exceptions import ImproperlyConfigured
 from ..types import AppT, EventT, K, Message, ModelArg, TopicT
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
@@ -86,6 +87,7 @@ class Stream(StreamT, Service):
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
                  beacon: NodeT = None,
+                 concurrency_index: int = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -94,6 +96,7 @@ class Stream(StreamT, Service):
             maxsize=1, loop=self.loop, clear_on_resume=True)
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
+        self.concurrency_index = concurrency_index
 
         self._processors = list(processors) if processors else []
         if coroutine:
@@ -253,6 +256,9 @@ class Stream(StreamT, Service):
                         # then forwarded and consumed from topic 'bar'
                         print(value)
         """
+        if self.concurrency_index is not None:
+            raise ImproperlyConfigured(
+                'Actor with concurrency>1 cannot use stream.through!')
         # ridiculous mypy
         if isinstance(channel, str):
             channelchannel = cast(ChannelT, self.derive_topic(channel))
@@ -360,6 +366,9 @@ class Stream(StreamT, Service):
                 async for event in s.group_by(get_key):
                     ...
         """
+        if self.concurrency_index is not None:
+            raise ImproperlyConfigured(
+                'Actor with concurrency>1 cannot use stream.through!')
         if not name:
             if isinstance(key, FieldDescriptorT):
                 name = key.ident

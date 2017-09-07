@@ -213,11 +213,12 @@ class ActorInstance(ActorInstanceT, Service):
                  agent: ActorT,
                  stream: StreamT,
                  it: _T,
+                 index: int = None,
                  **kwargs: Any) -> None:
         self.agent = agent
         self.stream = stream
         self.it = it
-        self.index = None
+        self.index = index
         self.actor_task = None
         Service.__init__(self, **kwargs)
 
@@ -271,10 +272,18 @@ class ActorService(Service):
 
     async def on_start(self) -> None:
         # start the actor processor.
-        for index in range(self.actor.concurrency):
-            res = await cast(Actor, self.actor)._start_task(index, self.beacon)
-            self.instances.append(res)
-            await res.start()
+        if self.actor.concurrency:
+            self.instances[:] = [
+                await self._start_one(index)
+                for index in range(self.actor.concurrency)
+            ]
+        else:
+            self.instances[:] = [await self._start_one(index=None)]
+
+    async def _start_one(self, index: int = None) -> ActorInstanceT:
+        res = await cast(Actor, self.actor)._start_task(index, self.beacon)
+        await res.start()
+        return res
 
     async def on_stop(self) -> None:
         # Actors iterate over infinite streams, and we cannot wait for it
@@ -326,7 +335,7 @@ class Actor(ActorT, ServiceProxy):
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
 
-    def __call__(self) -> ActorRefT:
+    def __call__(self, *, index: int = None) -> ActorRefT:
         # The actor function can be reused by other actors/tasks.
         # For example:
         #
@@ -344,13 +353,13 @@ class Actor(ActorT, ServiceProxy):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the actor
         # function is an `async def` function that yields)
-        stream = self.stream()
+        stream = self.stream(concurrency_index=index)
         res = self.fun(stream)
         typ = cast(Type[ActorInstance], (
             AwaitableActor if isinstance(res, Awaitable)
             else AsyncIterableActor
         ))
-        return typ(self, stream, res,
+        return typ(self, stream, res, index,
                    loop=self.loop, beacon=self.beacon)
 
     def add_sink(self, sink: SinkT) -> None:
@@ -370,13 +379,12 @@ class Actor(ActorT, ServiceProxy):
         # If the actor is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
-        res = self()
+        res = self(index=index)
         coro = res if isinstance(res, Awaitable) else self._slurp(
             res, aiter(res))
         task = asyncio.Task(self._execute_task(coro), loop=self.loop)
         task._beacon = beacon  # type: ignore
         res.actor_task = task
-        res.index = index
         return res
 
     async def _execute_task(self, coro: Awaitable) -> None:
