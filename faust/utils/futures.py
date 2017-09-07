@@ -15,18 +15,20 @@ class StampedeWrapper:
     fut: asyncio.Future = None
 
     def __init__(self,
-                 get: Callable,
+                 fun: Callable,
                  *args: Any,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        self.get = get
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
+        self.fun = fun
         self.args = args
+        self.kwargs = kwargs
         self.loop = loop
 
     async def __call__(self) -> Any:
         fut = self.fut
         if fut is None:
             fut = self.fut = asyncio.Future(loop=self.loop)
-            result = await self.get(*self.args)
+            result = await self.fun(*self.args, **self.kwargs)
             fut.set_result(result)
             return result
         else:
