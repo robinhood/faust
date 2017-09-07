@@ -27,26 +27,63 @@ Lets create the file `hello_world.py`:
 
     import faust
 
-    app = faust.App('hello-world', url='kafka://localhost:9092')
+    app = faust.App(
+        'hello-world',
+        url='kafka://localhost:9092',
+        value_serializer='raw',
+    )
 
     greetings_topic = app.topic('greetings')
 
-    async for greeting in greetings_topic.stream():
-        print(greeting)
+    @app.actor(greetings_topic)
+    async def print_greetings(greetings):
+        async for greeting in greetings:
+            print(greeting)
 
 
-The first argument to ``faust.App`` is the name of the application. This is
+The first argument to ``faust.App`` is the ``id`` of the application. This is
 needed for internal bookkeeping for the application and to distribute work
 among different instances of the application.
 
-Here you defined a Kafka topic ``greetings`` and then iterate over the
-messages in the topic and print each one of them.
+We specify ``value_serializer`` here as ``raw`` to avoid deserializing
+incoming ``greetings``. The default ``value_serializer`` is ``json`` as we
+typically would serialize/deserialize messages into well-defined models. See
+:doc:`models`.
+
+Here you defined a Kafka topic ``greetings`` and then iterated over the
+messages in the topic and printed each one of them.
+
+.. note::
+
+    The ``App.id`` i.e. ``'hello-world'`` in the example above, should be
+    unique per Faust app in your kafka cluster (or whatever message broker
+    you use).
+
+
+Starting Kafka
+--------------
+
+You first need to start Kafka before running your first app that you wrote
+above.
+
+For Kafka, you first need to start Zookeeper:
+
+.. sourcecode:: console
+
+    $ $KAFKA_HOME/bin/zookeeper-server-start $KAFKA_HOME/etc/kafka/zookeeper.properties
+
+Next, start Kafka:
+
+.. sourcecode:: console
+
+    $ $KAFKA_HOME/bin/kafka-server-start $KAFKA_HOME/etc/kafka/server.properties
+
 
 Running the Faust worker
 ------------------------
 
-Now that you have created a simple Faust application, you need to run an
-instance of the application. This can be done as follows:
+Now that you have created a simple Faust application and have kafka running,
+you need to run an instance of the application. This can be done as follows:
 
 .. sourcecode:: console
 
@@ -63,12 +100,6 @@ For a complete listing of the command-line options available, do:
 
     $ faust worker --help
 
-There are also several other commands available, and help is also available:
-
-.. sourcecode:: console
-
-    $ faust help
-
 .. _`supervisord`: http://supervisord.org
 
 Seeing things in Action
@@ -76,7 +107,7 @@ Seeing things in Action
 
 At this point you may have an application running but nothing much is
 happening. You need to feed in data into the Kafka topic defined above to see
-Faust print the messages as it processes the stream. Let us use the Kafka
+Faust print the greetings as it processes the stream. Let us use the Kafka
 console producer to push some messages into the ``greetings`` topic:
 
 .. sourcecode:: console
