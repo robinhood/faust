@@ -166,6 +166,10 @@ class ProducerT(ServiceT):
                            ensure_created: bool = False) -> None:
         ...
 
+    @abc.abstractmethod
+    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
+        ...
+
 
 class TransportT(abc.ABC):
     Consumer: ClassVar[Type[ConsumerT]]

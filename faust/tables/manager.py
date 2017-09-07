@@ -2,7 +2,9 @@
 import asyncio
 import typing
 from collections import defaultdict
-from typing import Any, AsyncIterable, Iterable, List, MutableMapping, cast
+from typing import (
+    Any, AsyncIterable, Iterable, List, MutableMapping, Optional, cast
+)
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (

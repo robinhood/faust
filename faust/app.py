@@ -21,6 +21,7 @@ from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
 from .assignor import PartitionAssignor
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured
+from .router import Router
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
 from .topics import Topic, TopicManager, TopicManagerT
@@ -296,8 +297,10 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self.advertised_url = ''
         self.assignor = PartitionAssignor(self,
                                           replicas=self.replication_factor)
+        self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store
