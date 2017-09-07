@@ -368,7 +368,7 @@ class Stream(StreamT, Service):
         """
         if self.concurrency_index is not None:
             raise ImproperlyConfigured(
-                'Actor with concurrency>1 cannot use stream.through!')
+                'Actor with concurrency>1 cannot use stream.group_by!')
         if not name:
             if isinstance(key, FieldDescriptorT):
                 name = key.ident

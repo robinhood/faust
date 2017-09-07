@@ -272,7 +272,7 @@ class ActorService(Service):
 
     async def on_start(self) -> None:
         # start the actor processor.
-        if self.actor.concurrency:
+        if self.actor.concurrency > 1:
             self.instances[:] = [
                 await self._start_one(index)
                 for index in range(self.actor.concurrency)
