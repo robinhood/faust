@@ -53,17 +53,17 @@ del(re)
 # quickly.  The next section provides static type checkers
 # information about the contents of this module.
 if typing.TYPE_CHECKING:
-    from .actors import Actor                                 # noqa: E402
-    from .app import App                                      # noqa: E402
-    from .channels import Channel, ChannelT, Event, EventT    # noqa: E402
-    from .models import Record                                # noqa: E402
-    from .sensors import Monitor, Sensor                      # noqa: E402
-    from .serializers import Codec                            # noqa: E402
-    from .streams.stream import Stream, current_event         # noqa: E402
-    from .tables import Set, Table                            # noqa: E402
-    from .topics import Topic                                 # noqa: E402
-    from .types import StreamT                                # noqa: E402
-    from .windows import (                                    # noqa: E402
+    from .actors import Actor                                   # noqa: E402
+    from .app import App                                        # noqa: E402
+    from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
+    from .models import Record                                  # noqa: E402
+    from .sensors import Monitor, Sensor                        # noqa: E402
+    from .serializers import Codec                              # noqa: E402
+    from .streams.stream import Stream, StreamT, current_event  # noqa: E402
+    from .tables.set import Set                                 # noqa: E402
+    from .tables.table import Table                             # noqa: E402
+    from .topics import Topic                                   # noqa: E402
+    from .windows import (                                      # noqa: E402
         HoppingWindow, TumblingWindow, SlidingWindow,
     )
     from .worker import Worker                                # noqa: E402
@@ -79,12 +79,11 @@ __all__ = [
     'Monitor',
     'Sensor',
     'Codec',
-    'Stream', 'current_event',
+    'Stream', 'StreamT', 'current_event',
     'Set',
     'Table',
     'Topic',
     'TopicT',
-    'StreamT',
     'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
     'Worker',
     'use_uvloop',
@@ -110,10 +109,10 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.serializers': ['Codec'],
-    'faust.streams.stream': ['Stream', 'current_event'],
-    'faust.tables': ['Set', 'Table'],
+    'faust.streams.stream': ['Stream', 'StreamT', 'current_event'],
+    'faust.tables.set': ['Set'],
+    'faust.tables.table': ['Table'],
     'faust.topics': ['Topic'],
-    'faust.types': ['StreamT'],
     'faust.windows': [
         'HoppingWindow',
         'TumblingWindow',
