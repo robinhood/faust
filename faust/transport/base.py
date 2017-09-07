@@ -188,7 +188,7 @@ class Consumer(Service, ConsumerT):
             tp = message.tp
             offset = message.offset
             await self._app.sensors.on_message_out(
-                self.id, tp, offset, None)
+                self.id, tp, offset, message)
             if self._app.topics.acks_enabled_for(message.topic):
                 committed = self._committed_offset[tp]
                 try:
