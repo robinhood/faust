@@ -319,4 +319,5 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
 
+
 __flake8_List_is_used: List  # XXX flake8 bug
