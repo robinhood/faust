@@ -389,20 +389,19 @@ class Service(ServiceBase):
                 if child is not None:
                     await child.stop()
             self._active_children.clear()
-            self.log.debug('-Stopped!')
-            self.log.info('Shutting down...')
+            self.log.debug('Shutting down...')
             if self.wait_for_shutdown:
-                self.log.info('Waiting for shutdown')
+                self.log.debug('Waiting for shutdown')
                 await asyncio.wait_for(
                     self._shutdown.wait(), self.shutdown_timeout,
                     loop=self.loop,
                 )
-                self.log.info('Shutting down now')
+                self.log.debug('Shutting down now')
             for future in reversed(self._futures):
                 future.cancel()
             await self._gather_futures()
             await self.on_shutdown()
-            self.log.debug('-Shutdown complete!')
+            self.log.info('-Stopped!')
 
     async def _gather_futures(self) -> None:
         while self._futures:
