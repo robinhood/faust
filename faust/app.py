@@ -74,6 +74,8 @@ DEFAULT_TABLE_CLS = 'faust.Table'
 #: Path to default set class used by ``app.Set``.
 DEFAULT_SET_CLS = 'faust.Set'
 
+DEFAULT_MONITOR_CLS = 'faust.sensors.Monitor'
+
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
 
@@ -265,9 +267,13 @@ class App(AppT, ServiceProxy):
             Table: SymbolArg[Type[TableT]] = DEFAULT_TABLE_CLS,
             TableManager: SymbolArg[Type[TableManagerT]] = DEFAULT_TABLE_MAN,
             CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _DCPM,
+            MonitorC: SymbolArg[Type[Monitor]] = DEFAULT_MONITOR_CLS,
             Set: SymbolArg[Type[SetT]] = DEFAULT_SET_CLS,
             Serializers: SymbolArg[Type[RegistryT]] = DEFAULT_SERIALIZERS_CLS,
             monitor: Monitor = None,
+            statsd_prefix: str = None,
+            statsd_host: str = 'localhost',
+            statsd_port: int = 8125,
             on_startup_finished: Callable = None,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
@@ -289,6 +295,7 @@ class App(AppT, ServiceProxy):
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.TableType = symbol_by_name(Table)
+        self.MonitorType = symbol_by_name(MonitorC)
         self.SetType = symbol_by_name(Set)
         self.TableManager = symbol_by_name(TableManager)
         self.CheckpointManager = symbol_by_name(CheckpointManager)
@@ -301,6 +308,9 @@ class App(AppT, ServiceProxy):
         self.assignor = PartitionAssignor(self,
                                           replicas=self.replication_factor)
         self.router = Router(self)
+        self.statsd_prefix = statsd_prefix
+        self.statsd_host = statsd_host
+        self.statsd_port = statsd_port
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = store
@@ -718,8 +728,19 @@ class App(AppT, ServiceProxy):
     @property
     def monitor(self) -> Monitor:
         if self._monitor is None:
-            self._monitor = Monitor(loop=self.loop, beacon=self.beacon)
+            self._monitor = self._get_monitor()
         return self._monitor
+
+    def _get_monitor(self):
+        if self.MonitorType == symbol_by_name(DEFAULT_MONITOR_CLS):
+            return self.MonitorType(loop=self.loop, beacon=self.beacon)
+        if self.MonitorType == symbol_by_name('faust.sensors.StatsdMonitor'):
+            return self.MonitorType(statsd_host=self.statsd_host,
+                                    statsd_port=self.statsd_port,
+                                    statsd_prefix=self.statsd_prefix,
+                                    loop=self.loop,
+                                    beacon=self.beacon)
+        return None
 
     @monitor.setter
     def monitor(self, monitor: Monitor) -> None:
