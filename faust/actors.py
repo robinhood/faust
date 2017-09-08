@@ -449,7 +449,7 @@ class Actor(ActorT, ServiceProxy):
             value,
             key=key,
             partition=partition,
-            reply_to=reply_to,
+            reply_to=reply_to or self.app.reply_to,
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
         )
