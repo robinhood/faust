@@ -31,14 +31,22 @@ README = Path('README.rst')
 # -*- Classifiers -*-
 
 classes = """
-    Development Status :: 2 - Pre-Alpha
+    Development Status :: 4 - Beta
     License :: OSI Approved :: BSD License
     Programming Language :: Python
+    Programming Language :: Python :: 3 :: Only
     Programming Language :: Python :: 3.6
     Programming Language :: Python :: Implementation :: CPython
     Programming Language :: Python :: Implementation :: PyPy
     Programming Language :: Python :: Implementation :: Jython
-    Operating System :: OS Independent
+    Operating System :: POSIX
+    Operating System :: POSIX :: Linux
+    Operating System :: MacOS :: MacOS X
+    Operating System :: POSIX :: BSD
+    Operating System :: Microsoft :: Windows
+    Topic :: System :: Networking
+    Topic :: System :: Distributed Computing
+    Topic :: Software Development :: Object Brokering
 """
 classifiers = [s.strip() for s in classes.split('\n') if s]
 
