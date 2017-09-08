@@ -32,7 +32,8 @@ class CheckpointManager(CheckpointManagerT, Service):
                 for tp, v in self._offsets.items()
             }, fh)
 
-    def _get_tp(self, key: str) -> TopicPartition:
+    @classmethod
+    def _get_tp(cls, key: str) -> TopicPartition:
         topic, partition = key.split('\0')
         return TopicPartition(topic, int(partition))
 
