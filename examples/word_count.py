@@ -14,7 +14,6 @@ app = faust.App(
     store='rocksdb://',
 )
 
-
 class Word(faust.Record):
     value: str
 
