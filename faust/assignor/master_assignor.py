@@ -1,8 +1,7 @@
 import typing
 from typing import Any
+from ..types import TopicPartition, TopicT
 from ..types.assignor import MasterAssignorT
-from ..types.topics import TopicT
-from ..types.tuples import TopicPartition
 from ..utils.objects import cached_property
 from ..utils.services import Service
 
