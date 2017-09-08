@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 from typing import Any, List, Optional, Tuple, Type
 
-DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID]
+DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID, bytes]
 
 try:  # pragma: no cover
     from django.utils.functional import Promise
