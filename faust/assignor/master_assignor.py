@@ -1,15 +1,9 @@
 import typing
 from typing import Any
-from ..types import TopicPartition, TopicT
+from ..types import AppT, TopicPartition, TopicT
 from ..types.assignor import MasterAssignorT
 from ..utils.objects import cached_property
 from ..utils.services import Service
-
-
-if typing.TYPE_CHECKING:
-    from ..app import AppT
-else:
-    class AppT: ...      # noqa
 
 
 class MasterAssignor(Service, MasterAssignorT):
