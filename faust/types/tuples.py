@@ -53,8 +53,8 @@ class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
         super().set_result(result)
 
 
-def _get_len(s: bytes):
-    return len(s) if s is not None else s
+def _get_len(s: bytes) -> int:
+    return len(s) if s is not None else 0
 
 
 class Message:

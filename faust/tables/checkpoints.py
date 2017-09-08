@@ -21,7 +21,7 @@ class CheckpointManager(CheckpointManagerT, Service):
             with open(self.app.checkpoint_path, 'r') as fh:
                 data = json.load(fh)
             self._offsets.update((
-                (TopicPartition(*k.split('\0')), int(v))
+                (self._get_tp(k), int(v))
                 for k, v in data.items()
             ))
 
@@ -31,6 +31,11 @@ class CheckpointManager(CheckpointManagerT, Service):
                 f'{tp.topic}\0{tp.partition}': v
                 for tp, v in self._offsets.items()
             }, fh)
+
+    @classmethod
+    def _get_tp(cls, key: str) -> TopicPartition:
+        topic, partition = key.split('\0')
+        return TopicPartition(topic, int(partition))
 
     def get_offset(self, tp: TopicPartition) -> Optional[int]:
         return self._offsets.get(tp)
