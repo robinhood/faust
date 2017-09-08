@@ -344,6 +344,7 @@ class Transport(base.Transport):
                             partitions: int,
                             replication: int,
                             **kwargs: Any) -> None:
+        assert topic is not None
         try:
             wrap = self._topic_waiters[topic]
         except KeyError:
