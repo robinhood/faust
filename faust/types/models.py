@@ -10,7 +10,7 @@ else:
 
 __all__ = ['ModelArg', 'ModelOptions', 'ModelT', 'FieldDescriptorT']
 
-ModelArg = Union[Type['ModelT'], CodecArg]
+ModelArg = Union[Type['ModelT'], Type[bytes], Type[str]]
 
 
 class ModelOptions(abc.ABC):

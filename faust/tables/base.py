@@ -67,8 +67,8 @@ class Collection(Service, CollectionT):
         self.name = name
         self.default = default
         self._store = store
-        self.key_type = key_type or 'json'
-        self.value_type = value_type or 'json'
+        self.key_type = key_type
+        self.value_type = value_type
         self.partitions = partitions
         self.window = window
         self.changelog_topic = changelog_topic
@@ -202,6 +202,8 @@ class Collection(Service, CollectionT):
             self._changelog_topic_name(),
             key_type=self.key_type,
             value_type=self.value_type,
+            key_serializer='json',
+            value_serializer='json',
             partitions=self.partitions,
             retention=retention,
             compacting=compacting,

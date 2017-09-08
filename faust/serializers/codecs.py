@@ -273,10 +273,10 @@ class raw(Codec):
     """Codec that does nothing at all."""
 
     def _loads(self, s: bytes) -> bytes:
-        return s
+        return want_bytes(s)
 
     def _dumps(self, s: bytes) -> bytes:
-        return s
+        return want_bytes(s)
 
 
 #: Codec registry, mapping of name to :class:`Codec` instance.

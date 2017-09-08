@@ -110,6 +110,8 @@ class AppT(ServiceT):
               pattern: Union[str, Pattern] = None,
               key_type: ModelArg = None,
               value_type: ModelArg = None,
+              key_serializer: CodecArg = None,
+              value_serializer: CodecArg = None,
               partitions: int = None,
               retention: Seconds = None,
               compacting: bool = None,

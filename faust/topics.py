@@ -8,8 +8,9 @@ from typing import (
     MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
 )
 from .channels import Channel
+from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, FutureMessage, K, Message,
+    AppT, CodecArg, EventT, FutureMessage, K, Message,
     ModelArg, PendingMessage, RecordMetadata, TopicPartition, V,
 )
 from .types.topics import ChannelT, TopicManagerT, TopicT
@@ -75,6 +76,8 @@ class Topic(Channel, TopicT):
                  acks: bool = True,
                  config: Mapping[str, Any] = None,
                  queue: asyncio.Queue = None,
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics
         super().__init__(
@@ -84,6 +87,8 @@ class Topic(Channel, TopicT):
             loop=loop,
             is_iterator=is_iterator,
         )
+        self.key_serializer = key_serializer
+        self.value_serializer = value_serializer
         self.pattern = cast(Pattern, pattern)  # XXX mypy does not read setter
         self.partitions = partitions
         self.retention = retention
@@ -92,6 +97,32 @@ class Topic(Channel, TopicT):
         self.replicas = replicas
         self.acks = acks
         self.config = config or {}
+        self.decode = self._compile_decode()    # type: ignore
+
+    def _compile_decode(self) -> Callable[[Message], Awaitable[EventT]]:
+        app = self.app
+        key_type = self.key_type
+        value_type = self.value_type
+        loads_key = app.serializers.loads_key
+        loads_value = app.serializers.loads_value
+        create_event = self._create_event
+        key_serializer = self.key_serializer
+        value_serializer = self.value_serializer
+
+        async def decode(message: Message) -> Any:
+            try:
+                k = loads_key(key_type, message.key, serializer=key_serializer)
+            except KeyDecodeError as exc:
+                await self.on_key_decode_error(exc, message)
+            else:
+                try:
+                    v = loads_value(
+                        value_type, message.value, serializer=value_serializer)
+                except ValueDecodeError as exc:
+                    await self.on_value_decode_error(exc, message)
+                else:
+                    return create_event(k, v, message)
+        return decode
 
     def _clone_args(self) -> Mapping:
         return {**super()._clone_args(), **{
@@ -102,6 +133,8 @@ class Topic(Channel, TopicT):
             'compacting': self.compacting,
             'deleting': self.deleting,
             'replicas': self.replicas,
+            'key_serializer': self.key_serializer,
+            'value_serializer': self.value_serializer,
             'acks': self.acks,
             'config': self.config,
         }}
@@ -145,6 +178,8 @@ class Topic(Channel, TopicT):
                topics: Sequence[str] = None,
                key_type: ModelArg = None,
                value_type: ModelArg = None,
+               key_serializer: CodecArg = None,
+               value_serializer: CodecArg = None,
                partitions: int = None,
                retention: Seconds = None,
                compacting: bool = None,
@@ -169,6 +204,12 @@ class Topic(Channel, TopicT):
             pattern=self.pattern,
             key_type=self.key_type if key_type is None else key_type,
             value_type=self.value_type if value_type is None else value_type,
+            key_serializer=(
+                self.key_serializer
+                if key_serializer is None else key_serializer),
+            value_serializer=(
+                self.value_serializer
+                if value_serializer is None else value_serializer),
             partitions=self.partitions if partitions is None else partitions,
             retention=self.retention if retention is None else retention,
             compacting=self.compacting if compacting is None else compacting,
@@ -225,13 +266,15 @@ class Topic(Channel, TopicT):
                     key: K,
                     key_serializer: CodecArg) -> Any:
         if key is not None:
-            return self.app.serializers.dumps_key(key, key_serializer)
+            return self.app.serializers.dumps_key(
+                key, key_serializer or self.key_serializer)
         return None
 
     def prepare_value(self,
                       value: V,
                       value_serializer: CodecArg) -> Any:
-        return self.app.serializers.dumps_value(value, value_serializer)
+        return self.app.serializers.dumps_value(
+            value, value_serializer or self.value_serializer)
 
     @stampede
     async def maybe_declare(self) -> None:
