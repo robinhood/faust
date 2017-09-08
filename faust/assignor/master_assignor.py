@@ -31,7 +31,7 @@ class MasterAssignor(Service, MasterAssignorT):
 
     @cached_property
     def _master_topic_name(self) -> str:
-        return f'__{self.app.id}-__assignor-__master'
+        return f'{self.app.id}-__assignor-__master'
 
     @cached_property
     def _master_tp(self) -> TopicPartition:
