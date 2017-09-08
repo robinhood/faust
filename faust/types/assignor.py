@@ -2,6 +2,7 @@ import abc
 import typing
 from typing import Iterable, List, MutableMapping
 from .topics import TopicPartition
+from ..utils.types.services import ServiceT
 
 
 TopicPartitionsMap = MutableMapping[str, List[int]]
@@ -37,4 +38,13 @@ class PartitionAssignorT(abc.ABC):
 
     @abc.abstractmethod
     def tables_metadata(self) -> HostPartitionsMap:
+        ...
+
+
+class MasterAssignorT(ServiceT):
+
+    app: AppT
+
+    @abc.abstractmethod
+    def is_master(self) -> bool:
         ...
