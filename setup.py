@@ -124,6 +124,7 @@ setup(
     license='BSD',
     packages=find_packages(exclude=['ez_setup', 'tests', 'tests.*']),
     include_package_data=True,
+    python_requires='>=3.6.1',
     zip_safe=False,
     install_requires=reqs('default.txt'),
     tests_require=reqs('test.txt'),
