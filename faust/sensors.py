@@ -2,12 +2,12 @@ import asyncio
 import statistics
 import typing
 from contextlib import suppress
-from statsd import StatsClient
 from time import monotonic
 from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
+from statsd import StatsClient
 from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from .types.sensors import SensorDelegateT, SensorT
 from .types.transports import ConsumerT, ProducerT
@@ -540,10 +540,15 @@ class Monitor(Sensor, KeywordReduce):
 
 
 class StatsdMonitor(Monitor):
+    """Statsd Faust Sensor.
+
+    This sensor, records statistics to Statsd along with computing metrics
+    for the stats server
+    """
     REQUIRED_PARAMS = {
         'statsd_prefix',
         'statsd_host',
-        'statsd_port'
+        'statsd_port',
     }
 
     def __init__(self, *args, **kwargs):
@@ -581,32 +586,33 @@ class StatsdMonitor(Monitor):
                                                             stream, event)
         self.client.incr('events')
         self.client.incr(
-            f'stream.{self_sanitize(label(stream))}.events')
+            f'stream.{self._sanitize(label(stream))}.events')
         self.client.incr(
             f'task.{self._sanitize(label(stream.task_owner))}.events')
         self.client.incr('events_active')
 
     async def on_stream_event_out(
-                self,
-                tp: TopicPartition,
-                offset: int,
-                stream: StreamT,
-                event: EventT) -> None:
-            await super(StatsdMonitor, self).on_stream_event_out(tp, offset, stream,
-                                                                 event)
-            self.client.decr('events_active')
-            self.client.timing('events_runtime', self._time(
-                self.events_runtime[-1]))
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: EventT) -> None:
+        await super(StatsdMonitor, self).on_stream_event_out(tp,
+                                                             offset,
+                                                             stream, event)
+        self.client.decr('events_active')
+        self.client.timing('events_runtime', self._time(
+            self.events_runtime[-1]))
 
     async def on_message_out(
-                self,
-                consumer_id: int,
-                tp: TopicPartition,
-                offset: int,
-                message: Message = None) -> None:
-            await super(StatsdMonitor, self).on_message_out(consumer_id, tp, offset,
-                                                            message)
-            self.client.decr("messages_active")
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message = None) -> None:
+        await super(StatsdMonitor, self).on_message_out(
+            consumer_id, tp, offset, message)
+        self.client.decr("messages_active")
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
         super(StatsdMonitor, self).on_table_get(table, key)
@@ -644,10 +650,11 @@ class StatsdMonitor(Monitor):
         name = name.replace('<', '')
         name = name.replace('>', '')
         name = name.replace(' ', '')
-        return name.replace(':','-')
+        return name.replace(':', '-')
 
     def _time(self, time):
         return time * 1000
+
 
 class SensorDelegate(SensorDelegateT):
 
@@ -745,4 +752,3 @@ class SensorDelegate(SensorDelegateT):
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'
-
