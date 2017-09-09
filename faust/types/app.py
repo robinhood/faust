@@ -46,7 +46,6 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
-
     Stream: Type[StreamT]
     TableType: Type[TableT]
     TableManager: Type[TableManagerT]
