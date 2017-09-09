@@ -362,6 +362,9 @@ class Monitor(Sensor, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
+                 statsd_host: str = 'localhost',
+                 statsd_port: int = 8152,
+                 statsd_prefix: str = '',
                  **kwargs: Any) -> None:
         self.max_messages = max_messages
         self.max_avg_history = max_avg_history
@@ -577,8 +580,10 @@ class StatsdMonitor(Monitor):
                                                             offset,
                                                             stream, event)
         self.client.incr('events')
-        self.client.incr(f'stream.{label(stream)}.events')
-        self.client.incr(f'task.{label(stream.task_owner)}.events')
+        self.client.incr(
+            f'stream.{self_sanitize(label(stream))}.events')
+        self.client.incr(
+            f'task.{self._sanitize(label(stream.task_owner))}.events')
         self.client.incr('events_active')
 
     async def on_stream_event_out(
@@ -590,7 +595,8 @@ class StatsdMonitor(Monitor):
             await super(StatsdMonitor, self).on_stream_event_out(tp, offset, stream,
                                                                  event)
             self.client.decr('events_active')
-            self.client.timer('events_runtime', self.events_runtime[-1])
+            self.client.timing('events_runtime', self._time(
+                self.events_runtime[-1]))
 
     async def on_message_out(
                 self,
@@ -617,7 +623,8 @@ class StatsdMonitor(Monitor):
     async def on_commit_completed(
             self, consumer: ConsumerT, state: Any) -> None:
         await super(StatsdMonitor, self).on_commit_completed(consumer, state)
-        self.client.timer('commit_latency', monotonic() - cast(float, state))
+        self.client.timing('commit_latency', self._time(
+            monotonic() - cast(float, state)))
 
     async def on_send_initiated(self, producer: ProducerT, topic: str,
                                 keysize: int, valsize: int) -> Any:
@@ -630,8 +637,17 @@ class StatsdMonitor(Monitor):
     async def on_send_completed(
             self, producer: ProducerT, state: Any) -> None:
         await super(StatsdMonitor, self).on_send_completed(producer, state)
-        self.client.timer('send_latency', monotonic() - cast(float, state))
+        self.client.timing('send_latency', self._time(
+            monotonic() - cast(float, state)))
 
+    def _sanitize(self, name: str) -> str:
+        name = name.replace('<', '')
+        name = name.replace('>', '')
+        name = name.replace(' ', '')
+        return name.replace(':','-')
+
+    def _time(self, time):
+        return time * 1000
 
 class SensorDelegate(SensorDelegateT):
 
