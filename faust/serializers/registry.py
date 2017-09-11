@@ -131,7 +131,9 @@ class Registry(RegistryT):
         return want_bytes(cast(bytes, key)) if key is not None else None
 
     def dumps_value(self, value: V,
-                    serializer: CodecArg = None) -> Optional[bytes]:
+                    serializer: CodecArg = None,
+                    *,
+                    skip: IsInstanceArg = (bytes,)) -> Optional[bytes]:
         """Serialize value.
 
         Arguments:
@@ -144,7 +146,7 @@ class Registry(RegistryT):
             is_model = True
             value = cast(ModelT, value)
             serializer = value._options.serializer or serializer
-        if serializer:
+        if serializer and not isinstance(value, skip):
             if is_model:
                 return cast(ModelT, value).dumps(serializer=serializer)
             return dumps(serializer, value)
