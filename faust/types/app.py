@@ -29,7 +29,7 @@ from ..utils.times import Seconds
 from ..utils.types.collections import NodeT
 from ..utils.types.services import ServiceT
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from ..sensors import Monitor
     from .models import ModelArg
 else:

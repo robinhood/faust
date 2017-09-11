@@ -3,7 +3,7 @@ import typing
 from typing import Any, ClassVar, FrozenSet, Mapping, Type, Union
 from .codecs import CodecArg
 
-if typing.TYPE_CHECKING:  # pragma: no cover
+if typing.TYPE_CHECKING:
     from avro.schema import Schema
 else:
     class Schema: ...   # noqa

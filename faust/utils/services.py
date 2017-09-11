@@ -617,7 +617,7 @@ class ServiceThread(threading.Thread):
     def _set_stopped(self) -> None:
         try:
             self._stopped.set()
-        except TypeError:  # pragma: no cover
+        except TypeError:
             # we lost the race at interpreter shutdown,
             # so gc collected built-in modules.
             pass

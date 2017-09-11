@@ -24,9 +24,9 @@ from .utils.objects import cached_property
 from .utils.services import ServiceT, ServiceWorker
 from .web.site import Website as _Website
 
-try:  # pragma: no cover
+try:
     from setproctitle import setproctitle
-except ImportError:  # pragma: no cover
+except ImportError:
     def setproctitle(title: str) -> None: ...  # noqa
 
 __all__ = ['DEBUG', 'DEFAULT_BLOCKING_TIMEOUT', 'Worker']

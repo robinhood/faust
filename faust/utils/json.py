@@ -6,28 +6,28 @@ from typing import Any, List, Optional, Tuple, Type
 
 DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID, bytes]
 
-try:  # pragma: no cover
+try:
     from django.utils.functional import Promise
     DJANGO_TEXTUAL_TYPES = [Promise]
-except ImportError:  # pragma: no cover
+except ImportError:
     DJANGO_TEXTUAL_TYPES = []
 
 TEXTUAL_TYPES: Tuple[Type, ...] = tuple(
     DEFAULT_TEXTUAL_TYPES + DJANGO_TEXTUAL_TYPES)
 
-try:  # pragma: no cover
+try:
     import ujson
 except ImportError:
     ujson = None
 
-try:  # pragma: no cover
+try:
     import simplejson as json
 
     # simplejson converts Decimal to float by default, i.e. before
     # we have a chance to override it using Encoder.default.
     _JSON_DEFAULT_KWARGS = {'use_decimal': False}
-except ImportError:  # pragma: no cover
-    import json                              # type: ignore
+except ImportError:
+    import json  # type: ignore
     _JSON_DEFAULT_KWARGS = {}
 
 __all__ = [

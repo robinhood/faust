@@ -206,7 +206,7 @@ def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
     """
     try:
         from pkg_resources import iter_entry_points
-    except ImportError:  # pragma: no cover
+    except ImportError:
         return
 
     for ep in iter_entry_points(namespace):
