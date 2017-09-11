@@ -35,7 +35,7 @@ class Registry(RegistryT):
             serializer: Codec to use for this value.  If not set
                the default will be used (:attr:`key_serializer`).
         """
-        if key is None or typ is None:
+        if key is None:
             return key
         serializer = serializer or self.key_serializer
         try:
@@ -43,15 +43,15 @@ class Registry(RegistryT):
                 k = self._loads_model(cast(Type[ModelT], typ), serializer, key)
             else:
                 # assume bytes if no type set.
-                typ = bytes if typ is None else typ
                 k = self.Model._maybe_reconstruct(
                     self._loads(serializer, key))
-                if typ is str:
-                    k = want_str(k)
-                elif typ is bytes:
-                    k = want_bytes(k)
-                elif not isinstance(k, ModelT):
-                    k = typ(k)
+                if typ is not None:
+                    if typ is str:
+                        k = want_str(k)
+                    elif typ is bytes:
+                        k = want_bytes(k)
+                    elif not isinstance(k, ModelT):
+                        k = typ(k)
             return cast(K, k)
         except Exception as exc:
             raise KeyDecodeError(
@@ -97,12 +97,13 @@ class Registry(RegistryT):
                 typ = bytes if typ is None else typ
                 v = self.Model._maybe_reconstruct(
                     self._loads(serializer, value))
-                if typ is str:
-                    return want_str(v)
-                elif typ is bytes:
-                    return want_bytes(v)
-                elif not isinstance(v, ModelT):
-                    return typ(v)
+                if typ is not None:
+                    if typ is str:
+                        return want_str(v)
+                    elif typ is bytes:
+                        return want_bytes(v)
+                    elif not isinstance(v, ModelT):
+                        return typ(v)
                 return v
         except Exception as exc:
             raise ValueDecodeError(
