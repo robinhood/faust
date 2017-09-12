@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import (
     Any, Callable, ClassVar, Dict, Iterable,
-    Mapping, Sequence, Tuple, Type, cast,
+    Mapping, Optional, Sequence, Tuple, Type, cast,
 )
 from .base import FieldDescriptor, Model
 from ..serializers.avro import to_avro_type
@@ -121,10 +121,12 @@ class Record(Model):
             }
 
     @staticmethod
-    def _parse_iso8601(typ: Type, data: str) -> datetime:
-        if data and not isinstance(data, typ):
-            return iso8601.parse(data)
-        return data
+    def _parse_iso8601(typ: Type, data: Any) -> Optional[datetime]:
+        if data is None:
+            return None
+        if isinstance(data, datetime):
+            return data
+        return iso8601.parse(data)
 
     @classmethod
     def _contribute_field_descriptors(cls, options: ModelOptions) -> None:
