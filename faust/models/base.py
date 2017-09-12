@@ -94,6 +94,7 @@ class Model(ModelT):
                 Note, these are regarded as defaults, and any fields also
                 present in the message takes precedence.
         """
+        print('LOADS: %r' % (cls._options.serializer or default_serializer,))
         data = loads(cls._options.serializer or default_serializer, s)
         self_cls = cls._maybe_namespace(data)
         return self_cls(data) if self_cls else cls(data)

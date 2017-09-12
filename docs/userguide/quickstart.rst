@@ -36,7 +36,7 @@ Lets create the file `hello_world.py`:
     greetings_topic = app.topic('greetings')
 
     @app.actor(greetings_topic)
-    async def print_greetings(greetings):
+    async def greet(greetings):
         async for greeting in greetings:
             print(greeting)
 
@@ -112,8 +112,14 @@ console producer to push some messages into the ``greetings`` topic:
 
 .. sourcecode:: console
 
-    $ $KAFKA_HOME/bin/kafka-console-producer --broker-list localhost:9092 --topic greetings
+    $ faust -A hello_world send @greet "Hello Faust"
 
-The above command starts a Kafka producer. Now start sending it messages and
-see your application start processing the greetings as they come in and print
-them.
+The above command sends a message to the ``greet`` actor by using the ``@``
+prefix.  You can also send it to the topic by not using any prefix:
+
+.. sourcecode:: console
+
+    $ faust -A hello_world send greetings "Hello Kafka topic"
+
+After sending these messages you can see your worker start processing
+these greetings as they come in and print them.

@@ -1,9 +1,12 @@
+import asyncio
+import json
 import os
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence, Tuple
 import click
-from ..types.app import AppT
+from ..types import AppT, CodecArg, FutureMessage, K, ModelT, RecordMetadata, V
+from ..utils.compat import want_bytes
 from ..utils.imports import import_from_cwd, symbol_by_name
 from ..web.base import DEFAULT_BIND, DEFAULT_PORT
 from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT
@@ -79,12 +82,7 @@ def worker(ctx: click.Context,
     if with_uvloop:
         from .. import use_uvloop
         use_uvloop()
-    app = ctx.obj['app']
-    debug = ctx.obj['debug']
-    quiet = ctx.obj['quiet']
-    if not app:
-        raise click.UsageError('Need to specify app using -A parameter')
-    app = find_app(app)
+    app, debug, quiet = _get_default_context(ctx)
     app.advertised_url = f'{advertised_host}:{web_port}'
     from ..worker import Worker
     Worker(
@@ -97,6 +95,14 @@ def worker(ctx: click.Context,
     ).execute_from_commandline()
 
 
+def _get_default_context(ctx: click.Context) -> Tuple[AppT, bool, bool]:
+    app = ctx.obj['app']
+    if not app:
+        raise click.UsageError('Need to specify app using -A parameter')
+    app = find_app(app)
+    return app, ctx.obj['debug'], ctx.obj['quiet']
+
+
 def say(quiet: bool, *args: Any, **kwargs: Any) -> None:
     if not quiet:
         print(*args, **kwargs)
@@ -105,17 +111,82 @@ def say(quiet: bool, *args: Any, **kwargs: Any) -> None:
 @cli.command(help='Delete local table state')
 @click.pass_context
 def reset(ctx: click.Context) -> None:
-    app = ctx.obj['app']
-    quiet = ctx.obj['quiet']
-    if not app:
-        raise click.UsageError('Need to specify app using -A parameter')
-    app = find_app(app)
+    app, _, quiet = _get_default_context(ctx)
     for table in app.tables.values():
         say(quiet,
-            f'Removing file "{table.data.path}" for table {table.name}...')
+            f'Removing database for table {table.name}...')
         table.reset_state()
     say(quiet, f'Removing file "{app.checkpoint_path}"...')
     app.checkpoints.reset_state()
+
+
+@cli.command(help='Send message to actor/topic')
+@click.pass_context
+@click.option('--key-type', '-K',
+              help='Name of model to serialize key into')
+@click.option('--key-serializer',
+              help='Override default serializer for key.')
+@click.option('--value-type', '-V',
+              help='Name of model to serialize value into')
+@click.option('--value-serializer',
+              help='Override default serializer for value.')
+@click.option('--key', '-k',
+              help='Key value')
+@click.option('--partition', type=int, help='Specific partition to send to')
+@click.argument('entity')
+@click.argument('value', default=None, required=False)
+def send(ctx: click.Context, entity: str,
+         value: str = None,
+         key: str = None,
+         key_type: str = None,
+         key_serializer: CodecArg = None,
+         value_type: str = None,
+         value_serializer: CodecArg = None,
+         partition: int = None) -> None:
+    appstr = ctx.obj['app']
+    app, _, quiet = _get_default_context(ctx)
+    key_serializer = key_serializer or app.key_serializer
+    value_serializer = value_serializer or app.value_serializer
+
+    k: K = _to_model(appstr, key_type, want_bytes(key), key_serializer)
+    v: V = _to_model(appstr, value_type, want_bytes(value), value_serializer)
+
+    topic = _topic_from_str(app, appstr, entity)
+
+    loop = asyncio.get_event_loop()
+    # start sending the message
+    fut: FutureMessage = loop.run_until_complete(topic.send(
+        key=k, value=v, partition=partition,
+    ))
+    # wait for Producer to flush buffer and return RecordMetadata
+    res: RecordMetadata = loop.run_until_complete(fut)
+    say(quiet, json.dumps(res._asdict()))
+    # then gracefully stop the producer.
+    loop.run_until_complete(app.producer.stop())
+
+
+def _to_model(appstr: str, typ: str, value: bytes,
+              serializer: CodecArg) -> Any:
+    if typ:
+        model: ModelT = _import_relative_to_app(appstr, typ)
+        return model.loads(value, default_serializer=serializer)
+    return value
+
+
+def _import_relative_to_app(appstr: str, attr: str) -> Any:
+    try:
+        return symbol_by_name(attr)
+    except ImportError:
+        root, _, _ = appstr.partition(':')
+        return symbol_by_name(f'{root}.{attr}')
+
+
+def _topic_from_str(app: AppT, appstr: str, entity: str) -> Any:
+    if not entity:
+        raise click.UsageError('Missing topic/@actor name')
+    if entity.startswith('@'):
+        return _import_relative_to_app(appstr, entity[1:])
+    return app.topic(entity)
 
 
 @click.command()
@@ -141,3 +212,10 @@ def find_app(app: str,
             raise AttributeError()
         return found
     return sym
+
+
+__flake8_FutureMessage_is_used: FutureMessage    # XXX flake8 bug
+__flake8_K_is_used: K
+__flake8_ModelT_is_used: ModelT
+__flake8_RecordMetadata_is_used: RecordMetadata
+__flake8_V_is_used: V
