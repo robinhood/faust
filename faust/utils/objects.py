@@ -4,8 +4,8 @@ from contextlib import suppress
 from functools import singledispatch, total_ordering
 from pathlib import Path
 from typing import (
-    AbstractSet, Any, Callable, Collection, Dict, FrozenSet, Generic,
-    Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
+    AbstractSet, Any, Callable, Dict, FrozenSet, Generic,
+    Iterable, List, Mapping, MutableMapping, MutableSequence,
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
 
@@ -229,14 +229,13 @@ def guess_concrete_type(
             # Set[x]
             return set, _unary_type_arg(typ)
         elif issubclass(typ, list_types):
-            print('TYPE: %r' %  (typ,))
             # List[x]
             return list, _unary_type_arg(typ)
         elif issubclass(typ, DICT_TYPES):
             # Dict[_, x]
-            vt = (typ.__args__[1]
-                  if typ.__args__ and len(typ.__args__) > 1 else Any)
-            return dict, vt
+            return dict, (
+                typ.__args__[1]
+                if typ.__args__ and len(typ.__args__) > 1 else Any)
         elif issubclass(typ, tuple_types):
             # Tuple[x]
             return tuple, _unary_type_arg(typ)
