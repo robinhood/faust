@@ -12,7 +12,7 @@ from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from .types.sensors import SensorDelegateT, SensorT
 from .types.transports import ConsumerT, ProducerT
 from .utils.logging import get_logger
-from .utils.objects import KeywordReduce, label, cached_property
+from .utils.objects import KeywordReduce, cached_property, label
 from .utils.services import Service, ServiceProxy, ServiceT
 
 
@@ -755,12 +755,13 @@ class MonitorService(Service):
                     self.monitor.events_runtime)
 
             # Update events/s
-            self.monitor.events_s = self.monitor.events_total - prev_event_total
+            self.monitor.events_s = self.monitor.events_total - \
+                prev_event_total
             prev_event_total = self.monitor.events_total
 
             # Update messages/s
             self.messages_s = self.monitor.messages_received_total \
-                              - prev_message_total
+                - prev_message_total
             prev_message_total = self.monitor.messages_received_total
 
             # Cleanup
