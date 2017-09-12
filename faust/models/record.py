@@ -4,12 +4,18 @@ from typing import (
 from .base import FieldDescriptor, Model
 from ..serializers.avro import to_avro_type
 from ..types.models import ModelOptions, ModelT
-from ..utils.objects import annotations
+from ..utils.objects import annotations, guess_concrete_type
 
 __all__ = ['Record']
 
 
 def _is_model(cls: Type) -> bool:
+    # This is used only to see if cls is a Model type.
+    try:
+        # Check for List[Model], Set[Model], etc.
+        _, cls = guess_concrete_type(cls)
+    except TypeError:
+        pass
     try:
         return issubclass(cls, ModelT)
     except TypeError:  # typing.Any cannot be used with subclass
@@ -67,6 +73,7 @@ class Record(Model):
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.optionalset = frozenset(defaults)
+        is_model = _is_model
         # extract all default values, but only for actual fields.
         options.defaults = {
             k: v
@@ -76,7 +83,7 @@ class Record(Model):
         options.models = {
             field: typ
             for field, typ in fields.items()
-            if _is_model(typ)
+            if is_model(typ)
         }
         options.modelset = frozenset(options.models)
 
@@ -122,15 +129,40 @@ class Record(Model):
         self.__dict__.update(fields)
 
         # then reconstruct child models
-        for _field, _typ in self._options.models.items():
-            _data = fields.get(_field)
-            if _data is not None and not isinstance(_data, ModelT):
-                self_cls = self._maybe_namespace(_data)
-                if self_cls:
-                    _data = self_cls(_data)
-                elif _typ is not ModelT:  # is not base class
-                    _data = _typ(_data)
-            self.__dict__[_field] = _data
+        self.__dict__.update({
+            self._to_models(_field, _typ, fields.get(_field))
+            for _field, _typ in self._options.models.items()
+        })
+
+    def _to_models(self, field: str, typ: Type[ModelT], data: Any) -> Any:
+        try:
+            generic, subtyp = guess_concrete_type(typ)
+        except TypeError:
+            return self._to_model(field, typ, data)
+        else:
+            if generic is list:
+                return [
+                    self._to_model(field, subtyp, v) for v in data]
+            elif generic is tuple:
+                return tuple(
+                    self._to_model(field, subtyp, v) for v in data)
+            elif generic is dict:
+                return {k: self._to_model(field, subtyp, v)
+                        for k, v in data.items()}
+            elif generic is set:
+                return {self._to_model(field, subtyp, v)
+                        for v in data}
+
+    def _to_model(self, field: str, typ: Type[ModelT], data: Any) -> ModelT:
+        if data is not None and not isinstance(data, ModelT):
+            self_cls = self._maybe_namespace(data)
+            if self_cls:
+                ret = self_cls(data)
+            elif typ is not ModelT:  # is not base class
+                ret = typ(ret)
+            if ret is not None and not isinstance(ret, typ):
+                return typ(ret)
+        return data
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         data = cast(Dict, self.to_representation())

@@ -4,8 +4,9 @@ from contextlib import suppress
 from functools import singledispatch, total_ordering
 from pathlib import Path
 from typing import (
-    Any, Callable, Dict, Generic, Iterable,
-    Mapping, Tuple, Type, TypeVar, cast,
+    AbstractSet, Any, Callable, Collection, Dict, FrozenSet, Generic,
+    Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
+    MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     'shortlabel',
     'annotations',
     'iter_mro_reversed',
+    'guess_concrete_type',
     'cached_property',
 ]
 
@@ -29,6 +31,19 @@ FieldMapping = Mapping[str, Type]
 
 #: Mapping of attribute name to attributes default value.
 DefaultsMapping = Mapping[str, Any]
+
+SET_TYPES: Tuple[Type, ...] = (AbstractSet, FrozenSet, MutableSet, Set)
+LIST_TYPES: Tuple[Type, ...] = (
+    Collection,
+    List,
+    Sequence,
+    MutableSequence,
+    Iterable,
+    Iterator,
+)
+DICT_TYPES: Tuple[Type, ...] = (Dict, Mapping, MutableMapping)
+# XXX cast required for mypy bug
+TUPLE_TYPES: Tuple[Type, ...] = cast(Tuple[Type, ...], (Tuple,))
 
 
 @total_ordering
@@ -203,6 +218,33 @@ def iter_mro_reversed(cls: Type, stop: Type) -> Iterable[Type]:
             yield cast(Type, subcls)
         else:
             wanted = subcls == stop
+
+
+def guess_concrete_type(
+        typ: Type,
+        *,
+        set_types: Tuple[Type, ...] = SET_TYPES,
+        list_types: Tuple[Type, ...] = LIST_TYPES,
+        tuple_types: Tuple[Type, ...] = TUPLE_TYPES,
+        dict_types: Tuple[Type, ...] = DICT_TYPES) -> Tuple[Type, Type]:
+    if issubclass(typ, set_types):
+        # Set[x]
+        return set, _unary_type_arg(typ)
+    elif issubclass(typ, list_types):
+        # List[x]
+        return list, _unary_type_arg(typ)
+    elif issubclass(typ, DICT_TYPES):
+        # Dict[_, x]
+        vt = typ.__args__[1] if typ.__args__ and len(typ.__args__) > 1 else Any
+        return dict, vt
+    elif issubclass(typ, tuple_types):
+        # Tuple[x]
+        return tuple, _unary_type_arg(typ)
+    raise TypeError('Not a generic type')
+
+
+def _unary_type_arg(typ: Type) -> Type:
+    return typ.__args__[0] if typ.__args__ else Any
 
 
 class cached_property:
