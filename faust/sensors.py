@@ -7,6 +7,7 @@ from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
+from statsd import StatsClient
 from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from .types.sensors import SensorDelegateT, SensorT
 from .types.transports import ConsumerT, ProducerT
@@ -361,6 +362,9 @@ class Monitor(Sensor, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
+                 statsd_host: str = 'localhost',
+                 statsd_port: int = 8152,
+                 statsd_prefix: str = '',
                  **kwargs: Any) -> None:
         self.max_messages = max_messages
         self.max_avg_history = max_avg_history
@@ -533,6 +537,123 @@ class Monitor(Sensor, KeywordReduce):
     async def on_send_completed(
             self, producer: ProducerT, state: Any) -> None:
         self.send_latency.append(monotonic() - cast(float, state))
+
+
+class StatsdMonitor(Monitor):
+    """Statsd Faust Sensor.
+
+    This sensor, records statistics to Statsd along with computing metrics
+    for the stats server
+    """
+    REQUIRED_PARAMS = {
+        'statsd_prefix',
+        'statsd_host',
+        'statsd_port',
+    }
+
+    def __init__(self, *args, **kwargs):
+        self._start_statsd_client(*args, **kwargs)
+        super(StatsdMonitor, self).__init__(*args, **kwargs)
+
+    def _start_statsd_client(self, *args, **kwargs):
+        assert self.REQUIRED_PARAMS < set(kwargs.keys())
+
+        self.client = StatsClient(host=kwargs['statsd_host'],
+                                  port=kwargs['statsd_port'],
+                                  prefix=kwargs['statsd_prefix'])
+
+    async def on_message_in(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message) -> None:
+        await super(StatsdMonitor, self).on_message_in(consumer_id, tp, offset,
+                                                       message)
+
+        self.client.incr('messages_received')
+        self.client.incr('messages_active')
+        self.client.incr(f'topic.{tp.topic}.messages_received')
+
+    async def on_stream_event_in(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: EventT) -> None:
+        await super(StatsdMonitor, self).on_stream_event_in(tp,
+                                                            offset,
+                                                            stream, event)
+        self.client.incr('events')
+        self.client.incr(
+            f'stream.{self._sanitize(label(stream))}.events')
+        self.client.incr(
+            f'task.{self._sanitize(label(stream.task_owner))}.events')
+        self.client.incr('events_active')
+
+    async def on_stream_event_out(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: EventT) -> None:
+        await super(StatsdMonitor, self).on_stream_event_out(tp,
+                                                             offset,
+                                                             stream, event)
+        self.client.decr('events_active')
+        self.client.timing('events_runtime', self._time(
+            self.events_runtime[-1]))
+
+    async def on_message_out(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message = None) -> None:
+        await super(StatsdMonitor, self).on_message_out(
+            consumer_id, tp, offset, message)
+        self.client.decr("messages_active")
+
+    def on_table_get(self, table: CollectionT, key: Any) -> None:
+        super(StatsdMonitor, self).on_table_get(table, key)
+        self.client.incr('table.{}.keys_retrieved'.format(table.name))
+
+    def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
+        super(StatsdMonitor, self).on_table_set(table, key, value)
+        self.client.incr('table.{}.keys_updated'.format(table.name))
+
+    def on_table_del(self, table: CollectionT, key: Any) -> None:
+        super(StatsdMonitor, self).on_table_del(table, key)
+        self.client.incr('table.{}.keys_deleted'.format(table.name))
+
+    async def on_commit_completed(
+            self, consumer: ConsumerT, state: Any) -> None:
+        await super(StatsdMonitor, self).on_commit_completed(consumer, state)
+        self.client.timing('commit_latency', self._time(
+            monotonic() - cast(float, state)))
+
+    async def on_send_initiated(self, producer: ProducerT, topic: str,
+                                keysize: int, valsize: int) -> Any:
+
+        self.client.incr('messages_sent')
+        self.client.incr(f'topic.{topic}.messages_sent')
+        return await super(StatsdMonitor, self).on_send_initiated(
+            producer, topic, keysize, valsize)
+
+    async def on_send_completed(
+            self, producer: ProducerT, state: Any) -> None:
+        await super(StatsdMonitor, self).on_send_completed(producer, state)
+        self.client.timing('send_latency', self._time(
+            monotonic() - cast(float, state)))
+
+    def _sanitize(self, name: str) -> str:
+        name = name.replace('<', '')
+        name = name.replace('>', '')
+        name = name.replace(' ', '')
+        return name.replace(':', '-')
+
+    def _time(self, time):
+        return time * 1000
 
 
 class SensorDelegate(SensorDelegateT):

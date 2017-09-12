@@ -52,6 +52,7 @@ class AppT(ServiceT):
     CheckpointManager: Type[CheckpointManagerT]
     SetType: Type[SetT]
     Serializers: Type[RegistryT]
+    MonitorType: Type[Monitor]
 
     id: str
     url: str
@@ -70,6 +71,9 @@ class AppT(ServiceT):
     reply_expires: float
     avro_registry_url: str
     store: str
+    statsd_prefix: str
+    statsd_host: str
+    statsd_port: int
     assignor: PartitionAssignorT
     router: RouterT
     advertised_url: str
@@ -81,6 +85,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def __init__(self, id: str,
                  *,
+                 monitor_name: str = '',
                  url: str = 'aiokafka://localhost:9092',
                  store: str = 'memory://',
                  avro_registry_url: str = None,
@@ -100,7 +105,11 @@ class AppT(ServiceT):
                  CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = '',
                  Set: SymbolArg[Type[SetT]] = '',
                  Serializers: SymbolArg[Type[RegistryT]] = '',
+                 MonitorC: SymbolArg[Type[Monitor]] = '',
                  monitor: Monitor = None,
+                 statsd_prefix: str = '',
+                 statsd_host: str = 'localhost',
+                 statsd_port: int = 8125,
                  on_startup_finished: Callable = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.on_startup_finished: Callable = None
