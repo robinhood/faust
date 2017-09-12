@@ -230,7 +230,10 @@ def guess_concrete_type(
         # Optional[x] actually returns Union[x, type(None)]
         typ = typ.__args__[0]
     if not issubclass(typ, (str, bytes)):
-        if issubclass(typ, set_types):
+        if issubclass(typ, tuple_types):
+            # Tuple[x]
+            return tuple, _unary_type_arg(typ)
+        elif issubclass(typ, set_types):
             # Set[x]
             return set, _unary_type_arg(typ)
         elif issubclass(typ, list_types):
@@ -241,9 +244,6 @@ def guess_concrete_type(
             return dict, (
                 typ.__args__[1]
                 if typ.__args__ and len(typ.__args__) > 1 else Any)
-        elif issubclass(typ, tuple_types):
-            # Tuple[x]
-            return tuple, _unary_type_arg(typ)
     raise TypeError('Nuot a generic type')
 
 

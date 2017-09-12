@@ -198,22 +198,24 @@ class Record(Model):
     def _reconstruct_type(
             self, typ: Type, data: Any,
             callback: Callable[[Type, Any], Any]) -> Any:
-        try:
-            # Get generic type (if any)
-            # E.g. Set[typ], List[typ], Optional[List[typ]] etc.
-            generic, subtyp = guess_concrete_type(typ)
-        except TypeError:
-            # just a scalar
-            return callback(typ, data)
-        else:
-            if generic is list:
-                return [callback(subtyp, v) for v in data]
-            elif generic is tuple:
-                return tuple(callback(subtyp, v) for v in data)
-            elif generic is dict:
-                return {k: callback(subtyp, v) for k, v in data.items()}
-            elif generic is set:
-                return {callback(subtyp, v) for v in data}
+        if data is not None:
+            try:
+                # Get generic type (if any)
+                # E.g. Set[typ], List[typ], Optional[List[typ]] etc.
+                generic, subtyp = guess_concrete_type(typ)
+            except TypeError:
+                # just a scalar
+                return callback(typ, data)
+            else:
+                if generic is list:
+                    return [callback(subtyp, v) for v in data]
+                elif generic is tuple:
+                    return tuple(callback(subtyp, v) for v in data)
+                elif generic is dict:
+                    return {k: callback(subtyp, v) for k, v in data.items()}
+                elif generic is set:
+                    return {callback(subtyp, v) for v in data}
+        return data
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
         data = cast(Dict, self.to_representation())
@@ -256,6 +258,9 @@ class Record(Model):
 
     def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        return object.__hash__(self)
 
 
 def _kvrepr(d: Mapping[str, Any],
