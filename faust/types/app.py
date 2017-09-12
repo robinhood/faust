@@ -81,7 +81,6 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def __init__(self, id: str,
                  *,
-                 monitor_name: str = '',
                  url: str = 'aiokafka://localhost:9092',
                  store: str = 'memory://',
                  avro_registry_url: str = None,
