@@ -12,8 +12,9 @@ from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from .types.sensors import SensorDelegateT, SensorT
 from .types.transports import ConsumerT, ProducerT
 from .utils.logging import get_logger
-from .utils.objects import KeywordReduce, label
-from .utils.services import Service
+from .utils.objects import KeywordReduce, label, cached_property
+from .utils.services import Service, ServiceProxy, ServiceT
+
 
 __all__ = [
     'TableState',
@@ -265,7 +266,7 @@ class Sensor(SensorT, Service):
         ...
 
 
-class Monitor(Sensor, KeywordReduce):
+class Monitor(ServiceProxy, Sensor, KeywordReduce):
     """Default Faust Sensor.
 
     This is the default sensor, recording statistics about
@@ -362,9 +363,6 @@ class Monitor(Sensor, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
-                 statsd_host: str = 'localhost',
-                 statsd_port: int = 8152,
-                 statsd_prefix: str = '',
                  **kwargs: Any) -> None:
         self.max_messages = max_messages
         self.max_avg_history = max_avg_history
@@ -416,29 +414,6 @@ class Monitor(Sensor, KeywordReduce):
                 name: table.asdict() for name, table in self.tables.items()
             },
         }
-
-    @Service.task
-    async def _sampler(self) -> None:
-        median = statistics.median
-        prev_message_total = self.messages_received_total
-        prev_event_total = self.events_total
-        while not self.should_stop:
-            await self.sleep(1.0)
-
-            # Update average event runtime.
-            if self.events_runtime:
-                self.events_runtime_avg = median(self.events_runtime)
-
-            # Update events/s
-            self.events_s = self.events_total - prev_event_total
-            prev_event_total = self.events_total
-
-            # Update messages/s
-            self.messages_s = self.messages_received_total - prev_message_total
-            prev_message_total = self.messages_received_total
-
-            # Cleanup
-            self._cleanup()
 
     def _cleanup(self) -> None:
         max_messages = self.max_messages
@@ -538,6 +513,10 @@ class Monitor(Sensor, KeywordReduce):
             self, producer: ProducerT, state: Any) -> None:
         self.send_latency.append(monotonic() - cast(float, state))
 
+    @cached_property
+    def _service(self) -> ServiceT:
+        return MonitorService(self)
+
 
 class StatsdMonitor(Monitor):
     """Statsd Faust Sensor.
@@ -545,22 +524,18 @@ class StatsdMonitor(Monitor):
     This sensor, records statistics to Statsd along with computing metrics
     for the stats server
     """
-    REQUIRED_PARAMS = {
-        'statsd_prefix',
-        'statsd_host',
-        'statsd_port',
-    }
-
-    def __init__(self, *args, **kwargs):
-        self._start_statsd_client(*args, **kwargs)
+    def __init__(self, *args,
+                 statsd_host: str = 'localhost',
+                 statsd_port: int = 8125,
+                 statsd_prefix: str = 'faust-app',
+                 **kwargs: Any) -> None:
+        self._start_statsd_client(statsd_host, statsd_port, statsd_prefix)
         super(StatsdMonitor, self).__init__(*args, **kwargs)
 
-    def _start_statsd_client(self, *args, **kwargs):
-        assert self.REQUIRED_PARAMS < set(kwargs.keys())
-
-        self.client = StatsClient(host=kwargs['statsd_host'],
-                                  port=kwargs['statsd_port'],
-                                  prefix=kwargs['statsd_prefix'])
+    def _start_statsd_client(self, statsd_host, statsd_port, statsd_prefix):
+        self.client = StatsClient(host=statsd_host,
+                                  port=statsd_port,
+                                  prefix=statsd_prefix)
 
     async def on_message_in(
             self,
@@ -752,3 +727,41 @@ class SensorDelegate(SensorDelegateT):
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'
+
+
+class MonitorService(Service):
+    """Service responsible for starting/stopping a sensor."""
+    logger = logger
+
+    # App is created in module scope so we split it up to ensure
+    # Service.loop does not create the asyncio event loop
+    # when a module is imported.
+
+    def __init__(self, monitor: Monitor, **kwargs: Any) -> None:
+        self.monitor: Monitor = monitor
+        super().__init__()
+
+    @Service.task
+    async def _sampler(self) -> None:
+        median = statistics.median
+        prev_message_total = self.monitor.messages_received_total
+        prev_event_total = self.monitor.events_total
+        while not self.should_stop:
+            await self.sleep(1.0)
+
+            # Update average event runtime.
+            if self.monitor.events_runtime:
+                self.monitor.events_runtime_avg = median(
+                    self.monitor.events_runtime)
+
+            # Update events/s
+            self.monitor.events_s = self.monitor.events_total - prev_event_total
+            prev_event_total = self.monitor.events_total
+
+            # Update messages/s
+            self.messages_s = self.monitor.messages_received_total \
+                              - prev_message_total
+            prev_message_total = self.monitor.messages_received_total
+
+            # Cleanup
+            self.monitor._cleanup()
