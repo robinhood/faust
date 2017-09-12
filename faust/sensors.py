@@ -528,7 +528,9 @@ class StatsdMonitor(Monitor):
                  statsd_host: str = 'localhost',
                  statsd_port: int = 8125,
                  statsd_prefix: str = 'faust-app',
+                 rate: float = 1,
                  **kwargs: Any) -> None:
+        self.rate = rate
         self._start_statsd_client(statsd_host, statsd_port, statsd_prefix)
         super(StatsdMonitor, self).__init__(*args, **kwargs)
 
@@ -546,9 +548,9 @@ class StatsdMonitor(Monitor):
         await super(StatsdMonitor, self).on_message_in(consumer_id, tp, offset,
                                                        message)
 
-        self.client.incr('messages_received')
-        self.client.incr('messages_active')
-        self.client.incr(f'topic.{tp.topic}.messages_received')
+        self.client.incr('messages_received', rate=self.rate)
+        self.client.incr('messages_active', rate=self.rate)
+        self.client.incr(f'topic.{tp.topic}.messages_received', rate=self.rate)
 
     async def on_stream_event_in(
             self,
@@ -559,12 +561,14 @@ class StatsdMonitor(Monitor):
         await super(StatsdMonitor, self).on_stream_event_in(tp,
                                                             offset,
                                                             stream, event)
-        self.client.incr('events')
+        self.client.incr('events', rate=self.rate)
         self.client.incr(
-            f'stream.{self._sanitize(label(stream))}.events')
+            f'stream.{self._sanitize(label(stream))}.events', rate=self.rate)
         self.client.incr(
-            f'task.{self._sanitize(label(stream.task_owner))}.events')
-        self.client.incr('events_active')
+            f'task.{self._sanitize(label(stream.task_owner))}.events',
+            rate=self.rate
+        )
+        self.client.incr('events_active', rate=self.rate)
 
     async def on_stream_event_out(
             self,
@@ -575,9 +579,9 @@ class StatsdMonitor(Monitor):
         await super(StatsdMonitor, self).on_stream_event_out(tp,
                                                              offset,
                                                              stream, event)
-        self.client.decr('events_active')
+        self.client.decr('events_active', rate=self.rate)
         self.client.timing('events_runtime', self._time(
-            self.events_runtime[-1]))
+            self.events_runtime[-1]), rate=self.rate)
 
     async def on_message_out(
             self,
@@ -587,31 +591,34 @@ class StatsdMonitor(Monitor):
             message: Message = None) -> None:
         await super(StatsdMonitor, self).on_message_out(
             consumer_id, tp, offset, message)
-        self.client.decr("messages_active")
+        self.client.decr('messages_active', rate=self.rate)
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
         super(StatsdMonitor, self).on_table_get(table, key)
-        self.client.incr('table.{}.keys_retrieved'.format(table.name))
+        self.client.incr('table.{}.keys_retrieved'.format(table.name),
+                         rate=self.rate)
 
     def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         super(StatsdMonitor, self).on_table_set(table, key, value)
-        self.client.incr('table.{}.keys_updated'.format(table.name))
+        self.client.incr('table.{}.keys_updated'.format(table.name),
+                         rate=self.rate)
 
     def on_table_del(self, table: CollectionT, key: Any) -> None:
         super(StatsdMonitor, self).on_table_del(table, key)
-        self.client.incr('table.{}.keys_deleted'.format(table.name))
+        self.client.incr('table.{}.keys_deleted'.format(table.name),
+                         rate=self.rate)
 
     async def on_commit_completed(
             self, consumer: ConsumerT, state: Any) -> None:
         await super(StatsdMonitor, self).on_commit_completed(consumer, state)
         self.client.timing('commit_latency', self._time(
-            monotonic() - cast(float, state)))
+            monotonic() - cast(float, state)), rate=self.rate)
 
     async def on_send_initiated(self, producer: ProducerT, topic: str,
                                 keysize: int, valsize: int) -> Any:
 
-        self.client.incr('messages_sent')
-        self.client.incr(f'topic.{topic}.messages_sent')
+        self.client.incr('messages_sent', rate=self.rate)
+        self.client.incr(f'topic.{topic}.messages_sent', rate=self.rate)
         return await super(StatsdMonitor, self).on_send_initiated(
             producer, topic, keysize, valsize)
 
@@ -619,7 +626,7 @@ class StatsdMonitor(Monitor):
             self, producer: ProducerT, state: Any) -> None:
         await super(StatsdMonitor, self).on_send_completed(producer, state)
         self.client.timing('send_latency', self._time(
-            monotonic() - cast(float, state)))
+            monotonic() - cast(float, state)), rate=self.rate)
 
     def _sanitize(self, name: str) -> str:
         name = name.replace('<', '')
