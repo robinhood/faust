@@ -74,8 +74,6 @@ DEFAULT_TABLE_CLS = 'faust.Table'
 #: Path to default set class used by ``app.Set``.
 DEFAULT_SET_CLS = 'faust.Set'
 
-DEFAULT_MONITOR_CLS = 'faust.sensors.Monitor'
-
 #: Path to default serializer registry class.
 DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
 
