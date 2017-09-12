@@ -130,7 +130,7 @@ class Record(Model):
 
         # then reconstruct child models
         models = {
-            k: self._to_models(k, _typ, fields.get(_field))
+            k: self._to_models(k, _typ, fields.get(k))
             for k, _typ in self._options.models.items()
         }
         self.__dict__.update(models)
