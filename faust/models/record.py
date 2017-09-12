@@ -129,10 +129,11 @@ class Record(Model):
         self.__dict__.update(fields)
 
         # then reconstruct child models
-        self.__dict__.update({
-            self._to_models(_field, _typ, fields.get(_field))
-            for _field, _typ in self._options.models.items()
-        })
+        models = {
+            k: self._to_models(k, _typ, fields.get(_field))
+            for k, _typ in self._options.models.items()
+        }
+        self.__dict__.update(models)
 
     def _to_models(self, field: str, typ: Type[ModelT], data: Any) -> Any:
         try:
@@ -157,11 +158,11 @@ class Record(Model):
         if data is not None and not isinstance(data, ModelT):
             self_cls = self._maybe_namespace(data)
             if self_cls:
-                ret = self_cls(data)
+                data = self_cls(data)
             elif typ is not ModelT:  # is not base class
-                ret = typ(ret)
-            if ret is not None and not isinstance(ret, typ):
-                return typ(ret)
+                data = typ(data)
+            if data is not None and not isinstance(data, typ):
+                return typ(data)
         return data
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
