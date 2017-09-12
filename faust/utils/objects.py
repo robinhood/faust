@@ -4,8 +4,8 @@ from contextlib import suppress
 from functools import singledispatch, total_ordering
 from pathlib import Path
 from typing import (
-    AbstractSet, Any, Callable, Collection, Dict, FrozenSet, Generic,
-    Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
+    AbstractSet, Any, Callable, Dict, FrozenSet, Generic,
+    Iterable, List, Mapping, MutableMapping, MutableSequence,
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
 
@@ -34,12 +34,9 @@ DefaultsMapping = Mapping[str, Any]
 
 SET_TYPES: Tuple[Type, ...] = (AbstractSet, FrozenSet, MutableSet, Set)
 LIST_TYPES: Tuple[Type, ...] = (
-    Collection,
     List,
     Sequence,
     MutableSequence,
-    Iterable,
-    Iterator,
 )
 DICT_TYPES: Tuple[Type, ...] = (Dict, Mapping, MutableMapping)
 # XXX cast required for mypy bug
@@ -227,20 +224,22 @@ def guess_concrete_type(
         list_types: Tuple[Type, ...] = LIST_TYPES,
         tuple_types: Tuple[Type, ...] = TUPLE_TYPES,
         dict_types: Tuple[Type, ...] = DICT_TYPES) -> Tuple[Type, Type]:
-    if issubclass(typ, set_types):
-        # Set[x]
-        return set, _unary_type_arg(typ)
-    elif issubclass(typ, list_types):
-        # List[x]
-        return list, _unary_type_arg(typ)
-    elif issubclass(typ, DICT_TYPES):
-        # Dict[_, x]
-        vt = typ.__args__[1] if typ.__args__ and len(typ.__args__) > 1 else Any
-        return dict, vt
-    elif issubclass(typ, tuple_types):
-        # Tuple[x]
-        return tuple, _unary_type_arg(typ)
-    raise TypeError('Not a generic type')
+    if not issubclass(typ, (str, bytes)):
+        if issubclass(typ, set_types):
+            # Set[x]
+            return set, _unary_type_arg(typ)
+        elif issubclass(typ, list_types):
+            # List[x]
+            return list, _unary_type_arg(typ)
+        elif issubclass(typ, DICT_TYPES):
+            # Dict[_, x]
+            return dict, (
+                typ.__args__[1]
+                if typ.__args__ and len(typ.__args__) > 1 else Any)
+        elif issubclass(typ, tuple_types):
+            # Tuple[x]
+            return tuple, _unary_type_arg(typ)
+    raise TypeError('Nuot a generic type')
 
 
 def _unary_type_arg(typ: Type) -> Type:
