@@ -49,6 +49,10 @@ class CheckpointManagerT(ServiceT):
     def set_offset(self, tp: TopicPartition, offset: int) -> None:
         ...
 
+    @abc.abstractmethod
+    def reset_state(self) -> None:
+        ...
+
 
 class CollectionT(JoinableT, ServiceT):
     StateStore: ClassVar[Type[StoreT]] = None
@@ -90,6 +94,10 @@ class CollectionT(JoinableT, ServiceT):
 
     @abc.abstractmethod
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    def reset_state(self) -> None:
         ...
 
 

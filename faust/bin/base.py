@@ -97,6 +97,27 @@ def worker(ctx: click.Context,
     ).execute_from_commandline()
 
 
+def say(quiet: bool, *args: Any, **kwargs: Any) -> None:
+    if not quiet:
+        print(*args, **kwargs)
+
+
+@cli.command(help='Delete local table state')
+@click.pass_context
+def reset(ctx: click.Context) -> None:
+    app = ctx.obj['app']
+    quiet = ctx.obj['quiet']
+    if not app:
+        raise click.UsageError('Need to specify app using -A parameter')
+    app = find_app(app)
+    for table in app.tables.values():
+        say(quiet,
+            f'Removing file "{table.data.path}" for table {table.name}...')
+        table.reset_state()
+    say(quiet, f'Removing file "{app.checkpoint_path}"...')
+    app.checkpoints.reset_state()
+
+
 @click.command()
 @_apply_options(common_options)
 @_apply_options(worker_options)

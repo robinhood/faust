@@ -1,4 +1,5 @@
 import json
+import os
 from contextlib import suppress
 from typing import Any, MutableMapping, Optional
 from ..types import AppT, TopicPartition
@@ -31,6 +32,10 @@ class CheckpointManager(CheckpointManagerT, Service):
                 f'{tp.topic}\0{tp.partition}': v
                 for tp, v in self._offsets.items()
             }, fh)
+
+    def reset_state(self) -> None:
+        with suppress(FileNotFoundError):
+            os.remove(self.app.checkpoint_path)
 
     @classmethod
     def _get_tp(cls, key: str) -> TopicPartition:
