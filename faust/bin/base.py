@@ -5,7 +5,9 @@ import os
 from functools import wraps
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, ClassVar, List, Sequence, Type, no_type_check
+from typing import (
+    Any, Callable, ClassVar, List, Mapping, Sequence, Type, no_type_check,
+)
 import click
 from tabulate import tabulate
 from ._env import DEBUG
@@ -18,8 +20,6 @@ __all__ = [
     'AppCommand',
     'Command',
     'cli',
-    'common_options',
-    'apply_options',
     'find_app',
 ]
 
@@ -32,12 +32,7 @@ __all__ = [
 
 # These are the options common to all commands in the :mod:`faust.bin.faust`
 # umbrella command.
-#
-# Also used by :func:`faust.bin.worker.parse_worker_args`, which
-# is what ``app.start_worker(argv)`` uses to parse command line options.
-# Maybe click.Command includes some way to parse args,
-# but I couldn't find it. [ask]
-common_options: Sequence[Callable] = [
+builtin_options: Sequence[Callable] = [
     click.option('--app', '-A',
                  help='Path to Faust application to use.'),
     click.option('--quiet/--no-quiet', '-q', default=False,
@@ -107,7 +102,7 @@ def find_app(app: str,
 # This is here for app.worker_start(argv) only, as it needs
 # to parse the command-line arguments programmatically, something
 # click doesn't seem to support easily [ask].
-def apply_options(options: Sequence[Callable]) -> Callable:
+def _apply_options(options: Sequence[Callable]) -> Callable:
     """Add list of ``click.option`` values to click command function."""
     def _inner(fun: Callable) -> Callable:
         for opt in options:
@@ -139,7 +134,7 @@ class _Group(click.Group):
 # in the git repository (entrypoints).)
 
 @click.group(cls=_Group)
-@apply_options(common_options)
+@_apply_options(builtin_options)
 @click.pass_context
 def cli(ctx: click.Context,
         app: str,
@@ -174,6 +169,7 @@ class Command(abc.ABC):
     workdir: str
     json: bool
 
+    builtin_options: List = builtin_options
     options: List = None
 
     @classmethod
@@ -187,7 +183,7 @@ class Command(abc.ABC):
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> Callable:
             return cls(*args, **kwargs)()  # type: ignore
-        return apply_options(cls.options or [])(
+        return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
 
     def __init_subclass__(self, *args: Any, **kwargs: Any) -> None:
@@ -206,6 +202,24 @@ class Command(abc.ABC):
             # This registers the command with the cli click.Group
             # as a side effect.
             self._click = self.as_click_command()
+
+        # This hack creates the Command.parse method used by App.start_worker
+        # to parse command-line arguments in sys.argv.
+        # Unable to find a better way to do this in click. [ask]
+        # Apparently the side effect of the @click.option decorator
+        # is enough: you don't need reduction of the return value.
+        _apply_options(self.builtin_options)(self._parse)
+        _apply_options(self.options or [])(self._parse)
+
+    @classmethod
+    def parse(cls, argv: str) -> Mapping:
+        """Parse command-line arguments in argv' and return mapping."""
+        return cls._parse(argv, standalone_mode=False)
+
+    @staticmethod
+    @click.command()
+    def _parse(**kwargs: Any) -> Mapping:
+        return kwargs
 
     def __init__(self, ctx: click.Context) -> None:
         self.ctx = ctx

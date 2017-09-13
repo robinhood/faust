@@ -1,12 +1,9 @@
 from typing import Any, Mapping
 import click
 from ._env import DEFAULT_BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
-from .base import AppCommand, apply_options, common_options
+from .base import AppCommand
 
-__all__ = [
-    'worker',
-    'parse_worker_args',
-]
+__all__ = ['worker']
 
 
 class worker(AppCommand):
@@ -60,10 +57,3 @@ class worker(AppCommand):
             loglevel=self.loglevel,
             web_port=self.web_port,
         ).execute_from_commandline()
-
-
-@click.command()
-@apply_options(common_options)
-@apply_options(worker.options)
-def parse_worker_args(app: str, **kwargs: Any) -> Mapping:
-    return kwargs

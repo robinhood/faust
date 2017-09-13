@@ -176,12 +176,6 @@ class Worker(ServiceWorker):
         web_port (int): Port for web site to bind to (defaults to 6066).
         web_bind (str): Host to bind web site to (defaults to "0.0.0.0").
         advertised_host (str): FIXME
-        with_uvloop: This argument is unused by Worker, but still needs
-            to be supported as a keyword argument because of
-            :func:`faust.bin.worker.parse_worker_args`.
-            It's too late to switch event loop implementations at this point,
-            so the :option:`--with-uvloop` option is handled by
-            the :class:`faust.bin.worker.worker` command.
         loop (asyncio.AbstractEventLoop): Custom event loop object.
     """
     logger = logger
@@ -234,7 +228,6 @@ class Worker(ServiceWorker):
             Website: SymbolArg[Type[_Website]] = DEFAULT_WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
-            with_uvloop: bool = False,  # <-- NOT USED BUT MUST SUPPORT
             advertised_host: str = None,
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:

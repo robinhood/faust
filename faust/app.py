@@ -355,9 +355,13 @@ class App(AppT, ServiceProxy):
                      argv: Sequence[str] = None,
                      loop: asyncio.AbstractEventLoop = None) -> None:
         """Execute the :program:`faust worker` command using this app."""
-        from .bin.worker import parse_worker_args
+        from .bin.worker import worker
         from .worker import Worker
-        kwargs = parse_worker_args(argv, standalone_mode=False)
+        kwargs = worker.parse(argv)
+        # remove arguments handled by bin.worker(), not Worker()
+        kwargs.pop('app', None)
+        kwargs.pop('with_uvloop', None)
+        kwargs.pop('json', None)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
     def topic(self, *topics: str,
