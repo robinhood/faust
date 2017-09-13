@@ -67,7 +67,7 @@ class _Group(click.Group):
                      parent: click.Context = None,
                      **extra: Any) -> click.Context:
         ctx = super().make_context(info_name, args, **extra)
-        ctx.app = app
+        ctx.find_root().app = app
         return ctx
 
 
@@ -145,7 +145,7 @@ class AppCommand(Command):
                  value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
         super().__init__(ctx)
-        self.app = getattr(self.ctx, 'app', None)
+        self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is None:
             appstr = self.ctx.obj['app']
             if not appstr:
