@@ -19,30 +19,37 @@ from ..utils.imports import import_from_cwd, symbol_by_name
 __all__ = [
     'AppCommand',
     'Command',
+    'argument',
     'cli',
     'find_app',
+    'option',
 ]
 
-# Extends the :pypi:`click` framework to use classes instead of
+# This module extends the :pypi:`click` framework to use classes instead of
 # function decorators. May regret, but the click API is so messy,
 # with lots of function imports and dozens of decorators for each command,
 # and these classes removes a ton of boilerplate.
 # [ask]
 
 
+# here so we can import option/argument from this module.
+argument = click.argument
+option = click.option
+
+
 # These are the options common to all commands in the :mod:`faust.bin.faust`
 # umbrella command.
 builtin_options: Sequence[Callable] = [
-    click.option('--app', '-A',
-                 help='Path to Faust application to use.'),
-    click.option('--quiet/--no-quiet', '-q', default=False,
-                 help='Do not output warnings to stdout/stderr.'),
-    click.option('--debug/--no-debug', default=DEBUG,
-                 help='Enable debugging output.'),
-    click.option('--workdir',
-                 help='Change working directory.'),
-    click.option('--json/--no-json', default=False,
-                 help='Output data in json format.'),
+    option('--app', '-A',
+           help='Path to Faust application to use.'),
+    option('--quiet/--no-quiet', '-q', default=False,
+           help='Do not output warnings to stdout/stderr.'),
+    option('--debug/--no-debug', default=DEBUG,
+           help='Enable debugging output.'),
+    option('--workdir',
+           help='Change working directory.'),
+    option('--json/--no-json', default=False,
+           help='Output data in json format.'),
 ]
 
 

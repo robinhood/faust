@@ -1,7 +1,6 @@
-from typing import Any, Mapping
-import click
+from typing import Any
 from ._env import DEFAULT_BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
-from .base import AppCommand
+from .base import AppCommand, option
 
 __all__ = ['worker']
 
@@ -10,20 +9,20 @@ class worker(AppCommand):
     """Start worker instance."""
 
     options = [
-        click.option('--logfile', '-f', default=None,
-                     help='Path to logfile (default is <stderr>).'),
-        click.option('--loglevel', '-l', default='WARN',
-                     help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.'),
-        click.option('--blocking-timeout',
-                     default=DEFAULT_BLOCKING_TIMEOUT, type=float,
-                     help='Blocking detector timeout (requires --debug).'),
-        click.option('--advertised-host', '-h',
-                     default=WEB_BIND, type=str,
-                     help='Advertised host for the web server.'),
-        click.option('--web-port', '-p', default=WEB_PORT, type=int,
-                     help='Port to run web server on.'),
-        click.option('--with-uvloop/--without-uvloop',
-                     help='Use fast uvloop event loop.'),
+        option('--logfile', '-f', default=None,
+               help='Path to logfile (default is <stderr>).'),
+        option('--loglevel', '-l', default='WARN',
+               help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.'),
+        option('--blocking-timeout',
+               default=DEFAULT_BLOCKING_TIMEOUT, type=float,
+               help='Blocking detector timeout (requires --debug).'),
+        option('--advertised-host', '-h',
+               default=WEB_BIND, type=str,
+               help='Advertised host for the web server.'),
+        option('--web-port', '-p', default=WEB_PORT, type=int,
+               help='Port to run web server on.'),
+        option('--with-uvloop/--without-uvloop',
+               help='Use fast uvloop event loop.'),
     ]
 
     def __init__(self, *args: Any,

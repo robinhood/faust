@@ -1,8 +1,7 @@
 import asyncio
 import random
 from typing import Any
-import click
-from .base import AppCommand
+from .base import AppCommand, argument, option
 from ..types import CodecArg, K, V
 
 __all__ = ['send']
@@ -21,24 +20,24 @@ class send(AppCommand):
     max_latency: float
 
     options = [
-        click.option('--key-type', '-K',
-                     help='Name of model to serialize key into'),
-        click.option('--key-serializer',
-                     help='Override default serializer for key.'),
-        click.option('--value-type', '-V',
-                     help='Name of model to serialize value into'),
-        click.option('--value-serializer',
-                     help='Override default serializer for value.'),
-        click.option('--key', '-k',
-                     help='Key value'),
-        click.option('--partition', type=int,
-                     help='Specific partition to send to'),
-        click.option('--repeat', '-r', type=int, default=1,
-                     help='Send message n times'),
-        click.option('--latency', '-l', default='0,0',
-                     help='Delay between sending as min,max or max'),
-        click.argument('entity'),
-        click.argument('value', default=None, required=False),
+        option('--key-type', '-K',
+               help='Name of model to serialize key into'),
+        option('--key-serializer',
+               help='Override default serializer for key.'),
+        option('--value-type', '-V',
+               help='Name of model to serialize value into'),
+        option('--value-serializer',
+               help='Override default serializer for value.'),
+        option('--key', '-k',
+               help='Key value'),
+        option('--partition', type=int,
+               help='Specific partition to send to'),
+        option('--repeat', '-r', type=int, default=1,
+               help='Send message n times'),
+        option('--latency', '-l', default='0,0',
+               help='Delay between sending as min,max or max'),
+        argument('entity'),
+        argument('value', default=None, required=False),
     ]
 
     def init_options(self,
