@@ -357,12 +357,12 @@ class App(AppT, ServiceProxy):
         """Execute the :program:`faust worker` command using this app."""
         from .bin.worker import worker
         from .worker import Worker
-        kwargs = worker.parse(argv)
+        options = dict(worker.parse(argv))
         # remove arguments handled by bin.worker(), not Worker()
-        kwargs.pop('app', None)
-        kwargs.pop('with_uvloop', None)
-        kwargs.pop('json', None)
-        Worker(self, loop=loop, **kwargs).execute_from_commandline()
+        options.pop('app', None)
+        options.pop('with_uvloop', None)
+        options.pop('json', None)
+        Worker(self, loop=loop, **options).execute_from_commandline()
 
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,

@@ -212,7 +212,7 @@ class Command(abc.ABC):
         _apply_options(self.options or [])(self._parse)
 
     @classmethod
-    def parse(cls, argv: str) -> Mapping:
+    def parse(cls, argv: Sequence[str]) -> Mapping:
         """Parse command-line arguments in argv' and return mapping."""
         return cls._parse(argv, standalone_mode=False)
 
