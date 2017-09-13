@@ -134,6 +134,7 @@ class AppService(Service):
             self.add_future(task())
 
         # Add the main Monitor sensor.
+        # beacon reattached after initialized in case a custom monitor added
         self.app.monitor.beacon.reattach(self.beacon)
         self.app.monitor.loop = self.loop
         self.app.sensors.add(self.app.monitor)

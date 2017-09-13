@@ -525,19 +525,17 @@ class StatsdMonitor(Monitor):
     for the stats server
     """
     def __init__(self, *args,
-                 statsd_host: str = 'localhost',
-                 statsd_port: int = 8125,
-                 statsd_prefix: str = 'faust-app',
+                 host: str = 'localhost',
+                 port: int = 8125,
+                 prefix: str = 'faust-app',
                  rate: float = 1,
                  **kwargs: Any) -> None:
         self.rate = rate
-        self._start_statsd_client(statsd_host, statsd_port, statsd_prefix)
-        super(StatsdMonitor, self).__init__(*args, **kwargs)
+        self._start_statsd_client(host, port, prefix)
+        super().__init__(*args, **kwargs)
 
-    def _start_statsd_client(self, statsd_host, statsd_port, statsd_prefix):
-        self.client = StatsClient(host=statsd_host,
-                                  port=statsd_port,
-                                  prefix=statsd_prefix)
+    def _start_statsd_client(self, host, port, prefix):
+        self.client = StatsClient(host=host, port=port, prefix=prefix)
 
     async def on_message_in(
             self,
@@ -545,8 +543,7 @@ class StatsdMonitor(Monitor):
             tp: TopicPartition,
             offset: int,
             message: Message) -> None:
-        await super(StatsdMonitor, self).on_message_in(consumer_id, tp, offset,
-                                                       message)
+        await super().on_message_in(consumer_id, tp, offset, message)
 
         self.client.incr('messages_received', rate=self.rate)
         self.client.incr('messages_active', rate=self.rate)
@@ -558,9 +555,7 @@ class StatsdMonitor(Monitor):
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
-        await super(StatsdMonitor, self).on_stream_event_in(tp,
-                                                            offset,
-                                                            stream, event)
+        await super().on_stream_event_in(tp, offset, stream, event)
         self.client.incr('events', rate=self.rate)
         self.client.incr(
             f'stream.{self._sanitize(label(stream))}.events', rate=self.rate)
@@ -576,9 +571,7 @@ class StatsdMonitor(Monitor):
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
-        await super(StatsdMonitor, self).on_stream_event_out(tp,
-                                                             offset,
-                                                             stream, event)
+        await super().on_stream_event_out(tp, offset, stream, event)
         self.client.decr('events_active', rate=self.rate)
         self.client.timing('events_runtime', self._time(
             self.events_runtime[-1]), rate=self.rate)
@@ -589,42 +582,42 @@ class StatsdMonitor(Monitor):
             tp: TopicPartition,
             offset: int,
             message: Message = None) -> None:
-        await super(StatsdMonitor, self).on_message_out(
-            consumer_id, tp, offset, message)
+        await super().on_message_out(consumer_id, tp, offset, message)
         self.client.decr('messages_active', rate=self.rate)
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
-        super(StatsdMonitor, self).on_table_get(table, key)
+        super().on_table_get(table, key)
         self.client.incr('table.{}.keys_retrieved'.format(table.name),
                          rate=self.rate)
 
     def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
-        super(StatsdMonitor, self).on_table_set(table, key, value)
+        super().on_table_set(table, key, value)
         self.client.incr('table.{}.keys_updated'.format(table.name),
                          rate=self.rate)
 
     def on_table_del(self, table: CollectionT, key: Any) -> None:
-        super(StatsdMonitor, self).on_table_del(table, key)
+        super().on_table_del(table, key)
         self.client.incr('table.{}.keys_deleted'.format(table.name),
                          rate=self.rate)
 
     async def on_commit_completed(
             self, consumer: ConsumerT, state: Any) -> None:
-        await super(StatsdMonitor, self).on_commit_completed(consumer, state)
+        await super().on_commit_completed(consumer, state)
         self.client.timing('commit_latency', self._time(
             monotonic() - cast(float, state)), rate=self.rate)
 
     async def on_send_initiated(self, producer: ProducerT, topic: str,
                                 keysize: int, valsize: int) -> Any:
 
-        self.client.incr('messages_sent', rate=self.rate)
         self.client.incr(f'topic.{topic}.messages_sent', rate=self.rate)
-        return await super(StatsdMonitor, self).on_send_initiated(
-            producer, topic, keysize, valsize)
+        return await super().on_send_initiated(producer,
+                                               topic, keysize, valsize)
+
 
     async def on_send_completed(
             self, producer: ProducerT, state: Any) -> None:
-        await super(StatsdMonitor, self).on_send_completed(producer, state)
+        await super().on_send_completed(producer, state)
+        self.client.incr('messages_sent', rate=self.rate)
         self.client.timing('send_latency', self._time(
             monotonic() - cast(float, state)), rate=self.rate)
 
@@ -740,9 +733,14 @@ class MonitorService(Service):
     """Service responsible for starting/stopping a sensor."""
     logger = logger
 
-    # App is created in module scope so we split it up to ensure
-    # Service.loop does not create the asyncio event loop
-    # when a module is imported.
+    # Users may pass custom monitor to app, for example:
+    #     app = faust.App(monitor=StatsdMonitor(prefix='word-count'))
+
+    # When they do it's important to remember that the app is created during
+    # module import, and that Service.__init__ creates the asyncio event loop.
+    # To stop that from happening we use ServiceProxy to split this
+    # into Monitor/MonitorService so that instantiating Monitor will not create
+    # the service, instead the service is created lazily when first needed.
 
     def __init__(self, monitor: Monitor, **kwargs: Any) -> None:
         self.monitor: Monitor = monitor
