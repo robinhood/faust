@@ -29,7 +29,7 @@ class Router(RouterT):
 
     @classmethod
     def _get_table_topic(cls, table: CollectionT) -> str:
-        return table.changelog_topic.topics[0]
+        return table.changelog_topic.get_topic_name()
 
     @classmethod
     def _get_serialized_key(cls, table: CollectionT, key: K) -> bytes:

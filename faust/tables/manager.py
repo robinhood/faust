@@ -208,7 +208,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 self._channels[table] = cast(ChannelT, aiter(
                     table.changelog_topic))
         self._changelogs.update({
-            table.changelog_topic.topics[0]: table
+            table.changelog_topic.get_topic_name(): table
             for table in self.values()
         })
         await self.app.consumer.pause_partitions({

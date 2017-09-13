@@ -218,7 +218,15 @@ class Topic(Channel, TopicT):
         )
 
     def get_topic_name(self) -> str:
-        return self.topics[0]
+        if self.pattern:
+            raise TypeError(
+                'Topic with pattern subscription cannot be identified')
+        if self.topics:
+            if len(self.topics) > 1:
+                raise ValueError(
+                    'Topic with multiple topic names cannot be identified')
+            return self.topics[0]
+        raise TypeError('Topic has no subscriptions (no pattern, no topics)')
 
     async def _get_producer(self) -> ProducerT:
         return await self.app.maybe_start_producer()

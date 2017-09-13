@@ -510,7 +510,7 @@ class Actor(ActorT, ServiceProxy):
         if isinstance(topic, ActorT):
             return self._get_strtopic(cast(ActorT, topic).channel)
         if isinstance(topic, TopicT):
-            return cast(TopicT, topic).topics[0]
+            return cast(TopicT, topic).get_topic_name()
         if isinstance(topic, ChannelT):
             raise ValueError('Channels are unnamed topics')
         return cast(str, topic)
