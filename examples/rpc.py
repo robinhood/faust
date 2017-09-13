@@ -30,3 +30,6 @@ async def _sender() -> None:
     #   note: the argument can also be an async iterator.
     async for value in pow.map([30.3, 40.4, 50.5, 60.6, 70.7, 80.8, 90.9]):
         print(f'RECEIVED REPLY: {value!r}')
+
+if __name__ == '__main__':
+    app.main()

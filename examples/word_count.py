@@ -15,10 +15,6 @@ app = faust.App(
 )
 
 
-class Word(faust.Record):
-    value: str
-
-
 posts_topic = app.topic('posts2',
                         value_type=str,
                         value_serializer='raw')
@@ -51,3 +47,7 @@ async def sender(stream):
         await shuffle_words.send(value=random.choice(WORDS))
     await asyncio.sleep(10)
     for word in WORDS: print('AWAITING WORD: %r' % (word,))
+
+
+if __name__ == '__main__':
+    app.main()

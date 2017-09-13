@@ -235,6 +235,10 @@ class App(AppT, ServiceProxy):
 
     _tasks: MutableSequence[Callable[[], Awaitable]]
 
+    def main(self):
+        from .bin.faust import cli
+        return cli(app=self)
+
     def start_worker(self, *,
                      argv: Sequence[str] = None,
                      loop: asyncio.AbstractEventLoop = None) -> None:

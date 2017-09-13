@@ -60,7 +60,18 @@ def apply_options(options: Sequence[Callable]) -> Callable:
     return _inner
 
 
-@click.group()
+class _Group(click.Group):
+
+    def make_context(self, info_name: str, args: str,
+                     app: AppT = None,
+                     parent: click.Context = None,
+                     **extra: Any) -> click.Context:
+        ctx = super().make_context(info_name, args, **extra)
+        ctx.app = app
+        return ctx
+
+
+@click.group(cls=_Group)
 @apply_options(common_options)
 @click.pass_context
 def cli(ctx: click.Context,
@@ -104,7 +115,6 @@ class Command(abc.ABC):
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
 
-    @abc.abstractmethod
     async def run(self) -> Any:
         ...
 
@@ -135,10 +145,14 @@ class AppCommand(Command):
                  value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
         super().__init__(ctx)
-        appstr = self.ctx.obj['app']
-        if not appstr:
-            raise self.UsageError('Need to specify app using -A parameter')
-        self.app = find_app(appstr)
+        self.app = getattr(self.ctx, 'app', None)
+        if self.app is None:
+            appstr = self.ctx.obj['app']
+            if not appstr:
+                raise self.UsageError('Need to specify app using -A parameter')
+            self.app = find_app(appstr)
+        else:
+            appstr = '__main__'
         self.app.origin = appstr
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
