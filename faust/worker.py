@@ -305,7 +305,7 @@ class Worker(ServiceWorker):
         # Transfer sensors to app
         for sensor in self.sensors:
             self.app.sensors.add(sensor)
-        # Callback called once the opp is running and fully
+        # Callback called once the app is running and fully
         # functional, we use it to e.g. print the "ready" message.
         self.app.on_startup_finished = self.on_startup_finished
         return chain([self.website], self.services, [self.app])
