@@ -17,6 +17,7 @@ from typing import Any, IO, Iterable, Set, Type, Union
 from progress.spinner import Spinner
 
 from . import __version__ as faust_version
+from .bin._env import DEBUG, DEFAULT_BLOCKING_TIMEOUT
 from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger, level_name
@@ -29,21 +30,13 @@ try:
 except ImportError:
     def setproctitle(title: str) -> None: ...  # noqa
 
-__all__ = ['DEBUG', 'DEFAULT_BLOCKING_TIMEOUT', 'Worker']
+__all__ = ['Worker']
 
 #: Path to default Web site class.
 DEFAULT_WEBSITE_CLS = 'faust.web.site:Website'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
-
-#: Enables debugging features (like blockdetection).
-DEBUG: bool = bool(os.environ.get('F_DEBUG', False))
-
-#: Blocking detection timeout
-DEFAULT_BLOCKING_TIMEOUT: float = float(os.environ.get(
-    'F_BLOCKING_TIMEOUT', 10.0,
-))
 
 #: ASCII-art used in startup banner.
 ARTLINES = """\

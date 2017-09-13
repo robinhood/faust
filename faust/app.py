@@ -238,7 +238,7 @@ class App(AppT, ServiceProxy):
     def start_worker(self, *,
                      argv: Sequence[str] = None,
                      loop: asyncio.AbstractEventLoop = None) -> None:
-        from .bin.base import parse_worker_args
+        from .bin.worker import parse_worker_args
         from .worker import Worker
         kwargs = parse_worker_args(argv, standalone_mode=False)
         Worker(self, loop=loop, **kwargs).execute_from_commandline()
@@ -269,6 +269,7 @@ class App(AppT, ServiceProxy):
             Serializers: SymbolArg[Type[RegistryT]] = DEFAULT_SERIALIZERS_CLS,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
+            origin: str = None,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -308,6 +309,7 @@ class App(AppT, ServiceProxy):
         self._tasks = []
         self._pending_on_commit = defaultdict(list)
         self.on_startup_finished: Callable = on_startup_finished
+        self.origin = origin
         ServiceProxy.__init__(self)
 
     def topic(self, *topics: str,

@@ -1,9 +1,9 @@
 import base64
-import json as _json
 from typing import Mapping
 from faust.serializers.codecs import (
     Codec, binary as _binary, dumps, get_codec, json, loads,
 )
+from faust.utils import json as _json
 from faust.utils.compat import want_str
 from hypothesis import given
 from hypothesis.strategies import binary, dictionaries, text

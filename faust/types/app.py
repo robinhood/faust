@@ -73,6 +73,7 @@ class AppT(ServiceT):
     assignor: PartitionAssignorT
     router: RouterT
     advertised_url: str
+    origin: str
 
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT
@@ -102,6 +103,7 @@ class AppT(ServiceT):
                  Serializers: SymbolArg[Type[RegistryT]] = '',
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
+                 origin: str = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.on_startup_finished: Callable = None
 

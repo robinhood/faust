@@ -1,15 +1,24 @@
+import abc
 import asyncio
-import json
 import os
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, Mapping, Sequence, Tuple
+from typing import Any, Callable, Sequence, Type
 import click
-from ..types import AppT, CodecArg, FutureMessage, K, ModelT, RecordMetadata, V
+from ._env import DEBUG
+from ..types import AppT, CodecArg, ModelT
+from ..utils import json
 from ..utils.compat import want_bytes
 from ..utils.imports import import_from_cwd, symbol_by_name
-from ..web.base import DEFAULT_BIND, DEFAULT_PORT
-from ..worker import DEBUG, DEFAULT_BLOCKING_TIMEOUT
+
+__all__ = [
+    'AppCommand',
+    'Command',
+    'cli',
+    'common_options',
+    'apply_options',
+    'find_app',
+]
 
 
 common_options = [
@@ -24,26 +33,7 @@ common_options = [
 ]
 
 
-worker_options = [
-    click.option('--logfile', '-f', default=None,
-                 help='Path to logfile (stderr is used by default)'),
-    click.option('--loglevel', '-l', default='WARN',
-                 help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG'),
-    click.option('--blocking-timeout',
-                 default=DEFAULT_BLOCKING_TIMEOUT, type=float,
-                 help='Blocking detector timeout (requires --debug)'),
-    click.option('--advertised-host', '-h',
-                 default=DEFAULT_BIND, type=str,
-                 help='Advertised host for the webserver'),
-    click.option('--web-port', '-p',
-                 default=DEFAULT_PORT, type=int,
-                 help='Port to run webserver on'),
-    click.option('--with-uvloop/--without-uvloop',
-                 help='Use fast uvloop event loop'),
-]
-
-
-def _apply_options(options: Sequence[Callable]) -> Callable:
+def apply_options(options: Sequence[Callable]) -> Callable:
     def _inner(fun: Callable) -> Callable:
         for opt in options:
             fun = opt(fun)
@@ -52,7 +42,7 @@ def _apply_options(options: Sequence[Callable]) -> Callable:
 
 
 @click.group()
-@_apply_options(common_options)
+@apply_options(common_options)
 @click.pass_context
 def cli(ctx: click.Context,
         app: str,
@@ -69,131 +59,85 @@ def cli(ctx: click.Context,
         os.chdir(Path(workdir).absolute())
 
 
-@cli.command(help='Start worker')
-@_apply_options(worker_options)
-@click.pass_context
-def worker(ctx: click.Context,
-           logfile: str,
-           loglevel: str,
-           blocking_timeout: float,
-           advertised_host: str,
-           web_port: int,
-           with_uvloop: bool) -> None:
-    if with_uvloop:
-        from .. import use_uvloop
-        use_uvloop()
-    app, debug, quiet = _get_default_context(ctx)
-    app.advertised_url = f'{advertised_host}:{web_port}'
-    from ..worker import Worker
-    Worker(
-        app,
-        debug=debug,
-        quiet=quiet,
-        logfile=logfile,
-        loglevel=loglevel,
-        web_port=web_port,
-    ).execute_from_commandline()
+class Command(abc.ABC):
+    UsageError: Type[Exception] = click.UsageError
+
+    debug: bool
+    quiet: bool
+    workdir: str
+
+    def __init__(self, ctx: click.Context) -> None:
+        self.ctx = ctx
+        self.debug = self.ctx.obj['debug']
+        self.quiet = self.ctx.obj['quiet']
+        self.workdir = self.ctx.obj['workdir']
+
+    @abc.abstractmethod
+    async def run(self) -> Any:
+        ...
+
+    def __call__(self) -> Any:
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(self.run())
+
+    def say(self, *args: Any, **kwargs: Any) -> None:
+        if not self.quiet:
+            print(*args, **kwargs)
+
+    def carp(self, s: Any, **kwargs: Any) -> None:
+        if self.debug:
+            print(f'#-- {s}', **kwargs)
+
+    def dumps(self, obj: Any) -> str:
+        return json.dumps(obj)
 
 
-def _get_default_context(ctx: click.Context) -> Tuple[AppT, bool, bool]:
-    app = ctx.obj['app']
-    if not app:
-        raise click.UsageError('Need to specify app using -A parameter')
-    app = find_app(app)
-    return app, ctx.obj['debug'], ctx.obj['quiet']
+class AppCommand(Command):
+    app: AppT
+    key_serializer: CodecArg
+    value_serialier: CodecArg
 
+    def __init__(self, ctx: click.Context,
+                 *,
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None) -> None:
+        super().__init__(ctx)
+        appstr = self.ctx.obj['app']
+        if not appstr:
+            raise self.UsageError('Need to specify app using -A parameter')
+        app = find_app(appstr)
+        app.origin = appstr
+        self.debug = self.ctx.obj['debug']
+        self.quiet = self.ctx.obj['quiet']
+        self.key_serializer = key_serializer or self.app.key_serializer
+        self.value_serializer = value_serializer or self.app.value_serializer
 
-def say(quiet: bool, *args: Any, **kwargs: Any) -> None:
-    if not quiet:
-        print(*args, **kwargs)
+    def to_key(self, typ: str, key: str) -> Any:
+        return self.to_model(typ, key, self.key_serializer)
 
+    def to_value(self, typ: str, value: str) -> Any:
+        return self.to_model(typ, value, self.value_serializer)
 
-@cli.command(help='Delete local table state')
-@click.pass_context
-def reset(ctx: click.Context) -> None:
-    app, _, quiet = _get_default_context(ctx)
-    for table in app.tables.values():
-        say(quiet,
-            f'Removing database for table {table.name}...')
-        table.reset_state()
-    say(quiet, f'Removing file "{app.checkpoint_path}"...')
-    app.checkpoints.reset_state()
+    def to_model(self, typ: str, value: str, serializer: CodecArg) -> Any:
+        if typ:
+            model: ModelT = self.import_relative_to_app(typ)
+            return model.loads(
+                want_bytes(value), default_serializer=serializer)
+        return want_bytes(value)
 
+    def import_relative_to_app(self, attr: str) -> Any:
+        try:
+            return symbol_by_name(attr)
+        except ImportError:
+            root, _, _ = self.app.origin.partition(':')
+            return symbol_by_name(f'{root}.{attr}')
 
-@cli.command(help='Send message to actor/topic')
-@click.pass_context
-@click.option('--key-type', '-K',
-              help='Name of model to serialize key into')
-@click.option('--key-serializer',
-              help='Override default serializer for key.')
-@click.option('--value-type', '-V',
-              help='Name of model to serialize value into')
-@click.option('--value-serializer',
-              help='Override default serializer for value.')
-@click.option('--key', '-k',
-              help='Key value')
-@click.option('--partition', type=int, help='Specific partition to send to')
-@click.argument('entity')
-@click.argument('value', default=None, required=False)
-def send(ctx: click.Context, entity: str,
-         value: str = None,
-         key: str = None,
-         key_type: str = None,
-         key_serializer: CodecArg = None,
-         value_type: str = None,
-         value_serializer: CodecArg = None,
-         partition: int = None) -> None:
-    appstr = ctx.obj['app']
-    app, _, quiet = _get_default_context(ctx)
-    key_serializer = key_serializer or app.key_serializer
-    value_serializer = value_serializer or app.value_serializer
-
-    k: K = _to_model(appstr, key_type, want_bytes(key), key_serializer)
-    v: V = _to_model(appstr, value_type, want_bytes(value), value_serializer)
-
-    topic = _topic_from_str(app, appstr, entity)
-
-    loop = asyncio.get_event_loop()
-    # start sending the message
-    fut: FutureMessage = loop.run_until_complete(topic.send(
-        key=k, value=v, partition=partition,
-    ))
-    # wait for Producer to flush buffer and return RecordMetadata
-    res: RecordMetadata = loop.run_until_complete(fut)
-    say(quiet, json.dumps(res._asdict()))
-    # then gracefully stop the producer.
-    loop.run_until_complete(app.producer.stop())
-
-
-def _to_model(appstr: str, typ: str, value: bytes,
-              serializer: CodecArg) -> Any:
-    if typ:
-        model: ModelT = _import_relative_to_app(appstr, typ)
-        return model.loads(value, default_serializer=serializer)
-    return value
-
-
-def _import_relative_to_app(appstr: str, attr: str) -> Any:
-    try:
-        return symbol_by_name(attr)
-    except ImportError:
-        root, _, _ = appstr.partition(':')
-        return symbol_by_name(f'{root}.{attr}')
-
-
-def _topic_from_str(app: AppT, appstr: str, entity: str) -> Any:
-    if not entity:
-        raise click.UsageError('Missing topic/@actor name')
-    if entity.startswith('@'):
-        return _import_relative_to_app(appstr, entity[1:])
-    return app.topic(entity)
-
-
-@click.command()
-@_apply_options(common_options)
-@_apply_options(worker_options)
-def parse_worker_args(app: str, **kwargs: Any) -> Mapping:
-    return kwargs
+    def to_topic(self, entity: str) -> Any:
+        if not entity:
+            raise self.UsageError('Missing topic/@actor name')
+        if entity.startswith('@'):
+            return self.import_relative_to_app(entity[1:])
+        return self.app.topic(entity)
 
 
 def find_app(app: str,
@@ -214,8 +158,4 @@ def find_app(app: str,
     return sym
 
 
-__flake8_FutureMessage_is_used: FutureMessage    # XXX flake8 bug
-__flake8_K_is_used: K
 __flake8_ModelT_is_used: ModelT
-__flake8_RecordMetadata_is_used: RecordMetadata
-__flake8_V_is_used: V

@@ -149,7 +149,7 @@ setup(
     long_description=long_description,
     entry_points={
         'console_scripts': [
-            'faust = faust.bin.base:cli',
+            'faust = faust.bin.faust:cli',
         ],
     },
 )
