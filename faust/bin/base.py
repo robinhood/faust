@@ -5,7 +5,7 @@ import os
 from functools import wraps
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, List, Sequence, Type, no_type_check
+from typing import Any, Callable, ClassVar, List, Sequence, Type, no_type_check
 import click
 from tabulate import tabulate
 from ._env import DEBUG
@@ -166,6 +166,9 @@ class Command(abc.ABC):
     #
     # You only need ``def run``, but see note in as_click_command.
 
+    abstract: ClassVar[bool] = True
+    _click: Any = None
+
     debug: bool
     quiet: bool
     workdir: str
@@ -175,14 +178,11 @@ class Command(abc.ABC):
 
     @classmethod
     def as_click_command(cls) -> Callable:
-        # XXX Currently to use Command you have to create a command_cli with
-        # it: see the end of every $command.py module in faust/bin.
-        # (e.g. ``worker_cli = worker.as_click_command()``).
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
-        # We may be able to use @cli.command as a side effect only,
-        # so __init_subclass__ applies the @cli.command decorator,
-        # but throws away the return value (decorated function)
+        # __init_subclass__ automatically calls as_click_command
+        # for the side effect of being registered in the list
+        # of `faust` umbrella subcommands.
         @click.pass_context
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> Callable:
@@ -190,9 +190,26 @@ class Command(abc.ABC):
         return apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
 
+    def __init_subclass__(self, *args: Any, **kwargs: Any) -> None:
+        if self.abstract:
+            # this sets the class attribute, so next time
+            # a Command subclass is defined it won't be abstract
+            # unless you set the attribute again in that subclass::
+            #   class MyAbstractCommand(Command):
+            #       abstract: ClassVar[bool] = True
+            #
+            #   class x(MyAbstractCommand):
+            #       async def run(self) -> None:
+            #           print('just here to experience this execution')
+            self.abstract = False
+        else:
+            # This registers the command with the cli click.Group
+            # as a side effect.
+            self._click = self.as_click_command()
+
     def __init__(self, ctx: click.Context) -> None:
         self.ctx = ctx
-        # extract all of these from the click.Context,
+        # XXX should we also use ctx.find_root() here?
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
@@ -248,6 +265,8 @@ class Command(abc.ABC):
 
 class AppCommand(Command):
     """Command that takes ``-A app`` as argument."""
+
+    abstract: ClassVar[bool] = True
 
     app: AppT
 

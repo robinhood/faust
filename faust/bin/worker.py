@@ -62,9 +62,6 @@ class worker(AppCommand):
         ).execute_from_commandline()
 
 
-worker_cli = worker.as_click_command()
-
-
 @click.command()
 @apply_options(common_options)
 @apply_options(worker.options)

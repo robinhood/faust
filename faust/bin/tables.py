@@ -7,6 +7,3 @@ class tables(AppCommand):
     async def run(self) -> None:
         self.say(self.tabulate([[k] for k in self.app.tables],
                                headers=['name']))
-
-
-tables_cli = tables.as_click_command()

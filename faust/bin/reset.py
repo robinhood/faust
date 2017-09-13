@@ -37,7 +37,3 @@ class reset(AppCommand):
     async def reset_checkpoints(self) -> None:
         self.say(f'Removing file "{self.app.checkpoint_path}"...')
         self.app.checkpoints.reset_state()
-
-
-# FIXME Find a better solution (see bin/base.py)
-reset_cli = reset.as_click_command()

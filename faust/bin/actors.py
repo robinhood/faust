@@ -14,6 +14,3 @@ class actors(AppCommand):
         if name.startswith(self.app.origin):
             name = name[len(self.app.origin) + 1:]
         return f'@{name}'
-
-
-actors_cli = actors.as_click_command()

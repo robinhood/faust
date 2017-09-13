@@ -80,6 +80,3 @@ class send(AppCommand):
                 await asyncio.sleep(
                     random.uniform(self.min_latency, self.max_latency))
         await self.app.producer.stop()
-
-
-send_cli = send.as_click_command()
