@@ -40,3 +40,7 @@ class StoreT(ServiceT, MutableMapping):
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
         ...
+
+    @abc.abstractmethod
+    def reset_state(self) -> None:
+        ...

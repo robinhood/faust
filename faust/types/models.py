@@ -1,6 +1,8 @@
 import abc
 import typing
-from typing import Any, ClassVar, FrozenSet, Mapping, Type, Union
+from typing import (
+    Any, Callable, ClassVar, FrozenSet, Mapping, Tuple, Type, Union,
+)
 from .codecs import CodecArg
 
 if typing.TYPE_CHECKING:
@@ -17,6 +19,7 @@ class ModelOptions(abc.ABC):
     serializer: CodecArg = None
     namespace: str = None
     include_metadata: bool = True
+    isodates: bool = False
 
     # Index: Flattened view of __annotations__ in MRO order.
     fields: Mapping[str, Type]
@@ -32,6 +35,10 @@ class ModelOptions(abc.ABC):
 
     # Index: Set of field names that are ModelT
     modelset: FrozenSet[str]
+
+    # Index: Mapping of fields that are not builtin-types.
+    # E.g. datetime.
+    converse: Mapping[str, Tuple[Type, Callable[[Type, Any], Any]]]
 
     #: Mapping of field names to default value.
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)

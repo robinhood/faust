@@ -2,16 +2,18 @@ import asyncio
 import os
 import random
 import sys
+from datetime import datetime
 from time import monotonic
 import faust
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
 
-class Withdrawal(faust.Record, serializer='json'):
+class Withdrawal(faust.Record, isodates=True, serializer='json'):
     user: str
     country: str
     amount: float
+    date: datetime = None
 
 
 app = faust.App(
@@ -20,7 +22,7 @@ app = faust.App(
     store='rocksdb://',
     default_partitions=6,
 )
-withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 user_to_total = app.Table('user_to_total', default=int)
 country_to_total = app.Table(
@@ -68,6 +70,7 @@ async def _publish_withdrawals():
             user=random.choice(users),
             amount=random.uniform(0, 25_000),
             country=random.choices(countries, country_dist)[0],
+            date=datetime.utcnow(),
         )
         await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
         if not i % 10000:

@@ -95,6 +95,13 @@ class FactoryMapping(FastUserDict, Generic[_T]):
         return self.aliases
 
 
+def _ensure_identifier(path: str, full: str) -> None:
+    for part in path.split('.'):
+        if not part.isidentifier():
+            raise ValueError(
+                f'Component {part!r} of {full!r} is not a valid identifier')
+
+
 def symbol_by_name(
         name: SymbolArg,
         aliases: Mapping[str, str] = None,
@@ -145,9 +152,14 @@ def symbol_by_name(
 
     name = (aliases or {}).get(name) or name
     sep = ':' if ':' in name else sep
-    module_name, _, cls_name = name.rpartition(sep)
+    module_name, _, attr = name.rpartition(sep)
     if not module_name:
-        cls_name, module_name = None, package if package else cls_name
+        attr, module_name = None, package if package else attr
+
+    if attr:
+        _ensure_identifier(attr, full=name)
+    if module_name:
+        _ensure_identifier(module_name, full=name)
     try:
         try:
             module = imp(module_name, package=package, **kwargs)
@@ -155,7 +167,7 @@ def symbol_by_name(
             raise ValueError(
                 f'Cannot import {name!r}: {exc}',
             ).with_traceback(sys.exc_info()[2])
-        return getattr(module, cls_name) if cls_name else module
+        return getattr(module, attr) if attr else module
     except (ImportError, AttributeError):
         if default is None:
             raise

@@ -1,12 +1,17 @@
+from datetime import datetime
 from typing import (
-    Any, ClassVar, Dict, Iterable, Mapping, Sequence, Tuple, Type, cast,
+    Any, Callable, ClassVar, Dict, Iterable,
+    Mapping, Optional, Sequence, Tuple, Type, cast,
 )
 from .base import FieldDescriptor, Model
 from ..serializers.avro import to_avro_type
 from ..types.models import ModelOptions, ModelT
+from ..utils import iso8601
 from ..utils.objects import annotations, guess_concrete_type
 
 __all__ = ['Record']
+
+DATE_TYPES = (datetime,)
 
 
 def _is_model(cls: Type) -> bool:
@@ -19,6 +24,20 @@ def _is_model(cls: Type) -> bool:
     try:
         return issubclass(cls, ModelT)
     except TypeError:  # typing.Any cannot be used with subclass
+        return False
+
+
+def _is_date(cls: Type,
+             *,
+             types: Tuple[Type, ...] = DATE_TYPES) -> bool:
+    try:
+        # Check for List[int], Mapping[int, int], etc.
+        _, cls = guess_concrete_type(cls)
+    except TypeError:
+        pass
+    try:
+        return issubclass(cls, types)
+    except TypeError:
         return False
 
 
@@ -74,18 +93,40 @@ class Record(Model):
         options.fieldset = frozenset(fields)
         options.optionalset = frozenset(defaults)
         is_model = _is_model
+        is_date = _is_date
+
         # extract all default values, but only for actual fields.
         options.defaults = {
             k: v
             for k, v in defaults.items()
             if k in fields
         }
+
+        # extract all Model fields.
         options.models = {
             field: typ
             for field, typ in fields.items()
             if is_model(typ)
         }
-        options.modelset = frozenset(options.models)
+        modelset = options.modelset = frozenset(options.models)
+
+        # extract all fields that are not built-in types,
+        # e.g. List[datetime]
+        options.converse = {}
+        if options.isodates:
+            options.converse = {
+                field: (typ, cls._parse_iso8601)
+                for field, typ in fields.items()
+                if field not in modelset and is_date(typ)
+            }
+
+    @staticmethod
+    def _parse_iso8601(typ: Type, data: Any) -> Optional[datetime]:
+        if data is None:
+            return None
+        if isinstance(data, datetime):
+            return data
+        return iso8601.parse(data)
 
     @classmethod
     def _contribute_field_descriptors(cls, options: ModelOptions) -> None:
@@ -107,10 +148,13 @@ class Record(Model):
             # Set fields from keyword arguments.
             self._init_fields(fields)
 
-    def _init_fields(self, fields: Dict, *, strict: bool = True) -> None:
+    def _init_fields(self, fields: Dict,
+                     *,
+                     strict: bool = True) -> None:
         fields.pop('__faust', None)  # remove metadata
         fieldset = frozenset(fields)
         options = self._options
+        get_field = fields.get
 
         # Check all required arguments.
         missing = options.fieldset - fieldset - options.optionalset
@@ -125,36 +169,24 @@ class Record(Model):
                 raise TypeError('{} got unexpected arguments: {}'.format(
                     type(self).__name__, ', '.join(sorted(extraneous))))
 
+        # Reconstruct child models
+        fields.update({
+            k: self._to_models(typ, get_field(k))
+            for k, typ in self._options.models.items()
+        })
+
+        # Reconstruct non-builtin types
+        fields.update({
+            k: self._reconstruct_type(typ, get_field(k), callback)
+            for k, (typ, callback) in self._options.converse.items()})
+
         # Fast: This sets attributes from kwargs.
         self.__dict__.update(fields)
 
-        # then reconstruct child models
-        models = {
-            k: self._to_models(k, _typ, fields.get(k))
-            for k, _typ in self._options.models.items()
-        }
-        self.__dict__.update(models)
+    def _to_models(self, typ: Type[ModelT], data: Any) -> Any:
+        return self._reconstruct_type(typ, data, self._to_model)
 
-    def _to_models(self, field: str, typ: Type[ModelT], data: Any) -> Any:
-        try:
-            generic, subtyp = guess_concrete_type(typ)
-        except TypeError:
-            return self._to_model(field, typ, data)
-        else:
-            if generic is list:
-                return [
-                    self._to_model(field, subtyp, v) for v in data]
-            elif generic is tuple:
-                return tuple(
-                    self._to_model(field, subtyp, v) for v in data)
-            elif generic is dict:
-                return {k: self._to_model(field, subtyp, v)
-                        for k, v in data.items()}
-            elif generic is set:
-                return {self._to_model(field, subtyp, v)
-                        for v in data}
-
-    def _to_model(self, field: str, typ: Type[ModelT], data: Any) -> ModelT:
+    def _to_model(self, typ: Type[ModelT], data: Any) -> ModelT:
         if data is not None and not isinstance(data, ModelT):
             self_cls = self._maybe_namespace(data)
             if self_cls:
@@ -163,6 +195,28 @@ class Record(Model):
                 data = typ(data)
             if data is not None and not isinstance(data, typ):
                 return typ(data)
+        return data
+
+    def _reconstruct_type(
+            self, typ: Type, data: Any,
+            callback: Callable[[Type, Any], Any]) -> Any:
+        if data is not None:
+            try:
+                # Get generic type (if any)
+                # E.g. Set[typ], List[typ], Optional[List[typ]] etc.
+                generic, subtyp = guess_concrete_type(typ)
+            except TypeError:
+                # just a scalar
+                return callback(typ, data)
+            else:
+                if generic is list:
+                    return [callback(subtyp, v) for v in data]
+                elif generic is tuple:
+                    return tuple(callback(subtyp, v) for v in data)
+                elif generic is dict:
+                    return {k: callback(subtyp, v) for k, v in data.items()}
+                elif generic is set:
+                    return {callback(subtyp, v) for v in data}
         return data
 
     def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
@@ -206,6 +260,9 @@ class Record(Model):
 
     def __ne__(self, other: Any) -> bool:
         return not self.__eq__(other)
+
+    def __hash__(self) -> int:
+        return object.__hash__(self)
 
 
 def _kvrepr(d: Mapping[str, Any],

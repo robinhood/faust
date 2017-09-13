@@ -1,12 +1,10 @@
 from typing import Any, Callable
+from ..bin._env import WEB_BIND, WEB_PORT
 from ..types import AppT
 from ..utils.logging import get_logger
 from ..utils.services import Service
 
 __all__ = ['Request', 'Response', 'Web']
-
-DEFAULT_PORT = 6066
-DEFAULT_BIND = '0.0.0.0'
 
 logger = get_logger(__name__)
 
@@ -32,8 +30,8 @@ class Web(Service):
                  bind: str = None,
                  **kwargs: Any) -> None:
         self.app = app
-        self.port = port or DEFAULT_PORT
-        self.bind = bind or DEFAULT_BIND
+        self.port = port or WEB_PORT
+        self.bind = bind or WEB_BIND
         super().__init__(**kwargs)
 
     def text(self, value: str) -> Any:

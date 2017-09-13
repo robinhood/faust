@@ -109,7 +109,7 @@ in an application that already sets up signal handling and logging.
 -----------
 
 The monitor is a feature-complete sensor that collects statistics about
-the running instance.  The monitor data can be exposed by the webserver.
+the running instance.  The monitor data can be exposed by the web server.
 
 ``Producer``
 ------------

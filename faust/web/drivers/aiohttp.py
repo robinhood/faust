@@ -19,7 +19,7 @@ class Web(base.Web):
 
     driver_version = f'aiohttp={aiohttp_version}'
 
-    #: We serve the webserver in a separate thread, with its own even loop.
+    #: We serve the web server in a separate thread, with its own even loop.
     _thread: ServiceThread = None
 
     class WebserverServiceThread(Service):

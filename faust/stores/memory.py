@@ -29,3 +29,6 @@ class Store(base.Store, FastUserDict):
 
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         return None
+
+    def reset_state(self) -> None:
+        ...

@@ -128,6 +128,7 @@ class Model(ModelT):
                           serializer: str = None,
                           namespace: str = None,
                           include_metadata: bool = True,
+                          isodates: bool = False,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function to make it
         # possible to initialize subclasses without using metaclasses
@@ -138,13 +139,14 @@ class Model(ModelT):
         # and so thinks we are mutating a ClassVar when setting
         #   cls.__abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
-        cls._init_subclass(serializer, namespace, include_metadata)
+        cls._init_subclass(serializer, namespace, include_metadata, isodates)
 
     @classmethod
     def _init_subclass(cls,
                        serializer: str = None,
                        namespace: str = None,
-                       include_metadata: bool = True) -> None:
+                       include_metadata: bool = True,
+                       isodates: bool = False) -> None:
         if cls.__abstract__:
             # Custom base classes can set this to skip class initialization.
             cls.__abstract__ = False
@@ -166,6 +168,7 @@ class Model(ModelT):
             options.serializer = serializer
         options.include_metadata = include_metadata
         options.namespace = namespace or canoname(cls)
+        options.isodates = isodates
 
         # Add introspection capabilities
         cls._contribute_to_options(options)

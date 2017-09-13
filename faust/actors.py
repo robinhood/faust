@@ -624,6 +624,9 @@ class Actor(ActorT, ServiceProxy):
 
             yield correlation_id
 
+    def _repr_info(self) -> str:
+        return self.name
+
     @cached_property
     def channel_iterator(self) -> AsyncIterator:
         # The channel is reused here, so that when ActorService start

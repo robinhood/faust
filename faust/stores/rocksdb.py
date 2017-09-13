@@ -1,4 +1,7 @@
 """RocksDB storage."""
+import shutil
+from contextlib import suppress
+from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Optional, Tuple
 from . import base
 from ..types import AppT, EventT, TopicPartition
@@ -110,6 +113,11 @@ class Store(base.SerializedStore):
         # XXX
         raise NotImplementedError('TODO')
 
+    def reset_state(self) -> None:
+        self._db = None
+        with suppress(FileNotFoundError):
+            shutil.rmtree(self.path.absolute())
+
     @property
     def db(self) -> rocksdb.DB:
         if self._db is None:
@@ -120,3 +128,7 @@ class Store(base.SerializedStore):
     def filename(self) -> str:
         name = self.url.partition('://')[-1]
         return f'{name}.db' if '.' not in name else name
+
+    @property
+    def path(self) -> Path:
+        return Path(self.filename)

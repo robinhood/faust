@@ -118,6 +118,9 @@ class Collection(Service, CollectionT):
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         return self.data.persisted_offset(tp)
 
+    def reset_state(self) -> None:
+        self.data.reset_state()
+
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
         partition: int = None
