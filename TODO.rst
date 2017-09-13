@@ -2,6 +2,15 @@
  TODO
 ======
 
+Critical: CheckpointManager should separate checkpoints by app id
+=================================================================
+
+FIXME FIXME FIXME
+
+Currently the .checkpoint file is shared between all apps,
+which means it's easily corrupted if two different apps are started
+and they use the same Kafka topics.
+
 "ExactlyOnce" / Transactions (KIP-98)
 =====================================
 
