@@ -1,4 +1,9 @@
-"""Faust Application."""
+"""Faust Application.
+
+The app connects everything and can be inherited from
+to customize how Faust works.
+
+"""
 import asyncio
 import typing
 
@@ -56,43 +61,46 @@ else:
 
 __all__ = ['App']
 
-#: Default broker URL.
-DEFAULT_URL = 'kafka://localhost:9092'
+#: Default transport URL.
+TRANSPORT_URL = 'kafka://localhost:9092'
 
+#: Default path to checkpoint file.
 CHECKPOINT_PATH = '.checkpoint'
 
-#: Path to default stream class used by ``app.stream``.
-DEFAULT_STREAM_CLS = 'faust.Stream'
+#: Default path to stream class used by ``app.stream``.
+STREAM_TYPE = 'faust.Stream'
 
-DEFAULT_TABLE_MAN = 'faust.tables.TableManager'
+#: Default path to table manager class used by ``app.tables``.
+TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
 
-DEFAULT_CHECKPOINT_MAN = _DCPM = 'faust.tables.CheckpointManager'
+#: Default path to checkpoint manager class used by ``app.checkpoints``.
+CHECKPOINT_MANAGER_TYPE = _CMT = 'faust.tables.CheckpointManager'
 
-#: Path to default table class used by ``app.Table``.
-DEFAULT_TABLE_CLS = 'faust.Table'
+#: Default path to table class used by ``app.Table``.
+TABLE_TYPE = 'faust.Table'
 
-#: Path to default set class used by ``app.Set``.
-DEFAULT_SET_CLS = 'faust.Set'
+#: Default path to set class used by ``app.Set``.
+SET_TYPE = 'faust.Set'
 
-#: Path to default serializer registry class.
-DEFAULT_SERIALIZERS_CLS = 'faust.serializers.Registry'
+#: Default path to serializer registry class used by ``app.serializers``.
+REGISTRY_TYPE = 'faust.serializers.Registry'
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
 
-#: How often we commit messages.
-#: Can be customized by setting ``App(commit_interval=...)``.
+#: Default value for the :attr:`App.commit_interval` keyword argument
+#: that decides how often we commit acknowledged messages.
 COMMIT_INTERVAL = 3.0
 
-#: How often we clean up windowed tables.
-#: Can be customized by setting ``App(table_cleanup_interval=...)``.
+#: Default value for the :attr:`App.table_cleanup_interval` keyword argument
+#: that decides how often we clean up expired items in windowed tables.
 TABLE_CLEANUP_INTERVAL = 30.0
 
 #: Prefix used for reply topics.
 REPLY_TOPIC_PREFIX = 'f-reply-'
 
 #: Default expiry time for replies in seconds (float/timedelta).
-DEFAULT_REPLY_EXPIRES = timedelta(days=1)
+REPLY_EXPIRES = timedelta(days=1)
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
@@ -106,20 +114,30 @@ class AppService(Service):
     """Service responsible for starting/stopping an application."""
     logger = logger
 
-    # App is created in module scope so we split it up to ensure
-    # Service.loop does not create the asyncio event loop
-    # when a module is imported.
+    # The App() is created during module import and cannot subclass Service
+    # directly as Service.__init__ creates the asyncio event loop, and
+    # creating the event loop as a side effect of importing a module
+    # is a bad practice (e.g. should you switch to uvloop you may end up
+    # in a situation where some services use the old event loop).
+
+    # To solve this we use ServiceProxy to split into App + AppService,
+    # in a way so that the AppService is started lazily only when first
+    # needed.
 
     def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
+        # Client-Only: Boots up enough services to be able to
+        # produce to topics and receive replies from topics.
+        # XXX If we switch to socket RPC using routers we can remove this.
         if self.app.client_only:
             return self._components_client()
         return self._components_server()
 
     def _components_client(self) -> Iterable[ServiceT]:
+        # The components started when running in Client-Only mode.
         return cast(Iterable[ServiceT], chain(
             [self.app.producer],
             [self.app.consumer],
@@ -129,6 +147,8 @@ class AppService(Service):
         ))
 
     def _components_server(self) -> Iterable[ServiceT]:
+        # The components started when running normally (Server mode).
+
         # Add all asyncio.Tasks, like timers, etc.
         for task in self.app._tasks:
             self.add_future(task())
@@ -141,38 +161,49 @@ class AppService(Service):
         # stopped when the app stops,
         # etc...
         return cast(Iterable[ServiceT], chain(
-            # Sensors must always be started first, and stopped last.
+            # Sensors (Sensor): always start first, stop last.
             self.app.sensors,
-            # Checkpoint Manager
-            [self.app.checkpoints],                   # app.CheckpointManager
-            # Producer must be stoppped after consumer.
-            [self.app.producer],                      # app.Producer
-            # Consumer must be stopped after Topic Manager
-            [self.app.consumer],                      # app.Consumer
-            # ReplyConsumer
+            # Checkpoint Manager (app.CheckpointManager)
+            [self.app.checkpoints],
+            # Producer (transport.Producer): always stop after Consumer.
+            [self.app.producer],
+            # Consumer (transport.Consumer): always stop after TopicManager
+            [self.app.consumer],
+            # Reply Consumer (ReplyConsumer)
             [self.app._reply_consumer],
-            # Actors
+            # Actors (app.Actor)
             self.app.actors.values(),
-            # TopicManager
-            [self.app.topics],                        # app.TopicManager
-            # TableManager
-            [self.app.tables],                        # app.TableManager
-            # Fetcher
+            # Topic Manager (app.TopicManager))
+            [self.app.topics],
+            # Table Manager (app.TableManager)
+            [self.app.tables],
+            # Fetcher (transport.Fetcher)
             [self.app._fetcher],
         ))
 
     async def on_first_start(self) -> None:
         if not self.app.actors:
+            # XXX I can imagine use cases where an app is useful
+            #     without actors, but use this as more of an assertion
+            #     to make sure actors are registered correctly. [ask]
             raise ImproperlyConfigured(
                 'Attempting to start app that has no actors')
 
     async def on_started(self) -> None:
+        # Call the app-is-fully-started callback used by Worker
+        # to print the "ready" message when Faust is ready to
+        # start processing.
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
 
     @Service.task
     async def _drain_message_buffer(self) -> None:
+        # Background task responsible for publishing buffered messages
+        # (e.g. see app.send_soon()).
+
+        # localize deep attribute access
         get = self.app._message_buffer.get
+
         while not self.should_stop:
             fut: FutureMessage = await get()
             pending = fut.message
@@ -213,44 +244,44 @@ class App(AppT, ServiceProxy):
     """
     logger = logger
 
+    #: Set if app should only start the services required to operate
+    #: as an RPC client (producer and reply consumer).
     client_only = False
 
-    #: Default producer instance.
-    _producer: Optional[ProducerT] = None
+    # Default producer instance.
+    _producer: ProducerT = None
 
-    #: Default consumer instance.
-    _consumer: Optional[ConsumerT] = None
+    # Default consumer instance.
+    _consumer: ConsumerT = None
 
-    #: Set when consumer is started.
+    # Set when consumer is started.
     _consumer_started: bool = False
 
-    #: Transport is created on demand: use `.transport`.
+    # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
+    # Mapping used to attach messages to a source message such that
+    # only when the source message is acked, only then do we publish
+    # its attached messages.
+    #
+    # The mapping maintains one list for each TopicPartition,
+    # where the lists are used as heap queues containing tuples
+    # of ``(source_message_offset, FutureMessage)``.
     _pending_on_commit: MutableMapping[
         TopicPartition,
         List[Tuple[int, Unordered[FutureMessage]]]]
 
+    # Monitor is created on demand: use `.monitor` property.
     _monitor: Monitor = None
 
+    # @app.task decorator adds asyncio tasks to be started
+    # with the app here.
     _tasks: MutableSequence[Callable[[], Awaitable]]
-
-    def main(self) -> None:
-        from .bin.faust import cli
-        cli(app=self)
-
-    def start_worker(self, *,
-                     argv: Sequence[str] = None,
-                     loop: asyncio.AbstractEventLoop = None) -> None:
-        from .bin.worker import parse_worker_args
-        from .worker import Worker
-        kwargs = parse_worker_args(argv, standalone_mode=False)
-        Worker(self, loop=loop, **kwargs).execute_from_commandline()
 
     def __init__(
             self, id: str,
             *,
-            url: str = 'aiokafka://localhost:9092',
+            url: str = TRANSPORT_URL,
             store: str = 'memory://',
             avro_registry_url: str = None,
             client_id: str = CLIENT_ID,
@@ -264,13 +295,13 @@ class App(AppT, ServiceProxy):
             default_partitions: int = 8,
             reply_to: str = None,
             create_reply_topic: bool = False,
-            reply_expires: Seconds = DEFAULT_REPLY_EXPIRES,
-            Stream: SymbolArg[Type[StreamT]] = DEFAULT_STREAM_CLS,
-            Table: SymbolArg[Type[TableT]] = DEFAULT_TABLE_CLS,
-            TableManager: SymbolArg[Type[TableManagerT]] = DEFAULT_TABLE_MAN,
-            CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _DCPM,
-            Set: SymbolArg[Type[SetT]] = DEFAULT_SET_CLS,
-            Serializers: SymbolArg[Type[RegistryT]] = DEFAULT_SERIALIZERS_CLS,
+            reply_expires: Seconds = REPLY_EXPIRES,
+            Stream: SymbolArg[Type[StreamT]] = STREAM_TYPE,
+            Table: SymbolArg[Type[TableT]] = TABLE_TYPE,
+            TableManager: SymbolArg[Type[TableManagerT]] = TABLE_MANAGER_TYPE,
+            CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _CMT,
+            Set: SymbolArg[Type[SetT]] = SET_TYPE,
+            Serializers: SymbolArg[Type[RegistryT]] = REGISTRY_TYPE,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
             origin: str = None,
@@ -289,8 +320,7 @@ class App(AppT, ServiceProxy):
         self.default_partitions = default_partitions
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
         self.create_reply_topic = create_reply_topic
-        self.reply_expires = want_seconds(
-            reply_expires or DEFAULT_REPLY_EXPIRES)
+        self.reply_expires = want_seconds(reply_expires or REPLY_EXPIRES)
         self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.TableType = symbol_by_name(Table)
@@ -316,6 +346,20 @@ class App(AppT, ServiceProxy):
         self.origin = origin
         ServiceProxy.__init__(self)
 
+    def main(self) -> None:
+        """Execute the :program:`faust` umbrella command using this app."""
+        from .bin.faust import cli
+        cli(app=self)
+
+    def start_worker(self, *,
+                     argv: Sequence[str] = None,
+                     loop: asyncio.AbstractEventLoop = None) -> None:
+        """Execute the :program:`faust worker` command using this app."""
+        from .bin.worker import parse_worker_args
+        from .worker import Worker
+        kwargs = parse_worker_args(argv, standalone_mode=False)
+        Worker(self, loop=loop, **kwargs).execute_from_commandline()
+
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: ModelArg = None,
@@ -329,6 +373,14 @@ class App(AppT, ServiceProxy):
               replicas: int = None,
               acks: bool = True,
               config: Mapping[str, Any] = None) -> TopicT:
+        """Create topic description.
+
+        Topics are named channels (for example a Kafka topic),
+        to communicate locally create a :meth:`channel`.
+
+        See Also:
+            :class:`faust.topics.Topic`
+        """
         return Topic(
             self,
             topics=topics,
@@ -350,6 +402,16 @@ class App(AppT, ServiceProxy):
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
                 loop: asyncio.AbstractEventLoop = None) -> ChannelT:
+        """Create new channel.
+
+        By default this will create an in-memory channel
+        used for intra-process communication, but in practice
+        channels can be backed by any transport (network or even means
+        of inter-process communication).
+
+        See Also:
+            :class:`faust.channels.Channel`.
+        """
         return Channel(
             self,
             key_type=key_type,
@@ -363,6 +425,24 @@ class App(AppT, ServiceProxy):
               name: str = None,
               concurrency: int = 1,
               sink: Iterable[SinkT] = None) -> Callable[[ActorFun], ActorT]:
+        """Decorator used to convert async def function into Faust actor.
+
+        The decorated function may be an async iterator, in this
+        mode the value yielded in reaction to a request will be the reply::
+
+            @app.actor()
+            async def my_actor(requests):
+                async for number in requests:
+                    yield number * 2
+
+        It can also be a regular async function, but then replies are not
+        supported::
+
+            @app.actor()
+            async def my_actor(stream):
+                async for number in stream:
+                    print(f'Received: {number!r}')
+        """
         def _inner(fun: ActorFun) -> ActorT:
             actor = Actor(
                 fun,
@@ -379,6 +459,26 @@ class App(AppT, ServiceProxy):
 
     async def _on_actor_error(
             self, actor: ActorT, exc: Exception) -> None:
+        # XXX If an actor raises in the middle of processing an event
+        # what do we do with acking it?  Currently the source message will be
+        # acked and not processed again, simply because it violates
+        # ""exactly-once" semantics".
+        #
+        # - What about retries?
+        # It'd be safe to retry processing the event if the actor
+        # processing is idempotent, but we don't enforce idempotency
+        # in stream processors so it's not something we can enable by default.
+        #
+        # The retry would also have to stop processing of the topic
+        # so that order is maintained: the next offset in the topic can only
+        # be processed after the event is retried.
+        #
+        # - How about crashing?
+        # Crashing the instance to require human intervention is certainly
+        # a choice, but far from ideal considering how common mistakes
+        # in code or unhandled exceptions are.  It may be better to log
+        # the error and have ops replay and reprocess the stream on
+        # notification.
         if self._consumer:
             try:
                 await self._consumer.on_task_error(exc)
@@ -386,10 +486,33 @@ class App(AppT, ServiceProxy):
                 self.log.exception('Consumer error callback raised: %r', exc)
 
     def task(self, fun: Callable[[], Awaitable]) -> Callable:
+        """Decorator creating an asyncio.Task started with the app.
+
+        This is like :meth:`timer` but a one-shot task only
+        executed at startup.
+
+        Example:
+            >>> @app.task
+            >>> async def on_startup():
+            ...     print('STARTING UP')
+        """
         self._tasks.append(fun)
         return fun
 
     def timer(self, interval: Seconds) -> Callable:
+        """Decorator creating an asyncio.Task waking up periodically.
+
+        This decorator takes an async function and adds it to a
+        list of timers started with the app.
+
+        Arguments:
+            interval (Seconds): How often the timer executes in seconds.
+
+        Example:
+            >>> @app.timer(interval=10.0)
+            >>> async def every_10_seconds():
+            ...     print('TEN SECONDS JUST PASSED')
+        """
         interval_s = want_seconds(interval)
 
         def _inner(fun: Callable[..., Awaitable]) -> Callable:
@@ -406,10 +529,10 @@ class App(AppT, ServiceProxy):
                coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
-        """Create new stream from channel.
+        """Create new stream from channel/topic/iterable/async iterable.
 
         Arguments:
-            channel: Async iterable to stream over.
+            channel: Iterable to stream over (async or non-async).
 
         Keyword Arguments:
             coroutine: Coroutine to filter events in this stream.
@@ -432,7 +555,7 @@ class App(AppT, ServiceProxy):
               window: WindowT = None,
               partitions: int = None,
               **kwargs: Any) -> TableT:
-        """Create new table.
+        """Define new table.
 
         Arguments:
             name: Name used for table, note that two tables living in
@@ -466,6 +589,15 @@ class App(AppT, ServiceProxy):
             window: WindowT = None,
             partitions: int = None,
             **kwargs: Any) -> SetT:
+        """Define new Set table.
+
+        A set is a table with the :class:`typing.AbstractSet` interface,
+        that internally stores the table as a dictionary of (key, True)
+        values.
+
+        Note:
+            The set does *not have* the dict/Mapping interface.
+        """
         return self.tables.add(self.SetType(
             self,
             name=name,
@@ -475,10 +607,16 @@ class App(AppT, ServiceProxy):
             **kwargs))
 
     async def start_client(self) -> None:
+        """Start the app in Client-Only mode necessary for RPC requests.
+
+        Notes:
+            Once started as a client the app cannot be restarted as Server.
+        """
         self.client_only = True
         await self._service.maybe_start()
 
     async def maybe_start_client(self) -> None:
+        """Start the app in Client-Only mode if not started as Server."""
         if not self._service.started:
             await self.start_client()
 
@@ -492,6 +630,11 @@ class App(AppT, ServiceProxy):
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
             force: bool = False) -> Awaitable[RecordMetadata]:
+        # XXX The concept of attaching should be deprecated when we
+        # have Kafka transaction support (:kip:`KIP-98`).
+        # This is why the interface related to attaching is private.
+
+        # attach message to current event if there is one.
         if not force:
             event = current_event()
             if event is not None:
@@ -519,10 +662,11 @@ class App(AppT, ServiceProxy):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        """Send event to stream.
+        """Send event to channel/topic.
 
         Arguments:
-            channel (Union[ChannelT, str]): Channel to send event to.
+            channel (Union[ChannelT, str]): Channel/topic or the name of a
+                topic to send event to.
             key (K): Message key.
             value (V): Message value.
             partition (int): Specific partition to send to.
@@ -531,6 +675,11 @@ class App(AppT, ServiceProxy):
                 only when key is not a model.
             value_serializer (CodecArg): Serializer to use
                 only when value is not a model.
+            callback (MessageSentCallback): Callable to be called after
+                the message is published.  Signature must be unary as the
+                :class:`~faust.types.FutureMessage` future is passed to it.
+                The resulting :class:`faust.types.RecordMetadata` object is
+                then available as ``fut.result()``.
         """
         if isinstance(channel, str):
             channel = self.topic(channel)
@@ -550,7 +699,51 @@ class App(AppT, ServiceProxy):
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         """Send event to stream soon.
 
-        This is for use by non-async functions.
+        This is for use by non-async (``def x``) functions that cannot do
+        ``await send``. It creates a bridge between these worlds by adding
+        the message to a buffer consumed by a background coroutine.
+
+        Warning:
+
+            Use with caution: The use of a buffer implies the risk of
+            backpressure building up if the background coroutine cannot
+            consume fast enough.
+
+            Since the actual sending happens in the event loop, the message
+            will not be sent if the event loop is never scheduled to run,
+            like in this example:
+
+                def schedule_message():
+                    app.send_soon('topic', 'value')
+                    for i in range(1000):
+                        time.sleep(1.0)
+
+                async def program():
+                    # schedules message but then sleeps in a blocking manner.
+                    schedule_message()
+                    # enters event loop to actually send message
+                    await asyncio.sleep(0)
+
+            The above will halt transmission of the message for 1000 seconds!
+            Note that time.sleep is used as an example of a blocking function,
+            not to be confused with the asyncio.sleep alternative.  Hopefully
+            you don't have any time.sleep calls in your asyncio application,
+            but the same principle applies to any non-async call
+            not returning in a timely manner.
+
+            The example above, or something blocking for far shorter
+            can also create backpressure.  To fix that problem you'd
+            have to insert something that periodically yields to the
+            event loop, but that is not possible for non-async functions.
+
+            As a result ``send_soon`` should only be used in cases
+            where you know you will be re-entering the event loop pretty
+            much immediately, for example Faust itself uses it to
+            publish table changelog entries in ``Table[k] = v``[#f1]_.
+
+            .. [#f1] Implemented in the ``Table.__setitem__`` method.
+                     By extension of being part of the MutableMapping interface
+                     ``__setitem__`` *cannot* be an ``async def`` method.
         """
         chan = self.topic(channel) if isinstance(channel, str) else channel
         fut = chan.as_future_message(
@@ -568,16 +761,28 @@ class App(AppT, ServiceProxy):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
+        # This attaches message to be published when source message' is
+        # acknowledged.  To be replaced by transactions in :kip:`KIP-98`.
+
+        # get heap queue for this TopicPartition
+        # items in this list are ``(source_offset, Unordered[FutureMessage])``
+        # tuples.
         buf = self._pending_on_commit[message.tp]
         chan = self.topic(channel) if isinstance(channel, str) else channel
         fut = chan.as_future_message(
             key, value, partition,
             key_serializer, value_serializer, callback)
+        # Note: Since FutureMessage have members that are unhashable
+        # we wrap it in an Unordered object to stop heappush from crashing.
+        # Unordered simply orders by random order, which is fine
+        # since offsets are always unique.
         heappush(buf, (message.offset, Unordered(fut)))
         return fut
 
     async def _commit_attached(self, tp: TopicPartition, offset: int) -> None:
         # publish pending messages attached to this TP+offset
+
+        # make shallow copy to allow concurrent modifications (append)
         attached = list(self._get_attached(tp, offset))
         if attached:
             await asyncio.wait(
@@ -591,6 +796,7 @@ class App(AppT, ServiceProxy):
             self,
             tp: TopicPartition,
             commit_offset: int) -> Iterator[FutureMessage]:
+        # Return attached messages for TopicPartition within committed offset.
         attached = self._pending_on_commit.get(tp)
         while attached:
             # get the entry with the smallest offset in this TP
@@ -599,22 +805,64 @@ class App(AppT, ServiceProxy):
             # if the entry offset is smaller or equal to the offset
             # being committed
             if entry[0] <= commit_offset:
-                # we use it
-                yield entry[1].value  # Only yield FutureMessage (not offset)
+                # we use it by extracting the FutureMessage
+                # from Tuple[int, Unordered[FutureMessage]]
+                yield entry[1].value
             else:
-                # we put it back and exit, as this was the smallest offset.
+                # else we put it back and exit (this was the smallest offset).
                 heappush(attached, entry)
                 break
 
     @stampede
     async def maybe_start_producer(self) -> ProducerT:
+        """Start producer if it has not already been started."""
         producer = self.producer
         # producer may also have been started by app.start()
         await producer.maybe_start()
         return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
+        """Commit acked messages in topics'.
+
+        Warning:
+            This will commit acked messages in **all topics**
+            if the topics argument is passed in as :const:`None`.
+        """
         return await self.topics.commit(topics)
+
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        """Handle new topic partition assignment.
+
+        This is called during a rebalance after :meth:`on_partitions_revoked`.
+
+        The new assignment provided overrides the previous
+        assignment, so any tp no longer in the assigned' list will have
+        been revoked.
+        """
+        await self.topics.on_partitions_assigned(assigned)
+        await self.tables.on_partitions_assigned(assigned)
+        self.flow_control.resume()
+
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        """Handle revocation of topic partitions.
+
+        This is called during a rebalance and is followed by
+        :meth:`on_partitions_assigned`.
+
+        Revoked means the partitions no longer exist, or they
+        have been reassigned to a different node.
+        """
+        self.log.dev('ON PARTITIONS REVOKED')
+        await self.topics.on_partitions_revoked(revoked)
+        assignment = self.consumer.assignment()
+        if assignment:
+            self.flow_control.suspend()
+            await self.consumer.pause_partitions(assignment)
+            await self.consumer.wait_empty()
+        else:
+            self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
@@ -629,25 +877,7 @@ class App(AppT, ServiceProxy):
             beacon=self.beacon,
         )
 
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
-        await self.topics.on_partitions_assigned(assigned)
-        await self.tables.on_partitions_assigned(assigned)
-        self.flow_control.resume()
-
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
-        self.log.dev('ON PARTITIONS REVOKED')
-        await self.topics.on_partitions_revoked(revoked)
-        assignment = self.consumer.assignment()
-        if assignment:
-            self.flow_control.suspend()
-            await self.consumer.pause_partitions(assignment)
-            await self.consumer.wait_empty()
-        else:
-            self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
-
-    def _create_transport(self) -> TransportT:
+    def _new_transport(self) -> TransportT:
         return transport.by_url(self.url)(self.url, self, loop=self.loop)
 
     def FlowControlQueue(
@@ -656,6 +886,7 @@ class App(AppT, ServiceProxy):
             *,
             clear_on_resume: bool = False,
             loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+        """Like :class:`asyncio.Queue`, but can be suspended/resumed."""
         return FlowControlQueue(
             maxsize=maxsize,
             flow_control=self.flow_control,
@@ -696,7 +927,7 @@ class App(AppT, ServiceProxy):
     def transport(self) -> TransportT:
         """Message transport."""
         if self._transport is None:
-            self._transport = self._create_transport()
+            self._transport = self._new_transport()
         return self._transport
 
     @transport.setter
@@ -705,20 +936,33 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def _service(self) -> ServiceT:
+        # We subclass from ServiceProxy and this delegates any ServiceT
+        # feature to this service (e.g. ``app.start()`` calls
+        # ``app._service.start()``.  See comment in ServiceProxy.
         return AppService(self)
 
     @cached_property
     def tables(self) -> TableManagerT:
+        """Mapping of available tables, and the table manager service."""
         return self.TableManager(
             app=self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def checkpoints(self) -> CheckpointManagerT:
+        """Checkpoint manager keeps track of cached table offsets."""
         return self.CheckpointManager(
             self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def topics(self) -> TopicManagerT:
+        """Topic manager.
+
+        This is the mediator that moves messages fetched by the Consumer
+        into the correct Topic instances.
+
+        It's also a set of registered topics, so you can check
+        if a topic is being consumed from by doing ``topic in app.topics``.
+        """
         return TopicManager(app=self, loop=self.loop, beacon=self.beacon)
 
     @property
