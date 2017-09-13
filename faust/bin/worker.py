@@ -14,19 +14,19 @@ class worker(AppCommand):
 
     options = [
         click.option('--logfile', '-f', default=None,
-                     help='Path to logfile (stderr is used by default)'),
+                     help='Path to logfile (default is <stderr>).'),
         click.option('--loglevel', '-l', default='WARN',
-                     help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG'),
+                     help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.'),
         click.option('--blocking-timeout',
                      default=DEFAULT_BLOCKING_TIMEOUT, type=float,
-                     help='Blocking detector timeout (requires --debug)'),
+                     help='Blocking detector timeout (requires --debug).'),
         click.option('--advertised-host', '-h',
                      default=WEB_BIND, type=str,
-                     help='Advertised host for the webserver'),
+                     help='Advertised host for the web server.'),
         click.option('--web-port', '-p', default=WEB_PORT, type=int,
-                     help='Port to run webserver on'),
+                     help='Port to run web server on.'),
         click.option('--with-uvloop/--without-uvloop',
-                     help='Use fast uvloop event loop'),
+                     help='Use fast uvloop event loop.'),
     ]
 
     def __init__(self, *args: Any,

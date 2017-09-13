@@ -25,7 +25,7 @@ data pipeline updates information as events happen in your system, in real-time.
 
 Faust also enables you to take advantage of asyncio and asynchronous
 processing, moving complicated and costly operations outside
-of the webserver process: converting video, notifying third-party services,
+of the web server process: converting video, notifying third-party services,
 etc. are common use cases for event processing.
 
 You may not know it yet, but if you're writing a modern web application,
