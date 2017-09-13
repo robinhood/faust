@@ -1,9 +1,10 @@
 import abc
 import asyncio
 import os
+from functools import wraps
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, Sequence, Type
+from typing import Any, Callable, List, Sequence, Type
 import click
 from ._env import DEBUG
 from ..types import AppT, CodecArg, ModelT
@@ -31,6 +32,24 @@ common_options = [
     click.option('--workdir',
                  help='Change working directory'),
 ]
+
+
+def find_app(app: str,
+             *,
+             symbol_by_name: Callable = symbol_by_name,
+             imp: Callable = import_from_cwd) -> AppT:
+    """Find app by name."""
+    try:
+        sym = symbol_by_name(app, imp=imp)
+    except AttributeError:
+        # last part was not an attribute, but a module
+        sym = imp(app)
+    if isinstance(sym, ModuleType) and ':' not in app:
+        found = sym.app  # type: ignore
+        if isinstance(found, ModuleType):
+            raise AttributeError()
+        return found
+    return sym
 
 
 def apply_options(options: Sequence[Callable]) -> Callable:
@@ -66,6 +85,19 @@ class Command(abc.ABC):
     quiet: bool
     workdir: str
 
+    help: str = 'No help: UPDATE DETAILS'
+    options: List = None
+
+    @classmethod
+    def as_click_command(cls) -> Callable:
+
+        @click.pass_context
+        @wraps(cls)
+        def _inner(*args: Any, **kwargs: Any) -> Callable:
+            return cls(*args, **kwargs)()  # type: ignore
+        return apply_options(cls.options or [])(
+            cli.command(help=cls.help)(_inner))
+
     def __init__(self, ctx: click.Context) -> None:
         self.ctx = ctx
         self.debug = self.ctx.obj['debug']
@@ -98,19 +130,27 @@ class AppCommand(Command):
     value_serialier: CodecArg
 
     def __init__(self, ctx: click.Context,
-                 *,
+                 *args: Any,
                  key_serializer: CodecArg = None,
-                 value_serializer: CodecArg = None) -> None:
+                 value_serializer: CodecArg = None,
+                 **kwargs: Any) -> None:
         super().__init__(ctx)
         appstr = self.ctx.obj['app']
         if not appstr:
             raise self.UsageError('Need to specify app using -A parameter')
-        app = find_app(appstr)
-        app.origin = appstr
+        self.app = find_app(appstr)
+        self.app.origin = appstr
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.key_serializer = key_serializer or self.app.key_serializer
         self.value_serializer = value_serializer or self.app.value_serializer
+        self.init_options(*args, **kwargs)
+
+    def init_options(self, *args: Any, **kwargs: Any) -> None:
+        if args:
+            raise TypeError(f'Unexpected positional arguments: {args!r}')
+        if kwargs:
+            raise TypeError(f'Unexpected keyword arguments: {kwargs!r}')
 
     def to_key(self, typ: str, key: str) -> Any:
         return self.to_model(typ, key, self.key_serializer)
@@ -138,24 +178,6 @@ class AppCommand(Command):
         if entity.startswith('@'):
             return self.import_relative_to_app(entity[1:])
         return self.app.topic(entity)
-
-
-def find_app(app: str,
-             *,
-             symbol_by_name: Callable = symbol_by_name,
-             imp: Callable = import_from_cwd) -> AppT:
-    """Find app by name."""
-    try:
-        sym = symbol_by_name(app, imp=imp)
-    except AttributeError:
-        # last part was not an attribute, but a module
-        sym = imp(app)
-    if isinstance(sym, ModuleType) and ':' not in app:
-        found = sym.app  # type: ignore
-        if isinstance(found, ModuleType):
-            raise AttributeError()
-        return found
-    return sym
 
 
 __flake8_ModelT_is_used: ModelT
