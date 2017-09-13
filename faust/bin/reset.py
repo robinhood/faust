@@ -4,8 +4,7 @@ __all__ = ['reset']
 
 
 class reset(AppCommand):
-
-    help = 'Delete local table state.'
+    """Delete local table state."""
 
     async def run(self) -> None:
         await self.reset_tables()

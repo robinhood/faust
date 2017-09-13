@@ -4,3 +4,4 @@ avro-python3
 click
 progress
 jinja2
+tabulate

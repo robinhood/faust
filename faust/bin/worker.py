@@ -10,8 +10,8 @@ __all__ = [
 
 
 class worker(AppCommand):
+    """Start worker instance."""
 
-    help = 'Start worker instance.'
     options = [
         click.option('--logfile', '-f', default=None,
                      help='Path to logfile (stderr is used by default)'),

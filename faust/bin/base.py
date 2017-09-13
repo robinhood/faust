@@ -4,8 +4,9 @@ import os
 from functools import wraps
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable, List, Sequence, Type
+from typing import Any, Callable, List, Sequence, Type, no_type_check
 import click
+from tabulate import tabulate
 from ._env import DEBUG
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
@@ -28,9 +29,11 @@ common_options = [
     click.option('--quiet/--no-quiet', '-q', default=False,
                  help='Do not output warnings to stdout/stderr.'),
     click.option('--debug/--no-debug', default=DEBUG,
-                 help='Enable debugging output'),
+                 help='Enable debugging output.'),
     click.option('--workdir',
-                 help='Change working directory'),
+                 help='Change working directory.'),
+    click.option('--json/--no-json', default=False,
+                 help='Output data in json format.'),
 ]
 
 
@@ -62,6 +65,7 @@ def apply_options(options: Sequence[Callable]) -> Callable:
 
 class _Group(click.Group):
 
+    @no_type_check
     def make_context(self, info_name: str, args: str,
                      app: AppT = None,
                      parent: click.Context = None,
@@ -78,12 +82,14 @@ def cli(ctx: click.Context,
         app: str,
         quiet: bool,
         debug: bool,
-        workdir: str) -> None:
+        workdir: str,
+        json: bool) -> None:
     ctx.obj = {
         'app': app,
         'quiet': quiet,
         'debug': debug,
         'workdir': workdir,
+        'json': json,
     }
     if workdir:
         os.chdir(Path(workdir).absolute())
@@ -95,8 +101,8 @@ class Command(abc.ABC):
     debug: bool
     quiet: bool
     workdir: str
+    json: bool
 
-    help: str = 'No help: UPDATE DETAILS'
     options: List = None
 
     @classmethod
@@ -107,13 +113,14 @@ class Command(abc.ABC):
         def _inner(*args: Any, **kwargs: Any) -> Callable:
             return cls(*args, **kwargs)()  # type: ignore
         return apply_options(cls.options or [])(
-            cli.command(help=cls.help)(_inner))
+            cli.command(help=cls.__doc__)(_inner))
 
     def __init__(self, ctx: click.Context) -> None:
         self.ctx = ctx
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
+        self.json = self.ctx.obj['json']
 
     async def run(self) -> Any:
         ...
@@ -121,6 +128,14 @@ class Command(abc.ABC):
     def __call__(self) -> Any:
         loop = asyncio.get_event_loop()
         return loop.run_until_complete(self.run())
+
+    def tabulate(self, data: Sequence,
+                 *,
+                 headers: Any = 'firstrow',
+                 **kwargs: Any) -> str:
+        if self.json:
+            return self.dumps(data)
+        return tabulate(data, headers=headers, **kwargs)
 
     def say(self, *args: Any, **kwargs: Any) -> None:
         if not self.quiet:

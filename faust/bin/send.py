@@ -9,6 +9,7 @@ __all__ = ['send']
 
 
 class send(AppCommand):
+    """Send message to actor/topic."""
 
     topic: Any
     key: K
@@ -19,7 +20,6 @@ class send(AppCommand):
     min_latency: float
     max_latency: float
 
-    help = 'Send message to actor/topic.'
     options = [
         click.option('--key-type', '-K',
                      help='Name of model to serialize key into'),

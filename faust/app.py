@@ -235,9 +235,9 @@ class App(AppT, ServiceProxy):
 
     _tasks: MutableSequence[Callable[[], Awaitable]]
 
-    def main(self):
+    def main(self) -> None:
         from .bin.faust import cli
-        return cli(app=self)
+        cli(app=self)
 
     def start_worker(self, *,
                      argv: Sequence[str] = None,
