@@ -13,10 +13,6 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 # - Records are described in the same notation as named tuples in Python 3.6.
 #   To accomplish this ``__init_subclass__`` defined in :pep:`487` is used.
 #
-# - Sometimes field descriptions are passed around as arguments to functions,
-#   for example when joining a stream together, we need to specify the fields
-#   to use as the basis for the join.
-#
 #   When accessed on the Record class, the attributes are actually field
 #   descriptors that return information about the field:
 #       >>> Point.x
@@ -24,6 +20,19 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #
 #   This field descriptor holds information about the name of the field, the
 #   value type of the field, and also what Record subclass it belongs to.
+#
+# - Sometimes field descriptions are passed around as arguments to functions.
+#
+# - A stream of deposits may be joined with a stream of orders if
+#   both have an ``account`` field.  Field descriptors are used to
+#   specify the field.
+#
+# - order_instance.account is data
+#   (it holds the string account for this particular order).
+#
+# - order_instance.__class__.account is the field descriptor for the field,
+#   it's not data but metadata that enables introspection, and it can be
+#   passed around to describe a field we want to extract or similar.
 #
 #   FieldDescriptor is also an actual Python descriptor:  In Python object
 #   attributes can override what happens when they are get/set/deleted:
@@ -52,11 +61,13 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #       42
 
 #: Global map of namespace -> Model
+#: Every single model defined is added here, and it's used
+#: to find a model class by name.
 registry: MutableMapping[str, Type[ModelT]] = {}
 
 
 class Model(ModelT):
-    """Describes how messages in a topic is serialized."""
+    """Meta description model for serialization."""
 
     #: If you want to make a custom Model base class, you have to
     #: set this attribute to True in your class.
@@ -71,12 +82,20 @@ class Model(ModelT):
 
     @classmethod
     def _maybe_namespace(cls, data: Any) -> Optional[Type[ModelT]]:
+        # The serialized data may contain a ``__faust`` key
+        # holding the name of the model it should be deserialized as.
+        # So even if value_type=MyModel, the data may mandata that it
+        # should be deserialized using "foo.bar.baz" instead.
+
+        # This is how we deal with Kafka's lack of message headers,
+        # as needed by the RPC mechanism.
         if isinstance(data, Mapping) and '__faust' in data:
             return registry[data['__faust']['ns']]
         return None
 
     @classmethod
     def _maybe_reconstruct(cls, data: Any) -> Any:
+        # If data mandates a specific Model type, we use it.
         model = cls._maybe_namespace(data)
         return model(data) if model else data
 
@@ -130,9 +149,9 @@ class Model(ModelT):
                           include_metadata: bool = True,
                           isodates: bool = False,
                           **kwargs: Any) -> None:
-        # Python 3.6 added the new __init_subclass__ function to make it
-        # possible to initialize subclasses without using metaclasses
-        # (:pep:`487`).
+        # Python 3.6 added the new __init_subclass__ function that
+        # makes it possible to initialize subclasses without using
+        # metaclasses (:pep:`487`).
         super().__init_subclass__(**kwargs)  # type: ignore
 
         # mypy does not recognize `__init_subclass__` as a classmethod
