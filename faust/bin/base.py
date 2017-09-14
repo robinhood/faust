@@ -10,7 +10,7 @@ from typing import (
 )
 import click
 from tabulate import tabulate
-from ._env import DEBUG
+from ._env import DATADIR, DEBUG, WORKDIR
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
 from ..utils.compat import want_bytes
@@ -45,8 +45,10 @@ builtin_options: Sequence[Callable] = [
            help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
            help='Enable debugging output, and the blocking detector.'),
-    option('--workdir',
+    option('--workdir', '-W', default=WORKDIR,
            help='Working directory to change to after start.'),
+    option('--datadir', default=DATADIR,
+           help='Directory to keep application state.'),
     option('--json/--no-json', default=False,
            help='Prefer data to be emitted in json format.'),
 ]
@@ -149,17 +151,27 @@ def cli(ctx: click.Context,
         quiet: bool,
         debug: bool,
         workdir: str,
+        datadir: str,
         json: bool) -> None:
     ctx.obj = {
         'app': app,
         'quiet': quiet,
         'debug': debug,
         'workdir': workdir,
+        'datadir': datadir,
         'json': json,
     }
-    # XXX I'm not sure this is the best place to chdir [ask]
     if workdir:
+        os.environ['F_WORKDIR'] = workdir
+        # XXX I'm not sure this is the best place to chdir [ask]
         os.chdir(Path(workdir).absolute())
+    if datadir:
+        # This is the only way we can set the datadir for App.__init__,
+        # so that default values will have the right path prefix.
+        # WARNING: It's crucial the app module is imported later than this.
+        #          If the app is imported first some paths may have the
+        #          default prefix, while others have the wanted prefix.
+        os.environ['F_DATADIR'] = datadir
 
 
 class Command(abc.ABC):
@@ -182,6 +194,7 @@ class Command(abc.ABC):
     debug: bool
     quiet: bool
     workdir: str
+    datadir: str
     json: bool
 
     builtin_options: List = builtin_options
@@ -242,6 +255,7 @@ class Command(abc.ABC):
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
+        self.datadir = self.ctx.obj['datadir']
         self.json = self.ctx.obj['json']
 
     async def run(self) -> Any:

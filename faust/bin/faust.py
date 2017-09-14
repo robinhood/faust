@@ -14,9 +14,13 @@
 
     Enable debugging output, and the blocking detector.
 
-.. cmdoption:: --workdir
+.. cmdoption:: --workdir, -W
 
     Working directory to change to after start.
+
+.. cmdoption:: --datadir
+
+    Directory to keep application state.
 
 .. cmdoption:: --json, --no-json
 

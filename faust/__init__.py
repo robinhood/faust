@@ -17,11 +17,12 @@
 #  faust/tables.py         - Data is stored in tables.
 #  faust/actors.py         - Actors use all of the above.
 # --- ~~~~~ ~ ~  ~           ~             ~   ~                   ~
+import os
 import re
 import sys
 import typing
 from contextlib import suppress
-from typing import Any, Mapping, NamedTuple, Sequence
+from typing import Any, Mapping, NamedTuple, Sequence, Tuple
 
 __version__ = '1.0.0'
 __author__ = 'Robinhood Markets'
@@ -48,6 +49,44 @@ VERSION = version_info = version_info_t(
     int(_temp[0]), int(_temp[1]), int(_temp[2]), _temp[3] or '', '')
 del(_temp)
 del(re)
+
+
+# This is here to support setting the --datadir argument
+# when executing a faust application module directly:
+#    $ python examples/word_count.py
+#
+# When using the ``faust`` command, the entry point is controlled by
+# bin.base.cli.  It sets the F_DATADIR environment variable before the
+# app is imported, which means that when the faust.app module is imported
+# the App will have the correct default paths.
+#
+# However, when examples/word_count.py is executed the app is instantiated
+# before the CLI, so we have to use this hack to to set the
+# environment variable as early as possible.
+#
+# A side effect is that anything importing faust
+# that also happens to have a '-D' argument in sys.argv will have the
+# F_DATADIR environment variable set.  I think that's ok. [ask]
+def _extract_datadir_from_argv(
+        argv: Sequence[str] = sys.argv,
+        *,
+        longopts: Tuple[str, ...] = ('--datadir',)):
+    for i, arg in enumerate(argv):
+        if arg.startswith(longopts):
+            _, _, value = arg.partition('=')
+            if not value:
+                try:
+                    value = argv[i + 1]
+                except IndexError:
+                    import click
+                    raise click.UsageError(
+                        'Missing workdir! Did you mean --workdir=value?')
+            return value
+
+
+_datadir = _extract_datadir_from_argv()
+if _datadir:
+    os.environ['F_DATADIR'] = _datadir
 
 # This module loads attributes lazily so that `import faust` loads
 # quickly.  The next section provides static type checkers

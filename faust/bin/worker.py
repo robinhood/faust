@@ -27,7 +27,7 @@
     Use uvloop event loop.
 """
 from typing import Any
-from ._env import DEFAULT_BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
+from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, option
 
 __all__ = ['worker']
@@ -42,7 +42,7 @@ class worker(AppCommand):
         option('--loglevel', '-l', default='WARN',
                help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.'),
         option('--blocking-timeout',
-               default=DEFAULT_BLOCKING_TIMEOUT, type=float,
+               default=BLOCKING_TIMEOUT, type=float,
                help='Blocking detector timeout (requires --debug).'),
         option('--advertised-host', '-h',
                default=WEB_BIND, type=str,

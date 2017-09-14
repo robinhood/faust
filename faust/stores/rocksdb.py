@@ -91,7 +91,7 @@ class Store(base.SerializedStore):
         yield from it
 
     def _open_db(self) -> rocksdb.DB:
-        return rocksdb.DB(self.filename, self._options())
+        return rocksdb.DB(str(self.path), self._options())
 
     def _options(self) -> rocksdb.Options:
         return rocksdb.Options(
@@ -131,4 +131,4 @@ class Store(base.SerializedStore):
 
     @property
     def path(self) -> Path:
-        return Path(self.filename)
+        return self.app.tabledir / Path(self.filename)

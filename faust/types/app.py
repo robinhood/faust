@@ -56,6 +56,8 @@ class AppT(ServiceT):
     id: str
     url: str
     client_id: str
+    datadir: Path
+    tabledir: Path
     client_only: bool
     commit_interval: float
     table_cleanup_interval: float

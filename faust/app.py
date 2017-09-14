@@ -24,6 +24,7 @@ from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
 from .assignor import PartitionAssignor
+from .bin._env import DATADIR
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured
 from .router import Router
@@ -64,8 +65,11 @@ __all__ = ['App']
 #: Default transport URL.
 TRANSPORT_URL = 'kafka://localhost:9092'
 
-#: Default path to checkpoint file.
-CHECKPOINT_PATH = '.checkpoint'
+#: Default path to checkpoint file (unless absolute, relative to datadir).
+CHECKPOINT_PATH = 'checkpoints.json'  # {appid}-data/checkpoints.json
+
+#: Default table state directory path (unless absolute, relative to datadir).
+TABLEDIR = 'tables'  # {appid}-data/tables/
 
 #: Default path to stream class used by ``app.stream``.
 STREAM_TYPE = 'faust.Stream'
@@ -182,6 +186,7 @@ class AppService(Service):
         ))
 
     async def on_first_start(self) -> None:
+        self.app._create_directories()
         if not self.app.actors:
             # XXX I can imagine use cases where an app is useful
             #     without actors, but use this as more of an assertion
@@ -285,9 +290,11 @@ class App(AppT, ServiceProxy):
             store: str = 'memory://',
             avro_registry_url: str = None,
             client_id: str = CLIENT_ID,
+            datadir: Union[Path, str] = DATADIR,
             commit_interval: Seconds = COMMIT_INTERVAL,
             table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
             checkpoint_path: Union[Path, str] = CHECKPOINT_PATH,
+            tabledir: Union[Path, str] = TABLEDIR,
             key_serializer: CodecArg = 'json',
             value_serializer: CodecArg = 'json',
             num_standby_replicas: int = 0,
@@ -310,9 +317,12 @@ class App(AppT, ServiceProxy):
         self.id = id
         self.url = url
         self.client_id = client_id
+        # datadir is a format string that can contain {appid}
+        self.datadir = Path(str(datadir).format(appid=self.id)).expanduser()
+        self.tabledir = self._datadir_path(Path(tabledir)).expanduser()
         self.commit_interval = want_seconds(commit_interval)
         self.table_cleanup_interval = want_seconds(table_cleanup_interval)
-        self.checkpoint_path = Path(checkpoint_path)
+        self.checkpoint_path = self._datadir_path(Path(checkpoint_path))
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
@@ -345,6 +355,9 @@ class App(AppT, ServiceProxy):
         self.on_startup_finished: Callable = on_startup_finished
         self.origin = origin
         ServiceProxy.__init__(self)
+
+    def _datadir_path(self, path: Path) -> Path:
+        return path if path.is_absolute() else self.datadir / path
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
@@ -897,6 +910,10 @@ class App(AppT, ServiceProxy):
             clear_on_resume=clear_on_resume,
             loop=loop or self.loop,
         )
+
+    def _create_directories(self) -> None:
+        self.datadir.mkdir(exist_ok=True)
+        self.tabledir.mkdir(exist_ok=True)
 
     def __repr__(self) -> str:
         return APP_REPR.format(

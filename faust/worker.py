@@ -50,7 +50,7 @@ from typing import Any, IO, Iterable, Set, Type, Union
 from progress.spinner import Spinner
 
 from . import __version__ as faust_version
-from .bin._env import DEBUG, DEFAULT_BLOCKING_TIMEOUT
+from .bin._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger, level_name
@@ -67,7 +67,7 @@ except ImportError:
 __all__ = ['Worker']
 
 #: Path to default Web site class.
-DEFAULT_WEBSITE_CLS = 'faust.web.site:Website'
+WEBSITE_CLS = 'faust.web.site:Website'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
@@ -100,9 +100,9 @@ F_BANNER = """
   .log         -> {logfile} ({loglevel})
   .pid         -> {pid}
   .hostname    -> {hostname}
-  .loop        -> {loop}
   .transport   -> {app.url} {transport_extra}
-  .store       -> {app.store} ]
+  .store       -> {app.store}
+  .datadir     -> {datadir}  ]
 """.strip()
 
 #: Format string for banner info line.
@@ -223,9 +223,9 @@ class Worker(ServiceWorker):
             logformat: str = None,
             stdout: IO = sys.stdout,
             stderr: IO = sys.stderr,
-            blocking_timeout: float = DEFAULT_BLOCKING_TIMEOUT,
+            blocking_timeout: float = BLOCKING_TIMEOUT,
             workdir: Union[Path, str] = None,
-            Website: SymbolArg[Type[_Website]] = DEFAULT_WEBSITE_CLS,
+            Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
             advertised_host: str = None,
@@ -289,7 +289,7 @@ class Worker(ServiceWorker):
             pid=os.getpid(),
             hostname=socket.gethostname(),
             transport_extra=transport_extra,
-            loop=asyncio.get_event_loop(),
+            datadir=self.app.datadir.absolute(),
         )
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
