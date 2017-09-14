@@ -40,27 +40,68 @@ __all__ = [
 
 logger = get_logger(__name__)
 
+# --- What is an actor?
+#
+# An actor is an asynchronous function processing a stream
+# of events (messages), that have full programmatic control
+# over how that stream is iterated over: right, left, skip.
 
-# --- An actor is an `async def` function, iterating over a stream:
+# Actors are async generators so you can keep
+# state between events and associate a result for every event
+# by yielding.  Other actors, tasks and coroutines can execute
+# concurrently, by suspending the actor when it's waiting for something
+# and only resuming when that something is available.
+#
+# Here's an actor processing a stream of bank withdrawals
+# to find transfers larger than $1000, and if it finds one it will send
+# an alert:
+#
+#   class Withdrawal(faust.Record, serializer='json'):
+#       account: str
+#       amount: float
+#
+#   app = faust.app('myid', url='kafka://localhost:9092')
+#
+#   withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 #
 #   @app.actor(withdrawals_topic)
 #   async def alert_on_large_transfer(withdrawal):
 #       async for withdrawal in withdrawals:
 #           if withdrawal.amount > 1000.0:
 #               alert(f'Large withdrawal: {withdrawal}')
-
-
-# --- It may also yield a return value, that the caller can request
-#     to receive as a reply:
+#
+# The actor above does not ``yield`` so it can never reply to
+# an ``ask`` request, or add sinks that further process the results
+# of the stream.  This actor is an async generator that yields
+# to signal whether it found a large transfer or not:
 #
 #   @app.actor(withdrawals_topic)
 #   async def withdraw(withdrawals):
 #       async for withdrawal in withdrawals:
 #           if withdrawal.amount > 1000.0:
 #               alert(f'Large withdrawal: {withdrawal}')
-#           yield 'OK'
+#               yield True
+#           yield False
+#
+#
+# We can add a sink to process the yielded values.  A sink can be
+# 1) another actor, 2) a channel/topic, or 3) or callable accepting
+# the value as a single argument (that callable can be async or non-async):
+#
+# async def my_sink(result: bool) -> None:
+#    if result:
+#        print('Actor withdraw just sent an alert!')
+#
+# withdraw.add_sink(my_sink)
+#
+# TIP: Sinks can also be added as an argument to the ``@actor`` decorator:
+#      ``@app.actor(sinks
 
 
+# XXX "namespace" below is the Avro registry key.
+# It's going to be included in every single actor request,
+# so I figured "org.faust.ReqRepRequest" was too long,
+# but maybe that's silly?
 class ReqRepRequest(Record, serializer='json', namespace='@RRReq'):
     """Value wrapped in a Request-Reply request."""
 
@@ -92,6 +133,10 @@ class ReplyPromise(asyncio.Future):
         super().__init__(**kwargs)
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
+        # If it wasn't for BarrierState we would just use .set_result()
+        # directly, but BarrierState.fulfill requires the correlation_id
+        # to be sent with it. That way it can mark that part of the map
+        # operation as completed.
         assert correlation_id == self.correlation_id
         self.set_result(value)
 
