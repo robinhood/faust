@@ -26,10 +26,10 @@ __all__ = [
 ]
 
 # This module extends the :pypi:`click` framework to use classes instead of
-# function decorators. May regret, but the click API is so messy,
-# with lots of function imports and dozens of decorators for each command,
-# and these classes removes a ton of boilerplate.
-# [ask]
+# function decorators. May regret, but there was lots of repetition
+# with lots of function imports and dozens of decorators for each command.
+# The Command and AppCommand classes makes it a lot easier to write
+# commands and reuse functionality.  [ask]
 
 
 # here so we can import option/argument from this module.
@@ -37,19 +37,18 @@ argument = click.argument
 option = click.option
 
 
-# These are the options common to all commands in the :mod:`faust.bin.faust`
-# umbrella command.
+# Options common to all commands
 builtin_options: Sequence[Callable] = [
     option('--app', '-A',
-           help='Path to Faust application to use.'),
+           help='Path of Faust application to use, or the name of a module.'),
     option('--quiet/--no-quiet', '-q', default=False,
-           help='Do not output warnings to stdout/stderr.'),
+           help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
-           help='Enable debugging output.'),
+           help='Enable debugging output, and the blocking detector.'),
     option('--workdir',
-           help='Change working directory.'),
+           help='Working directory to change to after start.'),
     option('--json/--no-json', default=False,
-           help='Output data in json format.'),
+           help='Prefer data to be emitted in json format.'),
 ]
 
 
@@ -63,31 +62,34 @@ def find_app(app: str,
         This function uses ``import_from_cwd`` to temporarily
         add the current working directory to :envvar:`PYTHONPATH`,
         such that when importing the app it will search the current
-        working directory last, as if running with:
+        working directory last.
+
+        You can think of it as temporarily
+        running with the :envvar:`PYTHONPATH` set like this:
 
         .. sourcecode: console
 
             $ PYTHONPATH="${PYTHONPATH}:."
 
-        You can control this with the ``imp`` keyword argument,
+        You can disable this with the ``imp`` keyword argument,
         for example passing ``imp=importlib.import_module``.
 
     Examples:
 
-        >>> # Providing the name of a module will default to
-        >>> # attribute named .app, and the below is the same as:
+        >>> # If providing the name of a module, it will attempt
+        >>> # to find an attribute name .app in that module, so
+        >>> # the below is the same as importing::
         >>> #    from examples.simple import app
         >>> find_app('examples.simple')
 
         >>> # If you want an attribute other than .app you can
-        >>> # use colon to separate module and attribute, and the
-        >>> # below is the same as:
+        >>> # use colon to separate module and attribute.
+        >>> # The below is the same as importing::
         >>> #     from examples.simple import my_app
         >>> find_app('examples.simple:my_app')
 
         >>> # You can also use period for the module/attribute separator
         >>> find_app('examples.simple.my_app')
-
     """
     try:
         # Try to import name' as is.
@@ -106,9 +108,8 @@ def find_app(app: str,
     return val
 
 
-# This is here for app.worker_start(argv) only, as it needs
-# to parse the command-line arguments programmatically, something
-# click doesn't seem to support easily [ask].
+# We just use this to apply many @click.option/@click.argument
+# decorators in the same decorator.
 def _apply_options(options: Sequence[Callable]) -> Callable:
     """Add list of ``click.option`` values to click command function."""
     def _inner(fun: Callable) -> Callable:
@@ -164,9 +165,16 @@ def cli(ctx: click.Context,
 class Command(abc.ABC):
     UsageError: Type[Exception] = click.UsageError
 
-    # To subclass this:
+    # To subclass this you only need to define:
     #
-    # You only need ``def run``, but see note in as_click_command.
+    # run for an async command:
+    #
+    #     async def run(self) -> None:
+    #         ...
+    # or for a non-async command you override __call__:
+    #
+    #     def __call__(self) -> Any:
+    #         ...
 
     abstract: ClassVar[bool] = True
     _click: Any = None
@@ -196,8 +204,8 @@ class Command(abc.ABC):
     def __init_subclass__(self, *args: Any, **kwargs: Any) -> None:
         if self.abstract:
             # this sets the class attribute, so next time
-            # a Command subclass is defined it won't be abstract
-            # unless you set the attribute again in that subclass::
+            # a Command subclass is defined it will have abstract=False,
+            # That is unless you set the attribute again in that subclass::
             #   class MyAbstractCommand(Command):
             #       abstract: ClassVar[bool] = True
             #
@@ -206,8 +214,8 @@ class Command(abc.ABC):
             #           print('just here to experience this execution')
             self.abstract = False
         else:
-            # This registers the command with the cli click.Group
-            # as a side effect.
+            # we use this for the side effect: as_click_command registers the
+            # command with the ``cli`` click.Group.
             self._click = self.as_click_command()
 
         # This hack creates the Command.parse method used by App.start_worker

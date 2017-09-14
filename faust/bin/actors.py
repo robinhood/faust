@@ -1,3 +1,7 @@
+"""Program ``faust actors`` used to list actors.
+
+.. program:: faust actors
+"""
 from .base import AppCommand
 
 

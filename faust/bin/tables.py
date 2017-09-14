@@ -1,3 +1,7 @@
+"""Program ``faust tables`` used to list tables.
+
+.. program:: faust tables
+"""
 from .base import AppCommand
 
 

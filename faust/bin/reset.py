@@ -1,3 +1,7 @@
+"""Program ``faust reset`` used to delete local table state.
+
+.. program:: faust reset
+"""
 from .base import AppCommand
 
 __all__ = ['reset']

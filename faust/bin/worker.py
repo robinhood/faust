@@ -1,3 +1,31 @@
+"""Program ``faust worker`` used to start application from console.
+
+.. program:: faust worker
+
+.. cmdoption:: --logfile, -f
+
+    Path to logfile (default is <stderr>).
+
+.. cmdoption:: --loglevel, -l
+
+    Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.
+
+.. cmdoption:: --blocking-timeout
+
+    Blocking detector timeout (requires --debug).
+
+.. cmdoption:: --advertised-host, -h
+
+    Advertised host for the web server.
+
+.. cmdoption:: --web-port, -p
+
+    Port to run web server on.
+
+.. cmdoption:: --with-uvloop, --without-uvloop
+
+    Use uvloop event loop.
+"""
 from typing import Any
 from ._env import DEFAULT_BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, option

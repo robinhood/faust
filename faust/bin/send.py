@@ -1,3 +1,43 @@
+"""Program ``faust send`` used to send events to actors and topics.
+
+.. program:: faust send
+
+.. cmdoption:: --key-type, -K
+
+    Name of model to serialize key into.
+
+.. cmdoption:: --key-serializer
+
+    Override default serializer for key.
+
+.. cmdoption:: --value-type, -V
+
+    Name of model to serialize value into.
+
+.. cmdoption:: --value-serializer
+
+    Override default serializer for value.
+
+.. cmdoption:: --key, -k
+
+    String value for key (use json if model).
+
+.. cmdoption:: --partition
+
+    Specific partition to send to.
+
+.. cmdoption:: --repeat, -r
+
+    Send message n times.
+
+.. cmdoption:: --min-latency
+
+    Minimum delay between sending.
+
+.. cmdoption:: --max-latency
+
+    Maximum delay between sending.
+"""
 import asyncio
 import random
 from typing import Any
@@ -21,21 +61,24 @@ class send(AppCommand):
 
     options = [
         option('--key-type', '-K',
-               help='Name of model to serialize key into'),
+               help='Name of model to serialize key into.'),
         option('--key-serializer',
                help='Override default serializer for key.'),
         option('--value-type', '-V',
-               help='Name of model to serialize value into'),
+               help='Name of model to serialize value into.'),
         option('--value-serializer',
                help='Override default serializer for value.'),
         option('--key', '-k',
-               help='Key value'),
+               help='String value for key (use json if model).'),
         option('--partition', type=int,
-               help='Specific partition to send to'),
+               help='Specific partition to send to.'),
         option('--repeat', '-r', type=int, default=1,
-               help='Send message n times'),
-        option('--latency', '-l', default='0,0',
-               help='Delay between sending as min,max or max'),
+               help='Send message n times.'),
+        option('--min-latency', type=float, default=0.0,
+               help='Minimum delay between sending.'),
+        option('--max-latency', type=float, default=0.0,
+               help='Maximum delay between sending.'),
+
         argument('entity'),
         argument('value', default=None, required=False),
     ]
@@ -49,18 +92,16 @@ class send(AppCommand):
                      value_type: str = None,
                      partition: int = None,
                      repeat: int = 1,
-                     latency: str = '0.0',
+                     min_latency: float = 0.0,
+                     max_latency: float = 0.0,
                      **kwargs: Any) -> None:
         self.key = self.to_key(key_type, key)
         self.value = self.to_value(value_type, value)
         self.topic = self.to_topic(entity)
         self.partition = partition
         self.repeat = repeat
-        if ',' in latency:
-            min_, _, max_ = latency.partition(',')
-        else:
-            min_, max_ = '0.0', latency
-        self.min_latency, self.max_latency = float(min_), float(max_)
+        self.min_latency = min_latency
+        self.max_latency = max_latency
         super().init_options(*args, **kwargs)
 
     async def run(self) -> Any:
