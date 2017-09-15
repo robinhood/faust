@@ -80,22 +80,40 @@ class Model(ModelT):
     #: Cache for ``.as_avro_schema()``.
     _schema_cache: ClassVar[schema.Schema] = None
 
+    #: Serialized data may contain a "blessed key" that mandates
+    #: how the data should be deserialized.  This probably only
+    #: applies to records, but we need to support it at Model level.
+    #: The blessed key has a dictionary value with a ``ns`` key:
+    #:   data = {.., '__faust': {'ns': 'examples.simple.Withdrawal'}}
+    #: When ``Model._maybe_reconstruct` sees this key it will look
+    #: up that namespace in the :data:`registry`, and if it exists
+    #: chose it as the target model for serialization.
+    #:
+    #: Is this similar to how unsafe deserialization in pickle/yaml/etc.
+    #: works?  No! These technologies allow for arbitrary types to be
+    #: deserialized (and worse in pickle's case), whereas the blessed
+    #: key can only deserialize to a hardcoded list of types that are
+    #: already under the remote control of messages anyway.
+    #: For example it's not possible to perform remote code execution
+    #: by providing a blessed key namespace of "os.system", simply
+    #: because os.system is not in the registry of allowed types.
+    _blessed_key = '__faust'
+
     @classmethod
     def _maybe_namespace(cls, data: Any) -> Optional[Type[ModelT]]:
-        # The serialized data may contain a ``__faust`` key
+        # The serialized data may contain a ``__faust`` blessed key
         # holding the name of the model it should be deserialized as.
         # So even if value_type=MyModel, the data may mandata that it
         # should be deserialized using "foo.bar.baz" instead.
 
         # This is how we deal with Kafka's lack of message headers,
-        # as needed by the RPC mechanism.
-        if isinstance(data, Mapping) and '__faust' in data:
-            return registry[data['__faust']['ns']]
+        # as needed by the RPC mechanism, without wrapping all data.
+        if isinstance(data, Mapping) and self._blessed_key in data:
+            return registry[data[self._blessed_key]['ns']]
         return None
 
     @classmethod
     def _maybe_reconstruct(cls, data: Any) -> Any:
-        # If data mandates a specific Model type, we use it.
         model = cls._maybe_namespace(data)
         return model(data) if model else data
 
