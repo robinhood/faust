@@ -123,3 +123,10 @@ prefix.  You can also send it to the topic by not using any prefix:
 
 After sending these messages you can see your worker start processing
 these greetings as they come in and print them.
+
+Where to go from here
+---------------------
+
+Now that you have tried out a basic Faust application in action, you may dive
+into other sections of the :ref:`guide` or jump right into the :ref:`playbooks`
+which are a coolection of example use cases and patterns.
