@@ -561,7 +561,7 @@ class StatsdMonitor(Monitor):
             f'stream.{self._sanitize(label(stream))}.events', rate=self.rate)
         self.client.incr(
             f'task.{self._sanitize(label(stream.task_owner))}.events',
-            rate=self.rate
+            rate=self.rate,
         )
         self.client.incr('events_active', rate=self.rate)
 
@@ -612,7 +612,6 @@ class StatsdMonitor(Monitor):
         self.client.incr(f'topic.{topic}.messages_sent', rate=self.rate)
         return await super().on_send_initiated(producer,
                                                topic, keysize, valsize)
-
 
     async def on_send_completed(
             self, producer: ProducerT, state: Any) -> None:
