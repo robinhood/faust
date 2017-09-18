@@ -34,7 +34,7 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #   it's not data but metadata that enables introspection, and it can be
 #   passed around to describe a field we want to extract or similar.
 #
-#   FieldDescriptor is also an actual Python descriptor:  In Python object
+# - FieldDescriptors are Python descriptors: In Python object
 #   attributes can override what happens when they are get/set/deleted:
 #
 #       class MyDescriptor:
@@ -60,9 +60,8 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #       ACCESS ON INSTANCE
 #       42
 
-#: Global map of namespace -> Model
-#: Every single model defined is added here, and it's used
-#: to find a model class by name.
+#: Global map of namespace -> Model, used to find model classes by name.
+#: Every single model defined is added here automatically on class creation.
 registry: MutableMapping[str, Type[ModelT]] = {}
 
 
@@ -173,7 +172,7 @@ class Model(ModelT):
         super().__init_subclass__(**kwargs)  # type: ignore
 
         # mypy does not recognize `__init_subclass__` as a classmethod
-        # and so thinks we are mutating a ClassVar when setting
+        # and thinks we're mutating a ClassVar when setting:
         #   cls.__abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
         cls._init_subclass(serializer, namespace, include_metadata, isodates)
