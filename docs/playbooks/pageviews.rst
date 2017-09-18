@@ -29,10 +29,11 @@ Let us create a module ``page_views.py`` and define the application:
         default_partitions=4,
     )
 
-In this example we define ``default_partitions=4``. This defines the sharding
-factor for this application. This means the maximum workers we could
-distribute the workload of the application is 4. In production, we would
-usually set this number to something higher.
+The ``default_partitions`` parameter defines the maximum number of workers we
+could distribute the workload of the application (also sometimes referred as
+the sharding factor of the application). In this example we have set this to
+4, in a production app with high throughput we would ideally set a higher
+value for ``default_partition``.
 
 Page View
 ----------

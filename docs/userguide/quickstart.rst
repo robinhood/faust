@@ -129,4 +129,4 @@ Where to go from here
 
 Now that you have tried out a basic Faust application in action, you may dive
 into other sections of the :ref:`guide` or jump right into the :ref:`playbooks`
-which are a coolection of example use cases and patterns.
+which are a collection of example use cases and patterns.
