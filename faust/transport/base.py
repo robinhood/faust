@@ -326,10 +326,16 @@ class Consumer(Service, ConsumerT):
     async def on_task_error(self, exc: Exception) -> None:
         await self.commit()
 
-    async def _drain_messages(self) -> None:
+    async def _drain_messages(self, fetcher: ServiceT) -> None:
+        # This is the background thread started by Fetcher, used to
+        # constantly read messages using Consumer.getmany.
+        # It takes Fetcher as argument, because we must be able to
+        # stop it using `await Fetcher.stop()`.
         callback = self.callback
         getmany = self.getmany
-        should_stop = self._stopped.is_set
+        consumer_should_stop = self._stopped.is_set
+        fetcher_should_stop = cast(Service, fetcher)._stopped.is_set
+
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
         flag_consumer_fetching = CONSUMER_FETCHING
@@ -337,7 +343,7 @@ class Consumer(Service, ConsumerT):
         unset_flag = self.diag.unset_flag
 
         try:
-            while not should_stop():
+            while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
@@ -368,6 +374,7 @@ class Consumer(Service, ConsumerT):
         finally:
             unset_flag(flag_consumer_fetching)
             self.set_shutdown()
+            fetcher.set_shutdown()
 
 
 class Fetcher(Service):
@@ -379,7 +386,7 @@ class Fetcher(Service):
 
     @Service.task
     async def _fetcher(self) -> None:
-        await cast(Consumer, self.app.consumer)._drain_messages()
+        await cast(Consumer, self.app.consumer)._drain_messages(self)
 
     async def on_started(self) -> None:
         ev: asyncio.Event = self.app.tables._recovery_completed  # type: ignore
