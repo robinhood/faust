@@ -2,6 +2,7 @@ aiokafka
 aiohttp
 avro-python3
 click
-progress
 jinja2
+progress
+statsd==3.2.1
 tabulate

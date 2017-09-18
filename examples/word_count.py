@@ -14,7 +14,6 @@ app = faust.App(
     store='rocksdb://',
 )
 
-
 posts_topic = app.topic('posts2',
                         value_type=str,
                         value_serializer='raw')

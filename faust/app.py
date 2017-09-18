@@ -158,6 +158,9 @@ class AppService(Service):
             self.add_future(task())
 
         # Add the main Monitor sensor.
+        # beacon reattached after initialized in case a custom monitor added
+        self.app.monitor.beacon.reattach(self.beacon)
+        self.app.monitor.loop = self.loop
         self.app.sensors.add(self.app.monitor)
 
         # Then return the list of "subservices",
@@ -989,7 +992,7 @@ class App(AppT, ServiceProxy):
     @property
     def monitor(self) -> Monitor:
         if self._monitor is None:
-            self._monitor = Monitor(loop=self.loop, beacon=self.beacon)
+            self._monitor = Monitor()
         return self._monitor
 
     @monitor.setter

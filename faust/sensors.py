@@ -7,12 +7,14 @@ from typing import (
     Any, Counter, Iterator, List, Mapping, MutableMapping, Set, Tuple, cast,
 )
 from weakref import WeakValueDictionary
+from statsd import StatsClient
 from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from .types.sensors import SensorDelegateT, SensorT
 from .types.transports import ConsumerT, ProducerT
 from .utils.logging import get_logger
-from .utils.objects import KeywordReduce, label
-from .utils.services import Service
+from .utils.objects import KeywordReduce, cached_property, label
+from .utils.services import Service, ServiceProxy, ServiceT
+
 
 __all__ = [
     'TableState',
@@ -264,7 +266,7 @@ class Sensor(SensorT, Service):
         ...
 
 
-class Monitor(Sensor, KeywordReduce):
+class Monitor(ServiceProxy, Sensor, KeywordReduce):
     """Default Faust Sensor.
 
     This is the default sensor, recording statistics about
@@ -413,29 +415,6 @@ class Monitor(Sensor, KeywordReduce):
             },
         }
 
-    @Service.task
-    async def _sampler(self) -> None:
-        median = statistics.median
-        prev_message_total = self.messages_received_total
-        prev_event_total = self.events_total
-        while not self.should_stop:
-            await self.sleep(1.0)
-
-            # Update average event runtime.
-            if self.events_runtime:
-                self.events_runtime_avg = median(self.events_runtime)
-
-            # Update events/s
-            self.events_s = self.events_total - prev_event_total
-            prev_event_total = self.events_total
-
-            # Update messages/s
-            self.messages_s = self.messages_received_total - prev_message_total
-            prev_message_total = self.messages_received_total
-
-            # Cleanup
-            self._cleanup()
-
     def _cleanup(self) -> None:
         max_messages = self.max_messages
         if max_messages is not None and len(self.messages) > max_messages:
@@ -534,6 +513,123 @@ class Monitor(Sensor, KeywordReduce):
             self, producer: ProducerT, state: Any) -> None:
         self.send_latency.append(monotonic() - cast(float, state))
 
+    @cached_property
+    def _service(self) -> ServiceT:
+        return MonitorService(self)
+
+
+class StatsdMonitor(Monitor):
+    """Statsd Faust Sensor.
+
+    This sensor, records statistics to Statsd along with computing metrics
+    for the stats server
+    """
+    def __init__(self, *args,
+                 host: str = 'localhost',
+                 port: int = 8125,
+                 prefix: str = 'faust-app',
+                 rate: float = 1,
+                 **kwargs: Any) -> None:
+        self.rate = rate
+        self._start_statsd_client(host, port, prefix)
+        super().__init__(*args, **kwargs)
+
+    def _start_statsd_client(self, host, port, prefix):
+        self.client = StatsClient(host=host, port=port, prefix=prefix)
+
+    async def on_message_in(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message) -> None:
+        await super().on_message_in(consumer_id, tp, offset, message)
+
+        self.client.incr('messages_received', rate=self.rate)
+        self.client.incr('messages_active', rate=self.rate)
+        self.client.incr(f'topic.{tp.topic}.messages_received', rate=self.rate)
+
+    async def on_stream_event_in(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: EventT) -> None:
+        await super().on_stream_event_in(tp, offset, stream, event)
+        self.client.incr('events', rate=self.rate)
+        self.client.incr(
+            f'stream.{self._sanitize(label(stream))}.events', rate=self.rate)
+        self.client.incr(
+            f'task.{self._sanitize(label(stream.task_owner))}.events',
+            rate=self.rate
+        )
+        self.client.incr('events_active', rate=self.rate)
+
+    async def on_stream_event_out(
+            self,
+            tp: TopicPartition,
+            offset: int,
+            stream: StreamT,
+            event: EventT) -> None:
+        await super().on_stream_event_out(tp, offset, stream, event)
+        self.client.decr('events_active', rate=self.rate)
+        self.client.timing('events_runtime', self._time(
+            self.events_runtime[-1]), rate=self.rate)
+
+    async def on_message_out(
+            self,
+            consumer_id: int,
+            tp: TopicPartition,
+            offset: int,
+            message: Message = None) -> None:
+        await super().on_message_out(consumer_id, tp, offset, message)
+        self.client.decr('messages_active', rate=self.rate)
+
+    def on_table_get(self, table: CollectionT, key: Any) -> None:
+        super().on_table_get(table, key)
+        self.client.incr('table.{}.keys_retrieved'.format(table.name),
+                         rate=self.rate)
+
+    def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
+        super().on_table_set(table, key, value)
+        self.client.incr('table.{}.keys_updated'.format(table.name),
+                         rate=self.rate)
+
+    def on_table_del(self, table: CollectionT, key: Any) -> None:
+        super().on_table_del(table, key)
+        self.client.incr('table.{}.keys_deleted'.format(table.name),
+                         rate=self.rate)
+
+    async def on_commit_completed(
+            self, consumer: ConsumerT, state: Any) -> None:
+        await super().on_commit_completed(consumer, state)
+        self.client.timing('commit_latency', self._time(
+            monotonic() - cast(float, state)), rate=self.rate)
+
+    async def on_send_initiated(self, producer: ProducerT, topic: str,
+                                keysize: int, valsize: int) -> Any:
+
+        self.client.incr(f'topic.{topic}.messages_sent', rate=self.rate)
+        return await super().on_send_initiated(producer,
+                                               topic, keysize, valsize)
+
+
+    async def on_send_completed(
+            self, producer: ProducerT, state: Any) -> None:
+        await super().on_send_completed(producer, state)
+        self.client.incr('messages_sent', rate=self.rate)
+        self.client.timing('send_latency', self._time(
+            monotonic() - cast(float, state)), rate=self.rate)
+
+    def _sanitize(self, name: str) -> str:
+        name = name.replace('<', '')
+        name = name.replace('>', '')
+        name = name.replace(' ', '')
+        return name.replace(':', '-')
+
+    def _time(self, time):
+        return time * 1000
+
 
 class SensorDelegate(SensorDelegateT):
 
@@ -631,3 +727,47 @@ class SensorDelegate(SensorDelegateT):
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'
+
+
+class MonitorService(Service):
+    """Service responsible for starting/stopping a sensor."""
+    logger = logger
+
+    # Users may pass custom monitor to app, for example:
+    #     app = faust.App(monitor=StatsdMonitor(prefix='word-count'))
+
+    # When they do it's important to remember that the app is created during
+    # module import, and that Service.__init__ creates the asyncio event loop.
+    # To stop that from happening we use ServiceProxy to split this
+    # into Monitor/MonitorService so that instantiating Monitor will not create
+    # the service, instead the service is created lazily when first needed.
+
+    def __init__(self, monitor: Monitor, **kwargs: Any) -> None:
+        self.monitor: Monitor = monitor
+        super().__init__()
+
+    @Service.task
+    async def _sampler(self) -> None:
+        median = statistics.median
+        prev_message_total = self.monitor.messages_received_total
+        prev_event_total = self.monitor.events_total
+        while not self.should_stop:
+            await self.sleep(1.0)
+
+            # Update average event runtime.
+            if self.monitor.events_runtime:
+                self.monitor.events_runtime_avg = median(
+                    self.monitor.events_runtime)
+
+            # Update events/s
+            self.monitor.events_s = self.monitor.events_total - \
+                prev_event_total
+            prev_event_total = self.monitor.events_total
+
+            # Update messages/s
+            self.messages_s = self.monitor.messages_received_total \
+                - prev_message_total
+            prev_message_total = self.monitor.messages_received_total
+
+            # Cleanup
+            self.monitor._cleanup()
