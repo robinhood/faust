@@ -21,6 +21,7 @@ Contents
 
     introduction
     userguide/index
+    playbooks/index
 
 .. toctree::
     :maxdepth: 1
