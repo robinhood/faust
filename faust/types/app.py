@@ -234,6 +234,10 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def is_master(self) -> bool:
+        ...
+
+    @abc.abstractmethod
     def FlowControlQueue(
             self,
             maxsize: int = None,
