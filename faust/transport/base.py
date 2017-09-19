@@ -210,6 +210,8 @@ class Consumer(Service, ConsumerT):
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
+            # This isn't clean code but ensures that we check for all messages
+            # having been acked. 
             while 1:
                 try:
                     asyncio.wait_for(self._waiting_for_ack, loop=self.loop,
