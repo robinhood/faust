@@ -210,7 +210,17 @@ class Consumer(Service, ConsumerT):
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
-            await self._waiting_for_ack
+            # This isn't clean code but ensures that we check for all messages
+            # having been acked.
+            while 1:
+                try:
+                    asyncio.wait_for(self._waiting_for_ack, loop=self.loop,
+                                     timeout=1)
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    if not self._unacked_messages:
+                        break
+                else:
+                    break
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
         await self.commit()
 
@@ -387,10 +397,6 @@ class Fetcher(Service):
     @Service.task
     async def _fetcher(self) -> None:
         await cast(Consumer, self.app.consumer)._drain_messages(self)
-
-    async def on_started(self) -> None:
-        ev: asyncio.Event = self.app.tables._recovery_completed  # type: ignore
-        await self.wait(ev.wait())
 
 
 class Producer(Service, ProducerT):

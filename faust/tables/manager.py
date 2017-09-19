@@ -6,6 +6,7 @@ from typing import (
     Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
 )
 from .table import Table
+from ..app import App
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
@@ -323,8 +324,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         standby_tps = self.app.assignor.assigned_standbys()
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
-        # Wait for TopicConductor to finish any new subscriptions
-        await self.app.topics.wait_for_subscriptions()
         self.log.info('New assignments found')
         await self._on_recovery_started()
         self.log.info('Attempting to stop standbys')

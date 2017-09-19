@@ -196,8 +196,8 @@ class AppService(Service):
 
     async def on_started(self) -> None:
         # Add all asyncio.Tasks, like timers, etc.
-        for task in self._tasks:
-            self._service.add_future(task())
+        for task in self.app._tasks:
+            self.add_future(task())
 
         # Call the app-is-fully-started callback used by Worker
         # to print the "ready" message when Faust is ready to
@@ -245,9 +245,11 @@ class App(AppT, ServiceProxy):
         value_serializer (CodecArg): Default serializer for event types
             that do not have an explicit serializer set.  Default: ``"json"``.
         num_standby_replicas (int): The number of standby replicas for each
-            table.  Default: ``0``.
+            table.  Default: ``1``.
         replication_factor (int): The replication factor for changelog topics
-            and repartition topics created by the application.  Default: ``1``.
+            and repartition topics created by the application.  Default:
+            ``1``. Generally, this would be the same as the configured
+            replication factor for your kafka cluster.
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
@@ -301,7 +303,7 @@ class App(AppT, ServiceProxy):
             tabledir: Union[Path, str] = TABLEDIR,
             key_serializer: CodecArg = 'json',
             value_serializer: CodecArg = 'json',
-            num_standby_replicas: int = 0,
+            num_standby_replicas: int = 1,
             replication_factor: int = 1,
             default_partitions: int = 8,
             reply_to: str = None,
@@ -348,7 +350,7 @@ class App(AppT, ServiceProxy):
         )
         self.advertised_url = ''
         self.assignor = PartitionAssignor(self,
-                                          replicas=self.replication_factor)
+                                          replicas=self.num_standby_replicas)
         self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
@@ -861,9 +863,13 @@ class App(AppT, ServiceProxy):
         assignment, so any tp no longer in the assigned' list will have
         been revoked.
         """
+        self.flow_control.resume()
+        # Wait for TopicConductor to finish any new subscriptions
+        await self.topics.wait_for_subscriptions()
+        await self.consumer.pause_partitions(assigned)
+        await self._fetcher.restart()
         await self.topics.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
-        self.flow_control.resume()
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
@@ -877,6 +883,7 @@ class App(AppT, ServiceProxy):
         """
         self.log.dev('ON PARTITIONS REVOKED')
         await self.topics.on_partitions_revoked(revoked)
+        await self._fetcher.stop()
         assignment = self.consumer.assignment()
         if assignment:
             self.flow_control.suspend()
