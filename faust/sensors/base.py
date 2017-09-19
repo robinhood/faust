@@ -1,9 +1,9 @@
 from typing import Any, Iterator, Set
-from .types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
-from .types.sensors import SensorDelegateT, SensorT
-from .types.transports import ConsumerT, ProducerT
-from .utils.logging import get_logger
-from .utils.services import Service
+from ..types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
+from ..types.sensors import SensorDelegateT, SensorT
+from ..types.transports import ConsumerT, ProducerT
+from ..utils.logging import get_logger
+from ..utils.services import Service
 
 __all__ = ['Sensor', 'SensorDelegate']
 
