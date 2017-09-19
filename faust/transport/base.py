@@ -211,7 +211,7 @@ class Consumer(Service, ConsumerT):
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
             # This isn't clean code but ensures that we check for all messages
-            # having been acked. 
+            # having been acked.
             while 1:
                 try:
                     asyncio.wait_for(self._waiting_for_ack, loop=self.loop,

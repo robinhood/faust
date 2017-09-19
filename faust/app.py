@@ -862,6 +862,10 @@ class App(AppT, ServiceProxy):
         been revoked.
         """
         self.flow_control.resume()
+        # Wait for TopicConductor to finish any new subscriptions
+        await self.topics.wait_for_subscriptions()
+        await self.consumer.pause_partitions(assigned)
+        await self._fetcher.restart()
         await self.topics.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
 

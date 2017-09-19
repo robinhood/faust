@@ -321,14 +321,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        fetcher = cast(App, self.app)._fetcher
         standby_tps = self.app.assignor.assigned_standbys()
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
-        # Wait for TopicConductor to finish any new subscriptions
-        await self.app.topics.wait_for_subscriptions()
-        await self.app.consumer.pause_partitions(assigned)
-        await fetcher.restart()
         self.log.info('New assignments found')
         await self._on_recovery_started()
         self.log.info('Attempting to stop standbys')
