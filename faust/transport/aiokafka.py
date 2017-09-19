@@ -75,6 +75,9 @@ class Consumer(base.Consumer):
         else:
             self._consumer = self._create_worker_consumer(app, transport)
 
+    async def on_restart(self) -> None:
+        self.on_init()
+
     def _create_worker_consumer(
             self,
             app: AppT,
@@ -235,6 +238,9 @@ class Producer(base.Producer):
             bootstrap_servers=transport.bootstrap_servers,
             client_id=transport.app.client_id,
         )
+
+    async def on_restart(self) -> None:
+        self.on_init()
 
     async def create_topic(self, topic: str, partitions: int, replication: int,
                            *,

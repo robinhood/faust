@@ -424,7 +424,7 @@ class Service(ServiceBase):
         await self.stop()
         for ev in (self._started, self._stopped, self._shutdown, self._crashed):
             ev.clear()
-        self.on_init()
+        await self.on_restart()
         await self.start()
 
     async def wait_until_stopped(self) -> None:
@@ -582,6 +582,9 @@ class ServiceThread(threading.Thread):
         await self.on_start()
 
     async def on_start(self) -> None:
+        ...
+
+    async def on_restart(self) -> None:
         ...
 
     async def _stop_service(self) -> None:

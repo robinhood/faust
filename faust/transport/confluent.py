@@ -28,6 +28,9 @@ class Consumer(base.Consumer):
             'default.topic.config': {'auto.offset.reset': 'smallest'},
         })
 
+    async def on_restart(self) -> None:
+        self.on_init()
+
     async def on_start(self) -> None:
         self.beacon.add(self._consumer)
         self._consumer.subscribe(list(self.topic.topics))
@@ -72,6 +75,9 @@ class Producer(base.Producer):
             'bootstrap.servers': transport.bootstrap_servers,
             #  'client.id': transport.app.client_id,
         })
+
+    async def on_restart(self) -> None:
+        self.on_init()
 
     async def send(
             self,
