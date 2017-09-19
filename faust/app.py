@@ -147,8 +147,8 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             [self.app.producer],
             [self.app.consumer],
-            [self.app._reply_consumer],
             [self.app._master_assignor],
+            [self.app._reply_consumer],
             [self.app.topics],
             [self.app._fetcher],
         ))
@@ -175,6 +175,8 @@ class AppService(Service):
             [self.app.producer],
             # Consumer (transport.Consumer): always stop after TopicConductor
             [self.app.consumer],
+            # Master Assignor (assignor.MasterAssignor)
+            [self.app._master_assignor],
             # Reply Consumer (ReplyConsumer)
             [self.app._reply_consumer],
             # Actors (app.Actor)
@@ -556,10 +558,11 @@ class App(AppT, ServiceProxy):
             @self.task
             @wraps(fun)
             async def around_timer(*args: Any, **kwargs: Any) -> None:
-                should_run = not on_master or await self.is_master()
-                while not self._service.should_stop and should_run:
+                while not self._service.should_stop:
                     await self._service.sleep(interval_s)
-                    await fun(*args, **kwargs)
+                    should_run = not on_master or self.is_master()
+                    if should_run:
+                        await fun(*args, **kwargs)
             return around_timer
         return _inner
 
