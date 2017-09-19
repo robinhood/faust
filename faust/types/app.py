@@ -30,7 +30,7 @@ from ..utils.types.collections import NodeT
 from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
-    from ..sensors import Monitor
+    from ..sensors.monitor import Monitor
     from .models import ModelArg
 else:
     class Monitor: ...        # noqa

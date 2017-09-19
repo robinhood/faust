@@ -16,6 +16,7 @@ EXTENSIONS = {
     'debug',
     'fast',
     'rocksdb',
+    'statsd',
     'uvloop',
 }
 E_UNSUPPORTED_PYTHON = '%s 1.0 requires %%s %%s or later!' % (NAME,)

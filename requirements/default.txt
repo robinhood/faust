@@ -4,5 +4,4 @@ avro-python3
 click
 jinja2
 progress
-statsd==3.2.1
 tabulate
