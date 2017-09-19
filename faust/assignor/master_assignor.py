@@ -12,7 +12,7 @@ class MasterAssignor(Service, MasterAssignorT):
         Service.__init__(self, **kwargs)
         self.app = app
 
-    async def on_first_start(self) -> None:
+    async def on_start(self) -> None:
         await self._master_topic.maybe_declare()
         self.app.topics.add(self._master_topic)
 
