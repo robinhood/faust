@@ -154,10 +154,6 @@ class AppService(Service):
     def _components_server(self) -> Iterable[ServiceT]:
         # The components started when running normally (Server mode).
 
-        # Add all asyncio.Tasks, like timers, etc.
-        for task in self.app._tasks:
-            self.add_future(task())
-
         # Add the main Monitor sensor.
         # beacon reattached after initialized in case a custom monitor added
         self.app.monitor.beacon.reattach(self.beacon)
@@ -199,6 +195,10 @@ class AppService(Service):
                 'Attempting to start app that has no actors')
 
     async def on_started(self) -> None:
+        # Add all asyncio.Tasks, like timers, etc.
+        for task in self._tasks:
+            self._service.add_future(task())
+
         # Call the app-is-fully-started callback used by Worker
         # to print the "ready" message when Faust is ready to
         # start processing.
