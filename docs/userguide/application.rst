@@ -197,7 +197,7 @@ Parameters
 
 `num_standby_replicas`
     :type: ``int``
-    :default: ``0``
+    :default: ``1``
 
     The number of standby replicas for each table.
 
@@ -208,11 +208,22 @@ Parameters
     The replication factor for changlog topics and repartition topics created
     by the application.
 
+    .. note::
+
+        This would generally be configured to the replication factor for your
+        Kafka cluster.
+
 `default_partitions`
     :type: ``int``
     :default: ``8``
 
     Default number of partitions for new topics.
+
+    .. note::
+
+        This defines the maximum number of workers we could distribute the
+        workload of the application (also sometimes referred as the sharding
+        factor of the application).
 
 `create_reply_topic`
     :type: ``bool``
