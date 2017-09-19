@@ -422,7 +422,10 @@ class Service(ServiceBase):
         """Restart this service."""
         self.restart_count += 1
         await self.stop()
-        for ev in (self._started, self._stopped, self._shutdown, self._crashed):
+        for ev in (self._started,
+                   self._stopped,
+                   self._shutdown,
+                   self._crashed):
             ev.clear()
         await self.on_restart()
         await self.start()

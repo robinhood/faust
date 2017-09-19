@@ -4,5 +4,5 @@ from .monitor import Monitor
 __all__ = [
     'Sensor',
     'SensorDelegate',
-    'Monitor'
+    'Monitor',
 ]
