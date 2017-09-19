@@ -22,7 +22,7 @@ import re
 import sys
 import typing
 from contextlib import suppress
-from typing import Any, Mapping, NamedTuple, Sequence, Tuple
+from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 __version__ = '1.0.0'
 __author__ = 'Robinhood Markets'
@@ -70,7 +70,7 @@ del(re)
 def _extract_datadir_from_argv(
         argv: Sequence[str] = sys.argv,
         *,
-        longopts: Tuple[str, ...] = ('--datadir',)):
+        longopts: Tuple[str, ...] = ('--datadir',)) -> Optional[str]:
     for i, arg in enumerate(argv):
         if arg.startswith(longopts):
             _, _, value = arg.partition('=')
@@ -82,6 +82,7 @@ def _extract_datadir_from_argv(
                     raise click.UsageError(
                         'Missing workdir! Did you mean --workdir=value?')
             return value
+    return None
 
 
 _datadir = _extract_datadir_from_argv()
