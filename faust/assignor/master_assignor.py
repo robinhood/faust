@@ -14,12 +14,14 @@ class MasterAssignor(Service, MasterAssignorT):
 
     async def on_first_start(self) -> None:
         await self._master_topic.maybe_declare()
+        self.app.topics.add(self._master_topic)
 
     @cached_property
     def _master_topic(self) -> TopicT:
         return self.app.topic(
             self._master_topic_name,
             partitions=1,
+            acks=False,
         )
 
     @cached_property

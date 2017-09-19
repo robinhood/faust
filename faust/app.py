@@ -23,7 +23,7 @@ from uuid import uuid4
 from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
-from .assignor import PartitionAssignor
+from .assignor import MasterAssignor, PartitionAssignor
 from .bin._env import DATADIR
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured
@@ -37,6 +37,7 @@ from .types import (
     RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
+from .types.assignor import MasterAssignorT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import (
@@ -147,6 +148,7 @@ class AppService(Service):
             [self.app.producer],
             [self.app.consumer],
             [self.app._reply_consumer],
+            [self.app._master_assignor],
             [self.app.topics],
             [self.app._fetcher],
         ))
@@ -268,6 +270,8 @@ class App(AppT, ServiceProxy):
     # Set when consumer is started.
     _consumer_started: bool = False
 
+    _master_assignor: MasterAssignorT = None
+
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
@@ -351,6 +355,7 @@ class App(AppT, ServiceProxy):
         self.advertised_url = ''
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
+        self._master_assignor = MasterAssignor(self)
         self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
@@ -522,7 +527,8 @@ class App(AppT, ServiceProxy):
         self._tasks.append(fun)
         return fun
 
-    def timer(self, interval: Seconds) -> Callable:
+    def timer(self, interval: Seconds,
+              on_master: bool = False) -> Callable:
         """Decorator creating an asyncio.Task waking up periodically.
 
         This decorator takes an async function and adds it to a
@@ -531,10 +537,18 @@ class App(AppT, ServiceProxy):
         Arguments:
             interval (Seconds): How often the timer executes in seconds.
 
+        Keyword Arguments:
+            on_master (bool) = False: Should the timer only run on the master?
+
         Example:
             >>> @app.timer(interval=10.0)
             >>> async def every_10_seconds():
             ...     print('TEN SECONDS JUST PASSED')
+
+
+            >>> app.timer(interval=5.0, on_master=True)
+            >>> async def every_5_seconds():
+            ...     print('FIVE SECONDS JUST PASSED. ALSO, I AM THE MASTER!')
         """
         interval_s = want_seconds(interval)
 
@@ -542,11 +556,15 @@ class App(AppT, ServiceProxy):
             @self.task
             @wraps(fun)
             async def around_timer(*args: Any, **kwargs: Any) -> None:
-                while not self._service.should_stop:
+                should_run = not on_master or await self.is_master()
+                while not self._service.should_stop and should_run:
                     await self._service.sleep(interval_s)
                     await fun(*args, **kwargs)
             return around_timer
         return _inner
+
+    def is_master(self) -> bool:
+        return self._master_assignor.is_master()
 
     def stream(self, channel: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
@@ -954,6 +972,12 @@ class App(AppT, ServiceProxy):
     @consumer.setter
     def consumer(self, consumer: ConsumerT) -> None:
         self._consumer = consumer
+
+    @property
+    def master_assignor(self) -> MasterAssignorT:
+        if self._master_assignor is None:
+            self._master_assignor = self._new_master_assignor()
+        return self._master_assignor
 
     @property
     def transport(self) -> TransportT:

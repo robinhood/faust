@@ -387,6 +387,7 @@ class Transport(base.Transport):
         # through all brokers if we get Error 41 (not controller) until we
         # hit the controller
         nodes = [broker.nodeId for broker in client.cluster.brokers()]
+        owner.log.info(f'Nodes: {nodes}')
         for node_id in nodes:
             if node_id is None:
                 raise RuntimeError('Not connected to Kafka broker')
@@ -415,7 +416,7 @@ class Transport(base.Transport):
             else:
                 owner.log.info(f'Topic {topic} created.')
                 return
-        raise Exception(f'No controller found amount brokers: {nodes}')
+        raise Exception(f'No controller found among brokers: {nodes}')
 
 
 __flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug
