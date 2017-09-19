@@ -85,6 +85,9 @@ class ChannelT(AsyncIterator):
             *,
             key_type: ModelArg = None,
             value_type: ModelArg = None,
+            is_iterator: bool = False,
+            queue: asyncio.Queue = None,
+            errors: asyncio.Queue = None,
             loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
@@ -177,4 +180,8 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     async def __anext__(self) -> EventT:
+        ...
+
+    @abc.abstractmethod
+    async def throw(self, exc: Exception) -> None:
         ...

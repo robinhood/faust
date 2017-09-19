@@ -81,7 +81,7 @@ class Event(EventT):
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
-        """Send object to channel."""
+        'Send object to channel.'
         if key is USE_EXISTING_KEY:
             key = self.key
         if value is USE_EXISTING_VALUE:
@@ -100,7 +100,7 @@ class Event(EventT):
                       value_serializer: CodecArg = None,
                       callback: MessageSentCallback = None,
                       force: bool = False) -> Awaitable[RecordMetadata]:
-        """Forward original message (will not be reserialized)."""
+        'Forward original message (will not be reserialized).'
         if key is USE_EXISTING_KEY:
             key = self.message.key
         if value is USE_EXISTING_VALUE:
@@ -171,6 +171,7 @@ class Channel(ChannelT):
     clone_shares_queue: bool = True
 
     _queue: asyncio.Queue = None
+    _errors: asyncio.Queue = None
 
     def __init__(self, app: AppT,
                  *,
@@ -178,6 +179,7 @@ class Channel(ChannelT):
                  value_type: ModelArg = None,
                  is_iterator: bool = False,
                  queue: asyncio.Queue = None,
+                 errors: asyncio.Queue = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
@@ -185,6 +187,7 @@ class Channel(ChannelT):
         self.value_type = value_type
         self.is_iterator = is_iterator
         self._queue = queue
+        self._errors = errors
         self.deliver = self._compile_deliver()  # type: ignore
 
     @property
@@ -200,6 +203,12 @@ class Channel(ChannelT):
             )
         return self._queue
 
+    @property
+    def errors(self) -> asyncio.Queue:
+        if self._errors is None:
+            self._errors = asyncio.Queue(maxsize=1, loop=self.loop)
+        return self._errors
+
     def clone(self, *, is_iterator: bool = None) -> ChannelT:
         return type(self)(
             is_iterator=(is_iterator if is_iterator is not None
@@ -213,11 +222,12 @@ class Channel(ChannelT):
             'key_type': self.key_type,
             'value_type': self.value_type,
             'queue': self.queue if self.clone_shares_queue else None,
+            'errors': self.errors if self.clone_shares_queue else None,
         }
 
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
-        """Create stream from channel."""
+        'Create stream from channel.'
         return self.app.stream(self, coroutine, **kwargs)
 
     async def send(
@@ -229,7 +239,7 @@ class Channel(ChannelT):
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
             force: bool = False) -> Awaitable[RecordMetadata]:
-        """Send message to channel."""
+        'Send message to channel.'
         if not force:
             event = current_event()
             if event is not None:
@@ -369,7 +379,34 @@ class Channel(ChannelT):
     async def __anext__(self) -> EventT:
         if not self.is_iterator:
             raise RuntimeError('Need to call channel.__aiter__()')
-        return await self.queue.get()
+        loop = self.loop
+        # coro #1: Get value from channel queue.
+        coro_get_val = asyncio.ensure_future(self.queue.get(), loop=loop)
+        # coro #2: Get error from errors queue.
+        coro_get_exc = asyncio.ensure_future(self.errors.get(), loop=loop)
+
+        # wait for first thing to happen: channel value, or thrown exception
+        done, pending = await asyncio.wait(
+            [coro_get_val, coro_get_exc],
+            return_when=asyncio.FIRST_COMPLETED,
+            loop=loop)
+
+        if coro_get_exc.done():
+            # re-raise error requested by Channel.throw(exc)
+            coro_get_val.cancel()
+            raise coro_get_exc.result()
+        else:
+            coro_get_exc.cancel()
+
+        # yield next value in channel iterator.
+        if coro_get_val.done():
+            return coro_get_val.result()
+
+        # asyncio.wait returned before any completed: shouldn't happen
+        raise RuntimeError('Unexpected asyncio.wait coroutine state')
+
+    async def throw(self, exc: Exception) -> None:
+        await self.errors.put(exc)
 
     def __repr__(self) -> str:
         return f'<{self.label}>'

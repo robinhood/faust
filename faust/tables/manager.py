@@ -6,7 +6,6 @@ from typing import (
     Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
 )
 from .table import Table
-from ..app import App
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,

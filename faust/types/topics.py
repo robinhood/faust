@@ -1,10 +1,12 @@
 import abc
+import asyncio
 import typing
 from typing import (
     Any, Iterable,
     Mapping, MutableSet, Optional, Pattern, Sequence, Union,
 )
 from .channels import ChannelT
+from .codecs import CodecArg
 from .tuples import TopicPartition
 from ..utils.times import Seconds
 from ..utils.types.services import ServiceT
@@ -41,13 +43,19 @@ class TopicT(ChannelT):
                  pattern: Union[str, Pattern] = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
+                 is_iterator: bool = False,
                  partitions: int = None,
                  retention: Seconds = None,
                  compacting: bool = None,
                  deleting: bool = None,
                  replicas: int = None,
                  acks: bool = True,
-                 config: Mapping[str, Any] = None) -> None:
+                 config: Mapping[str, Any] = None,
+                 queue: asyncio.Queue = None,
+                 errors: asyncio.Queue = None,
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
     @property

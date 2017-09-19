@@ -76,6 +76,7 @@ class Topic(Channel, TopicT):
                  acks: bool = True,
                  config: Mapping[str, Any] = None,
                  queue: asyncio.Queue = None,
+                 errors: asyncio.Queue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -86,6 +87,8 @@ class Topic(Channel, TopicT):
             value_type=value_type,
             loop=loop,
             is_iterator=is_iterator,
+            queue=queue,
+            errors=errors,
         )
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
