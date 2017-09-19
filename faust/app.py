@@ -1017,12 +1017,6 @@ class App(AppT, ServiceProxy):
         self._consumer = consumer
 
     @property
-    def master_assignor(self) -> MasterAssignorT:
-        if self._master_assignor is None:
-            self._master_assignor = self._new_master_assignor()
-        return self._master_assignor
-
-    @property
     def transport(self) -> TransportT:
         """Message transport."""
         if self._transport is None:
