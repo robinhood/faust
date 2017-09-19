@@ -18,7 +18,7 @@ from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
 from .tables import CheckpointManagerT, SetT, TableManagerT, TableT
-from .topics import ChannelT, TopicManagerT, TopicT
+from .topics import ChannelT, ConductorT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata
 from .windows import WindowT
@@ -243,7 +243,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def topics(self) -> TopicManagerT:
+    def topics(self) -> ConductorT:
         ...
 
     @property

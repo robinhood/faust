@@ -13,7 +13,7 @@ from .types import (
     AppT, CodecArg, EventT, FutureMessage, K, Message,
     ModelArg, PendingMessage, RecordMetadata, TopicPartition, V,
 )
-from .types.topics import ChannelT, TopicManagerT, TopicT
+from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
 from .utils.futures import notify, stampede
 from .utils.logging import get_logger
@@ -27,7 +27,7 @@ else:
 
 __all__ = [
     'Topic',
-    'TopicManager',
+    'TopicConductor',
 ]
 
 logger = get_logger(__name__)
@@ -310,7 +310,7 @@ class Topic(Channel, TopicT):
         return str(self.pattern) if self.pattern else ','.join(self.topics)
 
 
-class TopicManager(TopicManagerT, Service):
+class TopicConductor(ConductorT, Service):
     """Manages the channels that subscribe to topics.
 
     - Consumes messages from topic using a single consumer.

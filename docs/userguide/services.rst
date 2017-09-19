@@ -22,7 +22,7 @@ services in a dependency graph.
 
 Anything internally in Faust that can be started/stopped and restarted
 is probably a subclass of the :class:`Service` class:
-App/Worker/Stream/Actor/TopicManager/TableManager, etc.
+App/Worker/Stream/Actor/TopicConductor/TableManager, etc.
 
 If you want to understand the Faust code base, or extend it with
 new services you should read the following guide.

@@ -21,7 +21,7 @@ else:
     class ConsumerT: ...        # noqa
     class TPorTopicSet: ...     # noqa
 
-__all__ = ['TopicT', 'TopicManagerT']
+__all__ = ['TopicT', 'ConductorT']
 
 
 class TopicT(ChannelT):
@@ -97,7 +97,7 @@ class TopicT(ChannelT):
         ...
 
 
-class TopicManagerT(ServiceT, MutableSet[ChannelT]):
+class ConductorT(ServiceT, MutableSet[ChannelT]):
 
     app: AppT
 

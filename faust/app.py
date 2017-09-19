@@ -30,7 +30,8 @@ from .exceptions import ImproperlyConfigured
 from .router import Router
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
-from .topics import Topic, TopicManager, TopicManagerT
+from .topics import ConductorT, Topic, TopicConductor
+
 from .types import (
     CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
     RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
@@ -174,13 +175,13 @@ class AppService(Service):
             [self.app.checkpoints],
             # Producer (transport.Producer): always stop after Consumer.
             [self.app.producer],
-            # Consumer (transport.Consumer): always stop after TopicManager
+            # Consumer (transport.Consumer): always stop after TopicConductor
             [self.app.consumer],
             # Reply Consumer (ReplyConsumer)
             [self.app._reply_consumer],
             # Actors (app.Actor)
             self.app.actors.values(),
-            # Topic Manager (app.TopicManager))
+            # Topic Manager (app.TopicConductor))
             [self.app.topics],
             # Table Manager (app.TableManager)
             [self.app.tables],
@@ -978,7 +979,7 @@ class App(AppT, ServiceProxy):
             self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
-    def topics(self) -> TopicManagerT:
+    def topics(self) -> ConductorT:
         """Topic manager.
 
         This is the mediator that moves messages fetched by the Consumer
@@ -987,7 +988,7 @@ class App(AppT, ServiceProxy):
         It's also a set of registered topics, so you can check
         if a topic is being consumed from by doing ``topic in app.topics``.
         """
-        return TopicManager(app=self, loop=self.loop, beacon=self.beacon)
+        return TopicConductor(app=self, loop=self.loop, beacon=self.beacon)
 
     @property
     def monitor(self) -> Monitor:

@@ -132,14 +132,14 @@ consumption, like managing topic subscriptions etc.
 Actors are also services, and any actor decorated using ``@app.actor`` will
 start with the app.
 
-``TopicManager``
-----------------
+``TopicConductor``
+------------------
 
-The topic manager manages topic subscriptions and the streams messages
+The topic conductor manages topic subscriptions and the streams messages
 in a topic is forwarded to.
 
 ``app.stream(topic)`` will iterate over the topic: ``aiter(topic)``.
-The TopicManaager feeds messages into that iteration, so the stream
+The conductor feeds messages into that iteration, so the stream
 receives messages in the topic::
 
     async for event in stream(event async for event in topic)

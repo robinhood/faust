@@ -323,7 +323,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         standby_tps = self.app.assignor.assigned_standbys()
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
-        # Wait for TopicManager to finish any new subscriptions
+        # Wait for TopicConductor to finish any new subscriptions
         await self.app.topics.wait_for_subscriptions()
         self.log.info('New assignments found')
         await self._on_recovery_started()

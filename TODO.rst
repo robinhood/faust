@@ -110,10 +110,10 @@ Fault Tolerance
 
         Note: There are no standby streams, this is only for tables.
 
-    - TopicManager consumes data from other partitions, to quickly recover if
+    - TopicConductor consumes data from other partitions, to quickly recover if
       one of the nodes go down.
 
-    - Probably will have to change TopicManager._topicmap to
+    - Probably will have to change TopicConductor._topicmap to
       use ``(topic, partition)`` as key.
 
     - New attribute: ``Table.standby``
