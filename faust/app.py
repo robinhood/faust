@@ -861,9 +861,9 @@ class App(AppT, ServiceProxy):
         assignment, so any tp no longer in the assigned' list will have
         been revoked.
         """
+        self.flow_control.resume()
         await self.topics.on_partitions_assigned(assigned)
         await self.tables.on_partitions_assigned(assigned)
-        self.flow_control.resume()
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
@@ -877,6 +877,7 @@ class App(AppT, ServiceProxy):
         """
         self.log.dev('ON PARTITIONS REVOKED')
         await self.topics.on_partitions_revoked(revoked)
+        await self._fetcher.stop()
         assignment = self.consumer.assignment()
         if assignment:
             self.flow_control.suspend()
