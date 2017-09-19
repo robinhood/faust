@@ -165,7 +165,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def timer(self, interval: Seconds) -> Callable:
+    def timer(self, interval: Seconds,
+              master: bool = False) -> Callable:
         ...
 
     @abc.abstractmethod
