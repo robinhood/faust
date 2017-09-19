@@ -125,6 +125,8 @@ class ChangelogReader(Service, ChangelogReaderT):
                 if not i % 100_000:
                     self.log.info('Still waiting for %s records...',
                                   self._remaining_total())
+        except StopAsyncIteration:
+            pass
         finally:
             self.diag.unset_flag(CHANGELOG_READING)
             if buf:
@@ -157,6 +159,9 @@ class ChangelogReader(Service, ChangelogReaderT):
 
 class StandbyReader(ChangelogReader):
     logger = logger
+
+    async def on_stop(self) -> None:
+        await self.channel.throw(StopAsyncIteration)
 
     def _should_start_reading(self) -> bool:
         return True
