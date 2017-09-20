@@ -82,6 +82,10 @@ class AppT(ServiceT):
     serializers: RegistryT
 
     @abc.abstractmethod
+    def main(self) -> None:
+        ...
+
+    @abc.abstractmethod
     def __init__(self, id: str,
                  *,
                  url: str = 'aiokafka://localhost:9092',
