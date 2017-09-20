@@ -1,3 +1,19 @@
+#!/usr/bin/env python
+"""Withdrawal example.
+
+Quick Start
+===========
+
+1) Start worker:
+
+.. sourcecode:: console
+
+    $ ./examples/simple.py worker -l info
+
+2) Start sending example data:
+
+    $ ./examples/simple.py produce
+"""
 import asyncio
 import os
 import random
@@ -50,60 +66,31 @@ async def find_large_user_withdrawals(withdrawals):
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
-#@app.actor(withdrawals_topic)
-#async def find_large_country_withdrawals(withdrawals):
-#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
-#        country_to_total[withdrawal.country] += withdrawal.amount
+class produce(faust.AppCommand):
+    """Produce example Withdrawal events."""
 
-
-async def _publish_withdrawals():
-    num_countries = 5
-    countries = [f'country_{i}' for i in range(num_countries)]
-    country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
-    num_users = 500
-    users = [f'user_{i}' for i in range(num_users)]
-    print('Done setting up. SENDING!')
-    i = 0
-    while True:
-        i += 1
-        withdrawal = Withdrawal(
-            user=random.choice(users),
-            amount=random.uniform(0, 25_000),
-            country=random.choices(countries, country_dist)[0],
-            date=datetime.utcnow(),
-        )
-        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
-        if not i % 10000:
-            print(f'+SEND {i}')
-        if PRODUCE_LATENCY:
-            await asyncio.sleep(random.uniform(0, PRODUCE_LATENCY))
-
-
-def produce(loop):
-    loop.run_until_complete(_publish_withdrawals())
-
-
-COMMANDS = {
-    'consume': app.start_worker,
-    'produce': produce,
-}
-
-
-def main(loop=None):
-    loop = loop or asyncio.get_event_loop()
-    try:
-        command = sys.argv.pop(1)
-    except KeyError as exc:
-        print(f'Unknown command: {exc}')
-        raise SystemExit(os.EX_USAGE)
-    except IndexError:
-        print(f'Missing command. Try one of: {", ".join(COMMANDS)}')
-        raise SystemExit(os.EX_USAGE)
-    else:
-        COMMANDS[command](loop=loop)
-    finally:
-        loop.close()
+    async def run(self) -> None:
+        num_countries = 5
+        countries = [f'country_{i}' for i in range(num_countries)]
+        country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
+        num_users = 500
+        users = [f'user_{i}' for i in range(num_users)]
+        self.say('Done setting up. SENDING!')
+        i = 0
+        while True:
+            i += 1
+            withdrawal = Withdrawal(
+                user=random.choice(users),
+                amount=random.uniform(0, 25_000),
+                country=random.choices(countries, country_dist)[0],
+                date=datetime.utcnow(),
+            )
+            await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
+            if not i % 10000:
+                self.say(f'+SEND {i}')
+            if PRODUCE_LATENCY:
+                await asyncio.sleep(random.uniform(0, PRODUCE_LATENCY))
 
 
 if __name__ == '__main__':
-    main()
+    app.main()
