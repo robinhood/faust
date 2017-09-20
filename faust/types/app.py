@@ -5,7 +5,7 @@ import typing
 from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
-    Iterable, Mapping, MutableMapping, Pattern, Type, Union,
+    Iterable, List, Mapping, MutableMapping, Pattern, Type, Union,
 )
 
 from ._coroutines import StreamCoroutine
@@ -32,11 +32,22 @@ from ..utils.types.services import ServiceT
 if typing.TYPE_CHECKING:
     from ..sensors.monitor import Monitor
     from .models import ModelArg
+    from .web.base import Request, Response, Web
+    from .web.views import Site, View
 else:
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
+    class Request: ...        # noqa
+    class Response: ...       # noqa
+    class Web: ...            # noqa
+    class Site: ...           # noqa
+    class View: ...           # noqa
 
 __all__ = ['AppT']
+
+
+ViewGetHandler = Callable[[Web, Request], Awaitable[Response]]
+PageArg = Union[Type[View], ViewGetHandler]
 
 
 class AppT(ServiceT):
@@ -80,6 +91,7 @@ class AppT(ServiceT):
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT
     serializers: RegistryT
+    pages: List[Site]
 
     @abc.abstractmethod
     def main(self) -> None:
@@ -175,6 +187,12 @@ class AppT(ServiceT):
             window: WindowT = None,
             partitions: int = None,
             **kwargs: Any) -> SetT:
+        ...
+
+    @abc.abstractmethod
+    def page(self, path: str,
+             *,
+             base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
         ...
 
     @abc.abstractmethod

@@ -40,6 +40,18 @@ async def count_words(words):
         print(f'WORD {word} -> {word_counts[word]}')
 
 
+class Word:
+    value: str
+    account_id: str
+
+
+@app.page('/count/')
+async def get_count(web, request):
+    return web.json({
+        'counts': dict(word_counts),
+    })
+
+
 @app.actor()
 async def sender(stream):
     for i in range(100):

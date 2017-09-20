@@ -5,6 +5,7 @@ to customize how Faust works.
 
 """
 import asyncio
+import inspect
 import typing
 
 from collections import defaultdict
@@ -36,7 +37,7 @@ from .types import (
     CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
     RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
-from .types.app import AppT
+from .types.app import AppT, PageArg, ViewGetHandler
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import (
@@ -55,6 +56,7 @@ from .utils.objects import Unordered, cached_property
 from .utils.services import Service, ServiceProxy, ServiceT
 from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
+from .web.views import Site, View
 
 if typing.TYPE_CHECKING:
     from .channels import Event
@@ -360,6 +362,7 @@ class App(AppT, ServiceProxy):
         self._pending_on_commit = defaultdict(list)
         self.on_startup_finished: Callable = on_startup_finished
         self.origin = origin
+        self.pages = []
         ServiceProxy.__init__(self)
 
     def _datadir_path(self, path: Path) -> Path:
@@ -628,6 +631,40 @@ class App(AppT, ServiceProxy):
             partitions=partitions,
             window=window,
             **kwargs))
+
+    def page(self, path: str,
+             *,
+             base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
+
+        def _decorator(fun: PageArg) -> Type[Site]:
+            view: Type[View] = None
+            name: str
+            if inspect.isclass(fun):
+                typ = cast(Type[View], fun)
+                if issubclass(typ, View):
+                    name = fun.__name__
+                    view = typ
+                else:
+                    raise TypeError(
+                        'Class argument to @page must be subclass of View')
+            if view is None:
+                handler = cast(ViewGetHandler, fun)
+                if callable(handler):
+                    name = handler.__name__
+                    view = type(name, (View,), {
+                        'get': staticmethod(handler),
+                        '__module__': handler.__module__,
+                    })
+                else:
+                    raise TypeError(f'Not view, nor callable: {fun!r}')
+
+            site: Type[Site] = type('Site', (Site,), {
+                'views': {path: view},
+                '__module__': fun.__module__,
+            })
+            self.pages.append(('', site))
+            return site
+        return _decorator
 
     async def start_client(self) -> None:
         """Start the app in Client-Only mode necessary for RPC requests.

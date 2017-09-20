@@ -32,6 +32,7 @@ class Website(Service):
         super().__init__(**kwargs)
         web_cls: Type[Web] = symbol_by_name(driver)
         self.web: Web = web_cls(app, port=port, bind=bind, **kwargs)
-        for prefix, page in list(self.pages) + list(extra_pages or []):
+        pages = list(self.pages) + list(app.pages) + list(extra_pages or [])
+        for prefix, page in pages:
             page(app).enable(self.web, prefix=prefix)
         self.add_dependency(self.web)
