@@ -14,9 +14,9 @@
 
     Blocking detector timeout (requires --debug).
 
-.. cmdoption:: --advertised-host, -h
+.. cmdoption:: --web-host, -h
 
-    Advertised host for the web server.
+    Canonical host name for the web server.
 
 .. cmdoption:: --web-port, -p
 
@@ -26,6 +26,7 @@
 
     Use uvloop event loop.
 """
+import socket
 from typing import Any
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, option
@@ -44,11 +45,12 @@ class worker(AppCommand):
         option('--blocking-timeout',
                default=BLOCKING_TIMEOUT, type=float,
                help='Blocking detector timeout (requires --debug).'),
-        option('--advertised-host', '-h',
-               default=WEB_BIND, type=str,
-               help='Advertised host for the web server.'),
         option('--web-port', '-p', default=WEB_PORT, type=int,
                help='Port to run web server on.'),
+        option('--web-bind', '-b', default=WEB_BIND, type=str),
+        option('--web-host', '-h',
+               default=socket.gethostname(), type=str,
+               help='Canonical host name for the web server.'),
         option('--with-uvloop/--without-uvloop',
                help='Use fast uvloop event loop.'),
     ]
@@ -65,17 +67,19 @@ class worker(AppCommand):
                      logfile: str,
                      loglevel: str,
                      blocking_timeout: float,
-                     advertised_host: str,
-                     web_port: int) -> None:
+                     web_port: int,
+                     web_bind: str,
+                     web_host: str) -> None:
         self.logfile = logfile
         self.loglevel = loglevel
         self.blocking_timeout = blocking_timeout
-        self.advertised_host = advertised_host
         self.web_port = web_port
+        self.web_bind = web_bind
+        self.web_host = web_host
 
     def __call__(self) -> Any:
         from ..worker import Worker
-        self.app.advertised_url = f'{self.advertised_host}:{self.web_port}'
+        self.app.canonical_url = f'{self.web_host}:{self.web_port}'
         return Worker(
             self.app,
             debug=self.debug,
@@ -83,4 +87,6 @@ class worker(AppCommand):
             logfile=self.logfile,
             loglevel=self.loglevel,
             web_port=self.web_port,
+            web_bind=self.web_bind,
+            web_host=self.web_host,
         ).execute_from_commandline()

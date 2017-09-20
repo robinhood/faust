@@ -350,7 +350,7 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
-        self.advertised_url = ''
+        self.canonical_url = ''
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
         self.router = Router(self)

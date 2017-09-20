@@ -85,7 +85,7 @@ class AppT(ServiceT):
     store: str
     assignor: PartitionAssignorT
     router: RouterT
-    advertised_url: str
+    canonical_url: str
     origin: str
 
     actors: MutableMapping[str, ActorT]

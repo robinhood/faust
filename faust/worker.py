@@ -175,7 +175,8 @@ class Worker(ServiceWorker):
             (defaults to :class:`faust.web.site.Website`).
         web_port (int): Port for web site to bind to (defaults to 6066).
         web_bind (str): Host to bind web site to (defaults to "0.0.0.0").
-        advertised_host (str): FIXME
+        web_host (str): Canonical host name used for this server.
+           (defaults to the current host name).
         loop (asyncio.AbstractEventLoop): Custom event loop object.
     """
     logger = logger
@@ -228,7 +229,7 @@ class Worker(ServiceWorker):
             Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
             web_port: int = None,
             web_bind: str = None,
-            advertised_host: str = None,
+            web_host: str = None,
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
@@ -237,6 +238,7 @@ class Worker(ServiceWorker):
         self.Website = symbol_by_name(Website)
         self.web_port = web_port
         self.web_bind = web_bind
+        self.web_host = web_host or socket.gethostname()
         super().__init__(
             *services,
             debug=debug,
