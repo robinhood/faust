@@ -392,10 +392,14 @@ class Channel(ChannelT):
             loop=loop)
 
         if coro_get_exc.done():
-            # re-raise error requested by Channel.throw(exc)
+            # we got an exception from Channel.throw(exc):
+            #    cancel the other coro and re-raise that error
             coro_get_val.cancel()
             raise coro_get_exc.result()
         else:
+            # seemingly we got a value, so we need to cancel the
+            # waiting for exception coroutine so it doesn't linger
+            # through the next call.
             coro_get_exc.cancel()
 
         # yield next value in channel iterator.
