@@ -1,4 +1,6 @@
 import faust
+import random
+
 
 app = faust.App(
     'master-example',
@@ -7,17 +9,13 @@ app = faust.App(
 )
 
 
-@app.timer(3.0)
-async def print_everywhere():
-    print('HELLO!')
-
-
-@app.timer(3.0, on_master=True)
-async def print_on_master():
-    print('HELLO FROM MASTER!')
+@app.timer(2.0, on_master=True)
+async def publish_greetings():
+    print('PUBLISHING ON MASTER!')
+    await say.send(value=str(random.random()))
 
 
 @app.actor()
-async def foo(bar):
-    async for msg in bar:
-        print(msg)
+async def say(greetings):
+    async for greeting in greetings:
+        print(greeting)
