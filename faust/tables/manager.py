@@ -161,7 +161,7 @@ class StandbyReader(ChangelogReader):
     logger = logger
 
     async def on_stop(self) -> None:
-        await self.channel.throw(StopAsyncIteration)
+        await self.channel.throw(StopAsyncIteration())
 
     def _should_start_reading(self) -> bool:
         return True
