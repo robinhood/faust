@@ -54,7 +54,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.tps = tps
         self.offsets = Counter() if offsets is None else offsets
         for tp in self.tps:
-            offsets.setdefault(tp, -1)
+            self.offsets.setdefault(tp, -1)
         self._highwaters = Counter()
         self._started_reading = asyncio.Event(loop=self.loop)
 
@@ -122,7 +122,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                     buf.clear()
                 if self._should_stop_reading():
                     break
-                if not i % 100_000:
+                if not i % 10_000:
                     self.log.info('Still waiting for %s records...',
                                   self._remaining_total())
         except StopAsyncIteration:
@@ -231,7 +231,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
         self.log.info(f'Syncing offsets {reader.offsets}')
-        self._table_offsets.update(reader.offsets)
+        # We do counter union as new offsets should be >= old offsets
+        self._table_offsets = self._table_offsets | reader.offsets
 
     @Service.transitions_to(TABLEMAN_STOP_STANDBYS)
     async def _stop_standbys(self) -> None:
