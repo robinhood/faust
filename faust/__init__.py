@@ -95,6 +95,7 @@ if _datadir:
 if typing.TYPE_CHECKING:
     from .actors import Actor                                   # noqa: E402
     from .app import App                                        # noqa: E402
+    from .bin import AppCommand, Command                        # noqa: E402
     from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
     from .models import Record                                  # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
@@ -111,6 +112,7 @@ if typing.TYPE_CHECKING:
 __all__ = [
     'Actor',
     'App',
+    'AppCommand', 'Command',
     'Channel',
     'ChannelT',
     'Event',
@@ -145,6 +147,7 @@ from types import ModuleType  # noqa
 all_by_module: Mapping[str, Sequence[str]] = {
     'faust.actors': ['Actor'],
     'faust.app': ['App'],
+    'faust.bin.base': ['AppCommand', 'Command'],
     'faust.channels': ['Channel', 'ChannelT', 'Event', 'EventT'],
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
