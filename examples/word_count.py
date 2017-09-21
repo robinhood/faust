@@ -55,5 +55,12 @@ async def sender(stream):
     for word in WORDS: print('AWAITING WORD: %r' % (word,))
 
 
+class produce(faust.AppCommand):
+    """Produce example data."""
+
+    async def run(self) -> None:
+        print('producing')
+
+
 if __name__ == '__main__':
     app.main()

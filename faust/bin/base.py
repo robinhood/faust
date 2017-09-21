@@ -2,6 +2,7 @@
 import abc
 import asyncio
 import os
+import sys
 from functools import wraps
 from pathlib import Path
 from types import ModuleType
@@ -128,6 +129,39 @@ class _Group(click.Group):
     # `app.main() calls cli(app=self), which puts the app
     # on the click.Context, then AppCommand reads it from the context.
 
+    def get_help(self, ctx: click.Context) -> str:
+        self._maybe_import_app()
+        return super().get_help(ctx)
+
+    def get_usage(self, ctx: click.Context) -> str:
+        self._maybe_import_app()
+        return super().get_usage(ctx)
+
+    def _maybe_import_app(self, argv: Sequence[str] = sys.argv) -> None:
+        # This is here so that custom AppCommand defined in example/myapp.py
+        # works and is included in --help/usage, etc. when using the faust
+        # command like:
+        #   $ faust -A example.myapp --help
+        #
+        # This is not necessary when using app.main(), since that always
+        # imports the app module before creating the cli() object:
+        #   $ python example/myapp.py --help
+        for i, arg in enumerate(argv):
+            if arg == '-A':
+                try:
+                    find_app(argv[i + 1])
+                except IndexError:
+                    raise click.UsageError('Missing argument for -A')
+            elif arg.startswith('--app'):
+                if '=' in arg:
+                    _, _, value = arg.partition('=')
+                    find_app(value)
+                else:
+                    try:
+                        find_app(argv[i + 1])
+                    except IndexError:
+                        raise click.UsageError('Missing argument for --app')
+
     @no_type_check  # mypy bugs out on this
     def make_context(self, info_name: str, args: str,
                      app: AppT = None,
@@ -161,6 +195,7 @@ def cli(ctx: click.Context,
         'datadir': datadir,
         'json': json,
     }
+    print('IM HERE')
     if workdir:
         os.environ['F_WORKDIR'] = workdir
         # XXX I'm not sure this is the best place to chdir [ask]
