@@ -1,27 +1,27 @@
-PROJ=faust
-PGPIDENT="Celery Security Team"
-PYTHON=python3.6
-PYTEST=py.test
-PIP=pip
-GIT=git
-TOX=tox
-NOSETESTS=nosetests
-ICONV=iconv
-FLAKE8=flake8
-PYDOCSTYLE=pydocstyle
-MYPY=mypy
-SPHINX2RST=sphinx2rst
-BUMPVERSION=bumpversion
+PROJ ?= faust
+PGPIDENT? = "Celery Security Team"
+PYTHON ?= python3.6
+PYTEST ?= py.test
+PIP ?= pip
+GIT ?= git
+TOX ?= tox
+NOSETESTS ?= nosetests
+ICONV ?= iconv
+FLAKE8 ?= flake8
+PYDOCSTYLE ?= pydocstyle
+MYPY ?= mypy
+SPHINX2RST ?= sphinx2rst
+BUMPVERSION ?= bumpversion
 
-TESTDIR=t
-SPHINX_DIR=docs/
-SPHINX_BUILDDIR="${SPHINX_DIR}/_build"
-README=README.rst
-README_SRC="docs/templates/readme.txt"
-CONTRIBUTING=CONTRIBUTING.rst
-CONTRIBUTING_SRC="docs/contributing.rst"
-SPHINX_HTMLDIR="${SPHINX_BUILDDIR}/html"
-DOCUMENTATION=Documentation
+TESTDIR ?= t
+SPHINX_DIR ?= docs/
+SPHINX_BUILDDIR ?= "${SPHINX_DIR}/_build"
+README ?= README.rst
+README_SRC ?= "docs/templates/readme.txt"
+CONTRIBUTING ?= CONTRIBUTING.rst
+CONTRIBUTING_SRC ?= "docs/contributing.rst"
+SPHINX_HTMLDIR ?= "${SPHINX_BUILDDIR}/html"
+DOCUMENTATION ?= Documentation
 
 all: help
 
