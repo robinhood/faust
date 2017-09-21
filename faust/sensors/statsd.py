@@ -1,11 +1,22 @@
+import typing
 from time import monotonic
 from typing import Any, cast
-from statsd import StatsClient
 from .monitor import Monitor
+from ..exceptions import ImproperlyConfigured
 from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.logging import get_logger
 from ..utils.objects import cached_property, label
+
+try:
+    import statsd
+except ImportError:
+    statsd = None
+
+if typing.TYPE_CHECKING:
+    from statsd import StatsClient
+else:
+    class StatsClient: ...  # noqa
 
 __all__ = ['StatsdMonitor']
 
@@ -34,6 +45,9 @@ class StatsdMonitor(Monitor):
         self.port = port
         self.prefix = prefix
         self.rate = rate
+        if statsd is None:
+            raise ImproperlyConfigured(
+                'StatsMonitor requires `pip install statsd`.')
         super().__init__(**kwargs)
 
     def _new_statsd_client(self) -> StatsClient:
