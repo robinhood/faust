@@ -1,4 +1,5 @@
 from typing import Any, Callable
+from yarl import URL
 from ..bin._env import WEB_BIND, WEB_PORT
 from ..types import AppT
 from ..utils.logging import get_logger
@@ -50,8 +51,8 @@ class Web(Service):
         ...
 
     @property
-    def url(self) -> str:
-        return f'http://localhost:{self.port}/'
+    def url(self) -> URL:
+        return URL(f'http://localhost:{self.port}/')
 
 
 class Request:

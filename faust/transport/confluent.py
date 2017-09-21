@@ -104,4 +104,4 @@ class Transport(base.Transport):
 
     @cached_property
     def bootstrap_servers(self):
-        return self.url.split('://', 1)[1]  # just remove the scheme
+        return str(self.url).split('://', 1)[1]  # just remove the scheme

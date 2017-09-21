@@ -2,7 +2,8 @@
 import shutil
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator, Optional, Tuple
+from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
+from yarl import URL
 from . import base
 from ..types import AppT, EventT, TopicPartition
 from ..utils.logging import get_logger
@@ -20,7 +21,7 @@ class Store(base.SerializedStore):
 
     _db: rocksdb.DB = None
 
-    def __init__(self, url: str, app: AppT,
+    def __init__(self, url: Union[str, URL], app: AppT,
                  *,
                  max_open_files: int = 300000,
                  write_buffer_size: int = 67108864,
@@ -38,9 +39,8 @@ class Store(base.SerializedStore):
         self.block_cache_size: int = block_cache_size
         self.block_cache_compressed_size: int = block_cache_compressed_size
         self.bloom_filter_size: int = bloom_filter_size
-        _, _, rest = self.url.partition('://')
-        if not rest:
-            self.url = self.url + self.table_name
+        if not self.url.path:
+            self.url /= self.table_name
         self._db = None
 
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
@@ -125,10 +125,9 @@ class Store(base.SerializedStore):
         return self._db
 
     @property
-    def filename(self) -> str:
-        name = self.url.partition('://')[-1]
-        return f'{name}.db' if '.' not in name else name
+    def filename(self) -> Path:
+        return Path(self.url.path).with_suffix('.db')
 
     @property
     def path(self) -> Path:
-        return self.app.tabledir / Path(self.filename)
+        return self.app.tabledir / self.filename

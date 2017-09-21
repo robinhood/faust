@@ -5,9 +5,10 @@ from typing import (
     AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar,
     Iterable, Mapping, Optional, Set, Tuple, Type, Union, no_type_check,
 )
-from faust.utils.times import Seconds
-from faust.utils.types.services import ServiceT
+from yarl import URL
 from .tuples import Message, RecordMetadata, TopicPartition
+from ..utils.times import Seconds
+from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -177,12 +178,12 @@ class TransportT(abc.ABC):
     Fetcher: ClassVar[Type[ServiceT]]
 
     app: AppT
-    url: str
+    url: URL
     loop: asyncio.AbstractEventLoop
     driver_version: str
 
     @abc.abstractmethod
-    def __init__(self, url: str, app: AppT,
+    def __init__(self, url: Union[str, URL], app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

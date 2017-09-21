@@ -9,6 +9,7 @@ from typing import (
     Any, Callable, Generator, Generic, Iterable,
     Mapping, MutableMapping, Set, Tuple, Type, TypeVar, Union,
 )
+from yarl import URL
 from .collections import FastUserDict
 from .objects import cached_property
 
@@ -62,10 +63,10 @@ class FactoryMapping(FastUserDict, Generic[_T]):
         self.aliases = dict(*args, **kwargs)  # type: ignore
         self.namespaces = set()
 
-    def by_url(self, url: str) -> _T:
+    def by_url(self, url: Union[str, URL]) -> _T:
         """Get class associated with URL (scheme is used as alias key)."""
         # we remove anything after ; so urlparse can recognize the url.
-        return self.by_name(url.partition('://')[0])
+        return self.by_name(URL(url).scheme)
 
     def by_name(self, name: SymbolArg[_T_contra]) -> _T:
         self._maybe_finalize()

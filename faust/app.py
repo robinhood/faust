@@ -21,6 +21,8 @@ from typing import (
 )
 from uuid import uuid4
 
+from yarl import URL
+
 from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
@@ -294,9 +296,10 @@ class App(AppT, ServiceProxy):
     def __init__(
             self, id: str,
             *,
-            url: str = TRANSPORT_URL,
-            store: str = 'memory://',
-            avro_registry_url: str = None,
+            url: Union[str, URL] = TRANSPORT_URL,
+            store: Union[str, URL] = 'memory://',
+            avro_registry_url: Union[str, URL] = None,
+            canonical_url: Union[str, URL] = None,
             client_id: str = CLIENT_ID,
             datadir: Union[Path, str] = DATADIR,
             commit_interval: Seconds = COMMIT_INTERVAL,
@@ -323,8 +326,9 @@ class App(AppT, ServiceProxy):
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
-        self.url = url
+        self.url = URL(url)
         self.client_id = client_id
+        self.canonical_url = URL(canonical_url or '')
         # datadir is a format string that can contain {appid}
         self.datadir = Path(str(datadir).format(appid=self.id)).expanduser()
         self.tabledir = self._datadir_path(Path(tabledir)).expanduser()
@@ -350,13 +354,12 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
-        self.canonical_url = ''
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
         self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
-        self.store = store
+        self.store = URL(store)
         self._monitor = monitor
         self._tasks = []
         self._pending_on_commit = defaultdict(list)

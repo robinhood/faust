@@ -320,7 +320,7 @@ class Transport(base.Transport):
     @cached_property
     def bootstrap_servers(self) -> str:
         # remove the scheme
-        servers = self.url.split('://', 1)[1]
+        servers = str(self.url).split('://', 1)[1]
         # add default ports
         return ';'.join(
             host if ':' in host else f'{host}:{self.default_port}'

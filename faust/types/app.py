@@ -8,6 +8,8 @@ from typing import (
     Iterable, List, Mapping, MutableMapping, Pattern, Type, Union,
 )
 
+from yarl import URL
+
 from ._coroutines import StreamCoroutine
 from .actors import ActorFun, ActorT, SinkT
 from .assignor import PartitionAssignorT
@@ -65,7 +67,7 @@ class AppT(ServiceT):
     Serializers: Type[RegistryT]
 
     id: str
-    url: str
+    url: URL
     client_id: str
     datadir: Path
     tabledir: Path
@@ -81,11 +83,11 @@ class AppT(ServiceT):
     reply_to: str
     create_reply_topic: float
     reply_expires: float
-    avro_registry_url: str
-    store: str
+    avro_registry_url: URL
+    store: URL
     assignor: PartitionAssignorT
     router: RouterT
-    canonical_url: str
+    canonical_url: URL
     origin: str
 
     actors: MutableMapping[str, ActorT]
@@ -100,9 +102,10 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def __init__(self, id: str,
                  *,
-                 url: str = 'aiokafka://localhost:9092',
-                 store: str = 'memory://',
-                 avro_registry_url: str = None,
+                 url: Union[str, URL] = 'aiokafka://localhost:9092',
+                 store: Union[str, URL] = 'memory://',
+                 avro_registry_url: Union[str, URL] = None,
+                 canonical_url: Union[str, URL] = None,
                  client_id: str = '',
                  commit_interval: Seconds = 9999.0,
                  table_cleanup_interval: Seconds = 9999.0,

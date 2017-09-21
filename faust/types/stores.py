@@ -1,6 +1,7 @@
 import abc
 import typing
-from typing import Any, Callable, Iterable, MutableMapping, Optional
+from typing import Any, Callable, Iterable, MutableMapping, Optional, Union
+from yarl import URL
 from .channels import EventT
 from .codecs import CodecArg
 from .tuples import TopicPartition
@@ -16,14 +17,14 @@ __all__ = ['StoreT']
 
 class StoreT(ServiceT, MutableMapping):
 
-    url: str
+    url: URL
     app: AppT
     table_name: str
     key_serializer: CodecArg
     value_serializer: CodecArg
 
     @abc.abstractmethod
-    def __init__(self, url: str, app: AppT,
+    def __init__(self, url: Union[str, URL], app: AppT,
                  *,
                  table_name: str = '',
                  key_serializer: CodecArg = '',

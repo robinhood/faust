@@ -5,8 +5,9 @@ from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Optional, cast,
+    MutableMapping, MutableSet, Optional, Union, cast,
 )
+from yarl import URL
 from .. import stores
 from ..channels import Event
 from ..streams import current_event
@@ -34,7 +35,7 @@ TABLE_CLEANING = 'CLEANING'
 class Collection(Service, CollectionT):
     logger = logger
 
-    _store: str
+    _store: URL
     _changelog_topic: TopicT
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
@@ -55,7 +56,7 @@ class Collection(Service, CollectionT):
                  *,
                  name: str = None,
                  default: Callable[[], Any] = None,
-                 store: str = None,
+                 store: Union[str, URL] = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  partitions: int = None,
@@ -66,7 +67,7 @@ class Collection(Service, CollectionT):
         self.app = app
         self.name = name
         self.default = default
-        self._store = store
+        self._store = URL(store) if store else None
         self.key_type = key_type
         self.value_type = value_type
         self.partitions = partitions

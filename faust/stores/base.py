@@ -1,6 +1,7 @@
 import abc
 from collections import ItemsView, KeysView, ValuesView
-from typing import Any, Callable, Iterable, Iterator, Optional, Tuple
+from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
+from yarl import URL
 from ..serializers.codecs import dumps, loads
 from ..types import AppT, CodecArg, EventT, StoreT, TopicPartition
 from ..utils.logging import get_logger
@@ -12,14 +13,14 @@ logger = get_logger(__name__)
 class Store(StoreT, Service):
     logger = logger
 
-    def __init__(self, url: str, app: AppT,
+    def __init__(self, url: Union[str, URL], app: AppT,
                  *,
                  table_name: str = '',
                  key_serializer: CodecArg = 'json',
                  value_serializer: CodecArg = 'json',
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
-        self.url = url
+        self.url = URL(url)
         self.app = app
         self.table_name = table_name
         self.key_serializer = key_serializer
@@ -41,7 +42,7 @@ class Store(StoreT, Service):
         return loads(self.value_serializer, value)
 
     def _repr_info(self) -> str:
-        return f'table_name={self.table_name} url={self.url!r}'
+        return f'table_name={self.table_name} url={self.url}'
 
     @property
     def label(self) -> str:

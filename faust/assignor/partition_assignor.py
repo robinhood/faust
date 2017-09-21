@@ -76,7 +76,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     @property
     def _url(self) -> str:
-        return self.app.canonical_url
+        return str(self.app.canonical_url)
 
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:

@@ -5,3 +5,4 @@ click
 jinja2
 progress
 tabulate
+yarl

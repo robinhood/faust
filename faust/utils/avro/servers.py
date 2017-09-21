@@ -2,11 +2,14 @@
 import asyncio
 from collections import defaultdict
 from contextlib import suppress
-from typing import DefaultDict, Dict, Iterable, Mapping, Optional, Tuple, cast
+from typing import (
+    DefaultDict, Dict, Iterable, Mapping, Optional, Tuple, Union, cast,
+)
 from aiohttp import ClientSession
 from avro.schema import Parse, Schema
-from faust.utils import json
-from faust.utils.logging import get_logger
+from yarl import URL
+from .. import json
+from ..logging import get_logger
 
 __all__ = ['ClientError', 'RegistryClient']
 
@@ -33,7 +36,7 @@ class RegistryClient:
     valid_levels = {'NONE', 'FULL', 'FORWARD', 'BACKWARD'}
     content_type = 'application/vnd.schemaregistry.v1+json'
 
-    url: str
+    url: URL
     max_schemas_per_subject: int
     #: subj => { schema => id}
     subject_to_schema_ids: DefaultDict[str, Dict[Schema, int]]
@@ -47,13 +50,13 @@ class RegistryClient:
     _session: ClientSession
 
     def __init__(self,
-                 url: str,
+                 url: Union[str, URL],
                  *,
                  max_schemas_per_subject: int = 1000,
                  session: ClientSession = None,
                  accept: Iterable[str] = ACCEPT_TYPES,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.url = url.rstrip('/')
+        self.url = URL(str(url).rstrip('/'))
         self.max_schemas_per_subject = max_schemas_per_subject
         self.subject_to_schema_ids = defaultdict(dict)
         self.id_to_schema = defaultdict(dict)

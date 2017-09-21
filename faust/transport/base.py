@@ -7,9 +7,11 @@ from collections import defaultdict
 from itertools import count
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
-    List, MutableMapping, Optional, Set, Tuple, Type, cast,
+    List, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
 )
 from weakref import WeakSet
+
+from yarl import URL
 
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import (
@@ -441,9 +443,9 @@ class Transport(TransportT):
 
     driver_version: str
 
-    def __init__(self, url: str, app: AppT,
+    def __init__(self, url: Union[str, URL], app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.url = url
+        self.url = URL(url)
         self.app = app
         self.loop = loop
 

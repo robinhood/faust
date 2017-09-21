@@ -4,8 +4,9 @@ import asyncio
 import typing
 from typing import (
     Any, Callable, ClassVar, Counter, Iterable, List, MutableMapping,
-    MutableSet, Optional, Set, Type,
+    MutableSet, Optional, Set, Type, Union,
 )
+from yarl import URL
 from .channels import EventT
 from .stores import StoreT
 from .streams import JoinableT
@@ -70,7 +71,7 @@ class CollectionT(JoinableT, ServiceT):
                  *,
                  name: str = None,
                  default: Callable[[], Any] = None,
-                 store: str = None,
+                 store: Union[str, URL] = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  partitions: int = None,

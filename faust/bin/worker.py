@@ -28,6 +28,7 @@
 """
 import socket
 from typing import Any
+from yarl import URL
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, option
 
@@ -79,7 +80,7 @@ class worker(AppCommand):
 
     def __call__(self) -> Any:
         from ..worker import Worker
-        self.app.canonical_url = f'{self.web_host}:{self.web_port}'
+        self.app.canonical_url = URL(f'http://{self.web_host}:{self.web_port}')
         return Worker(
             self.app,
             debug=self.debug,
