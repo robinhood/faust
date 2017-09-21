@@ -3,15 +3,15 @@ import random
 
 
 app = faust.App(
-    'master-example',
+    'leader-example',
     url='kafka://localhost:9092',
     value_serializer='raw',
 )
 
 
-@app.timer(2.0, on_master=True)
+@app.timer(2.0, on_leader=True)
 async def publish_greetings():
-    print('PUBLISHING ON MASTER!')
+    print('PUBLISHING ON LEADER!')
     await say.send(value=str(random.random()))
 
 
