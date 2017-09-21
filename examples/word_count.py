@@ -1,4 +1,5 @@
 import asyncio
+import click
 import faust
 import random
 
@@ -55,11 +56,11 @@ async def sender(stream):
     for word in WORDS: print('AWAITING WORD: %r' % (word,))
 
 
-class produce(faust.AppCommand):
+@app.command(click.argument('rest'), click.option('--foo/--no-foo', default=False))
+async def produce(self, rest: str, foo: bool):
     """Produce example data."""
+    print(f'Hello: {foo}: {rest}')
 
-    async def run(self) -> None:
-        print('producing')
 
 
 if __name__ == '__main__':

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Sequence, Tuple, Type, Union, cast,
+    Optional, Pattern, Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 
@@ -62,9 +62,11 @@ from .utils.types.collections import NodeT
 from .web.views import Site, View
 
 if typing.TYPE_CHECKING:
+    from .bin.base import AppCommand
     from .channels import Event
 else:
-    class Event: ...  # noqa
+    class AppCommand: ...  # noqa
+    class Event: ...       # noqa
 
 __all__ = ['App']
 
@@ -383,19 +385,6 @@ class App(AppT, ServiceProxy):
         from .bin.faust import cli
         cli(app=self)
 
-    def start_worker(self, *,
-                     argv: Sequence[str] = None,
-                     loop: asyncio.AbstractEventLoop = None) -> None:
-        """Execute the :program:`faust worker` command using this app."""
-        from .bin.worker import worker
-        from .worker import Worker
-        options = dict(worker.parse(argv))
-        # remove arguments handled by bin.worker(), not Worker()
-        options.pop('app', None)
-        options.pop('with_uvloop', None)
-        options.pop('json', None)
-        Worker(self, loop=loop, **options).execute_from_commandline()
-
     def topic(self, *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: ModelArg = None,
@@ -689,6 +678,31 @@ class App(AppT, ServiceProxy):
             self.pages.append(('', site))
             return site
         return _decorator
+
+    def command(self,
+                *options: Any,
+                base: Type[AppCommand] = None,
+                **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
+        if base is None:
+            from .bin import base as bin_base
+            base = bin_base.AppCommand
+
+        def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
+            target: Any = fun
+            if not inspect.signature(fun).parameters:
+                # if it does not take self argument, use staticmethod
+                target = staticmethod(fun)
+
+            return type(fun.__name__, (base,), {
+                'run': target,
+                '__doc__': fun.__doc__,
+                '__name__': fun.__name__,
+                '__qualname__': fun.__qualname__,
+                '__module__': fun.__module__,
+                '__wrapped__': fun,
+                'options': options,
+                **kwargs})
+        return _inner
 
     async def start_client(self) -> None:
         """Start the app in Client-Only mode necessary for RPC requests.

@@ -64,30 +64,27 @@ class worker(AppCommand):
             use_uvloop()
         super().__init__(*args, **kwargs)
 
-    def init_options(self,
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.start_worker(
+            *self.args + args,
+            **{**self.kwargs, **kwargs})
+
+    def start_worker(self,
                      logfile: str,
                      loglevel: str,
                      blocking_timeout: float,
                      web_port: int,
                      web_bind: str,
-                     web_host: str) -> None:
-        self.logfile = logfile
-        self.loglevel = loglevel
-        self.blocking_timeout = blocking_timeout
-        self.web_port = web_port
-        self.web_bind = web_bind
-        self.web_host = web_host
-
-    def __call__(self) -> Any:
+                     web_host: str) -> Any:
         from ..worker import Worker
-        self.app.canonical_url = URL(f'http://{self.web_host}:{self.web_port}')
+        self.app.canonical_url = URL(f'http://{web_host}:{web_port}')
         return Worker(
             self.app,
             debug=self.debug,
             quiet=self.quiet,
-            logfile=self.logfile,
-            loglevel=self.loglevel,
-            web_port=self.web_port,
-            web_bind=self.web_bind,
-            web_host=self.web_host,
+            logfile=logfile,
+            loglevel=loglevel,
+            web_port=web_port,
+            web_bind=web_bind,
+            web_host=web_host,
         ).execute_from_commandline()

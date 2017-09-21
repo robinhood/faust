@@ -307,6 +307,12 @@ Decorators
     .. automethod:: timer
         :noindex:
 
+    .. automethod:: page
+        :noindex:
+
+    .. automethod:: command
+        :noindex:
+
 Creating streams and tables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

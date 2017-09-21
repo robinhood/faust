@@ -7,7 +7,8 @@ from functools import wraps
 from pathlib import Path
 from types import ModuleType
 from typing import (
-    Any, Callable, ClassVar, List, Mapping, Sequence, Type, no_type_check,
+    Any, Callable, ClassVar, Dict, List,
+    Mapping, Sequence, Tuple, Type, no_type_check,
 )
 import click
 from tabulate import tabulate
@@ -195,7 +196,6 @@ def cli(ctx: click.Context,
         'datadir': datadir,
         'json': json,
     }
-    print('IM HERE')
     if workdir:
         os.environ['F_WORKDIR'] = workdir
         # XXX I'm not sure this is the best place to chdir [ask]
@@ -216,11 +216,11 @@ class Command(abc.ABC):
     #
     # run for an async command:
     #
-    #     async def run(self) -> None:
+    #     async def run(self, *args, **kwargs) -> None:
     #         ...
     # or for a non-async command you override __call__:
     #
-    #     def __call__(self) -> Any:
+    #     def __call__(self, *args, **kwargs) -> Any:
     #         ...
 
     abstract: ClassVar[bool] = True
@@ -235,6 +235,9 @@ class Command(abc.ABC):
     builtin_options: List = builtin_options
     options: List = None
 
+    args: Tuple = None
+    kwargs: Dict = None
+
     @classmethod
     def as_click_command(cls) -> Callable:
         # This is what actually registers the commands into the
@@ -245,7 +248,8 @@ class Command(abc.ABC):
         @click.pass_context
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> Callable:
-            return cls(*args, **kwargs)()  # type: ignore
+            cmd = cls(*args, **kwargs)  # type: ignore
+            return cmd()
         return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
 
@@ -266,7 +270,8 @@ class Command(abc.ABC):
             # command with the ``cli`` click.Group.
             self._click = self.as_click_command()
 
-        # This hack creates the Command.parse method used by App.start_worker
+        # This hack creates the Command.parse method,
+        # that was used by App.start_worker (now removed)
         # to parse command-line arguments in sys.argv.
         # Unable to find a better way to do this in click. [ask]
         # Apparently the side effect of the @click.option decorator
@@ -284,7 +289,7 @@ class Command(abc.ABC):
     def _parse(**kwargs: Any) -> Mapping:
         return kwargs
 
-    def __init__(self, ctx: click.Context) -> None:
+    def __init__(self, ctx: click.Context, *args: Any, **kwargs: Any) -> None:
         self.ctx = ctx
         # XXX should we also use ctx.find_root() here?
         self.debug = self.ctx.obj['debug']
@@ -292,16 +297,21 @@ class Command(abc.ABC):
         self.workdir = self.ctx.obj['workdir']
         self.datadir = self.ctx.obj['datadir']
         self.json = self.ctx.obj['json']
+        self.args = args
+        self.kwargs = kwargs
 
-    async def run(self) -> Any:
+    @no_type_check   # Subclasses can omit *args, **kwargs in signature.
+    async def run(self, *args: Any, **kwargs: Any) -> Any:
         # NOTE: If you override __call__ below, you have a non-async command.
         # This is used by .worker to call the
         # Worker.execute_from_commandline() method.
         ...
 
-    def __call__(self) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
-        return loop.run_until_complete(self.run())
+        args = self.args + args
+        kwargs = {**self.kwargs, **kwargs}
+        return loop.run_until_complete(self.run(*args, **kwargs))
 
     def tabulate(self, data: Sequence,
                  *,
@@ -357,13 +367,13 @@ class AppCommand(Command):
     value_serialier: CodecArg
 
     def __init__(self, ctx: click.Context,
-                 # we pass starargs to init_options [VVV]
+                 # we keep starargs in self.args attribute [VVV]
                  *args: Any,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
-        # and also starkwargs [^^^]
-        super().__init__(ctx)  # Command! Remember?
+        # and also starkwargs in self.kwargs [^^^]
+        super().__init__(ctx)
 
         # App is taken from context first (see _Group)
         # XXX apparently click.Context is a stack?,
@@ -379,14 +389,8 @@ class AppCommand(Command):
         self.app.origin = appstr
         self.key_serializer = key_serializer or self.app.key_serializer
         self.value_serializer = value_serializer or self.app.value_serializer
-        self.init_options(*args, **kwargs)
-
-    def init_options(self, *args: Any, **kwargs: Any) -> None:
-        """You can override this to add attributes from init starargs."""
-        if args:
-            raise TypeError(f'Unexpected positional arguments: {args!r}')
-        if kwargs:
-            raise TypeError(f'Unexpected keyword arguments: {kwargs!r}')
+        self.args = args
+        self.kwargs = kwargs
 
     def to_key(self, typ: str, key: str) -> Any:
         """Convert command-line argument string to model (key).

@@ -63,7 +63,7 @@ Faust is...
             )
 
         if __name__ == '__main__':
-            app.start_worker()
+            app.main()
 
     You're probably a bit intimidated by the `async` and `await` keywords,
     but you don't have to know how asyncio works to use

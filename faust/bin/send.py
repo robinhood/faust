@@ -83,40 +83,35 @@ class send(AppCommand):
         argument('value', default=None, required=False),
     ]
 
-    def init_options(self,
-                     entity: str,
-                     value: str,
-                     *args: Any,
-                     key: str = None,
-                     key_type: str = None,
-                     value_type: str = None,
-                     partition: int = None,
-                     repeat: int = 1,
-                     min_latency: float = 0.0,
-                     max_latency: float = 0.0,
-                     **kwargs: Any) -> None:
-        self.key = self.to_key(key_type, key)
-        self.value = self.to_value(value_type, value)
-        self.topic = self.to_topic(entity)
-        self.partition = partition
-        self.repeat = repeat
-        self.min_latency = min_latency
-        self.max_latency = max_latency
-        super().init_options(*args, **kwargs)
-
-    async def run(self) -> Any:
-        for i in range(self.repeat):
-            self.carp(f'k={self.key!r} v={self.value!r} -> {self.topic!r}...')
-            fut = await self.topic.send(
-                key=self.key,
-                value=self.value,
-                partition=self.partition,
-                key_serializer=self.key_serializer,
-                value_serializer=self.value_serializer,
+    async def run(self,
+                  entity: str,
+                  value: str,
+                  *args: Any,
+                  key: str = None,
+                  key_type: str = None,
+                  key_serializer: str = None,
+                  value_type: str = None,
+                  value_serializer: str = None,
+                  partition: int = 1,
+                  repeat: int = 1,
+                  min_latency: float = 0.0,
+                  max_latency: float = 0.0,
+                  **kwargs: Any) -> Any:
+        key = self.to_key(key_type, key)
+        value = self.to_value(value_type, value)
+        topic = self.to_topic(entity)
+        for i in range(repeat):
+            self.carp(f'k={key!r} v={value!r} -> {topic!r}...')
+            fut = await topic.send(
+                key=key,
+                value=value,
+                partition=partition,
+                key_serializer=key_serializer,
+                value_serializer=value_serializer,
             )
             res = await fut
             self.say(self.dumps(res._asdict()))
-            if i and self.max_latency:
+            if i and max_latency:
                 await asyncio.sleep(
-                    random.uniform(self.min_latency, self.max_latency))
+                    random.uniform(min_latency, max_latency))
         await self.app.producer.stop()
