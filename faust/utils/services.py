@@ -14,8 +14,8 @@ from functools import wraps
 from time import monotonic
 from types import TracebackType
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Coroutine, Generator, IO,
-    Iterable, List, MutableSequence, Sequence, Set, Tuple, Type, Union, cast,
+    Any, Awaitable, Callable, ClassVar, Generator, IO, Iterable,
+    List, MutableSequence, Sequence, Set, Tuple, Type, Union, cast,
 )
 from .collections import Node
 from .compat import DummyContext
@@ -693,6 +693,12 @@ class ServiceWorker(Service):
 
     async def on_first_start(self) -> None:
         self._setup_logging()
+        await self.on_execute()
+        with self._monitor():
+            self.install_signal_handlers()
+
+    async def on_execute(self) -> None:
+        ...
 
     def _setup_logging(self) -> None:
         _loglevel: int = None
@@ -735,15 +741,17 @@ class ServiceWorker(Service):
         self.log.info('Stopping on signal received...')
         await self.stop()
 
-    def execute_from_commandline(self, *coroutines: Coroutine) -> None:
+    def execute_from_commandline(self) -> None:
         try:
             with suppress(asyncio.CancelledError):
-                self.loop.run_until_complete(self.add_future(
-                    self._execute_from_commandline(*coroutines)))
+                self.loop.run_until_complete(self.start())
         finally:
-            if not self._stopped.is_set():
-                self.loop.run_until_complete(self.stop())
-            self._shutdown_loop()
+            self.stop_and_shutdown()
+
+    def stop_and_shutdown(self) -> None:
+        if not self._stopped.is_set():
+            self.loop.run_until_complete(self.stop())
+        self._shutdown_loop()
 
     def _shutdown_loop(self) -> None:
         # Gather futures created by us.
@@ -785,22 +793,9 @@ class ServiceWorker(Service):
         for task in asyncio.Task.all_tasks(loop=self.loop):
             task.cancel()
 
-    async def on_execute(self) -> None:
-        ...
-
-    async def _execute_from_commandline(self, *coroutines: Coroutine) -> None:
-        await self.on_execute()
-        with self._monitor():
-            self.install_signal_handlers()
-            if coroutines:
-                await asyncio.wait(
-                    [asyncio.ensure_future(coro, loop=self.loop)
-                     for coro in coroutines],
-                    loop=self.loop,
-                    return_when=asyncio.ALL_COMPLETED,
-                )
-            await self.start()
-            await self.wait_until_stopped()
+    async def start(self) -> None:
+        await super().start()
+        await self.wait_until_stopped()
 
     def _monitor(self) -> Any:
         if self.debug:

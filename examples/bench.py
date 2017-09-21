@@ -60,10 +60,10 @@ async def process_requests(requests, n=1000):
                 break
 
 
+@app.task
 async def main():
     await send_requests(app)
 
 
 if __name__ == '__main__':
-    worker = faust.Worker(app, loglevel='INFO')
-    worker.execute_from_commandline(main())
+    app.main()

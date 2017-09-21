@@ -33,7 +33,9 @@ async def find_large_withdrawals(stream):
             print(f'ALERT: large withdrawal: {w.amount!r}')
 
 
-async def _publish_withdrawals():
+@app.command()
+async def produce():
+    """Produce example data."""
     for i in range(100):
         print('+SEND %r' % (i,))
         await app.send(topic, None, Withdrawal(amount=100.3 + i))
@@ -42,35 +44,5 @@ async def _publish_withdrawals():
     await asyncio.sleep(30)
 
 
-def produce(loop):
-    loop.run_until_complete(_publish_withdrawals())
-
-
-def consume(loop):
-    worker = faust.Worker(app, loglevel='INFO', loop=loop)
-    worker.execute_from_commandline()
-    loop.run_forever()
-
-
-COMMANDS = {
-    'consume': consume,
-    'produce': produce,
-}
-
-
-def main(loop=None):
-    loop = loop or asyncio.get_event_loop()
-    try:
-        COMMANDS[sys.argv[1]](loop=loop)
-    except KeyError as exc:
-        print(f'Unknown command: {exc}')
-        raise SystemExit(os.EX_USAGE)
-    except IndexError:
-        print(f'Missing command. Try one of: {", ".join(COMMANDS)}')
-        raise SystemExit(os.EX_USAGE)
-    finally:
-        loop.close()
-
-
 if __name__ == '__main__':
-    main()
+    app.main()

@@ -146,9 +146,16 @@ class Worker(ServiceWorker):
                but in that case *you are responsible for gracefully shutting
                down the event loop*::
 
-                    async def start_worker(app: AppT):
-                        worker = Worker(app)
+                    async def start_worker(worker: Worker) -> None:
                         await worker.start()
+
+                    def manage_loop():
+                        loop = asyncio.get_event_loop()
+                        worker = Worker(app, loop=loop)
+                        try:
+                            loop.run_until_complete(start_worker(worker)
+                        finally:
+                            worker.stop_and_shutdown_loop()
 
     Arguments:
         app (AppT): The Faust app to start.
