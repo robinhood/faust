@@ -23,7 +23,7 @@ from uuid import uuid4
 from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
-from .assignor import MasterAssignor, PartitionAssignor
+from .assignor import LeaderAssignor, PartitionAssignor
 from .bin._env import DATADIR
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured
@@ -37,7 +37,7 @@ from .types import (
     RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT
-from .types.assignor import MasterAssignorT
+from .types.assignor import LeaderAssignorT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import (
@@ -147,7 +147,7 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             [self.app.producer],
             [self.app.consumer],
-            [self.app._master_assignor],
+            [self.app._leader_assignor],
             [self.app._reply_consumer],
             [self.app.topics],
             [self.app._fetcher],
@@ -175,8 +175,8 @@ class AppService(Service):
             [self.app.producer],
             # Consumer (transport.Consumer): always stop after TopicConductor
             [self.app.consumer],
-            # Master Assignor (assignor.MasterAssignor)
-            [self.app._master_assignor],
+            # Leader Assignor (assignor.LeaderAssignor)
+            [self.app._leader_assignor],
             # Reply Consumer (ReplyConsumer)
             [self.app._reply_consumer],
             # Actors (app.Actor)
@@ -272,7 +272,7 @@ class App(AppT, ServiceProxy):
     # Set when consumer is started.
     _consumer_started: bool = False
 
-    _master_assignor: MasterAssignorT = None
+    _leader_assignor: LeaderAssignorT = None
 
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
@@ -357,7 +357,7 @@ class App(AppT, ServiceProxy):
         self.advertised_url = ''
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
-        self._master_assignor = MasterAssignor(self)
+        self._leader_assignor = LeaderAssignor(self)
         self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
@@ -530,7 +530,7 @@ class App(AppT, ServiceProxy):
         return fun
 
     def timer(self, interval: Seconds,
-              on_master: bool = False) -> Callable:
+              on_leader: bool = False) -> Callable:
         """Decorator creating an asyncio.Task waking up periodically.
 
         This decorator takes an async function and adds it to a
@@ -540,7 +540,7 @@ class App(AppT, ServiceProxy):
             interval (Seconds): How often the timer executes in seconds.
 
         Keyword Arguments:
-            on_master (bool) = False: Should the timer only run on the master?
+            on_leader (bool) = False: Should the timer only run on the leader?
 
         Example:
             >>> @app.timer(interval=10.0)
@@ -548,9 +548,9 @@ class App(AppT, ServiceProxy):
             ...     print('TEN SECONDS JUST PASSED')
 
 
-            >>> app.timer(interval=5.0, on_master=True)
+            >>> app.timer(interval=5.0, on_leader=True)
             >>> async def every_5_seconds():
-            ...     print('FIVE SECONDS JUST PASSED. ALSO, I AM THE MASTER!')
+            ...     print('FIVE SECONDS JUST PASSED. ALSO, I AM THE LEADER!')
         """
         interval_s = want_seconds(interval)
 
@@ -560,14 +560,14 @@ class App(AppT, ServiceProxy):
             async def around_timer(*args: Any, **kwargs: Any) -> None:
                 while not self._service.should_stop:
                     await self._service.sleep(interval_s)
-                    should_run = not on_master or self.is_master()
+                    should_run = not on_leader or self.is_leader()
                     if should_run:
                         await fun(*args, **kwargs)
             return around_timer
         return _inner
 
-    def is_master(self) -> bool:
-        return self._master_assignor.is_master()
+    def is_leader(self) -> bool:
+        return self._leader_assignor.is_leader()
 
     def stream(self, channel: Union[AsyncIterable, Iterable],
                coroutine: StreamCoroutine = None,
