@@ -166,7 +166,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def timer(self, interval: Seconds,
-              master: bool = False) -> Callable:
+              on_leader: bool = False) -> Callable:
         ...
 
     @abc.abstractmethod
@@ -234,7 +234,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def is_master(self) -> bool:
+    def is_leader(self) -> bool:
         ...
 
     @abc.abstractmethod

@@ -11,4 +11,4 @@
     :maxdepth: 1
 
     pageviews
-    masterslave
+    leaderelection

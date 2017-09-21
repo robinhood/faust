@@ -41,10 +41,10 @@ class PartitionAssignorT(abc.ABC):
         ...
 
 
-class MasterAssignorT(ServiceT):
+class LeaderAssignorT(ServiceT):
 
     app: AppT
 
     @abc.abstractmethod
-    def is_master(self) -> bool:
+    def is_leader(self) -> bool:
         ...
