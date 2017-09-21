@@ -40,7 +40,7 @@ from .types import (
     RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
 )
 from .types.app import AppT, PageArg, ViewGetHandler
-from .types.assignor import MasterAssignorT
+from .types.assignor import LeaderAssignorT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
 from .types.tables import (
