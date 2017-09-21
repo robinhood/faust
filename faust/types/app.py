@@ -32,11 +32,13 @@ from ..utils.types.collections import NodeT
 from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
+    from ..bin.base import AppCommand
     from ..sensors.monitor import Monitor
     from .models import ModelArg
     from .web.base import Request, Response, Web
     from .web.views import Site, View
 else:
+    class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
     class Request: ...        # noqa
@@ -197,6 +199,13 @@ class AppT(ServiceT):
     def page(self, path: str,
              *,
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
+        ...
+
+    @abc.abstractmethod
+    def command(self,
+                *options: Any,
+                base: Type[AppCommand] = None,
+                **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
         ...
 
     @abc.abstractmethod
