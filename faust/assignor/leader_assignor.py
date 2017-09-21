@@ -1,4 +1,3 @@
-import typing
 from typing import Any
 from ..types import AppT, TopicPartition, TopicT
 from ..types.assignor import LeaderAssignorT
