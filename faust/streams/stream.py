@@ -165,27 +165,39 @@ class Stream(StreamT, Service):
                 Warning: If this is not set, it can potentially wait forever
                 for a new value, and buffered items will not be processed.
         """
+        loop = self.loop
         buffer: List[T_co] = []
         add = buffer.append
-        wait_for = asyncio.wait_for
         within_s = want_seconds(within)
-        if within_s:
-            while not self.should_stop:
-                try:
-                    add(await wait_for(self.__anext__(), timeout=within_s))
-                except asyncio.TimeoutError:
-                    yield list(buffer)
-                    buffer.clear()
-                else:
-                    if len(buffer) >= max_:
-                        yield list(buffer)
-                        buffer.clear()
-        else:
+
+        async def _read_self():
             async for value in self:
                 add(value)
                 if len(buffer) >= max_:
-                    yield list(buffer)
-                    buffer.clear()
+                    return
+
+        while not self.should_stop:
+            coro_wait = asyncio.ensure_future(asyncio.sleep(within_s), loop=loop)
+            # coro #2: Get error from errors queue.
+            coro_read_self = asyncio.ensure_future(_read_self(), loop=loop)
+
+            # wait for first thing to happen: channel value, or thrown exception
+            done, pending = await asyncio.wait(
+                [coro_wait, coro_read_self],
+                return_when=asyncio.FIRST_COMPLETED,
+                loop=loop)
+
+            if coro_read_self.done():
+                # we got an exception from Channel.throw(exc):
+                #    cancel the other coro and re-raise that error
+                coro_wait.cancel()
+            else:
+                # seemingly we got a value, so we need to cancel the
+                # waiting for exception coroutine so it doesn't linger
+                # through the next call.
+                coro_read_self.cancel()
+            yield list(buffer)
+            buffer.clear()
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
         """Clone stream into n new streams, receiving copies of values.
