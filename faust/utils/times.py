@@ -6,7 +6,7 @@ from time import monotonic
 from types import TracebackType
 from typing import AsyncContextManager, Optional, Type, Union
 
-__all__ = ['Seconds', 'want_seconds']
+__all__ = ['Bucket', 'Seconds', 'TokenBucket', 'rate_limit', 'want_seconds']
 
 #: Seconds can be expressed as float or :class:`~datetime.timedelta`,
 Seconds = Union[timedelta, float]
@@ -96,7 +96,7 @@ class Bucket(AsyncContextManager):
         #: faster/slower, then just override this.
         return self.rate
 
-    async def __aenter__(self) -> 'rate_limit':
+    async def __aenter__(self) -> 'Bucket':
         if not self.pour():
             if self.raises:
                 raise self.raises()
@@ -140,7 +140,6 @@ class TokenBucket(Bucket):
             self._tokens = min(self.capacity, self._tokens + delta)
             self._last_pour = now
         return self._tokens
-
 
 
 def rate_limit(rate: float, over: Seconds = 1.0,

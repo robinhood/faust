@@ -26,7 +26,7 @@ from .utils.futures import maybe_async, notify
 from .utils.logging import get_logger
 from .utils.objects import cached_property, canoname, qualname
 from .utils.services import Service, ServiceProxy
-from .utils.times import rate_limit
+from .utils.times import Bucket, rate_limit
 
 __all__ = [
     'ReqRepRequest',
@@ -318,7 +318,7 @@ class ActorService(Service):
     def __init__(self, actor: ActorT, **kwargs: Any) -> None:
         self.actor = actor
         self.instances = []
-        self.buckets: List[rate_limit] = []
+        self.buckets: List[Bucket] = []
         super().__init__(**kwargs)
 
     def wakeup_supervisor(self) -> None:
@@ -692,7 +692,7 @@ class Actor(ActorT, ServiceProxy):
             barrier: BarrierState,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg) -> AsyncIterator[str]:
-        # Send all the values in the group
+        # map: send tasks to all actors
         # while trying to pop incoming results off.
         async for key, value in aiter(items):
             correlation_id = str(uuid4())
@@ -717,9 +717,8 @@ class Actor(ActorT, ServiceProxy):
 
     @cached_property
     def channel_iterator(self) -> AsyncIterator:
-        # The channel is reused here, so that when ActorService start
-        # is called it will start n * concurrency self._start_task() futures
-        # that all share the same channel topic.
+        # The channel is "memoized" here, so subsequent access to
+        # instance.channel_iterator will return the same value.
         return aiter(self.channel)
 
     @cached_property
