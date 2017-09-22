@@ -53,6 +53,9 @@ class ActorInstanceT(Generic[_T], ServiceT):
     #: If multiple instance are started for concurrency, this is its index.
     index: int = None
 
+    #: If crashed, this should be set to True
+    dead: bool = False
+
     @abc.abstractmethod
     def __init__(self,
                  agent: 'ActorT',

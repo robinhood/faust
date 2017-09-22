@@ -265,6 +265,7 @@ class ActorInstance(ActorInstanceT, Service):
         self.it = it
         self.index = index
         self.actor_task = None
+        self.dead = False
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
@@ -329,6 +330,26 @@ class ActorService(Service):
         res = await cast(Actor, self.actor)._start_task(index, self.beacon)
         await res.start()
         return res
+
+    @Service.task
+    async def _supervisor(self) -> None:
+        concurrency = self.actor.concurrency
+        instances = self.instances
+
+        # Create an empty list of instances
+        instances[:] = [None] * concurrency
+
+        while not self.should_stop:
+            # Fill in any missing instances.
+            for i in range(concurrency):
+                if instances[i] is None:
+                    instances[i] = await self._start_one(i)
+                elif instances[i].dead and not self.should_stop:
+                    self.log.info('Replacing dead actor %r', instances[i])
+                    instances[i] = await self._start_one(i)
+                else:
+                    pass
+                await self.sleep(1.0)
 
     async def on_stop(self) -> None:
         # Actors iterate over infinite streams, and we cannot wait for it
@@ -424,23 +445,33 @@ class Actor(ActorT, ServiceProxy):
         # If the actor is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
-        res = self(index=index)
-        coro = res if isinstance(res, Awaitable) else self._slurp(
-            res, aiter(res))
-        task = asyncio.Task(self._execute_task(coro), loop=self.loop)
+        aref: ActorRefT = self(index=index)
+        coro = aref if isinstance(aref, Awaitable) else self._slurp(
+            aref, aiter(aref))
+        task = asyncio.Task(self._execute_task(coro, aref), loop=self.loop)
         task._beacon = beacon  # type: ignore
-        res.actor_task = task
-        return res
+        aref.actor_task = task
+        return aref
 
-    async def _execute_task(self, coro: Awaitable) -> None:
+    async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
         # This executes the actor task itself, and does exception handling.
         try:
             await coro
         except asyncio.CancelledError:
+            if aref.stream.current_event:
+                await aref.stream.current_event.ack()
             raise
         except Exception as exc:
+            self.log.exception('Actor %r raised error: %r', aref, exc)
+            if aref.stream.current_event:
+                await aref.stream.current_event.ack()
             if self._on_error is not None:
                 await self._on_error(self, exc)
+
+            # Mark ActorRef as dead, so that supervisor thread
+            # can start a new one.
+            aref.dead = True
+
             raise
 
     async def _slurp(self, res: ActorRefT, it: AsyncIterator):

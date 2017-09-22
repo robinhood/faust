@@ -26,8 +26,9 @@ class EventT(metaclass=abc.ABCMeta):
     key: K
     value: V
     message: Message
+    acked: bool
 
-    __slots__ = ('app', 'key', 'value', 'message', '__weakref__')
+    __slots__ = ('app', 'key', 'value', 'message', 'acked', '__weakref__')
 
     @abc.abstractmethod
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:

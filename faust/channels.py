@@ -72,6 +72,7 @@ class Event(EventT):
         self.key: K = key
         self.value: V = value
         self.message: Message = message
+        self.acked: bool = False
 
     async def send(self, channel: Union[str, ChannelT],
                    key: K = USE_EXISTING_KEY,
@@ -142,12 +143,14 @@ class Event(EventT):
         )
 
     async def ack(self) -> None:
-        message = self.message
-        # decrement the reference count
-        message.decref()
-        # if no more references, ack message
-        if not message.refcount:
-            await self.app.consumer.ack(message)
+        if not self.acked:
+            self.acked = True
+            message = self.message
+            # decrement the reference count
+            message.decref()
+            # if no more references, ack message
+            if not message.refcount:
+                await self.app.consumer.ack(message)
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}: k={self.key!r} v={self.value!r}'
