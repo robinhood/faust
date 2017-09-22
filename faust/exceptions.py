@@ -22,3 +22,7 @@ class KeyDecodeError(FaustError):
 
 class ValueDecodeError(FaustError):
     """Error while decoding/deserialization message value."""
+
+
+class MaxRestartsExceeded(FaustError):
+    """Service was restarted too many times."""

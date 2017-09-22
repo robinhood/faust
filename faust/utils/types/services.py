@@ -1,6 +1,5 @@
 import abc
 import asyncio
-from types import TracebackType
 from typing import AsyncContextManager, MutableMapping, Set, Type
 from .collections import NodeT
 

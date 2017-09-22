@@ -5,12 +5,13 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
     Callable, Iterable, List, MutableMapping,
-    MutableSequence, Set, Tuple, Type, Union, cast,
+    MutableSequence, Optional, Set, Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 from weakref import WeakSet
 
 from . import Record
+from .exceptions import MaxRestartsExceeded
 from .types import (
     AppT, ChannelT, CodecArg, K, MessageSentCallback, ModelT,
     RecordMetadata, StreamT, TopicT, V,
@@ -21,10 +22,11 @@ from .types.actors import (
 )
 from .utils.aiter import aenumerate, aiter
 from .utils.collections import NodeT
-from .utils.futures import maybe_async
+from .utils.futures import maybe_async, notify
 from .utils.logging import get_logger
 from .utils.objects import cached_property, canoname, qualname
 from .utils.services import Service, ServiceProxy
+from .utils.times import rate_limit
 
 __all__ = [
     'ReqRepRequest',
@@ -311,20 +313,16 @@ class ActorService(Service):
     actor: ActorT
     instances: MutableSequence[ActorRefT]
 
+    _wakeup_supervisor: Optional[asyncio.Future] = None
+
     def __init__(self, actor: ActorT, **kwargs: Any) -> None:
         self.actor = actor
         self.instances = []
+        self.buckets: List[rate_limit] = []
         super().__init__(**kwargs)
 
-    async def on_start(self) -> None:
-        # start the actor processor.
-        if self.actor.concurrency > 1:
-            self.instances[:] = [
-                await self._start_one(index)
-                for index in range(self.actor.concurrency)
-            ]
-        else:
-            self.instances[:] = [await self._start_one(index=None)]
+    def wakeup_supervisor(self) -> None:
+        notify(self._wakeup_supervisor)
 
     async def _start_one(self, index: int = None) -> ActorInstanceT:
         res = await cast(Actor, self.actor)._start_task(index, self.beacon)
@@ -339,17 +337,29 @@ class ActorService(Service):
         # Create an empty list of instances
         instances[:] = [None] * concurrency
 
+        buckets = [
+            rate_limit(1, 0.1, raises=MaxRestartsExceeded)
+            for _ in range(concurrency)
+        ]
+
         while not self.should_stop:
+            self._wakeup_supervisor = asyncio.Future(loop=self.loop)
+            try:
+                await asyncio.wait_for(self._wakeup_supervisor, timeout=5.0)
+            except asyncio.TimeoutError:
+                pass
+            finally:
+                self._wakeup_supervisor = None
             # Fill in any missing instances.
             for i in range(concurrency):
                 if instances[i] is None:
                     instances[i] = await self._start_one(i)
-                elif instances[i].dead and not self.should_stop:
+                elif instances[i].dead:
                     self.log.info('Replacing dead actor %r', instances[i])
-                    instances[i] = await self._start_one(i)
+                    async with buckets[i]:
+                        instances[i] = await self._start_one(i)
                 else:
                     pass
-                await self.sleep(1.0)
 
     async def on_stop(self) -> None:
         # Actors iterate over infinite streams, and we cannot wait for it
@@ -358,7 +368,8 @@ class ActorService(Service):
         # last message processed (but not the message causing the error
         # to be raised).
         for instance in self.instances:
-            await instance.stop()
+            if instance:
+                await instance.stop()
 
     @property
     def label(self) -> str:
@@ -471,6 +482,7 @@ class Actor(ActorT, ServiceProxy):
             # Mark ActorRef as dead, so that supervisor thread
             # can start a new one.
             aref.dead = True
+            self._service.wakeup_supervisor()
 
             raise
 
