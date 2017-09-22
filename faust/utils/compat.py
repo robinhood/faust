@@ -1,6 +1,8 @@
 """Compatibility utilities."""
 from types import TracebackType
-from typing import Any, AnyStr, Type
+from typing import (
+    Any, AnyStr, AsyncContextManager, ContextManager, Optional, Type,
+)
 
 __all__ = ['DummyContext', 'OrderedDict', 'want_bytes', 'want_str']
 
@@ -8,7 +10,7 @@ __all__ = ['DummyContext', 'OrderedDict', 'want_bytes', 'want_str']
 OrderedDict = dict
 
 
-class DummyContext:
+class DummyContext(ContextManager, AsyncContextManager):
     """Context for with-statement doing nothing."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -18,18 +20,18 @@ class DummyContext:
         return self
 
     async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
+                        exc_type: Type[BaseException] = None,
+                        exc_val: BaseException = None,
+                        exc_tb: TracebackType = None) -> Optional[bool]:
         ...
 
     def __enter__(self) -> 'DummyContext':
         return self
 
     def __exit__(self,
-                 exc_type: Type[Exception],
-                 exc_val: Exception,
-                 exc_tb: TracebackType) -> Any:
+                 exc_type: Type[BaseException] = None,
+                 exc_val: BaseException = None,
+                 exc_tb: TracebackType = None) -> Optional[bool]:
         ...
 
 

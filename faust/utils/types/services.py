@@ -1,7 +1,7 @@
 import abc
 import asyncio
 from types import TracebackType
-from typing import MutableMapping, Set, Type
+from typing import AsyncContextManager, MutableMapping, Set, Type
 from .collections import NodeT
 
 __all__ = ['DiagT', 'ServiceT']
@@ -25,7 +25,7 @@ class DiagT(abc.ABC):
         ...
 
 
-class ServiceT(metaclass=abc.ABCMeta):
+class ServiceT(AsyncContextManager):
     """Abstract type for an asynchronous service that can be started/stopped.
 
     See Also:
@@ -44,17 +44,6 @@ class ServiceT(metaclass=abc.ABCMeta):
     def __init__(self, *,
                  beacon: NodeT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def __aenter__(self) -> 'ServiceT':
-        ...
-
-    @abc.abstractmethod
-    async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
         ...
 
     @abc.abstractmethod

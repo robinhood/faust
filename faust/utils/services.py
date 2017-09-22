@@ -15,7 +15,7 @@ from time import monotonic
 from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, ClassVar, Generator, IO, Iterable,
-    List, MutableSequence, Sequence, Set, Tuple, Type, Union, cast,
+    List, MutableSequence, Optional, Sequence, Set, Tuple, Type, Union, cast,
 )
 from .collections import Node
 from .compat import DummyContext
@@ -75,10 +75,11 @@ class ServiceBase(ServiceT):
         return self
 
     async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
+                        exc_type: Type[BaseException] = None,
+                        exc_val: BaseException = None,
+                        exc_tb: TracebackType = None) -> Optional[bool]:
         await self.stop()
+        return None
 
     def __repr__(self) -> str:
         info = self._repr_info()

@@ -2,7 +2,9 @@ import abc
 import asyncio
 import typing
 from types import TracebackType
-from typing import Any, AsyncIterator, Awaitable, Type, Union
+from typing import (
+    Any, AsyncContextManager, AsyncIterator, Awaitable, Type, Union,
+)
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
@@ -21,7 +23,7 @@ else:
     class TPorTopicSet: ...     # noqa
 
 
-class EventT(metaclass=abc.ABCMeta):
+class EventT(AsyncContextManager):
     app: AppT
     key: K
     value: V
@@ -60,17 +62,6 @@ class EventT(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def ack(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def __aenter__(self) -> 'EventT':
-        ...
-
-    @abc.abstractmethod
-    async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
         ...
 
 
@@ -186,3 +177,7 @@ class ChannelT(AsyncIterator):
     @abc.abstractmethod
     async def throw(self, exc: Exception) -> None:
         ...
+
+
+__flake8_TracebackType_is_used: TracebackType  # XXX flake8 bug
+__flake8_Type_is_used: Type

@@ -1,7 +1,9 @@
 import asyncio
 import typing
 from types import TracebackType
-from typing import Any, Awaitable, Callable, Mapping, Type, Union, cast
+from typing import (
+    Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
+)
 from .streams import current_event
 from .types import (
     AppT, CodecArg, FutureMessage, K, Message,
@@ -159,10 +161,11 @@ class Event(EventT):
         return self
 
     async def __aexit__(self,
-                        exc_type: Type[Exception],
-                        exc_val: Exception,
-                        exc_tb: TracebackType) -> None:
+                        exc_type: Type[BaseException] = None,
+                        exc_val: BaseException = None,
+                        exc_tb: TracebackType = None) -> Optional[bool]:
         await self.ack()
+        return None
 
 
 class Channel(ChannelT):
@@ -424,3 +427,6 @@ class Channel(ChannelT):
 
     def __str__(self) -> str:
         return f'{id(self):#x}'
+
+
+__flake8_TracebackType_is_used: TracebackType  # XXX flake8 bug
