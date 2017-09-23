@@ -10,7 +10,7 @@ from .core import K, V
 from .streams import StreamT
 from .topics import ChannelT
 from .tuples import RecordMetadata
-from ..utils.types.services import ServiceT
+from ..utils.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -52,9 +52,6 @@ class ActorInstanceT(Generic[_T], ServiceT):
 
     #: If multiple instance are started for concurrency, this is its index.
     index: int = None
-
-    #: If crashed, this should be set to True
-    dead: bool = False
 
     @abc.abstractmethod
     def __init__(self,

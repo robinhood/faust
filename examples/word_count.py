@@ -26,10 +26,15 @@ words_topic = app.topic('words2',
 
 word_counts = app.Table('word_counts2', default=int)
 
+crashes = [0]
+
 
 @app.actor(posts_topic)
 async def shuffle_words(posts):
     async for post in posts:
+        if crashes[0] < 2:
+            crashes[0] += 1
+            raise RuntimeError('foo')
         for word in post.split():
             await words_topic.send(key=word, value=word)
 

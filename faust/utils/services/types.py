@@ -1,7 +1,11 @@
 import abc
 import asyncio
-from typing import AsyncContextManager, MutableMapping, Set, Type
-from .collections import NodeT
+from typing import (
+    Any, AsyncContextManager, Awaitable, Callable,
+    MutableMapping, Set, Type,
+)
+from ..times import Seconds
+from ..types.collections import NodeT
 
 __all__ = ['DiagT', 'ServiceT']
 
@@ -38,6 +42,7 @@ class ServiceT(AsyncContextManager):
     wait_for_shutdown = False
     loop: asyncio.AbstractEventLoop = None
     restart_count: int = 0
+    supervisor: 'SupervisorStrategyT' = None
 
     @abc.abstractmethod
     def __init__(self, *,
@@ -55,6 +60,10 @@ class ServiceT(AsyncContextManager):
 
     @abc.abstractmethod
     async def maybe_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def crash(self, reason: BaseException) -> None:
         ...
 
     @abc.abstractmethod
@@ -84,6 +93,11 @@ class ServiceT(AsyncContextManager):
 
     @property
     @abc.abstractmethod
+    def crashed(self) -> bool:
+        ...
+
+    @property
+    @abc.abstractmethod
     def should_stop(self) -> bool:
         ...
 
@@ -108,4 +122,41 @@ class ServiceT(AsyncContextManager):
 
     @beacon.setter
     def beacon(self, beacon: NodeT) -> None:
+        ...
+
+
+class SupervisorStrategyT(ServiceT):
+    max_restarts: float
+    over: float
+    raises: Type[BaseException]
+
+    @abc.abstractmethod
+    def __init__(self,
+                 *services: ServiceT,
+                 max_restarts: Seconds = 100.0,
+                 over: Seconds = 1.0,
+                 raises: Type[BaseException] = None,
+                 replacement: Callable[[ServiceT, int],
+                                       Awaitable[ServiceT]] = None,
+                 **kwargs: Any) -> None:
+        self.replacement: Callable[[ServiceT, int], Awaitable[ServiceT]]
+
+    @abc.abstractmethod
+    def wakeup(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def add(self, service: ServiceT) -> None:
+        ...
+
+    @abc.abstractmethod
+    def discard(self, service: ServiceT) -> None:
+        ...
+
+    @abc.abstractmethod
+    def service_operational(self, service: ServiceT) -> bool:
+        ...
+
+    @abc.abstractmethod
+    async def restart_service(self, service: ServiceT) -> None:
         ...

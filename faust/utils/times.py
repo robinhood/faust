@@ -134,11 +134,11 @@ class TokenBucket(Bucket):
 
     @property
     def tokens(self) -> float:
+        now = monotonic()
         if self._tokens < self.capacity:
-            now = monotonic()
             delta = self.fill_rate * (now - self._last_pour)
             self._tokens = min(self.capacity, self._tokens + delta)
-            self._last_pour = now
+        self._last_pour = now
         return self._tokens
 
 

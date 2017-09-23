@@ -1,6 +1,6 @@
 import abc
 from typing import Any, Iterable
-from faust.utils.types.services import ServiceT
+from faust.utils.services import ServiceT
 from .channels import EventT
 from .streams import StreamT
 from .tables import CollectionT

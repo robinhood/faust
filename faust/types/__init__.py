@@ -27,7 +27,7 @@ from .tuples import (
     RecordMetadata, TopicPartition,
 )
 from .windows import WindowRange, WindowT
-from ..utils.types.services import ServiceT
+from ..utils.services import ServiceT
 
 __all__ = [
     # types.app
@@ -51,7 +51,7 @@ __all__ = [
     # types.serializers
     'RegistryT',
 
-    # utils.types.services
+    # utils.services
     'ServiceT',
 
     # types.stores

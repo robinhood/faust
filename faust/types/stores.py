@@ -5,7 +5,7 @@ from yarl import URL
 from .channels import EventT
 from .codecs import CodecArg
 from .tuples import TopicPartition
-from ..utils.types.services import ServiceT
+from ..utils.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

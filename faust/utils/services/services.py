@@ -1,55 +1,28 @@
 """Async I/O services that can be started/stopped/shutdown."""
-import abc
 import asyncio
 import logging
-import os
-import reprlib
-import signal
-import sys
-import threading
-import traceback
-import typing
-from contextlib import suppress
 from functools import wraps
 from time import monotonic
 from types import TracebackType
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Generator, IO, Iterable,
-    List, MutableSequence, Optional, Sequence, Set, Tuple, Type, Union, cast,
+    Any, Awaitable, Callable, ClassVar, Generator, Iterable,
+    List, MutableSequence, Optional, Sequence, Set, Type, Union, cast,
 )
-from .collections import Node
-from .compat import DummyContext
-from .logging import CompositeLogger, cry, get_logger, setup_logging
-from .objects import cached_property
-from .times import Seconds, want_seconds
-from .types.collections import NodeT
-from .types.services import DiagT, ServiceT
-
-if typing.TYPE_CHECKING:
-    from .debug import BlockingDetector
-else:
-    class BlockingDetector: ...  # noqa
+from .types import DiagT, ServiceT
+from ..collections import Node
+from ..logging import CompositeLogger, get_logger
+from ..times import Seconds, want_seconds
+from ..types.collections import NodeT
 
 __all__ = [
-    'Service',
     'ServiceBase',
-    'ServiceProxy',
-    'ServiceThread',
-    'ServiceWorker',
+    'Service',
     'Diag',
 ]
 
 FutureT = Union[asyncio.Future, Generator[Any, None, Any], Awaitable]
 
 logger = get_logger(__name__)
-
-
-class _TupleAsListRepr(reprlib.Repr):
-
-    def repr_tuple(self, x: Tuple, level: int) -> str:
-        return self.repr_list(cast(list, x), level)
-# this repr formats tuples as if they are lists.
-_repr = _TupleAsListRepr().repr  # noqa: E305
 
 
 class ServiceBase(ServiceT):
@@ -148,7 +121,7 @@ class Service(ServiceBase):
     _stopped: asyncio.Event
     _shutdown: asyncio.Event
     _crashed: asyncio.Event
-    _crash_reason: Exception
+    _crash_reason: BaseException
 
     #: The beacon is used to track the graph of services.
     _beacon: NodeT
@@ -266,7 +239,7 @@ class Service(ServiceBase):
         for service in services:
             try:
                 await service.maybe_start()
-            except Exception as exc:
+            except BaseException as exc:
                 await self.crash(exc)
         for service in reversed(services):
             await service.stop()
@@ -347,7 +320,7 @@ class Service(ServiceBase):
         except RuntimeError as exc:
             if 'Event loop is closed' in str(exc):
                 self.log.info('Cancelled task %r: %s', task, exc)
-        except Exception as exc:
+        except BaseException as exc:
             # the exception will be reraised by the main thread.
             await self.crash(exc)
 
@@ -356,27 +329,31 @@ class Service(ServiceBase):
         if not self._started.is_set():
             await self.start()
 
-    async def crash(self, reason: Exception) -> None:
+    async def crash(self, reason: BaseException) -> None:
         """Crash the service and all child services."""
         if not self._crashed.is_set():
             # We record the stack by raising the exception.
             self.log.exception('Crashed reason=%r', reason)
 
-            root = self.beacon.root
-            seen: Set[NodeT] = set()
-            for node in self.beacon.walk():
-                if node in seen:
-                    self.log.warn(f'Recursive loop in beacon: {node}: {seen}')
-                    if root and root.data is not self:
-                        cast(Service, self.beacon.root.data)._crash(reason)
-                    break
-                seen.add(node)
-                for child in [node.data] + node.children:
-                    if isinstance(child, Service):
-                        child._crash(reason)
+            if not self.supervisor:
+                # Only if the service has no supervisor do we go ahead
+                # and mark parent nodes as crashed as well.
+                root = self.beacon.root
+                seen: Set[NodeT] = set()
+                for node in self.beacon.walk():
+                    if node in seen:
+                        self.log.warn(
+                            f'Recursive loop in beacon: {node}: {seen}')
+                        if root and root.data is not self:
+                            cast(Service, self.beacon.root.data)._crash(reason)
+                        break
+                    seen.add(node)
+                    for child in [node.data] + node.children:
+                        if isinstance(child, Service):
+                            child._crash(reason)
             self._crash(reason)
 
-    def _crash(self, reason: Exception) -> None:
+    def _crash(self, reason: BaseException) -> None:
         self._crashed.set()
         self._crash_reason = reason
 
@@ -428,6 +405,7 @@ class Service(ServiceBase):
                    self._shutdown,
                    self._crashed):
             ev.clear()
+        self._crash_reason = None
         await self.on_restart()
         await self.start()
 
@@ -448,6 +426,10 @@ class Service(ServiceBase):
     def started(self) -> bool:
         """Was the service started?"""
         return self._started.is_set()
+
+    @property
+    def crashed(self) -> bool:
+        return self._crashed.is_set()
 
     @property
     def should_stop(self) -> bool:
@@ -486,336 +468,6 @@ class Service(ServiceBase):
     @beacon.setter
     def beacon(self, beacon: NodeT) -> None:
         self._beacon = beacon
-
-
-class ServiceProxy(ServiceBase):
-    """A service proxy delegates ServiceT methods to a composite service.
-
-    Example:
-
-        >>> class MyServiceProxy(ServiceProxy):
-        ...
-        ...     @cached_property
-        ...     def _service(self) -> ServiceT:
-        ...         return ActualService()
-
-    Notes:
-        Since the Faust App is created at module-level, it must use a service
-        proxy to ensure the event loop is not also created at that time.
-    """
-
-    @property
-    @abc.abstractmethod
-    def _service(self) -> ServiceT:
-        ...
-
-    def add_dependency(self, service: ServiceT) -> ServiceT:
-        return self._service.add_dependency(service)
-
-    async def start(self) -> None:
-        await self._service.start()
-
-    async def maybe_start(self) -> None:
-        await self._service.maybe_start()
-
-    async def stop(self) -> None:
-        await self._service.stop()
-
-    async def restart(self) -> None:
-        await self._service.restart()
-
-    async def wait_until_stopped(self) -> None:
-        await self._service.wait_until_stopped()
-
-    def set_shutdown(self) -> None:
-        self._service.set_shutdown()
-
-    @property
-    def started(self) -> bool:
-        return self._service.started
-
-    @property
-    def should_stop(self) -> bool:
-        return self._service.should_stop
-
-    @property
-    def state(self) -> str:
-        return self._service.state
-
-    @property
-    def label(self) -> str:
-        return type(self).__name__
-
-    @property
-    def shortlabel(self) -> str:
-        return type(self).__name__
-
-    @property
-    def beacon(self) -> NodeT:
-        return self._service.beacon
-
-    @beacon.setter
-    def beacon(self, beacon: NodeT) -> None:
-        self._service.beacon = beacon
-
-
-class ServiceThread(threading.Thread):
-    _shutdown: threading.Event
-    _stopped: threading.Event
-
-    def __init__(self, service: ServiceT,
-                 *,
-                 daemon: bool = False,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
-        self.service = service
-        self._shutdown = threading.Event()
-        self._stopped = threading.Event()
-        self._loop = loop
-        super().__init__(daemon=daemon)
-
-    def run(self) -> None:
-        if self._loop is None:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self._serve(self._loop))
-
-    async def _start_service(self, loop: asyncio.AbstractEventLoop) -> None:
-        service = self.service
-        service.loop = loop
-        await service.start()
-        await self.on_start()
-
-    async def on_start(self) -> None:
-        ...
-
-    async def on_restart(self) -> None:
-        ...
-
-    async def _stop_service(self) -> None:
-        await self.service.stop()
-        await self.on_stop()
-
-    async def on_stop(self) -> None:
-        ...
-
-    async def _serve(self, loop: asyncio.AbstractEventLoop) -> None:
-        shutdown_set = self._shutdown.is_set
-        await self._start_service(loop)
-        try:
-            while not shutdown_set():
-                try:
-                    await asyncio.sleep(1, loop=loop)
-                except Exception as exc:  # pylint: disable=broad-except
-                    try:
-                        self.on_crash('{0!r} crashed: {1!r}', self.name, exc)
-                        self._set_stopped()
-                    finally:
-                        os._exit(1)  # exiting by normal means won't work
-        finally:
-            try:
-                await self._stop_service()
-            finally:
-                self._set_stopped()
-
-    def on_crash(self, msg: str, *fmt: Any, **kwargs: Any) -> None:
-        print(msg.format(*fmt), file=sys.stderr)
-        traceback.print_exc(None, sys.stderr)
-
-    def _set_stopped(self) -> None:
-        try:
-            self._stopped.set()
-        except TypeError:
-            # we lost the race at interpreter shutdown,
-            # so gc collected built-in modules.
-            pass
-
-    def stop(self) -> None:
-        """Graceful shutdown."""
-        self._shutdown.set()
-        self._stopped.wait()
-        if self.is_alive():
-            self.join(threading.TIMEOUT_MAX)
-
-
-class ServiceWorker(Service):
-
-    stdout: IO
-    stderr: IO
-    debug: bool
-    quiet: bool
-    blocking_timeout: float
-    loglevel: Union[str, int]
-    logfile: Union[str, IO]
-    logformat: str
-
-    services: Iterable[ServiceT]
-
-    def __init__(
-            self, *services: ServiceT,
-            debug: bool = False,
-            quiet: bool = False,
-            loglevel: Union[str, int] = None,
-            logfile: Union[str, IO] = None,
-            logformat: str = None,
-            stdout: IO = sys.stdout,
-            stderr: IO = sys.stderr,
-            blocking_timeout: float = None,
-            loop: asyncio.AbstractEventLoop = None,
-            **kwargs: Any) -> None:
-        self.services = services
-        self.debug = debug
-        self.quiet = quiet
-        self.loglevel = loglevel
-        self.logfile = logfile
-        self.logformat = logformat
-        self.stdout = stdout
-        self.stderr = stderr
-        self.blocking_timeout = blocking_timeout
-        super().__init__(loop=loop, **kwargs)
-
-        for service in self.services:
-            service.beacon.reattach(self.beacon)
-            assert service.beacon.root is self.beacon
-
-    def say(self, msg: str) -> None:
-        """Write message to standard out."""
-        self._say(msg)
-
-    def carp(self, msg: str) -> None:
-        """Write warning to standard err."""
-        self._say(msg, file=self.stderr)
-
-    def _say(self, msg: str, file: IO = None, end: str = '\n') -> None:
-        if not self.quiet:
-            print(msg, file=file or self.stdout, end=end)  # noqa: T003
-
-    def on_init_dependencies(self) -> Iterable[ServiceT]:
-        return self.services
-
-    async def on_first_start(self) -> None:
-        self._setup_logging()
-        await self.on_execute()
-        with self._monitor():
-            self.install_signal_handlers()
-
-    async def on_execute(self) -> None:
-        ...
-
-    def _setup_logging(self) -> None:
-        _loglevel: int = None
-        if self.loglevel:
-            _loglevel = setup_logging(
-                loglevel=self.loglevel,
-                logfile=self.logfile,
-                logformat=self.logformat,
-            )
-        self.on_setup_root_logger(logging.root, _loglevel)
-
-    def on_setup_root_logger(self,
-                             logger: logging.Logger,
-                             level: int) -> None:
-        ...
-
-    async def maybe_start_blockdetection(self) -> None:
-        if self.debug:
-            await self._blockdetect.maybe_start()
-
-    def install_signal_handlers(self) -> None:
-        self.loop.add_signal_handler(signal.SIGINT, self._on_sigint)
-        self.loop.add_signal_handler(signal.SIGTERM, self._on_sigterm)
-        self.loop.add_signal_handler(signal.SIGUSR1, self._on_sigusr1)
-
-    def _on_sigint(self) -> None:
-        self.carp('-INT- -INT- -INT- -INT- -INT- -INT-')
-        asyncio.ensure_future(self._stop_on_signal(), loop=self.loop)
-
-    def _on_sigterm(self) -> None:
-        asyncio.ensure_future(self._stop_on_signal(), loop=self.loop)
-
-    def _on_sigusr1(self) -> None:
-        self.add_future(self._cry())
-
-    async def _cry(self) -> None:
-        cry(file=self.stderr)
-
-    async def _stop_on_signal(self) -> None:
-        self.log.info('Stopping on signal received...')
-        await self.stop()
-
-    def execute_from_commandline(self) -> None:
-        try:
-            with suppress(asyncio.CancelledError):
-                self.loop.run_until_complete(self.start())
-        finally:
-            self.stop_and_shutdown()
-
-    def stop_and_shutdown(self) -> None:
-        if not self._stopped.is_set():
-            self.loop.run_until_complete(self.stop())
-        self._shutdown_loop()
-
-    def _shutdown_loop(self) -> None:
-        # Gather futures created by us.
-        self.log.info('Gathering service tasks...')
-        with suppress(asyncio.CancelledError):
-            self.loop.run_until_complete(self._gather_futures())
-        # Gather absolutely all asyncio futures.
-        self.log.info('Gathering all futures...')
-        self._gather_all()
-        try:
-            # Wait until loop is fully stopped.
-            while self.loop.is_running():
-                self.log.info('Waiting for event loop to shutdown...')
-                self.loop.stop()
-                self.loop.run_until_complete(asyncio.sleep(1.0))
-        except Exception as exc:
-            self.log.exception('Got exception while waiting: %r', exc)
-        finally:
-            # Then close the loop.
-            fut = asyncio.ensure_future(self._sentinel_task(), loop=self.loop)
-            self.loop.run_until_complete(fut)
-            self.loop.stop()
-            self.log.info('Closing event loop')
-            self.loop.close()
-            if self._crash_reason:
-                self.log.crit(
-                    'We experienced a crash! Reraising original exception...')
-                raise self._crash_reason from self._crash_reason
-
-    async def _sentinel_task(self) -> None:
-        await asyncio.sleep(1.0, loop=self.loop)
-
-    def _gather_all(self) -> None:
-        # sleeps for at most 40 * 0.1s
-        for _ in range(40):
-            if not len(asyncio.Task.all_tasks(loop=self.loop)):
-                break
-            self.loop.run_until_complete(asyncio.sleep(0.1))
-        for task in asyncio.Task.all_tasks(loop=self.loop):
-            task.cancel()
-
-    async def start(self) -> None:
-        await super().start()
-        await self.wait_until_stopped()
-
-    def _monitor(self) -> Any:
-        if self.debug:
-            with suppress(ImportError):
-                import aiomonitor
-                return aiomonitor.start_monitor(loop=self.loop)
-        return DummyContext()
-
-    def _repr_info(self) -> str:
-        return _repr(self.services)
-
-    @cached_property
-    def _blockdetect(self) -> BlockingDetector:
-        from . import debug
-        return debug.BlockingDetector(
-            self.blocking_timeout,
-            beacon=self.beacon,
-            loop=self.loop,
-        )
 
 
 __flake8_Set_is_used: Set  # XXX flake8 bug

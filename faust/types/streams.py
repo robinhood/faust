@@ -10,8 +10,8 @@ from .channels import ChannelT, EventT
 from .core import K
 from .models import FieldDescriptorT, ModelArg
 from .topics import TopicT
+from ..utils.services import ServiceT
 from ..utils.times import Seconds
-from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

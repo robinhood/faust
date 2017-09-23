@@ -55,7 +55,8 @@ from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger, level_name
 from .utils.objects import cached_property
-from .utils.services import ServiceT, ServiceWorker
+from .utils.services import ServiceT
+from .utils.services.worker import ServiceWorker
 from .web.site import Website as _Website
 
 try:

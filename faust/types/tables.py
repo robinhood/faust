@@ -13,8 +13,8 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
+from ..utils.services import ServiceT
 from ..utils.times import Seconds
-from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

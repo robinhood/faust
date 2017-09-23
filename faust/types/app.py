@@ -27,9 +27,9 @@ from .windows import WindowT
 
 from ..utils.futures import FlowControlEvent
 from ..utils.imports import SymbolArg
+from ..utils.services import ServiceT
 from ..utils.times import Seconds
 from ..utils.types.collections import NodeT
-from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from ..bin.base import AppCommand

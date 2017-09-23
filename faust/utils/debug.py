@@ -41,17 +41,17 @@ class BlockingDetector(Service):
     Keyword Arguments:
         timeout (Seconds): number of seconds that the event loop can
             be blocked.
-        raises (Type[Exception]): Exception to raise when the blocking
+        raises (Type[BaseException]): Exception to raise when the blocking
             timeout is exceeded.  Defaults to :exc:`Blocking`.
     """
     logger = logger
 
     def __init__(self,
                  timeout: Seconds,
-                 raises: Type[Exception] = Blocking,
+                 raises: Type[BaseException] = Blocking,
                  **kwargs: Any) -> None:
         self.timeout: float = want_seconds(timeout)
-        self.raises: Type[Exception] = raises
+        self.raises: Type[BaseException] = raises
         super().__init__(**kwargs)
 
     @Service.task

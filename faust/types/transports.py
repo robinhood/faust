@@ -7,8 +7,8 @@ from typing import (
 )
 from yarl import URL
 from .tuples import Message, RecordMetadata, TopicPartition
+from ..utils.services import ServiceT
 from ..utils.times import Seconds
-from ..utils.types.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

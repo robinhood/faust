@@ -139,7 +139,6 @@ Utils
     faust.utils.times
     faust.utils.types.collections
     faust.utils.types.graphs
-    faust.utils.types.services
 
 Web
 ===

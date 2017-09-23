@@ -56,7 +56,8 @@ from .utils.futures import FlowControlEvent, FlowControlQueue, stampede
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger
 from .utils.objects import Unordered, cached_property
-from .utils.services import Service, ServiceProxy, ServiceT
+from .utils.services import Service, ServiceT
+from .utils.services.proxy import ServiceProxy
 from .utils.times import Seconds, want_seconds
 from .utils.types.collections import NodeT
 from .web.views import Site, View

@@ -12,7 +12,8 @@ from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.logging import get_logger
 from ..utils.objects import KeywordReduce, cached_property, label
-from ..utils.services import Service, ServiceProxy, ServiceT
+from ..utils.services import Service, ServiceT
+from ..utils.services.proxy import ServiceProxy
 
 __all__ = [
     'TableState',

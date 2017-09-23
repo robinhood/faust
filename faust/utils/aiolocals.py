@@ -75,9 +75,9 @@ class Context:
         return self
 
     def __exit__(self,
-                 exc_type: Type[Exception],
-                 exc_val: Exception,
-                 exc_tb: TracebackType) -> None:
+                 exc_type: Type[BaseException] = None,
+                 exc_val: BaseException = None,
+                 exc_tb: TracebackType = None) -> None:
         self.cleanup()
 
     def __repr__(self) -> str:

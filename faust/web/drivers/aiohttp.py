@@ -3,7 +3,8 @@ from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
 from faust.utils.logging import get_logger
-from faust.utils.services import Service, ServiceThread
+from faust.utils.services import Service
+from faust.utils.services.threads import ServiceThread
 from .. import base
 from ...types import AppT
 

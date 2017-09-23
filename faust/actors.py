@@ -5,13 +5,12 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable,
     Callable, Iterable, List, MutableMapping,
-    MutableSequence, Optional, Set, Tuple, Type, Union, cast,
+    MutableSequence, Set, Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 from weakref import WeakSet
 
 from . import Record
-from .exceptions import MaxRestartsExceeded
 from .types import (
     AppT, ChannelT, CodecArg, K, MessageSentCallback, ModelT,
     RecordMetadata, StreamT, TopicT, V,
@@ -22,11 +21,18 @@ from .types.actors import (
 )
 from .utils.aiter import aenumerate, aiter
 from .utils.collections import NodeT
-from .utils.futures import maybe_async, notify
+from .utils.futures import maybe_async
 from .utils.logging import get_logger
 from .utils.objects import cached_property, canoname, qualname
-from .utils.services import Service, ServiceProxy
-from .utils.times import Bucket, rate_limit
+from .utils.services import (
+    OneForOneSupervisor, Service, ServiceT, SupervisorStrategyT,
+)
+from .utils.services.proxy import ServiceProxy
+
+if typing.TYPE_CHECKING:
+    from .app import App
+else:
+    class App: ...   # noqa
 
 __all__ = [
     'ReqRepRequest',
@@ -267,7 +273,6 @@ class ActorInstance(ActorInstanceT, Service):
         self.it = it
         self.index = index
         self.actor_task = None
-        self.dead = False
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
@@ -312,54 +317,28 @@ class ActorService(Service):
 
     actor: ActorT
     instances: MutableSequence[ActorRefT]
-
-    _wakeup_supervisor: Optional[asyncio.Future] = None
+    supervisor: SupervisorStrategyT = None
 
     def __init__(self, actor: ActorT, **kwargs: Any) -> None:
         self.actor = actor
-        self.instances = []
-        self.buckets: List[Bucket] = []
+        self.supervisor = None
         super().__init__(**kwargs)
 
-    def wakeup_supervisor(self) -> None:
-        notify(self._wakeup_supervisor)
-
     async def _start_one(self, index: int = None) -> ActorInstanceT:
-        res = await cast(Actor, self.actor)._start_task(index, self.beacon)
-        await res.start()
-        return res
+        return await cast(Actor, self.actor)._start_task(index, self.beacon)
 
-    @Service.task
-    async def _supervisor(self) -> None:
-        concurrency = self.actor.concurrency
-        instances = self.instances
+    async def on_start(self) -> None:
+        self.supervisor = OneForOneSupervisor(
+            max_restarts=100.0, over=1.0,
+            replacement=self._replace_actor,
+            loop=self.loop, beacon=self.beacon)
+        for i in range(self.actor.concurrency):
+            res = await self._start_one(i)
+            self.supervisor.add(res)
+        await self.supervisor.start()
 
-        # Create an empty list of instances
-        instances[:] = [None] * concurrency
-
-        buckets = [
-            rate_limit(1, 0.1, raises=MaxRestartsExceeded)
-            for _ in range(concurrency)
-        ]
-
-        while not self.should_stop:
-            self._wakeup_supervisor = asyncio.Future(loop=self.loop)
-            try:
-                await asyncio.wait_for(self._wakeup_supervisor, timeout=5.0)
-            except asyncio.TimeoutError:
-                pass
-            finally:
-                self._wakeup_supervisor = None
-            # Fill in any missing instances.
-            for i in range(concurrency):
-                if instances[i] is None:
-                    instances[i] = await self._start_one(i)
-                elif instances[i].dead:
-                    self.log.info('Replacing dead actor %r', instances[i])
-                    async with buckets[i]:
-                        instances[i] = await self._start_one(i)
-                else:
-                    pass
+    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
+        return await self._start_one(index)
 
     async def on_stop(self) -> None:
         # Actors iterate over infinite streams, and we cannot wait for it
@@ -367,9 +346,8 @@ class ActorService(Service):
         # Instead we cancel it and this forces the stream to ack the
         # last message processed (but not the message causing the error
         # to be raised).
-        for instance in self.instances:
-            if instance:
-                await instance.stop()
+        if self.supervisor:
+            await self.supervisor.stop()
 
     @property
     def label(self) -> str:
@@ -481,8 +459,9 @@ class Actor(ActorT, ServiceProxy):
 
             # Mark ActorRef as dead, so that supervisor thread
             # can start a new one.
-            aref.dead = True
-            self._service.wakeup_supervisor()
+            assert aref.supervisor is not None
+            await aref.crash(exc)
+            self._service.supervisor.wakeup()
 
             raise
 
@@ -541,8 +520,9 @@ class Actor(ActorT, ServiceProxy):
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
         )
-        await self.app._reply_consumer.add(p.correlation_id, p)  # type: ignore
-        await self.app.maybe_start_client()
+        app = cast(App, self.app)
+        await app._reply_consumer.add(p.correlation_id, p)
+        await app.maybe_start_client()
         return await p
 
     async def ask_nowait(
@@ -706,9 +686,9 @@ class Actor(ActorT, ServiceProxy):
 
             # the ReplyConsumer will call the barrier whenever a new
             # result comes in.
-            await self.app.maybe_start_client()
-            await self.app._reply_consumer.add(  # type: ignore
-                p.correlation_id, barrier)
+            app = cast(App, self.app)
+            await app.maybe_start_client()
+            await app._reply_consumer.add(p.correlation_id, barrier)
 
             yield correlation_id
 
