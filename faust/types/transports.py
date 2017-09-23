@@ -127,7 +127,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_task_error(self, exc: Exception) -> None:
+    async def on_task_error(self, exc: BaseException) -> None:
         ...
 
 

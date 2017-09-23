@@ -175,7 +175,7 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def throw(self, exc: Exception) -> None:
+    async def throw(self, exc: BaseException) -> None:
         ...
 
 

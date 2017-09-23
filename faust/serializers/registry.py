@@ -53,6 +53,8 @@ class Registry(RegistryT):
                     elif not isinstance(k, ModelT):
                         k = typ(k)
             return cast(K, k)
+        except MemoryError:
+            raise
         except Exception as exc:
             raise KeyDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from exc
@@ -105,6 +107,8 @@ class Registry(RegistryT):
                     elif not isinstance(v, ModelT):
                         return typ(v)
                 return v
+        except MemoryError:
+            raise
         except Exception as exc:
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from exc

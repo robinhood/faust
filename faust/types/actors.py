@@ -30,7 +30,7 @@ __all__ = [
 ]
 
 _T = TypeVar('_T')
-ActorErrorHandler = Callable[['ActorT', Exception], Awaitable]
+ActorErrorHandler = Callable[['ActorT', BaseException], Awaitable]
 ActorFun = Callable[
     [Union[AsyncIterator, StreamT]],
     Union[Awaitable, AsyncIterable],

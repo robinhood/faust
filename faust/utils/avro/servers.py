@@ -116,6 +116,8 @@ class RegistryClient:
     def _parse_schema(self, payload: str) -> Schema:
         try:
             return Parse(payload)
+        except MemoryError:
+            raise
         except Exception as exc:
             raise ClientError(f'Received bad schema from registry: {exc}')
 

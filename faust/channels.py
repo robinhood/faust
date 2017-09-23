@@ -415,7 +415,7 @@ class Channel(ChannelT):
         # asyncio.wait returned before any completed: shouldn't happen
         raise RuntimeError('Unexpected asyncio.wait coroutine state')
 
-    async def throw(self, exc: Exception) -> None:
+    async def throw(self, exc: BaseException) -> None:
         await self.errors.put(exc)
 
     def __repr__(self) -> str:

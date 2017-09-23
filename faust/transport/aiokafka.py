@@ -63,7 +63,7 @@ class Consumer(base.Consumer):
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
-    consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = (
+    consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = (
         ConsumerStoppedError,
     )
 

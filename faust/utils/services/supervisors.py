@@ -100,6 +100,8 @@ class SupervisorStrategy(Service, SupervisorStrategyT):
             if service.started:
                 try:
                     await service.stop()
+                except MemoryError:
+                    raise
                 except Exception as exc:
                     self.log.exception(
                         'Cannot stop service %r: %r', service, exc)

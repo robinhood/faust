@@ -79,7 +79,7 @@ class Consumer(Service, ConsumerT):
 
     RebalanceListener: ClassVar[Type]
 
-    consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = None
+    consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = None
 
     #: This counter generates new consumer ids.
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
@@ -335,7 +335,7 @@ class Consumer(Service, ConsumerT):
             self, tp: TopicPartition, offset: int, meta: str) -> None:
         await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
-    async def on_task_error(self, exc: Exception) -> None:
+    async def on_task_error(self, exc: BaseException) -> None:
         await self.commit()
 
     async def _drain_messages(self, fetcher: ServiceT) -> None:

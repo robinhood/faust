@@ -484,7 +484,7 @@ class App(AppT, ServiceProxy):
         return _inner
 
     async def _on_actor_error(
-            self, actor: ActorT, exc: Exception) -> None:
+            self, actor: ActorT, exc: BaseException) -> None:
         # XXX If an actor raises in the middle of processing an event
         # what do we do with acking it?  Currently the source message will be
         # acked and not processed again, simply because it violates
@@ -508,6 +508,8 @@ class App(AppT, ServiceProxy):
         if self._consumer:
             try:
                 await self._consumer.on_task_error(exc)
+            except MemoryError:
+                raise
             except Exception as exc:
                 self.log.exception('Consumer error callback raised: %r', exc)
 
