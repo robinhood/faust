@@ -1,7 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 from typing import Awaitable, Optional, cast
 import confluent_kafka
-from trish import Service, get_logger
+from trish import Service
 from . import base
 from ..types import Message
 from ..utils.futures import done_future
@@ -9,11 +9,8 @@ from ..utils.objects import cached_property
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
-logger = get_logger(__name__)
-
 
 class Consumer(base.Consumer):
-    logger = logger
     _consumer: confluent_kafka.Consumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = False
@@ -65,7 +62,6 @@ class Consumer(base.Consumer):
 
 
 class Producer(base.Producer):
-    logger = logger
     _producer: confluent_kafka.Producer
 
     def on_init(self) -> None:
@@ -97,7 +93,6 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
-    logger = logger
     Consumer = Consumer
     Producer = Producer
 

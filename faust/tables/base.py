@@ -7,7 +7,7 @@ from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Optional, Union, cast,
 )
-from trish import Seconds, Service, get_logger
+from trish import Seconds, Service
 from yarl import URL
 from .. import stores
 from ..channels import Event
@@ -25,13 +25,10 @@ from ..types.windows import WindowRange, WindowT
 
 __all__ = ['Collection']
 
-logger = get_logger(__name__)
-
 TABLE_CLEANING = 'CLEANING'
 
 
 class Collection(Service, CollectionT):
-    logger = logger
 
     _store: URL
     _changelog_topic: TopicT

@@ -11,7 +11,7 @@ from typing import (
 )
 from weakref import WeakSet
 
-from trish import Service, ServiceT, get_logger
+from trish import Service, ServiceT
 from trish.utils.futures import notify
 from yarl import URL
 
@@ -36,8 +36,6 @@ CONSUMER_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 CONSUMER_COMMITTING = 'COMMITTING'
 CONSUMER_SEEKING = 'SEEKING'
 CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
-
-logger = get_logger(__name__)
 
 
 # The Transport is responsible for:
@@ -74,7 +72,6 @@ logger = get_logger(__name__)
 
 class Consumer(Service, ConsumerT):
     """Base Consumer."""
-    logger = logger
 
     RebalanceListener: ClassVar[Type]
 
@@ -402,7 +399,6 @@ class Fetcher(Service):
 
 class Producer(Service, ProducerT):
     """Base Producer."""
-    logger = logger
 
     def __init__(self, transport: TransportT, **kwargs: Any) -> None:
         self.transport = transport

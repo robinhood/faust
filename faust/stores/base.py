@@ -1,16 +1,13 @@
 import abc
 from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
-from trish import Service, get_logger
+from trish import Service
 from yarl import URL
 from ..serializers.codecs import dumps, loads
 from ..types import AppT, CodecArg, EventT, StoreT, TopicPartition
 
-logger = get_logger(__name__)
-
 
 class Store(StoreT, Service):
-    logger = logger
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,

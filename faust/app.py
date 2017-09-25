@@ -21,7 +21,7 @@ from typing import (
 )
 from uuid import uuid4
 
-from trish import Seconds, Service, ServiceT, get_logger, want_seconds
+from trish import Seconds, Service, ServiceT, want_seconds
 from trish.proxy import ServiceProxy
 from trish.utils.types.trees import NodeT
 from yarl import URL
@@ -118,12 +118,9 @@ APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} actors({actors}) topics({topics})>
 """.strip()
 
-logger = get_logger(__name__)
-
 
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
-    logger = logger
 
     # The App() is created during module import and cannot subclass Service
     # directly as Service.__init__ creates the asyncio event loop, and
@@ -262,7 +259,6 @@ class App(AppT, ServiceProxy):
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """
-    logger = logger
 
     #: Set if app should only start the services required to operate
     #: as an RPC client (producer and reply consumer).

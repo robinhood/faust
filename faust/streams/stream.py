@@ -9,7 +9,7 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
-from trish import Seconds, Service, get_logger, want_seconds
+from trish import Seconds, Service, want_seconds
 from trish.utils.types.trees import NodeT
 
 from . import joins
@@ -33,8 +33,6 @@ __all__ = ['Stream', 'current_event']
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_CoroCallbackT: CoroCallbackT
 __make_flake8_happy_Message: Message
-
-logger = get_logger(__name__)
 
 
 class _StreamLocal(Local):
@@ -69,7 +67,6 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
 
 
 class Stream(StreamT, Service):
-    logger = logger
 
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None

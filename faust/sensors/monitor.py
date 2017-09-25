@@ -7,7 +7,7 @@ from typing import (
     Any, Counter, List, Mapping, MutableMapping, Tuple, cast,
 )
 from weakref import WeakValueDictionary
-from trish import Service, ServiceT, get_logger, label
+from trish import Service, ServiceT, label
 from trish.proxy import ServiceProxy
 from .base import Sensor
 from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
@@ -21,8 +21,6 @@ __all__ = [
     'Monitor',
     'MonitorService',
 ]
-
-logger = get_logger(__name__)
 
 MAX_MESSAGES = 1_000_000
 MAX_AVG_HISTORY = 100
@@ -438,7 +436,6 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
 class MonitorService(Service):
     """Service responsible for starting/stopping a sensor."""
-    logger = logger
 
     # Users may pass custom monitor to app, for example:
     #     app = faust.App(monitor=StatsdMonitor(prefix='word-count'))

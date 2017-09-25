@@ -2,17 +2,14 @@ import json
 import os
 from contextlib import suppress
 from typing import Any, MutableMapping, Optional
-from trish import Service, get_logger
+from trish import Service
 from ..types import AppT, TopicPartition
 from ..types.tables import CheckpointManagerT
 
 __all__ = ['CheckpointManager']
 
-logger = get_logger(__name__)
-
 
 class CheckpointManager(CheckpointManagerT, Service):
-    logger = logger
 
     _offsets: MutableMapping[TopicPartition, int]
 

@@ -1,12 +1,10 @@
 from typing import Any, Callable
-from trish import Service, get_logger
+from trish import Service
 from yarl import URL
 from ..bin._env import WEB_BIND, WEB_PORT
 from ..types import AppT
 
 __all__ = ['Request', 'Response', 'Web']
-
-logger = get_logger(__name__)
 
 _bytes = bytes
 
@@ -16,7 +14,6 @@ class Response:
 
 
 class Web(Service):
-    logger = logger
     app: AppT
 
     bind: str

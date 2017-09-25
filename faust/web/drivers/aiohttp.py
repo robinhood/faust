@@ -2,7 +2,7 @@ import asyncio
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
-from trish import Service, get_logger
+from trish import Service
 from trish.threads import ServiceThread
 from .. import base
 from ...types import AppT
@@ -11,11 +11,8 @@ __all__ = ['Web']
 
 _bytes = bytes
 
-logger = get_logger(__name__)
-
 
 class Web(base.Web):
-    logger = logger
 
     driver_version = f'aiohttp={aiohttp_version}'
 

@@ -49,7 +49,7 @@ from typing import Any, IO, Iterable, Set, Type, Union
 
 from progress.spinner import Spinner
 from trish import ServiceT
-from trish.utils.logging import get_logger, level_name
+from trish.utils.logging import level_name
 from trish.worker import ServiceWorker
 
 from . import __version__ as faust_version
@@ -110,8 +110,6 @@ F_BANNER = """
 F_IDENT = """
 ƒaµS† v{faust_v} {system} ({transport_v} {http_v} {py}={py_v})
 """.strip()
-
-logger = get_logger(__name__)
 
 
 class SpinnerHandler(logging.Handler):
@@ -187,8 +185,6 @@ class Worker(ServiceWorker):
            (defaults to the current host name).
         loop (asyncio.AbstractEventLoop): Custom event loop object.
     """
-    logger = logger
-
     #: Format string for the banner itself.
     f_banner = F_BANNER
 

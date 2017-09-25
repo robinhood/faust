@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
 )
-from trish import PoisonpillSupervisor, Service, get_logger
+from trish import PoisonpillSupervisor, Service
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
@@ -30,11 +30,8 @@ TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
 TABLEMAN_RECOVER = 'RECOVER'
 TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
-logger = get_logger(__name__)
-
 
 class ChangelogReader(Service, ChangelogReaderT):
-    logger = logger
     wait_for_shutdown = True
     shutdown_timeout = None
 
@@ -157,7 +154,6 @@ class ChangelogReader(Service, ChangelogReaderT):
 
 
 class StandbyReader(ChangelogReader):
-    logger = logger
 
     async def on_stop(self) -> None:
         await self.channel.throw(StopAsyncIteration())
@@ -170,7 +166,6 @@ class StandbyReader(ChangelogReader):
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
-    logger = logger
 
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]

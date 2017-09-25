@@ -10,7 +10,7 @@ from typing import (
 from uuid import uuid4
 from weakref import WeakSet
 
-from trish import OneForOneSupervisor, Service, get_logger
+from trish import OneForOneSupervisor, Service
 from trish.proxy import ServiceProxy
 from trish.types import ServiceT, SupervisorStrategyT
 from trish.utils.trees import NodeT
@@ -44,8 +44,6 @@ __all__ = [
     'ActorService',
     'Actor',
 ]
-
-logger = get_logger(__name__)
 
 # --- What is an actor?
 #
@@ -259,7 +257,6 @@ class ReplyConsumer(Service):
 
 
 class ActorInstance(ActorInstanceT, Service):
-    logger = logger
 
     def __init__(self,
                  agent: ActorT,
@@ -312,7 +309,6 @@ class ActorService(Service):
     # creates the asyncio loop when created, so we separate the
     # actor service in such a way that we can start it lazily.
     # Actor(ServiceProxy) -> ActorService
-    logger = logger
 
     actor: ActorT
     instances: MutableSequence[ActorRefT]
@@ -359,8 +355,6 @@ class ActorService(Service):
 
 class Actor(ActorT, ServiceProxy):
     _sinks: List[SinkT]
-
-    logger = logger
 
     def __init__(self, fun: ActorFun,
                  *,

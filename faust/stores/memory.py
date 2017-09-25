@@ -1,14 +1,10 @@
 from typing import Any, Callable, Iterable, Optional
-from trish import get_logger
 from . import base
 from ..types import EventT, TopicPartition
 from ..utils.collections import FastUserDict
 
-logger = get_logger(__name__)
-
 
 class Store(base.Store, FastUserDict):
-    logger = logger
 
     def on_init(self) -> None:
         self.data = {}
