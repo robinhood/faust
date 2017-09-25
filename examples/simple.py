@@ -19,6 +19,7 @@ import os
 import random
 import sys
 from datetime import datetime
+from itertools import count
 from time import monotonic
 import faust
 
@@ -66,30 +67,27 @@ async def find_large_user_withdrawals(withdrawals):
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
-class produce(faust.AppCommand):
-    """Produce example Withdrawal events."""
-
-    async def run(self) -> None:
-        num_countries = 5
-        countries = [f'country_{i}' for i in range(num_countries)]
-        country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
-        num_users = 500
-        users = [f'user_{i}' for i in range(num_users)]
-        self.say('Done setting up. SENDING!')
-        i = 0
-        while True:
-            i += 1
-            withdrawal = Withdrawal(
-                user=random.choice(users),
-                amount=random.uniform(0, 25_000),
-                country=random.choices(countries, country_dist)[0],
-                date=datetime.utcnow(),
-            )
-            await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
-            if not i % 10000:
-                self.say(f'+SEND {i}')
-            if PRODUCE_LATENCY:
-                await asyncio.sleep(random.uniform(0, PRODUCE_LATENCY))
+@app.command()
+async def produce(self):
+    'Produce example Withdrawal events.'
+    num_countries = 5
+    countries = [f'country_{i}' for i in range(num_countries)]
+    country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
+    num_users = 500
+    users = [f'user_{i}' for i in range(num_users)]
+    self.say('Done setting up. SENDING!')
+    for i in count():
+        withdrawal = Withdrawal(
+            user=random.choice(users),
+            amount=random.uniform(0, 25_000),
+            country=random.choices(countries, country_dist)[0],
+            date=datetime.utcnow(),
+        )
+        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
+        if not i % 10000:
+            self.say(f'+SEND {i}')
+        if PRODUCE_LATENCY:
+            await asyncio.sleep(random.uniform(0, PRODUCE_LATENCY))
 
 
 if __name__ == '__main__':

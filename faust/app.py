@@ -681,6 +681,8 @@ class App(AppT, ServiceProxy):
                 *options: Any,
                 base: Type[AppCommand] = None,
                 **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
+        if options is None and base is None and kwargs is None:
+            raise TypeError('Use parens in @app.command(), not @app.command.')
         if base is None:
             from .bin import base as bin_base
             base = bin_base.AppCommand
