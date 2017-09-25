@@ -20,6 +20,8 @@ README ?= README.rst
 README_SRC ?= "docs/templates/readme.txt"
 CONTRIBUTING ?= CONTRIBUTING.rst
 CONTRIBUTING_SRC ?= "docs/contributing.rst"
+COC ?= CODE_OF_CONDUCT.rst
+COC_SRC ?= "docs/includes/code-of-conduct.txt"
 SPHINX_HTMLDIR ?= "${SPHINX_BUILDDIR}/html"
 DOCUMENTATION ?= Documentation
 
@@ -41,6 +43,7 @@ help:
 	@echo "      pep257check    - Run pep257 on the source code."
 	@echo "readme               - Regenerate README.rst file."
 	@echo "contrib              - Regenerate CONTRIBUTING.rst file"
+	@echo "coc                  - Regenerate CODE_OF_CONDUCT.rst file"
 	@echo "clean-dist --------- - Clean all distribution build artifacts."
 	@echo "  clean-git-force    - Remove all uncomitted files."
 	@echo "  clean ------------ - Non-destructive clean"
@@ -124,6 +127,14 @@ $(CONTRIBUTING):
 	$(SPHINX2RST) "$(CONTRIBUTING_SRC)" > $@
 
 contrib: clean-contrib $(CONTRIBUTING)
+
+clean-coc:
+	-rm -f "$(COC)"
+
+$(COC):
+	$(SPHINX2RST) "$(COC_SRC)" > $@
+
+coc: clean-coc $(COC)
 
 clean-pyc:
 	-find . -type f -a \( -name "*.pyc" -o -name "*$$py.class" \) | xargs rm
