@@ -152,12 +152,14 @@ developer trying to fix the bug might ask.
 
 .. _issue-trackers:
 
-Issue Tracker
--------------
+Issue Trackers
+--------------
 
-Our issue tracker is hosted at Github:
+Bugs for a package in the Faust ecosystem should be reported to the relevant
+issue tracker.
 
-https://github.com/robinhoodmarkets/faust/issues
+* :pypi:`faust` - https://github.com/faustorg/faust/issues
+* :pypi:`trish` - https://github.com/faustorg/trish/issues
 
 If you're unsure of the origin of the bug you can ask the
 :ref:`mailing-list`, or just use the Faust issue tracker.
@@ -761,6 +763,15 @@ Packages
 :Windows-CI: https://ci.appveyor.com/project/ask/faust
 :PyPI: :pypi:`faust`
 :docs: http://faust.readthedocs.io/
+
+``trish``
+---------
+
+:git: https://github.com/faustorg/trish
+:CI: http://travis-ci.org/#!/faustorg/trish
+:Windows-CI: https://ci.appveyor.com/project/ask/trish
+:PyPI: :pypi:`trish`
+:docs: http://trish.readthedocs.io/
 
 .. _release-procedure:
 

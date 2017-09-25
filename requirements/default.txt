@@ -6,3 +6,4 @@ jinja2
 progress
 tabulate
 yarl
+trish>=1.0,<2.0

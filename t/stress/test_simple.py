@@ -1,6 +1,6 @@
 from typing import Mapping
 import pytest
-from trish.utils.logging import setup_logging
+from trish import setup_logging
 from .app import simple
 
 
