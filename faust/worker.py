@@ -48,15 +48,15 @@ from pathlib import Path
 from typing import Any, IO, Iterable, Set, Type, Union
 
 from progress.spinner import Spinner
+from trish import ServiceT
+from trish.utils.logging import get_logger, level_name
+from trish.worker import ServiceWorker
 
 from . import __version__ as faust_version
 from .bin._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
-from .utils.logging import get_logger, level_name
 from .utils.objects import cached_property
-from .utils.services import ServiceT
-from .utils.services.worker import ServiceWorker
 from .web.site import Website as _Website
 
 try:

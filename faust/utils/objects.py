@@ -1,7 +1,7 @@
 """Object utilities."""
 import sys
 from contextlib import suppress
-from functools import singledispatch, total_ordering
+from functools import total_ordering
 from pathlib import Path
 from typing import (
     AbstractSet, Any, Callable, Dict, FrozenSet, Generic,
@@ -16,8 +16,6 @@ __all__ = [
     'KeywordReduce',
     'qualname',
     'canoname',
-    'label',
-    'shortlabel',
     'annotations',
     'iter_mro_reversed',
     'guess_concrete_type',
@@ -107,38 +105,6 @@ def _detect_main_name() -> str:
         else:
             break
     return '.'.join(seen + [path.stem])
-
-
-@singledispatch
-def label(s: Any) -> str:
-    return str(
-        getattr(s, 'label', None) or
-        getattr(s, 'name', None) or
-        getattr(s, '__qualname__', None) or
-        getattr(s, '__name__', None) or
-        getattr(type(s), '__qualname__', None) or
-        type(s).__name__)
-
-
-@label.register(str)
-def _(s: str) -> str:
-    return s
-
-
-@singledispatch
-def shortlabel(s: Any) -> str:
-    return str(
-        getattr(s, 'shortlabel', None) or
-        getattr(s, 'name', None) or
-        getattr(s, '__qualname__', None) or
-        getattr(s, '__name__', None) or
-        getattr(type(s), '__qualname__', None) or
-        type(s).__name__)
-
-
-@shortlabel.register(str)  # noqa
-def _s(s: str) -> str:
-    return s
 
 
 def annotations(cls: Type,

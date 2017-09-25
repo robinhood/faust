@@ -10,6 +10,11 @@ from typing import (
 from uuid import uuid4
 from weakref import WeakSet
 
+from trish import OneForOneSupervisor, Service, get_logger
+from trish.proxy import ServiceProxy
+from trish.types import ServiceT, SupervisorStrategyT
+from trish.utils.trees import NodeT
+
 from . import Record
 from .types import (
     AppT, ChannelT, CodecArg, K, MessageSentCallback, ModelT,
@@ -20,14 +25,8 @@ from .types.actors import (
     AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
 )
 from .utils.aiter import aenumerate, aiter
-from .utils.collections import NodeT
 from .utils.futures import maybe_async
-from .utils.logging import get_logger
 from .utils.objects import cached_property, canoname, qualname
-from .utils.services import (
-    OneForOneSupervisor, Service, ServiceT, SupervisorStrategyT,
-)
-from .utils.services.proxy import ServiceProxy
 
 if typing.TYPE_CHECKING:
     from .app import App

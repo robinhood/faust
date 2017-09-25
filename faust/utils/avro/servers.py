@@ -7,9 +7,9 @@ from typing import (
 )
 from aiohttp import ClientSession
 from avro.schema import Parse, Schema
+from trish import get_logger
 from yarl import URL
 from .. import json
-from ..logging import get_logger
 
 __all__ = ['ClientError', 'RegistryClient']
 

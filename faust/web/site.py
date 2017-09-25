@@ -1,4 +1,5 @@
 from typing import Any, Sequence, Tuple, Type, Union
+from trish import Service
 from .apps import graph
 from .apps import router
 from .apps import stats
@@ -6,7 +7,6 @@ from .base import Web
 from .views import Site
 from ..types import AppT
 from ..utils.imports import symbol_by_name
-from ..utils.services import Service
 
 __all__ = ['Website']
 

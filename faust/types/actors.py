@@ -5,12 +5,12 @@ from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
     Generic, Iterable, List, Tuple, TypeVar, Union, no_type_check,
 )
+from trish import ServiceT
 from .codecs import CodecArg
 from .core import K, V
 from .streams import StreamT
 from .topics import ChannelT
 from .tuples import RecordMetadata
-from ..utils.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

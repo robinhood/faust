@@ -1,8 +1,8 @@
 import abc
 import typing
 from typing import Iterable, List, MutableMapping
+from trish import ServiceT
 from .topics import TopicPartition
-from ..utils.services import ServiceT
 
 
 TopicPartitionsMap = MutableMapping[str, List[int]]

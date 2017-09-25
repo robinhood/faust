@@ -4,7 +4,7 @@ from typing import (
     Any, AsyncIterator, Awaitable, Callable,
     Coroutine, Generator, Iterable, Union,
 )
-from faust.utils.services import ServiceT
+from trish import ServiceT
 
 __all__ = [
     'InputStreamT',

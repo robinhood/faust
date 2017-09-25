@@ -11,6 +11,8 @@ from typing import (
 )
 from weakref import WeakSet
 
+from trish import Service, ServiceT, get_logger
+from trish.utils.futures import notify
 from yarl import URL
 
 from ..types import AppT, Message, RecordMetadata, TopicPartition
@@ -20,9 +22,6 @@ from ..types.transports import (
     ProducerT, TPorTopicSet, TransportT,
 )
 from ..utils.functional import consecutive_numbers
-from ..utils.futures import notify
-from ..utils.logging import get_logger
-from ..utils.services import Service, ServiceT
 
 if typing.TYPE_CHECKING:
     from ..app import App

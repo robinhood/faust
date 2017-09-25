@@ -1,12 +1,12 @@
 import typing
 from time import monotonic
 from typing import Any, cast
+from trish import get_logger, label
 from .monitor import Monitor
 from ..exceptions import ImproperlyConfigured
 from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.logging import get_logger
-from ..utils.objects import cached_property, label
+from ..utils.objects import cached_property
 
 try:
     import statsd

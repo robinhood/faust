@@ -5,10 +5,9 @@ from typing import (
     AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar,
     Iterable, Mapping, Optional, Set, Tuple, Type, Union, no_type_check,
 )
+from trish import ServiceT, Seconds
 from yarl import URL
 from .tuples import Message, RecordMetadata, TopicPartition
-from ..utils.services import ServiceT
-from ..utils.times import Seconds
 
 if typing.TYPE_CHECKING:
     from .app import AppT

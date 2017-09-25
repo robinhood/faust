@@ -1,4 +1,5 @@
 """Abstract types for static typing."""
+from trish import ServiceT
 from .app import AppT
 from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
@@ -27,9 +28,11 @@ from .tuples import (
     RecordMetadata, TopicPartition,
 )
 from .windows import WindowRange, WindowT
-from ..utils.services import ServiceT
 
 __all__ = [
+    # :pypi:`trish`
+    'ServiceT',
+
     # types.app
     'AppT',
 
@@ -50,9 +53,6 @@ __all__ = [
 
     # types.serializers
     'RegistryT',
-
-    # utils.services
-    'ServiceT',
 
     # types.stores
     'StoreT',

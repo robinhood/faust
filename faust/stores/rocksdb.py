@@ -3,10 +3,10 @@ import shutil
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
+from trish import get_logger
 from yarl import URL
 from . import base
 from ..types import AppT, EventT, TopicPartition
-from ..utils.logging import get_logger
 
 try:
     import rocksdb

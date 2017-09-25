@@ -15,16 +15,14 @@ from kafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
+from trish import Service, Seconds, get_logger, want_seconds
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
-from ..utils.logging import get_logger
 from ..utils.objects import cached_property
-from ..utils.services import Service
-from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 

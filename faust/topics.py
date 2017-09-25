@@ -7,6 +7,8 @@ from typing import (
     Any, Awaitable, Callable, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
 )
+from trish import Seconds, Service, get_logger
+from trish.utils.futures import notify
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
@@ -15,10 +17,7 @@ from .types import (
 )
 from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
-from .utils.futures import notify, stampede
-from .utils.logging import get_logger
-from .utils.services import Service
-from .utils.times import Seconds
+from .utils.futures import stampede
 
 if typing.TYPE_CHECKING:
     from .app import App

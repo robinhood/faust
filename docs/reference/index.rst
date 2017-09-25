@@ -127,18 +127,10 @@ Utils
     faust.utils.avro.servers
     faust.utils.collections
     faust.utils.compat
-    faust.utils.debug
     faust.utils.functional
     faust.utils.futures
-    faust.utils.graphs
     faust.utils.imports
     faust.utils.json
-    faust.utils.logging
-    faust.utils.objects
-    faust.utils.services
-    faust.utils.times
-    faust.utils.types.collections
-    faust.utils.types.graphs
 
 Web
 ===

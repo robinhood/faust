@@ -1,9 +1,8 @@
 from typing import Any, Callable
+from trish import Service, get_logger
 from yarl import URL
 from ..bin._env import WEB_BIND, WEB_PORT
 from ..types import AppT
-from ..utils.logging import get_logger
-from ..utils.services import Service
 
 __all__ = ['Request', 'Response', 'Web']
 

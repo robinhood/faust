@@ -21,6 +21,9 @@ from typing import (
 )
 from uuid import uuid4
 
+from trish import Seconds, Service, ServiceT, get_logger, want_seconds
+from trish.proxy import ServiceProxy
+from trish.utils.types.trees import NodeT
 from yarl import URL
 
 from . import __version__ as faust_version
@@ -54,12 +57,7 @@ from .utils.aiter import aiter
 from .utils.compat import OrderedDict
 from .utils.futures import FlowControlEvent, FlowControlQueue, stampede
 from .utils.imports import SymbolArg, symbol_by_name
-from .utils.logging import get_logger
 from .utils.objects import Unordered, cached_property
-from .utils.services import Service, ServiceT
-from .utils.services.proxy import ServiceProxy
-from .utils.times import Seconds, want_seconds
-from .utils.types.collections import NodeT
 from .web.views import Site, View
 
 if typing.TYPE_CHECKING:

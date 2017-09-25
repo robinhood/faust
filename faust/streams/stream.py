@@ -9,6 +9,9 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
+from trish import Seconds, Service, get_logger, want_seconds
+from trish.utils.types.trees import NodeT
+
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
 
@@ -24,10 +27,6 @@ from ..types.topics import ChannelT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import StampedeWrapper, maybe_async
-from ..utils.logging import get_logger
-from ..utils.services import Service
-from ..utils.times import Seconds, want_seconds
-from ..utils.types.collections import NodeT
 
 __all__ = ['Stream', 'current_event']
 

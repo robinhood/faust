@@ -7,6 +7,7 @@ from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Optional, Union, cast,
 )
+from trish import Seconds, Service, get_logger
 from yarl import URL
 from .. import stores
 from ..channels import Event
@@ -21,9 +22,6 @@ from ..types.stores import StoreT
 from ..types.streams import JoinableT, StreamT
 from ..types.tables import CollectionT
 from ..types.windows import WindowRange, WindowT
-from ..utils.logging import get_logger
-from ..utils.services import Service
-from ..utils.times import Seconds
 
 __all__ = ['Collection']
 

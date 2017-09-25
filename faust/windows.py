@@ -1,8 +1,8 @@
 """Windowing strategies."""
 from datetime import datetime
 from typing import List
+from trish import Seconds, want_seconds
 from .types import WindowRange, WindowT
-from .utils.times import Seconds, want_seconds
 
 __all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
 

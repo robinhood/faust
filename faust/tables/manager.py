@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
 )
+from trish import PoisonpillSupervisor, Service, get_logger
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
@@ -13,8 +14,6 @@ from ..types.tables import (
 from ..types.topics import ChannelT
 from ..utils.aiter import aenumerate, aiter
 from ..utils.collections import FastUserDict
-from ..utils.logging import get_logger
-from ..utils.services import Service
 
 __all__ = [
     'ChangelogReader',
@@ -299,7 +298,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._create_recoverer(table, tps)
             for table in self.values()
         ]
-        await self.join_services(table_recoverers)
+        supervisor = PoisonpillSupervisor(*table_recoverers,
+                                          loop=self.loop, beacon=self.beacon)
+        await supervisor.start()
         for recoverer in table_recoverers:
             self._sync_offsets(recoverer)
         self.log.info('Done recovering from changelog topics')

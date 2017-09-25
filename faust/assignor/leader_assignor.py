@@ -1,8 +1,8 @@
 from typing import Any
+from trish import Service
 from ..types import AppT, TopicPartition, TopicT
 from ..types.assignor import LeaderAssignorT
 from ..utils.objects import cached_property
-from ..utils.services import Service
 
 
 class LeaderAssignor(Service, LeaderAssignorT):

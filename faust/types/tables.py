@@ -6,6 +6,7 @@ from typing import (
     Any, Callable, ClassVar, Counter, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type, Union,
 )
+from trish import Seconds, ServiceT
 from yarl import URL
 from .channels import EventT
 from .stores import StoreT
@@ -13,8 +14,6 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TopicPartition
 from .windows import WindowT
-from ..utils.services import ServiceT
-from ..utils.times import Seconds
 
 if typing.TYPE_CHECKING:
     from .app import AppT
