@@ -49,8 +49,8 @@ from typing import Any, IO, Iterable, Set, Type, Union
 
 from progress.spinner import Spinner
 from trish import ServiceT
+from trish import worker
 from trish.utils.logging import level_name
-from trish.worker import ServiceWorker
 
 from . import __version__ as faust_version
 from .bin._env import BLOCKING_TIMEOUT, DEBUG
@@ -127,7 +127,7 @@ class SpinnerHandler(logging.Handler):
             self.worker.spinner.next()  # noqa: B305
 
 
-class Worker(ServiceWorker):
+class Worker(worker.Worker):
     """Worker.
 
     Usage:
