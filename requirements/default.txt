@@ -4,5 +4,5 @@ avro-python3
 click
 jinja2
 progress
-tabulate
 yarl
+terminaltables

@@ -478,6 +478,7 @@ class App(AppT, ServiceProxy):
                 concurrency=concurrency,
                 sink=sink,
                 on_error=self._on_actor_error,
+                help=fun.__doc__,
             )
             self.actors[actor.name] = actor
             return actor
@@ -596,6 +597,7 @@ class App(AppT, ServiceProxy):
               default: Callable[[], Any] = None,
               window: WindowT = None,
               partitions: int = None,
+              help: str = None,
               **kwargs: Any) -> TableT:
         """Define new table.
 
@@ -623,6 +625,7 @@ class App(AppT, ServiceProxy):
             default=default,
             beacon=self.beacon,
             partitions=partitions,
+            help=help,
             **kwargs))
         return table.using_window(window) if window else table
 
@@ -630,6 +633,7 @@ class App(AppT, ServiceProxy):
             *,
             window: WindowT = None,
             partitions: int = None,
+            help: str = None,
             **kwargs: Any) -> SetT:
         """Define new Set table.
 
@@ -646,6 +650,7 @@ class App(AppT, ServiceProxy):
             beacon=self.beacon,
             partitions=partitions,
             window=window,
+            help=help,
             **kwargs))
 
     def page(self, path: str,

@@ -370,12 +370,14 @@ class Actor(ActorT, ServiceProxy):
                  channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
-                 on_error: ActorErrorHandler = None) -> None:
+                 on_error: ActorErrorHandler = None,
+                 help: str = None) -> None:
         self.app = app
         self.fun: ActorFun = fun
         self.name = name or canoname(self.fun)
         self.channel = self._prepare_channel(channel)
         self.concurrency = concurrency
+        self.help = help
         self._sinks = list(sink) if sink is not None else []
         self._on_error: ActorErrorHandler = on_error
         ServiceProxy.__init__(self)

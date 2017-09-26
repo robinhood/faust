@@ -184,6 +184,7 @@ class AppT(ServiceT):
               default: Callable[[], Any] = None,
               window: WindowT = None,
               partitions: int = None,
+              help: str = None,
               **kwargs: Any) -> TableT:
         ...
 
@@ -192,6 +193,7 @@ class AppT(ServiceT):
             *,
             window: WindowT = None,
             partitions: int = None,
+            help: str = None,
             **kwargs: Any) -> SetT:
         ...
 

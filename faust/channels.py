@@ -236,6 +236,9 @@ class Channel(ChannelT):
         'Create stream from channel.'
         return self.app.stream(self, coroutine, **kwargs)
 
+    def get_topic_name(self) -> str:
+        raise NotImplementedError('Channels are unnamed topics')
+
     async def send(
             self,
             key: K = None,

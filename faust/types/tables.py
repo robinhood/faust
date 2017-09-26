@@ -65,6 +65,7 @@ class CollectionT(JoinableT, ServiceT):
     value_type: ModelArg
     partitions: int
     window: WindowT = None
+    help: str
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -77,6 +78,7 @@ class CollectionT(JoinableT, ServiceT):
                  partitions: int = None,
                  window: WindowT = None,
                  changelog_topic: TopicT = None,
+                 help: str = None,
                  **kwargs: Any) -> None:
         ...
 

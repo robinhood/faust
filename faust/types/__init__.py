@@ -1,4 +1,5 @@
 """Abstract types for static typing."""
+from .actors import ActorT
 from .app import AppT
 from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
@@ -30,6 +31,9 @@ from .windows import WindowRange, WindowT
 from ..utils.services import ServiceT
 
 __all__ = [
+    # types.actors
+    'ActorT',
+
     # types.app
     'AppT',
 

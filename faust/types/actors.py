@@ -85,6 +85,7 @@ class ActorT(ServiceT):
     app: AppT
     channel: ChannelT
     concurrency: int
+    help: str
 
     @abc.abstractmethod
     def __init__(self, fun: ActorFun,
@@ -94,7 +95,8 @@ class ActorT(ServiceT):
                  channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
-                 on_error: ActorErrorHandler = None) -> None:
+                 on_error: ActorErrorHandler = None,
+                 help: str = None) -> None:
         self.fun: ActorFun = fun
 
     @abc.abstractmethod

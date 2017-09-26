@@ -62,6 +62,7 @@ class Collection(Service, CollectionT):
                  partitions: int = None,
                  window: WindowT = None,
                  changelog_topic: TopicT = None,
+                 help: str = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -73,6 +74,7 @@ class Collection(Service, CollectionT):
         self.partitions = partitions
         self.window = window
         self.changelog_topic = changelog_topic
+        self.help = help
 
         # Table key expiration
         self._timestamp_keys = defaultdict(set)

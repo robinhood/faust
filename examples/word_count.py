@@ -24,7 +24,8 @@ words_topic = app.topic('words2',
                         value_type=str,
                         value_serializer='raw')
 
-word_counts = app.Table('word_counts2', default=int)
+word_counts = app.Table('word_counts2', default=int,
+                        help='Keep count of words (str to int).')
 
 crashes = [0]
 
@@ -41,6 +42,7 @@ async def shuffle_words(posts):
 
 @app.actor(words_topic)
 async def count_words(words):
+    """Count words from blog post article body."""
     async for word in words:
         word_counts[word] += 1
         print(f'WORD {word} -> {word_counts[word]}')
@@ -53,8 +55,8 @@ async def get_count(web, request):
     })
 
 
-@app.actor()
-async def sender(stream):
+@app.task
+async def sender():
     for i in range(100):
         await shuffle_words.send(value=random.choice(WORDS))
     await asyncio.sleep(10)

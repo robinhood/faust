@@ -5,13 +5,15 @@ import os
 import sys
 from functools import wraps
 from pathlib import Path
+from textwrap import wrap
 from types import ModuleType
 from typing import (
     Any, Callable, ClassVar, Dict, List,
     Mapping, Sequence, Tuple, Type, no_type_check,
 )
 import click
-from tabulate import tabulate
+from terminaltables import SingleTable
+from terminaltables.base_table import BaseTable
 from ._env import DATADIR, DEBUG, WORKDIR
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
@@ -313,20 +315,36 @@ class Command(abc.ABC):
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
 
-    def tabulate(self, data: Sequence,
-                 *,
-                 headers: Any = 'firstrow',
+    def tabulate(self, data: Sequence[Sequence[str]],
+                 headers: Sequence[str] = None,
+                 wrap_last_row: bool = True,
                  **kwargs: Any) -> str:
-        """Use the :pypi:`tabulate` library to create an ASCII table
-        representation out of a sequence of tuples.
+        """Creates an ANSI representation of a table of two-row tuples.
+
+        See Also:
+            Keyword arguments are forwarded to
+            :class:`terminaltables.SingleTable`
 
         Note:
-            If the :option:`--json`` option is enabled this returns
+            If the :option:`--json` option is enabled this returns
             json instead.
         """
         if self.json:
             return self.dumps(data)
-        return tabulate(data, headers=headers, **kwargs)
+        if headers:
+            data = [headers] + list(data)
+        table = SingleTable(data, **kwargs)
+        if wrap_last_row:
+            # slow, but not big data
+            data = [
+                list(l[:-1]) + [self._table_wrap(table, l[-1])]
+                for l in data
+            ]
+        return table.table
+
+    def _table_wrap(self, table: BaseTable, text: str) -> str:
+        max_width = table.column_max_width(1)
+        return '\n'.join(wrap(text, max_width))
 
     def say(self, *args: Any, **kwargs: Any) -> None:
         """Print something to stdout (or use ``file=stderr`` kwarg).

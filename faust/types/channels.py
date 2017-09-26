@@ -93,6 +93,10 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
+    def get_topic_name(self) -> str:
+        ...
+
+    @abc.abstractmethod
     async def send(
             self,
             key: K = None,
