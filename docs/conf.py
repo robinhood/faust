@@ -10,9 +10,9 @@ globals().update(conf.build_config(
     project='Faust',
     # version_dev='2.0',
     # version_stable='1.4',
-    canonical_url='http://faust.readthedocs.org',
+    canonical_url='http://docs.fauststream.com',
     webdomain='',
-    github_project='robinhoodmarkets/faust',
+    github_project='fauststream/faust',
     copyright='2017',
     html_logo='images/logo.png',
     html_favicon='images/favicon.ico',
@@ -28,7 +28,7 @@ globals().update(conf.build_config(
     extra_intersphinx_mapping={
         'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
-        'trish': ('https://trish.readthedocs.io/en/latest/', None),
+        'trish': ('https://docs.fauststream.com/en/latest/', None),
     },
     # django_settings='testproj.settings',
     # from pathlib import Path

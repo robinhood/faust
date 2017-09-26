@@ -5,9 +5,9 @@
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
 :Version: 1.0.0
-:Web: http://faust.readthedocs.org/
+:Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
-:Source: http://github.com/robinhoodmarkets/faust
+:Source: http://github.com/fauststream/faust
 :Keywords: distributed, stream, async, processing, data, queue
 
 Faust is a Python library for event processing and streaming applications

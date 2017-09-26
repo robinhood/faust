@@ -158,8 +158,8 @@ Issue Trackers
 Bugs for a package in the Faust ecosystem should be reported to the relevant
 issue tracker.
 
-* :pypi:`faust` - https://github.com/faustorg/faust/issues
-* :pypi:`trish` - https://github.com/faustorg/trish/issues
+* :pypi:`faust` - https://github.com/fauststream/faust/issues
+* :pypi:`trish` - https://github.com/fauststream/trish/issues
 
 If you're unsure of the origin of the bug you can ask the
 :ref:`mailing-list`, or just use the Faust issue tracker.
@@ -191,12 +191,12 @@ Branches
 
 Current active version branches:
 
-* dev (which git calls "master") (https://github.com/robinhoodmarkets/faust/tree/master)
-* 1.0 (https://github.com/robinhoodmarkets/faust/tree/1.0)
+* dev (which git calls "master") (https://github.com/fauststream/faust/tree/master)
+* 1.0 (https://github.com/fauststream/faust/tree/1.0)
 
 You can see the state of any branch by looking at the Changelog:
 
-    https://github.com/robinhoodmarkets/faust/blob/master/Changelog
+    https://github.com/fauststream/faust/blob/master/Changelog
 
 If the branch is in active development the topmost version info should
 contain meta-data like:
@@ -314,7 +314,7 @@ to upstream changes:
 .. sourcecode:: console
 
     $ cd faust
-    $ git remote add upstream git://github.com/robinhoodmarkets/faust.git
+    $ git remote add upstream git://github.com/fauststream/faust.git
     $ git fetch upstream
 
 If you need to pull in new changes from upstream you should
@@ -758,17 +758,17 @@ Packages
 ``faust``
 ---------
 
-:git: https://github.com/robinhoodmarkets/faust
+:git: https://github.com/fauststream/faust
 :CI: http://travis-ci.org/#!/robinhood/faust
 :Windows-CI: https://ci.appveyor.com/project/ask/faust
 :PyPI: :pypi:`faust`
-:docs: http://faust.readthedocs.io/
+:docs: http://docs.fauststream.com
 
 ``trish``
 ---------
 
-:git: https://github.com/faustorg/trish
-:CI: http://travis-ci.org/#!/faustorg/trish
+:git: https://github.com/fauststream/trish
+:CI: http://travis-ci.org/#!/fauststream/trish
 :Windows-CI: https://ci.appveyor.com/project/ask/trish
 :PyPI: :pypi:`trish`
 :docs: http://trish.readthedocs.io/
