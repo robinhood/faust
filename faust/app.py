@@ -65,9 +65,12 @@ from .web.views import Site, View
 if typing.TYPE_CHECKING:
     from .cli.base import AppCommand
     from .channels import Event
+    from .worker import Worker as WorkerT
 else:
     class AppCommand: ...  # noqa
     class Event: ...       # noqa
+    class WorkerT: ...     # noqa
+
 
 __all__ = ['App']
 
@@ -97,6 +100,9 @@ SET_TYPE = 'faust.Set'
 
 #: Default path to serializer registry class used by ``app.serializers``.
 REGISTRY_TYPE = 'faust.serializers.Registry'
+
+#: Default path to Worker class used by ``app.Worker``.
+WORKER_TYPE = 'faust.worker.Worker'
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
@@ -329,6 +335,7 @@ class App(AppT, ServiceProxy):
             CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _CMT,
             Set: SymbolArg[Type[SetT]] = SET_TYPE,
             Serializers: SymbolArg[Type[RegistryT]] = REGISTRY_TYPE,
+            Worker: SymbolArg[Type[WorkerT]] = WORKER_TYPE,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
             origin: str = None,
@@ -363,6 +370,7 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self._worker_type = Worker
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
         self._leader_assignor = LeaderAssignor(self)
@@ -1007,6 +1015,9 @@ class App(AppT, ServiceProxy):
             clear_on_resume=clear_on_resume,
             loop=loop or self.loop,
         )
+
+    def Worker(self, **kwargs: Any) -> WorkerT:
+        return symbol_by_name(self._worker_type)(self, **kwargs)
 
     def _create_directories(self) -> None:
         self.datadir.mkdir(exist_ok=True)

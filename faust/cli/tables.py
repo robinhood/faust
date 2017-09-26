@@ -10,8 +10,11 @@ DEFAULT_TABLE_HELP = 'Missing description: use Table(.., help="str")'
 class tables(AppCommand):
     """List tables."""
 
+    title = 'Tables'
+
     async def run(self) -> None:
         self.say(self.tabulate([
-            (t.name, t.help or DEFAULT_TABLE_HELP)
+            (self.bold(t.name),
+             self.colored('autoblack', t.help or DEFAULT_TABLE_HELP))
             for t in self.app.tables.values()
-        ], title='Tables'))
+        ], title=self.title, headers=['name', 'help']))

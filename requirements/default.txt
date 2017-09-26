@@ -6,3 +6,4 @@ jinja2
 progress
 yarl
 terminaltables
+colorclass

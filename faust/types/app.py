@@ -4,8 +4,8 @@ import typing
 
 from pathlib import Path
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable,
-    Iterable, List, Mapping, MutableMapping, Pattern, Type, Union,
+    Any, AsyncIterable, Awaitable, Callable, Iterable, List,
+    Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
 
 from yarl import URL
@@ -34,9 +34,10 @@ from ..utils.types.collections import NodeT
 if typing.TYPE_CHECKING:
     from ..cli.base import AppCommand
     from ..sensors.monitor import Monitor
+    from ..web.base import Request, Response, Web
+    from ..web.views import Site, View
+    from ..worker import Worker as WorkerT
     from .models import ModelArg
-    from .web.base import Request, Response, Web
-    from .web.views import Site, View
 else:
     class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
@@ -46,6 +47,7 @@ else:
     class Web: ...            # noqa
     class Site: ...           # noqa
     class View: ...           # noqa
+    class WorkerT: ...        # noqa
 
 __all__ = ['AppT']
 
@@ -95,7 +97,7 @@ class AppT(ServiceT):
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT
     serializers: RegistryT
-    pages: List[Site]
+    pages: List[Tuple[str, Type[Site]]]
 
     @abc.abstractmethod
     def main(self) -> None:
@@ -124,6 +126,7 @@ class AppT(ServiceT):
                  CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = '',
                  Set: SymbolArg[Type[SetT]] = '',
                  Serializers: SymbolArg[Type[RegistryT]] = '',
+                 Worker: SymbolArg[Type[WorkerT]] = None,
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
                  origin: str = None,
@@ -255,6 +258,10 @@ class AppT(ServiceT):
             *,
             clear_on_resume: bool = False,
             loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+        ...
+
+    @abc.abstractmethod
+    def Worker(self, **kwargs: Any) -> WorkerT:
         ...
 
     @property

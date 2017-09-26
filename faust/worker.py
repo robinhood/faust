@@ -39,7 +39,6 @@ signal handlers, logging, debugging mechanisms, etc.
 import asyncio
 import logging
 import os
-import platform
 import socket
 import sys
 
@@ -48,13 +47,11 @@ from pathlib import Path
 from typing import Any, IO, Iterable, Set, Type, Union
 
 from progress.spinner import Spinner
-from terminaltables import SingleTable
 
-from . import __version__ as faust_version
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
-from .utils.logging import get_logger, level_name
+from .utils.logging import get_logger
 from .utils.objects import cached_property
 from .utils.services import ServiceT
 from .utils.services.worker import ServiceWorker
@@ -73,9 +70,6 @@ WEBSITE_CLS = 'faust.web.site:Website'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
-
-#: Format string for banner info line.
-F_IDENT = 'ƒaµS† v{faust_v} {py_imp} {py_v} ({system} {machine})'
 
 logger = get_logger(__name__)
 
@@ -155,10 +149,6 @@ class Worker(ServiceWorker):
     """
     logger = logger
 
-    #: Format string for the ident line in the banner (with
-    #: the Faust version).
-    f_ident = F_IDENT
-
     #: The Faust app started by this worker.
     app: AppT
 
@@ -232,46 +222,6 @@ class Worker(ServiceWorker):
         else:
             self.log.info('Ready')
 
-    def faust_ident(self) -> str:
-        return self.f_ident.format(
-            py=platform.python_implementation(),
-            faust_v=faust_version,
-            system=platform.system(),
-            py_v=platform.python_version(),
-            py_imp=platform.python_implementation(),
-            machine=platform.machine(),
-        )
-
-    def drivers(self) -> str:
-        return '{transport_v} {http_v}'.format(
-            transport_v=self.app.transport.driver_version,
-            http_v=self.website.web.driver_version,
-        )
-
-    def banner(self) -> str:
-        'Generate the text banner emitted before the worker starts.'
-        transport_extra = ''
-        # uvloop didn't leave us with any way to identify itself,
-        # and also there's no uvloop.__version__ attribute.
-        if self.loop.__class__.__module__ == 'uvloop':
-            transport_extra = '+uvloop'
-        logfile = self.logfile if self.logfile else '-stderr-'
-        loglevel = level_name(self.loglevel or 'WARN').lower()
-        table = SingleTable([
-            ('id', self.app.id),
-            ('transport', f'{self.app.url} {transport_extra}'),
-            ('store', self.app.store),
-            ('web', self.website.web.url),
-            ('log', f'{logfile} ({loglevel})'),
-            ('pid', f'{os.getpid()}'),
-            ('hostname', f'{socket.gethostname()}'),
-            ('drivers', self.drivers()),
-            ('datadir', f'{str(self.app.datadir.absolute()):<40}'),
-        ], title=self.faust_ident())
-        table.inner_heading_row_border = False
-        table.inner_row_border = False
-        return table.table
-
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         # App service is now a child of worker.
         self.app.beacon.reattach(self.beacon)
@@ -292,9 +242,8 @@ class Worker(ServiceWorker):
         setproctitle(f'{ident} {info}')
 
     async def on_execute(self) -> None:
-        # This is called as soon as we starts and prints the banner.
+        # This is called as soon as we starts
         self._setproctitle('init')
-        self.say(self.banner())
         self._say('^ ', end='')
 
     def on_setup_root_logger(self,

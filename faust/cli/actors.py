@@ -13,7 +13,7 @@ class actors(AppCommand):
     """List actors."""
 
     title = 'Actors'
-    headers = ['name', 'channel', 'help']
+    headers = ['name', 'topic', 'help']
     sortkey = attrgetter('name')
 
     options = [
@@ -37,9 +37,9 @@ class actors(AppCommand):
 
     def actor_to_row(self, actor: ActorT) -> Sequence[str]:
         return [
-            self._name(actor),
+            self._bold_tail(self._name(actor)),
             self._topic(actor),
-            self._help(actor),
+            self.colored('autoblack', self._help(actor)),
         ]
 
     def _name(self, actor: ActorT) -> str:
@@ -47,6 +47,10 @@ class actors(AppCommand):
         if name.startswith(self.app.origin):
             name = name[len(self.app.origin) + 1:]
         return f'@{name}'
+
+    def _bold_tail(self, text: str, *, sep: str = '.') -> str:
+        head, _, tail = text.rpartition(sep)
+        return sep.join([head, self.bold(tail)])
 
     def _maybe_topic(self, actor: ActorT) -> Optional[str]:
         try:
