@@ -49,21 +49,6 @@ HTTP API
 
         200 {"key": "value"}
 
-* Set value for key
-
-    .. sourcecode:: text
-
-        PUT/POST localhost:6666/api/table/user_to_amount/key/
-        form data: {"key": "value"}
-
-        response: 200
-
-* Delete key
-
-    .. sourcecode:: text
-
-        DELETE localhost:6666/api/table/user_to_amount/key/
-        response: 200
 
 HTTP User interface
 -------------------
