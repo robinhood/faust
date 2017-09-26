@@ -16,11 +16,6 @@ TEXTUAL_TYPES: Tuple[Type, ...] = tuple(
     DEFAULT_TEXTUAL_TYPES + DJANGO_TEXTUAL_TYPES)
 
 try:
-    import ujson
-except ImportError:
-    ujson = None
-
-try:
     import simplejson as json
 
     # simplejson converts Decimal to float by default, i.e. before
@@ -91,19 +86,12 @@ class JSONEncoder(json.JSONEncoder):
             return super(JSONEncoder, self).default(o)
 
 
-if ujson is not None:
-    def dumps(obj: Any,
-              cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
-        return json.dumps(obj)
+def dumps(obj: Any,
+          cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
+    """Serialize to json.  See :func:`json.dumps`."""
+    return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 
-    def loads(s: str, **kwargs: Any) -> Any:
-        return json.loads(s)
-else:
-    def dumps(obj: Any,
-              cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
-        """Serialize to json.  See :func:`json.dumps`."""
-        return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 
-    def loads(s: str, **kwargs: Any) -> Any:
-        """Deserialize json string.  See :func:`json.loads`."""
-        return json.loads(s, **kwargs)
+def loads(s: str, **kwargs: Any) -> Any:
+    """Deserialize json string.  See :func:`json.loads`."""
+    return json.loads(s, **kwargs)

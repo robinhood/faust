@@ -2,4 +2,3 @@ fastavro
 cchardet
 aiodns
 setproctitle
-ujson
