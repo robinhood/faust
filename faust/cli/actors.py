@@ -12,7 +12,7 @@ from ..types import ActorT
 class actors(AppCommand):
     """List actors."""
 
-    title = 'actors'
+    title = 'Actors'
     headers = ['name', 'channel', 'help']
     sortkey = attrgetter('name')
 
