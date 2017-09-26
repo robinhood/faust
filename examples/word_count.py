@@ -1,7 +1,5 @@
-import asyncio
-import click
-import faust
 import random
+import faust
 
 WORDS = ['the', 'quick', 'brown', 'fox']
 
@@ -57,17 +55,8 @@ async def get_count(web, request):
 
 @app.task
 async def sender():
-    for i in range(100):
+    for _ in range(100):
         await shuffle_words.send(value=random.choice(WORDS))
-    await asyncio.sleep(10)
-    for word in WORDS: print('AWAITING WORD: %r' % (word,))
-
-
-@app.command(click.argument('rest'), click.option('--foo/--no-foo', default=False))
-async def produce(self, rest: str, foo: bool):
-    """Produce example data."""
-    print(f'Hello: {foo}: {rest}')
-
 
 
 if __name__ == '__main__':
