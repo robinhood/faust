@@ -1,6 +1,6 @@
 from typing import Any, Callable
 from yarl import URL
-from ..bin._env import WEB_BIND, WEB_PORT
+from ..cli._env import WEB_BIND, WEB_PORT
 from ..types import AppT
 from ..utils.logging import get_logger
 from ..utils.services import Service

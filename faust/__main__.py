@@ -1,3 +1,3 @@
-from faust.bin.faust import cli
+from faust.cli.faust import cli
 
 cli()

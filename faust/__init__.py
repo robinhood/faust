@@ -56,7 +56,7 @@ del(re)
 #    $ python examples/word_count.py
 #
 # When using the ``faust`` command, the entry point is controlled by
-# bin.base.cli.  It sets the F_DATADIR environment variable before the
+# .cli.base.cli.  It sets the F_DATADIR environment variable before the
 # app is imported, which means that when the faust.app module is imported
 # the App will have the correct default paths.
 #
@@ -95,7 +95,6 @@ if _datadir:
 if typing.TYPE_CHECKING:
     from .actors import Actor                                   # noqa: E402
     from .app import App                                        # noqa: E402
-    from .bin import AppCommand, Command                        # noqa: E402
     from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
     from .models import Record                                  # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
@@ -147,7 +146,6 @@ from types import ModuleType  # noqa
 all_by_module: Mapping[str, Sequence[str]] = {
     'faust.actors': ['Actor'],
     'faust.app': ['App'],
-    'faust.bin.base': ['AppCommand', 'Command'],
     'faust.channels': ['Channel', 'ChannelT', 'Event', 'EventT'],
     'faust.models': ['Record'],
     'faust.sensors': ['Monitor', 'Sensor'],

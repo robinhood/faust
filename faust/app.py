@@ -27,8 +27,8 @@ from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
 from .assignor import LeaderAssignor, PartitionAssignor
-from .bin._env import DATADIR
 from .channels import Channel, ChannelT
+from .cli._env import DATADIR
 from .exceptions import ImproperlyConfigured
 from .router import Router
 from .sensors import Monitor, SensorDelegate
@@ -63,7 +63,7 @@ from .utils.types.collections import NodeT
 from .web.views import Site, View
 
 if typing.TYPE_CHECKING:
-    from .bin.base import AppCommand
+    from .cli.base import AppCommand
     from .channels import Event
 else:
     class AppCommand: ...  # noqa
@@ -383,7 +383,7 @@ class App(AppT, ServiceProxy):
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
-        from .bin.faust import cli
+        from .cli.faust import cli
         cli(app=self)
 
     def topic(self, *topics: str,
@@ -690,8 +690,8 @@ class App(AppT, ServiceProxy):
         if options is None and base is None and kwargs is None:
             raise TypeError('Use parens in @app.command(), not @app.command.')
         if base is None:
-            from .bin import base as bin_base
-            base = bin_base.AppCommand
+            from .cli import base as cli_base
+            base = cli_base.AppCommand
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
             target: Any = fun

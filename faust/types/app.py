@@ -32,7 +32,7 @@ from ..utils.times import Seconds
 from ..utils.types.collections import NodeT
 
 if typing.TYPE_CHECKING:
-    from ..bin.base import AppCommand
+    from ..cli.base import AppCommand
     from ..sensors.monitor import Monitor
     from .models import ModelArg
     from .web.base import Request, Response, Web

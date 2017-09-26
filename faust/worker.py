@@ -6,7 +6,7 @@ The Worker is the terminal interface to App, and is the third
 entry point in this list:
 
 1) :program:`faust worker`
-2) -> :class:`faust.bin.worker.worker`
+2) -> :class:`faust.cli.worker.worker`
 3) -> :class:`faust.Worker`
 4) -> :class:`faust.App`
 
@@ -50,7 +50,7 @@ from typing import Any, IO, Iterable, Set, Type, Union
 from progress.spinner import Spinner
 
 from . import __version__ as faust_version
-from .bin._env import BLOCKING_TIMEOUT, DEBUG
+from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.logging import get_logger, level_name
