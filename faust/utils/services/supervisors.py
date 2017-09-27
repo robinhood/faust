@@ -117,6 +117,9 @@ class SupervisorStrategy(Service, SupervisorStrategyT):
             await self.start_services(to_start)
             await self.restart_services(to_restart)
 
+    async def on_start(self) -> None:
+        await self.start_services(self._services)
+
     async def on_stop(self) -> None:
         for service in self._services:
             if service.started:
