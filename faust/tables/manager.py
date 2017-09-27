@@ -187,6 +187,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._recovery_started = asyncio.Event(loop=self.loop)
         self._recovery_completed = asyncio.Event(loop=self.loop)
 
+    def __hash__(self) -> int:
+        return object.__hash__(self)
+
     @property
     def changelog_topics(self) -> typing.Set[str]:
         return set(self._changelogs.keys())
