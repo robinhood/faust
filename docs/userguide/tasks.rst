@@ -45,7 +45,7 @@ statistics every 30 seconds:
     stats = Stats()
 
 
-    @app.actor(log_topic)
+    @app.agent(log_topic)
     async def process_logs(logs):
         async for log in logs:
             state.logs_received += 1
@@ -60,7 +60,7 @@ statistics every 30 seconds:
     if __name__ == '__main__':
         app.main()
 
-Actors
+Agents
 ======
 
 Concurrency
@@ -71,7 +71,7 @@ start multiple instances of the same task:
 
 .. sourcecode:: python
 
-    @app.actor(feed_topics, concurrency=100)
+    @app.agent(feed_topics, concurrency=100)
     async def import_feeds(feeds):
         async for feed in feeds:
             await import_feed(feed)

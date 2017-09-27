@@ -391,7 +391,7 @@ class TopicConductor(ConductorT, Service):
     @Service.task
     async def _subscriber(self) -> None:
         # the first time we start, we will wait two seconds
-        # to give actors a chance to start up and register their
+        # to give agents a chance to start up and register their
         # streams.  This way we won't have N subscription requests at the
         # start.
         await self.sleep(2.0)

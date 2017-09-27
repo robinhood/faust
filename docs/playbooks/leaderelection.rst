@@ -39,25 +39,25 @@ Let us create a module ``leader.py`` and define the application:
         value_serializer='raw',
     )
 
-Greetings Actor
+Greetings Agent
 ---------------
 
-We first define an :class:`~@App.actor` that will get the greetings from the
+We first define an :class:`~@App.agent` that will get the greetings from the
 leader and print it out to the console.
 
 .. sourcecode:: python
 
-    @app.actor()
+    @app.agent()
     async def say(greetings):
         async for greeting in greetings:
             print(greeting)
 
-Here we have defined an ``actor`` to which we can send greetings
+Here we have defined an ``agent`` to which we can send greetings
 which would be printed to the console.
 
 .. seealso::
 
-    The :ref:`actors-guide` guide for more information about actors.
+    The :ref:`agents-guide` guide for more information about agents.
 
 Leader Timer
 ------------
@@ -76,13 +76,13 @@ one of the workers in the cluster.
         greeting = str(random.random())
         await say.send(value=greeting)
 
-Here we send a random greeting to the ``actor`` defined above.
+Here we send a random greeting to the ``agent`` defined above.
 
 The ``on_leader=True`` ensures that the ``timer``
 
 .. note::
 
-    The greeting could be picked up by the actor ``say`` on any one of the
+    The greeting could be picked up by the agent ``say`` on any one of the
     running instances.
 
 Starting Kafka

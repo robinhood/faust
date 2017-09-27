@@ -8,13 +8,13 @@ pow_topic = app.topic('RPC__pow')
 mul_topic = app.topic('RPC__mul')
 
 
-@app.actor(pow_topic)
+@app.agent(pow_topic)
 async def pow(stream: StreamT[float]) -> AsyncIterable[float]:
     async for value in stream:
         yield await mul.ask(value=value ** 2)
 
 
-@app.actor(mul_topic)
+@app.agent(mul_topic)
 async def mul(stream: StreamT[float]) -> AsyncIterable[float]:
     async for value in stream:
         yield value * 100.0

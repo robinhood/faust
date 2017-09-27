@@ -12,7 +12,7 @@
 
     quickstart
     application
-    actors
+    agents
     tasks
     channels
     streams

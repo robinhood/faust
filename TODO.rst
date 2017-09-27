@@ -127,12 +127,12 @@ Tables
 
         subscribers = app.Table('subscribers', type=set)
 
-        @app.actor()
+        @app.agent()
         async def subscribe(subscriptions: Stream[SubReq]) -> AsyncIterable[bool]:
             async for subsription in subscriptions:
                 subscribers[subscription.topic].add(subscriber.account)
 
-        @app.actor()
+        @app.agent()
         async def send_to_subscribers(requests):
             async for req in requests:
                 for account in subscribers[req.topic]:
@@ -309,10 +309,10 @@ Things to replace Celery, maybe not in Core but in a separate library.
 
     synchronization should be possible:
         ``chord_id = uuid(); requests = [....]``,
-    then each actor forwards a completion message to an actor that keeps
+    then each agent forwards a completion message to an agent that keeps
     track of counts::
 
         chord_unlock.send(key=chord_id, value=(chord_size, callback)
 
-     when the `chord_unlock` actor sees that ``count > chord_size``, it
+     when the `chord_unlock` agent sees that ``count > chord_size``, it
      calls the callback

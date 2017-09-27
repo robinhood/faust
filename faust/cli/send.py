@@ -1,4 +1,4 @@
-"""Program ``faust send`` used to send events to actors and topics.
+"""Program ``faust send`` used to send events to agents and topics.
 
 .. program:: faust send
 
@@ -48,7 +48,7 @@ __all__ = ['send']
 
 
 class send(AppCommand):
-    """Send message to actor/topic."""
+    """Send message to agent/topic."""
 
     topic: Any
     key: K

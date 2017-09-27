@@ -103,7 +103,7 @@ subsets across partitions being disjoint.
         'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-    @app.actor(withdrawals_topic)
+    @app.agent(withdrawals_topic)
     async def find_large_withdrawals(withdrawals):
         async for withdrawal in withdrawals:
             user_to_total[withdrawal.user] += withdrawal.amount
@@ -125,13 +125,13 @@ The above use case should be re-implemented as follows:
         'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-    @app.actor(withdrawals_topic)
+    @app.agent(withdrawals_topic)
     async def find_large_user_withdrawals(withdrawals):
         async for withdrawal in withdrawals:
             user_to_total[withdrawal.user] += withdrawal.amount
 
 
-    @app.actor(withdrawals_topic)
+    @app.agent(withdrawals_topic)
     async def find_large_country_withdrawals(withdrawals):
         async for withdrawal in withdrawals.group_by(Withdrawal.country):
             country_to_total[withdrawal.country] += withdrawal.amount
@@ -212,7 +212,7 @@ A windowed table can be defined as follows:
 
     events_topic = app.topic('events_elk', value_type=Event)
 
-    @app.actor(events_topic)
+    @app.agent(events_topic)
     async def aggregate_page_views(events):
         async for event in events:
             page = event.page

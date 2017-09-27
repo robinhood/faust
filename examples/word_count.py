@@ -28,14 +28,14 @@ word_counts = app.Table('word_counts3', default=int,
                         help='Keep count of words (str to int).')
 
 
-@app.actor(posts_topic)
+@app.agent(posts_topic)
 async def shuffle_words(posts):
     async for post in posts:
         for word in post.split():
             await words_topic.send(key=word, value=word)
 
 
-@app.actor(words_topic)
+@app.agent(words_topic)
 async def count_words(words):
     """Count words from blog post article body."""
     async for word in words:

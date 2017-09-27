@@ -150,13 +150,13 @@ rather start individual tasks:
 
 .. sourcecode:: python
 
-    @app.actor(topic1)
+    @app.agent(topic1)
     async def process_stream1(events):
         async for event in events:
             ...
 
 
-    @app.actor(topic2)
+    @app.agent(topic2)
     async def process_stream2(events):
         async for event in events:
             ...

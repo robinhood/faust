@@ -468,7 +468,7 @@ class AppCommand(Command):
     def to_topic(self, entity: str) -> Any:
         """Convert topic name given on command-line to ``app.topic()``."""
         if not entity:
-            raise self.UsageError('Missing topic/@actor name')
+            raise self.UsageError('Missing topic/@agent name')
         if entity.startswith('@'):
             return self.import_relative_to_app(entity[1:])
         return self.app.topic(entity)

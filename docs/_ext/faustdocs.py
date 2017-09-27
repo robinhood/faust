@@ -23,8 +23,8 @@ APPDIRECT = {
     'id', 'url', 'client_id', 'client_only', 'commit_interval',
     'table_cleanup_interval', 'key_serializer', 'value_serializer',
     'num_standby_replicas', 'replication_factor', 'default_partitions',
-    'reply_to', 'avro_registry_url', 'store', 'actors',
-    'topic', 'actor', 'task', 'timer', 'stream', 'Table', 'Set',
+    'reply_to', 'avro_registry_url', 'store', 'agents',
+    'topic', 'agent', 'task', 'timer', 'stream', 'Table', 'Set',
     'start_client', 'maybe_start_client', 'send',
     'send_soon', 'maybe_start_producer',
 }

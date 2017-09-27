@@ -11,7 +11,7 @@ app = faust.App('concurrency', url='kafka://localhost')
 topic = app.topic('concurrency', value_type=Record)
 
 
-@app.actor(topic, concurrency=200)
+@app.agent(topic, concurrency=200)
 async def mytask(records):
     session = aiohttp.ClientSession()
     async for record in records:
