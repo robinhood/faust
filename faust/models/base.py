@@ -86,10 +86,10 @@ class Model(ModelT):
     #:   data = {.., '__faust': {'ns': 'examples.simple.Withdrawal'}}
     #: When ``Model._maybe_reconstruct` sees this key it will look
     #: up that namespace in the :data:`registry`, and if it exists
-    #: chose it as the target model for serialization.
+    #: select it as the target model to use for serialization.
     #:
     #: Is this similar to how unsafe deserialization in pickle/yaml/etc.
-    #: works?  No! These technologies allow for arbitrary types to be
+    #: works?  No! pickle/pyyaml allow for arbitrary types to be
     #: deserialized (and worse in pickle's case), whereas the blessed
     #: key can only deserialize to a hardcoded list of types that are
     #: already under the remote control of messages anyway.
@@ -136,7 +136,7 @@ class Model(ModelT):
 
     @classmethod
     def as_schema(cls) -> Mapping:
-        """Return Avro schema as mapping."""
+        'Return Avro schema as mapping.'
         return {
             'namespace': cls._options.namespace,
             'type': cls._schema_type,
@@ -146,7 +146,7 @@ class Model(ModelT):
 
     @classmethod
     def as_avro_schema(cls) -> schema.Schema:
-        """Return Avro schema as :class:`avro.schema.Schema`."""
+        'Return Avro schema as :class:`avro.schema.Schema`.'
         if cls._schema_cache is None:
             cls._schema_cache = cls._as_avro_schema()
         return cls._schema_cache
@@ -235,16 +235,16 @@ class Model(ModelT):
         raise NotImplementedError()
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
-        """Serialize object to the target serialization format."""
+        'Serialize object to the target serialization format.'
         return dumps(serializer or self._options.serializer,
                      self.to_representation())
 
     def to_representation(self) -> Any:
-        """Convert object to JSON serializable object."""
+        'Convert object to JSON serializable object.'
         raise NotImplementedError()
 
     def _humanize(self) -> str:
-        """String representation of object for debugging purposes."""
+        'String representation of object for debugging purposes.'
         raise NotImplementedError()
 
     def __repr__(self) -> str:
@@ -278,10 +278,10 @@ class FieldDescriptor(FieldDescriptorT):
     #: Name of attribute on Model.
     field: str
 
-    #: Type of value (e.g. ``int``).
+    #: Type of value (e.g. ``int``, or ``Optional[int]``)).
     type: Type
 
-    #: The model this is field is associated with.
+    #: The model class this field is associated with.
     model: Type[ModelT]
 
     #: Set if a value for this field is required (cannot be :const:`None`).

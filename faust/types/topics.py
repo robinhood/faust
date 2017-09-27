@@ -99,10 +99,6 @@ class TopicT(ChannelT):
                suffix: str = '') -> 'TopicT':
         ...
 
-    @abc.abstractmethod
-    def get_topic_name(self) -> str:
-        ...
-
 
 class ConductorT(ServiceT, MutableSet[ChannelT]):
 

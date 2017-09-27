@@ -1,5 +1,6 @@
 """Abstract types for static typing."""
 from mode import ServiceT
+from .actors import ActorT
 from .app import AppT
 from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
@@ -32,6 +33,9 @@ from .windows import WindowRange, WindowT
 __all__ = [
     # :pypi:`mode`
     'ServiceT',
+
+    # types.actors
+    'ActorT',
 
     # types.app
     'AppT',

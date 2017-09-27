@@ -1,5 +1,5 @@
-import faust
 import random
+import faust
 
 
 app = faust.App(

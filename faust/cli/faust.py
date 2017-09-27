@@ -27,7 +27,7 @@
     Prefer data to be emitted in json format.
 """
 
-# Note: The command options above are defined in bin.base.builtin_options
+# Note: The command options above are defined in .cli.base.builtin_options
 from .actors import actors
 from .base import cli
 from .reset import reset

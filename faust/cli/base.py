@@ -5,13 +5,16 @@ import os
 import sys
 from functools import wraps
 from pathlib import Path
+from textwrap import wrap
 from types import ModuleType
 from typing import (
     Any, Callable, ClassVar, Dict, List,
     Mapping, Sequence, Tuple, Type, no_type_check,
 )
 import click
-from tabulate import tabulate
+from colorclass import Color, disable_all_colors, enable_all_colors
+from terminaltables import SingleTable
+from terminaltables.base_table import BaseTable
 from ._env import DATADIR, DEBUG, WORKDIR
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
@@ -47,6 +50,8 @@ builtin_options: Sequence[Callable] = [
            help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
            help='Enable debugging output, and the blocking detector.'),
+    option('--color/--no-color', default=True,
+           help='Enable colors in output.'),
     option('--workdir', '-W', default=WORKDIR,
            help='Working directory to change to after start.'),
     option('--datadir', default=DATADIR,
@@ -187,7 +192,8 @@ def cli(ctx: click.Context,
         debug: bool,
         workdir: str,
         datadir: str,
-        json: bool) -> None:
+        json: bool,
+        color: bool) -> None:
     ctx.obj = {
         'app': app,
         'quiet': quiet,
@@ -195,6 +201,7 @@ def cli(ctx: click.Context,
         'workdir': workdir,
         'datadir': datadir,
         'json': json,
+        'color': color,
     }
     if workdir:
         os.environ['F_WORKDIR'] = workdir
@@ -207,6 +214,10 @@ def cli(ctx: click.Context,
         #          If the app is imported first some paths may have the
         #          default prefix, while others have the wanted prefix.
         os.environ['F_DATADIR'] = datadir
+    if color:
+        enable_all_colors()
+    else:
+        disable_all_colors()
 
 
 class Command(abc.ABC):
@@ -231,6 +242,7 @@ class Command(abc.ABC):
     workdir: str
     datadir: str
     json: bool
+    color: bool
 
     builtin_options: List = builtin_options
     options: List = None
@@ -297,6 +309,7 @@ class Command(abc.ABC):
         self.workdir = self.ctx.obj['workdir']
         self.datadir = self.ctx.obj['datadir']
         self.json = self.ctx.obj['json']
+        self.color = self.ctx.obj['color']
         self.args = args
         self.kwargs = kwargs
 
@@ -313,20 +326,45 @@ class Command(abc.ABC):
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
 
-    def tabulate(self, data: Sequence,
-                 *,
-                 headers: Any = 'firstrow',
+    def tabulate(self, data: Sequence[Sequence[str]],
+                 headers: Sequence[str] = None,
+                 wrap_last_row: bool = True,
+                 title: str = None,
+                 title_color: str = 'blue',
                  **kwargs: Any) -> str:
-        """Use the :pypi:`tabulate` library to create an ASCII table
-        representation out of a sequence of tuples.
+        """Creates an ANSI representation of a table of two-row tuples.
+
+        See Also:
+            Keyword arguments are forwarded to
+            :class:`terminaltables.SingleTable`
 
         Note:
-            If the :option:`--json`` option is enabled this returns
+            If the :option:`--json` option is enabled this returns
             json instead.
         """
         if self.json:
             return self.dumps(data)
-        return tabulate(data, headers=headers, **kwargs)
+        if headers:
+            data = [headers] + list(data)
+        title = self.bold(self.colored(title_color, title))
+        table = SingleTable(data, title=title, **kwargs)
+        if wrap_last_row:
+            # slow, but not big data
+            data = [
+                list(l[:-1]) + [self._table_wrap(table, l[-1])]
+                for l in data
+            ]
+        return table.table
+
+    def colored(self, color: str, text: str) -> str:
+        return Color(f'{{{color}}}{text}{{/{color}}}')
+
+    def bold(self, text: str) -> str:
+        return self.colored('b', text)
+
+    def _table_wrap(self, table: BaseTable, text: str) -> str:
+        max_width = table.column_max_width(1)
+        return '\n'.join(wrap(text, max_width))
 
     def say(self, *args: Any, **kwargs: Any) -> None:
         """Print something to stdout (or use ``file=stderr`` kwarg).

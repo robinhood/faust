@@ -4,6 +4,7 @@ avro-python3
 click
 jinja2
 progress
-tabulate
 yarl
+terminaltables
+colorclass
 mode>=1.0,<2.0

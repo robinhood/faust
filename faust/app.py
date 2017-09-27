@@ -30,8 +30,8 @@ from . import __version__ as faust_version
 from . import transport
 from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
 from .assignor import LeaderAssignor, PartitionAssignor
-from .bin._env import DATADIR
 from .channels import Channel, ChannelT
+from .cli._env import DATADIR
 from .exceptions import ImproperlyConfigured
 from .router import Router
 from .sensors import Monitor, SensorDelegate
@@ -61,11 +61,14 @@ from .utils.objects import Unordered, cached_property
 from .web.views import Site, View
 
 if typing.TYPE_CHECKING:
-    from .bin.base import AppCommand
+    from .cli.base import AppCommand
     from .channels import Event
+    from .worker import Worker as WorkerT
 else:
     class AppCommand: ...  # noqa
     class Event: ...       # noqa
+    class WorkerT: ...     # noqa
+
 
 __all__ = ['App']
 
@@ -95,6 +98,9 @@ SET_TYPE = 'faust.Set'
 
 #: Default path to serializer registry class used by ``app.serializers``.
 REGISTRY_TYPE = 'faust.serializers.Registry'
+
+#: Default path to Worker class used by ``app.Worker``.
+WORKER_TYPE = 'faust.worker.Worker'
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
@@ -323,6 +329,7 @@ class App(AppT, ServiceProxy):
             CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _CMT,
             Set: SymbolArg[Type[SetT]] = SET_TYPE,
             Serializers: SymbolArg[Type[RegistryT]] = REGISTRY_TYPE,
+            Worker: SymbolArg[Type[WorkerT]] = WORKER_TYPE,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
             origin: str = None,
@@ -357,6 +364,7 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self._worker_type = Worker
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
         self._leader_assignor = LeaderAssignor(self)
@@ -377,7 +385,7 @@ class App(AppT, ServiceProxy):
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
-        from .bin.faust import cli
+        from .cli.faust import cli
         cli(app=self)
 
     def topic(self, *topics: str,
@@ -472,6 +480,7 @@ class App(AppT, ServiceProxy):
                 concurrency=concurrency,
                 sink=sink,
                 on_error=self._on_actor_error,
+                help=fun.__doc__,
             )
             self.actors[actor.name] = actor
             return actor
@@ -590,6 +599,7 @@ class App(AppT, ServiceProxy):
               default: Callable[[], Any] = None,
               window: WindowT = None,
               partitions: int = None,
+              help: str = None,
               **kwargs: Any) -> TableT:
         """Define new table.
 
@@ -617,6 +627,7 @@ class App(AppT, ServiceProxy):
             default=default,
             beacon=self.beacon,
             partitions=partitions,
+            help=help,
             **kwargs))
         return table.using_window(window) if window else table
 
@@ -624,6 +635,7 @@ class App(AppT, ServiceProxy):
             *,
             window: WindowT = None,
             partitions: int = None,
+            help: str = None,
             **kwargs: Any) -> SetT:
         """Define new Set table.
 
@@ -640,6 +652,7 @@ class App(AppT, ServiceProxy):
             beacon=self.beacon,
             partitions=partitions,
             window=window,
+            help=help,
             **kwargs))
 
     def page(self, path: str,
@@ -684,8 +697,8 @@ class App(AppT, ServiceProxy):
         if options is None and base is None and kwargs is None:
             raise TypeError('Use parens in @app.command(), not @app.command.')
         if base is None:
-            from .bin import base as bin_base
-            base = bin_base.AppCommand
+            from .cli import base as cli_base
+            base = cli_base.AppCommand
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
             target: Any = fun
@@ -996,6 +1009,9 @@ class App(AppT, ServiceProxy):
             clear_on_resume=clear_on_resume,
             loop=loop or self.loop,
         )
+
+    def Worker(self, **kwargs: Any) -> WorkerT:
+        return symbol_by_name(self._worker_type)(self, **kwargs)
 
     def _create_directories(self) -> None:
         self.datadir.mkdir(exist_ok=True)

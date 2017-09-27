@@ -1,11 +1,11 @@
 import asyncio
 from collections import defaultdict
 from aiokafka import AIOKafkaClient, AIOKafkaConsumer
+from faust.utils import json
 from kafka.protocol.commit import (
     GroupCoordinatorRequest_v0, OffsetFetchRequest_v1,
 )
 from kafka.structs import TopicPartition
-from faust.utils import json
 
 
 class MissingDataException(Exception):

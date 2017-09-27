@@ -1,3 +1,5 @@
+include AUTHORS
+include CODE_OF_CONDUCT.rst
 include Changelog
 include LICENSE
 include README.rst
@@ -9,6 +11,7 @@ recursive-include extra/*
 recursive-include examples *
 recursive-include faust *.py *.html
 recursive-include requirements *.txt *.rst
+recursive-include t *.py
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
