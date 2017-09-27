@@ -1,13 +1,10 @@
 from typing import Any, Iterator, Set
+from mode import Service
 from ..types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.sensors import SensorDelegateT, SensorT
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.logging import get_logger
-from ..utils.services import Service
 
 __all__ = ['Sensor', 'SensorDelegate']
-
-logger = get_logger(__name__)
 
 
 class Sensor(SensorT, Service):
@@ -16,7 +13,6 @@ class Sensor(SensorT, Service):
     This sensor does not do anything at all, but can be subclassed
     to create new monitors.
     """
-    logger = logger
 
     async def on_message_in(
             self,

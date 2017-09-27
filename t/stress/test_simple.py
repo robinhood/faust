@@ -1,6 +1,6 @@
 from typing import Mapping
-from faust.utils.logging import setup_logging
 import pytest
+from mode import setup_logging
 from .app import simple
 
 

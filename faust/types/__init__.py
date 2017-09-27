@@ -1,4 +1,5 @@
 """Abstract types for static typing."""
+from mode import ServiceT
 from .actors import ActorT
 from .app import AppT
 from .channels import ChannelT, EventT
@@ -28,9 +29,11 @@ from .tuples import (
     RecordMetadata, TopicPartition,
 )
 from .windows import WindowRange, WindowT
-from ..utils.services import ServiceT
 
 __all__ = [
+    # :pypi:`mode`
+    'ServiceT',
+
     # types.actors
     'ActorT',
 
@@ -54,9 +57,6 @@ __all__ = [
 
     # types.serializers
     'RegistryT',
-
-    # utils.services
-    'ServiceT',
 
     # types.stores
     'StoreT',

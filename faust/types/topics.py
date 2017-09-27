@@ -5,11 +5,10 @@ from typing import (
     Any, Iterable,
     Mapping, MutableSet, Optional, Pattern, Sequence, Union,
 )
+from mode import Seconds, ServiceT
 from .channels import ChannelT
 from .codecs import CodecArg
 from .tuples import TopicPartition
-from ..utils.services import ServiceT
-from ..utils.times import Seconds
 
 if typing.TYPE_CHECKING:
     from .app import AppT

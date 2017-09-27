@@ -39,4 +39,4 @@ With pip
 You can install the latest snapshot of faust using the following
 pip command::
 
-    $ pip install https://github.com/robinhoodmarkets/faust/zipball/master#egg=faust
+    $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust

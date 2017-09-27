@@ -11,6 +11,8 @@ from typing import (
 )
 from weakref import WeakSet
 
+from mode import Service, ServiceT
+from mode.utils.futures import notify
 from yarl import URL
 
 from ..types import AppT, Message, RecordMetadata, TopicPartition
@@ -20,9 +22,6 @@ from ..types.transports import (
     ProducerT, TPorTopicSet, TransportT,
 )
 from ..utils.functional import consecutive_numbers
-from ..utils.futures import notify
-from ..utils.logging import get_logger
-from ..utils.services import Service, ServiceT
 
 if typing.TYPE_CHECKING:
     from ..app import App
@@ -37,8 +36,6 @@ CONSUMER_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 CONSUMER_COMMITTING = 'COMMITTING'
 CONSUMER_SEEKING = 'SEEKING'
 CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
-
-logger = get_logger(__name__)
 
 
 # The Transport is responsible for:
@@ -75,7 +72,6 @@ logger = get_logger(__name__)
 
 class Consumer(Service, ConsumerT):
     """Base Consumer."""
-    logger = logger
 
     RebalanceListener: ClassVar[Type]
 
@@ -403,7 +399,6 @@ class Fetcher(Service):
 
 class Producer(Service, ProducerT):
     """Base Producer."""
-    logger = logger
 
     def __init__(self, transport: TransportT, **kwargs: Any) -> None:
         self.transport = transport

@@ -1,12 +1,12 @@
 """Table (key/value changelog stream)."""
 from typing import Any
+from mode import Seconds
 from .base import Collection
 from .wrappers import WindowWrapper
 from .. import windows
 from ..types.tables import TableT, WindowWrapperT
 from ..types.windows import WindowT
 from ..utils.collections import ManagedUserDict
-from ..utils.times import Seconds
 
 __all__ = ['Table']
 

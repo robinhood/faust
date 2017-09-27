@@ -12,12 +12,12 @@
 
 .. include:: ../includes/code-of-conduct.txt
 
-.. |build-status| image:: https://secure.travis-ci.org/robinhoodmarkets/faust.png?branch=master
+.. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
     :alt: Build status
-    :target: https://travis-ci.org/robinhoodmarkets/faust
+    :target: https://travis-ci.org/fauststream/faust
 
-.. |coverage| image:: https://codecov.io/github/robinhoodmarkets/faust/coverage.svg?branch=master
-    :target: https://codecov.io/github/robinhoodmarkets/faust?branch=master
+.. |coverage| image:: https://codecov.io/github/fauststream/faust/coverage.svg?branch=master
+    :target: https://codecov.io/github/fauststream/faust?branch=master
 
 .. |license| image:: https://img.shields.io/pypi/l/faust.svg
     :alt: BSD License

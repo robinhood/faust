@@ -15,20 +15,16 @@ from kafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
+from mode import Seconds, Service, want_seconds
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
-from ..utils.logging import get_logger
 from ..utils.objects import cached_property
-from ..utils.services import Service
-from ..utils.times import Seconds, want_seconds
 
 __all__ = ['Consumer', 'Producer', 'Transport']
-
-logger = get_logger(__name__)
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -56,9 +52,8 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
 
 
 class Consumer(base.Consumer):
-    logger = logger
-
     RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
+
     _consumer: aiokafka.AIOKafkaConsumer
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
@@ -228,7 +223,6 @@ class Consumer(base.Consumer):
 
 
 class Producer(base.Producer):
-    logger = logger
     _producer: aiokafka.AIOKafkaProducer
 
     def on_init(self) -> None:

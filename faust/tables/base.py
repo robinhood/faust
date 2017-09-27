@@ -7,6 +7,7 @@ from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Optional, Union, cast,
 )
+from mode import Seconds, Service
 from yarl import URL
 from .. import stores
 from ..channels import Event
@@ -21,19 +22,13 @@ from ..types.stores import StoreT
 from ..types.streams import JoinableT, StreamT
 from ..types.tables import CollectionT
 from ..types.windows import WindowRange, WindowT
-from ..utils.logging import get_logger
-from ..utils.services import Service
-from ..utils.times import Seconds
 
 __all__ = ['Collection']
-
-logger = get_logger(__name__)
 
 TABLE_CLEANING = 'CLEANING'
 
 
 class Collection(Service, CollectionT):
-    logger = logger
 
     _store: URL
     _changelog_topic: TopicT

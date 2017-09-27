@@ -31,12 +31,12 @@ import platform
 import socket
 import typing
 from typing import Any
+from mode.utils.logging import level_name
 from terminaltables import SingleTable
 from yarl import URL
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, option
 from .. import __version__ as faust_version
-from ..utils.logging import level_name
 
 if typing.TYPE_CHECKING:
     from ..worker import Worker

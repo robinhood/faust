@@ -7,3 +7,4 @@ progress
 yarl
 terminaltables
 colorclass
+mode>=1.0,<2.0

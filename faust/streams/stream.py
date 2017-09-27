@@ -9,6 +9,9 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
+from mode import Seconds, Service, want_seconds
+from mode.utils.types.trees import NodeT
+
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
 
@@ -24,18 +27,12 @@ from ..types.topics import ChannelT
 from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import StampedeWrapper, maybe_async
-from ..utils.logging import get_logger
-from ..utils.services import Service
-from ..utils.times import Seconds, want_seconds
-from ..utils.types.collections import NodeT
 
 __all__ = ['Stream', 'current_event']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
 __make_flake8_happy_CoroCallbackT: CoroCallbackT
 __make_flake8_happy_Message: Message
-
-logger = get_logger(__name__)
 
 
 class _StreamLocal(Local):
@@ -70,7 +67,6 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
 
 
 class Stream(StreamT, Service):
-    logger = logger
 
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None

@@ -6,18 +6,14 @@ from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
 from yarl import URL
 from . import base
 from ..types import AppT, EventT, TopicPartition
-from ..utils.logging import get_logger
 
 try:
     import rocksdb
 except ImportError:
     rocksdb = None  # noqa
 
-logger = get_logger(__name__)
-
 
 class Store(base.SerializedStore):
-    logger = logger
 
     _db: rocksdb.DB = None
 

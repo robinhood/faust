@@ -2,9 +2,8 @@ import asyncio
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
-from faust.utils.logging import get_logger
-from faust.utils.services import Service
-from faust.utils.services.threads import ServiceThread
+from mode import Service
+from mode.threads import ServiceThread
 from .. import base
 from ...types import AppT
 
@@ -12,11 +11,8 @@ __all__ = ['Web']
 
 _bytes = bytes
 
-logger = get_logger(__name__)
-
 
 class Web(base.Web):
-    logger = logger
 
     driver_version = f'aiohttp={aiohttp_version}'
 

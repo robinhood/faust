@@ -5,13 +5,12 @@ from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable,
     List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
 )
+from mode import Seconds, ServiceT
 from ._coroutines import StreamCoroutine
 from .channels import ChannelT, EventT
 from .core import K
 from .models import FieldDescriptorT, ModelArg
 from .topics import TopicT
-from ..utils.services import ServiceT
-from ..utils.times import Seconds
 
 if typing.TYPE_CHECKING:
     from .app import AppT

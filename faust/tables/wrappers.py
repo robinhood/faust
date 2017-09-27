@@ -1,10 +1,10 @@
 import operator
 import typing
 from typing import Any, Callable, Iterator, cast
+from mode import Seconds
 from ..types import EventT
 from ..types.tables import TableT, WindowSetT, WindowWrapperT
 from ..utils.collections import FastUserDict
-from ..utils.times import Seconds
 
 if typing.TYPE_CHECKING:
     from .table import Table

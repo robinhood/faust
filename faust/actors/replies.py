@@ -3,9 +3,9 @@ import typing
 from collections import defaultdict
 from typing import Any, AsyncIterator, MutableMapping, Set, Tuple
 from weakref import WeakSet
+from mode import Service
 from .models import ReqRepResponse
 from ..types import AppT, ChannelT, TopicT
-from ..utils.services import Service
 
 __all__ = ['ReplyPromise', 'BarrierState', 'ReplyConsumer']
 

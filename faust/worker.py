@@ -46,15 +46,14 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, IO, Iterable, Set, Type, Union
 
+import mode
+from mode import ServiceT, get_logger
 from progress.spinner import Spinner
 
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT
 from .utils.imports import SymbolArg, symbol_by_name
-from .utils.logging import get_logger
 from .utils.objects import cached_property
-from .utils.services import ServiceT
-from .utils.services.worker import ServiceWorker
 from .web.site import Website as _Website
 
 try:
@@ -89,7 +88,7 @@ class SpinnerHandler(logging.Handler):
             self.worker.spinner.next()  # noqa: B305
 
 
-class Worker(ServiceWorker):
+class Worker(mode.Worker):
     """Worker.
 
     Usage:

@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
 )
+from mode import PoisonpillSupervisor, Service
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (
@@ -13,8 +14,6 @@ from ..types.tables import (
 from ..types.topics import ChannelT
 from ..utils.aiter import aenumerate, aiter
 from ..utils.collections import FastUserDict
-from ..utils.logging import get_logger
-from ..utils.services import Service
 
 __all__ = [
     'ChangelogReader',
@@ -31,11 +30,8 @@ TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
 TABLEMAN_RECOVER = 'RECOVER'
 TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
-logger = get_logger(__name__)
-
 
 class ChangelogReader(Service, ChangelogReaderT):
-    logger = logger
     wait_for_shutdown = True
     shutdown_timeout = None
 
@@ -158,7 +154,6 @@ class ChangelogReader(Service, ChangelogReaderT):
 
 
 class StandbyReader(ChangelogReader):
-    logger = logger
 
     async def on_stop(self) -> None:
         await self.channel.throw(StopAsyncIteration())
@@ -171,7 +166,6 @@ class StandbyReader(ChangelogReader):
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
-    logger = logger
 
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
@@ -299,7 +293,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._create_recoverer(table, tps)
             for table in self.values()
         ]
-        await self.join_services(table_recoverers)
+        supervisor = PoisonpillSupervisor(*table_recoverers,
+                                          loop=self.loop, beacon=self.beacon)
+        await supervisor.start()
+        await supervisor.stop()
         for recoverer in table_recoverers:
             self._sync_offsets(recoverer)
         self.log.info('Done recovering from changelog topics')

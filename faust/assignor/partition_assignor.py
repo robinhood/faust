@@ -5,6 +5,7 @@ from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
     ConsumerProtocolMemberAssignment, ConsumerProtocolMemberMetadata,
 )
+from mode import get_logger
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
@@ -14,7 +15,6 @@ from ..types.assignor import (
 )
 from ..types.tables import TableManagerT
 from ..types.topics import TopicPartition
-from ..utils.logging import get_logger
 
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]

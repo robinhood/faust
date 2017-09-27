@@ -7,6 +7,10 @@ from typing import (
 )
 from uuid import uuid4
 
+from mode import OneForOneSupervisor, Service, ServiceT, SupervisorStrategyT
+from mode.proxy import ServiceProxy
+from mode.utils.types.trees import NodeT
+
 from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
 
@@ -19,14 +23,8 @@ from ..types.actors import (
     AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
 )
 from ..utils.aiter import aenumerate, aiter
-from ..utils.collections import NodeT
 from ..utils.futures import maybe_async
-from ..utils.logging import get_logger
 from ..utils.objects import cached_property, canoname, qualname
-from ..utils.services import (
-    OneForOneSupervisor, Service, ServiceT, SupervisorStrategyT,
-)
-from ..utils.services.proxy import ServiceProxy
 
 if typing.TYPE_CHECKING:
     from .app import App
@@ -39,8 +37,6 @@ __all__ = [
     'AwaitableActor',
     'Actor',
 ]
-
-logger = get_logger(__name__)
 
 # --- What is an actor?
 #
@@ -101,7 +97,6 @@ logger = get_logger(__name__)
 
 
 class ActorInstance(ActorInstanceT, Service):
-    logger = logger
 
     def __init__(self,
                  agent: ActorT,
@@ -154,7 +149,6 @@ class ActorService(Service):
     # creates the asyncio loop when created, so we separate the
     # actor service in such a way that we can start it lazily.
     # Actor(ServiceProxy) -> ActorService
-    logger = logger
 
     actor: ActorT
     instances: MutableSequence[ActorRefT]
@@ -201,8 +195,6 @@ class ActorService(Service):
 
 class Actor(ActorT, ServiceProxy):
     _sinks: List[SinkT]
-
-    logger = logger
 
     def __init__(self, fun: ActorFun,
                  *,

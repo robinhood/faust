@@ -2,12 +2,15 @@
 import asyncio
 import typing
 from functools import singledispatch
-from typing import Any, Awaitable, Callable, Optional, Type
+from typing import Any, Awaitable, Callable, Type
 from weakref import WeakSet
 
 __all__ = [
-    'FlowControlEvent', 'FlowControlQueue',
-    'done_future', 'maybe_async', 'notify', 'stampede',
+    'FlowControlEvent',
+    'FlowControlQueue',
+    'done_future',
+    'maybe_async',
+    'stampede',
 ]
 
 
@@ -82,13 +85,6 @@ def done_future(result: Any = None, *,
     f = (loop or asyncio.get_event_loop()).create_future()
     f.set_result(result)
     return f
-
-
-def notify(fut: Optional[asyncio.Future], result: Any = None) -> None:
-    # can be used to turn a Future into a lockless, single-consumer condition,
-    # for multi-consumer use asyncio.Condition
-    if fut is not None and not fut.done():
-        fut.set_result(result)
 
 
 @singledispatch

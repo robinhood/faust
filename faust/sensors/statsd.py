@@ -1,12 +1,12 @@
 import typing
 from time import monotonic
 from typing import Any, cast
+from mode import label
 from .monitor import Monitor
 from ..exceptions import ImproperlyConfigured
 from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.logging import get_logger
-from ..utils.objects import cached_property, label
+from ..utils.objects import cached_property
 
 try:
     import statsd
@@ -20,8 +20,6 @@ else:
 
 __all__ = ['StatsdMonitor']
 
-logger = get_logger(__name__)
-
 
 class StatsdMonitor(Monitor):
     """Statsd Faust Sensor.
@@ -29,8 +27,6 @@ class StatsdMonitor(Monitor):
     This sensor, records statistics to Statsd along with computing metrics
     for the stats server
     """
-    logger = logger
-
     host: str
     port: int
     prefix: str

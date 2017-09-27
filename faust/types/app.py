@@ -8,6 +8,8 @@ from typing import (
     Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
 
+from mode import Seconds, ServiceT
+from mode.utils.types.trees import NodeT
 from yarl import URL
 
 from ._coroutines import StreamCoroutine
@@ -27,9 +29,6 @@ from .windows import WindowT
 
 from ..utils.futures import FlowControlEvent
 from ..utils.imports import SymbolArg
-from ..utils.services import ServiceT
-from ..utils.times import Seconds
-from ..utils.types.collections import NodeT
 
 if typing.TYPE_CHECKING:
     from ..cli.base import AppCommand

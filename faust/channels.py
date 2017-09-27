@@ -4,6 +4,7 @@ from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
 )
+from mode import get_logger
 from .streams import current_event
 from .types import (
     AppT, CodecArg, FutureMessage, K, Message,
@@ -12,7 +13,6 @@ from .types import (
 from .types.channels import ChannelT, EventT
 from .types.streams import StreamCoroutine, StreamT
 from .utils.futures import maybe_async
-from .utils.logging import get_logger
 
 if typing.TYPE_CHECKING:
     from .app import App

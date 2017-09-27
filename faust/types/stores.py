@@ -1,11 +1,11 @@
 import abc
 import typing
 from typing import Any, Callable, Iterable, MutableMapping, Optional, Union
+from mode import ServiceT
 from yarl import URL
 from .channels import EventT
 from .codecs import CodecArg
 from .tuples import TopicPartition
-from ..utils.services import ServiceT
 
 if typing.TYPE_CHECKING:
     from .app import AppT

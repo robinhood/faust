@@ -1,13 +1,10 @@
 from typing import Any, Callable
+from mode import Service
 from yarl import URL
 from ..cli._env import WEB_BIND, WEB_PORT
 from ..types import AppT
-from ..utils.logging import get_logger
-from ..utils.services import Service
 
 __all__ = ['Request', 'Response', 'Web']
-
-logger = get_logger(__name__)
 
 _bytes = bytes
 
@@ -17,7 +14,6 @@ class Response:
 
 
 class Web(Service):
-    logger = logger
     app: AppT
 
     bind: str

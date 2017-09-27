@@ -1,11 +1,10 @@
 """Coroutine utilities."""
 import asyncio
 from typing import Any, AsyncIterator, Awaitable, Coroutine, Generator
+from mode import Service
 from ..types._coroutines import (
     CoroCallbackT, InputStreamT, StreamCoroutine, StreamCoroutineCallback,
 )
-from ..utils.logging import get_logger
-from ..utils.services import Service
 
 __all__ = [
     'StreamCoroutine', 'StreamCoroutineCallback',
@@ -13,8 +12,6 @@ __all__ = [
     'GeneratorCoroCallback', 'AsyncCoroCallback', 'AsyncGeneratorCoroCallback',
     'wrap_callback',
 ]
-
-logger = get_logger(__name__)
 
 # This implements the Stream(coroutine=x) stuff where the stream can be
 # processsed by a generator like:
@@ -78,7 +75,6 @@ class InputStream(InputStreamT):
 
 
 class CoroCallback(Service, CoroCallbackT):
-    logger = logger
     inbox: InputStreamT
 
     def __init__(self,
