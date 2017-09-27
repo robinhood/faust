@@ -176,7 +176,7 @@ KStream
                 self.pending.append(amount)
         buffer = TransferBuffer()
 
-        @app.actor(transfer_topic)
+        @app.agent(transfer_topic)
         async def task(transfers):
             async transfer for transfers in transfers:
                 buffer.add(transfer.amount)

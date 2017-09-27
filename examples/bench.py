@@ -43,7 +43,7 @@ async def send_requests(app, n=1000):
         print(f'PRODUCED {n}: {time_end}')
 
 
-@app.actor(request_topic)
+@app.agent(request_topic)
 async def process_requests(requests, n=1000):
     i, j, time_start = 0, 0, None
     async for i, request in requests.enumerate():

@@ -28,11 +28,11 @@
 """
 
 # Note: The command options above are defined in .cli.base.builtin_options
-from .actors import actors
+from .agents import agents
 from .base import cli
 from .reset import reset
 from .send import send
 from .tables import tables
 from .worker import worker
 
-__all__ = ['actors', 'cli', 'reset', 'send', 'tables', 'worker']
+__all__ = ['agents', 'cli', 'reset', 'send', 'tables', 'worker']

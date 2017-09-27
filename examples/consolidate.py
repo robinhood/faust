@@ -23,7 +23,7 @@ async def combine_withdrawals(it):
             yield eventA.derive(amount=eventA.amount + eventB.amount)
 
 
-@app.actor(topic)
+@app.agent(topic)
 async def find_large_withdrawals(stream):
     withdrawals = app.stream(stream, combine_withdrawals)
     async for w in withdrawals.through('foo'):

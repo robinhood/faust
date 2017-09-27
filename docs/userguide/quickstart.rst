@@ -35,7 +35,7 @@ Lets create the file `hello_world.py`:
 
     greetings_topic = app.topic('greetings')
 
-    @app.actor(greetings_topic)
+    @app.agent(greetings_topic)
     async def greet(greetings):
         async for greeting in greetings:
             print(greeting)
@@ -114,7 +114,7 @@ console producer to push some messages into the ``greetings`` topic:
 
     $ faust -A hello_world send @greet "Hello Faust"
 
-The above command sends a message to the ``greet`` actor by using the ``@``
+The above command sends a message to the ``greet`` agent by using the ``@``
 prefix.  You can also send it to the topic by not using any prefix:
 
 .. sourcecode:: console

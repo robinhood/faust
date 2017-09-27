@@ -1,11 +1,11 @@
 =====================================================
- ``faust.types.actors``
+ ``faust.types.agents``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.types.actors
+.. currentmodule:: faust.types.agents
 
-.. automodule:: faust.types.actors
+.. automodule:: faust.types.agents
     :members:
     :undoc-members:

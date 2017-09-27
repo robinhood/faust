@@ -68,7 +68,7 @@ Services can start other services, but they can also start asyncio.Tasks via
 the service.
 
 Since the Service class requires the asyncio loop at start, there's also
-ServiceProxy.  This special subclass is used by App and Actor as they
+ServiceProxy.  This special subclass is used by App and Agent as they
 are created at module time, for example the module ``t.py``::
 
     # t.py
@@ -77,8 +77,8 @@ are created at module time, for example the module ``t.py``::
     app = faust.App('myid')
 
 The ServiceProxy makes the initialization of the service part lazy, and
-delegates all service methods to a composite class (App -> AppService, Actor
--> ActorService).
+delegates all service methods to a composite class (App -> AppService, Agent
+-> AgentService).
 
 
 ``Worker``
@@ -99,7 +99,7 @@ access to table data.
 
 The app configures the Faust instance, and is the entrypoint for just about
 everything that happens in a Faust instance.  Consuming/Producing messages,
-starting streams and actors, etc.
+starting streams and agents, etc.
 
 The app is usually started by ``Worker``, but can also be started alone if
 less operating system interaction is wanted, like if you want to embed Faust
@@ -126,11 +126,11 @@ delivered to the streams.  It does not actually fetch messages (the
 ``Fetcher`` services does tha), but it handles everything to do with
 consumption, like managing topic subscriptions etc.
 
-``Actor``
+``Agent``
 ---------
 
-Actors are also services, and any actor decorated using ``@app.actor`` will
-start with the app.
+Agents are also services, and any async function decorated using ``@app.agent``
+will start with the app.
 
 ``TopicConductor``
 ------------------

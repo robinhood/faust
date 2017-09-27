@@ -15,7 +15,7 @@ async def publish_greetings():
     await say.send(value=str(random.random()))
 
 
-@app.actor()
+@app.agent()
 async def say(greetings):
     async for greeting in greetings:
         print(greeting)

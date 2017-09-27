@@ -28,7 +28,7 @@ from yarl import URL
 
 from . import __version__ as faust_version
 from . import transport
-from .actors import Actor, ActorFun, ActorT, ReplyConsumer, SinkT
+from .agents import Agent, AgentFun, AgentT, ReplyConsumer, SinkT
 from .assignor import LeaderAssignor, PartitionAssignor
 from .channels import Channel, ChannelT
 from .cli._env import DATADIR
@@ -121,7 +121,7 @@ REPLY_EXPIRES = timedelta(days=1)
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({s.id}): {s.url} {s.state} actors({actors}) topics({topics})>
+<{name}({s.id}): {s.url} {s.state} agents({agents}) topics({topics})>
 """.strip()
 
 
@@ -187,8 +187,8 @@ class AppService(Service):
             [self.app._leader_assignor],
             # Reply Consumer (ReplyConsumer)
             [self.app._reply_consumer],
-            # Actors (app.Actor)
-            self.app.actors.values(),
+            # Agents (app.agents)
+            self.app.agents.values(),
             # Topic Manager (app.TopicConductor))
             [self.app.topics],
             # Table Manager (app.TableManager)
@@ -199,12 +199,12 @@ class AppService(Service):
 
     async def on_first_start(self) -> None:
         self.app._create_directories()
-        if not self.app.actors:
+        if not self.app.agents:
             # XXX I can imagine use cases where an app is useful
-            #     without actors, but use this as more of an assertion
-            #     to make sure actors are registered correctly. [ask]
+            #     without agents, but use this as more of an assertion
+            #     to make sure agents are registered correctly. [ask]
             raise ImproperlyConfigured(
-                'Attempting to start app that has no actors')
+                'Attempting to start app that has no agents')
 
     async def on_started(self) -> None:
         # Add all asyncio.Tasks, like timers, etc.
@@ -369,7 +369,7 @@ class App(AppT, ServiceProxy):
                                           replicas=self.num_standby_replicas)
         self._leader_assignor = LeaderAssignor(self)
         self.router = Router(self)
-        self.actors = OrderedDict()
+        self.agents = OrderedDict()
         self.sensors = SensorDelegate(self)
         self.store = URL(store)
         self._monitor = monitor
@@ -447,54 +447,54 @@ class App(AppT, ServiceProxy):
             loop=loop,
         )
 
-    def actor(self,
+    def agent(self,
               channel: Union[str, ChannelT] = None,
               *,
               name: str = None,
               concurrency: int = 1,
-              sink: Iterable[SinkT] = None) -> Callable[[ActorFun], ActorT]:
-        """Decorator used to convert async def function into Faust actor.
+              sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
+        """Decorator used to convert async def function into Faust agent.
 
         The decorated function may be an async iterator, in this
         mode the value yielded in reaction to a request will be the reply::
 
-            @app.actor()
-            async def my_actor(requests):
+            @app.agent()
+            async def my_agent(requests):
                 async for number in requests:
                     yield number * 2
 
         It can also be a regular async function, but then replies are not
         supported::
 
-            @app.actor()
-            async def my_actor(stream):
+            @app.agent()
+            async def my_agent(stream):
                 async for number in stream:
                     print(f'Received: {number!r}')
         """
-        def _inner(fun: ActorFun) -> ActorT:
-            actor = Actor(
+        def _inner(fun: AgentFun) -> AgentT:
+            agent = Agent(
                 fun,
                 name=name,
                 app=self,
                 channel=channel,
                 concurrency=concurrency,
                 sink=sink,
-                on_error=self._on_actor_error,
+                on_error=self._on_agent_error,
                 help=fun.__doc__,
             )
-            self.actors[actor.name] = actor
-            return actor
+            self.agents[agent.name] = agent
+            return agent
         return _inner
 
-    async def _on_actor_error(
-            self, actor: ActorT, exc: BaseException) -> None:
-        # XXX If an actor raises in the middle of processing an event
+    async def _on_agent_error(
+            self, agent: AgentT, exc: BaseException) -> None:
+        # XXX If an agent raises in the middle of processing an event
         # what do we do with acking it?  Currently the source message will be
         # acked and not processed again, simply because it violates
         # ""exactly-once" semantics".
         #
         # - What about retries?
-        # It'd be safe to retry processing the event if the actor
+        # It'd be safe to retry processing the event if the agent
         # processing is idempotent, but we don't enforce idempotency
         # in stream processors so it's not something we can enable by default.
         #
@@ -1021,7 +1021,7 @@ class App(AppT, ServiceProxy):
         return APP_REPR.format(
             name=type(self).__name__,
             s=self,
-            actors=self.actors,
+            agents=self.agents,
             topics=len(self.topics),
         )
 

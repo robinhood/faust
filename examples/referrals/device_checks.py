@@ -16,7 +16,7 @@ user_devices = app.Table('user_devices', default=list)
 user_usernames = app.Table('user_usernames')
 
 
-@app.actor(journal_updates_topic)
+@app.agent(journal_updates_topic)
 async def manage_user_grants(journal_updates):
     # Sharded by user_uuid
     async for update in journal_updates.group_by(StockJournalUpdate.user_id):
@@ -28,7 +28,7 @@ async def manage_user_grants(journal_updates):
                 await _maybe_send_user_device(update.user_id)
 
 
-@app.actor(events_topic)
+@app.agent(events_topic)
 async def manage_user_devices(events):
     # Sharded by user_uuid
     async for event in events.group_by(lambda e: e.user.secret,
@@ -78,7 +78,7 @@ def _should_send_user_device(user_uuid):
 device_referral_users = app.Table('device_referral_users', default=list)
 
 
-@app.actor()
+@app.agent()
 async def alert_device_reuse(referral_user_devices):
     # Sharded by user device
     async for user_device in referral_user_devices:

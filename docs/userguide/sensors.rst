@@ -54,7 +54,7 @@ in ``app.monitor``:
 
 .. sourcecode:: python
 
-    @app.actor(app.topic('topic'))
+    @app.agent(app.topic('topic'))
     def mytask(events):
         async for event in events:
             # emit how many events are being processed every second.

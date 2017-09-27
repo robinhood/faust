@@ -18,11 +18,11 @@ else:
     class AppT: ...          # noqa
 
 __all__ = [
-    'ActorErrorHandler',
-    'ActorFun',
-    'ActorInstanceT',
-    'ActorRefT',
+    'AgentErrorHandler',
+    'AgentFun',
     'ActorT',
+    'ActorRefT',
+    'AgentT',
     'AsyncIterableActorT',
     'AwaitableActorT',
     'ReplyToArg',
@@ -30,22 +30,22 @@ __all__ = [
 ]
 
 _T = TypeVar('_T')
-ActorErrorHandler = Callable[['ActorT', BaseException], Awaitable]
-ActorFun = Callable[
+AgentErrorHandler = Callable[['AgentT', BaseException], Awaitable]
+AgentFun = Callable[
     [Union[AsyncIterator, StreamT]],
     Union[Awaitable, AsyncIterable],
 ]
 
-#: A sink can be: Actor, Channel
+#: A sink can be: Agent, Channel
 #: or callable/async callable taking value as argument.
-SinkT = Union['ActorT', ChannelT, Callable[[Any], Union[Awaitable, None]]]
+SinkT = Union['AgentT', ChannelT, Callable[[Any], Union[Awaitable, None]]]
 
-ReplyToArg = Union['ActorT', ChannelT, str]
+ReplyToArg = Union['AgentT', ChannelT, str]
 
 
-class ActorInstanceT(Generic[_T], ServiceT):
+class ActorT(Generic[_T], ServiceT):
 
-    agent: 'ActorT'
+    agent: 'AgentT'
     stream: StreamT
     it: _T
     actor_task: asyncio.Task = None
@@ -55,7 +55,7 @@ class ActorInstanceT(Generic[_T], ServiceT):
 
     @abc.abstractmethod
     def __init__(self,
-                 agent: 'ActorT',
+                 agent: 'AgentT',
                  stream: StreamT,
                  it: _T,
                  **kwargs: Any) -> None:
@@ -66,20 +66,20 @@ class ActorInstanceT(Generic[_T], ServiceT):
         ...
 
 
-class AsyncIterableActorT(ActorInstanceT[AsyncIterable], AsyncIterable):
-    """Used for actor function that yields."""
+class AsyncIterableActorT(ActorT[AsyncIterable], AsyncIterable):
+    """Used for agent function that yields."""
     ...
 
 
-class AwaitableActorT(ActorInstanceT[Awaitable], Awaitable):
-    """Used for actor function that do not yield."""
+class AwaitableActorT(ActorT[Awaitable], Awaitable):
+    """Used for agent function that do not yield."""
     ...
 
 
-ActorRefT = ActorInstanceT[Union[AsyncIterable, Awaitable]]
+ActorRefT = ActorT[Union[AsyncIterable, Awaitable]]
 
 
-class ActorT(ServiceT):
+class AgentT(ServiceT):
 
     name: str
     app: AppT
@@ -88,16 +88,16 @@ class ActorT(ServiceT):
     help: str
 
     @abc.abstractmethod
-    def __init__(self, fun: ActorFun,
+    def __init__(self, fun: AgentFun,
                  *,
                  name: str = None,
                  app: AppT = None,
                  channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
-                 on_error: ActorErrorHandler = None,
+                 on_error: AgentErrorHandler = None,
                  help: str = None) -> None:
-        self.fun: ActorFun = fun
+        self.fun: AgentFun = fun
 
     @abc.abstractmethod
     def __call__(self) -> ActorRefT:
