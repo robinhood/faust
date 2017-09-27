@@ -1,4 +1,4 @@
-from case import Mock, call
+from unittest.mock import Mock, call
 from faust.utils.collections import FastUserDict, ManagedUserDict
 import pytest
 

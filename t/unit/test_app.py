@@ -1,4 +1,4 @@
-from case import ANY, Mock
+from unittest.mock import ANY, Mock
 import faust
 from faust.serializers import codecs
 from faust.types.models import ModelT
