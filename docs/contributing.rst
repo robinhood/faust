@@ -401,45 +401,6 @@ the steps outlined here: http://bit.ly/koJoso
 
 .. _`Pull Requests`: http://help.github.com/send-pull-requests/
 
-.. _contributing-coverage:
-
-Calculating test coverage
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To calculate test coverage you must first install the :pypi:`pytest-cov` module.
-
-Installing the :pypi:`pytest-cov` module:
-
-.. sourcecode:: console
-
-    $ pip install -U pytest-cov
-
-Code coverage in HTML format
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-#. Run :command:`py.test` with the ``--cov-report=html`` argument enabled:
-
-    .. sourcecode:: console
-
-        $ py.test --cov=faust --cov-report=html
-
-#. The coverage output will then be located in the :file:`htmlcov/` directory:
-
-    .. sourcecode:: console
-
-        $ open htmlcov/index.html
-
-Code coverage in XML (Cobertura-style)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-#. Run :command:`py.test` with the ``--cov-report=xml`` argument enabled:
-
-.. sourcecode:: console
-
-    $ py.test --cov=faust --cov-report=xml
-
-#. The coverage XML output will then be located in the :file:`coverage.xml` file.
-
 .. _contributing-tox:
 
 Running the tests on all supported Python versions

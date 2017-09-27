@@ -2,7 +2,7 @@
  Faust: Stream Processing for Python
 =====================================================================
 
-|build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
+|build-status| |license| |wheel| |pyversion| |pyimp|
 
 :Version: 1.0.0
 :Web: http://fauststream.com
@@ -141,7 +141,7 @@ With pip
 You can install the latest snapshot of faust using the following
 pip command::
 
-    $ pip install https://github.com/robinhoodmarkets/faust/zipball/master#egg=faust
+    $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
 
 FAQ
 ===
@@ -284,12 +284,9 @@ reported by opening an issue or contacting one or more of the project maintainer
 This Code of Conduct is adapted from the Contributor Covenant,
 version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
-.. |build-status| image:: https://secure.travis-ci.org/robinhoodmarkets/faust.png?branch=master
+.. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
     :alt: Build status
-    :target: https://travis-ci.org/robinhoodmarkets/faust
-
-.. |coverage| image:: https://codecov.io/github/robinhoodmarkets/faust/coverage.svg?branch=master
-    :target: https://codecov.io/github/robinhoodmarkets/faust?branch=master
+    :target: https://travis-ci.org/fauststream/faust
 
 .. |license| image:: https://img.shields.io/pypi/l/faust.svg
     :alt: BSD License

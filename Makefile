@@ -157,9 +157,6 @@ test-all: clean-pyc
 test:
 	$(PYTHON) setup.py test
 
-cov:
-	$(PYTEST) -x --cov="$(PROJ)" --cov-report=html
-
 build:
 	$(PYTHON) setup.py sdist bdist_wheel
 

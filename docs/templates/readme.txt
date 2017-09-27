@@ -2,7 +2,7 @@
  Faust: Stream Processing for Python
 =====================================================================
 
-|build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
+|build-status| |license| |wheel| |pyversion| |pyimp|
 
 .. include:: ../includes/introduction.txt
 
@@ -15,9 +15,6 @@
 .. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/fauststream/faust
-
-.. |coverage| image:: https://codecov.io/github/fauststream/faust/coverage.svg?branch=master
-    :target: https://codecov.io/github/fauststream/faust?branch=master
 
 .. |license| image:: https://img.shields.io/pypi/l/faust.svg
     :alt: BSD License
