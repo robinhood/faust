@@ -296,6 +296,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         supervisor = PoisonpillSupervisor(*table_recoverers,
                                           loop=self.loop, beacon=self.beacon)
         await supervisor.start()
+        await supervisor.stop()
         for recoverer in table_recoverers:
             self._sync_offsets(recoverer)
         self.log.info('Done recovering from changelog topics')
