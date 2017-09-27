@@ -53,6 +53,10 @@ class CheckpointManagerT(ServiceT):
     def reset_state(self) -> None:
         ...
 
+    @abc.abstractmethod
+    def sync(self) -> None:
+        ...
+
 
 class CollectionT(JoinableT, ServiceT):
     StateStore: ClassVar[Type[StoreT]] = None

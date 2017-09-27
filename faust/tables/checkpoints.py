@@ -1,7 +1,7 @@
 import json
 import os
 from contextlib import suppress
-from typing import Any, MutableMapping, Optional
+from typing import Any, Iterator, Mapping, MutableMapping, Optional, Tuple
 from mode import Service
 from ..types import AppT, TopicPartition
 from ..types.tables import CheckpointManagerT
@@ -19,20 +19,36 @@ class CheckpointManager(CheckpointManagerT, Service):
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
+        self._update_offsets_from_file()
+
+    def _update_offsets_from_file(self) -> None:
+        self._offsets.update(self._read_checkpoints())
+
+    def _read_checkpoints(self) -> Iterator[Tuple[TopicPartition, int]]:
+        data: Mapping = None
         with suppress(FileNotFoundError):
             with open(self.app.checkpoint_path, 'r') as fh:
                 data = json.load(fh)
-            self._offsets.update((
-                (self._get_tp(k), int(v))
-                for k, v in data.items()
-            ))
+            for k, v in data.items():
+                yield self._get_tp(k), int(v)
 
     async def on_stop(self) -> None:
+        await self.sync()
+
+    async def sync(self) -> None:
+        self._write_offsets_to_file(self._offsets)
+
+    def _write_offsets_to_file(
+            self, offsets: Mapping[TopicPartition, int]) -> None:
         with open(self.app.checkpoint_path, 'w') as fh:
-            json.dump({
-                f'{tp.topic}\0{tp.partition}': v
-                for tp, v in self._offsets.items()
-            }, fh)
+            json.dump(self._as_encoded_offsets(offsets), fh)
+
+    def _as_encoded_offsets(
+            self, offsets: Mapping[TopicPartition, int]) -> Mapping[str, int]:
+        return {
+            f'{tp.topic}\0{tp.partition}': v
+            for tp, v in offsets.items()
+        }
 
     def reset_state(self) -> None:
         with suppress(FileNotFoundError):
