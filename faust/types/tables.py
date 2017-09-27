@@ -54,7 +54,7 @@ class CheckpointManagerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def sync(self) -> None:
+    async def sync(self) -> None:
         ...
 
 
