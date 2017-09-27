@@ -4,7 +4,7 @@ from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
 )
-from trish import get_logger
+from mode import get_logger
 from .streams import current_event
 from .types import (
     AppT, CodecArg, FutureMessage, K, Message,

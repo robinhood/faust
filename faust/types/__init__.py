@@ -1,5 +1,5 @@
 """Abstract types for static typing."""
-from trish import ServiceT
+from mode import ServiceT
 from .app import AppT
 from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
@@ -30,7 +30,7 @@ from .tuples import (
 from .windows import WindowRange, WindowT
 
 __all__ = [
-    # :pypi:`trish`
+    # :pypi:`mode`
     'ServiceT',
 
     # types.app

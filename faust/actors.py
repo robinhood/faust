@@ -10,10 +10,10 @@ from typing import (
 from uuid import uuid4
 from weakref import WeakSet
 
-from trish import OneForOneSupervisor, Service
-from trish.proxy import ServiceProxy
-from trish.types import ServiceT, SupervisorStrategyT
-from trish.utils.trees import NodeT
+from mode import OneForOneSupervisor, Service
+from mode.proxy import ServiceProxy
+from mode.types import ServiceT, SupervisorStrategyT
+from mode.utils.trees import NodeT
 
 from . import Record
 from .types import (

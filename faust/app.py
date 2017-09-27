@@ -21,9 +21,9 @@ from typing import (
 )
 from uuid import uuid4
 
-from trish import Seconds, Service, ServiceT, want_seconds
-from trish.proxy import ServiceProxy
-from trish.utils.types.trees import NodeT
+from mode import Seconds, Service, ServiceT, want_seconds
+from mode.proxy import ServiceProxy
+from mode.utils.types.trees import NodeT
 from yarl import URL
 
 from . import __version__ as faust_version

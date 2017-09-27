@@ -15,7 +15,7 @@ from kafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from trish import Service, Seconds, want_seconds
+from mode import Seconds, Service, want_seconds
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TopicPartition

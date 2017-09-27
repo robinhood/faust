@@ -1,5 +1,5 @@
 from typing import Any, Callable
-from trish import Service
+from mode import Service
 from yarl import URL
 from ..bin._env import WEB_BIND, WEB_PORT
 from ..types import AppT

@@ -1,6 +1,6 @@
 from typing import Mapping
 import pytest
-from trish import setup_logging
+from mode import setup_logging
 from .app import simple
 
 

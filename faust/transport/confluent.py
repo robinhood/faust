@@ -1,7 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 from typing import Awaitable, Optional, cast
 import confluent_kafka
-from trish import Service
+from mode import Service
 from . import base
 from ..types import Message
 from ..utils.futures import done_future

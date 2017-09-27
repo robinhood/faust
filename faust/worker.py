@@ -47,10 +47,10 @@ from itertools import chain
 from pathlib import Path
 from typing import Any, IO, Iterable, Set, Type, Union
 
+from mode import ServiceT
+from mode import worker
+from mode.utils.logging import level_name
 from progress.spinner import Spinner
-from trish import ServiceT
-from trish import worker
-from trish.utils.logging import level_name
 
 from . import __version__ as faust_version
 from .bin._env import BLOCKING_TIMEOUT, DEBUG

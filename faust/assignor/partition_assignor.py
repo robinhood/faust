@@ -5,7 +5,7 @@ from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
     ConsumerProtocolMemberAssignment, ConsumerProtocolMemberMetadata,
 )
-from trish import get_logger
+from mode import get_logger
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor

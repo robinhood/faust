@@ -4,7 +4,7 @@ from typing import (
     Any, AsyncIterator, Awaitable, Callable,
     Coroutine, Generator, Iterable, Union,
 )
-from trish import ServiceT
+from mode import ServiceT
 
 __all__ = [
     'InputStreamT',

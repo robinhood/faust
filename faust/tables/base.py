@@ -7,7 +7,7 @@ from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Optional, Union, cast,
 )
-from trish import Seconds, Service
+from mode import Seconds, Service
 from yarl import URL
 from .. import stores
 from ..channels import Event

@@ -6,7 +6,7 @@ from typing import (
     Any, Callable, ClassVar, Counter, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type, Union,
 )
-from trish import Seconds, ServiceT
+from mode import Seconds, ServiceT
 from yarl import URL
 from .channels import EventT
 from .stores import StoreT

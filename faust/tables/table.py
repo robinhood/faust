@@ -1,6 +1,6 @@
 """Table (key/value changelog stream)."""
 from typing import Any
-from trish import Seconds
+from mode import Seconds
 from .base import Collection
 from .wrappers import WindowWrapper
 from .. import windows

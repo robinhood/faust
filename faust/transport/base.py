@@ -11,8 +11,8 @@ from typing import (
 )
 from weakref import WeakSet
 
-from trish import Service, ServiceT
-from trish.utils.futures import notify
+from mode import Service, ServiceT
+from mode.utils.futures import notify
 from yarl import URL
 
 from ..types import AppT, Message, RecordMetadata, TopicPartition

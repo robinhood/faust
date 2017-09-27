@@ -1,7 +1,7 @@
 import operator
 import typing
 from typing import Any, Callable, Iterator, cast
-from trish import Seconds
+from mode import Seconds
 from ..types import EventT
 from ..types.tables import TableT, WindowSetT, WindowWrapperT
 from ..utils.collections import FastUserDict

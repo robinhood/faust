@@ -7,7 +7,7 @@ from typing import (
 )
 from aiohttp import ClientSession
 from avro.schema import Parse, Schema
-from trish import get_logger
+from mode import get_logger
 from yarl import URL
 from .. import json
 

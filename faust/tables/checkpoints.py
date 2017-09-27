@@ -2,7 +2,7 @@ import json
 import os
 from contextlib import suppress
 from typing import Any, MutableMapping, Optional
-from trish import Service
+from mode import Service
 from ..types import AppT, TopicPartition
 from ..types.tables import CheckpointManagerT
 

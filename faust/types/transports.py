@@ -5,7 +5,7 @@ from typing import (
     AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar,
     Iterable, Mapping, Optional, Set, Tuple, Type, Union, no_type_check,
 )
-from trish import ServiceT, Seconds
+from mode import Seconds, ServiceT
 from yarl import URL
 from .tuples import Message, RecordMetadata, TopicPartition
 

@@ -8,8 +8,8 @@ from typing import (
     Iterable, List, Mapping, MutableMapping, Pattern, Type, Union,
 )
 
-from trish import Seconds, ServiceT
-from trish.utils.types.trees import NodeT
+from mode import Seconds, ServiceT
+from mode.utils.types.trees import NodeT
 from yarl import URL
 
 from ._coroutines import StreamCoroutine

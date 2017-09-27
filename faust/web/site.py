@@ -1,5 +1,5 @@
 from typing import Any, Sequence, Tuple, Type, Union
-from trish import Service
+from mode import Service
 from .apps import graph
 from .apps import router
 from .apps import stats

@@ -159,7 +159,7 @@ Bugs for a package in the Faust ecosystem should be reported to the relevant
 issue tracker.
 
 * :pypi:`faust` - https://github.com/fauststream/faust/issues
-* :pypi:`trish` - https://github.com/fauststream/trish/issues
+* :pypi:`mode` - https://github.com/fauststream/mode/issues
 
 If you're unsure of the origin of the bug you can ask the
 :ref:`mailing-list`, or just use the Faust issue tracker.
@@ -764,14 +764,14 @@ Packages
 :PyPI: :pypi:`faust`
 :docs: http://docs.fauststream.com
 
-``trish``
----------
+``mode``
+--------
 
-:git: https://github.com/fauststream/trish
-:CI: http://travis-ci.org/#!/fauststream/trish
-:Windows-CI: https://ci.appveyor.com/project/ask/trish
-:PyPI: :pypi:`trish`
-:docs: http://trish.readthedocs.io/
+:git: https://github.com/fauststream/mode
+:CI: http://travis-ci.org/#!/fauststream/mode
+:Windows-CI: https://ci.appveyor.com/project/ask/mode
+:PyPI: :pypi:`mode`
+:docs: http://mode.readthedocs.io/
 
 .. _release-procedure:
 

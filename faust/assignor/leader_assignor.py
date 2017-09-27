@@ -1,5 +1,5 @@
 from typing import Any
-from trish import Service
+from mode import Service
 from ..types import AppT, TopicPartition, TopicT
 from ..types.assignor import LeaderAssignorT
 from ..utils.objects import cached_property

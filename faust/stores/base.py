@@ -1,7 +1,7 @@
 import abc
 from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
-from trish import Service
+from mode import Service
 from yarl import URL
 from ..serializers.codecs import dumps, loads
 from ..types import AppT, CodecArg, EventT, StoreT, TopicPartition

@@ -7,8 +7,8 @@ from typing import (
     Any, Awaitable, Callable, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
 )
-from trish import Seconds, Service, get_logger
-from trish.utils.futures import notify
+from mode import Seconds, Service, get_logger
+from mode.utils.futures import notify
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (

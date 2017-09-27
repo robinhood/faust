@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
 )
-from trish import PoisonpillSupervisor, Service
+from mode import PoisonpillSupervisor, Service
 from .table import Table
 from ..types import AppT, EventT, TopicPartition
 from ..types.tables import (

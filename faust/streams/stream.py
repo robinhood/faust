@@ -9,8 +9,8 @@ from typing import (
     Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
 )
 
-from trish import Seconds, Service, want_seconds
-from trish.utils.types.trees import NodeT
+from mode import Seconds, Service, want_seconds
+from mode.utils.types.trees import NodeT
 
 from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback

@@ -5,7 +5,7 @@ from typing import (
     Any, Iterable,
     Mapping, MutableSet, Optional, Pattern, Sequence, Union,
 )
-from trish import Seconds, ServiceT
+from mode import Seconds, ServiceT
 from .channels import ChannelT
 from .codecs import CodecArg
 from .tuples import TopicPartition

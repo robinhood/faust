@@ -1,6 +1,6 @@
 import abc
 from typing import List, NamedTuple
-from trish import Seconds
+from mode import Seconds
 
 
 class WindowRange(NamedTuple):

@@ -1,5 +1,5 @@
 from typing import Any, Iterator, Set
-from trish import Service
+from mode import Service
 from ..types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.sensors import SensorDelegateT, SensorT
 from ..types.transports import ConsumerT, ProducerT

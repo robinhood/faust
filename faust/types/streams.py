@@ -5,7 +5,7 @@ from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable,
     List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
 )
-from trish import Seconds, ServiceT
+from mode import Seconds, ServiceT
 from ._coroutines import StreamCoroutine
 from .channels import ChannelT, EventT
 from .core import K

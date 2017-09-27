@@ -1,7 +1,7 @@
 import abc
 import typing
 from typing import Iterable, List, MutableMapping
-from trish import ServiceT
+from mode import ServiceT
 from .topics import TopicPartition
 
 

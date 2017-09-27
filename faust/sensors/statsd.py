@@ -1,7 +1,7 @@
 import typing
 from time import monotonic
 from typing import Any, cast
-from trish import label
+from mode import label
 from .monitor import Monitor
 from ..exceptions import ImproperlyConfigured
 from ..types import CollectionT, EventT, Message, StreamT, TopicPartition

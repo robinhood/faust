@@ -7,8 +7,8 @@ from typing import (
     Any, Counter, List, Mapping, MutableMapping, Tuple, cast,
 )
 from weakref import WeakValueDictionary
-from trish import Service, ServiceT, label
-from trish.proxy import ServiceProxy
+from mode import Service, ServiceT, label
+from mode.proxy import ServiceProxy
 from .base import Sensor
 from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
 from ..types.transports import ConsumerT, ProducerT
