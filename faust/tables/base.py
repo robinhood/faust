@@ -135,7 +135,7 @@ class Collection(Service, CollectionT):
 
     def _on_changelog_sent(self, fut: FutureMessage) -> None:
         res: RecordMetadata = fut.result()
-        self.app.checkpoints.set_offset(res.topic_partition, res.offset)
+        self.data.set_persisted_offset(res.topic_partition, res.offset)
 
     @Service.task
     @Service.transitions_to(TABLE_CLEANING)

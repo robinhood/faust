@@ -37,6 +37,10 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
+    def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:

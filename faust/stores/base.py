@@ -25,6 +25,9 @@ class Store(StoreT, Service):
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         raise NotImplementedError('In-memory store only, does not persist.')
 
+    def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
     def _encode_key(self, key: Any) -> bytes:
         return dumps(self.key_serializer, key)
 

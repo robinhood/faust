@@ -13,11 +13,7 @@ class reset(AppCommand):
     Warning:
         This command will result in the destruction of the following files:
 
-            1) The ``.checkpoint`` file (or :attr:`@checkpoint_path`),
-               that keeps track of for each table changelog topic,
-               the offset of the last message we produced.
-
-            2) The local database directories/files backing tables
+            1) The local database directories/files backing tables
                (does not apply if an in-memory store like memory:// is used).
 
     Notes:
@@ -31,13 +27,8 @@ class reset(AppCommand):
 
     async def run(self) -> None:
         await self.reset_tables()
-        await self.reset_checkpoints()
 
     async def reset_tables(self) -> None:
         for table in self.app.tables.values():
             self.say(f'Removing database for table {table.name}...')
             table.reset_state()
-
-    async def reset_checkpoints(self) -> None:
-        self.say(f'Removing file "{self.app.checkpoint_path}"...')
-        self.app.checkpoints.reset_state()
