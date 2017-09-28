@@ -362,6 +362,10 @@ class Command(abc.ABC):
     def bold(self, text: str) -> str:
         return self.colored('b', text)
 
+    def bold_tail(self, text: str, *, sep: str = '.') -> str:
+        head, _, tail = text.rpartition(sep)
+        return sep.join([head, self.bold(tail)])
+
     def _table_wrap(self, table: BaseTable, text: str) -> str:
         max_width = table.column_max_width(1)
         return '\n'.join(wrap(text, max_width))
@@ -492,6 +496,11 @@ class AppCommand(Command):
         if entity.startswith('@'):
             return self.import_relative_to_app(entity[1:])
         return self.app.topic(entity)
+
+    def abbreviate_fqdn(self, name: str, *, prefix: str = '') -> str:
+        if name.startswith(self.app.origin):
+            name = name[len(self.app.origin) + 1:]
+        return f'{prefix}{name}'
 
 
 __flake8_ModelT_is_used: ModelT  # XXX: flake8 bug

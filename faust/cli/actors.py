@@ -10,7 +10,7 @@ from ..types import ActorT
 
 
 class actors(AppCommand):
-    """List actors."""
+    """List available actors."""
 
     title = 'Actors'
     headers = ['name', 'topic', 'help']
@@ -37,20 +37,13 @@ class actors(AppCommand):
 
     def actor_to_row(self, actor: ActorT) -> Sequence[str]:
         return [
-            self._bold_tail(self._name(actor)),
+            self.bold_tail(self._name(actor)),
             self._topic(actor),
             self.colored('autoblack', self._help(actor)),
         ]
 
     def _name(self, actor: ActorT) -> str:
-        name = actor.name
-        if name.startswith(self.app.origin):
-            name = name[len(self.app.origin) + 1:]
-        return f'@{name}'
-
-    def _bold_tail(self, text: str, *, sep: str = '.') -> str:
-        head, _, tail = text.rpartition(sep)
-        return sep.join([head, self.bold(tail)])
+        return self.abbreviate_fqdn(actor.name, prefix='@')
 
     def _maybe_topic(self, actor: ActorT) -> Optional[str]:
         try:

@@ -73,7 +73,10 @@ class CopartitionedAssignment:
         )
 
 
-class ClientAssignment(Record, serializer='json', include_metadata=False):
+class ClientAssignment(Record,
+                       serializer='json',
+                       include_metadata=False,
+                       namespace='@ClientAssignment'):
     actives: MutableMapping[str, List[int]]  # Topic -> Partition
     standbys: MutableMapping[str, List[int]]  # Topic -> Partition
 
@@ -118,7 +121,10 @@ class ClientAssignment(Record, serializer='json', include_metadata=False):
         return next(valid_partitions, set())
 
 
-class ClientMetadata(Record, serializer='json', include_metadata=False):
+class ClientMetadata(Record,
+                     serializer='json',
+                     include_metadata=False,
+                     namespace='@ClientMetadata'):
     assignment: ClientAssignment
     url: str
     changelog_distribution: HostPartitionsMap

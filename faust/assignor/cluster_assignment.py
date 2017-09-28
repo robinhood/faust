@@ -7,7 +7,10 @@ from ..models import Record
 CopartMapping = MutableMapping[str, CopartitionedAssignment]
 
 
-class ClusterAssignment(Record, serializer='json', include_metadata=False):
+class ClusterAssignment(Record,
+                        serializer='json',
+                        include_metadata=False,
+                        namespace='@ClusterAssignment'):
     subscriptions: MutableMapping[str, Sequence[str]] = None
     assignments: MutableMapping[str, ClientAssignment] = None
 
