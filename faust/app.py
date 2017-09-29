@@ -145,7 +145,6 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             [self.app.producer],
             [self.app.consumer],
-            [self.app._leader_assignor],
             [self.app._reply_consumer],
             [self.app.topics],
             [self.app._fetcher],
@@ -267,8 +266,6 @@ class App(AppT, ServiceProxy):
     # Set when consumer is started.
     _consumer_started: bool = False
 
-    _leader_assignor: LeaderAssignorT = None
-
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
@@ -351,7 +348,6 @@ class App(AppT, ServiceProxy):
         self._worker_type = Worker
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
-        self._leader_assignor = LeaderAssignor(self)
         self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
@@ -1090,6 +1086,11 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
+
+
+    @cached_property
+    def _leader_assignor(self) -> LeaderAssignorT:
+        return LeaderAssignor(self, loop=self.loop, beacon=self.beacon)
 
     @property
     def label(self) -> str:
