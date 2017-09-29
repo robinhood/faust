@@ -1,4 +1,5 @@
 """RocksDB storage."""
+import random
 import shutil
 from contextlib import suppress
 from pathlib import Path
@@ -6,9 +7,11 @@ from typing import (
     Any, Callable, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Tuple, Union,
 )
+from mode import Seconds, Service, want_seconds
 from yarl import URL
 from . import base
 from ..types import AppT, EventT, TopicPartition
+from ..utils.futures import stampede
 
 try:
     import rocksdb
@@ -17,7 +20,7 @@ except ImportError:
 
 
 class CheckpointWriteBusy(Exception):
-    """Raised when another instance has the checkpoint db open for writing."""
+    'Raised when another instance has the checkpoint db open for writing.'
 
 
 class RocksDBOptions:
@@ -194,18 +197,40 @@ class CheckpointDB:
 
 class Store(base.SerializedStore):
 
-    _db: rocksdb.DB = None
+    #: How often we write offsets to the checkpoints db (30s)
+    sync_frequency: float
+
+    #: The checkpoints file can only be open by one process at a time,
+    #: and contention occurs if many nodes attempt it at the same time,
+    #: so we skew the frequency by ``gauss(freq, max_ratio)``, where
+    #: ratio by default is one quarter of the frequency (0.25).
+    #: For example if the frequency is 30.0, then the skew can
+    #: be +/-7.5 seconds at most.
+    sync_frequency_skew_max_ratio: float
+
+    #: How long to wait before retrying when another instance
+    #: is writing to the checkpoints db (1s).
+    sync_locked_wait_max: float
+
+    #: Used to configure the RocksDB settings for table stores.
     options: RocksDBOptions
+
+    _db: rocksdb.DB = None
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
+                 sync_frequency: Seconds = 30.0,
+                 sync_frequency_skew_max_ratio: float = 0.25,
+                 sync_locked_wait_max: Seconds = 1.0,
                  options: Mapping = None,
                  **kwargs: Any) -> None:
         super().__init__(url, app, **kwargs)
         if not self.url.path:
             self.url /= self.table_name
         self.options = RocksDBOptions(**options or {})
-        self._db = None
+        self.sync_frequency = want_seconds(sync_frequency)
+        self.sync_frequency_skew_max_ratio = sync_frequency_skew_max_ratio
+        self.sync_locked_wait_max = want_seconds(sync_locked_wait_max)
 
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         return self.checkpoints.get_offset(tp)
@@ -281,14 +306,26 @@ class Store(base.SerializedStore):
         return self.app.tabledir / self.filename
 
     async def on_stop(self) -> None:
+        await self.sync_checkpoints()
+
+    @Service.task
+    async def _background_sync_checkpoints(self) -> None:
+        while not self.should_stop:
+            await self.sleep(random.gauss(
+                self.sync_frequency, self.sync_frequency_skew_max_ratio))
+            await self.sync_checkpoints()
+
+    async def sync_checkpoints(self) -> None:
         while 1:
+            self.log.info('Flush checkpoints to disk...')
             try:
                 self.checkpoints.sync()
             except CheckpointWriteBusy:
-                self.log.info('Checkpoint lock held, retry in 1s...')
-                await self.sleep(1.0)
+                self.log.info('Checkpoint lock held, retry in %ss...',
+                              self.sync_locked_wait_max)
+                await self.sleep(self.sync_locked_wait_max)
             else:
-                self.log.info('Checkpoints written to disk')
+                print('Checkpoints written OK!')
                 break
 
     @property
