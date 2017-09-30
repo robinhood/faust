@@ -11,7 +11,7 @@ from typing import (
 )
 from weakref import WeakSet
 
-from mode import Service, ServiceT
+from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
@@ -342,7 +342,7 @@ class Consumer(Service, ConsumerT):
         callback = self.callback
         getmany = self.getmany
         consumer_should_stop = self._stopped.is_set
-        fetcher_should_stop = cast(Service, fetcher)._stopped.is_set
+        fetcher_should_stop = fetcher._stopped.is_set
 
         get_read_offset = self._read_offset.__getitem__
         set_read_offset = self._read_offset.__setitem__
