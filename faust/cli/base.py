@@ -218,6 +218,8 @@ def cli(ctx: click.Context,
         enable_all_colors()
     else:
         disable_all_colors()
+    if json:
+        disable_all_colors()
 
 
 class Command(abc.ABC):
@@ -249,6 +251,7 @@ class Command(abc.ABC):
 
     args: Tuple = None
     kwargs: Dict = None
+    prog_name: str = None
 
     @classmethod
     def as_click_command(cls) -> Callable:
@@ -312,6 +315,7 @@ class Command(abc.ABC):
         self.color = self.ctx.obj['color']
         self.args = args
         self.kwargs = kwargs
+        self.prog_name = self.ctx.find_root().command_path
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
