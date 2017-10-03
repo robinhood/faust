@@ -177,24 +177,23 @@ class Stream(StreamT, Service):
                     return
 
         while not self.should_stop:
+            # coro #1: Wait for within time
             coro_wait = asyncio.ensure_future(asyncio.sleep(within_s), loop=loop)
-            # coro #2: Get error from errors queue.
+            # coro #2: Wait to read upto max_ values from the stream
             coro_read_self = asyncio.ensure_future(_read_self(), loop=loop)
 
-            # wait for first thing to happen: channel value, or thrown exception
+            # wait for first thing to happen: within timeout, or max values
+            # read
             done, pending = await asyncio.wait(
                 [coro_wait, coro_read_self],
                 return_when=asyncio.FIRST_COMPLETED,
                 loop=loop)
 
             if coro_read_self.done():
-                # we got an exception from Channel.throw(exc):
-                #    cancel the other coro and re-raise that error
+                # we read enough values from the stream
                 coro_wait.cancel()
             else:
-                # seemingly we got a value, so we need to cancel the
-                # waiting for exception coroutine so it doesn't linger
-                # through the next call.
+                # we timed out
                 coro_read_self.cancel()
             yield list(buffer)
             buffer.clear()
