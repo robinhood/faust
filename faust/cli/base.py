@@ -1,4 +1,4 @@
-"""Common class for console commands."""
+"""Command line programs using :pypi:`click`."""
 import abc
 import asyncio
 import os
@@ -30,19 +30,11 @@ __all__ = [
     'option',
 ]
 
-# This module extends the :pypi:`click` framework to use classes instead of
-# function decorators. May regret, but there was lots of repetition
-# with lots of function imports and dozens of decorators for each command.
-# The Command and AppCommand classes makes it a lot easier to write
-# commands and reuse functionality.  [ask]
 
-
-# here so we can import option/argument from this module.
 argument = click.argument
 option = click.option
 
 
-# Options common to all commands
 builtin_options: Sequence[Callable] = [
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
@@ -86,14 +78,14 @@ def find_app(app: str,
     Examples:
 
         >>> # If providing the name of a module, it will attempt
-        >>> # to find an attribute name .app in that module, so
-        >>> # the below is the same as importing::
+        >>> # to find an attribute name (.app) in that module.
+        >>> # Example below is the same as importing::
         >>> #    from examples.simple import app
         >>> find_app('examples.simple')
 
         >>> # If you want an attribute other than .app you can
-        >>> # use colon to separate module and attribute.
-        >>> # The below is the same as importing::
+        >>> # use : to separate module and attribute.
+        >>> # Examples below is the same as importing::
         >>> #     from examples.simple import my_app
         >>> find_app('examples.simple:my_app')
 
@@ -129,11 +121,6 @@ def _apply_options(options: Sequence[Callable]) -> Callable:
 
 
 class _Group(click.Group):
-
-    # This is here for app.main(). It's used to disable
-    # the (otherwise mandatory) '-A' command-line option.
-    # `app.main() calls cli(app=self), which puts the app
-    # on the click.Context, then AppCommand reads it from the context.
 
     def get_help(self, ctx: click.Context) -> str:
         self._maybe_import_app()
@@ -174,7 +161,6 @@ class _Group(click.Group):
                      parent: click.Context = None,
                      **extra: Any) -> click.Context:
         ctx = super().make_context(info_name, args, **extra)
-        # hmm. this seems to be a stack
         ctx.find_root().app = app
         return ctx
 
@@ -210,9 +196,9 @@ def cli(ctx: click.Context,
     if datadir:
         # This is the only way we can set the datadir for App.__init__,
         # so that default values will have the right path prefix.
-        # WARNING: It's crucial the app module is imported later than this.
-        #          If the app is imported first some paths may have the
-        #          default prefix, while others have the wanted prefix.
+        # WARNING: Note that the faust.app module *MUST not* have
+        # been imported before setting the envvar.
+        assert 'faust.app' not in sys.modules
         os.environ['F_DATADIR'] = datadir
     if color:
         enable_all_colors()
@@ -257,9 +243,8 @@ class Command(abc.ABC):
     def as_click_command(cls) -> Callable:
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
-        # __init_subclass__ automatically calls as_click_command
-        # for the side effect of being registered in the list
-        # of `faust` umbrella subcommands.
+        # __init_subclass__ calls this for the side effect of being
+        # registered as a `faust` subcommand.
         @click.pass_context
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> Callable:
@@ -270,9 +255,9 @@ class Command(abc.ABC):
 
     def __init_subclass__(self, *args: Any, **kwargs: Any) -> None:
         if self.abstract:
-            # this sets the class attribute, so next time
-            # a Command subclass is defined it will have abstract=False,
-            # That is unless you set the attribute again in that subclass::
+            # sets the class attribute, so next time
+            # Command is inherited from it will have abstract=False,
+            # unless you set the attribute again in that subclass::
             #   class MyAbstractCommand(Command):
             #       abstract: ClassVar[bool] = True
             #
@@ -281,16 +266,10 @@ class Command(abc.ABC):
             #           print('just here to experience this execution')
             self.abstract = False
         else:
-            # we use this for the side effect: as_click_command registers the
-            # command with the ``cli`` click.Group.
             self._click = self.as_click_command()
 
-        # This hack creates the Command.parse method,
-        # that was used by App.start_worker (now removed)
-        # to parse command-line arguments in sys.argv.
-        # Unable to find a better way to do this in click. [ask]
-        # Apparently the side effect of the @click.option decorator
-        # is enough: you don't need reduction of the return value.
+        # This hack creates the Command.parse method used to parse
+        # command-line arguments in sys.argv and returns a dict.
         _apply_options(self.builtin_options)(self._parse)
         _apply_options(self.options or [])(self._parse)
 
@@ -306,7 +285,6 @@ class Command(abc.ABC):
 
     def __init__(self, ctx: click.Context, *args: Any, **kwargs: Any) -> None:
         self.ctx = ctx
-        # XXX should we also use ctx.find_root() here?
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
@@ -393,7 +371,6 @@ class Command(abc.ABC):
             print(f'#-- {s}', **kwargs)
 
     def dumps(self, obj: Any) -> str:
-        # Shortcut! and can urm..,, override if json is not wanted output.
         return json.dumps(obj)
 
 
@@ -413,17 +390,12 @@ class AppCommand(Command):
     value_serialier: CodecArg
 
     def __init__(self, ctx: click.Context,
-                 # we keep starargs in self.args attribute [VVV]
                  *args: Any,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
-        # and also starkwargs in self.kwargs [^^^]
         super().__init__(ctx)
 
-        # App is taken from context first (see _Group)
-        # XXX apparently click.Context is a stack?,
-        # not sure why I have to find the root here [ask]
         self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is None:
             appstr = self.ctx.obj['app']
