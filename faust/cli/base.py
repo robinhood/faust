@@ -198,7 +198,6 @@ def cli(ctx: click.Context,
         # so that default values will have the right path prefix.
         # WARNING: Note that the faust.app module *MUST not* have
         # been imported before setting the envvar.
-        assert 'faust.app' not in sys.modules
         os.environ['F_DATADIR'] = datadir
     if color:
         enable_all_colors()
