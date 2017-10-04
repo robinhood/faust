@@ -1,16 +1,22 @@
-from collections import UserDict, UserList
+import threading
+from collections import OrderedDict, UserDict, UserList
 from typing import (
-    Any, Deque, ItemsView, Iterator, KeysView,
-    MutableMapping, MutableSet, ValuesView, cast,
+    Any, ContextManager, Deque, Dict, ItemsView, Iterator, KeysView,
+    Mapping, MutableMapping, MutableSet, Tuple, TypeVar, ValuesView, cast,
 )
+from mode.utils.compat import DummyContext
 
 __all__ = [
     'FastUserDict',
     'FastUserSet',
     'FastUserList',
+    'LRUCache',
     'ManagedUserDict',
     'ManagedUserSet',
 ]
+
+KT = TypeVar('KT')
+VT = TypeVar('VT')
 
 
 class FastUserDict(UserDict):
@@ -86,6 +92,140 @@ class FastUserSet(MutableSet):
 
 class FastUserList(UserList):
     ...  # UserList is already fast.
+
+
+class LRUCacheKeysView(KeysView):
+
+    def __init__(self, store: 'LRUCache') -> None:
+        self._mapping = store
+
+    def __iter__(self) -> Iterator:
+        yield from self._mapping._keys()
+
+
+class LRUCacheValuesView(ValuesView):
+
+    def __init__(self, store: 'LRUCache') -> None:
+        self._mapping = store
+
+    def __iter__(self) -> Iterator:
+        yield from self._mapping._values()
+
+
+class LRUCacheItemsView(ItemsView):
+
+    def __init__(self, store: 'LRUCache') -> None:
+        self._mapping = store
+
+    def __iter__(self) -> Iterator[Tuple[KT, VT]]:
+        yield from self._mapping._items()
+
+
+class LRUCache(FastUserDict, MutableMapping[KT, VT]):
+    """LRU Cache implementation using a doubly linked list to track access.
+
+    Arguments:
+        limit (int): The maximum number of keys to keep in the cache.
+            When a new key is inserted and the limit has been exceeded,
+            the *Least Recently Used* key will be discarded from the
+            cache.
+    Keyword Arguments:
+        thread_safety (bool): Enable if multiple OS threads are going
+            to access/mutate the cache.
+    """
+
+    limit: int
+    thread_safety: bool
+    _mutex: ContextManager
+    _data: OrderedDict
+
+    def __init__(self, limit: int = None,
+                 *,
+                 thread_safety: bool = False) -> None:
+        self.limit = limit
+        self.thread_safety = thread_safety
+        self._mutex = self._new_lock()
+        self._data: OrderedDict = OrderedDict()
+
+    def __getitem__(self, key: KT) -> VT:
+        with self._mutex:
+            value = self[key] = self._data.pop(key)
+            return value
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        with self._mutex:
+            data, limit = self._data, self.limit
+            data.update(*args, **kwargs)
+            if limit and len(data) > limit:
+                # pop additional items in case limit exceeded
+                for _ in range(len(data) - limit):
+                    data.popitem(last=False)
+
+    def popitem(self, *, last: bool = True) -> Tuple[KT, VT]:
+        with self._mutex:
+            return self._data.popitem(last)
+
+    def __setitem__(self, key: KT, value: VT) -> None:
+        # remove least recently used key.
+        with self._mutex:
+            if self.limit and len(self._data) >= self.limit:
+                self._data.pop(next(iter(self._data)))
+            self._data[key] = value
+
+    def __iter__(self) -> Iterator:
+        return iter(self._data)
+
+    def keys(self) -> KeysView[KT]:
+        return LRUCacheKeysView(self)
+
+    def _keys(self) -> Iterator[KT]:
+        # userdict.keys in py3k calls __getitem__
+        with self._mutex:
+            yield from self._data.keys()
+
+    def values(self) -> ValuesView[VT]:
+        return LRUCacheValuesView(self)
+
+    def _values(self) -> Iterator[VT]:
+        with self._mutex:
+            for k in self:
+                try:
+                    yield self._data[k]
+                except KeyError:  # pragma: no cover
+                    pass
+
+    def items(self) -> ItemsView[KT, VT]:
+        return LRUCacheItemsView(self)
+
+    def _items(self) -> Iterator[Tuple[KT, VT]]:
+        with self._mutex:
+            for k in self:
+                try:
+                    yield (k, self._data[k])
+                except KeyError:  # pragma: no cover
+                    pass
+
+    def incr(self, key: KT, delta: int = 1) -> int:
+        with self._mutex:
+            # this acts as memcached does- store as a string, but return a
+            # integer as long as it exists and we can cast it
+            newval = int(self._data.pop(key)) + delta
+            self[key] = cast(VT, str(newval))
+            return newval
+
+    def _new_lock(self) -> ContextManager:
+        if self.thread_safety:
+            return cast(ContextManager, threading.RLock())
+        return DummyContext()
+
+    def __getstate__(self) -> Mapping[str, Any]:
+        d = dict(vars(self))
+        d.pop('_mutex')
+        return d
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        self.__dict__ = state
+        self._mutex = self._new_lock()
 
 
 class ManagedUserSet(FastUserSet):

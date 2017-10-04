@@ -215,7 +215,7 @@ class Store(base.SerializedStore):
     #: Used to configure the RocksDB settings for table stores.
     options: RocksDBOptions
 
-    _db: rocksdb.DB = None
+    _dbs: MutableMapping[TopicPartition, rocksdb.DB] = None
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
@@ -231,6 +231,7 @@ class Store(base.SerializedStore):
         self.sync_frequency = want_seconds(sync_frequency)
         self.sync_frequency_skew_max_ratio = sync_frequency_skew_max_ratio
         self.sync_locked_wait_max = want_seconds(sync_locked_wait_max)
+        self._dbs = {}
 
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         return self.checkpoints.get_offset(tp)
@@ -247,19 +248,30 @@ class Store(base.SerializedStore):
         self.db.write(w)
 
     def _get(self, key: bytes) -> bytes:
-        return self.db.get(key)
+        for db in self._dbs.values():
+            if db.key_may_exist(key)[0]:
+                value = db.get(key)
+                if value is not None:
+                    return value
+        return None
 
     def _set(self, key: bytes, value: bytes) -> None:
         self.db.put(key, value)
 
     def _del(self, key: bytes) -> None:
-        self.db.delete(key)
+        for db in self._dbs.values():
+            self.db.delete(key)
+
+    async def on_partitions_revoked(
+            self, revoked: Set[TopicPartition]) -> None:
+        for tp in revoked:
+            self._dbs.pop(tp, None)
 
     def _contains(self, key: bytes) -> bool:
         # bloom filter: false positives possible, but not false negatives
-        db = self.db
-        if db.key_may_exist(key)[0]:
-            return db.get(key) is not None
+        for db in self._dbs.values():
+            if db.key_may_exist(key)[0] and db.get(key) is not None:
+                return True
         return False
 
     def _size(self) -> int:
