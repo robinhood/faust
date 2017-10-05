@@ -207,6 +207,7 @@ class AppService(Service):
                 'Attempting to start app that has no actors')
 
     async def on_started(self) -> None:
+        await self.wait(self.app.tables.recovery_completed.wait())
         # Add all asyncio.Tasks, like timers, etc.
         for task in self.app._tasks:
             self.add_future(task())
@@ -215,6 +216,7 @@ class AppService(Service):
         # to print the "ready" message when Faust is ready to
         # start processing.
         if self.app.on_startup_finished:
+            print('STARTUP FINISHED!!!!!!!!!')
             await self.app.on_startup_finished()
 
     @Service.task
