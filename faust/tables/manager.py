@@ -28,6 +28,7 @@ TABLEMAN_UPDATE = 'UPDATE'
 TABLEMAN_START_STANDBYS = 'START_STANDBYS'
 TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
 TABLEMAN_RECOVER = 'RECOVER'
+TABLEMAN_PARTITIONS_REVOKED = 'PARTITIONS REVOKED'
 TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
 
@@ -323,6 +324,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
             beacon=self.beacon,
         )
 
+    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        for table in self.values():
+            await table.on_partitions_revoked(revoked)
+
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
@@ -331,6 +338,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         assert set(assigned_tps).issubset(set(assigned))
         self.log.info('New assignments found')
         await self._on_recovery_started()
+        for table in self.values():
+            await table.on_partitions_assigned(assigned)
         self.log.info('Attempting to stop standbys')
         await self._stop_standbys()
         await self._recover_changelogs(assigned_tps)

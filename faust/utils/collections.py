@@ -137,7 +137,7 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
     limit: int
     thread_safety: bool
     _mutex: ContextManager
-    _data: OrderedDict
+    data: OrderedDict
 
     def __init__(self, limit: int = None,
                  *,
@@ -145,16 +145,16 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
         self.limit = limit
         self.thread_safety = thread_safety
         self._mutex = self._new_lock()
-        self._data: OrderedDict = OrderedDict()
+        self.data: OrderedDict = OrderedDict()
 
     def __getitem__(self, key: KT) -> VT:
         with self._mutex:
-            value = self[key] = self._data.pop(key)
+            value = self[key] = self.data.pop(key)
             return value
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         with self._mutex:
-            data, limit = self._data, self.limit
+            data, limit = self.data, self.limit
             data.update(*args, **kwargs)
             if limit and len(data) > limit:
                 # pop additional items in case limit exceeded
@@ -163,17 +163,17 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
 
     def popitem(self, *, last: bool = True) -> Tuple[KT, VT]:
         with self._mutex:
-            return self._data.popitem(last)
+            return self.data.popitem(last)
 
     def __setitem__(self, key: KT, value: VT) -> None:
         # remove least recently used key.
         with self._mutex:
-            if self.limit and len(self._data) >= self.limit:
-                self._data.pop(next(iter(self._data)))
-            self._data[key] = value
+            if self.limit and len(self.data) >= self.limit:
+                self.data.pop(next(iter(self.data)))
+            self.data[key] = value
 
     def __iter__(self) -> Iterator:
-        return iter(self._data)
+        return iter(self.data)
 
     def keys(self) -> KeysView[KT]:
         return LRUCacheKeysView(self)
@@ -181,7 +181,7 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
     def _keys(self) -> Iterator[KT]:
         # userdict.keys in py3k calls __getitem__
         with self._mutex:
-            yield from self._data.keys()
+            yield from self.data.keys()
 
     def values(self) -> ValuesView[VT]:
         return LRUCacheValuesView(self)
@@ -190,7 +190,7 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
         with self._mutex:
             for k in self:
                 try:
-                    yield self._data[k]
+                    yield self.data[k]
                 except KeyError:  # pragma: no cover
                     pass
 
@@ -201,7 +201,7 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
         with self._mutex:
             for k in self:
                 try:
-                    yield (k, self._data[k])
+                    yield (k, self.data[k])
                 except KeyError:  # pragma: no cover
                     pass
 
@@ -209,7 +209,7 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
         with self._mutex:
             # this acts as memcached does- store as a string, but return a
             # integer as long as it exists and we can cast it
-            newval = int(self._data.pop(key)) + delta
+            newval = int(self.data.pop(key)) + delta
             self[key] = cast(VT, str(newval))
             return newval
 

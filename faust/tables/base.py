@@ -258,6 +258,14 @@ class Collection(Service, CollectionT):
     def _get_timestamp(self, event: EventT = None) -> float:
         return (event or current_event()).message.timestamp
 
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        await self.data.on_partitions_assigned(assigned)
+
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        await self.data.on_partitions_revoked(revoked)
+
     @property
     def label(self) -> str:
         return f'{self.shortlabel}@{self._store}'

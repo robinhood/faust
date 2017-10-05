@@ -28,6 +28,14 @@ class Store(StoreT, Service):
     def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
         ...
 
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        ...
+
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        ...
+
     def _encode_key(self, key: Any) -> bytes:
         return dumps(self.key_serializer, key)
 

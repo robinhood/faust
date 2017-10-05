@@ -959,6 +959,7 @@ class App(AppT, ServiceProxy):
             await self.consumer.wait_empty()
         else:
             self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
+        await self.tables.on_partitions_revoked(revoked)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
@@ -1086,7 +1087,6 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
-
 
     @cached_property
     def _leader_assignor(self) -> LeaderAssignorT:

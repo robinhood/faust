@@ -82,6 +82,16 @@ class CollectionT(JoinableT, ServiceT):
     def reset_state(self) -> None:
         ...
 
+    @abc.abstractmethod
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        ...
+
 
 CollectionTps = MutableMapping[CollectionT, List[TopicPartition]]
 

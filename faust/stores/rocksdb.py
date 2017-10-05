@@ -1,17 +1,19 @@
 """RocksDB storage."""
 import random
 import shutil
+from collections import defaultdict
 from contextlib import suppress
 from pathlib import Path
 from typing import (
-    Any, Callable, Iterable, Iterator, Mapping,
+    Any, Callable, DefaultDict, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Tuple, Union,
 )
 from mode import Seconds, Service, want_seconds
 from yarl import URL
 from . import base
+from ..streams import current_event
 from ..types import AppT, EventT, TopicPartition
-from ..utils.futures import stampede
+from ..utils.collections import LRUCache
 
 try:
     import rocksdb
@@ -135,7 +137,7 @@ class CheckpointDB:
             return self._offsets[tp]
         except KeyError:
             # then check the checkpoints imported from the db.
-            if not self._offsets_imported:
+            if not self._offsets_imported and (self.path / 'CURRENT').exists():
                 self._offsets_imported = True
                 self._import()
             try:
@@ -197,8 +199,11 @@ class CheckpointDB:
 
 class Store(base.SerializedStore):
 
-    #: How often we write offsets to the checkpoints db (30s)
+    #: How often we write offsets to the checkpoints db (30s).
     sync_frequency: float
+
+    #: Decides the size of the K=>TopicPartition index (10_000).
+    key_index_size: int
 
     #: The checkpoints file can only be open by one process at a time,
     #: and contention occurs if many nodes attempt it at the same time,
@@ -216,12 +221,14 @@ class Store(base.SerializedStore):
     options: RocksDBOptions
 
     _dbs: MutableMapping[TopicPartition, rocksdb.DB] = None
+    _key_index: LRUCache[bytes, TopicPartition]
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
                  sync_frequency: Seconds = 30.0,
                  sync_frequency_skew_max_ratio: float = 0.25,
                  sync_locked_wait_max: Seconds = 1.0,
+                 key_index_size: int = 10_000,
                  options: Mapping = None,
                  **kwargs: Any) -> None:
         super().__init__(url, app, **kwargs)
@@ -231,7 +238,9 @@ class Store(base.SerializedStore):
         self.sync_frequency = want_seconds(sync_frequency)
         self.sync_frequency_skew_max_ratio = sync_frequency_skew_max_ratio
         self.sync_locked_wait_max = want_seconds(sync_locked_wait_max)
+        self.key_index_size = key_index_size
         self._dbs = {}
+        self._key_index = LRUCache(limit=self.key_index_size)
 
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         return self.checkpoints.get_offset(tp)
@@ -242,80 +251,139 @@ class Store(base.SerializedStore):
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
-        w = rocksdb.WriteBatch()
+        batches: DefaultDict[TopicPartition, rocksdb.WriteBatch]
+        batches = defaultdict(rocksdb.WriteBatch)
         for event in batch:
-            w.put(event.message.key, event.message.value)
-        self.db.write(w)
+            msg = event.message
+            batches[msg.tp].put(msg.key, msg.value)
+
+        for tp, batch in batches.items():
+            self._db_for_partition(tp).write(batch)
+
+    def _set(self, key: bytes, value: bytes) -> None:
+        event = current_event()
+        assert event is not None
+        self._db_for_partition(event.message.tp).put(key, value)
+
+    def _db_for_partition(self, tp: TopicPartition) -> rocksdb.DB:
+        try:
+            return self._dbs[tp]
+        except KeyError:
+            db = self._dbs[tp] = self._open_for_partition(tp)
+            return db
+
+    def _open_for_partition(self, tp: TopicPartition) -> rocksdb.DB:
+        return self.options.open(self.partition_path(tp))
 
     def _get(self, key: bytes) -> bytes:
-        for db in self._dbs.values():
+        print('_GET: %r' % (key,))
+        tp, db, value = self._get_bucket_for_key(key)
+        if tp is None:
+            print('GET %r: NO TP FOR ME' % (key,))
+            return None
+        if db is None:
+            print('GET %r: NO DB FOR %r' % (key, tp))
+            db = self._dbs[tp]
             if db.key_may_exist(key)[0]:
                 value = db.get(key)
                 if value is not None:
                     return value
         return None
 
-    def _set(self, key: bytes, value: bytes) -> None:
-        self.db.put(key, value)
+    def _get_bucket_for_key(self, key: bytes) -> Tuple[
+            TopicPartition, Optional[rocksdb.DB], Optional[bytes]]:
+        try:
+            return self._key_index[key], None, None
+        except KeyError:
+            for tp, db in self._dbs.items():
+                if db.key_may_exist(key)[0]:
+                    value = db.get(key)
+                    if value is not None:
+                        self._key_index[key] = tp
+                        return tp, db, value
+            return None, None, None
 
     def _del(self, key: bytes) -> None:
-        for db in self._dbs.values():
-            self.db.delete(key)
+        for db in self._dbs_for_key(key):
+            db.delete(key)
 
     async def on_partitions_revoked(
-            self, revoked: Set[TopicPartition]) -> None:
+            self, revoked: Iterable[TopicPartition]) -> None:
         for tp in revoked:
             self._dbs.pop(tp, None)
+        self._key_index.clear()
+
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        self._key_index.clear()
+        for tp in assigned:
+            self._db_for_partition(tp)  # adds to self._db
 
     def _contains(self, key: bytes) -> bool:
-        # bloom filter: false positives possible, but not false negatives
-        for db in self._dbs.values():
+        for db in self._dbs_for_key(key):
+            # bloom filter: false positives possible, but not false negatives
             if db.key_may_exist(key)[0] and db.get(key) is not None:
                 return True
         return False
 
+    def _dbs_for_key(self, key: bytes) -> Iterable[rocksdb.DB]:
+        # Returns cached db if key is in index, otherwise all dbs
+        # for linear search.
+        try:
+            return [self._dbs[self._key_index[key]]]
+        except KeyError:
+            return self._dbs.values()
+
     def _size(self) -> int:
-        it = self.db.iterkeys()  # noqa: B301
+        return sum(self._size1(db) for db in self._dbs.values())
+
+    def _size1(self, db: rocksdb.DB) -> int:
+        it = db.iterkeys()  # noqa: B301
         it.seek_to_first()
         return sum(1 for _ in it)
 
     def _iterkeys(self) -> Iterator[bytes]:
-        it = self.db.iterkeys()  # noqa: B301
-        it.seek_to_first()
-        yield from it
+        for db in self._dbs.values():
+            it = db.iterkeys()  # noqa: B301
+            it.seek_to_first()
+            yield from it
 
     def _itervalues(self) -> Iterator[bytes]:
-        it = self.db.itervalues()  # noqa: B301
-        it.seek_to_first()
-        yield from it
+        for db in self._dbs.values():
+            it = db.itervalues()  # noqa: B301
+            it.seek_to_first()
+            yield from it
 
     def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
-        it = self.db.iteritems()  # noqa: B301
-        it.seek_to_first()
-        yield from it
+        for db in self._dbs.values():
+            it = db.iteritems()  # noqa: B301
+            it.seek_to_first()
+            yield from it
 
     def _clear(self) -> None:
         # XXX
         raise NotImplementedError('TODO')
 
     def reset_state(self) -> None:
-        self._db = None
+        self._dbs.clear()
+        self._key_index.clear()
         with suppress(FileNotFoundError):
             shutil.rmtree(self.path.absolute())
 
-    @property
-    def db(self) -> rocksdb.DB:
-        if self._db is None:
-            self._db = self.options.open(self.path)
-        return self._db
+    def partition_path(self, tp: TopicPartition) -> Path:
+        return self.with_suffix((self.path / self.basename).with_name(
+            f'{self.path.name}-{tp.topic}-{tp.partition}'))
 
-    @property
-    def filename(self) -> Path:
-        return Path(self.url.path).with_suffix('.db')
+    def with_suffix(self, path: Path, *, suffix: str = '.db') -> Path:
+        return path.with_suffix(suffix)
 
     @property
     def path(self) -> Path:
-        return self.app.tabledir / self.filename
+        return self.app.tabledir
+
+    @property
+    def basename(self) -> Path:
+        return Path(self.url.path)
 
     async def on_stop(self) -> None:
         await self.sync_checkpoints()
@@ -349,3 +417,6 @@ class Store(base.SerializedStore):
         except AttributeError:
             cp = self.app._rocksdb_checkpoints = CheckpointDB(self.app)
             return cp
+
+
+__flake8_DefaultDict_is_used: DefaultDict  # XXX flake8 bug
