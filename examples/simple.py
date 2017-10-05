@@ -32,6 +32,11 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
     date: datetime = None
 
 
+class Foo(faust.Record):
+    a: int
+    b: str
+
+
 app = faust.App(
     'f-simple',
     url='kafka://127.0.0.1:9092',
