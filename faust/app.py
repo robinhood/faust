@@ -203,7 +203,6 @@ class AppService(Service):
         # to print the "ready" message when Faust is ready to
         # start processing.
         if self.app.on_startup_finished:
-            print('STARTUP FINISHED!!!!!!!!!')
             await self.app.on_startup_finished()
 
     @Service.task
