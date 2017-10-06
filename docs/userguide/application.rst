@@ -219,7 +219,7 @@ Parameters
     :type: ``bool``
     :default: :const:`False`
 
-    Set this to :const:`True` if you plan on using the RPC features of actors.
+    Set this to :const:`True` if you plan on using the RPC with agents.
 
 `Stream`
     :type: ``Union[str, Type]``
@@ -280,7 +280,7 @@ Decorators
 .. class:: App
     :noindex:
 
-    .. automethod:: actor
+    .. automethod:: agent
         :noindex:
 
     .. automethod:: task

@@ -28,7 +28,7 @@
 """
 
 # Note: The command options above are defined in .cli.base.builtin_options
-from .actors import actors
+from .agents import agents
 from .base import cli
 from .model import model
 from .models import models
@@ -38,7 +38,7 @@ from .tables import tables
 from .worker import worker
 
 __all__ = [
-    'actors',
+    'agents',
     'cli',
     'model',
     'models',

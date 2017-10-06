@@ -15,7 +15,7 @@ Faust
 
     faust
     faust.exceptions
-    faust.actors
+    faust.agents
     faust.app
     faust.channels
     faust.sensors
@@ -97,7 +97,7 @@ Types
 .. toctree::
     :maxdepth: 1
 
-    faust.types.actors
+    faust.types.agents
     faust.types.app
     faust.types.assignor
     faust.types.channels

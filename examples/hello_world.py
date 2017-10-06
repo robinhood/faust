@@ -9,7 +9,7 @@ app = faust.App(
 greetings_topic = app.topic('greetings')
 
 
-@app.actor(greetings_topic)
+@app.agent(greetings_topic)
 async def print_greetings(greetings):
     async for greeting in greetings:
         print(greeting)

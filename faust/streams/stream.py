@@ -138,7 +138,7 @@ class Stream(StreamT, Service):
         Examples:
             .. sourcecode:: python
 
-                @app.actor(topic)
+                @app.agent(topic)
                 async def mytask(stream):
                     async for key, value in stream.items():
                         print(key, value)
@@ -196,7 +196,7 @@ class Stream(StreamT, Service):
                     async for value in stream:
                         print(value / 2)
 
-                @app.actor(topic)
+                @app.agent(topic)
                 async def mytask(stream):
                     # duplicate the stream and process it in different ways.
                     a, b = stream.tee(2)
@@ -238,7 +238,7 @@ class Stream(StreamT, Service):
 
                 topic = app.topic('foo')
 
-                @app.actor(topic)
+                @app.agent(topic)
                 async def mytask(stream):
                     async for value in stream.through(app.topic('bar')):
                         # value was first received in topic 'foo',
@@ -247,7 +247,7 @@ class Stream(StreamT, Service):
         """
         if self.concurrency_index is not None:
             raise ImproperlyConfigured(
-                'Actor with concurrency>1 cannot use stream.through!')
+                'Agent with concurrency>1 cannot use stream.through!')
         # ridiculous mypy
         if isinstance(channel, str):
             channelchannel = cast(ChannelT, self.derive_topic(channel))
@@ -357,7 +357,7 @@ class Stream(StreamT, Service):
         """
         if self.concurrency_index is not None:
             raise ImproperlyConfigured(
-                'Actor with concurrency>1 cannot use stream.group_by!')
+                'Agent with concurrency>1 cannot use stream.group_by!')
         if not name:
             if isinstance(key, FieldDescriptorT):
                 name = key.ident

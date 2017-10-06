@@ -6,16 +6,16 @@
 
 # -- Faust is a Python stream processing library
 # mainly used with Kafka, but is generic enough to be used for general
-# actor and channel based programming.
+# agent and channel based programming.
 
 # If you are here to read the code, we suggest you start with:
 #
 #  faust/app.py            - Configures the Faust instance.
-#  faust/channels.py       - Actors and streams receive messages on channels.
+#  faust/channels.py       - Agents and streams receive messages on channels.
 #  faust/topics.py         - A topic is a named channel (e.g. a Kafka topic)
 #  faust/streams/stream.py - The stream iterates over events in a channel.
 #  faust/tables.py         - Data is stored in tables.
-#  faust/actors.py         - Actors use all of the above.
+#  faust/agents.py         - Agents use all of the above.
 # --- ~~~~~ ~ ~  ~           ~             ~   ~                   ~
 import os
 import re
@@ -93,7 +93,7 @@ if _datadir:
 # quickly.  The next section provides static type checkers
 # information about the contents of this module.
 if typing.TYPE_CHECKING:
-    from .actors import Actor                                   # noqa: E402
+    from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
     from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
     from .models import Record                                  # noqa: E402
@@ -109,7 +109,7 @@ if typing.TYPE_CHECKING:
     from .worker import Worker                                # noqa: E402
 
 __all__ = [
-    'Actor',
+    'Agent',
     'App',
     'AppCommand', 'Command',
     'Channel',
@@ -144,7 +144,7 @@ def use_uvloop() -> None:
 from types import ModuleType  # noqa
 
 all_by_module: Mapping[str, Sequence[str]] = {
-    'faust.actors': ['Actor'],
+    'faust.agents': ['Agent'],
     'faust.app': ['App'],
     'faust.channels': ['Channel', 'ChannelT', 'Event', 'EventT'],
     'faust.models': ['Record'],

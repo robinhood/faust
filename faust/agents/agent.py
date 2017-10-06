@@ -18,8 +18,8 @@ from ..types import (
     AppT, ChannelT, CodecArg, K, MessageSentCallback,
     RecordMetadata, StreamT, TopicT, V,
 )
-from ..types.actors import (
-    ActorErrorHandler, ActorFun, ActorInstanceT, ActorRefT, ActorT,
+from ..types.agents import (
+    ActorRefT, ActorT, AgentErrorHandler, AgentFun, AgentT,
     AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
 )
 from ..utils.aiter import aenumerate, aiter
@@ -32,25 +32,25 @@ else:
     class App: ...   # noqa
 
 __all__ = [
-    'ActorInstance',
+    'Actor',
     'AsyncIterableActor',
     'AwaitableActor',
-    'Actor',
+    'Agent',
 ]
 
-# --- What is an actor?
+# --- What is an agent?
 #
-# An actor is an asynchronous function processing a stream
+# An agent is an asynchronous function processing a stream
 # of events (messages), that have full programmatic control
 # over how that stream is iterated over: right, left, skip.
 
-# Actors are async generators so you can keep
+# Agents are async generators so you can keep
 # state between events and associate a result for every event
-# by yielding.  Other actors, tasks and coroutines can execute
-# concurrently, by suspending the actor when it's waiting for something
+# by yielding.  Other agents, tasks and coroutines can execute
+# concurrently, by suspending the agent when it's waiting for something
 # and only resuming when that something is available.
 #
-# Here's an actor processing a stream of bank withdrawals
+# Here's an agent processing a stream of bank withdrawals
 # to find transfers larger than $1000, and if it finds one it will send
 # an alert:
 #
@@ -62,18 +62,18 @@ __all__ = [
 #
 #   withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 #
-#   @app.actor(withdrawals_topic)
+#   @app.agent(withdrawals_topic)
 #   async def alert_on_large_transfer(withdrawal):
 #       async for withdrawal in withdrawals:
 #           if withdrawal.amount > 1000.0:
 #               alert(f'Large withdrawal: {withdrawal}')
 #
-# The actor above does not ``yield`` so it can never reply to
+# The agent above does not ``yield`` so it can never reply to
 # an ``ask`` request, or add sinks that further process the results
-# of the stream.  This actor is an async generator that yields
+# of the stream.  This agent is an async generator that yields
 # to signal whether it found a large transfer or not:
 #
-#   @app.actor(withdrawals_topic)
+#   @app.agent(withdrawals_topic)
 #   async def withdraw(withdrawals):
 #       async for withdrawal in withdrawals:
 #           if withdrawal.amount > 1000.0:
@@ -83,23 +83,23 @@ __all__ = [
 #
 #
 # We can add a sink to process the yielded values.  A sink can be
-# 1) another actor, 2) a channel/topic, or 3) or callable accepting
+# 1) another agent, 2) a channel/topic, or 3) or callable accepting
 # the value as a single argument (that callable can be async or non-async):
 #
 # async def my_sink(result: bool) -> None:
 #    if result:
-#        print('Actor withdraw just sent an alert!')
+#        print('Agent withdraw just sent an alert!')
 #
 # withdraw.add_sink(my_sink)
 #
-# TIP: Sinks can also be added as an argument to the ``@actor`` decorator:
-#      ``@app.actor(sinks
+# TIP: Sinks can also be added as an argument to the ``@agent`` decorator:
+#      ``@app.agent(sinks=[other_actor])``.
 
 
-class ActorInstance(ActorInstanceT, Service):
+class Actor(ActorT, Service):
 
     def __init__(self,
-                 agent: ActorT,
+                 agent: AgentT,
                  stream: StreamT,
                  it: _T,
                  index: int = None,
@@ -130,56 +130,55 @@ class ActorInstance(ActorInstanceT, Service):
         return f'Actor*: {self.agent.name}'
 
 
-class AsyncIterableActor(AsyncIterableActorT, ActorInstance):
-    """Used for actor function that yields."""
+class AsyncIterableActor(AsyncIterableActorT, Actor):
+    """Used for agent function that yields."""
 
     def __aiter__(self) -> AsyncIterator:
         return self.it.__aiter__()
 
 
-class AwaitableActor(AwaitableActorT, ActorInstance):
+class AwaitableActor(AwaitableActorT, Actor):
     """Used for actor function that do not yield."""
 
     def __await__(self) -> Any:
         return self.it.__await__()
 
 
-class ActorService(Service):
-    # Actors are created at module-scope, and the Service class
+class AgentService(Service):
+    # Agents are created at module-scope, and the Service class
     # creates the asyncio loop when created, so we separate the
-    # actor service in such a way that we can start it lazily.
-    # Actor(ServiceProxy) -> ActorService
+    # agent service in such a way that we can start it lazily.
+    # Agent(ServiceProxy) -> AgentService.
 
-    actor: ActorT
+    agent: AgentT
     instances: MutableSequence[ActorRefT]
     supervisor: SupervisorStrategyT = None
 
-    def __init__(self, actor: ActorT, **kwargs: Any) -> None:
-        self.actor = actor
+    def __init__(self, agent: AgentT, **kwargs: Any) -> None:
+        self.agent = agent
         self.supervisor = None
         super().__init__(**kwargs)
 
-    async def _start_one(self, index: int = None) -> ActorInstanceT:
-        # an index of one means there's only one instance.
-        index = index if (self.actor.concurrency or 1) > 1 else None
-        return await cast(Actor, self.actor)._start_task(index, self.beacon)
+    async def _start_one(self, index: int = None) -> ActorT:
+        # index=None means there's only one instance, an is used for
+        # checks that require linearizability.
+        index = index if (self.agent.concurrency or 1) > 1 else None
+        return await cast(Agent, self.agent)._start_task(index, self.beacon)
 
     async def on_start(self) -> None:
         self.supervisor = OneForOneSupervisor(
             max_restarts=100.0, over=1.0,
             replacement=self._replace_actor,
             loop=self.loop, beacon=self.beacon)
-
-        for i in range(self.actor.concurrency):
-            res = await self._start_one(i)
-            self.supervisor.add(res)
+        for i in range(self.agent.concurrency):
+            self.supervisor.add(await self._start_one(i))
         await self.supervisor.start()
 
     async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
         return await self._start_one(index)
 
     async def on_stop(self) -> None:
-        # Actors iterate over infinite streams, and we cannot wait for it
+        # Agents iterate over infinite streams, so we cannot wait for it
         # to stop.
         # Instead we cancel it and this forces the stream to ack the
         # last message processed (but not the message causing the error
@@ -189,33 +188,33 @@ class ActorService(Service):
 
     @property
     def label(self) -> str:
-        return self.actor.label
+        return self.agent.label
 
     @property
     def shortlabel(self) -> str:
-        return self.actor.shortlabel
+        return self.agent.shortlabel
 
 
-class Actor(ActorT, ServiceProxy):
+class Agent(AgentT, ServiceProxy):
     _sinks: List[SinkT]
 
-    def __init__(self, fun: ActorFun,
+    def __init__(self, fun: AgentFun,
                  *,
                  name: str = None,
                  app: AppT = None,
                  channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
-                 on_error: ActorErrorHandler = None,
+                 on_error: AgentErrorHandler = None,
                  help: str = None) -> None:
         self.app = app
-        self.fun: ActorFun = fun
+        self.fun: AgentFun = fun
         self.name = name or canoname(self.fun)
         self.channel = self._prepare_channel(channel)
         self.concurrency = concurrency
         self.help = help
         self._sinks = list(sink) if sink is not None else []
-        self._on_error: ActorErrorHandler = on_error
+        self._on_error: AgentErrorHandler = on_error
         ServiceProxy.__init__(self)
 
     def _prepare_channel(self,
@@ -229,26 +228,26 @@ class Actor(ActorT, ServiceProxy):
             f'Channel must be channel, topic, or str; not {type(channel)}')
 
     def __call__(self, *, index: int = None) -> ActorRefT:
-        # The actor function can be reused by other actors/tasks.
+        # The agent function can be reused by other agents/tasks.
         # For example:
         #
-        #   @app.actor(logs_topic, through='other-topic')
+        #   @app.agent(logs_topic, through='other-topic')
         #   filter_log_errors_(stream):
         #       async for event in stream:
         #           if event.severity == 'error':
         #               yield event
         #
-        #   @app.actor(logs_topic)
+        #   @app.agent(logs_topic)
         #   def alert_on_log_error(stream):
         #       async for event in filter_log_errors(stream):
         #            alert(f'Error occurred: {event!r}')
         #
         # Calling `res = filter_log_errors(it)` will end you up with
-        # an AsyncIterable that you can reuse (but only if the actor
+        # an AsyncIterable that you can reuse (but only if the agent
         # function is an `async def` function that yields)
         stream = self.stream(concurrency_index=index)
         res = self.fun(stream)
-        typ = cast(Type[ActorInstance], (
+        typ = cast(Type[Actor], (
             AwaitableActor if isinstance(res, Awaitable)
             else AsyncIterableActor
         ))
@@ -269,7 +268,7 @@ class Actor(ActorT, ServiceProxy):
         return event
 
     async def _start_task(self, index: int, beacon: NodeT) -> ActorRefT:
-        # If the actor is an async function we simply start it,
+        # If the agent is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
         aref: ActorRefT = self(index=index)
@@ -281,7 +280,7 @@ class Actor(ActorT, ServiceProxy):
         return aref
 
     async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
-        # This executes the actor task itself, and does exception handling.
+        # This executes the agent task itself, and does exception handling.
         try:
             await coro
         except asyncio.CancelledError:
@@ -304,7 +303,7 @@ class Actor(ActorT, ServiceProxy):
             raise
 
     async def _slurp(self, res: ActorRefT, it: AsyncIterator):
-        # this is used when the actor returns an AsyncIterator,
+        # this is used when the agent returns an AsyncIterator,
         # and simply consumes that async iterator.
         async for value in it:
             self.log.debug('%r yielded: %r', self.fun, value)
@@ -315,8 +314,8 @@ class Actor(ActorT, ServiceProxy):
 
     async def _delegate_to_sinks(self, value: Any) -> None:
         for sink in self._sinks:
-            if isinstance(sink, ActorT):
-                await cast(ActorT, sink).send(value=value)
+            if isinstance(sink, AgentT):
+                await cast(AgentT, sink).send(value=value)
             elif isinstance(sink, ChannelT):
                 await cast(TopicT, sink).send(value=value)
             else:
@@ -402,7 +401,7 @@ class Actor(ActorT, ServiceProxy):
             reply_to: ReplyToArg = None,
             correlation_id: str = None,
             force: bool = False) -> Awaitable[RecordMetadata]:
-        """Send message to topic used by actor."""
+        """Send message to topic used by agent."""
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
         return await self.channel.send(
@@ -412,9 +411,9 @@ class Actor(ActorT, ServiceProxy):
         )
 
     def _get_strtopic(
-            self, topic: Union[str, ChannelT, TopicT, ActorT]) -> str:
-        if isinstance(topic, ActorT):
-            return self._get_strtopic(cast(ActorT, topic).channel)
+            self, topic: Union[str, ChannelT, TopicT, AgentT]) -> str:
+        if isinstance(topic, AgentT):
+            return self._get_strtopic(cast(AgentT, topic).channel)
         if isinstance(topic, TopicT):
             return cast(TopicT, topic).get_topic_name()
         if isinstance(topic, ChannelT):
@@ -429,7 +428,7 @@ class Actor(ActorT, ServiceProxy):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        """Send message eventually (non async), to topic used by actor."""
+        """Send message eventually (non async), to topic used by agent."""
         return self.channel.send_soon(key, value, partition,
                                       key_serializer, value_serializer)
 
@@ -510,7 +509,7 @@ class Actor(ActorT, ServiceProxy):
             barrier: BarrierState,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg) -> AsyncIterator[str]:
-        # map: send tasks to all actors
+        # map: send many tasks to agents
         # while trying to pop incoming results off.
         async for key, value in aiter(items):
             correlation_id = str(uuid4())
@@ -540,8 +539,8 @@ class Actor(ActorT, ServiceProxy):
         return aiter(self.channel)
 
     @cached_property
-    def _service(self) -> ActorService:
-        return ActorService(self, beacon=self.app.beacon, loop=self.app.loop)
+    def _service(self) -> AgentService:
+        return AgentService(self, beacon=self.app.beacon, loop=self.app.loop)
 
     @property
     def label(self) -> str:

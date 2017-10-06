@@ -13,7 +13,7 @@ from mode.utils.types.trees import NodeT
 from yarl import URL
 
 from ._coroutines import StreamCoroutine
-from .actors import ActorFun, ActorT, SinkT
+from .agents import AgentFun, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
@@ -91,7 +91,7 @@ class AppT(ServiceT):
     canonical_url: URL
     origin: str
 
-    actors: MutableMapping[str, ActorT]
+    agents: MutableMapping[str, AgentT]
     sensors: SensorDelegateT
     serializers: RegistryT
     pages: List[Tuple[str, Type[Site]]]
@@ -153,12 +153,12 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def actor(self,
+    def agent(self,
               channel: Union[str, ChannelT] = None,
               *,
               name: str = None,
               concurrency: int = 1,
-              sink: Iterable[SinkT] = None) -> Callable[[ActorFun], ActorT]:
+              sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
         ...
 
     @abc.abstractmethod

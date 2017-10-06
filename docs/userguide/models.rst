@@ -60,7 +60,7 @@ Sending/receiving non-described keys and values is easy:
     transfers_topic = app.topic('transfers')
     large_transfers_topic = app.topic('large_transfers')
 
-    @app.actor(transfers_topic)
+    @app.agent(transfers_topic)
     async def find_large_transfers(transfers):
         async for transfer in transfers:
             if transfer['amount'] > 1000.0:
@@ -87,7 +87,7 @@ Using models to describe topics adds more code, but also value:
     transfers_topic = app.topic('transfers', value_type=Transfer)
     large_transfers_topic = app.topic('large_transfers', value_type=Transfer)
 
-    @app.actor(transfers_topic)
+    @app.agent(transfers_topic)
     async def find_large_transfers(transfers):
         async for transfer in transfers:
             if transfer.amount > 1000.0:
@@ -185,7 +185,7 @@ points as key and value types:
 
     my_topic = faust.topic('mytopic', key_type=Point, value_type=Point)
 
-    @app.actor(my_topic)
+    @app.agent(my_topic)
     async def task(events):
         async for event in events:
             print(event)

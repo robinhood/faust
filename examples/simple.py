@@ -45,7 +45,7 @@ country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
 
-@app.actor(withdrawals_topic)
+@app.agent(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     events = 0
     time_start = monotonic()

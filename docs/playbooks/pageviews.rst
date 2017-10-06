@@ -70,12 +70,12 @@ Count Page Views
 ----------------
 
 Now that we have defined our input stream as well as a table to maintain
-counts, we define an actor that would read each page view event coming in the
+counts, we define an agent that would read each page view event coming in the
 stream and actually do the counting.
 
 .. sourcecode:: python
 
-    @app.actor(page_view_topic)
+    @app.agent(page_view_topic)
     async def count_page_views(views):
         async for view in views.group_by(PageView.id):
             page_views[view.id] += 1

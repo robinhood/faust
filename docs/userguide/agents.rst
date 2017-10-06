@@ -1,7 +1,7 @@
-.. _actors-guide:
+.. _agents-guide:
 
 =========================================
-  Actors
+  Agents
 =========================================
 
 .. module:: faust
@@ -12,36 +12,32 @@
     :local:
     :depth: 1
 
-.. _actor-basics:
+.. _agent-basics:
 
 Basics
 ======
 
-Faust is not an actor framework in any traditional sense, and the term "actor"
-is used vaguely to refer to a process that receives messages and manages
-state.
-
 Faust differentiates itself from other Stream processing frameworks by fusing
 stream processing with Python async iterators in a way that gives you the
 flexibility to embed stream processing directly
-into your programs, or web servers; the actor portion means that you can
+into your programs, or web servers; the agent portion means that you can
 communicate with your stream processors, or create event processing handlers
 that extend the scope of traditional stream processing systems.
 
-With Faust actors can be used to define both passive stream processing
+With Faust agents can be used to define both passive stream processing
 workflows, and active network services, with zero overhead from the features
 
-An actor in Faust is simply an async function that takes a stream as argument
+An agent in Faust is simply an async function that takes a stream as argument
 and iterates over it.
 
-Here's an example actor that adds numbers:
+Here's an example agent that adds numbers:
 
 .. sourcecode:: python
 
-    # examples/actor.py
+    # examples/agent.py
     import faust
 
-    # The model describes the data sent to our actor,
+    # The model describes the data sent to our agent,
     # and in our case we will use a JSON serialized dictionary
     # with two integer fields: a, and b.
     class Add(faust.Record):
@@ -50,32 +46,32 @@ Here's an example actor that adds numbers:
 
     # Next, we create the Faust application object that
     # configures our environment.
-    app = faust.App('actor-example')
+    app = faust.App('agent-example')
 
-    # The Kafka topic used by our actor is named 'adding',
+    # The Kafka topic used by our agent is named 'adding',
     # and we specify that the values in this topic are of the Add model.
     # (you can also specify the key_type if your topic uses keys).
     topic = app.topic('adding', value_type=Add)
 
-    @app.actor(topic)
+    @app.agent(topic)
     async def adding(stream):
         async for value in stream:
             # here we receive Add objects, add a + b.
             yield value.a + value.b
 
-Starting a worker will now start a single instance of this actor:
+Starting a worker will now start a single instance of this agent:
 
 .. sourcecode:: console
 
-    $ faust -A examples.actor worker -l info
+    $ faust -A examples.agent worker -l info
 
 To send values to it, you can open a second console to run this program:
 
 .. sourcecode:: python
 
-    # examples/send_to_actor.py
+    # examples/send_to_agent.py
     import asyncio
-    from .actor import Add, adding
+    from .agent import Add, adding
 
     async def send_value() -> None:
         print(await adding.ask(Add(a=4, b=4)))
@@ -86,11 +82,11 @@ To send values to it, you can open a second console to run this program:
 
 .. sourcecode:: console
 
-    $ python examples/send_to_actor.py
+    $ python examples/send_to_agent.py
 
-The :meth:`Actor.ask() <faust.Actor.ask>` method wraps the value sent in
+The :meth:`Agent.ask() <faust.Agent.ask>` method wraps the value sent in
 a special structure that includes the return address (reply-to).  When the
-actor sees this type of structure it will reply with the result yielded
+agent sees this type of structure it will reply with the result yielded
 as a result of processing the value.
 
 .. admonition:: Static types
@@ -107,12 +103,12 @@ as a result of processing the value.
         from typing import AsyncIterable
         from faust import StreamT
 
-        @app.actor(topic)
+        @app.agent(topic)
         async def adding(stream: StreamT[Add]) -> AsyncIterable[int]:
             async for value in stream:
                 yield value.a + value.b
 
-    The ``StreamT`` type used for the actors stream argument is a subclass
+    The ``StreamT`` type used for the agents stream argument is a subclass
     of :class:`~typing.AsyncIterable` extended with the stream API.
     You could type this argument using
     ``AsyncIterable``, but then :pypi:`mypy` would stop you with a typing
@@ -120,19 +116,19 @@ as a result of processing the value.
     ``through()``, etc.
 
 
-Under the Hood: The ``@actor`` decorator
+Under the Hood: The ``@agent`` decorator
 ----------------------------------------
 
-You can easily start a stream processor in Faust without using actors,
+You can easily start a stream processor in Faust without using agents,
 by simply starting an :mod:`asyncio` task that iterates over a stream:
 
 .. sourcecode:: python
 
-    # examples/noactor.py
+    # examples/noagents.py
     import asyncio
 
-    app = faust.App('noactor')
-    topic = app.topic('noactor')
+    app = faust.App('noagents')
+    topic = app.topic('noagents')
 
     async def mystream():
         async for event in topic.stream():
@@ -146,11 +142,11 @@ by simply starting an :mod:`asyncio` task that iterates over a stream:
         loop = asyncio.get_event_loop()
         loop.run_until_complete(start_streams())
 
-Essentially what the ``@actor`` decorator does, given a function like this:
+Essentially what the ``@agent`` decorator does, given a function like this:
 
 .. sourcecode:: python
 
-    @app.actor(topic)
+    @app.agent(topic)
     async def mystream(stream):
         async for event in stream:
             print(f'Received: {event!r}')
@@ -161,24 +157,24 @@ Is that it wraps your function, that returns an async iterator (since it uses
 
 .. sourcecode:: python
 
-    def actor(topic):
+    def agent(topic):
 
-        def create_actor_from(fun):
-            async def _start_actor():
+        def create_agent_from(fun):
+            async def _start_agent():
                 stream = topic.stream()
                 async for result in fun(stream):
                     maybe_reply_to_caller(result)
 
-Defining Actors
+Defining Agents
 ===============
 
-.. _actor-topic:
+.. _agent-topic:
 
 The Topic
 ---------
 
-The topic argument to the actor decorator defines the main topic
-that actor reads from (this implies it's not necessarily the only
+The topic argument to the agent decorator defines the main topic
+that agent reads from (this implies it's not necessarily the only
 topic, as is the case when using stream joins, for example).
 
 Topics are defined using the :meth:`@topic` helper, and returns a
@@ -190,7 +186,7 @@ Topics are defined using the :meth:`@topic` helper, and returns a
                       ...)
 
 If the topic description provides multiple topic names, the main
-topic of the actor will be the first topic in that list (``"topic_name1"``).
+topic of the agent will be the first topic in that list (``"topic_name1"``).
 
 The ``key_type`` and ``value_type`` describes how messages in the topics
 are serialized.  This can either be a model (such as :class:`faust.Record`,
@@ -199,9 +195,9 @@ then the default serializer defined by the app will be used.
 
 .. tip::
 
-    If you don't specify a topic, the actor will use the actor name
-    as topic: the name will be the fully qualified name of the actor function
-    (e.g. ``examples.actor.adder``).
+    If you don't specify a topic, the agent will use the agent name
+    as topic: the name will be the fully qualified name of the agent function
+    (e.g. ``examples.agent.adder``).
 
 .. seealso::
 
@@ -211,7 +207,7 @@ The Stream
 ----------
 
 The decorated function should be unary, acceping a single ``stream`` argument.
-which is created from the actors topic.
+which is created from the agents topic.
 
 This object is async iterable and an instance of the :class:`~faust.Stream`
 class, created from the topic provided to the decorator.
@@ -234,18 +230,18 @@ to partition the stream differently:
     app = faust.App('groupby')
     topic = app.topic('groupby', value_type=BankTransfer)
 
-    @app.actor(topic)
+    @app.agent(topic)
     async def stream(s):
         async for transfer in s.group_by(BankTransfer.account_id):
             # transfers will now be distributed such that transfers
-            # with the same account_id always arrives to the same actor
+            # with the same account_id always arrives to the same agent
             # instance
             ...
 
-Using stream-to-stream joins with actors is a bit more tricky, considering
-that the actor always needs to have one main topic.  You may use one topic
+Using stream-to-stream joins with agents is a bit more tricky, considering
+that the agent always needs to have one main topic.  You may use one topic
 as the seed and combine that with more topics, but then it will be impossible
-to communicate directly with the actor since you have to send a message to all
+to communicate directly with the agent since you have to send a message to all
 the topics, and that is more than challenging:
 
 .. sourcecode:: python
@@ -253,12 +249,12 @@ the topics, and that is more than challenging:
     topic1 = app.topic('foo1')
     topic2 = app.topic('foo2')
 
-    @app.actor(topic)
+    @app.agent(topic)
     async def mystream(stream):
         async for event in (stream & topic2.stream()).join(...):
             ...
 
-What you could do is define a separate topic for communicating with the actor:
+What you could do is define a separate topic for communicating with the agent:
 
 .. sourcecode:: python
 
@@ -266,7 +262,7 @@ What you could do is define a separate topic for communicating with the actor:
     topic2 = app.topic('foo2')
     backchannel_topic = app.topic('foo-backchannel')
 
-    @app.actor(backchannel_topic)
+    @app.agent(backchannel_topic)
     async def mystream(backchannel):
         joined_streams = (topic1.stream() & topic2.stream()).join(...)
         async for event in (backchannel & joined_streams):
@@ -277,7 +273,7 @@ What you could do is define a separate topic for communicating with the actor:
 
 But even when you want to remotely inquire about the state of this stream processor,
 there are better ways to do so (like using one stream processor task, and one
-actor), so actors are not the best way to process joined streams, instead you
+agent), so agents are not the best way to process joined streams, instead you
 should use a traditional asyncio Task:
 
 .. sourcecode:: python
@@ -292,130 +288,133 @@ should use a traditional asyncio Task:
     The :ref:`guide-streams` guide for more information about streams and topics.
 
 
-.. _actor-concurrency:
+.. _agent-concurrency:
 
 Concurrency
 -----------
 
-You can start multiple instances of an actor by specifying the ``concurrency``
+You can start multiple instances of an agent by specifying the ``concurrency``
 argument.
 
 .. warning::
 
-    Since having concurrent instances of an actor means that events in
+    Since having concurrent instances of an agent means that events in
     the stream will be processed out of order, it's very important that
     you do not mutate :ref:`tables <guide-tables>` from witin the
-    actor function:
+    agent function:
 
-    An actor with `concurrency > 1`, can only read from a table, never write.
+    An agent with `concurrency > 1`, can only read from a table, never write.
 
-Here's an actor example that can safely process the stream out of order:
+Here's an agent example that can safely process the stream out of order:
 whenever a new newsarticle is created something posts to the 'news' topic,
-this actor retrieves that article and stores it in a database.
+this agent retrieves that article and stores it in a database.
 
 .. sourcecode:: python
 
     news_topic = app.topic('news')
 
-    @app.actor()
+    @app.agent()
     async def imports_news(articles):
         async for article in articles:
             response = await aiohttp.ClientSession().get(article.url)
             await store_article_in_db(response)
 
-.. _actor-sinks:
+.. _agent-sinks:
 
 Sinks
 -----
 
-Sinks can be used to perform additional actions after the actor has processed
+Sinks can be used to perform additional actions after the agent has processed
 an event in the stream, such as forwarding alerts to a monitoring system,
 logging to Slack, etc. A sink can be callable, async callable, a topic or
-another actor.
+another agent.
 
 Function Callback
-    Regular functions take a single argument (the value yielded by the actor):
+    Regular functions take a single argument (the value yielded by the agent):
 
     .. sourcecode:: python
 
         def mysink(value):
-            print(f'ACTOR YIELD: {value!r}')
+            print(f'AGENT YIELD: {value!r}')
 
-        @app.actor(sink=[mysink])
-        async def myactor(stream):
+        @app.agent(sink=[mysink])
+        async def myagent(stream):
             ...
 
 Async Function Callback
     Async functions can also be used, in this case the async function will be
-    awaiated by the actor:
+    awaiated by the agent:
 
     .. sourcecode:: python
 
         async def mysink(value):
-            print(f'ACTOR YIELD: {value!r}')
-            # This will force the actor instance that yielded this value
+            print(f'AGENT YIELD: {value!r}')
+            # This will force the agent instance that yielded this value
             # to sleep for 1.0 second before continuing on the next event
             # in the stream.
             await asyncio.sleep(1)
 
-        @app.actor(sink=[mysink])
-        async def myactor(stream):
+        @app.agent(sink=[mysink])
+        async def myagent(stream):
             ...
 
 Topic
-    Specifying a topic as sink will force the actor to forward yielded values
+    Specifying a topic as sink will force the agent to forward yielded values
     to that topic:
 
     .. sourcecode:: python
 
-        actor_log_topic = app.topic('actor_log')
+        agent_log_topic = app.topic('agent_log')
 
-        @app.actor(sink=[actor_log_topic])
-        async def myactor(stream):
+        @app.agent(sink=[agent_log_topic])
+        async def myagent(stream):
             ...
 
-Another Actor
-    Specyfing another actor as sink will force the actor to forward yielded
-    values to that actor:
+Another Agent
+    Specyfing another agent as sink will force the agent to forward yielded
+    values to that agent:
 
     .. sourcecode:: python
 
-        @app.actor()
-        async def actor_b(stream):
+        @app.agent()
+        async def agent_b(stream):
             async for event in stream:
-                print(f'ACTOR B RECEIVED: {event!r}')
+                print(f'AGENT B RECEIVED: {event!r}')
 
-        @app.actor(sink=[actor_b])
-        async def actor_a(stream):
+        @app.agent(sink=[agent_b])
+        async def agent_a(stream):
             async for event in stream:
-                print(f'ACTOR A RECEIVED: {event!r}')
+                print(f'AGENT A RECEIVED: {event!r}')
 
-Using actors
+Using Agents
 ============
 
 Cast or Ask?
 ------------
 
-When communicating with an actor you can request the result of the
+When communicating with an agent you can request the result of the
 operation to be sent to a topic: this is the ``reply_to`` topic.
-The reply topic may be the topic of another actor, a topic used by a different
+The reply topic may be the topic of another agent, a topic used by a different
 system altogether, or it may be a local ephemeral topic that will collect
 replies to the current process.
 
 Performing a ``cast`` means no reply is expected, you are only sending the
-actor a message, not expecting a reply back.
+agent a message, not expecting a reply back.  This is the preferred mode
+of operation for most agents, and any time you are about to use the RPC
+facilities of agents you should take a step back to reconsider if there
+is a way to solve your problem in a streaming manner.
 
 ``cast(value, *, key=None, partition=None)``
-    Casting a value to an actor is asynchronous:
+    Casting a value to an agent is asynchronous:
 
     .. sourcecode:: python
 
         await adder.cast(Add(a=2, b=2))
 
-    The actor will receive this value, but it will not send a reply.
+    The agent will receive this value, but it will not send a reply.
 
 ``ask(value, *, key=None, partition=None, reply_to=None, correlation_id=None)``
-    Asking an actor will send a reply back to the current process:
+    Asking an agent will send a reply back to the current process:
 
     .. sourcecode:: python
 
@@ -423,20 +422,20 @@ actor a message, not expecting a reply back.
         assert value == 4
 
 ``send(key, value, partition, reply_to=None, correlation_id=None)``
-    The ``Actor.send`` method is the underlying mechanism used by ``cast`` and
-    ``ask``, and enables you to request that a reply is sent to another actor
+    The ``Agent.send`` method is the underlying mechanism used by ``cast`` and
+    ``ask``, and enables you to request that a reply is sent to another agent
     or a specific topic.
 
-    Send to another actor:
+    Send to another agent::
 
     .. sourcecode:: python
 
-        await adder.send(value=Add(a=2, b=2), reply_to=another_actor)
+        await adder.send(value=Add(a=2, b=2), reply_to=another_agent)
 
 Streaming Map/Reduce
 --------------------
 
-The actor also provides operations for streaming values to the actors and
+The agent also provides operations for streaming values to the agents and
 gathering the results: ``map`` streams results as they come in (unordered),
 and ``join`` waits until the operations are complete and return the results
 in order as a list.
@@ -447,7 +446,7 @@ in order as a list.
 
     .. sourcecode:: python
 
-        async for reply in actor.map([1, 2, 3, 4, 5, 6, 7, 8]):
+        async for reply in agent.map([1, 2, 3, 4, 5, 6, 7, 8]):
             print(f'RECEIVED REPLY: {reply!r}')
 
     The iterator will start before all the messages have been sent, and
