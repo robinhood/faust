@@ -156,7 +156,7 @@ class Stream(StreamT, Service):
                 yield self.current_event
 
     async def take(self, max_: int,
-                   within: Seconds = None) -> AsyncIterable[Sequence[T_co]]:
+                   within: Seconds) -> AsyncIterable[Sequence[T_co]]:
         """Buffer n values at a time and yield a list of buffered values.
 
         Keyword Arguments:
@@ -175,10 +175,10 @@ class Stream(StreamT, Service):
                 if len(buffer) >= max_:
                     break
 
-        await self.wait(_buffer(), timeout=timeout)
-
-        yield list(buffer)
-        buffer.clear()
+        while not self.should_stop:
+            await self.wait(_buffer(), timeout=timeout)
+            yield list(buffer)
+            buffer.clear()
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
         """Clone stream into n new streams, receiving copies of values.
