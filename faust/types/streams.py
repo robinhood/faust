@@ -118,7 +118,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     @abc.abstractmethod
     @no_type_check
     async def take(self, max_: int,
-                   within: Seconds = None) -> AsyncIterable[Sequence[T_co]]:
+                   within: Seconds) -> AsyncIterable[Sequence[T_co]]:
         ...
 
     @abc.abstractmethod

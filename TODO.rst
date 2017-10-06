@@ -2,12 +2,6 @@
  TODO
 ======
 
-Checkpoints
-===========
-
-Checkpoint file is shared among instances on the same machine,
-we need to be able to write to that file simultaneously.
-
 "ExactlyOnce" / Transactions (KIP-98)
 =====================================
 

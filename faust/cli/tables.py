@@ -8,7 +8,7 @@ DEFAULT_TABLE_HELP = 'Missing description: use Table(.., help="str")'
 
 
 class tables(AppCommand):
-    """List tables."""
+    """List available tables."""
 
     title = 'Tables'
 

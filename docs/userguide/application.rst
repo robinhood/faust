@@ -157,16 +157,6 @@ Parameters
 
     How often we cleanup tables to remove expired entries.
 
-`checkpoint_path`
-    :type: `str`
-    :default: ``".checkpoint"``
-
-    The checkpoint file is used to store table changelog offsets at shutdown,
-    so that we only need to read changelog entries we don't have at startup.
-
-    This path will also be relative to the
-    :option:`--workdir <faust --workdir>` option.
-
 `key_serializer`
     :type: ``Union[str, Codec]``
     :default: :const:`None`
@@ -257,14 +247,6 @@ Parameters
     :default: ``"faust.tables.TableManager"``
 
     The :class:`~faust.tables.TableManager` used for managing tables,
-    or the fully-qualified path to one.
-
-`CheckpointManager`
-    :type: ``Union[str, Type[CheckpointManagerT]]``
-    :default: ``"faust.tables.CheckpointManager"``
-
-    The :class:`~faust.tables.CheckpointManager` used for reading
-    and writing the checkpoint file at startup/shutdown;
     or the fully-qualified path to one.
 
 `Serializers`

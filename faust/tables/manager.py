@@ -28,6 +28,7 @@ TABLEMAN_UPDATE = 'UPDATE'
 TABLEMAN_START_STANDBYS = 'START_STANDBYS'
 TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
 TABLEMAN_RECOVER = 'RECOVER'
+TABLEMAN_PARTITIONS_REVOKED = 'PARTITIONS REVOKED'
 TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
 
@@ -95,6 +96,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     @Service.task
     @Service.transitions_to(CHANGELOG_STARTING)
     async def _read(self) -> None:
+        print('READER STARTING: %r' % (self,))
         table = self.table
         consumer = self.app.consumer
         await consumer.pause_partitions(self.tps)
@@ -104,6 +106,24 @@ class ChangelogReader(Service, ChangelogReaderT):
             self._started_reading.set()
             self.set_shutdown()
             return
+
+        # RocksDB: Find partitions that we have database files for,
+        # since only one process can have them open at a time.
+        local_tps = {
+            tp for tp in self.tps
+            if not await table.need_active_standby_for(tp)
+        }
+        if local_tps:
+            self.log.info('Partitions %r are local to this node',
+                          sorted(local_tps))
+
+        self.tps = list(set(self.tps) - local_tps)
+        if not self.tps:
+            self.log.info('No active standby needed')
+            self._started_reading.set()
+            self.set_shutdown()
+            return
+
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         self.log.info(f'Reading %s records...', self._remaining_total())
@@ -173,7 +193,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
     _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
-    _recovery_completed: asyncio.Event
+    recovery_completed: asyncio.Event
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -185,7 +205,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._standbys = {}
         self._changelog_readers = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
-        self._recovery_completed = asyncio.Event(loop=self.loop)
+        self.recovery_completed = asyncio.Event(loop=self.loop)
+
+    def __hash__(self) -> int:
+        return object.__hash__(self)
 
     @property
     def changelog_topics(self) -> typing.Set[str]:
@@ -275,14 +298,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _on_recovery_completed(self) -> None:
         for table in self.values():
             await table.maybe_start()
-        self._recovery_completed.set()
+        self.recovery_completed.set()
 
     async def on_start(self) -> None:
         await self.sleep(1.0)
         await self._update_channels()
 
     async def on_stop(self) -> None:
-        if self._recovery_completed.is_set():
+        if self.recovery_completed.is_set():
             for table in self.values():
                 await table.stop()
 
@@ -320,6 +343,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
             beacon=self.beacon,
         )
 
+    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        for table in self.values():
+            await table.on_partitions_revoked(revoked)
+
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
@@ -328,6 +357,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         assert set(assigned_tps).issubset(set(assigned))
         self.log.info('New assignments found')
         await self._on_recovery_started()
+        for table in self.values():
+            await table.on_partitions_assigned(assigned)
         self.log.info('Attempting to stop standbys')
         await self._stop_standbys()
         await self._recover_changelogs(assigned_tps)

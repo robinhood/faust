@@ -131,6 +131,7 @@ Utils
     faust.utils.futures
     faust.utils.imports
     faust.utils.json
+    faust.utils.text
 
 Web
 ===

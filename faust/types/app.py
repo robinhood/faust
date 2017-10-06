@@ -21,7 +21,7 @@ from .router import RouterT
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
-from .tables import CheckpointManagerT, SetT, TableManagerT, TableT
+from .tables import SetT, TableManagerT, TableT
 from .topics import ChannelT, ConductorT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata
@@ -65,7 +65,6 @@ class AppT(ServiceT):
     Stream: Type[StreamT]
     TableType: Type[TableT]
     TableManager: Type[TableManagerT]
-    CheckpointManager: Type[CheckpointManagerT]
     SetType: Type[SetT]
     Serializers: Type[RegistryT]
 
@@ -77,7 +76,6 @@ class AppT(ServiceT):
     client_only: bool
     commit_interval: float
     table_cleanup_interval: float
-    checkpoint_path: Path
     key_serializer: CodecArg
     value_serializer: CodecArg
     num_standby_replicas: int
@@ -122,7 +120,6 @@ class AppT(ServiceT):
                  Stream: SymbolArg[Type[StreamT]] = '',
                  Table: SymbolArg[Type[TableT]] = '',
                  TableManager: SymbolArg[Type[TableManagerT]] = '',
-                 CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = '',
                  Set: SymbolArg[Type[SetT]] = '',
                  Serializers: SymbolArg[Type[RegistryT]] = '',
                  Worker: SymbolArg[Type[WorkerT]] = None,
@@ -281,11 +278,6 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def tables(self) -> TableManagerT:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def checkpoints(self) -> CheckpointManagerT:
         ...
 
     @property

@@ -116,6 +116,9 @@ class Collection(Service, CollectionT):
     def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
         return self.data.persisted_offset(tp)
 
+    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+        return await self.data.need_active_standby_for(tp)
+
     def reset_state(self) -> None:
         self.data.reset_state()
 
@@ -135,7 +138,7 @@ class Collection(Service, CollectionT):
 
     def _on_changelog_sent(self, fut: FutureMessage) -> None:
         res: RecordMetadata = fut.result()
-        self.app.checkpoints.set_offset(res.topic_partition, res.offset)
+        self.data.set_persisted_offset(res.topic_partition, res.offset)
 
     @Service.task
     @Service.transitions_to(TABLE_CLEANING)
@@ -257,6 +260,14 @@ class Collection(Service, CollectionT):
 
     def _get_timestamp(self, event: EventT = None) -> float:
         return (event or current_event()).message.timestamp
+
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        await self.data.on_partitions_assigned(self, assigned)
+
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
+        await self.data.on_partitions_revoked(self, revoked)
 
     @property
     def label(self) -> str:

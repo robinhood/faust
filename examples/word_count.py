@@ -1,11 +1,13 @@
-import random
+import asyncio
+from operator import itemgetter
 import faust
+from terminaltables import SingleTable
 
 WORDS = ['the', 'quick', 'brown', 'fox']
 
 
 app = faust.App(
-    'word-count2',
+    'word-counts5',
     url='kafka://localhost:9092',
     default_partitions=6,
     key_serializer='json',
@@ -13,16 +15,16 @@ app = faust.App(
     store='rocksdb://',
 )
 
-posts_topic = app.topic('posts2',
+posts_topic = app.topic('posts3',
                         value_type=str,
                         value_serializer='raw')
-words_topic = app.topic('words2',
+words_topic = app.topic('words3',
                         key_type=str,
                         key_serializer='raw',
                         value_type=str,
                         value_serializer='raw')
 
-word_counts = app.Table('word_counts2', default=int,
+word_counts = app.Table('word_counts3', default=int,
                         help='Keep count of words (str to int).')
 
 
@@ -50,8 +52,17 @@ async def get_count(web, request):
 
 @app.task
 async def sender():
-    for _ in range(100):
-        await shuffle_words.send(value=random.choice(WORDS))
+    for word in WORDS:
+        for _ in range(30):
+            await shuffle_words.send(value=word)
+
+    await asyncio.sleep(5.0)
+    print(word_counts.as_ansitable(
+        key='word',
+        value='count',
+        title='$$ TALLY $$',
+        sort=True,
+    ))
 
 
 if __name__ == '__main__':
