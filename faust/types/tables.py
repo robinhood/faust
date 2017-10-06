@@ -116,6 +116,16 @@ class TableT(CollectionT, MutableMapping):
                  expires: Seconds = None) -> 'WindowWrapperT':
         ...
 
+    @abc.abstractmethod
+    def as_ansitable(self,
+                     *,
+                     key: str = None,
+                     value: str = None,
+                     sort: bool = False,
+                     sortkey: Callable[[Any], Any] = None,
+                     title: str = None) -> str:
+        ...
+
 
 class SetT(CollectionT, MutableSet):
     ...

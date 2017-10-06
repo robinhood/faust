@@ -1,11 +1,13 @@
 """Table (key/value changelog stream)."""
-from typing import Any
+from operator import itemgetter
+from typing import Any, Callable, Iterable, List, cast
 from mode import Seconds
 from .base import Collection
 from .wrappers import WindowWrapper
 from .. import windows
 from ..types.tables import TableT, WindowWrapperT
 from ..types.windows import WindowT
+from ..utils import text
 from ..utils.collections import ManagedUserDict
 
 __all__ = ['Table']
@@ -57,3 +59,22 @@ class Table(Collection, TableT, ManagedUserDict):
         self._send_changelog(key, value=None)
         self._maybe_del_key_ttl(key)
         self._sensor_on_del(self, key)
+
+    def as_ansitable(self,
+                     *,
+                     key: str = 'Key',
+                     value: str = 'Value',
+                     sort: bool = False,
+                     sortkey: Callable[[Any], Any] = itemgetter(0),
+                     title: str = '{table.name}') -> str:
+        from terminaltables import SingleTable
+        header = [text.title(key), text.title(value)]
+        data = cast(
+            Iterable[List[str]], dict(self).items())
+        data = list(sorted(data, key=sortkey)) if sort else list(data)
+        if sort:
+            data = list(sorted(data, key=sortkey))
+        return SingleTable(
+            [header] + list(data),
+            title=text.title(title.format(table=self)),
+        ).table

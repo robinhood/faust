@@ -57,13 +57,12 @@ async def sender():
             await shuffle_words.send(value=word)
 
     await asyncio.sleep(5.0)
-    print(counts_as_ansitable())
-
-
-def counts_as_ansitable():
-    header = ['word', 'count']
-    data = sorted(list(dict(word_counts).items()), key=itemgetter(0))
-    return SingleTable([header] + data, title='$$ TALLY $$').table
+    print(word_counts.as_ansitable(
+        key='word',
+        value='count',
+        title='$$ TALLY $$',
+        sort=True,
+    ))
 
 
 if __name__ == '__main__':
