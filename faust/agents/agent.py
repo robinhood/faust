@@ -19,7 +19,7 @@ from ..types import (
     RecordMetadata, StreamT, TopicT, V,
 )
 from ..types.agents import (
-    AgentErrorHandler, AgentFun, ActorT, ActorRefT, AgentT,
+    ActorRefT, ActorT, AgentErrorHandler, AgentFun, AgentT,
     AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
 )
 from ..utils.aiter import aenumerate, aiter
@@ -160,6 +160,9 @@ class AgentService(Service):
         super().__init__(**kwargs)
 
     async def _start_one(self, index: int = None) -> ActorT:
+        # index=None means there's only one instance, an is used for
+        # checks that require linearizability.
+        index = index if (self.agent.concurrency or 1) > 1 else None
         return await cast(Agent, self.agent)._start_task(index, self.beacon)
 
     async def on_start(self) -> None:
@@ -168,8 +171,7 @@ class AgentService(Service):
             replacement=self._replace_actor,
             loop=self.loop, beacon=self.beacon)
         for i in range(self.agent.concurrency):
-            res = await self._start_one(i)
-            self.supervisor.add(res)
+            self.supervisor.add(await self._start_one(i))
         await self.supervisor.start()
 
     async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
