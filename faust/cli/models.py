@@ -1,6 +1,6 @@
-"""Program ``faust actors`` used to list actors.
+"""Program ``faust models`` used to list models
 
-.. program:: faust actors
+.. program:: faust models
 """
 from operator import attrgetter
 from typing import Sequence, Type

@@ -466,6 +466,7 @@ class App(AppT, ServiceProxy):
             self.agents[agent.name] = agent
             return agent
         return _inner
+    actor = agent  # XXX Compatibility alias: REMOVE FOR 1.0
 
     async def _on_agent_error(
             self, agent: AgentT, exc: BaseException) -> None:
