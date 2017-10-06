@@ -43,6 +43,10 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
+    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+        ...
+
+    @abc.abstractmethod
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:

@@ -28,6 +28,9 @@ class Store(StoreT, Service):
     def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
         ...
 
+    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+        return True
+
     async def on_partitions_assigned(
             self,
             table: CollectionT,

@@ -79,6 +79,10 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
+    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+        ...
+
+    @abc.abstractmethod
     def reset_state(self) -> None:
         ...
 

@@ -106,6 +106,24 @@ class ChangelogReader(Service, ChangelogReaderT):
             self._started_reading.set()
             self.set_shutdown()
             return
+
+        # RocksDB: Find partitions that we have database files for,
+        # since only one process can have them open at a time.
+        local_tps = {
+            tp for tp in self.tps
+            if not await table.need_active_standby_for(tp)
+        }
+        if local_tps:
+            self.log.info('Partitions %r are local to this node',
+                          sorted(local_tps))
+
+        self.tps = list(set(self.tps) - local_tps)
+        if not self.tps:
+            self.log.info('No active standby needed')
+            self._started_reading.set()
+            self.set_shutdown()
+            return
+
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         self.log.info(f'Reading %s records...', self._remaining_total())
