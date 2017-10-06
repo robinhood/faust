@@ -9,8 +9,10 @@ from .tuples import TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .tables import CollectionT
 else:
     class AppT: ...    # noqa
+    class CollectionT: ...  # noqa
 
 __all__ = ['StoreT']
 
@@ -37,6 +39,14 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
+    def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+        ...
+
+    @abc.abstractmethod
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
@@ -44,4 +54,18 @@ class StoreT(ServiceT, MutableMapping):
 
     @abc.abstractmethod
     def reset_state(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_assigned(
+            self,
+            table: CollectionT,
+            assigned: Iterable[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_revoked(
+            self,
+            table: CollectionT,
+            revoked: Iterable[TopicPartition]) -> None:
         ...

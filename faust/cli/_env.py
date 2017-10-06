@@ -16,7 +16,7 @@ DEBUG: bool = bool(os.environ.get('F_DEBUG', False))
 #: Working directory to change into at start.
 WORKDIR: str = os.environ.get('F_WORKDIR')
 
-#: Directory to keep the application state (tables, checkpoint, etc).
+#: Directory to keep the application state (tables, checkpoints, etc).
 DATADIR: str = os.environ.get('F_DATADIR', '{appid}-data')
 
 #: Blocking detection timeout

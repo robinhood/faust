@@ -23,7 +23,6 @@ else:
     class ModelArg: ...  # noqa
 
 __all__ = [
-    'CheckpointManagerT',
     'CollectionT',
     'TableT',
     'SetT',
@@ -33,29 +32,6 @@ __all__ = [
     'ChangelogReaderT',
     'CollectionTps',
 ]
-
-
-class CheckpointManagerT(ServiceT):
-
-    @abc.abstractmethod
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    def get_offset(self, tp: TopicPartition) -> Optional[int]:
-        ...
-
-    @abc.abstractmethod
-    def set_offset(self, tp: TopicPartition, offset: int) -> None:
-        ...
-
-    @abc.abstractmethod
-    def reset_state(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def sync(self) -> None:
-        ...
 
 
 class CollectionT(JoinableT, ServiceT):
@@ -103,7 +79,21 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
+    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+        ...
+
+    @abc.abstractmethod
     def reset_state(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_assigned(
+            self, assigned: Iterable[TopicPartition]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_revoked(
+            self, revoked: Iterable[TopicPartition]) -> None:
         ...
 
 

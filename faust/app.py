@@ -46,12 +46,8 @@ from .types.app import AppT, PageArg, ViewGetHandler
 from .types.assignor import LeaderAssignorT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
-from .types.tables import (
-    CheckpointManagerT, SetT, TableManagerT, TableT,
-)
-from .types.transports import (
-    ConsumerT, ProducerT, TPorTopicSet, TransportT,
-)
+from .types.tables import SetT, TableManagerT, TableT
+from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
@@ -75,9 +71,6 @@ __all__ = ['App']
 #: Default transport URL.
 TRANSPORT_URL = 'kafka://localhost:9092'
 
-#: Default path to checkpoint file (unless absolute, relative to datadir).
-CHECKPOINT_PATH = 'checkpoints.json'  # {appid}-data/checkpoints.json
-
 #: Default table state directory path (unless absolute, relative to datadir).
 TABLEDIR = 'tables'  # {appid}-data/tables/
 
@@ -86,9 +79,6 @@ STREAM_TYPE = 'faust.Stream'
 
 #: Default path to table manager class used by ``app.tables``.
 TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
-
-#: Default path to checkpoint manager class used by ``app.checkpoints``.
-CHECKPOINT_MANAGER_TYPE = _CMT = 'faust.tables.CheckpointManager'
 
 #: Default path to table class used by ``app.Table``.
 TABLE_TYPE = 'faust.Table'
@@ -155,7 +145,6 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             [self.app.producer],
             [self.app.consumer],
-            [self.app._leader_assignor],
             [self.app._reply_consumer],
             [self.app.topics],
             [self.app._fetcher],
@@ -177,8 +166,6 @@ class AppService(Service):
         return cast(Iterable[ServiceT], chain(
             # Sensors (Sensor): always start first, stop last.
             self.app.sensors,
-            # Checkpoint Manager (app.CheckpointManager)
-            [self.app.checkpoints],
             # Producer (transport.Producer): always stop after Consumer.
             [self.app.producer],
             # Consumer (transport.Consumer): always stop after TopicConductor
@@ -216,7 +203,6 @@ class AppService(Service):
         # to print the "ready" message when Faust is ready to
         # start processing.
         if self.app.on_startup_finished:
-            print('STARTUP FINISHED!!!!!!!!!')
             await self.app.on_startup_finished()
 
     @Service.task
@@ -281,8 +267,6 @@ class App(AppT, ServiceProxy):
     # Set when consumer is started.
     _consumer_started: bool = False
 
-    _leader_assignor: LeaderAssignorT = None
-
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
@@ -315,7 +299,6 @@ class App(AppT, ServiceProxy):
             datadir: Union[Path, str] = DATADIR,
             commit_interval: Seconds = COMMIT_INTERVAL,
             table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
-            checkpoint_path: Union[Path, str] = CHECKPOINT_PATH,
             tabledir: Union[Path, str] = TABLEDIR,
             key_serializer: CodecArg = 'json',
             value_serializer: CodecArg = 'json',
@@ -328,7 +311,6 @@ class App(AppT, ServiceProxy):
             Stream: SymbolArg[Type[StreamT]] = STREAM_TYPE,
             Table: SymbolArg[Type[TableT]] = TABLE_TYPE,
             TableManager: SymbolArg[Type[TableManagerT]] = TABLE_MANAGER_TYPE,
-            CheckpointManager: SymbolArg[Type[CheckpointManagerT]] = _CMT,
             Set: SymbolArg[Type[SetT]] = SET_TYPE,
             Serializers: SymbolArg[Type[RegistryT]] = REGISTRY_TYPE,
             Worker: SymbolArg[Type[WorkerT]] = WORKER_TYPE,
@@ -346,7 +328,6 @@ class App(AppT, ServiceProxy):
         self.tabledir = self._datadir_path(Path(tabledir)).expanduser()
         self.commit_interval = want_seconds(commit_interval)
         self.table_cleanup_interval = want_seconds(table_cleanup_interval)
-        self.checkpoint_path = self._datadir_path(Path(checkpoint_path))
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
         self.num_standby_replicas = num_standby_replicas
@@ -360,7 +341,6 @@ class App(AppT, ServiceProxy):
         self.TableType = symbol_by_name(Table)
         self.SetType = symbol_by_name(Set)
         self.TableManager = symbol_by_name(TableManager)
-        self.CheckpointManager = symbol_by_name(CheckpointManager)
         self.Serializers = symbol_by_name(Serializers)
         self.serializers = self.Serializers(
             key_serializer=self.key_serializer,
@@ -369,7 +349,6 @@ class App(AppT, ServiceProxy):
         self._worker_type = Worker
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
-        self._leader_assignor = LeaderAssignor(self)
         self.router = Router(self)
         self.actors = OrderedDict()
         self.sensors = SensorDelegate(self)
@@ -981,6 +960,7 @@ class App(AppT, ServiceProxy):
             await self.consumer.wait_empty()
         else:
             self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
+        await self.tables.on_partitions_revoked(revoked)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
@@ -1073,12 +1053,6 @@ class App(AppT, ServiceProxy):
             app=self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
-    def checkpoints(self) -> CheckpointManagerT:
-        """Checkpoint manager keeps track of cached table offsets."""
-        return self.CheckpointManager(
-            self, loop=self.loop, beacon=self.beacon)
-
-    @cached_property
     def topics(self) -> ConductorT:
         """Topic manager.
 
@@ -1114,6 +1088,10 @@ class App(AppT, ServiceProxy):
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
+
+    @cached_property
+    def _leader_assignor(self) -> LeaderAssignorT:
+        return LeaderAssignor(self, loop=self.loop, beacon=self.beacon)
 
     @property
     def label(self) -> str:
