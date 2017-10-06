@@ -1,11 +1,13 @@
-import random
+import asyncio
+from operator import itemgetter
 import faust
+from terminaltables import SingleTable
 
 WORDS = ['the', 'quick', 'brown', 'fox']
 
 
 app = faust.App(
-    'word-count2',
+    'word-counts5',
     url='kafka://localhost:9092',
     default_partitions=6,
     key_serializer='json',
@@ -13,23 +15,22 @@ app = faust.App(
     store='rocksdb://',
 )
 
-posts_topic = app.topic('posts2',
+posts_topic = app.topic('posts3',
                         value_type=str,
                         value_serializer='raw')
-words_topic = app.topic('words2',
+words_topic = app.topic('words3',
                         key_type=str,
                         key_serializer='raw',
                         value_type=str,
                         value_serializer='raw')
 
-word_counts = app.Table('word_counts2', default=int,
+word_counts = app.Table('word_counts3', default=int,
                         help='Keep count of words (str to int).')
 
 
 @app.actor(posts_topic)
 async def shuffle_words(posts):
     async for post in posts:
-        print('RECEIVED POST: %r' % (post,))
         for word in post.split():
             await words_topic.send(key=word, value=word)
 
@@ -51,9 +52,18 @@ async def get_count(web, request):
 
 @app.task
 async def sender():
-    for _ in range(100):
-        print('SENDING: %r' % (_,))
-        await shuffle_words.send(value=random.choice(WORDS))
+    for word in WORDS:
+        for _ in range(30):
+            await shuffle_words.send(value=word)
+
+    await asyncio.sleep(5.0)
+    print(counts_as_ansitable())
+
+
+def counts_as_ansitable():
+    header = ['word', 'count']
+    data = sorted(list(dict(word_counts).items()), key=itemgetter(0))
+    return SingleTable([header] + data, title='$$ TALLY $$').table
 
 
 if __name__ == '__main__':

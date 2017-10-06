@@ -9,8 +9,10 @@ from .tuples import TopicPartition
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .tables import CollectionT
 else:
     class AppT: ...    # noqa
+    class CollectionT: ...  # noqa
 
 __all__ = ['StoreT']
 
@@ -52,10 +54,14 @@ class StoreT(ServiceT, MutableMapping):
 
     @abc.abstractmethod
     async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            assigned: Iterable[TopicPartition]) -> None:
         ...
 
     @abc.abstractmethod
     async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            revoked: Iterable[TopicPartition]) -> None:
         ...

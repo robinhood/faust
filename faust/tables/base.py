@@ -260,11 +260,11 @@ class Collection(Service, CollectionT):
 
     async def on_partitions_assigned(
             self, assigned: Iterable[TopicPartition]) -> None:
-        await self.data.on_partitions_assigned(assigned)
+        await self.data.on_partitions_assigned(self, assigned)
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
-        await self.data.on_partitions_revoked(revoked)
+        await self.data.on_partitions_revoked(self, revoked)
 
     @property
     def label(self) -> str:

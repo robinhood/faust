@@ -4,7 +4,7 @@ from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
 from mode import Service
 from yarl import URL
 from ..serializers.codecs import dumps, loads
-from ..types import AppT, CodecArg, EventT, StoreT, TopicPartition
+from ..types import AppT, CodecArg, CollectionT, EventT, StoreT, TopicPartition
 
 
 class Store(StoreT, Service):
@@ -29,11 +29,15 @@ class Store(StoreT, Service):
         ...
 
     async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            assigned: Iterable[TopicPartition]) -> None:
         ...
 
     async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            revoked: Iterable[TopicPartition]) -> None:
         ...
 
     def _encode_key(self, key: Any) -> bytes:

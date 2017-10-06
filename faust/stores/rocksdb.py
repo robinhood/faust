@@ -12,7 +12,7 @@ from mode import Seconds, Service, want_seconds
 from yarl import URL
 from . import base
 from ..streams import current_event
-from ..types import AppT, EventT, TopicPartition
+from ..types import AppT, CollectionT, EventT, TopicPartition
 from ..utils.collections import LRUCache
 
 try:
@@ -220,8 +220,8 @@ class Store(base.SerializedStore):
     #: Used to configure the RocksDB settings for table stores.
     options: RocksDBOptions
 
-    _dbs: MutableMapping[TopicPartition, rocksdb.DB] = None
-    _key_index: LRUCache[bytes, TopicPartition]
+    _dbs: MutableMapping[int, rocksdb.DB] = None
+    _key_index: LRUCache[bytes, int]
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
@@ -251,73 +251,100 @@ class Store(base.SerializedStore):
     def apply_changelog_batch(self, batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
-        batches: DefaultDict[TopicPartition, rocksdb.WriteBatch]
+        batches: DefaultDict[int, rocksdb.WriteBatch]
         batches = defaultdict(rocksdb.WriteBatch)
         for event in batch:
             msg = event.message
-            batches[msg.tp].put(msg.key, msg.value)
+            batches[msg.partition].put(msg.key, msg.value)
 
-        for tp, batch in batches.items():
-            self._db_for_partition(tp).write(batch)
+        for partition, batch in batches.items():
+            self._db_for_partition(partition).write(batch)
 
     def _set(self, key: bytes, value: bytes) -> None:
         event = current_event()
         assert event is not None
-        self._db_for_partition(event.message.tp).put(key, value)
+        partition = event.message.partition
+        db = self._db_for_partition(partition)
+        self._key_index[key] = partition
+        db.put(key, value)
 
-    def _db_for_partition(self, tp: TopicPartition) -> rocksdb.DB:
+    def _db_for_partition(self, partition: int) -> rocksdb.DB:
         try:
-            return self._dbs[tp]
+            return self._dbs[partition]
         except KeyError:
-            db = self._dbs[tp] = self._open_for_partition(tp)
+            db = self._dbs[partition] = self._open_for_partition(partition)
             return db
 
-    def _open_for_partition(self, tp: TopicPartition) -> rocksdb.DB:
-        return self.options.open(self.partition_path(tp))
+    def _open_for_partition(self, partition: int) -> rocksdb.DB:
+        return self.options.open(self.partition_path(partition))
 
     def _get(self, key: bytes) -> bytes:
-        print('_GET: %r' % (key,))
-        tp, db, value = self._get_bucket_for_key(key)
-        if tp is None:
-            print('GET %r: NO TP FOR ME' % (key,))
-            return None
-        if db is None:
-            print('GET %r: NO DB FOR %r' % (key, tp))
-            db = self._dbs[tp]
+        db, value = self._get_bucket_for_key(key)
+        if db is not None and value is None:
             if db.key_may_exist(key)[0]:
                 value = db.get(key)
                 if value is not None:
                     return value
-        return None
+        return value
 
     def _get_bucket_for_key(self, key: bytes) -> Tuple[
-            TopicPartition, Optional[rocksdb.DB], Optional[bytes]]:
+            Optional[rocksdb.DB], Optional[bytes]]:
+        dbs: Iterable[Tuple[int, rocksdb.DB]]
         try:
-            return self._key_index[key], None, None
+            partition = self._key_index[key]
+            dbs = [(partition, self._dbs[partition])]
         except KeyError:
-            for tp, db in self._dbs.items():
-                if db.key_may_exist(key)[0]:
-                    value = db.get(key)
-                    if value is not None:
-                        self._key_index[key] = tp
-                        return tp, db, value
-            return None, None, None
+            dbs = self._dbs.items()
+
+        for partition, db in dbs:
+            if db.key_may_exist(key)[0]:
+                value = db.get(key)
+                if value is not None:
+                    self._key_index[key] = partition
+                    return db, value
+        return None, None
 
     def _del(self, key: bytes) -> None:
         for db in self._dbs_for_key(key):
             db.delete(key)
 
     async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            revoked: Iterable[TopicPartition]) -> None:
         for tp in revoked:
-            self._dbs.pop(tp, None)
+            if tp.topic in table.changelog_topic.topics:
+                db = self._dbs.pop(tp.partition, None)
+                if db is not None:
+                    print('CLOSING DATABASE: %r' % (tp.partition,))
+                    del(db)
+        import gc
+        gc.collect()  # XXX RocksDB has no .close() method :X
         self._key_index.clear()
 
     async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+            self,
+            table: CollectionT,
+            assigned: Iterable[TopicPartition]) -> None:
         self._key_index.clear()
+        standby_tps = self.app.assignor.assigned_standbys()
+        my_topics = table.changelog_topic.topics
+
         for tp in assigned:
-            self._db_for_partition(tp)  # adds to self._db
+            if tp.topic in my_topics and tp not in standby_tps:
+                for i in range(5):
+                    try:
+                        # side effect: opens db and adds to self._dbs.
+                        self._db_for_partition(tp.partition)
+                    except rocksdb.errors.RocksIOError as exc:
+                        if i == 4 or 'lock' not in repr(exc):
+                            raise
+                        self.log.info(
+                            'DB for partition %r is locked! Retry in 1s...',
+                            tp.partition)
+                        await self.sleep(1.0)
+                    else:
+                        break
 
     def _contains(self, key: bytes) -> bool:
         for db in self._dbs_for_key(key):
@@ -370,9 +397,9 @@ class Store(base.SerializedStore):
         with suppress(FileNotFoundError):
             shutil.rmtree(self.path.absolute())
 
-    def partition_path(self, tp: TopicPartition) -> Path:
-        return self.with_suffix((self.path / self.basename).with_name(
-            f'{self.path.name}-{tp.topic}-{tp.partition}'))
+    def partition_path(self, partition: int) -> Path:
+        p = self.path / self.basename
+        return self.with_suffix(p.with_name(f'{p.name}-{partition}'))
 
     def with_suffix(self, path: Path, *, suffix: str = '.db') -> Path:
         return path.with_suffix(suffix)
@@ -405,7 +432,7 @@ class Store(base.SerializedStore):
                               self.sync_locked_wait_max)
                 await self.sleep(self.sync_locked_wait_max)
             else:
-                print('Checkpoints written OK!')
+                self.log.debug('Checkpoints written OK!')
                 break
 
     @property
