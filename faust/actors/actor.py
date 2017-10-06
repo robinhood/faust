@@ -160,6 +160,8 @@ class ActorService(Service):
         super().__init__(**kwargs)
 
     async def _start_one(self, index: int = None) -> ActorInstanceT:
+        # an index of one means there's only one instance.
+        index = index if self.actor.concurrency else None
         return await cast(Actor, self.actor)._start_task(index, self.beacon)
 
     async def on_start(self) -> None:
@@ -167,6 +169,7 @@ class ActorService(Service):
             max_restarts=100.0, over=1.0,
             replacement=self._replace_actor,
             loop=self.loop, beacon=self.beacon)
+
         for i in range(self.actor.concurrency):
             res = await self._start_one(i)
             self.supervisor.add(res)
