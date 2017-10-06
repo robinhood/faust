@@ -932,13 +932,16 @@ class App(AppT, ServiceProxy):
         assignment, so any tp no longer in the assigned' list will have
         been revoked.
         """
-        self.flow_control.resume()
-        # Wait for TopicConductor to finish any new subscriptions
-        await self.topics.wait_for_subscriptions()
-        await self.consumer.pause_partitions(assigned)
-        await self._fetcher.restart()
-        await self.topics.on_partitions_assigned(assigned)
-        await self.tables.on_partitions_assigned(assigned)
+        try:
+            self.flow_control.resume()
+            # Wait for TopicConductor to finish any new subscriptions
+            await self.topics.wait_for_subscriptions()
+            await self.consumer.pause_partitions(assigned)
+            await self._fetcher.restart()
+            await self.topics.on_partitions_assigned(assigned)
+            await self.tables.on_partitions_assigned(assigned)
+        except Exception as exc:
+            await self.crash(exc)
 
     async def on_partitions_revoked(
             self, revoked: Iterable[TopicPartition]) -> None:
@@ -950,17 +953,20 @@ class App(AppT, ServiceProxy):
         Revoked means the partitions no longer exist, or they
         have been reassigned to a different node.
         """
-        self.log.dev('ON PARTITIONS REVOKED')
-        await self.topics.on_partitions_revoked(revoked)
-        await self._fetcher.stop()
-        assignment = self.consumer.assignment()
-        if assignment:
-            self.flow_control.suspend()
-            await self.consumer.pause_partitions(assignment)
-            await self.consumer.wait_empty()
-        else:
-            self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
-        await self.tables.on_partitions_revoked(revoked)
+        try:
+            self.log.dev('ON PARTITIONS REVOKED')
+            await self.topics.on_partitions_revoked(revoked)
+            await self._fetcher.stop()
+            assignment = self.consumer.assignment()
+            if assignment:
+                self.flow_control.suspend()
+                await self.consumer.pause_partitions(assignment)
+                await self.consumer.wait_empty()
+            else:
+                self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
+            await self.tables.on_partitions_revoked(revoked)
+        except Exception as exc:
+            await self.crash(exc)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
         return self.transport.create_producer(
