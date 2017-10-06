@@ -1,4 +1,4 @@
-"""Program ``faust model`` used to list models.
+"""Program ``faust models`` used to list models
 
 .. program:: faust models
 """

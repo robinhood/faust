@@ -544,6 +544,7 @@ class App(AppT, ServiceProxy):
             venusian.attach(agent, on_discovered, category='faust.agent')
             return agent
         return _inner
+    actor = agent  # XXX Compatibility alias: REMOVE FOR 1.0
 
     async def _on_agent_error(
             self, agent: AgentT, exc: BaseException) -> None:
