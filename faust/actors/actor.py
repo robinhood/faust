@@ -161,7 +161,7 @@ class ActorService(Service):
 
     async def _start_one(self, index: int = None) -> ActorInstanceT:
         # an index of one means there's only one instance.
-        index = index if self.actor.concurrency else None
+        index = index if (self.actor.concurrency or 1) > 1 else None
         return await cast(Actor, self.actor)._start_task(index, self.beacon)
 
     async def on_start(self) -> None:
