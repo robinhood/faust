@@ -169,7 +169,7 @@ class Stream(StreamT, Service):
         add = buffer.append
         timeout = want_seconds(within) if within else None
 
-        async def _buffer():
+        async def _buffer() -> None:
             async for value in self:
                 add(value)
                 if len(buffer) >= max_:
