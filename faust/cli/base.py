@@ -18,6 +18,7 @@ from terminaltables.base_table import BaseTable
 from ._env import DATADIR, DEBUG, WORKDIR
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
+from ..utils import text
 from ..utils.compat import want_bytes
 from ..utils.imports import import_from_cwd, symbol_by_name
 
@@ -473,9 +474,7 @@ class AppCommand(Command):
         return self.app.topic(entity)
 
     def abbreviate_fqdn(self, name: str, *, prefix: str = '') -> str:
-        if name.startswith(self.app.origin):
-            name = name[len(self.app.origin) + 1:]
-        return f'{prefix}{name}'
+        return text.abbr_fqdn(self.app.origin, name, prefix=prefix)
 
 
 __flake8_ModelT_is_used: ModelT  # XXX: flake8 bug

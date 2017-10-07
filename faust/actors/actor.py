@@ -25,6 +25,7 @@ from ..types.actors import (
 from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import maybe_async
 from ..utils.objects import cached_property, canoname, qualname
+from ..utils.text import shorten_fqdn
 
 if typing.TYPE_CHECKING:
     from .app import App
@@ -127,7 +128,7 @@ class ActorInstance(ActorInstanceT, Service):
 
     @property
     def label(self) -> str:
-        return f'Actor*: {self.agent.name}'
+        return f'Actor*: {shorten_fqdn(self.agent.name)}'
 
 
 class AsyncIterableActor(AsyncIterableActorT, ActorInstance):
@@ -531,7 +532,7 @@ class Actor(ActorT, ServiceProxy):
             yield correlation_id
 
     def _repr_info(self) -> str:
-        return self.name
+        return shorten_fqdn(self.name)
 
     @cached_property
     def channel_iterator(self) -> AsyncIterator:
@@ -545,7 +546,7 @@ class Actor(ActorT, ServiceProxy):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {qualname(self.fun)}'
+        return f'{type(self).__name__}: {shorten_fqdn(qualname(self.fun))}'
 
 
 __flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug

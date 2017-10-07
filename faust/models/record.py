@@ -8,6 +8,7 @@ from ..serializers.avro import to_avro_type
 from ..types.models import ModelOptions, ModelT
 from ..utils import iso8601
 from ..utils.objects import annotations, guess_concrete_type
+from ..utils.text import pluralize
 
 __all__ = ['Record']
 
@@ -159,15 +160,19 @@ class Record(Model):
         # Check all required arguments.
         missing = options.fieldset - fieldset - options.optionalset
         if missing:
-            raise TypeError('{} missing required arguments: {}'.format(
-                type(self).__name__, ', '.join(sorted(missing))))
+            raise TypeError('{} missing required {}: {}'.format(
+                type(self).__name__,
+                pluralize(len(missing), 'argument'),
+                ', '.join(sorted(missing))))
 
         if strict:
             # Check for unknown arguments.
             extraneous = fieldset - options.fieldset
             if extraneous:
-                raise TypeError('{} got unexpected arguments: {}'.format(
-                    type(self).__name__, ', '.join(sorted(extraneous))))
+                raise TypeError('{} got unexpected {}: {}'.format(
+                    type(self).__name__,
+                    pluralize(len(extraneous), 'argument'),
+                    ', '.join(sorted(extraneous))))
 
         # Reconstruct child models
         fields.update({

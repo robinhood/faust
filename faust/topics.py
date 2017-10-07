@@ -162,7 +162,7 @@ class Topic(Channel, TopicT):
         if partitions is None:
             partitions = self.app.default_partitions
         if partitions == 0:
-            raise ValueError('Topic cannot have 0 (zero partitions)')
+            raise ValueError('Topic cannot have zero partitions')
         self._partitions = partitions
 
     @property
