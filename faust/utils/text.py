@@ -1,5 +1,5 @@
 from difflib import SequenceMatcher
-from typing import Iterable, Iterator, Optional, Tuple, cast
+from typing import Iterable, Iterator, Optional, Tuple
 
 __all__ = [
     'title',
