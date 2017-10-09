@@ -7,7 +7,7 @@ from contextlib import contextmanager, suppress
 from types import ModuleType
 from typing import (
     Any, Callable, Generator, Generic, Iterable,
-    Mapping, MutableMapping, Set, Tuple, Type, TypeVar, Union, cast,
+    Mapping, MutableMapping, NamedTuple, Set, Type, TypeVar, Union, cast,
 )
 from yarl import URL
 from .collections import FastUserDict
@@ -193,7 +193,17 @@ def symbol_by_name(
     return default
 
 
-def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
+class EntrypointExtension(NamedTuple):
+    name: str
+    type: Type
+
+
+class RawEntrypointExtension(NamedTuple):
+    name: str
+    target: str
+
+
+def load_extension_classes(namespace: str) -> Iterable[EntrypointExtension]:
     """Yield extension classes for setuptools entrypoint namespace.
 
     If an entrypoint is defined in ``setup.py``::
@@ -217,10 +227,11 @@ def load_extension_classes(namespace: str) -> Iterable[Tuple[str, Type]]:
             warnings.warn(
                 f'Cannot load {namespace} extension {cls_name!r}: {exc!r}')
         else:
-            yield name, cls
+            yield EntrypointExtension(name, cls)
 
 
-def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
+def load_extension_class_names(
+        namespace: str) -> Iterable[RawEntrypointExtension]:
     """Get setuptools entrypoint extension class names.
 
     If the entrypoint is defined in ``setup.py`` as::
@@ -241,7 +252,10 @@ def load_extension_class_names(namespace: str) -> Iterable[Tuple[str, str]]:
         return
 
     for ep in iter_entry_points(namespace):
-        yield ep.name, ':'.join([ep.module_name, ep.attrs[0]])
+        yield RawEntrypointExtension(
+            ep.name,
+            ':'.join([ep.module_name, ep.attrs[0]]),
+        )
 
 
 @contextmanager

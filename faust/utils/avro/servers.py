@@ -3,7 +3,7 @@ import asyncio
 from collections import defaultdict
 from contextlib import suppress
 from typing import (
-    DefaultDict, Dict, Iterable, Mapping, Optional, Tuple, Union, cast,
+    DefaultDict, Dict, Iterable, Mapping, NamedTuple, Optional, Union, cast,
 )
 from aiohttp import ClientSession
 from avro.schema import Parse, Schema
@@ -26,6 +26,12 @@ STATUS_TO_ERROR: Mapping[int, str] = {
     409: 'Incompatible Avro schema',
     422: 'Invalid Avro schema',
 }
+
+
+class LatestSchemaTuple(NamedTuple):
+    id: int
+    schema: Schema
+    version: str
 
 
 class ClientError(Exception):
@@ -122,13 +128,13 @@ class RegistryClient:
             raise ClientError(f'Received bad schema from registry: {exc}')
 
     async def get_latest_schema(
-            self, subject: str) -> Tuple[int, Schema, str]:
+            self, subject: str) -> LatestSchemaTuple:
         try:
             result = await self._send_request(
                 f'{self.url}/subjects/{subject}/versions/latest',
             )
         except ClientError:
-            return None, None, None
+            return LatestSchemaTuple(None, None, None)
         else:
             schema_id: int = cast(int, result['id'])
             version: str = cast(str, result['version'])
@@ -137,7 +143,7 @@ class RegistryClient:
             except KeyError:
                 schema = self._parse_schema(cast(str, result['schema']))
             self._cache_schema(schema, schema_id, subject, version)
-            return schema_id, schema, version
+            return LatestSchemaTuple(schema_id, schema, version)
 
     async def get_version(self, subject: str, schema: Schema) -> Optional[str]:
         schemas_to_version = self.subject_to_schema_versions[subject]

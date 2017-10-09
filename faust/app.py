@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Tuple, Type, Union, cast,
+    NamedTuple, Optional, Pattern, Type, Union, cast,
 )
 from uuid import uuid4
 
@@ -149,6 +149,11 @@ origin will be "project":
         origin='project',
     )
 """
+
+
+class _AttachedHeapEntry(NamedTuple):
+    offset: int
+    message: Unordered[FutureMessage]
 
 
 class AppService(Service):
@@ -315,7 +320,7 @@ class App(AppT, ServiceProxy):
     # of ``(source_message_offset, FutureMessage)``.
     _pending_on_commit: MutableMapping[
         TopicPartition,
-        List[Tuple[int, Unordered[FutureMessage]]]]
+        List[_AttachedHeapEntry]]
 
     # Monitor is created on demand: use `.monitor` property.
     _monitor: Monitor = None
@@ -964,7 +969,7 @@ class App(AppT, ServiceProxy):
         # we wrap it in an Unordered object to stop heappush from crashing.
         # Unordered simply orders by random order, which is fine
         # since offsets are always unique.
-        heappush(buf, (message.offset, Unordered(fut)))
+        heappush(buf, _AttachedHeapEntry(message.offset, Unordered(fut)))
         return fut
 
     async def _commit_attached(self, tp: TopicPartition, offset: int) -> None:
@@ -994,8 +999,9 @@ class App(AppT, ServiceProxy):
             # being committed
             if entry[0] <= commit_offset:
                 # we use it by extracting the FutureMessage
-                # from Tuple[int, Unordered[FutureMessage]]
-                yield entry[1].value
+                # from _AttachedHeapEntry, where entry.message is
+                # Unordered[FutureMessage].
+                yield entry.message.value
             else:
                 # else we put it back and exit (this was the smallest offset).
                 heappush(attached, entry)

@@ -6,7 +6,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import (
     Any, Callable, DefaultDict, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Tuple, Union,
+    MutableMapping, NamedTuple, Optional, Tuple, Union, cast,
 )
 from mode import Seconds, Service, want_seconds
 from yarl import URL
@@ -23,6 +23,16 @@ except ImportError:
 
 class CheckpointWriteBusy(Exception):
     'Raised when another instance has the checkpoint db open for writing.'
+
+
+class PartitionDB(NamedTuple):
+    partition: int
+    db: rocksdb.DB
+
+
+class _DBValueTuple(NamedTuple):
+    db: rocksdb.DB
+    value: bytes
 
 
 class RocksDBOptions:
@@ -289,30 +299,33 @@ class Store(base.SerializedStore):
         return self.options.open(self.partition_path(partition))
 
     def _get(self, key: bytes) -> bytes:
-        db, value = self._get_bucket_for_key(key)
-        if db is not None and value is None:
+        dbvalue = self._get_bucket_for_key(key)
+        if dbvalue is None:
+            return None
+        db, value = dbvalue
+
+        if value is None:
             if db.key_may_exist(key)[0]:
                 value = db.get(key)
                 if value is not None:
                     return value
         return value
 
-    def _get_bucket_for_key(self, key: bytes) -> Tuple[
-            Optional[rocksdb.DB], Optional[bytes]]:
-        dbs: Iterable[Tuple[int, rocksdb.DB]]
+    def _get_bucket_for_key(self, key: bytes) -> Optional[_DBValueTuple]:
+        dbs: Iterable[PartitionDB]
         try:
             partition = self._key_index[key]
-            dbs = [(partition, self._dbs[partition])]
+            dbs = [PartitionDB(partition, self._dbs[partition])]
         except KeyError:
-            dbs = self._dbs.items()
+            dbs = cast(Iterable[PartitionDB], self._dbs.items())
 
         for partition, db in dbs:
             if db.key_may_exist(key)[0]:
                 value = db.get(key)
                 if value is not None:
                     self._key_index[key] = partition
-                    return db, value
-        return None, None
+                    return _DBValueTuple(db, value)
+        return None
 
     def _del(self, key: bytes) -> None:
         for db in self._dbs_for_key(key):

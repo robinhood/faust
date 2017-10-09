@@ -1,7 +1,7 @@
 import abc
 import typing
 from typing import (
-    Any, Callable, ClassVar, FrozenSet, Mapping, Tuple, Type, Union,
+    Any, Callable, ClassVar, FrozenSet, Mapping, NamedTuple, Type, Union,
 )
 from .codecs import CodecArg
 
@@ -10,9 +10,20 @@ if typing.TYPE_CHECKING:
 else:
     class Schema: ...   # noqa
 
-__all__ = ['ModelArg', 'ModelOptions', 'ModelT', 'FieldDescriptorT']
+__all__ = [
+    'Converter',
+    'ModelArg',
+    'ModelOptions',
+    'ModelT',
+    'FieldDescriptorT',
+]
 
 ModelArg = Union[Type['ModelT'], Type[bytes], Type[str]]
+
+
+class Converter(NamedTuple):
+    target: Type
+    handler: Callable[[Type, Any], Any]
 
 
 class ModelOptions(abc.ABC):
@@ -38,7 +49,7 @@ class ModelOptions(abc.ABC):
 
     # Index: Mapping of fields that are not builtin-types.
     # E.g. datetime.
-    converse: Mapping[str, Tuple[Type, Callable[[Type, Any], Any]]]
+    converse: Mapping[str, Converter]
 
     #: Mapping of field names to default value.
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)

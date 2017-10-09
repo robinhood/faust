@@ -1,13 +1,18 @@
 import asyncio
 import typing
 from collections import defaultdict
-from typing import Any, AsyncIterator, MutableMapping, Set, Tuple
+from typing import Any, AsyncIterator, MutableMapping, NamedTuple, Set
 from weakref import WeakSet
 from mode import Service
 from .models import ReqRepResponse
 from ..types import AppT, ChannelT, TopicT
 
 __all__ = ['ReplyPromise', 'BarrierState', 'ReplyConsumer']
+
+
+class ReplyTuple(NamedTuple):
+    correlation_id: str
+    value: Any
 
 
 class ReplyPromise(asyncio.Future):
@@ -66,17 +71,17 @@ class BarrierState(ReplyPromise):
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
         # ReplyConsumer calls this whenever a new reply is received.
-        self._results.put_nowait((correlation_id, value))
+        self._results.put_nowait(ReplyTuple(correlation_id, value))
         self.fulfilled += 1
         if self.total:
             if self.fulfilled >= self.total:
                 self.set_result(True)
 
-    def get_nowait(self) -> Tuple[str, Any]:
+    def get_nowait(self) -> ReplyTuple:
         """Return next reply, or raise :exc:`asyncio.QueueEmpty`."""
         return self._results.get_nowait()
 
-    async def iterate(self) -> AsyncIterator[Tuple[str, Any]]:
+    async def iterate(self) -> AsyncIterator[ReplyTuple]:
         """Iterate over results as arrive."""
         get = self._results.get
         get_nowait = self._results.get_nowait

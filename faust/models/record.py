@@ -5,7 +5,7 @@ from typing import (
 )
 from .base import FieldDescriptor, Model
 from ..serializers.avro import to_avro_type
-from ..types.models import ModelOptions, ModelT
+from ..types.models import Converter, ModelOptions, ModelT
 from ..utils import iso8601
 from ..utils.objects import annotations, guess_concrete_type
 from ..utils.text import pluralize
@@ -116,7 +116,7 @@ class Record(Model):
         options.converse = {}
         if options.isodates:
             options.converse = {
-                field: (typ, cls._parse_iso8601)
+                field: Converter(typ, cls._parse_iso8601)
                 for field, typ in fields.items()
                 if field not in modelset and is_date(typ)
             }
