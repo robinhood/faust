@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import asyncio
-from operator import itemgetter
 import faust
-from terminaltables import SingleTable
 
 WORDS = ['the', 'quick', 'brown', 'fox']
 
