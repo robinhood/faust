@@ -1,16 +1,22 @@
 from difflib import SequenceMatcher
-from typing import Iterable, Iterator, Optional, Tuple
+from typing import Iterable, Iterator, NamedTuple, Optional
 
 __all__ = [
+    'FuzzyMatch',
     'title',
-    'fmatch_iter',
-    'fmatch_n',
-    'fmatch_best',
+    'fuzzymatch',
+    'fuzzymatch_iter',
+    'fuzzymatch_best',
     'abbr',
     'abbr_fqdn',
     'shorten_fqdn',
     'pluralize',
 ]
+
+
+class FuzzyMatch(NamedTuple):
+    ratio: float
+    value: str
 
 
 def title(s: str) -> str:
@@ -26,35 +32,39 @@ def title(s: str) -> str:
                   .replace('_', '').split())
 
 
-def fmatch_iter(needle: str, haystack: Iterable[str],
-                *,
-                min_ratio: float = 0.6) -> Iterator[Tuple[float, str]]:
-    """Fuzzy match: iteratively.
+def fuzzymatch(needle: str, haystack: Iterable[str],
+               *,
+               min_ratio: float = 0.6) -> Iterator[str]:
+    for match in fuzzymatch_iter(needle, haystack, min_ratio=min_ratio):
+        yield match.value
+
+
+def fuzzymatch_iter(needle: str, haystack: Iterable[str],
+                    *,
+                    min_ratio: float = 0.6) -> Iterator[FuzzyMatch]:
+    """Fuzzy Match: Including actual ratio.
 
     Yields:
-        Tuple: of ratio and key.
+        FuzzyMatch: tuples of ``(ratio, value)``.
     """
     for key in iter(haystack):
         ratio = SequenceMatcher(None, needle, key).ratio()
         if ratio >= min_ratio:
-            yield ratio, key
+            yield FuzzyMatch(ratio, key)
 
 
-def fmatch_n(needle: str, haystack: Iterable[str],
-             *,
-             min_ratio: float = 0.6) -> Iterator[str]:
-    for _, s in fmatch_iter(needle, haystack, min_ratio=min_ratio):
-        yield s
-
-
-def fmatch_best(needle: str, haystack: Iterable[str],
-                *,
-                min_ratio: float = 0.6) -> Optional[str]:
-    'Fuzzy match - Find best match (scalar).'
+def fuzzymatch_best(needle: str, haystack: Iterable[str],
+                    *,
+                    min_ratio: float = 0.6) -> Optional[str]:
+    'Fuzzy Match - Return best match only (single scalar value).'
     try:
         return sorted(
-            fmatch_iter(needle, haystack, min_ratio=min_ratio), reverse=True,
-        )[0][1]
+            fuzzymatch_iter(
+                needle,
+                haystack,
+                min_ratio=min_ratio),
+            reverse=True,
+        )[0].value
     except IndexError:
         return None
 

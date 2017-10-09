@@ -12,7 +12,7 @@ from typing import (
 from yarl import URL
 from .collections import FastUserDict
 from .objects import cached_property
-from .text import fmatch_n
+from .text import fuzzymatch
 
 # - these are taken from kombu.utils.imports
 
@@ -85,7 +85,7 @@ class FactoryMapping(FastUserDict, Generic[_T]):
             name_ = cast(str, name)
             if '.' in name_:
                 raise
-            alt = list(fmatch_n(name_, self.aliases))
+            alt = list(fuzzymatch(name_, self.aliases))
             raise ModuleNotFoundError(
                 (E_FUZZY_MANY if len(alt) > 1 else E_FUZZY_SCALAR).format(
                     name=name_, alt=', '.join(alt))) from exc
