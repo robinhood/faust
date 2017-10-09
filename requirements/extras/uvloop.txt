@@ -1,1 +1,1 @@
-uvloop
+uvloop>=0.8.1

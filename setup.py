@@ -16,6 +16,7 @@ EXTENSIONS = {
     'debug',
     'fast',
     'rocksdb',
+    'setproctitle',
     'statsd',
     'uvloop',
 }

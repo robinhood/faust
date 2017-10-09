@@ -1,2 +1,2 @@
-aiomonitor
-setproctitle
+aiomonitor>=0.3
+-r setproctitle.txt

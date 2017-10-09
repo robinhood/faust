@@ -1,4 +1,4 @@
-pytest>=3.0
-pytest-asyncio
-pytest-xdist
-hypothesis
+pytest~=3.0
+pytest-asyncio>=0.8
+pytest-xdist>=1.20
+hypothesis>=3.31
