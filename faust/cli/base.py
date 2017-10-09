@@ -402,8 +402,6 @@ class AppCommand(Command):
             if not appstr:
                 raise self.UsageError('Need to specify app using -A parameter')
             self.app = find_app(appstr)
-        else:
-            appstr = '__main__'
         if self.app.autodiscover:
             self.app.discover()
         self.app.origin = appstr
