@@ -235,6 +235,8 @@ class Worker(mode.Worker):
     async def on_first_start(self) -> None:
         if self.workdir and Path.cwd().absolute() != self.workdir.absolute():
             os.chdir(Path(self.workdir).absolute())
+        if self.app.autodiscover:
+            self.app.discover()
         await super().on_first_start()  # <-- sets up logging
 
     def _setproctitle(self, info: str, *, ident: str = PSIDENT) -> None:

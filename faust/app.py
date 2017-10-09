@@ -5,7 +5,9 @@ to customize how Faust works.
 
 """
 import asyncio
+import importlib
 import inspect
+import re
 import typing
 
 from collections import defaultdict
@@ -24,6 +26,7 @@ from uuid import uuid4
 from mode import Seconds, Service, ServiceT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.utils.types.trees import NodeT
+import venusian
 from yarl import URL
 
 from . import __version__ as faust_version
@@ -113,6 +116,39 @@ REPLY_EXPIRES = timedelta(days=1)
 APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} actors({actors}) topics({topics})>
 """.strip()
+
+#: Default decorator categories for :pypi`venusian` to scan for when
+#: autodiscovering.
+SCAN_CATEGORIES: Iterable[str] = [
+    'faust.actor',
+    'faust.page',
+    'faust.command',
+]
+
+#: List of regular expressions for :pypi:`venusian` that acts as a filter
+#: for modules that :pypi:`venusian` should ignore when autodiscovering
+#: decorators.
+SCAN_IGNORE: Iterable[str] = ['test_.*']
+
+E_NEED_ORIGIN = """
+`origin` argument to faust.App is mandatory when autodiscovery enabled.
+
+This parameter sets the canonical path to the project package,
+and describes how a user, or program can find it on the command-line when using
+the `faust -A project` option.  It's also used as the default package
+to scan when autodiscovery is enabled.
+
+If your app is defined in a module: ``project/app.py``, then the
+origin will be "project":
+
+    # file: project/app.py
+    import faust
+
+    app = faust.App(
+        id='myid',
+        origin='project',
+    )
+"""
 
 
 class AppService(Service):
@@ -317,6 +353,7 @@ class App(AppT, ServiceProxy):
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
             origin: str = None,
+            autodiscover: Union[Iterable[str], bool] = False,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -358,8 +395,42 @@ class App(AppT, ServiceProxy):
         self._pending_on_commit = defaultdict(list)
         self.on_startup_finished: Callable = on_startup_finished
         self.origin = origin
+        self.autodiscover = autodiscover
         self.pages = []
         ServiceProxy.__init__(self)
+
+    def discover(self,
+                 *extra_modules: str,
+                 categories: Iterable[str] = SCAN_CATEGORIES,
+                 ignore: Iterable[str] = SCAN_IGNORE) -> None:
+        modules = set(self._discovery_modules()) | set(extra_modules)
+        if modules:
+            scanner = self._new_scanner(*[re.compile(pat) for pat in ignore])
+            for name in modules:
+                try:
+                    module = importlib.import_module(name)
+                except ModuleNotFoundError:
+                    raise ModuleNotFoundError(
+                        f'Unknown module {name} in App.autodiscover list')
+                scanner.scan(
+                    module,
+                    categories=tuple(categories),
+                )
+
+    def _discovery_modules(self) -> List[str]:
+        modules: List[str] = []
+        if self.autodiscover:
+            if isinstance(self.autodiscover, bool):
+                if self.origin is None:
+                    raise ImproperlyConfigured(E_NEED_ORIGIN)
+            else:
+                modules.extend(cast(List[str], self.autodiscover))
+            modules.append(self.origin)
+        return modules
+
+    def _new_scanner(
+            self, *ignore: Pattern, **kwargs: Any) -> venusian.Scanner:
+        return venusian.Scanner(ignore=[pat.search for pat in ignore])
 
     def _datadir_path(self, path: Path) -> Path:
         return path if path.is_absolute() else self.datadir / path
@@ -463,7 +534,14 @@ class App(AppT, ServiceProxy):
                 on_error=self._on_actor_error,
                 help=fun.__doc__,
             )
+
             self.actors[actor.name] = actor
+
+            def on_discovered(scanner: venusian.Scanner,
+                              name: str,
+                              obj: Actor) -> None:
+                ...
+            venusian.attach(actor, on_discovered, category='faust.actor')
             return actor
         return _inner
 
@@ -668,6 +746,12 @@ class App(AppT, ServiceProxy):
                 '__module__': fun.__module__,
             })
             self.pages.append(('', site))
+
+            def on_discovered(scanner: venusian.Scanner,
+                              name: str,
+                              obj: Site) -> None:
+                ...
+            venusian.attach(site, on_discovered, category='faust.page')
             return site
         return _decorator
 
@@ -687,7 +771,7 @@ class App(AppT, ServiceProxy):
                 # if it does not take self argument, use staticmethod
                 target = staticmethod(fun)
 
-            return type(fun.__name__, (base,), {
+            cmd = type(fun.__name__, (base,), {
                 'run': target,
                 '__doc__': fun.__doc__,
                 '__name__': fun.__name__,
@@ -696,6 +780,13 @@ class App(AppT, ServiceProxy):
                 '__wrapped__': fun,
                 'options': options,
                 **kwargs})
+
+            def on_discovered(scanner: venusian.Scanner,
+                              name: str,
+                              obj: AppCommand) -> None:
+                ...
+            venusian.attach(cmd, on_discovered, category='faust.command')
+            return cmd
         return _inner
 
     async def start_client(self) -> None:

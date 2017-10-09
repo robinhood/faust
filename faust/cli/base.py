@@ -404,6 +404,8 @@ class AppCommand(Command):
             self.app = find_app(appstr)
         else:
             appstr = '__main__'
+        if self.app.autodiscover:
+            self.app.discover()
         self.app.origin = appstr
         self.key_serializer = key_serializer or self.app.key_serializer
         self.value_serializer = value_serializer or self.app.value_serializer

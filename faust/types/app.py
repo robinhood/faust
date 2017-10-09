@@ -90,6 +90,7 @@ class AppT(ServiceT):
     router: RouterT
     canonical_url: URL
     origin: str
+    autodiscover: Union[Iterable[str], bool]
 
     actors: MutableMapping[str, ActorT]
     sensors: SensorDelegateT
@@ -126,8 +127,16 @@ class AppT(ServiceT):
                  monitor: Monitor = None,
                  on_startup_finished: Callable = None,
                  origin: str = None,
+                 autodiscover: Union[Iterable[str], bool] = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.on_startup_finished: Callable = None
+
+    @abc.abstractmethod
+    def discover(self,
+                 *extra_modules: str,
+                 categories: Iterable[str] = None,
+                 ignore: Iterable[str] = None) -> None:
+        ...
 
     @abc.abstractmethod
     def topic(self, *topics: str,
