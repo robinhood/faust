@@ -397,14 +397,29 @@ class AppCommand(Command):
         super().__init__(ctx)
 
         self.app = getattr(ctx.find_root(), 'app', None)
-        if self.app is None:
+        if self.app is not None:
+            # XXX How to find full argv[0] with click?
+            if sys.argv:
+                prog = Path(sys.argv[0]).absolute()
+                paths = []
+                p = prog.parent
+                # find lowermost path, that is a package
+                while p:
+                    if not (p / '__init__.py').is_file():
+                        break
+                    paths.append(p)
+                    p = p.parent
+                package = '.'.join(
+                    [p.name for p in paths] + [prog.with_suffix('').name])
+                self.app.origin = package
+        else:
             appstr = self.ctx.obj['app']
             if not appstr:
                 raise self.UsageError('Need to specify app using -A parameter')
             self.app = find_app(appstr)
+            self.app.origin = appstr
         if self.app.autodiscover:
             self.app.discover()
-        self.app.origin = appstr
         self.key_serializer = key_serializer or self.app.key_serializer
         self.value_serializer = value_serializer or self.app.value_serializer
         self.args = args
