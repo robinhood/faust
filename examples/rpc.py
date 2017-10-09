@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from typing import AsyncIterable
 import faust
 from faust import StreamT

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import asyncio
 
 _get_ev = asyncio.get_event_loop

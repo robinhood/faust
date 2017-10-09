@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import faust
 
 app = faust.App(
@@ -13,3 +14,6 @@ greetings_topic = app.topic('greetings')
 async def print_greetings(greetings):
     async for greeting in greetings:
         print(greeting)
+
+if __name__ == '__main__':
+    app.main()

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import faust
 from .models import Event, ReferralUserDevice, StockJournalUpdate
 
@@ -88,3 +89,6 @@ async def alert_device_reuse(referral_user_devices):
             device_referral_users[user_device.device] = device_users
             if len(device_users) > 1:
                 pass  # TODO Send Slack alert?
+
+if __name__ == '__main__':
+    app.main()
