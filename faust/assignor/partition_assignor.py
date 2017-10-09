@@ -31,7 +31,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     Further, this assignor needs to be sticky and potentially redundant
 
-    Interface copied from:
+    Interface copied from
     https://github.com/dpkp/kafka-python/blob/master/
         kafka/coordinator/assignors/abstract.py
     """

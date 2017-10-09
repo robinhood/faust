@@ -47,32 +47,32 @@ be ``serializer='json|binary'``.
     See the :ref:`guide-codecs` section for information about codecs
     and how to define your own.
 
-.. topic:: Vague vs. Typed
+.. topic:: Sending/receiving raw values
 
-Sending/receiving non-described keys and values is easy:
+    Sending/receiving non-described keys and values is easy:
 
-.. sourcecode:: python
+    .. sourcecode:: python
 
-    # examples/nondescript.py
-    import faust
+        # examples/nondescript.py
+        import faust
 
-    app = faust.App('values')
-    transfers_topic = app.topic('transfers')
-    large_transfers_topic = app.topic('large_transfers')
+        app = faust.App('values')
+        transfers_topic = app.topic('transfers')
+        large_transfers_topic = app.topic('large_transfers')
 
-    @app.agent(transfers_topic)
-    async def find_large_transfers(transfers):
-        async for transfer in transfers:
-            if transfer['amount'] > 1000.0:
-                await large_transfers_topic.send(value=transfer)
+        @app.agent(transfers_topic)
+        async def find_large_transfers(transfers):
+            async for transfer in transfers:
+                if transfer['amount'] > 1000.0:
+                    await large_transfers_topic.send(value=transfer)
 
-    async def send_transfer(account_id, amount):
-        await transfers_topic.send(value={
-            'account_id': account_id,
-            'amount': amount,
-        })
+        async def send_transfer(account_id, amount):
+            await transfers_topic.send(value={
+                'account_id': account_id,
+                'amount': amount,
+            })
 
-Using models to describe topics adds more code, but also value:
+Using models to describe topics gives benefits:
 
 .. sourcecode:: python
 

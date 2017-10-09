@@ -18,7 +18,7 @@ def title(s: str) -> str:
 
     ``"foo bar" -> "Foo Bar"``
 
-    ``"foo-bar" -> "Foo Bar"
+    ``"foo-bar" -> "Foo Bar"``
     """
     return ' '.join(
         p.capitalize()

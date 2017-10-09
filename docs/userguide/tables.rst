@@ -141,8 +141,8 @@ Changelogging
 
 Table updates are published to a Kafka topic for recovery upon failures. We
 use Log Compaction to ensure that the changelog topic doesn't grow
-exponentially, keeping the number of messages in the changelog topic ``O(number
- of keys in the table)``.
+exponentially, keeping the number of messages in the changelog
+topic ``O(n)``, where n is the number of keys in the table.
 
 In order to publish a changelog message into Kafka for fault-tolerance the
 table needs to be set explicitly. Hence, while changing values in Tables by
@@ -152,8 +152,9 @@ changelog, as shown below:
 .. sourcecode:: python
 
     user_withdrawals = app.Table('user_withdrawals', default=list)
+    topic = app.topic('withdrawals', value_type=Withdrawal)
 
-    async for event in app.topic('withdrawals', value_type=Withdrawal).stream():
+    async for event in topic.stream():
         withdrawals = user_withdrawals[event.account]
         withdrawals.append(event.amount)
         user_withdrawals[event.account] = withdrawals
@@ -165,8 +166,9 @@ not correctly build the state of the world before the crash.
 .. sourcecode:: python
 
     user_withdrawals = app.Table('user_withdrawals', default=list)
+    topic = app.topic('withdrawals', value_type=Withdrawal)
 
-    async for event in app.topic('withdrawals', value_type=Withdrawal).stream():
+    async for event in topic.stream():
         withdrawals = user_withdrawals[event.account]
         withdrawals.append(event.amount)
 
@@ -204,7 +206,7 @@ How To
 
 A windowed table can be defined as follows:
 
-.. code-block:: python
+.. sourcecode:: python
 
     from datetime import timedelta
     views = app.Table('views', default=int).tumbling(timedelta(minutes=1),

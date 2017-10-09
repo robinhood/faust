@@ -48,19 +48,23 @@ class stampede:
     Adding the decorator to an async callable method:
 
     Examples:
+        Here's an example coroutine method connecting a network client:
 
-        class Client:
+        .. sourcecode:: python
 
-            @stampede
-            async def maybe_connect(self):
-                await self._connect()
+            class Client:
 
-            async def _connect(self):
-                return Connection()
+                @stampede
+                async def maybe_connect(self):
+                    await self._connect()
 
-    In the above example, if multiple coroutines call `maybe_connect` at the
-    same time, then only one of them will actually perform the operation,
-    while the rest of the coroutines will wait for the result.
+                async def _connect(self):
+                    return Connection()
+
+        In the above example, if multiple coroutines call ``maybe_connect``
+        at the same time, then only one of them will actually perform the
+        operation. The rest of the coroutines will wait for the result,
+        and return it once the first caller returns.
     """
 
     def __init__(self, fget: Callable, *, doc: str = None) -> None:
@@ -131,12 +135,12 @@ class FlowControlEvent:
     While the queues are suspend, any producer attempting to send something
     to the queue will hang until flow is resumed.
 
-    To resume production into queues, use ``flow_control.resume`::
+    To resume production into queues, use ``flow_control.resume``::
 
         >>> flow_control.resume()
 
     Notes:
-        In Faust queues are managed by the `app.flow_control` event.
+        In Faust queues are managed by the ``app.flow_control`` event.
     """
     if typing.TYPE_CHECKING:
         _queues: WeakSet['FlowControlQueue']

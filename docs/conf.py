@@ -28,7 +28,7 @@ globals().update(conf.build_config(
     extra_intersphinx_mapping={
         'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
-        'mode': ('https://mode.readthedocs.io/en/latest/', None),
+        #'mode': ('https://mode.readthedocs.io/en/latest/', None),
     },
     # django_settings='testproj.settings',
     # from pathlib import Path
@@ -36,7 +36,8 @@ globals().update(conf.build_config(
     apicheck_ignore_modules=[
         'faust.__main__',
         'faust.assignor',
-        'faust.bin',
+        'faust.cli',
+        'faust.cli._env',
         'faust.models',
         'faust.serializers',
         'faust.streams',
@@ -48,11 +49,11 @@ globals().update(conf.build_config(
         'faust.utils.avro',
         r'faust.utils.kafka.*',
         'faust.utils.types',
-        'faust.utils.graphs.graph',
-        'faust.utils.graphs.formatter',
         'faust.web',
-        r'faust.web.apps*',
+        r'faust.web.apps.*',
         'faust.web.apps.stats.app',
+        'faust.web.apps.router.app',
+        'faust'
         'faust.web.drivers',
     ],
 ))

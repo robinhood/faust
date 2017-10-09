@@ -15,13 +15,23 @@ Faust
 
     faust
     faust.exceptions
-    faust.agents
     faust.app
     faust.channels
-    faust.sensors
+    faust.router
     faust.topics
     faust.windows
     faust.worker
+
+Agents
+======
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.agents
+    faust.agents.agent
+    faust.agents.models
+    faust.agents.replies
 
 Models
 ======
@@ -31,6 +41,17 @@ Models
 
     faust.models.base
     faust.models.record
+
+Sensors
+=======
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.sensors
+    faust.sensors.base
+    faust.sensors.monitor
+    faust.sensors.statsd
 
 Serializers
 ===========
@@ -69,6 +90,11 @@ Tables
     :maxdepth: 1
 
     faust.tables
+    faust.tables.base
+    faust.tables.manager
+    faust.tables.set
+    faust.tables.table
+    faust.tables.wrappers
 
 Transports
 ==========
@@ -89,6 +115,7 @@ Assignor
     faust.assignor.client_assignment
     faust.assignor.cluster_assignment
     faust.assignor.copartitioned_assignor
+    faust.assignor.leader_assignor
     faust.assignor.partition_assignor
 
 Types
@@ -105,6 +132,7 @@ Types
     faust.types.core
     faust.types.joins
     faust.types.models
+    faust.types.router
     faust.types.sensors
     faust.types.serializers
     faust.types.stores
@@ -130,7 +158,9 @@ Utils
     faust.utils.functional
     faust.utils.futures
     faust.utils.imports
+    faust.utils.iso8601
     faust.utils.json
+    faust.utils.objects
     faust.utils.text
 
 Web
@@ -140,8 +170,10 @@ Web
     :maxdepth: 1
 
     faust.web.apps.graph
+    faust.web.apps.router
     faust.web.apps.stats
     faust.web.base
+    faust.web.drivers
     faust.web.drivers.aiohttp
     faust.web.site
     faust.web.views
@@ -152,4 +184,12 @@ CLI
 .. toctree::
     :maxdepth: 1
 
-    faust.bin.base
+    faust.cli.agents
+    faust.cli.base
+    faust.cli.faust
+    faust.cli.model
+    faust.cli.models
+    faust.cli.reset
+    faust.cli.send
+    faust.cli.tables
+    faust.cli.worker

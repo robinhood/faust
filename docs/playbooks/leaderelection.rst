@@ -26,9 +26,10 @@ Application
 -----------
 
 As we did in the :ref:`_pageviews`, we first define our application.
-Let us create a module ``leader.py`` and define the application:
+Let us create a module :file:`leader.py` and define the application:
 
 .. sourcecode:: python
+
     # examples/leader.py
 
     import faust
@@ -113,7 +114,7 @@ As in the :ref:`guide-quickstart` start the application as follows:
 
     $ faust -A leader worker -l info --web-port 6066
 
-Let us start 2 more workers in different processes
+Let us start two more workers in different processes
 
 .. sourcecode:: console
 
@@ -126,6 +127,6 @@ Let us start 2 more workers in different processes
 Seeing things in Action
 -----------------------
 
-Now try to arbitrary kill (ctl + C) the different works to see how the leader
-stays at just *one* worker - electing a new leader upon killing a leader - and
+Now try to arbitrary shut down (:kbd:`Control-c`) some workers to see how the leader
+stays at just *one* worker - electing a new leader upon killing a leader -- and
 how the greetings are randomly printed across the available workers.

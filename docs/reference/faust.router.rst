@@ -1,11 +1,11 @@
 =====================================================
- ``faust.bin.base``
+ ``faust.router``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.bin.base
+.. currentmodule:: faust.router
 
-.. automodule:: faust.bin.base
+.. automodule:: faust.router
     :members:
     :undoc-members:

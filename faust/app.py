@@ -861,9 +861,11 @@ class App(AppT, ServiceProxy):
                 only when value is not a model.
             callback (MessageSentCallback): Callable to be called after
                 the message is published.  Signature must be unary as the
-                :class:`~faust.types.FutureMessage` future is passed to it.
-                The resulting :class:`faust.types.RecordMetadata` object is
-                then available as ``fut.result()``.
+                :class:`~faust.types.tuples.FutureMessage` future is passed
+                to it.
+
+                The resulting :class:`faust.types.tuples.RecordMetadata`
+                object is then available as ``fut.result()``.
         """
         if isinstance(channel, str):
             channel = self.topic(channel)
@@ -887,7 +889,7 @@ class App(AppT, ServiceProxy):
         ``await send``. It creates a bridge between these worlds by adding
         the message to a buffer consumed by a background coroutine.
 
-        Warning:
+        Warnings:
 
             Use with caution: The use of a buffer implies the risk of
             backpressure building up if the background coroutine cannot
@@ -896,6 +898,8 @@ class App(AppT, ServiceProxy):
             Since the actual sending happens in the event loop, the message
             will not be sent if the event loop is never scheduled to run,
             like in this example:
+
+            .. sourcecode:: python
 
                 def schedule_message():
                     app.send_soon('topic', 'value')
@@ -925,9 +929,9 @@ class App(AppT, ServiceProxy):
             much immediately, for example Faust itself uses it to
             publish table changelog entries in ``Table[k] = v``[#f1]_.
 
-            .. [#f1] Implemented in the ``Table.__setitem__`` method.
-                     By extension of being part of the MutableMapping interface
-                     ``__setitem__`` *cannot* be an ``async def`` method.
+        .. [#f1] Implemented in the ``Table.__setitem__`` method.
+                 By extension of being part of the MutableMapping interface
+                 ``__setitem__`` *cannot* be an ``async def`` method.
         """
         chan = self.topic(channel) if isinstance(channel, str) else channel
         fut = chan.as_future_message(
