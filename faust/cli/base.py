@@ -106,7 +106,7 @@ def find_app(app: str,
         if isinstance(found, ModuleType):
             # proj.app:x where x is a module
             raise AttributeError(f'Looks like module, not app: -A {app}')
-        return found
+        val = found
     return val
 
 
@@ -349,7 +349,7 @@ class Command(abc.ABC):
         return sep.join([head, self.bold(tail)])
 
     def _table_wrap(self, table: BaseTable, text: str) -> str:
-        max_width = table.column_max_width(1)
+        max_width = max(table.column_max_width(1), 10)
         return '\n'.join(wrap(text, max_width))
 
     def say(self, *args: Any, **kwargs: Any) -> None:
