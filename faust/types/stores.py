@@ -5,7 +5,7 @@ from mode import ServiceT
 from yarl import URL
 from .channels import EventT
 from .codecs import CodecArg
-from .tuples import TopicPartition
+from .tuples import TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -35,15 +35,15 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
-    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+    def persisted_offset(self, tp: TP) -> Optional[int]:
         ...
 
     @abc.abstractmethod
-    def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
+    def set_persisted_offset(self, tp: TP, offset: int) -> None:
         ...
 
     @abc.abstractmethod
-    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+    async def need_active_standby_for(self, tp: TP) -> bool:
         ...
 
     @abc.abstractmethod
@@ -60,12 +60,12 @@ class StoreT(ServiceT, MutableMapping):
     async def on_partitions_assigned(
             self,
             table: CollectionT,
-            assigned: Iterable[TopicPartition]) -> None:
+            assigned: Iterable[TP]) -> None:
         ...
 
     @abc.abstractmethod
     async def on_partitions_revoked(
             self,
             table: CollectionT,
-            revoked: Iterable[TopicPartition]) -> None:
+            revoked: Iterable[TP]) -> None:
         ...

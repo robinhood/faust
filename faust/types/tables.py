@@ -12,7 +12,7 @@ from .channels import EventT
 from .stores import StoreT
 from .streams import JoinableT
 from .topics import TopicT
-from .tuples import TopicPartition
+from .tuples import TP
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -75,11 +75,11 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+    def persisted_offset(self, tp: TP) -> Optional[int]:
         ...
 
     @abc.abstractmethod
-    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+    async def need_active_standby_for(self, tp: TP) -> bool:
         ...
 
     @abc.abstractmethod
@@ -87,17 +87,15 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         ...
 
 
-CollectionTps = MutableMapping[CollectionT, List[TopicPartition]]
+CollectionTps = MutableMapping[CollectionT, List[TP]]
 
 
 class TableT(CollectionT, MutableMapping):
@@ -144,8 +142,7 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         ...
 
     @property
@@ -158,8 +155,8 @@ class ChangelogReaderT(ServiceT):
     table: CollectionT
     app: AppT
 
-    tps: Iterable[TopicPartition]
-    offsets: Counter[TopicPartition]
+    tps: Iterable[TP]
+    offsets: Counter[TP]
 
 
 class WindowSetT(MutableMapping):

@@ -1,7 +1,7 @@
 import copy
 from typing import List, MutableMapping, Sequence, Set, Tuple
 from faust.models import Record
-from faust.types.assignor import HostPartitionsMap
+from faust.types.assignor import HostToPartitionMap
 from faust.types.tables import TableManagerT
 
 R_COPART_ASSIGNMENT = """
@@ -127,4 +127,4 @@ class ClientMetadata(Record,
                      namespace='@ClientMetadata'):
     assignment: ClientAssignment
     url: str
-    changelog_distribution: HostPartitionsMap
+    changelog_distribution: HostToPartitionMap

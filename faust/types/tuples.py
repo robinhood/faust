@@ -13,14 +13,14 @@ else:
     class ChannelT: ...   # noqa
 
 __all__ = [
-    'FutureMessage', 'MessageSentCallback', 'TopicPartition',
+    'FutureMessage', 'MessageSentCallback', 'TP',
     'PendingMessage', 'RecordMetadata', 'Message',
 ]
 
 MessageSentCallback = Callable[['FutureMessage'], Union[None, Awaitable[None]]]
 
 
-class TopicPartition(NamedTuple):
+class TP(NamedTuple):
     topic: str
     partition: int
 
@@ -28,7 +28,7 @@ class TopicPartition(NamedTuple):
 class RecordMetadata(NamedTuple):
     topic: str
     partition: int
-    topic_partition: TopicPartition
+    topic_partition: TP
     offset: int
 
 
@@ -82,7 +82,7 @@ class Message:
                  key: bytes, value: bytes, checksum: bytes,
                  serialized_key_size: int = None,
                  serialized_value_size: int = None,
-                 tp: TopicPartition = None) -> None:
+                 tp: TP = None) -> None:
         self.topic: str = topic
         self.partition: int = partition
         self.offset: int = offset
@@ -118,7 +118,7 @@ class Message:
         self.refcount = max(self.refcount - 1, 0)
 
     @classmethod
-    def from_message(cls, message: Any, tp: TopicPartition) -> 'Message':
+    def from_message(cls, message: Any, tp: TP) -> 'Message':
         return cls(
             message.topic,
             message.partition,

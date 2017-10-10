@@ -2,11 +2,11 @@ import abc
 import typing
 from typing import Iterable, List, MutableMapping
 from mode import ServiceT
-from .topics import TopicPartition
+from .topics import TP
 
 
-TopicPartitionsMap = MutableMapping[str, List[int]]
-HostPartitionsMap = MutableMapping[str, TopicPartitionsMap]
+TopicToPartitionMap = MutableMapping[str, List[int]]
+HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
 
 
 if typing.TYPE_CHECKING:
@@ -21,11 +21,11 @@ class PartitionAssignorT(abc.ABC):
     app: AppT
 
     @abc.abstractmethod
-    def assigned_standbys(self) -> Iterable[TopicPartition]:
+    def assigned_standbys(self) -> Iterable[TP]:
         ...
 
     @abc.abstractmethod
-    def assigned_actives(self) -> Iterable[TopicPartition]:
+    def assigned_actives(self) -> Iterable[TP]:
         ...
 
     @abc.abstractmethod
@@ -33,11 +33,11 @@ class PartitionAssignorT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def table_metadata(self, topic: str) -> HostPartitionsMap:
+    def table_metadata(self, topic: str) -> HostToPartitionMap:
         ...
 
     @abc.abstractmethod
-    def tables_metadata(self) -> HostPartitionsMap:
+    def tables_metadata(self) -> HostToPartitionMap:
         ...
 
 

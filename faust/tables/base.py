@@ -15,7 +15,7 @@ from ..streams import current_event
 from ..streams import joins
 from ..types import (
     AppT, EventT, FieldDescriptorT, FutureMessage, JoinT,
-    RecordMetadata, TopicPartition, TopicT,
+    RecordMetadata, TP, TopicT,
 )
 from ..types.models import ModelArg
 from ..types.stores import StoreT
@@ -113,10 +113,10 @@ class Collection(Service, CollectionT):
             'window': self.window,
         }
 
-    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+    def persisted_offset(self, tp: TP) -> Optional[int]:
         return self.data.persisted_offset(tp)
 
-    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+    async def need_active_standby_for(self, tp: TP) -> bool:
         return await self.data.need_active_standby_for(tp)
 
     def reset_state(self) -> None:
@@ -261,12 +261,10 @@ class Collection(Service, CollectionT):
     def _get_timestamp(self, event: EventT = None) -> float:
         return (event or current_event()).message.timestamp
 
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         await self.data.on_partitions_assigned(self, assigned)
 
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self.data.on_partitions_revoked(self, revoked)
 
     @property

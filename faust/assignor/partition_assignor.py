@@ -11,10 +11,10 @@ from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
 from ..types.app import AppT
 from ..types.assignor import (
-    HostPartitionsMap, PartitionAssignorT, TopicPartitionsMap,
+    HostToPartitionMap, PartitionAssignorT, TopicToPartitionMap,
 )
 from ..types.tables import TableManagerT
-from ..types.topics import TopicPartition
+from ..types.topics import TP
 
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
@@ -39,8 +39,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _assignment: ClientAssignment
     _table_manager: TableManagerT
     _member_urls: MutableMapping[str, str]
-    _changelog_distribution: HostPartitionsMap
-    _tps_url: MutableMapping[TopicPartition, str]
+    _changelog_distribution: HostToPartitionMap
+    _tps_url: MutableMapping[TP, str]
 
     def __init__(self, app: AppT, replicas: int = 0) -> None:
         super().__init__()
@@ -53,14 +53,14 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._tps_url = {}
 
     @property
-    def changelog_distribution(self) -> HostPartitionsMap:
+    def changelog_distribution(self) -> HostToPartitionMap:
         return self._changelog_distribution
 
     @changelog_distribution.setter
-    def changelog_distribution(self, value: HostPartitionsMap) -> None:
+    def changelog_distribution(self, value: HostToPartitionMap) -> None:
         self._changelog_distribution = value
         self._tps_url = {
-            TopicPartition(topic=topic, partition=partition): url
+            TP(topic, partition): url
             for url, tps in self._changelog_distribution.items()
             for topic, partitions in tps.items()
             for partition in partitions
@@ -198,7 +198,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def _protocol_assignments(
             self,
             assignments: ClientAssignmentMapping,
-            cl_distribution: HostPartitionsMap) -> MemberAssignmentMapping:
+            cl_distribution: HostToPartitionMap) -> MemberAssignmentMapping:
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
@@ -214,8 +214,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         }
 
     @classmethod
-    def _topics_filtered(cls, assignment: TopicPartitionsMap,
-                         topics: Set[str]) -> TopicPartitionsMap:
+    def _topics_filtered(cls, assignment: TopicToPartitionMap,
+                         topics: Set[str]) -> TopicToPartitionMap:
         return {
             topic: partitions
             for topic, partitions in assignment.items()
@@ -224,7 +224,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     def _get_changelog_distribution(
             self,
-            assignments: ClientAssignmentMapping) -> HostPartitionsMap:
+            assignments: ClientAssignmentMapping) -> HostToPartitionMap:
         topics = self._table_manager.changelog_topics
         return {
             self._member_urls[client]:
@@ -240,27 +240,27 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def version(self) -> int:
         return 2
 
-    def assigned_standbys(self) -> Iterable[TopicPartition]:
+    def assigned_standbys(self) -> Iterable[TP]:
         return [
-            TopicPartition(topic=topic, partition=partition)
+            TP(topic, partition)
             for topic, partitions in self._assignment.standbys.items()
             for partition in partitions
         ]
 
-    def assigned_actives(self) -> Iterable[TopicPartition]:
+    def assigned_actives(self) -> Iterable[TP]:
         return [
-            TopicPartition(topic=topic, partition=partition)
+            TP(topic, partition)
             for topic, partitions in self._assignment.actives.items()
             for partition in partitions
         ]
 
-    def table_metadata(self, topic: str) -> HostPartitionsMap:
+    def table_metadata(self, topic: str) -> HostToPartitionMap:
         return {
             host: self._topics_filtered(assignment, {topic})
             for host, assignment in self.changelog_distribution.items()
         }
 
-    def tables_metadata(self) -> HostPartitionsMap:
+    def tables_metadata(self) -> HostToPartitionMap:
         return self.changelog_distribution
 
     def key_store(self, topic: str, key: bytes) -> str:

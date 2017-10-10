@@ -8,7 +8,7 @@ from typing import (
 from mode import Seconds, ServiceT
 from .channels import ChannelT
 from .codecs import CodecArg
-from .tuples import TopicPartition
+from .tuples import TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -121,11 +121,9 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         ...

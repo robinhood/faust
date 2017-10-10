@@ -18,7 +18,7 @@ from kafka.structs import (
 from mode import Seconds, Service, want_seconds
 
 from . import base
-from ..types import AppT, Message, RecordMetadata, TopicPartition
+from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
@@ -42,13 +42,13 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
         # that way they are typed and decoupled from the actual client
         # implementation.
         await cast(Consumer, self.consumer).on_partitions_assigned(
-            cast(Iterable[TopicPartition], assigned))
+            cast(Iterable[TP], assigned))
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
         # see comment in on_partitions_assigned
         await cast(Consumer, self.consumer).on_partitions_revoked(
-            cast(Iterable[TopicPartition], revoked))
+            cast(Iterable[TP], revoked))
 
 
 class Consumer(base.Consumer):
@@ -130,8 +130,8 @@ class Consumer(base.Consumer):
 
     async def getmany(
             self,
-            *partitions: TopicPartition,
-            timeout: float) -> AsyncIterator[Tuple[TopicPartition, Message]]:
+            *partitions: TP,
+            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         records = await self._consumer.getmany(
             *partitions,
             timeout_ms=timeout * 1000.0,
@@ -154,9 +154,8 @@ class Consumer(base.Consumer):
                     tp,
                 )
 
-    def _new_topicpartition(
-            self, topic: str, partition: int) -> TopicPartition:
-        return cast(TopicPartition, _TopicPartition(topic, partition))
+    def _new_topicpartition(self, topic: str, partition: int) -> TP:
+        return cast(TP, _TopicPartition(topic, partition))
 
     def _new_offsetandmetadata(self, offset: int, meta: str) -> Any:
         return OffsetAndMetadata(offset, meta)
@@ -170,7 +169,7 @@ class Consumer(base.Consumer):
         read_offset = self._read_offset
         seek = self._consumer.seek
         for tp in self._consumer.assignment():
-            tp = cast(TopicPartition, tp)
+            tp = cast(TP, tp)
             checkpoint = await self._consumer.committed(tp)
             if checkpoint is not None:
                 read_offset[tp] = checkpoint
@@ -185,40 +184,40 @@ class Consumer(base.Consumer):
         self.log.dev('COMMITTING OFFSETS: %r', offsets)
         await self._consumer.commit(offsets)
 
-    async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:
+    async def pause_partitions(self, tps: Iterable[TP]) -> None:
         for partition in tps:
             self._consumer._subscription.pause(partition=partition)
 
-    async def position(self, tp: TopicPartition) -> Optional[int]:
+    async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
 
-    async def resume_partitions(self, tps: Iterable[TopicPartition]) -> None:
+    async def resume_partitions(self, tps: Iterable[TP]) -> None:
         for partition in tps:
             self._consumer._subscription.resume(partition=partition)
         # XXX This will actually update our paused partitions
         for partition in tps:
             await self._consumer.position(partition)
 
-    async def seek_to_latest(self, *partitions: TopicPartition) -> None:
+    async def seek_to_latest(self, *partitions: TP) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO LATEST: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.LATEST)
 
-    async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
+    async def seek_to_beginning(self, *partitions: TP) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO BEGINNING: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.EARLIEST)
 
-    async def seek(self, partition: TopicPartition, offset: int) -> None:
+    async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)
         self._consumer.seek(partition, offset)
 
-    def assignment(self) -> Set[TopicPartition]:
-        return cast(Set[TopicPartition], self._consumer.assignment())
+    def assignment(self) -> Set[TP]:
+        return cast(Set[TP], self._consumer.assignment())
 
-    def highwater(self, tp: TopicPartition) -> int:
+    def highwater(self, tp: TP) -> int:
         return self._consumer.highwater(tp)
 
 
@@ -284,18 +283,16 @@ class Producer(base.Producer):
         return cast(RecordMetadata, await self._producer.send_and_wait(
             topic, value, key=key, partition=partition))
 
-    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
-        return TopicPartition(
-            topic=topic,
-            partition=self._producer._partition(
-                topic,
-                partition=None,
-                key=None,
-                value=None,
-                serialized_key=key,
-                serialized_value=None,
-            ),
+    def key_partition(self, topic: str, key: bytes) -> TP:
+        partition = self._producer._partition(
+            topic,
+            partition=None,
+            key=None,
+            value=None,
+            serialized_key=key,
+            serialized_value=None,
         )
+        return TP(topic, partition)
 
 
 class Transport(base.Transport):

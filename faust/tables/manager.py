@@ -7,7 +7,7 @@ from typing import (
 )
 from mode import PoisonpillSupervisor, Service
 from .table import Table
-from ..types import AppT, EventT, TopicPartition
+from ..types import AppT, EventT, TP
 from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
 )
@@ -36,13 +36,13 @@ class ChangelogReader(Service, ChangelogReaderT):
     wait_for_shutdown = True
     shutdown_timeout = None
 
-    _highwaters: Counter[TopicPartition] = None
+    _highwaters: Counter[TP] = None
 
     def __init__(self, table: CollectionT,
                  channel: ChannelT,
                  app: AppT,
-                 tps: Iterable[TopicPartition],
-                 offsets: Counter[TopicPartition] = None,
+                 tps: Iterable[TP],
+                 offsets: Counter[TP] = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
@@ -74,7 +74,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
 
-    def _remaining(self) -> Counter[TopicPartition]:
+    def _remaining(self) -> Counter[TP]:
         return self._highwaters - self.offsets
 
     def _remaining_total(self) -> int:
@@ -189,7 +189,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
-    _table_offsets: Counter[TopicPartition]
+    _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
     _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
@@ -238,8 +238,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
-    def _sync_persisted_offsets(self, table: CollectionT,
-                                tps: Iterable[TopicPartition]) -> None:
+    def _sync_persisted_offsets(self,
+                                table: CollectionT,
+                                tps: Iterable[TP]) -> None:
         for tp in tps:
             persisted_offset = table.persisted_offset(tp)
             if persisted_offset is not None:
@@ -259,7 +260,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._sync_offsets(standby)
         self._standbys = {}
 
-    def _group_table_tps(self, tps: Iterable[TopicPartition]) -> CollectionTps:
+    def _group_table_tps(self, tps: Iterable[TP]) -> CollectionTps:
         table_tps: CollectionTps = defaultdict(list)
         for tp in tps:
             if self._is_changelog_tp(tp):
@@ -268,14 +269,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     @Service.transitions_to(TABLEMAN_START_STANDBYS)
     async def _start_standbys(self,
-                              tps: Iterable[TopicPartition]) -> None:
+                              tps: Iterable[TP]) -> None:
         assert not self._standbys
         table_standby_tps = self._group_table_tps(tps)
         offsets = self._table_offsets
         for table, tps in table_standby_tps.items():
             self.log.info(f'Starting standbys for tps: {tps}')
             self._sync_persisted_offsets(table, tps)
-            tp_offsets: Counter[TopicPartition] = Counter({
+            tp_offsets: Counter[TP] = Counter({
                 tp: offsets[tp]
                 for tp in tps if tp in offsets
             })
@@ -288,7 +289,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._standbys[table] = standby
             await standby.start()
 
-    def _is_changelog_tp(self, tp: TopicPartition) -> bool:
+    def _is_changelog_tp(self, tp: TP) -> bool:
         return tp.topic in self.changelog_topics
 
     async def _on_recovery_started(self) -> None:
@@ -310,7 +311,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 await table.stop()
 
     @Service.transitions_to(TABLEMAN_RECOVER)
-    async def _recover_changelogs(self, tps: Iterable[TopicPartition]) -> None:
+    async def _recover_changelogs(self, tps: Iterable[TP]) -> None:
         self.log.info('Recovering from changelog topics...')
         table_recoverers: List[ChangelogReaderT] = [
             self._create_recoverer(table, tps)
@@ -326,13 +327,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     def _create_recoverer(self,
                           table: CollectionT,
-                          tps: Iterable[TopicPartition]) -> ChangelogReaderT:
+                          tps: Iterable[TP]) -> ChangelogReaderT:
         table = cast(Table, table)
         offsets = self._table_offsets
         table_tps = {tp for tp in tps
                      if tp.topic == table._changelog_topic_name()}
         self._sync_persisted_offsets(table, table_tps)
-        tp_offsets: Counter[TopicPartition] = Counter({
+        tp_offsets: Counter[TP] = Counter({
             tp: offsets[tp]
             for tp in table_tps if tp in offsets
         })
@@ -344,14 +345,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
         )
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         for table in self.values():
             await table.on_partitions_revoked(revoked)
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))

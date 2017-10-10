@@ -13,7 +13,7 @@ from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
     AppT, CodecArg, EventT, FutureMessage, K, Message,
-    ModelArg, PendingMessage, RecordMetadata, TopicPartition, V,
+    ModelArg, PendingMessage, RecordMetadata, TP, V,
 )
 from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
@@ -421,12 +421,10 @@ class TopicConductor(ConductorT, Service):
                 self._topicmap[topic].add(channel)
         return self._topicmap
 
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         ...
 
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:

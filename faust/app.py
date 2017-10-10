@@ -43,7 +43,7 @@ from .topics import ConductorT, Topic, TopicConductor
 
 from .types import (
     CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
-    RecordMetadata, StreamCoroutine, TopicPartition, TopicT, V,
+    RecordMetadata, StreamCoroutine, TP, TopicT, V,
 )
 from .types.app import AppT, PageArg, ViewGetHandler
 from .types.assignor import LeaderAssignorT
@@ -318,9 +318,7 @@ class App(AppT, ServiceProxy):
     # The mapping maintains one list for each TopicPartition,
     # where the lists are used as heap queues containing tuples
     # of ``(source_message_offset, FutureMessage)``.
-    _pending_on_commit: MutableMapping[
-        TopicPartition,
-        List[_AttachedHeapEntry]]
+    _pending_on_commit: MutableMapping[TP, List[_AttachedHeapEntry]]
 
     # Monitor is created on demand: use `.monitor` property.
     _monitor: Monitor = None
@@ -972,7 +970,7 @@ class App(AppT, ServiceProxy):
         heappush(buf, _AttachedHeapEntry(message.offset, Unordered(fut)))
         return fut
 
-    async def _commit_attached(self, tp: TopicPartition, offset: int) -> None:
+    async def _commit_attached(self, tp: TP, offset: int) -> None:
         # publish pending messages attached to this TP+offset
 
         # make shallow copy to allow concurrent modifications (append)
@@ -985,10 +983,8 @@ class App(AppT, ServiceProxy):
                 loop=self.loop,
             )
 
-    def _get_attached(
-            self,
-            tp: TopicPartition,
-            commit_offset: int) -> Iterator[FutureMessage]:
+    def _get_attached(self,
+                      tp: TP, commit_offset: int) -> Iterator[FutureMessage]:
         # Return attached messages for TopicPartition within committed offset.
         attached = self._pending_on_commit.get(tp)
         while attached:
@@ -1024,8 +1020,7 @@ class App(AppT, ServiceProxy):
         """
         return await self.topics.commit(topics)
 
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         """Handle new topic partition assignment.
 
         This is called during a rebalance after :meth:`on_partitions_revoked`.
@@ -1045,8 +1040,7 @@ class App(AppT, ServiceProxy):
         except Exception as exc:
             await self.crash(exc)
 
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         """Handle revocation of topic partitions.
 
         This is called during a rebalance and is followed by

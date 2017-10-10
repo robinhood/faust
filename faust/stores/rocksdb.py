@@ -12,7 +12,7 @@ from mode import Seconds, Service, want_seconds
 from yarl import URL
 from . import base
 from ..streams import current_event
-from ..types import AppT, CollectionT, EventT, TopicPartition
+from ..types import AppT, CollectionT, EventT, TP
 from ..utils.collections import LRUCache
 
 try:
@@ -111,12 +111,12 @@ class CheckpointDB:
 
     # when we first start, we import tps and offsets from a readonly
     # DB instance to _imported.
-    _imported: MutableMapping[TopicPartition, int]
+    _imported: MutableMapping[TP, int]
     _offsets_imported = False
 
     # later as changelogs are set by tables, the in-memory _offsets
     # dict will be updated.
-    _offsets: MutableMapping[TopicPartition, int]
+    _offsets: MutableMapping[TP, int]
 
     # the dirty flag is set whenever a tp is updated, that way
     # when the Tables shutdown, stopping their Store, the store
@@ -141,7 +141,7 @@ class CheckpointDB:
         with suppress(FileNotFoundError):
             shutil.rmtree(self.path.absolute())
 
-    def get_offset(self, tp: TopicPartition) -> Optional[int]:
+    def get_offset(self, tp: TP) -> Optional[int]:
         try:
             # check in-memory copy first.
             return self._offsets[tp]
@@ -164,7 +164,7 @@ class CheckpointDB:
             for key, value in cursor
         })
 
-    def set_offset(self, tp: TopicPartition, offset: int) -> None:
+    def set_offset(self, tp: TP, offset: int) -> None:
         self._offsets[tp] = offset
         self._dirty = True
 
@@ -191,12 +191,12 @@ class CheckpointDB:
     def _bytes_to_offset(self, offset: bytes) -> int:
         return int(offset.decode())
 
-    def _tp_to_bytes(self, tp: TopicPartition) -> bytes:
+    def _tp_to_bytes(self, tp: TP) -> bytes:
         return f'{tp.topic}{self.tp_separator}{tp.partition}'.encode()
 
-    def _bytes_to_tp(self, tp: bytes) -> TopicPartition:
+    def _bytes_to_tp(self, tp: bytes) -> TP:
         topic, _, partition = tp.decode().rpartition(self.tp_separator)
-        return TopicPartition(topic, int(partition))
+        return TP(topic, int(partition))
 
     @property
     def filename(self) -> Path:
@@ -252,13 +252,13 @@ class Store(base.SerializedStore):
         self._dbs = {}
         self._key_index = LRUCache(limit=self.key_index_size)
 
-    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+    def persisted_offset(self, tp: TP) -> Optional[int]:
         return self.checkpoints.get_offset(tp)
 
-    def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
+    def set_persisted_offset(self, tp: TP, offset: int) -> None:
         self.checkpoints.set_offset(tp, offset)
 
-    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+    async def need_active_standby_for(self, tp: TP) -> bool:
         try:
             self._db_for_partition(tp.partition)
         except rocksdb.errors.RocksIOError as exc:
@@ -334,7 +334,7 @@ class Store(base.SerializedStore):
     async def on_partitions_revoked(
             self,
             table: CollectionT,
-            revoked: Iterable[TopicPartition]) -> None:
+            revoked: Iterable[TP]) -> None:
         for tp in revoked:
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
@@ -348,7 +348,7 @@ class Store(base.SerializedStore):
     async def on_partitions_assigned(
             self,
             table: CollectionT,
-            assigned: Iterable[TopicPartition]) -> None:
+            assigned: Iterable[TP]) -> None:
         self._key_index.clear()
         standby_tps = self.app.assignor.assigned_standbys()
         my_topics = table.changelog_topic.topics

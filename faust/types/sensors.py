@@ -5,7 +5,7 @@ from .channels import EventT
 from .streams import StreamT
 from .tables import CollectionT
 from .transports import ConsumerT, ProducerT
-from .tuples import Message, TopicPartition
+from .tuples import Message, TP
 
 __all__ = ['SensorInterfaceT', 'SensorT']
 
@@ -16,7 +16,7 @@ class SensorInterfaceT(abc.ABC):
     async def on_message_in(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message) -> None:
         ...
@@ -24,7 +24,7 @@ class SensorInterfaceT(abc.ABC):
     @abc.abstractmethod
     async def on_stream_event_in(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -33,7 +33,7 @@ class SensorInterfaceT(abc.ABC):
     @abc.abstractmethod
     async def on_stream_event_out(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -43,7 +43,7 @@ class SensorInterfaceT(abc.ABC):
     async def on_message_out(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message = None) -> None:
         ...

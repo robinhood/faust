@@ -15,7 +15,7 @@ from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
-from ..types import AppT, Message, RecordMetadata, TopicPartition
+from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import (
     ConsumerCallback, ConsumerT,
     PartitionsAssignedCallback, PartitionsRevokedCallback,
@@ -83,16 +83,16 @@ class Consumer(Service, ConsumerT):
     _app: AppT
 
     # Mapping of TP to list of acked offsets.
-    _acked: MutableMapping[TopicPartition, List[int]] = None
+    _acked: MutableMapping[TP, List[int]] = None
 
     #: Fast lookup to see if tp+offset was acked.
-    _acked_index: MutableMapping[TopicPartition, Set[int]]
+    _acked_index: MutableMapping[TP, Set[int]]
 
     #: Keeps track of the currently read offset in each TP
-    _read_offset: MutableMapping[TopicPartition, int]
+    _read_offset: MutableMapping[TP, int]
 
     #: Keeps track of the currently commited offset in each TP.
-    _committed_offset: MutableMapping[TopicPartition, int] = None
+    _committed_offset: MutableMapping[TP, int] = None
 
     #: The consumer.wait_empty() method will set this to be notified
     #: when something acks a message.
@@ -144,8 +144,7 @@ class Consumer(Service, ConsumerT):
         ...
 
     @abc.abstractmethod
-    def _new_topicpartition(
-            self, topic: str, partition: int) -> TopicPartition:
+    def _new_topicpartition(self, topic: str, partition: int) -> TP:
         ...
 
     @abc.abstractmethod
@@ -153,8 +152,7 @@ class Consumer(Service, ConsumerT):
         ...
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(
-            self, assigned: Iterable[TopicPartition]) -> None:
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         await self._on_partitions_assigned(assigned)
         await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
         # All internal queues/buffers have now been cleared,
@@ -165,8 +163,7 @@ class Consumer(Service, ConsumerT):
         self._read_offset.update(self._committed_offset)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(
-            self, revoked: Iterable[TopicPartition]) -> None:
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self._on_partitions_revoked(revoked)
 
     async def track_message(self, message: Message) -> None:
@@ -266,7 +263,7 @@ class Consumer(Service, ConsumerT):
             fut.set_result(None)
         return did_commit
 
-    async def _commit_tps(self, tps: Iterable[TopicPartition]) -> bool:
+    async def _commit_tps(self, tps: Iterable[TP]) -> bool:
         did_commit = False
         if tps:
             coros = [self._commit_tp(tp) for tp in tps]
@@ -274,7 +271,7 @@ class Consumer(Service, ConsumerT):
             did_commit = any(fut.result() for fut in done)
         return did_commit
 
-    async def _commit_tp(self, tp: TopicPartition) -> bool:
+    async def _commit_tp(self, tp: TP) -> bool:
         did_commit = False
         # Find the latest offset we can commit in this tp
         offset = self._new_offset(tp)
@@ -291,17 +288,17 @@ class Consumer(Service, ConsumerT):
         return did_commit
 
     def _filter_tps_with_pending_acks(
-            self, topics: TPorTopicSet = None) -> Iterator[TopicPartition]:
+            self, topics: TPorTopicSet = None) -> Iterator[TP]:
         return (
             tp for tp in self._acked
             if topics is None or tp in topics or tp.topic in topics
         )
 
-    def _should_commit(self, tp: TopicPartition, offset: int) -> bool:
+    def _should_commit(self, tp: TP, offset: int) -> bool:
         committed = self._committed_offset[tp]
         return committed is None or bool(offset) and offset > committed
 
-    def _new_offset(self, tp: TopicPartition) -> Optional[int]:
+    def _new_offset(self, tp: TP) -> Optional[int]:
         # get the new offset for this tp, by going through
         # its list of acked messages.
         acked = self._acked[tp]
@@ -327,8 +324,7 @@ class Consumer(Service, ConsumerT):
             return batch[-1]
         return None
 
-    async def _do_commit(
-            self, tp: TopicPartition, offset: int, meta: str) -> None:
+    async def _do_commit(self, tp: TP, offset: int, meta: str) -> None:
         await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
     async def on_task_error(self, exc: BaseException) -> None:
@@ -420,7 +416,7 @@ class Producer(Service, ProducerT):
             partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
-    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
+    def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
 
 

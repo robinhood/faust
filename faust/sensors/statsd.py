@@ -4,7 +4,7 @@ from typing import Any, cast
 from mode import label
 from .monitor import Monitor
 from ..exceptions import ImproperlyConfigured
-from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
+from ..types import CollectionT, EventT, Message, StreamT, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.objects import cached_property
 
@@ -52,7 +52,7 @@ class StatsdMonitor(Monitor):
     async def on_message_in(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message) -> None:
         await super().on_message_in(consumer_id, tp, offset, message)
@@ -63,7 +63,7 @@ class StatsdMonitor(Monitor):
 
     async def on_stream_event_in(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -79,7 +79,7 @@ class StatsdMonitor(Monitor):
 
     async def on_stream_event_out(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -91,7 +91,7 @@ class StatsdMonitor(Monitor):
     async def on_message_out(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message = None) -> None:
         await super().on_message_out(consumer_id, tp, offset, message)

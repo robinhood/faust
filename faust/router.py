@@ -1,7 +1,7 @@
 from .types.app import AppT
 from .types.assignor import PartitionAssignorT
 from .types.core import K
-from .types.router import HostPartitionsMap, RouterT
+from .types.router import HostToPartitionMap, RouterT
 from .types.tables import CollectionT
 
 
@@ -19,12 +19,12 @@ class Router(RouterT):
         k = self._get_serialized_key(table, key)
         return self._assignor.key_store(topic, k)
 
-    def table_metadata(self, table_name: str) -> HostPartitionsMap:
+    def table_metadata(self, table_name: str) -> HostToPartitionMap:
         table = self._get_table(table_name)
         topic = self._get_table_topic(table)
         return self._assignor.table_metadata(topic)
 
-    def tables_metadata(self) -> HostPartitionsMap:
+    def tables_metadata(self) -> HostToPartitionMap:
         return self._assignor.tables_metadata()
 
     @classmethod

@@ -4,7 +4,7 @@ from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
 from mode import Service
 from yarl import URL
 from ..serializers.codecs import dumps, loads
-from ..types import AppT, CodecArg, CollectionT, EventT, StoreT, TopicPartition
+from ..types import AppT, CodecArg, CollectionT, EventT, StoreT, TP
 
 
 class Store(StoreT, Service):
@@ -22,25 +22,25 @@ class Store(StoreT, Service):
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
 
-    def persisted_offset(self, tp: TopicPartition) -> Optional[int]:
+    def persisted_offset(self, tp: TP) -> Optional[int]:
         raise NotImplementedError('In-memory store only, does not persist.')
 
-    def set_persisted_offset(self, tp: TopicPartition, offset: int) -> None:
+    def set_persisted_offset(self, tp: TP, offset: int) -> None:
         ...
 
-    async def need_active_standby_for(self, tp: TopicPartition) -> bool:
+    async def need_active_standby_for(self, tp: TP) -> bool:
         return True
 
     async def on_partitions_assigned(
             self,
             table: CollectionT,
-            assigned: Iterable[TopicPartition]) -> None:
+            assigned: Iterable[TP]) -> None:
         ...
 
     async def on_partitions_revoked(
             self,
             table: CollectionT,
-            revoked: Iterable[TopicPartition]) -> None:
+            revoked: Iterable[TP]) -> None:
         ...
 
     def _encode_key(self, key: Any) -> bytes:

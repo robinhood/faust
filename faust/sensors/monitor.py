@@ -10,7 +10,7 @@ from weakref import WeakValueDictionary
 from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy
 from .base import Sensor
-from ..types import CollectionT, EventT, Message, StreamT, TopicPartition
+from ..types import CollectionT, EventT, Message, StreamT, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.objects import KeywordReduce, cached_property
 
@@ -111,7 +111,7 @@ class MessageState(KeywordReduce):
     consumer_id: int = None
 
     #: The topic+partition this message was delivered to.
-    tp: TopicPartition = None
+    tp: TP = None
 
     #: The offset of this message.
     offset: int = None
@@ -135,7 +135,7 @@ class MessageState(KeywordReduce):
 
     def __init__(self,
                  consumer_id: int = None,
-                 tp: TopicPartition = None,
+                 tp: TP = None,
                  offset: int = None,
                  *,
                  time_in: float = None,
@@ -255,8 +255,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     #: Index of [tp][offset] -> MessageState.
     if typing.TYPE_CHECKING:
-        message_index: WeakValueDictionary[Tuple[TopicPartition, int],
-                                           MessageState]
+        message_index: WeakValueDictionary[Tuple[TP, int], MessageState]
 
     def __init__(self,
                  *,
@@ -351,7 +350,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     async def on_message_in(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
@@ -365,7 +364,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     async def on_stream_event_in(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -377,7 +376,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     async def on_stream_event_out(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -388,7 +387,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     async def on_message_out(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message = None) -> None:
         self.messages_active -= 1

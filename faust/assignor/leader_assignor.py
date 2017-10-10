@@ -1,6 +1,6 @@
 from typing import Any
 from mode import Service
-from ..types import AppT, TopicPartition, TopicT
+from ..types import AppT, TP, TopicT
 from ..types.assignor import LeaderAssignorT
 from ..utils.objects import cached_property
 
@@ -28,8 +28,8 @@ class LeaderAssignor(Service, LeaderAssignorT):
         return f'{self.app.id}-__assignor-__leader'
 
     @cached_property
-    def _leader_tp(self) -> TopicPartition:
-        return TopicPartition(self._leader_topic_name, 0)
+    def _leader_tp(self) -> TP:
+        return TP(self._leader_topic_name, 0)
 
     def is_leader(self) -> bool:
         return self._leader_tp in self.app.consumer.assignment()

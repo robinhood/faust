@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Iterable, List, MutableMapping
-from faust.types.topics import TopicPartition
+from faust.types.topics import TP
 from faust.web import views
 from faust.web.base import Request, Response, Web
 
@@ -24,9 +24,7 @@ class Assignment(views.View):
     package = 'faust.web.apps.stats'
 
     @classmethod
-    def _topic_grouped(
-            cls,
-            assignment: Iterable[TopicPartition]) -> TPMap:
+    def _topic_grouped(cls, assignment: Iterable[TP]) -> TPMap:
         tps = defaultdict(list)
         for tp in assignment:
             tps[tp.topic].append(tp.partition)

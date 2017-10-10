@@ -1,6 +1,6 @@
 from typing import Any, Iterator, Set
 from mode import Service
-from ..types import AppT, CollectionT, EventT, Message, StreamT, TopicPartition
+from ..types import AppT, CollectionT, EventT, Message, StreamT, TP
 from ..types.sensors import SensorDelegateT, SensorT
 from ..types.transports import ConsumerT, ProducerT
 
@@ -17,7 +17,7 @@ class Sensor(SensorT, Service):
     async def on_message_in(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message) -> None:
         """Called whenever a message is received by a consumer."""
@@ -27,7 +27,7 @@ class Sensor(SensorT, Service):
 
     async def on_stream_event_in(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -36,7 +36,7 @@ class Sensor(SensorT, Service):
 
     async def on_stream_event_out(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -46,7 +46,7 @@ class Sensor(SensorT, Service):
     async def on_message_out(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message = None) -> None:
         """Called when all streams have processed the message."""
@@ -107,7 +107,7 @@ class SensorDelegate(SensorDelegateT):
     async def on_message_in(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message) -> None:
         for sensor in self._sensors:
@@ -115,7 +115,7 @@ class SensorDelegate(SensorDelegateT):
 
     async def on_stream_event_in(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -124,7 +124,7 @@ class SensorDelegate(SensorDelegateT):
 
     async def on_stream_event_out(
             self,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
@@ -134,7 +134,7 @@ class SensorDelegate(SensorDelegateT):
     async def on_message_out(
             self,
             consumer_id: int,
-            tp: TopicPartition,
+            tp: TP,
             offset: int,
             message: Message = None) -> None:
         for sensor in self._sensors:

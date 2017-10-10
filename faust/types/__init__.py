@@ -26,7 +26,7 @@ from .transports import (
 )
 from .tuples import (
     FutureMessage, Message, MessageSentCallback, PendingMessage,
-    RecordMetadata, TopicPartition,
+    RecordMetadata, TP,
 )
 from .windows import WindowRange, WindowT
 
@@ -75,7 +75,7 @@ __all__ = [
 
     # types.tuples
     'FutureMessage', 'Message', 'MessageSentCallback', 'PendingMessage',
-    'RecordMetadata', 'TopicPartition',
+    'RecordMetadata', 'TP',
 
     # types.windows
     'WindowRange', 'WindowT',

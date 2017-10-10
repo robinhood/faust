@@ -7,7 +7,7 @@ from typing import (
 )
 from mode import Seconds, ServiceT
 from yarl import URL
-from .tuples import Message, RecordMetadata, TopicPartition
+from .tuples import Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -30,11 +30,11 @@ __all__ = [
 ConsumerCallback = Callable[[Message], Awaitable]
 
 #: Argument to Consumer.commit to specify topics/tps to commit.
-TPorTopic = Union[str, TopicPartition]
+TPorTopic = Union[str, TP]
 TPorTopicSet = AbstractSet[TPorTopic]
 
-PartitionsRevokedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
-PartitionsAssignedCallback = Callable[[Iterable[TopicPartition]], Awaitable]
+PartitionsRevokedCallback = Callable[[Iterable[TP]], Awaitable]
+PartitionsAssignedCallback = Callable[[Iterable[TP]], Awaitable]
 
 
 class ConsumerT(ServiceT):
@@ -73,8 +73,8 @@ class ConsumerT(ServiceT):
     @no_type_check
     async def getmany(
             self,
-            *partitions: TopicPartition,
-            timeout: float) -> AsyncIterator[Tuple[TopicPartition, Message]]:
+            *partitions: TP,
+            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         ...
 
     @abc.abstractmethod
@@ -90,35 +90,35 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def assignment(self) -> Set[TopicPartition]:
+    def assignment(self) -> Set[TP]:
         ...
 
     @abc.abstractmethod
-    def highwater(self, tp: TopicPartition) -> int:
+    def highwater(self, tp: TP) -> int:
         ...
 
     @abc.abstractmethod
-    async def pause_partitions(self, tps: Iterable[TopicPartition]) -> None:
+    async def pause_partitions(self, tps: Iterable[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def resume_partitions(self, tps: Iterable[TopicPartition]) -> None:
+    async def resume_partitions(self, tps: Iterable[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def position(self, tp: TopicPartition) -> Optional[int]:
+    async def position(self, tp: TP) -> Optional[int]:
         ...
 
     @abc.abstractmethod
-    async def seek_to_latest(self, *partitions: TopicPartition) -> None:
+    async def seek_to_latest(self, *partitions: TP) -> None:
         ...
 
     @abc.abstractmethod
-    async def seek_to_beginning(self, *partitions: TopicPartition) -> None:
+    async def seek_to_beginning(self, *partitions: TP) -> None:
         ...
 
     @abc.abstractmethod
-    async def seek(self, partition: TopicPartition, offset: int) -> None:
+    async def seek(self, partition: TP, offset: int) -> None:
         ...
 
     @abc.abstractmethod
@@ -167,7 +167,7 @@ class ProducerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def key_partition(self, topic: str, key: bytes) -> TopicPartition:
+    def key_partition(self, topic: str, key: bytes) -> TP:
         ...
 
 

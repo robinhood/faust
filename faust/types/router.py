@@ -4,8 +4,8 @@ from typing import List, MutableMapping
 from .core import K
 
 
-TopicPartitionsMap = MutableMapping[str, List[int]]
-HostPartitionsMap = MutableMapping[str, TopicPartitionsMap]
+TopicToPartitionMap = MutableMapping[str, List[int]]
+HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
 
 
 if typing.TYPE_CHECKING:
@@ -23,9 +23,9 @@ class RouterT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def table_metadata(self, table_name: str) -> HostPartitionsMap:
+    def table_metadata(self, table_name: str) -> HostToPartitionMap:
         ...
 
     @abc.abstractmethod
-    def tables_metadata(self) -> HostPartitionsMap:
+    def tables_metadata(self) -> HostToPartitionMap:
         ...
