@@ -35,34 +35,37 @@ class Event(EventT):
             async for event in channel:
                 ...
 
-        - Streams consume channels and iterates as ``event.value``::
+        - Streams iterate over channels and yields values::
 
             async for value in channel.stream()  # value is event.value
                 ...
 
-        - Stream can also iterate over original event::
+        - If you only have a Stream object, you can also access underlying
+          events by using ``Stream.events``::
 
             async for event in channel.stream.events():
                 ...
 
-        - And you can also access the current_event related to a value
-          in a stream::
+          Also commonly used for finding the "current event" related to
+          a value in the stream::
 
-            stream = channel.stream()
-            async for value in stream:
-                event = stream.current_event
+              stream = channel.stream()
+              async for value in stream:
+                  event = stream.current_event
+                  message = event.message
+                  topic = event.message.topic
 
-    You can retrieve the current event in a stream to:
+          You can retrieve the current event in a stream to:
 
-        - Get access to the serialized key+value.
-        - Get access to message properties like, what topic+partition
-          the value was received on, or its offset.
+              - Get access to the serialized key+value.
+              - Get access to message properties like, what topic+partition
+                the value was received on, or its offset.
 
-    Note that if you want access to both key and value, you should use
-    ``stream.items()`` instead::
+          Note that if you want access to both key and value, you should use
+          ``stream.items()`` instead::
 
-        async for key, value in stream.items():
-            ...
+              async for key, value in stream.items():
+                  ...
     """
 
     def __init__(self,
@@ -402,7 +405,7 @@ class Channel(ChannelT):
 
         if coro_get_exc.done():
             # we got an exception from Channel.throw(exc):
-            #    cancel the other coro and re-raise that error
+            #    cancel the other coro and re-raise the error thrown.
             coro_get_val.cancel()
             raise coro_get_exc.result()
         else:
