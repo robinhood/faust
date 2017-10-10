@@ -454,7 +454,7 @@ class Store(base.SerializedStore):
 
     async def sync_checkpoints(self) -> None:
         while 1:
-            self.log.info('Flush checkpoints to disk...')
+            self.log.debug('Flush checkpoints to disk...')
             try:
                 self.checkpoints.sync()
             except CheckpointWriteBusy:
