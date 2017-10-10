@@ -4,8 +4,7 @@ import typing
 from collections import defaultdict
 from contextlib import suppress
 from typing import (
-    Any, AsyncIterable, Counter, Iterable, List,
-    MutableMapping, Optional, cast,
+    Any, AsyncIterable, Iterable, List, MutableMapping, Optional, cast,
 )
 from mode import PoisonpillSupervisor, Service
 from mode.utils.compat import Counter
