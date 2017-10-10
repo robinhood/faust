@@ -8,6 +8,7 @@ import click
 from .base import AppCommand
 from ..models import registry
 from ..types import FieldDescriptorT, ModelT
+from ..utils.text import didyoumean
 
 __all__ = ['model']
 
@@ -29,10 +30,13 @@ class model(AppCommand):
         try:
             model = registry[name]
         except KeyError:
-            try:
-                model = registry['.'.join([self.app.origin, name])]
-            except KeyError:
+            if '.' in name:
                 raise self._unknown_model(name)
+            lookup = '.'.join([self.app.origin, name])
+            try:
+                model = registry[lookup]
+            except KeyError:
+                raise self._unknown_model(name, lookup=lookup)
         self.say(self.tabulate(
             self.model_fields(model),
             headers=[self.bold(h) for h in self.headers],
@@ -40,9 +44,14 @@ class model(AppCommand):
             wrap_last_row=False,
         ))
 
-    def _unknown_model(self, name: str) -> click.UsageError:
-        return click.UsageError(
-            f'No model {name!r}. List models using `{self.prog_name} models`!')
+    def _unknown_model(self, name: str,
+                       *,
+                       lookup: str = None) -> click.UsageError:
+        lookup = lookup or name
+        alt = didyoumean(
+            registry, lookup,
+            fmt_none=f'Please run `{self.prog_name} models` for a list.')
+        return click.UsageError(f'No model {name!r}. {alt}')
 
     def model_fields(self, model: Type[ModelT]) -> Sequence[Sequence[str]]:
         return [

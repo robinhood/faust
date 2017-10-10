@@ -37,20 +37,13 @@ class agents(AppCommand):
 
     def agent_to_row(self, agent: AgentT) -> Sequence[str]:
         return [
-            self._bold_tail(self._name(agent)),
+            self.bold_tail(self._name(agent)),
             self._topic(agent),
             self.colored('autoblack', self._help(agent)),
         ]
 
     def _name(self, agent: AgentT) -> str:
-        name = agent.name
-        if name.startswith(self.app.origin):
-            name = name[len(self.app.origin) + 1:]
-        return f'@{name}'
-
-    def _bold_tail(self, text: str, *, sep: str = '.') -> str:
-        head, _, tail = text.rpartition(sep)
-        return sep.join([head, self.bold(tail)])
+        return '@' + self.abbreviate_fqdn(agent.name)
 
     def _maybe_topic(self, agent: AgentT) -> Optional[str]:
         try:

@@ -345,8 +345,8 @@ class Command(abc.ABC):
         return self.colored('b', text)
 
     def bold_tail(self, text: str, *, sep: str = '.') -> str:
-        head, _, tail = text.rpartition(sep)
-        return sep.join([head, self.bold(tail)])
+        head, fsep, tail = text.rpartition(sep)
+        return fsep.join([head, self.bold(tail)])
 
     def _table_wrap(self, table: BaseTable, text: str) -> str:
         max_width = max(table.column_max_width(1), 10)

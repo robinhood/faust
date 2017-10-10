@@ -12,7 +12,7 @@ from typing import (
 from yarl import URL
 from .collections import FastUserDict
 from .objects import cached_property
-from .text import fuzzymatch
+from .text import didyoumean
 
 # - these are taken from kombu.utils.imports
 
@@ -29,14 +29,6 @@ __all__ = [
 _T = TypeVar('_T')
 _T_contra = TypeVar('_T_contra', contravariant=True)
 SymbolArg = Union[_T, str]
-
-E_FUZZY_MANY = """
-{name!r} is not a valid name, did you mean one of {alt}?
-""".strip()
-
-E_FUZZY_SCALAR = """
-{name!r} is not a valid name, did you mean {alt}?
-""".strip()
 
 
 class FactoryMapping(FastUserDict, Generic[_T]):
@@ -85,10 +77,11 @@ class FactoryMapping(FastUserDict, Generic[_T]):
             name_ = cast(str, name)
             if '.' in name_:
                 raise
-            alt = list(fuzzymatch(name_, self.aliases))
+            alt = didyoumean(
+                self.aliases, name_,
+                fmt_none=f'Available choices: {", ".join(self.aliases)}')
             raise ModuleNotFoundError(
-                (E_FUZZY_MANY if len(alt) > 1 else E_FUZZY_SCALAR).format(
-                    name=name_, alt=', '.join(alt))) from exc
+                f'{name!r} is not a valid name. {alt}') from exc
 
     def get_alias(self, name: str) -> str:
         self._maybe_finalize()

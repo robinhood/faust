@@ -4,7 +4,8 @@ from typing import Iterable, Iterator, NamedTuple, Optional
 __all__ = [
     'FuzzyMatch',
     'title',
-    'fuzzymatch',
+    'didyoumean',
+    'fuzzymatch_choices',
     'fuzzymatch_iter',
     'fuzzymatch_best',
     'abbr',
@@ -32,14 +33,43 @@ def title(s: str) -> str:
                   .replace('_', '').split())
 
 
-def fuzzymatch(needle: str, haystack: Iterable[str],
+def didyoumean(haystack: Iterable[str], needle: str,
+               *,
+               fmt_many: str = 'Did you mean one of {alt}?',
+               fmt_one: str = 'Did you mean {alt}?',
+               fmt_none: str = '',
+               min_ratio: float = 0.6) -> str:
+    return fuzzymatch_choices(
+        list(haystack), needle,
+        fmt_many=fmt_many,
+        fmt_one=fmt_one,
+        fmt_none=fmt_none,
+        min_ratio=min_ratio,
+    )
+
+
+def fuzzymatch_choices(haystack: Iterable[str], needle: str,
+                       *,
+                       fmt_many: str = 'one of {alt}',
+                       fmt_one: str = '{alt}',
+                       fmt_none: str = '',
+                       min_ratio: float = 0.6) -> str:
+    alt = list(fuzzymatch(haystack, needle, min_ratio=min_ratio))
+    if not alt:
+        return fmt_none
+    return (fmt_many if len(alt) > 1 else fmt_one).format(
+        alt=', '.join(alt),
+    )
+
+
+def fuzzymatch(haystack: Iterable[str], needle: str,
                *,
                min_ratio: float = 0.6) -> Iterator[str]:
-    for match in fuzzymatch_iter(needle, haystack, min_ratio=min_ratio):
+    for match in fuzzymatch_iter(haystack, needle, min_ratio=min_ratio):
         yield match.value
 
 
-def fuzzymatch_iter(needle: str, haystack: Iterable[str],
+def fuzzymatch_iter(haystack: Iterable[str], needle: str,
                     *,
                     min_ratio: float = 0.6) -> Iterator[FuzzyMatch]:
     """Fuzzy Match: Including actual ratio.
@@ -53,15 +83,15 @@ def fuzzymatch_iter(needle: str, haystack: Iterable[str],
             yield FuzzyMatch(ratio, key)
 
 
-def fuzzymatch_best(needle: str, haystack: Iterable[str],
+def fuzzymatch_best(haystack: Iterable[str], needle: str,
                     *,
                     min_ratio: float = 0.6) -> Optional[str]:
     'Fuzzy Match - Return best match only (single scalar value).'
     try:
         return sorted(
             fuzzymatch_iter(
-                needle,
                 haystack,
+                needle,
                 min_ratio=min_ratio),
             reverse=True,
         )[0].value
@@ -96,7 +126,8 @@ def _abbr_abrupt(s: str, max: int, suffix: str = '...') -> str:
 def abbr_fqdn(origin: str, name: str, *, prefix: str = '') -> str:
     if name.startswith(origin):
         name = name[len(origin) + 1:]
-    return f'{prefix}{name}'
+        return f'{prefix}{name}'
+    return name
 
 
 def shorten_fqdn(s: str, max: int = 32) -> str:
