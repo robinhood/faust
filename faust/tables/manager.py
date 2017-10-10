@@ -2,7 +2,15 @@
 import asyncio
 import typing
 from collections import defaultdict
+<<<<<<< HEAD
 from typing import Any, AsyncIterable, Iterable, List, MutableMapping, cast
+=======
+from contextlib import suppress
+from typing import (
+    Any, AsyncIterable, Counter, Iterable, List,
+    MutableMapping, Optional, cast,
+)
+>>>>>>> Recover in background. Don't block consumer group rebalance
 from mode import PoisonpillSupervisor, Service
 from mode.utils.compat import Counter
 from .table import Table
@@ -190,6 +198,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
+    _ongoing_recovery: Optional[asyncio.Future] = None
     _recovery_started: asyncio.Event
     recovery_completed: asyncio.Event
 
@@ -341,13 +350,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             beacon=self.beacon,
         )
 
-    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
-        for table in self.values():
-            await table.on_partitions_revoked(revoked)
-
-    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def _recover(self, assigned: Iterable[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
@@ -355,8 +358,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._on_recovery_started()
         for table in self.values():
             await table.on_partitions_assigned(assigned)
-        self.log.info('Attempting to stop standbys')
-        await self._stop_standbys()
         await self._recover_changelogs(assigned_tps)
         await self.app.consumer.resume_partitions({
             tp for tp in assigned
@@ -365,6 +366,28 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._start_standbys(standby_tps)
         self.log.info('New assignments handled')
         await self._on_recovery_completed()
+
+    async def _maybe_abort_ongoing_recovery(self) -> None:
+        if self._ongoing_recovery is None:
+            return
+        self._ongoing_recovery.cancel()
+        with suppress(asyncio.CancelledError):
+            await self._ongoing_recovery
+        self._ongoing_recovery = None
+
+    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+        await self._maybe_abort_ongoing_recovery()
+        self.log.info('Attempting to stop standbys')
+        await self._stop_standbys()
+        for table in self.values():
+            await table.on_partitions_revoked(revoked)
+
+    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
+    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+        assert self._ongoing_recovery is None
+        self._ongoing_recovery = self.add_future(self._recover(assigned))
+        self.log.info('Triggered recovery - will recover in background')
 
 
 __flake8_List_is_used: List  # XXX flake8 bug
