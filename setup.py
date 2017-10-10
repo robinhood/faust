@@ -95,13 +95,13 @@ def _pip_requirement(req):
 
 def _reqs(*f):
     path = (Path.cwd() / 'requirements').joinpath(*f)
-    reqs = (strip_comments(l) for l in path.open().readlines())
-    return [_pip_requirement(r) for r in reqs if r]
+    with path.open() as fh:
+        reqs = [strip_comments(l) for l in fh.readlines()]
+        return [_pip_requirement(r) for r in reqs if r]
 
 
 def reqs(*f):
     return [req for subreq in _reqs(*f) for req in subreq]
-
 
 def extras(*p):
     """Parse requirement in the requirements/extras/ directory."""
