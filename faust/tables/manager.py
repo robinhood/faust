@@ -370,6 +370,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _maybe_abort_ongoing_recovery(self) -> None:
         if self._ongoing_recovery is None:
             return
+        self.log.info('Cancelling ongoing recovery')
         self._ongoing_recovery.cancel()
         with suppress(asyncio.CancelledError):
             await self._ongoing_recovery
@@ -387,7 +388,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         assert self._ongoing_recovery is None
         self._ongoing_recovery = self.add_future(self._recover(assigned))
-        self.log.info('Triggered recovery - will recover in background')
+        self.log.info('Triggered recovery in background')
 
 
 __flake8_List_is_used: List  # XXX flake8 bug
