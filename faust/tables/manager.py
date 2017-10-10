@@ -2,15 +2,11 @@
 import asyncio
 import typing
 from collections import defaultdict
-<<<<<<< HEAD
-from typing import Any, AsyncIterable, Iterable, List, MutableMapping, cast
-=======
 from contextlib import suppress
 from typing import (
     Any, AsyncIterable, Counter, Iterable, List,
     MutableMapping, Optional, cast,
 )
->>>>>>> Recover in background. Don't block consumer group rebalance
 from mode import PoisonpillSupervisor, Service
 from mode.utils.compat import Counter
 from .table import Table
