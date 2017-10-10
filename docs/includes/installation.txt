@@ -10,6 +10,63 @@ To install using `pip`,::
 
     $ pip install -U faust
 
+.. _bundles:
+
+Bundles
+-------
+
+Faust also defines a group of setuptools extensions that can be used
+to install Faust and the dependencies for a given feature.
+
+You can specify these in your requirements or on the :command:`pip`
+command-line by using brackets. Multiple bundles can be separated by comma:
+
+
+.. code-block:: console
+
+    $ pip install "faust[rocksdb]"
+
+    $ pip install "faust[rocksdb,uvloop,fast]"
+
+The following bundles are available:
+
+Stores
+~~~~~~
+
+:``faust[rocksdb]``:
+    for using RocksDB for storing Faust table state.
+
+    **Recommended in production.**
+
+Optimization
+~~~~~~~~~~~~
+
+:``faust[fast]``:
+    for installing all the available C speedup extensions to Faust core.
+
+Sensors
+~~~~~~~
+
+:``faust[statsd]``:
+    for using the Statsd Faust monitor.
+
+Event Loops
+~~~~~~~~~~~
+
+:``faust[uvloop]``:
+    for using Faust with :pypi:`uvloop`.
+
+Debugging
+~~~~~~~~~
+
+:``faust[debug]``:
+    for using :pypi:`aiomonitor` to connect and debug a running faust worker.
+
+:``faust[setproctitle]``:
+    when the :pypi:`setproctitle` module is installed the Faust worker will
+    use it to set a nicer process name in ps/top listings.  Also installed
+    with the ``fast`` and ``debug`` bundles.
+
 .. _installing-from-source:
 
 Downloading and installing from source

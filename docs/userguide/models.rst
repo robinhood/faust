@@ -25,7 +25,7 @@ by serving as documentation and enabling static type checks of
 for example JSON dictionary fields.
 
 If you're integrating with existing systems Faust's :ref:`codecs
-<codecs-guide>` can help you support serialization and deserialization
+<guide-codecs>` can help you support serialization and deserialization
 in any format.  Models describe the content of messages, while codecs describe
 how they are serialized/compressed/encoded/etc.
 The default codec is configured by the applications ``key_serializer`` and

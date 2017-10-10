@@ -124,18 +124,21 @@ def annotations(cls: Type,
             is required.
 
     Examples:
-        >>> class Point:
-        ...    x: float
-        ...    y: float
 
-        >>> class 3DPoint(Point):
-        ...     z: float = 0.0
+        .. sourcecode:: text
 
-        >>> fields, defaults = annotations(3DPoint)
-        >>> fields
-        {'x': float, 'y': float, 'z': 'float'}
-        >>> defaults
-        {'z': 0.0}
+            >>> class Point:
+            ...    x: float
+            ...    y: float
+
+            >>> class 3DPoint(Point):
+            ...     z: float = 0.0
+
+            >>> fields, defaults = annotations(3DPoint)
+            >>> fields
+            {'x': float, 'y': float, 'z': 'float'}
+            >>> defaults
+            {'z': 0.0}
     """
     fields: Dict[str, Type] = {}
     defaults: Dict[str, Any] = {}  # noqa: E704 (flake8 bug)

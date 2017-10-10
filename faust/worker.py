@@ -118,8 +118,8 @@ class Worker(mode.Worker):
                             worker.stop_and_shutdown_loop()
 
     Arguments:
-        app (AppT): The Faust app to start.
-        *services (ServiceT): Services to start with worker.
+        app: The Faust app to start.
+        *services: Services to start with worker.
             This includes application instances to start.
 
     Keyword Arguments:

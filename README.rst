@@ -112,6 +112,63 @@ To install using `pip`,::
 
     $ pip install -U faust
 
+.. _bundles:
+
+Bundles
+-------
+
+Faust also defines a group of setuptools extensions that can be used
+to install Faust and the dependencies for a given feature.
+
+You can specify these in your requirements or on the ``pip``
+command-line by using brackets. Multiple bundles can be separated by comma:
+
+::
+
+
+    $ pip install "faust[rocksdb]"
+
+    $ pip install "faust[rocksdb,uvloop,fast]"
+
+The following bundles are available:
+
+Stores
+~~~~~~
+
+:``faust[rocksdb]``:
+    for using RocksDB for storing Faust table state.
+
+    **Recommended in production.**
+
+Optimization
+~~~~~~~~~~~~
+
+:``faust[fast]``:
+    for installing all the available C speedup extensions to Faust core.
+
+Sensors
+~~~~~~~
+
+:``faust[statsd]``:
+    for using the Statsd Faust monitor.
+
+Event Loops
+~~~~~~~~~~~
+
+:``faust[uvloop]``:
+    for using Faust with ``uvloop``.
+
+Debugging
+~~~~~~~~~
+
+:``faust[debug]``:
+    for using ``aiomonitor`` to connect and debug a running faust worker.
+
+:``faust[setproctitle]``:
+    when the ``setproctitle`` module is installed the Faust worker will
+    use it to set a nicer process name in ps/top listings.  Also installed
+    with the ``fast`` and ``debug`` bundles.
+
 .. _installing-from-source:
 
 Downloading and installing from source
@@ -239,6 +296,71 @@ Will you support Python 2?
 
 There are no plans to support Python 2, but you are welcome to contribute to
 the project (details in question above is relevant also for Python 2).
+
+.. _getting-help:
+
+Getting Help
+============
+
+.. _mailing-list:
+
+Mailing list
+------------
+
+For discussions about the usage, development, and future of Faust,
+please join the `faust-users`_ mailing list.
+
+.. _`faust-users`: https://groups.google.com/group/faust-users/
+
+.. _slack-channel:
+
+Slack
+-----
+
+Come chat with us on Slack:
+
+https://fauststream.slack.com
+
+.. _bug-tracker:
+
+Bug tracker
+===========
+
+If you have any suggestions, bug reports, or annoyances please report them
+to our issue tracker at https://github.com/fauststream/faust/issues/
+
+.. _wiki:
+
+Wiki
+====
+
+https://wiki.github.com/fauststream/faust/
+
+.. _contributing-short:
+
+Contributing
+============
+
+Development of `faust` happens at GitHub: https://github.com/fauststream/faust
+
+You're highly encouraged to participate in the development
+of `faust`.
+
+Be sure to also read the `Contributing to Faust`_ section in the
+documentation.
+
+.. _`Contributing to Faust`:
+    http://docs.fauststream.com/en/master/contributing.html
+
+.. _license:
+
+License
+=======
+
+This software is licensed under the `New BSD License`. See the ``LICENSE``
+file in the top distribution directory for the full license text.
+
+.. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
 
 Code of Conduct
 ===============

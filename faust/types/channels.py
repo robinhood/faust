@@ -10,6 +10,7 @@ from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
 from .tuples import FutureMessage, Message, MessageSentCallback, RecordMetadata
+from ..utils.futures import stampede
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -135,6 +136,7 @@ class ChannelT(AsyncIterator):
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
+    @stampede
     @abc.abstractmethod
     async def maybe_declare(self) -> None:
         ...

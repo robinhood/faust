@@ -10,6 +10,8 @@
 
 .. include:: ../includes/faq.txt
 
+.. include:: ../includes/resources.txt
+
 .. include:: ../includes/code-of-conduct.txt
 
 .. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master

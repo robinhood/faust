@@ -36,7 +36,7 @@ class Topic(Channel, TopicT):
     """Define new topic description.
 
     Arguments:
-        app (AppT): App instance this topic is bound to.
+        app: App instance this topic is bound to.
 
     Keyword Arguments:
         topics: List of topic names.

@@ -27,8 +27,9 @@ from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata
 from .windows import WindowT
 
-from ..utils.futures import FlowControlEvent
+from ..utils.futures import FlowControlEvent, stampede
 from ..utils.imports import SymbolArg
+from ..utils.objects import cached_property
 
 if typing.TYPE_CHECKING:
     from ..cli.base import AppCommand
@@ -248,6 +249,7 @@ class AppT(ServiceT):
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
+    @stampede
     @abc.abstractmethod
     async def maybe_start_producer(self) -> ProducerT:
         ...
@@ -284,12 +286,12 @@ class AppT(ServiceT):
     def consumer(self) -> ConsumerT:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def tables(self) -> TableManagerT:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def topics(self) -> ConductorT:
         ...
@@ -303,7 +305,7 @@ class AppT(ServiceT):
     def monitor(self, value: Monitor) -> None:
         ...
 
-    @property
+    @cached_property
     @abc.abstractmethod
     def flow_control(self) -> FlowControlEvent:
         return FlowControlEvent(loop=self.loop)

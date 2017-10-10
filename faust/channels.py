@@ -12,7 +12,7 @@ from .types import (
 )
 from .types.channels import ChannelT, EventT
 from .types.streams import StreamCoroutine, StreamT
-from .utils.futures import maybe_async
+from .utils.futures import maybe_async, stampede
 
 if typing.TYPE_CHECKING:
     from .app import App
@@ -333,6 +333,7 @@ class Channel(ChannelT):
             self, key, value, partition,
             key_serializer, value_serializer, callback)
 
+    @stampede
     async def maybe_declare(self) -> None:
         ...
 

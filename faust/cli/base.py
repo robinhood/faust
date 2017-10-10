@@ -321,8 +321,8 @@ class Command(abc.ABC):
             :class:`terminaltables.SingleTable`
 
         Note:
-            If the :option:`--json` option is enabled this returns
-            json instead.
+            If the :option:`--json <faust --json>` option is enabled
+            this returns json instead.
         """
         if self.json:
             return self.dumps(data)
@@ -356,7 +356,8 @@ class Command(abc.ABC):
         """Print something to stdout (or use ``file=stderr`` kwarg).
 
         Note:
-            Does not do anything if the :option:`--quiet` option is enabled.
+            Does not do anything if the :option:`--quiet <faust --quiet>`
+            option is enabled.
         """
         if not self.quiet:
             print(*args, **kwargs)
@@ -365,7 +366,8 @@ class Command(abc.ABC):
         """Print something to stdout (or use ``file=stderr`` kwargs).
 
         Note:
-            Does not do anything if the :option:`--debug` option is enabled.
+            Does not do anything if the :option:`--debug <faust --debug>`
+            option is enabled.
         """
         if self.debug:
             print(f'#-- {s}', **kwargs)
@@ -435,7 +437,7 @@ class AppCommand(Command):
         Notes:
             Uses :attr:`key_serializer` to set the :term:`codec`
             for the key (e.g. ``"json"``), as set by the
-            :option:`--key-serializer` option.
+            :option:`--key-serializer <faust send --key-serializer>` option.
         """
         return self.to_model(typ, key, self.key_serializer)
 
@@ -448,7 +450,8 @@ class AppCommand(Command):
         Notes:
             Uses :attr:`value_serializer` to set the :term:`codec`
             for the value (e.g. ``"json"``), as set by the
-            :option:`--value-serializer` option.
+            :option:`--value-serializer <faust send --value-serializer>`
+            option.
         """
         return self.to_model(typ, value, self.value_serializer)
 
@@ -464,7 +467,8 @@ class AppCommand(Command):
         Notes:
             Uses :attr:`value_serializer` to set the :term:`codec`
             for the value (e.g. ``"json"``), as set by the
-            :option:`--value-serializer` option.
+            :option:`--value-serializer <faust send --value-serializer>`
+            option.
         """
         if typ:
             model: ModelT = self.import_relative_to_app(typ)

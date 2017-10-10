@@ -203,7 +203,8 @@ class AgentService(Service):
 
 
 class Agent(AgentT, ServiceProxy):
-    _sinks: List[SinkT]
+    _channel_iterator: AsyncIterator = None
+    _sinks: List[SinkT] = None
 
     def __init__(self, fun: AgentFun,
                  *,
@@ -539,11 +540,17 @@ class Agent(AgentT, ServiceProxy):
     def _repr_info(self) -> str:
         return shorten_fqdn(self.name)
 
-    @cached_property
+    @property
     def channel_iterator(self) -> AsyncIterator:
         # The channel is "memoized" here, so subsequent access to
         # instance.channel_iterator will return the same value.
-        return aiter(self.channel)
+        if self._channel_iterator is None:
+            self._channel_iterator = aiter(self.channel)
+        return self._channel_iterator
+
+    @channel_iterator.setter
+    def channel_iterator(self, it: AsyncIterator) -> None:
+        self._channel_iterator = it
 
     @cached_property
     def _service(self) -> AgentService:

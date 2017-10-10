@@ -135,3 +135,9 @@ class Message:
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self.tp} offset={self.offset}>'
+
+
+# XXX See top of module! We redefine this with final FutureMessage
+# for Sphinx as it cannot read non-final types.
+MessageSentCallback = Callable[  # type: ignore
+    [FutureMessage], Union[None, Awaitable[None]]]

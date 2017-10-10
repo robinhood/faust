@@ -852,17 +852,17 @@ class App(AppT, ServiceProxy):
         """Send event to channel/topic.
 
         Arguments:
-            channel (Union[ChannelT, str]): Channel/topic or the name of a
+            channel: Channel/topic or the name of a
                 topic to send event to.
-            key (K): Message key.
-            value (V): Message value.
-            partition (int): Specific partition to send to.
+            key: Message key.
+            value: Message value.
+            partition: Specific partition to send to.
                 If not set the partition will be chosen by the partitioner.
-            key_serializer (CodecArg): Serializer to use
+            key_serializer: Serializer to use
                 only when key is not a model.
-            value_serializer (CodecArg): Serializer to use
+            value_serializer: Serializer to use
                 only when value is not a model.
-            callback (MessageSentCallback): Callable to be called after
+            callback: Callable to be called after
                 the message is published.  Signature must be unary as the
                 :class:`~faust.types.tuples.FutureMessage` future is passed
                 to it.
@@ -929,12 +929,7 @@ class App(AppT, ServiceProxy):
 
             As a result ``send_soon`` should only be used in cases
             where you know you will be re-entering the event loop pretty
-            much immediately, for example Faust itself uses it to
-            publish table changelog entries in ``Table[k] = v``[#f1]_.
-
-        .. [#f1] Implemented in the ``Table.__setitem__`` method.
-                 By extension of being part of the MutableMapping interface
-                 ``__setitem__`` *cannot* be an ``async def`` method.
+            much immediately.
         """
         chan = self.topic(channel) if isinstance(channel, str) else channel
         fut = chan.as_future_message(

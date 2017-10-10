@@ -91,7 +91,7 @@ and participate in the discussion.
 2) **Determine if your bug is really a bug**.
 
 You shouldn't file a bug if you're requesting support. For that you can use
-the :ref:`mailing-list`, or :ref:`irc-channel`.
+the :ref:`mailing-list`, or :ref:`slack-channel`.
 
 3) **Make sure your bug hasn't already been reported**.
 
@@ -666,7 +666,7 @@ that require third-party libraries must be added.
 
 3) Document the new feature in :file:`docs/includes/installation.txt`
 
-    You must add your feature to the list in the :ref:`bundles` section
+    You must add your feature to the list in the bundles section
     of :file:`docs/includes/installation.txt`.
 
     After you've made changes to this file you need to render

@@ -113,3 +113,8 @@ class FieldDescriptorT:
     @property
     def ident(self) -> str:
         ...
+
+
+# XXX See top of module!  We redefine with actual ModelT for Sphinx,
+# as it cannot read non-final types.
+ModelArg = Union[Type[ModelT], Type[bytes], Type[str]]  # type: ignore

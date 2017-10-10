@@ -25,8 +25,9 @@ random greetings to be printed out by the available workers.
 Application
 -----------
 
-As we did in the :ref:`_pageviews`, we first define our application.
-Let us create a module :file:`leader.py` and define the application:
+As we did in the :ref:`playbooks-pageviews` tutorial, we first define our
+application.  Let's create a module named :file:`leader.py` and define
+the application:
 
 .. sourcecode:: python
 

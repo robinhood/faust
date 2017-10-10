@@ -76,27 +76,14 @@ Extensions
 
 .. note::
 
-    You can install multiple bundles at the same time:
-
-    .. sourcecode:: console
-
-        $ pip install -U faust[fast,rocksdb,uvloop]
-
-    and also use them in requirement files:
-
-    :file:`requirements.txt`:
-
-    .. sourcecode:: text
-
-        faust[fast,rocksdb,uvloop]
+    See bundles in the installation instructions section of this document
+    for a list of supported setuptools extensions.
 
 What is Kafka?
 ==============================================
 
 
 .. include:: includes/kafka.txt
-
-
 
 How do I use it?
 ================
@@ -222,14 +209,12 @@ Upcoming Features
 
 Some features are planned, but not available in the first version
 
--Joins-
+Joins
     Faust will soon support Table/Table, Stream/Stream, and Table/Stream
     joins.
-
--Table HTTP API-
+Table HTTP API
     Query tables using the Faust HTTP server.
-
--Delayed messages-
+Delayed messages
     Send messages to be processed later, e.g. *"after two days, do something"*.
 
 .. _`mypy`: http://mypy-lang.org
@@ -237,3 +222,5 @@ Some features are planned, but not available in the first version
 .. _`supervisord`: http://supervisord.org
 
 .. _`circus`: http://circus.readthedocs.io/
+
+.. include:: includes/resources.txt
