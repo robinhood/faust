@@ -28,7 +28,7 @@ def _get_ident() -> int:
         return threading.current_thread().task_ident  # type: ignore
     else:
         if loop.is_running():
-            task = asyncio.Task.current_task()
+            task = asyncio.Task.current_task(loop=loop)
             task_id = id(task)
             return task_id
         else:

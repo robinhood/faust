@@ -3,10 +3,11 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Counter, Iterable, List, MutableMapping,
+    Any, Callable, ClassVar, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
+from mode.utils.compat import Counter
 from yarl import URL
 from .channels import EventT
 from .stores import StoreT

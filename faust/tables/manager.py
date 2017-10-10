@@ -2,10 +2,9 @@
 import asyncio
 import typing
 from collections import defaultdict
-from typing import (
-    Any, AsyncIterable, Counter, Iterable, List, MutableMapping, cast,
-)
+from typing import Any, AsyncIterable, Iterable, List, MutableMapping, cast
 from mode import PoisonpillSupervisor, Service
+from mode.utils.compat import Counter
 from .table import Table
 from ..types import AppT, EventT, TP
 from ..types.tables import (

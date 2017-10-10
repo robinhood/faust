@@ -1,7 +1,7 @@
-from collections import Counter
 from itertools import cycle
 from math import ceil
 from typing import Iterable, Iterator, MutableMapping, Optional, Sequence, Set
+from mode.utils.compat import Counter
 from .client_assignment import CopartitionedAssignment
 
 
@@ -71,8 +71,7 @@ class CopartitionedAssignor:
         self._assign_round_robin(unassigned, active)
         assert self._all_assigned(active)
 
-    def _assigned_partition_counts(
-            self, active: bool) -> MutableMapping[int, int]:
+    def _assigned_partition_counts(self, active: bool) -> Counter[int]:
         return Counter(
             partition
             for copartitioned in self._client_assignments.values()

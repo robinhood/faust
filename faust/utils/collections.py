@@ -1,7 +1,7 @@
 import threading
 from collections import OrderedDict, UserDict, UserList
 from typing import (
-    Any, ContextManager, Deque, Dict, ItemsView, Iterator, KeysView,
+    Any, ContextManager, Dict, ItemsView, Iterator, KeysView,
     Mapping, MutableMapping, MutableSet, Tuple, TypeVar, ValuesView, cast,
 )
 from mode.utils.compat import DummyContext
@@ -308,6 +308,3 @@ class ManagedUserDict(FastUserDict):
 
     def raw_update(self, *args: Any, **kwargs: Any) -> None:
         self.data.update(*args, **kwargs)
-
-
-__flake8_Deque_is_used: Deque  # XXX flake8 bug

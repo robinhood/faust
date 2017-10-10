@@ -134,7 +134,7 @@ setup(
     license='BSD',
     packages=find_packages(exclude=['ez_setup', 'tests', 'tests.*']),
     include_package_data=True,
-    python_requires='>=3.6.1',
+    python_requires='>=3.6.0',
     keywords=[
         'stream',
         'processing',

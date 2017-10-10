@@ -3,12 +3,11 @@ import statistics
 import typing
 from contextlib import suppress
 from time import monotonic
-from typing import (
-    Any, Counter, List, Mapping, MutableMapping, Tuple, cast,
-)
+from typing import Any, List, Mapping, MutableMapping, Tuple, cast
 from weakref import WeakValueDictionary
 from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy
+from mode.utils.compat import Counter
 from .base import Sensor
 from ..types import CollectionT, EventT, Message, StreamT, TP
 from ..types.transports import ConsumerT, ProducerT

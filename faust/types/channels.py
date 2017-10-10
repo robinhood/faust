@@ -3,8 +3,9 @@ import asyncio
 import typing
 from types import TracebackType
 from typing import (
-    Any, AsyncContextManager, AsyncIterator, Awaitable, Type, Union,
+    Any, AsyncIterator, Awaitable, Type, Union,
 )
+from mode.utils.compat import AsyncContextManager
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
