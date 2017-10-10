@@ -190,7 +190,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
-    _changelog_readers: MutableMapping[CollectionT, ChangelogReaderT]
     _recovery_started: asyncio.Event
     recovery_completed: asyncio.Event
 
@@ -202,7 +201,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._changelogs = {}
         self._table_offsets = Counter()
         self._standbys = {}
-        self._changelog_readers = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
         self.recovery_completed = asyncio.Event(loop=self.loop)
 
