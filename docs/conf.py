@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+import os
 import sys
 from contextlib import suppress
 from sphinx_celery import conf
 
+extensions = []  # set by build_config
 sys.path.append('.')
 
 globals().update(conf.build_config(
@@ -20,7 +22,6 @@ globals().update(conf.build_config(
     include_intersphinx={'python', 'sphinx'},
     extra_extensions=[
         'sphinx.ext.napoleon',
-        'sphinx_autodoc_annotation',
         'sphinxcontrib.asyncio',
         'alabaster',
         'faustdocs',
@@ -69,3 +70,6 @@ pygments_style = 'sphinx'
 # This option is deprecated and raises an error.
 with suppress(NameError):
     del(html_use_smartypants)  # noqa
+
+if not os.environ.get('APICHECK'):
+    extensions.append('sphinx_autodoc_annotation')

@@ -1,6 +1,7 @@
 """RocksDB storage."""
 import random
 import shutil
+import typing
 from collections import defaultdict
 from contextlib import suppress
 from pathlib import Path
@@ -21,17 +22,24 @@ except ImportError:
     rocksdb = None  # noqa
 
 
+if typing.TYPE_CHECKING:
+    from rocksdb import DB, Options
+else:
+    class DB: ...  # noqa
+    class Options: ...  # noqa
+
+
 class CheckpointWriteBusy(Exception):
     'Raised when another instance has the checkpoint db open for writing.'
 
 
 class PartitionDB(NamedTuple):
     partition: int
-    db: rocksdb.DB
+    db: DB
 
 
 class _DBValueTuple(NamedTuple):
-    db: rocksdb.DB
+    db: DB
     value: bytes
 
 
@@ -68,10 +76,10 @@ class RocksDBOptions:
             self.block_cache_compressed_size = block_cache_compressed_size
         self.extra_options = kwargs
 
-    def open(self, path: Path, *, read_only: bool = False) -> rocksdb.DB:
+    def open(self, path: Path, *, read_only: bool = False) -> DB:
         return rocksdb.DB(str(path), self.as_options(), read_only=read_only)
 
-    def as_options(self) -> rocksdb.Options:
+    def as_options(self) -> Options:
         return rocksdb.Options(
             create_if_missing=True,
             max_open_files=self.max_open_files,
@@ -230,7 +238,7 @@ class Store(base.SerializedStore):
     #: Used to configure the RocksDB settings for table stores.
     options: RocksDBOptions
 
-    _dbs: MutableMapping[int, rocksdb.DB] = None
+    _dbs: MutableMapping[int, DB] = None
     _key_index: LRUCache[bytes, int]
 
     def __init__(self, url: Union[str, URL], app: AppT,
@@ -288,14 +296,14 @@ class Store(base.SerializedStore):
         self._key_index[key] = partition
         db.put(key, value)
 
-    def _db_for_partition(self, partition: int) -> rocksdb.DB:
+    def _db_for_partition(self, partition: int) -> DB:
         try:
             return self._dbs[partition]
         except KeyError:
             db = self._dbs[partition] = self._open_for_partition(partition)
             return db
 
-    def _open_for_partition(self, partition: int) -> rocksdb.DB:
+    def _open_for_partition(self, partition: int) -> DB:
         return self.options.open(self.partition_path(partition))
 
     def _get(self, key: bytes) -> bytes:
@@ -339,7 +347,6 @@ class Store(base.SerializedStore):
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
                 if db is not None:
-                    print('CLOSING DATABASE: %r' % (tp.partition,))
                     del(db)
         import gc
         gc.collect()  # XXX RocksDB has no .close() method :X
@@ -376,7 +383,7 @@ class Store(base.SerializedStore):
                 return True
         return False
 
-    def _dbs_for_key(self, key: bytes) -> Iterable[rocksdb.DB]:
+    def _dbs_for_key(self, key: bytes) -> Iterable[DB]:
         # Returns cached db if key is in index, otherwise all dbs
         # for linear search.
         try:
@@ -387,7 +394,7 @@ class Store(base.SerializedStore):
     def _size(self) -> int:
         return sum(self._size1(db) for db in self._dbs.values())
 
-    def _size1(self, db: rocksdb.DB) -> int:
+    def _size1(self, db: DB) -> int:
         it = db.iterkeys()  # noqa: B301
         it.seek_to_first()
         return sum(1 for _ in it)

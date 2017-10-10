@@ -214,7 +214,7 @@ coverage:
 
 .PHONY: apicheck
 apicheck:
-	$(SPHINXBUILD) -b apicheck $(ALLSPHINXOPTS) $(BUILDDIR)/apicheck
+	APICHECK=1 $(SPHINXBUILD) -b apicheck $(ALLSPHINXOPTS) $(BUILDDIR)/apicheck
 
 .PHONY: spelling
 spelling:
