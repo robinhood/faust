@@ -32,3 +32,4 @@ cover/
 htmlcov/
 *-cache*
 .checkpoint
+.python-version
