@@ -34,7 +34,6 @@ help:
 	@echo "  test               - Run unittests using current python."
 	@echo "  lint ------------  - Check codebase for problems."
 	@echo "    apicheck         - Check API reference coverage."
-	@echo "    configcheck      - Check configuration reference coverage."
 	@echo "    readmecheck      - Check README.rst encoding."
 	@echo "    contribcheck     - Check CONTRIBUTING.rst encoding"
 	@echo "    flakes --------  - Check code for syntax and style errors."
@@ -90,13 +89,10 @@ dockerdocs: dockerimage
 clean-docs:
 	-rm -rf "$(SPHINX_BUILDDIR)"
 
-lint: flakecheck apicheck configcheck readmecheck
+lint: flakecheck apicheck readmecheck
 
 apicheck:
 	(cd "$(SPHINX_DIR)"; $(MAKE) apicheck)
-
-configcheck:
-	(cd "$(SPHINX_DIR)"; $(MAKE) configcheck)
 
 flakecheck:
 	$(FLAKE8) "$(PROJ)" "$(TESTDIR)" examples/
