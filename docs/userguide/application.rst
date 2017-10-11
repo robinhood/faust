@@ -17,20 +17,15 @@
 Basics
 ======
 
-"I HAVE, alas! Philosophy", begins the first line of the book Faust,
-in the first chapter. An application is an instance of the library Faust,
-and you will need to have one to use it.
+The first thing you need to use Faust is an application.
 
-To create an app in Python you need to provide
-a name (the id), a message broker to use, and a table storage driver.
+To create one in Python you need to provide
+a name (the id), message broker, and a table storage driver to use.
 
 .. sourcecode:: pycon
 
     >>> import faust
     >>> app = faust.App('example', url='kafka://', store='rocksdb://')
-
-The id was set to "example", but you can set it to anything unique to other
-apps using the same broker.
 
 .. _application-facts:
 
@@ -47,9 +42,8 @@ there are clear benefits.
 
 In Django the global settings module means having multiple configurations is
 impossible, and the API is organized by modules so you sometimes
-end up with lots of import statements, and many modules to keep track of,
-and further, you often end up monkey patching to change how something
-works.
+end up with lots of import statements, and many modules to keep track of.
+Further you often end up monkey patching to change how something works.
 
 The application keeps the library flexible to changes, and allows
 for many applications to coexist in the same process space.
@@ -70,7 +64,7 @@ for many applications to coexist in the same process space.
 Configuration
 =============
 
-The default arguments are sensible defaults so you can safely
+The defaults are sensible so you can safely
 use Faust without changing them.  You probably *will want* to
 set the ``url`` and ``store`` options, to configure the broker and
 storage driver.
@@ -82,24 +76,32 @@ the storage driver to ``rocksdb://``:
 
     >>> app = faust.App(
     ...     'myid',
-    ...     url='kafka://example.com',
+    ...     url='kafka://kafka.example.com',
     ...     store='rocksdb://',
     ... )
 
 If a broker url is not set it will use "localhost".
+The first part of the broker URL ("kafka://") is the driver. Only
+:pypi:`aiokafka` is supported in version 1.0.
 
-We heavily recommend using RocksDB in production, as it nearly eliminates
-the waiting time required to recover tables after restart. Using
-the ``memory://`` store is OK when developing your project and testing
-things, but for large tables it can take hours to recover after restart,
-where with with RocksDB it recovers in seconds or less, and also tables
-are persisted to disk so can exceed the size of available memory.
+The store decides how distributed tables are stored locally, and version
+1.0 only supports two options:
 
++----------------+-----------------------------------------------+
+| ``memory://``  | In-memory only (development)                  |
++----------------+-----------------------------------------------+
+| ``rocksdb://`` | `RocksDB`_ an embedded database (production)  |
++----------------+-----------------------------------------------+
 
-If you don't set a broker url it will use the local host
-If you wish to configure additional settings, they will be keyword-only
-arguments::
+Using the ``memory://`` store is OK when developing your project and testing
+things out, but for large tables it can take hours to recover after
+restart.
 
+`RocksDB`_ recovers in seconds or less, is embedded so don't require a server or
+additional infrastructure, and it's stored on the file system so tables can exceed
+available memory.
+
+.. _`RocksDB`: http://rocksdb.org/
 
 Parameters
 ----------
