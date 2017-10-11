@@ -124,17 +124,15 @@ class Collection(Service, CollectionT):
 
     def _send_changelog(self, key: Any, value: Any) -> None:
         event = current_event()
-        partition: int = None
-        if event is not None:
-            send = cast(Event, event)._attach
-            partition = event.message.partition
-        else:
-            send = self.app.send_soon
-        send(self.changelog_topic, key, value,
-             partition=partition,
-             key_serializer='json',
-             value_serializer='json',
-             callback=self._on_changelog_sent)
+        if event is None:
+            raise RuntimeError('Cannot modify table outside of agent/stream.')
+        cast(Event, event)._attach(
+            self.changelog_topic, key, value,
+            partition=event.message.partition,
+            key_serializer='json',
+            value_serializer='json',
+            callback=self._on_changelog_sent,
+        )
 
     def _on_changelog_sent(self, fut: FutureMessage) -> None:
         res: RecordMetadata = fut.result()

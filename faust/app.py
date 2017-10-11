@@ -1,7 +1,10 @@
 """Faust Application.
 
-The app connects everything and can be inherited from
-to customize how Faust works.
+Everything starts here.
+An app is an instance of the Faust library.
+
+For very special needs it can be inherited from, and a subclass
+has the ability to change how almost everything works.
 
 """
 import asyncio
@@ -245,19 +248,6 @@ class AppService(Service):
         # start processing.
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
-
-    @Service.task
-    async def _drain_message_buffer(self) -> None:
-        # Background task responsible for publishing buffered messages
-        # (e.g. see app.send_soon()).
-
-        # localize deep attribute access
-        get = self.app._message_buffer.get
-
-        while not self.should_stop:
-            fut: FutureMessage = await get()
-            pending = fut.message
-            pending.channel.publish_message(fut)
 
     @property
     def label(self) -> str:
@@ -877,66 +867,6 @@ class App(AppT, ServiceProxy):
             key_serializer, value_serializer, callback,
         )
 
-    def send_soon(
-            self,
-            channel: Union[ChannelT, str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        """Send event to stream soon.
-
-        This is for use by non-async (``def x``) functions that cannot do
-        ``await send``. It creates a bridge between these worlds by adding
-        the message to a buffer consumed by a background coroutine.
-
-        Warnings:
-
-            Use with caution: The use of a buffer implies the risk of
-            backpressure building up if the background coroutine cannot
-            consume fast enough.
-
-            Since the actual sending happens in the event loop, the message
-            will not be sent if the event loop is never scheduled to run,
-            like in this example:
-
-            .. sourcecode:: python
-
-                def schedule_message():
-                    app.send_soon('topic', 'value')
-                    for i in range(1000):
-                        time.sleep(1.0)
-
-                async def program():
-                    # schedules message but then sleeps in a blocking manner.
-                    schedule_message()
-                    # enters event loop to actually send message
-                    await asyncio.sleep(0)
-
-            The above will halt transmission of the message for 1000 seconds!
-            Note that time.sleep is used as an example of a blocking function,
-            not to be confused with the asyncio.sleep alternative.  Hopefully
-            you don't have any time.sleep calls in your asyncio application,
-            but the same principle applies to any non-async call
-            not returning in a timely manner.
-
-            The example above, or something blocking for far shorter
-            can also create backpressure.  To fix that problem you'd
-            have to insert something that periodically yields to the
-            event loop, but that is not possible for non-async functions.
-
-            As a result ``send_soon`` should only be used in cases
-            where you know you will be re-entering the event loop pretty
-            much immediately.
-        """
-        chan = self.topic(channel) if isinstance(channel, str) else channel
-        fut = chan.as_future_message(
-            key, value, partition, key_serializer, value_serializer, callback)
-        self._message_buffer.put(fut)
-        return fut
-
     def _send_attached(
             self,
             message: Message,
@@ -1170,13 +1100,6 @@ class App(AppT, ServiceProxy):
     @monitor.setter
     def monitor(self, monitor: Monitor) -> None:
         self._monitor = monitor
-
-    @cached_property
-    def _message_buffer(self) -> asyncio.Queue:
-        return self.FlowControlQueue(
-            # it's important that we don't clear the buffered messages
-            # on_partitions_assigned
-            maxsize=1000, loop=self.loop, clear_on_resume=False)
 
     @cached_property
     def _fetcher(self) -> ServiceT:

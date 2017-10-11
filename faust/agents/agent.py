@@ -428,18 +428,6 @@ class Agent(AgentT, ServiceProxy):
             raise ValueError('Channels are unnamed topics')
         return cast(str, topic)
 
-    def send_soon(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        """Send message eventually (non async), to topic used by agent."""
-        return self.channel.send_soon(key, value, partition,
-                                      key_serializer, value_serializer)
-
     async def map(
             self,
             values: Union[AsyncIterable, Iterable],

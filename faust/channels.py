@@ -314,25 +314,6 @@ class Channel(ChannelT):
             await maybe_async(fut.message.callback(fut))
         return fut
 
-    def send_soon(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        """Send message to channel (asynchronous version).
-
-        Notes:
-            This can be used from non-async functions, but with the caveat
-            that sending of the message will be scheduled in the event loop.
-            This will buffer up the message, making backpressure a concern.
-        """
-        return self.app.send_soon(
-            self, key, value, partition,
-            key_serializer, value_serializer, callback)
-
     @stampede
     async def maybe_declare(self) -> None:
         ...

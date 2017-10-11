@@ -145,16 +145,6 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def send_soon(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None) -> Awaitable[RecordMetadata]:
-        ...
-
-    @abc.abstractmethod
     @no_type_check  # XXX mypy bugs out on this
     async def map(
             self,

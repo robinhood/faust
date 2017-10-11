@@ -126,16 +126,6 @@ class ChannelT(AsyncIterator):
                               wait: bool = True) -> Awaitable[RecordMetadata]:
         ...
 
-    @abc.abstractmethod
-    def send_soon(
-            self, key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        ...
-
     @stampede
     @abc.abstractmethod
     async def maybe_declare(self) -> None:

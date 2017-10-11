@@ -238,17 +238,6 @@ class AppT(ServiceT):
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         ...
 
-    @abc.abstractmethod
-    def send_soon(
-            self, channel: Union[ChannelT, str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        ...
-
     @stampede
     @abc.abstractmethod
     async def maybe_start_producer(self) -> ProducerT:
