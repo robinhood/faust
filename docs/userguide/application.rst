@@ -17,43 +17,42 @@
 Basics
 ======
 
-To start using Faust you must define an application instance:
+"I HAVE, alas! Philosophy", begins the first line of the book Faust,
+in the first chapter. An application is an instance of the library Faust,
+and you will need to have one to use it.
+
+To create an app in Python you need to provide
+a name (the id), a message broker to use, and a table storage driver.
 
 .. sourcecode:: pycon
 
     >>> import faust
-    >>> app = faust.App('example')
+    >>> app = faust.App('example', url='kafka://', store='rocksdb://')
 
-The first argument is the name, and ID of the app.  The ID is used to generate
-topics and consumer groups in Kafka.
+The id was set to "example", but you can set it to anything unique to other
+apps using the same broker.
 
 .. _application-facts:
 
 The application...
 ------------------
 
-- Is used to encapsulate one or more tasks, forming a process that handles
-  streams and maintains tables of information shared between those tasks.
+The application is an instance of the Faust library.
 
-- Can execute on many machines in parallel, forming a cluster of application
-  instances.
+For very special needs it can be inherited from, and a subclass
+will have the ability to change how almost everything works.
 
-- But application instances do not share state between them.
+Comparing the application to the interface of frameworks like Django,
+there are clear benefits.
 
-    `Instance-A` of 'example' can not access information in tables on
-    `Instance-B`: their memory is after all separate, and all communication
-    happens via message passing.
+In Django the global settings module means having multiple configurations is
+impossible, and the API is organized by modules so you sometimes
+end up with lots of import statements, and many modules to keep track of,
+and further, you often end up monkey patching to change how something
+works.
 
-- Handles configuration.
-
-- Manages sensors that record statistics and monitors running streams.
-
-- Defines how Faust works.
-
-    You can create an application subclass to override how streams and
-    tables are created, how messages are serialized and deserialized, and so
-    on.
-
+The application keeps the library flexible to changes, and allows
+for many applications to coexist in the same process space.
 
 .. topic:: It is safe to...
 
@@ -71,18 +70,13 @@ The application...
 Configuration
 =============
 
-A number of keyword arguments are avaialable when instantiating the app, these
-form the configuration of your Faust application.
+The default arguments are sensible defaults so you can safely
+use Faust without changing them.  You probably *will want* to
+set the ``url`` and ``store`` options, to configure the broker and
+storage driver.
 
-The only required paramater is the application id, a string shared by
-all instances of the app, that uniquely identifies it:
-
-.. sourcecode:: pycon
-
-    >>> app = faust.App('myid')
-
-The rest of the configuration are passed as keyword-only arguments,
-and all of the options described below are optional:
+Here we set the broker url to ``kafka://kafka.example.com``, and
+the storage driver to ``rocksdb://``:
 
 .. sourcecode:: python
 
@@ -92,6 +86,21 @@ and all of the options described below are optional:
     ...     store='rocksdb://',
     ... )
 
+If a broker url is not set it will use "localhost".
+
+We heavily recommend using RocksDB in production, as it nearly eliminates
+the waiting time required to recover tables after restart. Using
+the ``memory://`` store is OK when developing your project and testing
+things, but for large tables it can take hours to recover after restart,
+where with with RocksDB it recovers in seconds or less, and also tables
+are persisted to disk so can exceed the size of available memory.
+
+
+If you don't set a broker url it will use the local host
+If you wish to configure additional settings, they will be keyword-only
+arguments::
+
+
 Parameters
 ----------
 
@@ -99,10 +108,15 @@ Parameters
     :type: ``str``
 
     A string that uniquely identifies the app, to be shared between all
-    instances of the app.  Two app instances with the same ID is considered
+    instances of the app.  Two app instances with the same id is considered
     to be in the same group.
 
     This parameter is required.
+
+    .. admonition:: The id and Kafka
+
+        When using Kafka, the id is used to generate app-local topics, and
+        names for consumer groups, etc.
 
 `url`
     :type: ``str``
@@ -112,7 +126,7 @@ Parameters
 
     Currently the only supported transport is the ``aiokafka://`` Kafka client.
 
-    You can specify a list of hosts by separating them using semicomma:
+    You can specify a list of hosts by separating them using semi-comma:
 
     .. sourcecode:: text
 
