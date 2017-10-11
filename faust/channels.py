@@ -376,34 +376,27 @@ class Channel(ChannelT):
         if not self.is_iterator:
             raise RuntimeError('Need to call channel.__aiter__()')
         loop = self.loop
-        # coro #1: Get value from channel queue.
-        coro_get_val = asyncio.ensure_future(self.queue.get(), loop=loop)
-        # coro #2: Get error from errors queue.
-        coro_get_exc = asyncio.ensure_future(self.errors.get(), loop=loop)
+        coro_get_val = None
+        coro_get_exc = None
+        try:
+            # coro #1: Get value from channel queue.
+            coro_get_val = asyncio.ensure_future(self.queue.get(), loop=loop)
+            coro_get_exc = asyncio.ensure_future(self.errors.get(), loop=loop)
 
-        # wait for first thing to happen: channel value, or thrown exception
-        done, pending = await asyncio.wait(
-            [coro_get_val, coro_get_exc],
-            return_when=asyncio.FIRST_COMPLETED,
-            loop=loop)
-
-        if coro_get_exc.done():
-            # we got an exception from Channel.throw(exc):
-            #    cancel the other coro and re-raise the error thrown.
-            coro_get_val.cancel()
-            raise coro_get_exc.result()
-        else:
-            # seemingly we got a value, so we need to cancel the
-            # waiting for exception coroutine so it doesn't linger
-            # through the next call.
-            coro_get_exc.cancel()
-
-        # yield next value in channel iterator.
-        if coro_get_val.done():
+            # wait for first thing to happen: channel value, or thrown exception
+            done, pending = await asyncio.wait(
+                [coro_get_val, coro_get_exc],
+                return_when=asyncio.FIRST_COMPLETED,
+                loop=loop)
+            if coro_get_exc.done():
+                # we got an exception from Channel.throw(exc):
+                raise coro_get_exc.result()
             return coro_get_val.result()
-
-        # asyncio.wait returned before any completed: shouldn't happen
-        raise RuntimeError('Unexpected asyncio.wait coroutine state')
+        finally:
+            if coro_get_exc and not coro_get_exc.done():
+                coro_get_exc.cancel()
+            if coro_get_val and not coro_get_val.done():
+                coro_get_val.cancel()
 
     async def throw(self, exc: BaseException) -> None:
         await self.errors.put(exc)
