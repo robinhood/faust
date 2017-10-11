@@ -241,7 +241,13 @@ class AppService(Service):
         await self.wait(self.app.tables.recovery_completed.wait())
         # Add all asyncio.Tasks, like timers, etc.
         for task in self.app._tasks:
-            self.add_future(task())
+            # pass app if decorated function takes argument
+            target: Any
+            if inspect.signature(task).parameters:
+                target = task(self.app)
+            else:
+                target = task()
+            self.add_future(target)
 
         # Call the app-is-fully-started callback used by Worker
         # to print the "ready" message when Faust is ready to
