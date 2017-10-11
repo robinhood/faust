@@ -159,6 +159,7 @@ class AppT(ServiceT):
     def channel(self, *,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
+                maxsize: int = 1,
                 loop: asyncio.AbstractEventLoop = None) -> ChannelT:
         ...
 

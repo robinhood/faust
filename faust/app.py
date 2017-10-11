@@ -480,6 +480,7 @@ class App(AppT, ServiceProxy):
     def channel(self, *,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
+                maxsize: int = 1,
                 loop: asyncio.AbstractEventLoop = None) -> ChannelT:
         """Create new channel.
 
@@ -495,6 +496,7 @@ class App(AppT, ServiceProxy):
             self,
             key_type=key_type,
             value_type=value_type,
+            maxsize=maxsize,
             loop=loop,
         )
 

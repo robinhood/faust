@@ -189,6 +189,7 @@ class Channel(ChannelT):
                  is_iterator: bool = False,
                  queue: asyncio.Queue = None,
                  errors: asyncio.Queue = None,
+                 maxsize: int = 1,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
@@ -197,6 +198,7 @@ class Channel(ChannelT):
         self.is_iterator = is_iterator
         self._queue = queue
         self._errors = errors
+        self.maxsize = maxsize
         self.deliver = self._compile_deliver()  # type: ignore
 
     @property
@@ -206,7 +208,7 @@ class Channel(ChannelT):
             # which means the loop is not accessed by merely defining
             # a channel at module scope.
             self._queue = self.app.FlowControlQueue(
-                maxsize=1,
+                maxsize=self.maxsize,
                 loop=self.loop,
                 clear_on_resume=True,
             )

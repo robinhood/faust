@@ -72,6 +72,7 @@ class ChannelT(AsyncIterator):
     key_type: ModelArg
     value_type: ModelArg
     loop: asyncio.AbstractEventLoop = None
+    maxsize: int
 
     @abc.abstractmethod
     def __init__(
@@ -82,6 +83,7 @@ class ChannelT(AsyncIterator):
             is_iterator: bool = False,
             queue: asyncio.Queue = None,
             errors: asyncio.Queue = None,
+            maxsize: int = 1,
             loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
