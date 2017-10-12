@@ -146,6 +146,10 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         ...
 
+    @abc.abstractmethod
+    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+        ...
+
     @property
     @abc.abstractmethod
     def changelog_topics(self) -> Set[str]:
