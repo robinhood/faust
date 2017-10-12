@@ -95,16 +95,21 @@ def canoname(obj: Any, *, main_name: str = None) -> str:
 
 
 def _detect_main_name() -> str:
-    path = Path(sys.modules['__main__'].__file__).absolute()
-    node = path.parent
-    seen = []
-    while node:
-        if (node / '__init__.py').exists():
-            seen.append(node.stem)
-            node = node.parent
-        else:
-            break
-    return '.'.join(seen + [path.stem])
+    try:
+        filename = sys.modules['__main__'].__file__
+    except (AttributeError, KeyError):  # ipython/REPL
+        return '__main__'
+    else:
+        path = Path(filename).absolute()
+        node = path.parent
+        seen = []
+        while node:
+            if (node / '__init__.py').exists():
+                seen.append(node.stem)
+                node = node.parent
+            else:
+                break
+        return '.'.join(seen + [path.stem])
 
 
 def annotations(cls: Type,
