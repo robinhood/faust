@@ -234,6 +234,7 @@ class Channel(ChannelT):
             'value_type': self.value_type,
             'queue': self.queue if self.clone_shares_queue else None,
             'errors': self.errors if self.clone_shares_queue else None,
+            'maxsize': self.maxsize,
         }
 
     def stream(self, coroutine: StreamCoroutine = None,
@@ -383,7 +384,8 @@ class Channel(ChannelT):
             coro_get_val = asyncio.ensure_future(self.queue.get(), loop=loop)
             coro_get_exc = asyncio.ensure_future(self.errors.get(), loop=loop)
 
-            # wait for first thing to happen: channel value, or thrown exception
+            # wait for first thing to happen:
+            #    event on channel,or exception thrown
             done, pending = await asyncio.wait(
                 [coro_get_val, coro_get_exc],
                 return_when=asyncio.FIRST_COMPLETED,

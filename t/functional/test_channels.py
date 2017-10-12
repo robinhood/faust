@@ -1,6 +1,20 @@
 import asyncio
+import faust
+from faust.types import StreamT
 from faust.utils.aiter import aiter, anext
+from faust.utils.futures import FlowControlQueue
+from mode import label
 import pytest
+
+
+class Point(faust.Record):
+    x: int
+    y: int
+
+
+@pytest.fixture
+def channel(app):
+    return app.channel()
 
 
 async def times_out(coro, *, timeout=0.01):
@@ -11,6 +25,65 @@ async def times_out(coro, *, timeout=0.01):
 
 async def is_empty(it, *, timeout=0.01):
     return await times_out(anext(it), timeout=timeout)
+
+
+def test_repr(channel):
+    assert repr(channel)
+
+
+def test_label(channel):
+    assert label(channel)
+
+
+def test_str(channel):
+    assert str(channel)
+
+
+def test_stream(channel):
+    s = channel.stream()
+    assert isinstance(s, StreamT)
+    assert s.channel.queue is channel.queue
+
+
+def test_stream_with_coroutine(channel):
+    async def processor(stream):
+        return (x for x in stream)
+    s = channel.stream(processor)
+    assert s._coroutine
+
+
+def test_get_topic_name(channel):
+    with pytest.raises(NotImplementedError):
+        channel.get_topic_name()
+
+
+def test_clone(app):
+    c = app.channel(key_type=Point, value_type=Point, maxsize=99, loop=33)
+    assert isinstance(c.queue, FlowControlQueue)
+    assert c.key_type is Point
+    assert c.value_type is Point
+    assert c.maxsize == 99
+    assert c.loop == 33
+    assert c.clone_shares_queue
+    assert not c.is_iterator
+
+    c2 = c.clone()
+    assert c2.key_type is Point
+    assert c2.value_type is Point
+    assert c2.maxsize == 99
+    assert c2.loop == 33
+    assert not c2.is_iterator
+    assert c2.queue is c.queue
+    assert c2.errors is c.errors
+
+    c3 = c2.clone(is_iterator=True)
+    assert c3.key_type is Point
+    assert c3.value_type is Point
+    assert c3.maxsize == 99
+    assert c3.loop == 33
+    assert c3.is_iterator
+    assert c3.queue is c.queue
+    assert c3.errors is c.errors
 
 
 @pytest.mark.asyncio
@@ -40,6 +113,3 @@ async def test_send_receive(app):
     it2 = aiter(channel2)
     assert await anext(it2) == b'xuzzy'
     assert await is_empty(it2)
-
-
-

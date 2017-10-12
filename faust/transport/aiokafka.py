@@ -198,7 +198,8 @@ class Consumer(base.Consumer):
         for partition in tps:
             await self._consumer.position(partition)
 
-    async def seek_to_latest(self, *partitions: TP, wait: bool = False) -> None:
+    async def seek_to_latest(self, *partitions: TP,
+                             wait: bool = False) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO LATEST: %r', partition)
             self._consumer._subscription.need_offset_reset(
