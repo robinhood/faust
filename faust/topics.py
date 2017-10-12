@@ -78,6 +78,7 @@ class Topic(Channel, TopicT):
                  errors: asyncio.Queue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
+                 maxsize: int = 1,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics
         super().__init__(
@@ -88,6 +89,7 @@ class Topic(Channel, TopicT):
             is_iterator=is_iterator,
             queue=queue,
             errors=errors,
+            maxsize=maxsize,
         )
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer

@@ -54,6 +54,7 @@ class TopicT(ChannelT):
                  errors: asyncio.Queue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
+                 maxsize: int = 1,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
