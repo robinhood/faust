@@ -62,7 +62,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     async def _build_highwaters(self) -> None:
         consumer = self.app.consumer
         tps = self.tps
-        await consumer.seek_to_latest(*tps)
+        await consumer.seek_to_latest(*tps, wait=True)
         self._highwaters.clear()
         self._highwaters.update({
             # FIXME the -1 here is because of the way we commit offsets
