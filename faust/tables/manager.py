@@ -2,9 +2,8 @@
 import asyncio
 import typing
 from collections import defaultdict
-from contextlib import suppress
 from typing import (
-    Any, AsyncIterable, Iterable, List, MutableMapping, Optional, cast,
+    Any, AsyncIterable, Iterable, List, MutableMapping, cast,
 )
 from mode import PoisonpillSupervisor, Service
 from mode.utils.compat import Counter
@@ -39,7 +38,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     shutdown_timeout = None
 
     _highwaters: Counter[TP] = None
-    _stop_event: Optional[asyncio.Event] = None
+    _stop_event: asyncio.Event = None
 
     def __init__(self, table: CollectionT,
                  channel: ChannelT,
@@ -199,8 +198,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
-    _ongoing_recovery: Optional[asyncio.Future] = None
-    _stop_recovery: Optional[asyncio.Event] = None
+    _ongoing_recovery: asyncio.Future = None
+    _stop_recovery: asyncio.Event = None
     _recovery_started: asyncio.Event
     recovery_completed: asyncio.Event
 
