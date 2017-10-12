@@ -1,6 +1,10 @@
 import aiohttp
 from functools import wraps
-from .types.app import AppT, RoutedViewGetHandler, ViewGetHandler
+from typing import Awaitable
+from .types.app import (
+    AppT, Request, Response, RoutedViewGetHandler,
+    ViewGetHandler, Web,
+)
 from .types.assignor import PartitionAssignorT
 from .types.core import K
 from .types.router import HostToPartitionMap, RouterT
@@ -48,8 +52,8 @@ class Router(RouterT):
         def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
 
             @wraps(fun)
-            async def get(web, request):
-                key = request.GET[shard_param]
+            async def get(web: Web, request: Request) -> Response:
+                key = request.query[shard_param]
                 table_name = table.name
 
                 dest_url = router.key_store(table_name, key)

@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, MutableMapping
 from mode import Service
 from yarl import URL
 from ..cli._env import WEB_BIND, WEB_PORT
@@ -31,7 +31,7 @@ class Web(Service):
         self.bind = bind or WEB_BIND
         super().__init__(**kwargs)
 
-    def text(self, value: str) -> Any:
+    def text(self, value: str, *, content_type: str = None) -> Any:
         ...
 
     def html(self, value: str) -> Any:
@@ -53,3 +53,12 @@ class Web(Service):
 
 class Request:
     method: str
+    url: URL
+
+    @property
+    def match_info(self) -> MutableMapping[str, str]:
+        ...
+
+    @property
+    def query(self) -> MutableMapping[str, str]:
+        ...

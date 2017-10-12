@@ -1,11 +1,7 @@
 import abc
 import typing
-from typing import List, MutableMapping
 from .core import K
-
-
-TopicToPartitionMap = MutableMapping[str, List[int]]
-HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
+from .assignor import HostToPartitionMap
 
 
 if typing.TYPE_CHECKING:
