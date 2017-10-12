@@ -988,6 +988,7 @@ class App(AppT, ServiceProxy):
         try:
             self.log.dev('ON PARTITIONS REVOKED')
             await self.topics.on_partitions_revoked(revoked)
+            await self.tables.on_partitions_revoked(revoked)
             await self._fetcher.stop()
             assignment = self.consumer.assignment()
             if assignment:
@@ -996,7 +997,6 @@ class App(AppT, ServiceProxy):
                 await self.consumer.wait_empty()
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
-            await self.tables.on_partitions_revoked(revoked)
         except Exception as exc:
             await self.crash(exc)
 
