@@ -34,8 +34,7 @@ class Table(Collection, TableT, ManagedUserDict):
 
     def __missing__(self, key: Any) -> Any:
         if self.default is not None:
-            value = self.data[key] = self.default()
-            return value
+            return self.default()
         raise KeyError(key)
 
     def _get_key(self, key: Any) -> Any:
