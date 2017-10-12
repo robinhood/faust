@@ -110,11 +110,13 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def seek_to_latest(self, *partitions: TP) -> None:
+    async def seek_to_latest(self, *partitions: TP,
+                             wait: bool = False) -> None:
         ...
 
     @abc.abstractmethod
-    async def seek_to_beginning(self, *partitions: TP) -> None:
+    async def seek_to_beginning(self, *partitions: TP,
+                                wait: bool = False) -> None:
         ...
 
     @abc.abstractmethod

@@ -198,19 +198,22 @@ class Consumer(base.Consumer):
         for partition in tps:
             await self._consumer.position(partition)
 
-    async def seek_to_latest(self, *partitions: TP) -> None:
+    async def seek_to_latest(self, *partitions: TP, wait: bool = False) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO LATEST: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.LATEST)
-        await self._consumer._fetcher.update_fetch_positions(partitions)
+        if wait:
+            await self._consumer._fetcher.update_fetch_positions(partitions)
 
-    async def seek_to_beginning(self, *partitions: TP) -> None:
+    async def seek_to_beginning(self, *partitions: TP,
+                                wait: bool = False) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO BEGINNING: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.EARLIEST)
-        await self._consumer._fetcher.update_fetch_positions(partitions)
+        if wait:
+            await self._consumer._fetcher.update_fetch_positions(partitions)
 
     async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)
