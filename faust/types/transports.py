@@ -2,8 +2,8 @@ import abc
 import asyncio
 import typing
 from typing import (
-    AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar,
-    Iterable, Mapping, Optional, Set, Tuple, Type, Union, no_type_check,
+    AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar, Iterable,
+    Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, no_type_check,
 )
 from mode import Seconds, ServiceT
 from yarl import URL
@@ -110,13 +110,11 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def seek_to_latest(self, *partitions: TP,
-                             wait: bool = False) -> None:
+    async def seek_to_latest(self, *partitions: TP) -> None:
         ...
 
     @abc.abstractmethod
-    async def seek_to_beginning(self, *partitions: TP,
-                                wait: bool = False) -> None:
+    async def seek_to_beginning(self, *partitions: TP) -> None:
         ...
 
     @abc.abstractmethod
@@ -129,6 +127,10 @@ class ConsumerT(ServiceT):
 
     @abc.abstractmethod
     async def on_task_error(self, exc: BaseException) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         ...
 
 

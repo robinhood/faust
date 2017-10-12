@@ -198,23 +198,17 @@ class Consumer(base.Consumer):
         for partition in tps:
             await self._consumer.position(partition)
 
-    async def seek_to_latest(self, *partitions: TP,
-                             wait: bool = False) -> None:
+    async def seek_to_latest(self, *partitions: TP) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO LATEST: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.LATEST)
-        if wait:
-            await self._consumer._fetcher.update_fetch_positions(partitions)
 
-    async def seek_to_beginning(self, *partitions: TP,
-                                wait: bool = False) -> None:
+    async def seek_to_beginning(self, *partitions: TP) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO BEGINNING: %r', partition)
             self._consumer._subscription.need_offset_reset(
                 partition, OffsetResetStrategy.EARLIEST)
-        if wait:
-            await self._consumer._fetcher.update_fetch_positions(partitions)
 
     async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)
@@ -225,6 +219,9 @@ class Consumer(base.Consumer):
 
     def highwater(self, tp: TP) -> int:
         return self._consumer.highwater(tp)
+
+    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+        return await self._consumer.end_offsets(partitions)
 
 
 class Producer(base.Producer):
