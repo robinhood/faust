@@ -725,7 +725,6 @@ class App(AppT, ServiceProxy):
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
 
         def _decorator(fun: PageArg) -> Type[Site]:
-            print(f'Entering page decorator {fun}')
             view: Type[View] = None
             name: str
             if inspect.isclass(fun):
@@ -760,7 +759,6 @@ class App(AppT, ServiceProxy):
                 ...
             venusian.attach(site, on_discovered, category='faust.page')
             return site
-        print(f'page decorator {_decorator}')
         return _decorator
 
     def command(self,
