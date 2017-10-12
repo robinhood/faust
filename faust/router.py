@@ -57,11 +57,11 @@ class Router(RouterT):
                 table_name = table.name
 
                 dest_url = router.key_store(table_name, key)
-                host, port = dest_url.split(":")
 
                 if dest_url == app.canonical_url:
                     return await fun(web, request)
 
+                host, port = dest_url.host, int(dest_url.port)
                 routed_url = request.url.with_host(host).with_port(int(port))
                 resp = await aiohttp.request('get', routed_url)
 
