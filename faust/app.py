@@ -48,7 +48,7 @@ from .types import (
     CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
     RecordMetadata, StreamCoroutine, TP, TopicT, V,
 )
-from .types.app import AppT, PageArg, ViewGetHandler
+from .types.app import AppT, AutodiscoverArg, PageArg, TaskArg, ViewGetHandler
 from .types.assignor import LeaderAssignorT
 from .types.serializers import RegistryT
 from .types.streams import StreamT
@@ -244,9 +244,9 @@ class AppService(Service):
             # pass app if decorated function takes argument
             target: Any
             if inspect.signature(task).parameters:
-                target = task(self.app)
+                target = cast(Callable[[AppT], Awaitable], task)(self.app)
             else:
-                target = task()
+                target = cast(Callable[[], Awaitable], task)()
             self.add_future(target)
 
         # Call the app-is-fully-started callback used by Worker
@@ -321,20 +321,22 @@ class App(AppT, ServiceProxy):
 
     # @app.task decorator adds asyncio tasks to be started
     # with the app here.
-    _tasks: MutableSequence[Callable[[], Awaitable]]
+    _tasks: MutableSequence[TaskArg]
 
     def __init__(
             self, id: str,
             *,
             url: Union[str, URL] = TRANSPORT_URL,
             store: Union[str, URL] = 'memory://',
+            autodiscover: AutodiscoverArg = False,
+            origin: str = None,
             avro_registry_url: Union[str, URL] = None,
             canonical_url: Union[str, URL] = None,
             client_id: str = CLIENT_ID,
             datadir: Union[Path, str] = DATADIR,
+            tabledir: Union[Path, str] = TABLEDIR,
             commit_interval: Seconds = COMMIT_INTERVAL,
             table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
-            tabledir: Union[Path, str] = TABLEDIR,
             key_serializer: CodecArg = 'json',
             value_serializer: CodecArg = 'json',
             num_standby_replicas: int = 1,
@@ -351,8 +353,6 @@ class App(AppT, ServiceProxy):
             Worker: SymbolArg[Type[WorkerT]] = WORKER_TYPE,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
-            origin: str = None,
-            autodiscover: Union[Iterable[str], bool] = False,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -422,8 +422,11 @@ class App(AppT, ServiceProxy):
             if isinstance(self.autodiscover, bool):
                 if self.origin is None:
                     raise ImproperlyConfigured(E_NEED_ORIGIN)
+            elif callable(self.autodiscover):
+                modules.extend(
+                    cast(Callable[[], Iterator[str]], self.autodiscover)())
             else:
-                modules.extend(cast(List[str], self.autodiscover))
+                modules.extend(self.autodiscover)
             modules.append(self.origin)
         return modules
 
@@ -577,7 +580,7 @@ class App(AppT, ServiceProxy):
             except Exception as exc:
                 self.log.exception('Consumer error callback raised: %r', exc)
 
-    def task(self, fun: Callable[[], Awaitable]) -> Callable:
+    def task(self, fun: TaskArg) -> TaskArg:
         """Decorator creating an asyncio.Task started with the app.
 
         This is like :meth:`timer` but a one-shot task only
@@ -616,15 +619,15 @@ class App(AppT, ServiceProxy):
         """
         interval_s = want_seconds(interval)
 
-        def _inner(fun: Callable[..., Awaitable]) -> Callable:
+        def _inner(fun: TaskArg) -> TaskArg:
             @self.task
             @wraps(fun)
-            async def around_timer(*args: Any, **kwargs: Any) -> None:
+            async def around_timer(*args: Any) -> None:
                 while not self._service.should_stop:
                     await self._service.sleep(interval_s)
                     should_run = not on_leader or self.is_leader()
                     if should_run:
-                        await fun(*args, **kwargs)
+                        await fun(*args)  # type: ignore
             return around_timer
         return _inner
 

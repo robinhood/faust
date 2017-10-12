@@ -17,9 +17,9 @@
 Basics
 ======
 
-The first thing you need to use Faust is an application.
+The application is an instance of the Faust library.
 
-To create one in Python you need to provide
+To create one in Pythonk you need to provide
 a name (the id), message broker, and a table storage driver to use.
 
 .. sourcecode:: pycon
@@ -27,12 +27,11 @@ a name (the id), message broker, and a table storage driver to use.
     >>> import faust
     >>> app = faust.App('example', url='kafka://', store='rocksdb://')
 
-.. _application-facts:
+.. _application-trivia:
 
-The application...
-------------------
+Trivia
+------
 
-The application is an instance of the Faust library.
 
 For very special needs it can be inherited from, and a subclass
 will have the ability to change how almost everything works.
@@ -80,7 +79,7 @@ the storage driver to ``rocksdb://``:
     ...     store='rocksdb://',
     ... )
 
-If a broker url is not set it will use "localhost".
+"localhost" is used If a broker url is not set.
 The first part of the broker URL ("kafka://") is the driver. Only
 :pypi:`aiokafka` is supported in version 1.0.
 
@@ -144,6 +143,91 @@ Parameters
 
     In production a persistent store, such as ``rocksdb://`` should be used.
 
+`autodiscover`
+    :type: ``Union[bool, Iterable[str], Callable[[], Iterable[str]]]``
+
+    Enable autodiscovery of agent, page and command decorators.
+
+    .. warning::
+
+        The autodiscover functionality uses :pypi:`venusian` to
+        scan wanted packages for ``@app.agent``, ``@app.page``, and
+        ``@app.command`` decorators, but to do so it needs
+        to traverse the package directory and import every package
+        in it.
+
+        Importing random modules like this can be dangerous if best
+        practices are not followed: starting threads, network
+        I/O, monkey-patching, etc. should not happen as a side effect
+        of importing a module.
+
+    The value for this argument can be:
+
+    ``bool``
+        If ``App(autodiscover=True)`` is set the autodiscovery will
+        scan the package name described in the ``origin`` attribute.
+        The ``origin`` attribute is automatically set when you start
+        a worker using the :program:`faust` command with the
+        :option:`faust -A examples.simple <faust -A>`, option set, or
+        execute your main script using `python examples/simple.py`` when
+        that script calls ``app.main()``.
+
+    ``Sequence[str]``
+        The argument can also be a list of packages to scan::
+
+            app = App(..., autodiscover=['proj_orders', 'proj_accounts'])
+
+    ``Callable[[], Sequence[str]]``
+        The argument can also be a function returning a list of packages
+        to scan::
+
+            def get_all_packages_to_scan():
+                ...
+
+             app = App(..., autodiscover=get_all_apps)
+
+    .. admonition:: Django
+
+        If you're using Django you could use this to scan for
+        agents/pages/commands for all packages in ``INSTALLED_APPS``::
+
+            from django.conf import settings
+
+            app = App(..., autodiscover=lambda: settings.INSTALLED_APPS)
+
+        If you're using recent versions of Django, apps may
+        be defined outside of the setting and you should use the following
+        instead::
+
+            from django.apps import apps
+
+            app = App(...,
+                      autodiscover=(config.name
+                                    for config in apps.get_app_configs())
+
+        We use :keyword:`lambda` in the first example, and a generator
+        expression in the latter example. This way you can safely import the
+        module containing this app before the Django settings machinery is
+        initialized.
+
+    .. tip::
+
+        For manual control over autodiscovery, you can also use the
+        :meth:`@discover` method.
+
+
+`origin`
+    :type: ``str``
+    :default: :const:`None`
+
+    This is automatically set when using the :option:`faust -A` option,
+    and when using your app module as a script calling ``app.main()``,
+
+    The origin options defines the name of the module that the app is defined
+    in.  If you create your app in ``examples/simple.py``, then a good value
+    will be "examples.simple" as that's how you'd locate the app on
+    the command line.
+
 `avro_registry_url`
     :type: ``str``
     :default: :const:`None`
@@ -154,12 +238,29 @@ Parameters
 
     NOTE:: Currently unsupported.
 
-`client_id`
+`canonical_url`
+    :type:  ``str``
+    :default: ``socket.gethostname()``
+
+    The canonical URL defines how to reach the web server on a running
+    worker node, and is usually set by combining the :option:`faust worker --web-host`
+    and :option:`faust worker --web-port` command line arguments, not
+    by passing it as a keyword argument to :class:`App`.
+
+`client_id
     :type: ``str``
     :default: `faust-VERSION`
 
     The client id is used to identify the software used, and is not usually
     configured by the user.
+
+`datadir`
+    :type: ``Union[str, pathlib.Path]``
+    :default: ``{appid}-data``
+
+    The directory in which this instance stores local table data, etc.
+    Usually set by the :option:`faust worker --datadir` option, but a default
+    can be passed as a keyword argument to :class:`App`.
 
 `commit_interval`
     :type: `float`, :class:`~datetime.timedelta`
@@ -175,7 +276,7 @@ Parameters
 
 `key_serializer`
     :type: ``Union[str, Codec]``
-    :default: :const:`None`
+    :default: ``"json"``
 
     Serializer used for keys by default when no serializer is specified, or a
     model is not being used.
@@ -231,11 +332,25 @@ Parameters
         workload of the application (also sometimes referred as the sharding
         factor of the application).
 
+`reply_to`
+    :type: ``str``
+    :default: `<generated>`
+
+    The name of the reply topic used by this instance.  If not set one will be
+    automatically generated when the app is created.
+
 `create_reply_topic`
     :type: ``bool``
     :default: :const:`False`
 
     Set this to :const:`True` if you plan on using the RPC with agents.
+
+`reply_expires`
+    :type: ``Union[float, datetime.timedelta]``
+    :default: ``timedelta(days=1)``
+
+    The expiry time (in seconds float, or timedelta), for how long replies
+    will stay in the instances local reply topic before being removed.
 
 `Stream`
     :type: ``Union[str, Type]``
@@ -311,19 +426,42 @@ Decorators
     .. automethod:: command
         :noindex:
 
-Creating streams and tables
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Command line
+^^^^^^^^^^^^
+
+.. classa:: App
+    :noindex:
+
+    .. automethod:: main
+
+Defining Tables
+^^^^^^^^^^^^^^^
 
 .. class:: App
     :noindex:
-
-    .. automethod:: stream
-        :noindex:
 
     .. automethod:: Table
         :noindex:
 
     .. automethod:: Set
+        :noindex:
+
+Decorator Discovery
+^^^^^^^^^^^^^^^^^^^
+
+.. class:: App
+    :noindex:
+
+    .. automethod:: discover
+        :noindex:
+
+Creating streams
+^^^^^^^^^^^^^^^^
+
+.. class:: App
+    :noindex:
+
+    .. automethod:: stream
         :noindex:
 
 Sending messages

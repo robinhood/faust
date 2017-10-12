@@ -49,11 +49,26 @@ else:
     class View: ...           # noqa
     class WorkerT: ...        # noqa
 
-__all__ = ['AppT']
+__all__ = [
+    'TaskArg',
+    'ViewGetHandler',
+    'PageArg',
+    'AutodiscoverArg',
+    'AppT',
+]
 
 
+TaskArg = Union[
+    Callable[['AppT'], Awaitable],
+    Callable[[], Awaitable],
+]
 ViewGetHandler = Callable[[Web, Request], Awaitable[Response]]
 PageArg = Union[Type[View], ViewGetHandler]
+AutodiscoverArg = Union[
+    bool,
+    Iterable[str],
+    Callable[[], Iterable[str]],
+]
 
 
 class AppT(ServiceT):
@@ -91,7 +106,7 @@ class AppT(ServiceT):
     router: RouterT
     canonical_url: URL
     origin: str
-    autodiscover: Union[Iterable[str], bool]
+    autodiscover: AutodiscoverArg
 
     agents: MutableMapping[str, AgentT]
     sensors: SensorDelegateT
@@ -103,33 +118,37 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def __init__(self, id: str,
-                 *,
-                 url: Union[str, URL] = 'aiokafka://localhost:9092',
-                 store: Union[str, URL] = 'memory://',
-                 avro_registry_url: Union[str, URL] = None,
-                 canonical_url: Union[str, URL] = None,
-                 client_id: str = '',
-                 commit_interval: Seconds = 9999.0,
-                 table_cleanup_interval: Seconds = 9999.0,
-                 key_serializer: CodecArg = 'json',
-                 value_serializer: CodecArg = 'json',
-                 num_standby_replicas: int = 0,
-                 replication_factor: int = 1,
-                 default_partitions: int = 8,
-                 reply_to: str = None,
-                 reply_expires: Seconds = 9999.0,
-                 Stream: SymbolArg[Type[StreamT]] = '',
-                 Table: SymbolArg[Type[TableT]] = '',
-                 TableManager: SymbolArg[Type[TableManagerT]] = '',
-                 Set: SymbolArg[Type[SetT]] = '',
-                 Serializers: SymbolArg[Type[RegistryT]] = '',
-                 Worker: SymbolArg[Type[WorkerT]] = None,
-                 monitor: Monitor = None,
-                 on_startup_finished: Callable = None,
-                 origin: str = None,
-                 autodiscover: Union[Iterable[str], bool] = False,
-                 loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(
+            self, id: str,
+            *,
+            url: Union[str, URL] = 'aiokafka://localhost:9092',
+            store: Union[str, URL] = 'memory://',
+            autodiscover: AutodiscoverArg = False,
+            origin: str = None,
+            avro_registry_url: Union[str, URL] = None,
+            canonical_url: Union[str, URL] = None,
+            client_id: str = '',
+            datadir: Union[Path, str] = None,
+            tabledir: Union[Path, str] = None,
+            commit_interval: Seconds = 9999.0,
+            table_cleanup_interval: Seconds = 9999.0,
+            key_serializer: CodecArg = 'json',
+            value_serializer: CodecArg = 'json',
+            num_standby_replicas: int = 0,
+            replication_factor: int = 1,
+            default_partitions: int = 8,
+            reply_to: str = None,
+            create_reply_topic: bool = False,
+            reply_expires: Seconds = 9999.0,
+            Stream: SymbolArg[Type[StreamT]] = '',
+            Table: SymbolArg[Type[TableT]] = '',
+            TableManager: SymbolArg[Type[TableManagerT]] = '',
+            Set: SymbolArg[Type[SetT]] = '',
+            Serializers: SymbolArg[Type[RegistryT]] = '',
+            Worker: SymbolArg[Type[WorkerT]] = None,
+            monitor: Monitor = None,
+            on_startup_finished: Callable = None,
+            loop: asyncio.AbstractEventLoop = None) -> None:
         self.on_startup_finished: Callable = None
 
     @abc.abstractmethod
@@ -173,7 +192,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def task(self, fun: Callable[[], Awaitable]) -> Callable:
+    def task(self, fun: TaskArg) -> Callable:
         ...
 
     @abc.abstractmethod
