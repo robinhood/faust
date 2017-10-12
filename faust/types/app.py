@@ -63,6 +63,7 @@ TaskArg = Union[
     Callable[[], Awaitable],
 ]
 ViewGetHandler = Callable[[Web, Request], Awaitable[Response]]
+RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
 AutodiscoverArg = Union[
     bool,
