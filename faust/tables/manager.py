@@ -164,7 +164,6 @@ class ChangelogReader(Service, ChangelogReaderT):
         offsets = self.offsets
 
         async for event in self.channel:
-            await asyncio.sleep(0.5)
             message = event.message
             tp = message.tp
             offset = message.offset
