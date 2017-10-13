@@ -5,6 +5,7 @@ from types import TracebackType
 from typing import (
     Any, AsyncIterator, Awaitable, Type, Union,
 )
+from mode import Seconds
 from mode.utils.compat import AsyncContextManager
 from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
@@ -162,7 +163,11 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def get(self) -> Any:
+    async def get(self, *, timeout: Seconds = None) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def empty(self) -> bool:
         ...
 
     @abc.abstractmethod

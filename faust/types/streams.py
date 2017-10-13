@@ -156,6 +156,10 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
+    async def throw(self, exc: BaseException) -> None:
+        ...
+
+    @abc.abstractmethod
     async def send(self, value: T_contra) -> None:
         ...
 

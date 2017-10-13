@@ -4,7 +4,7 @@ from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
 )
-from mode import get_logger
+from mode import Seconds, get_logger, want_seconds
 from .streams import current_event
 from .types import (
     AppT, CodecArg, FutureMessage, K, Message,
@@ -358,8 +358,14 @@ class Channel(ChannelT):
                 'Cannot put on this channel before aiter(channel)')
         await self.queue.put(value)
 
-    async def get(self) -> Any:
+    async def get(self, *, timeout: Seconds = None) -> Any:
+        timeout_: float = want_seconds(timeout)
+        if timeout_:
+            return await asyncio.wait_for(self.queue.get(), timeout=timeout_)
         return await self.queue.get()
+
+    def empty(self) -> bool:
+        return self.queue.empty() and self.errors.empty()
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:

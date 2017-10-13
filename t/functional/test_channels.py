@@ -1,10 +1,10 @@
-import asyncio
 import faust
 from faust.types import StreamT
 from faust.utils.aiter import aiter, anext
 from faust.utils.futures import FlowControlQueue
 from mode import label
 import pytest
+from .helpers import channel_empty, times_out
 
 
 class Point(faust.Record):
@@ -15,16 +15,6 @@ class Point(faust.Record):
 @pytest.fixture
 def channel(app):
     return app.channel()
-
-
-async def times_out(coro, *, timeout=0.01):
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(coro, timeout=timeout)
-    return True
-
-
-async def is_empty(it, *, timeout=0.01):
-    return await times_out(anext(it), timeout=timeout)
 
 
 def test_repr(channel):
@@ -100,16 +90,16 @@ async def test_send_receive(app):
     assert channel1.queue is not channel2.queue
     assert channel1.errors is it1.errors
     assert channel1.errors is not channel2.errors
-    assert await is_empty(it1)
+    assert await channel_empty(channel1)
     await channel1.put(b'foo')
     assert await anext(it1) == b'foo'
-    assert await is_empty(it1)
+    assert await channel_empty(channel1)
     for i in range(10):
         await channel1.put(i)
     assert await times_out(channel1.put(10))  # maxsize=10
     for i in range(10):
         assert await anext(it1) == i
-    assert await is_empty(it1)
+    assert await channel_empty(channel1)
     it2 = aiter(channel2)
     assert await anext(it2) == b'xuzzy'
-    assert await is_empty(it2)
+    assert await channel_empty(channel2)

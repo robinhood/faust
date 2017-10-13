@@ -431,6 +431,9 @@ class Stream(StreamT, Service):
             )
         raise ValueError('Cannot derive topic from non-topic channel.')
 
+    async def throw(self, exc: BaseException) -> None:
+        await self.channel.throw(exc)
+
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
         # A combined stream is composed of multiple streams that
         # all share the same outbox.
