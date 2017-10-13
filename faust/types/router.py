@@ -1,7 +1,7 @@
 import abc
 import typing
-from .core import K
 from .assignor import HostToPartitionMap
+from .core import K
 
 
 if typing.TYPE_CHECKING:

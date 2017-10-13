@@ -1,6 +1,7 @@
-import aiohttp
 from functools import wraps
-from typing import Awaitable
+from typing import Tuple
+import aiohttp
+from yarl import URL
 from .types.app import (
     AppT, Request, Response, RoutedViewGetHandler,
     ViewGetHandler, Web,
@@ -57,11 +58,10 @@ class Router(RouterT):
                 table_name = table.name
 
                 dest_url = router.key_store(table_name, key)
-
-                if dest_url == app.canonical_url:
+                dest_ident = (host, port) = self._urlident(dest_url)
+                if dest_ident == self._urlident(app.canonical_url):
                     return await fun(web, request)
 
-                host, port = dest_url.host, int(dest_url.port)
                 routed_url = request.url.with_host(host).with_port(int(port))
                 resp = await aiohttp.request('get', routed_url)
 
@@ -71,3 +71,9 @@ class Router(RouterT):
             return get
 
         return _decorator
+
+    def _urlident(self, url: URL) -> Tuple[str, int]:
+        return (
+            url.host if url.scheme else url.path,
+            int(url.port or 80),
+        )
