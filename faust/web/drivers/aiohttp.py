@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
-from aiohttp.web import Application, Response, json_response
+from aiohttp.web import Application, Request, Response, json_response
 from mode import Service
 from mode.threads import ServiceThread
 from .. import base

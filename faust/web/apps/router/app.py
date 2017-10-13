@@ -29,7 +29,7 @@ class KeyMetadata(views.View):
         table_name = request.match_info['name']
         key = request.match_info['key']
         router = self.app.router
-        return web.json(router.key_store(table_name, key))
+        return web.json(str(router.key_store(table_name, key)))
 
 
 class Site(views.Site):

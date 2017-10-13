@@ -6,6 +6,8 @@ from kafka.coordinator.protocol import (
     ConsumerProtocolMemberAssignment, ConsumerProtocolMemberMetadata,
 )
 from mode import get_logger
+from yarl import URL
+
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
@@ -71,13 +73,13 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def _metadata(self) -> ClientMetadata:
         return ClientMetadata(
             assignment=self._assignment,
-            url=self._url,
+            url=str(self._url),
             changelog_distribution=self.changelog_distribution,
         )
 
     @property
-    def _url(self) -> str:
-        return str(self.app.canonical_url)
+    def _url(self) -> URL:
+        return self.app.canonical_url
 
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
@@ -89,7 +91,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         b = sorted(self._assignment.kafka_protocol_assignment(
             self._table_manager))
         assert a == b, f'{a!r} != {b!r}'
-        assert metadata.url == self._url
+        assert metadata.url == str(self._url)
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
         return ConsumerProtocolMemberMetadata(
@@ -264,8 +266,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def tables_metadata(self) -> HostToPartitionMap:
         return self.changelog_distribution
 
-    def key_store(self, topic: str, key: bytes) -> str:
-        return self._tps_url[self.app.producer.key_partition(topic, key)]
+    def key_store(self, topic: str, key: bytes) -> URL:
+        return URL(self._tps_url[self.app.producer.key_partition(topic, key)])
 
 
 __flake8_Sequence_is_used: Sequence  # XXX flake8 bug
