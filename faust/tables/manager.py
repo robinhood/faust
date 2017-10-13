@@ -369,6 +369,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._recover_changelogs(assigned_tps, stop_recovery)
         if not stop_recovery.is_set():
             # This needs to happen if all goes well
+            recover_callback_coros = [
+                table.recover_callback() for table in self.values()
+                if table.recover_callback is not None
+            ]
+            if recover_callback_coros:
+                await asyncio.wait(recover_callback_coros)
             await self.app.consumer.resume_partitions({
                 tp for tp in assigned
                 if not self._is_changelog_tp(tp)

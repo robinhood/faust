@@ -3,7 +3,7 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Iterable, List, MutableMapping,
+    Any, Awaitable, Callable, ClassVar, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
@@ -35,6 +35,9 @@ __all__ = [
 ]
 
 
+RecoverCallback = Callable[..., Awaitable[None]]
+
+
 class CollectionT(JoinableT, ServiceT):
     StateStore: ClassVar[Type[StoreT]] = None
 
@@ -46,6 +49,7 @@ class CollectionT(JoinableT, ServiceT):
     partitions: int
     window: WindowT = None
     help: str
+    recover_callback: RecoverCallback = None
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -93,6 +97,10 @@ class CollectionT(JoinableT, ServiceT):
 
     @abc.abstractmethod
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
         ...
 
 

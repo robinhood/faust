@@ -20,12 +20,15 @@ from ..types import (
 from ..types.models import ModelArg
 from ..types.stores import StoreT
 from ..types.streams import JoinableT, StreamT
-from ..types.tables import CollectionT
+from ..types.tables import CollectionT, RecoverCallback
 from ..types.windows import WindowRange, WindowT
 
 __all__ = ['Collection']
 
 TABLE_CLEANING = 'CLEANING'
+
+
+RecoverCallbackHandler = Callable[..., RecoverCallback]
 
 
 class Collection(Service, CollectionT):
@@ -91,6 +94,11 @@ class Collection(Service, CollectionT):
         self._sensor_on_get = self.app.sensors.on_table_get
         self._sensor_on_set = self.app.sensors.on_table_set
         self._sensor_on_del = self.app.sensors.on_table_del
+
+    def on_recover(self, fun: RecoverCallback) -> RecoverCallbackHandler:
+        assert self.recover_callback is None
+        self.recover_callback = fun
+        return fun
 
     def __hash__(self) -> int:
         # We have to override MutableMapping __hash__, so that this table
