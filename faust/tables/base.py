@@ -108,7 +108,7 @@ class Collection(Service, CollectionT):
         await self.changelog_topic.maybe_declare()
 
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
-        '''Decorator to register table callbacks'''
+        """Add function as callback to be called on table recovery."""
         assert fun not in self._recover_callbacks
         self._recover_callbacks.add(fun)
         return fun
