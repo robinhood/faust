@@ -1,3 +1,4 @@
+"""Wrappers for windowed tables."""
 import operator
 import typing
 from typing import Any, Callable, Iterator, cast
@@ -15,6 +16,29 @@ __all__ = ['WindowSet', 'WindowWrapper']
 
 
 class WindowSet(WindowSetT, FastUserDict):
+    """Represents the windows available for table key.
+
+    ``Table[k]`` returns WinowSet since ``k`` can exist in multiple
+    windows, and to retrieve an actual item we need a timestamp.
+
+    The timestamp of the current event (if this is executing in a stream
+    processor), can be used by accessing ``.current()``::
+
+        Table[k].current()
+
+    similarly the most recent value can be accessed using ``.now()``::
+
+        Table[k].now()
+
+    from delta of the time of the current event::
+
+        Table[k].delta(timedelta(hours=3))
+
+    or delta from time of other event::
+
+        Table[k].delta(timedelta(hours=3), other_event)
+
+    """
 
     def __init__(self,
                  key: Any,
@@ -102,6 +126,12 @@ class WindowSet(WindowSetT, FastUserDict):
 
 
 class WindowWrapper(WindowWrapperT):
+    """Windowed table wrapper.
+
+    A windowed table does not return concrete values when keys are
+    accessed, instead :class:`WindowSet` is returned so that
+    the values can be further reduced to the wanted time period.
+    """
 
     def __init__(self, table: TableT) -> None:
         self.table = table

@@ -1,3 +1,4 @@
+"""HTTP endpoint showing partition routing destinations."""
 from faust.web import views
 from faust.web.base import Request, Response, Web
 
@@ -5,6 +6,8 @@ __all__ = ['TablesMetadata', 'TableMetadata', 'KeyMetadata']
 
 
 class TablesMetadata(views.View):
+    """List routes for all tables."""
+
     package = 'faust.web.apps.router'
 
     async def get(self, web: Web, request: Request) -> Response:
@@ -13,6 +16,8 @@ class TablesMetadata(views.View):
 
 
 class TableMetadata(views.View):
+    """List route for specific table."""
+
     package = 'faust.web.apps.router'
 
     async def get(self, web: Web, request: Request) -> Response:
@@ -23,6 +28,8 @@ class TableMetadata(views.View):
 
 
 class KeyMetadata(views.View):
+    """List information about key."""
+
     package = 'faust.web.apps.router'
 
     async def get(self, web: Web, request: Request) -> Response:
@@ -33,6 +40,8 @@ class KeyMetadata(views.View):
 
 
 class Site(views.Site):
+    """Router views."""
+
     views = {
         '/': TablesMetadata,
         '/{name}/': TableMetadata,

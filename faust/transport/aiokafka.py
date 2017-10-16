@@ -52,6 +52,8 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
 
 
 class Consumer(base.Consumer):
+    """Kafka consumer using :pypi:`aiokafka`."""
+
     RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
 
     _consumer: aiokafka.AIOKafkaConsumer
@@ -225,6 +227,8 @@ class Consumer(base.Consumer):
 
 
 class Producer(base.Producer):
+    """Kafka producer using :pypi:`aiokafka`."""
+
     _producer: aiokafka.AIOKafkaProducer
 
     def on_init(self) -> None:
@@ -299,6 +303,8 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
+    """Kafka transport using :pypi:`aiokafka`."""
+
     Consumer: ClassVar[Type[ConsumerT]] = Consumer
     Producer: ClassVar[Type[ProducerT]] = Producer
 

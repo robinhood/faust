@@ -1,3 +1,4 @@
+"""Functional utilities."""
 from itertools import groupby
 from typing import Iterable, Iterator, Sequence
 

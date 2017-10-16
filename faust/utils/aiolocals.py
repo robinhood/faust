@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""
-    Parts borrowed from werkzeug.local
+"""Local storage for coroutines.
 
-    :copyright: (c) 2013 by the Werkzeug Team, see AUTHORS for more details.
-    :license: BSD, see LICENSE for more details.
+Parts borrowed from werkzeug.local
+
+:copyright: (c) 2013 by the Werkzeug Team, see AUTHORS for more details.
+:license: BSD, see LICENSE for more details.
 """
 import asyncio
 import threading
@@ -18,7 +19,7 @@ R_CONTEXT = """
 
 
 def _get_ident() -> int:
-    """Gets the current asyncio task id, or 0 if not found."""
+    """Return the current asyncio task id, or 0 if not found."""
     try:
         loop = asyncio.get_event_loop()
     # py3.4 raises AssertionError in this scenario; py3.5+ raises RuntimeError

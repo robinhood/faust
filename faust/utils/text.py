@@ -1,3 +1,4 @@
+"""Text and string manipulation utilities."""
 from difflib import SequenceMatcher
 from typing import Iterable, Iterator, NamedTuple, Optional
 
@@ -16,6 +17,8 @@ __all__ = [
 
 
 class FuzzyMatch(NamedTuple):
+    """Fuzzy match resut."""
+
     ratio: float
     value: str
 
@@ -39,6 +42,35 @@ def didyoumean(haystack: Iterable[str], needle: str,
                fmt_one: str = 'Did you mean {alt}?',
                fmt_none: str = '',
                min_ratio: float = 0.6) -> str:
+    """Generate message with helpful list of alternatives.
+
+    Examples:
+        >>> raise Exception(f'Unknown mode: {mode}! {didyoumean(modes, mode)}')
+
+        >>> didyoumean(['foo', 'bar', 'baz'], 'boo')
+        'Did you mean foo?'
+
+        >>> didyoumean(['foo', 'moo', 'bar'], 'boo')
+        'Did you mean one of foo, moo?'
+
+        >>> didyoumean(['foo', 'moo', 'bar'], 'xxx')
+        ''
+
+    Arguments:
+        haystack: List of all available choices.
+        needle: What the user provided.
+
+    Keyword Arguments:
+        fmt_many: String format returned when there are more than one
+            alternative.  Default is: ``"Did you mean one of {alt}?"``.
+        fmt_one: String format returned when there's a single fuzzy match.
+            Default is: ``"Did you mean {alt}?"``.
+        fmt_none: String format returned when there are no fuzzy matches.
+            Default is: ``""`` (empty string, error message is usually printed
+            before the alternatives so user has context).
+        min_ratio: Minimum fuzzy ratio before word is considered a match.
+            Default is 0.6.
+    """
     return fuzzymatch_choices(
         list(haystack), needle,
         fmt_many=fmt_many,
@@ -54,6 +86,7 @@ def fuzzymatch_choices(haystack: Iterable[str], needle: str,
                        fmt_one: str = '{alt}',
                        fmt_none: str = '',
                        min_ratio: float = 0.6) -> str:
+    """Fuzzy match reducing to error message suggesting an alternative."""
     alt = list(fuzzymatch(haystack, needle, min_ratio=min_ratio))
     if not alt:
         return fmt_none
@@ -86,7 +119,7 @@ def fuzzymatch_iter(haystack: Iterable[str], needle: str,
 def fuzzymatch_best(haystack: Iterable[str], needle: str,
                     *,
                     min_ratio: float = 0.6) -> Optional[str]:
-    'Fuzzy Match - Return best match only (single scalar value).'
+    """Fuzzy Match - Return best match only (single scalar value)."""
     try:
         return sorted(
             fuzzymatch_iter(
@@ -124,6 +157,22 @@ def _abbr_abrupt(s: str, max: int, suffix: str = '...') -> str:
 
 
 def abbr_fqdn(origin: str, name: str, *, prefix: str = '') -> str:
+    """Abbreviate fully-qualified Python name, by removing origin.
+
+    ``app.origin`` is the package where the app is defined,
+    so if this is ``examples.simple``::
+
+        >>> app.origin
+        'examples.simple'
+        >>> abbr_fqdn(app.origin, 'examples.simple.Withdrawal', prefix='[...]')
+        '[...]Withdrawal'
+
+        >>> abbr_fqdn(app.origin, 'examples.other.Foo', prefix='[...]')
+        'examples.other.foo'
+
+    :func:`shorten_fqdn` is similar, but will always shorten a too long name,
+    abbr_fqdn will only remove the origin portion of the name.
+    """
     if name.startswith(origin):
         name = name[len(origin) + 1:]
         return f'{prefix}{name}'
@@ -131,6 +180,7 @@ def abbr_fqdn(origin: str, name: str, *, prefix: str = '') -> str:
 
 
 def shorten_fqdn(s: str, max: int = 32) -> str:
+    """Shorten fully-qualified Python name (like "os.path.isdir")."""
     if len(s) > max:
         module, _, cls = s.rpartition('.')
         module = abbr(module, max - len(cls) - 3, None, words=True)

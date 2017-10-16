@@ -1,3 +1,4 @@
+"""Async iterator lost and found missing methods: aiter, anext, etc."""
 from functools import singledispatch
 from typing import Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple
 
@@ -34,7 +35,12 @@ class AsyncIterWrapper(AsyncIterator):
 
 @singledispatch
 def aiter(it: Any) -> AsyncIterator:
-    """``aiter(x) -> x.__aiter__()``."""
+    """Create iterator from iterable.
+
+    Notes:
+        If the object is already an iterator, the iterator
+        should return self when ``__aiter__`` is called.
+    """
     raise TypeError(f'{it!r} object is not an iterable')
 
 
@@ -49,7 +55,7 @@ def _aiter_iter(it: Iterable) -> AsyncIterator:
 
 
 async def anext(it: AsyncIterator, *default: Any) -> Any:
-    """``await anext(it) -> await it.__anext__()``."""
+    """Get next value from async iterator."""
     if default:
         try:
             return await it.__anext__()

@@ -77,7 +77,6 @@ def find_app(app: str,
         for example passing ``imp=importlib.import_module``.
 
     Examples:
-
         >>> # If providing the name of a module, it will attempt
         >>> # to find an attribute name (.app) in that module.
         >>> # Example below is the same as importing::
@@ -181,6 +180,7 @@ def cli(ctx: click.Context,
         datadir: str,
         json: bool,
         color: bool) -> None:
+    """Command-line interface for the :program:`faust` umbrella command."""
     ctx.obj = {
         'app': app,
         'quiet': quiet,
@@ -209,6 +209,8 @@ def cli(ctx: click.Context,
 
 
 class Command(abc.ABC):
+    """Base class for subcommands."""
+
     UsageError: Type[Exception] = click.UsageError
 
     # To subclass this you only need to define:
@@ -314,7 +316,7 @@ class Command(abc.ABC):
                  title: str = None,
                  title_color: str = 'blue',
                  **kwargs: Any) -> str:
-        """Creates an ANSI representation of a table of two-row tuples.
+        """Create an ANSI representation of a table of two-row tuples.
 
         See Also:
             Keyword arguments are forwarded to
@@ -447,6 +449,7 @@ class AppCommand(Command):
         Arguments:
             typ: The name of the model to create.
             key: The string json of the data to populate it with.
+
         Notes:
             Uses :attr:`value_serializer` to set the :term:`codec`
             for the value (e.g. ``"json"``), as set by the
@@ -456,7 +459,9 @@ class AppCommand(Command):
         return self.to_model(typ, value, self.value_serializer)
 
     def to_model(self, typ: str, value: str, serializer: CodecArg) -> Any:
-        """Generic version of :meth:`to_key`/:meth:`to_value`.
+        """Convert command-line argument to model.
+
+        Generic version of :meth:`to_key`/:meth:`to_value`.
 
         Arguments:
             typ: The name of the model to create.
@@ -464,6 +469,7 @@ class AppCommand(Command):
             serializer: The argument setting it apart from to_key/to_value
                 enables you to specify a custom serializer not mandated
                 by :attr:`key_serializer`, and :attr:`value_serializer`.
+
         Notes:
             Uses :attr:`value_serializer` to set the :term:`codec`
             for the value (e.g. ``"json"``), as set by the

@@ -1,3 +1,4 @@
+"""Monitor using Statsd."""
 import typing
 from time import monotonic
 from typing import Any, cast
@@ -27,6 +28,7 @@ class StatsdMonitor(Monitor):
     This sensor, records statistics to Statsd along with computing metrics
     for the stats server
     """
+
     host: str
     port: int
     prefix: str

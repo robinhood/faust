@@ -1,3 +1,4 @@
+"""Class-based views."""
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
 import jinja2
 from .base import Request, Web
@@ -8,6 +9,8 @@ __all__ = ['View', 'Site']
 
 
 class View:
+    """View (HTTP endpoint)."""
+
     package: str = None
     methods: Mapping[str, Callable[[Web, Request], Awaitable]]
 
@@ -55,6 +58,8 @@ class View:
 
 
 class Site:
+    """Collection of HTTP endpoints (views)."""
+
     views: Mapping[str, Type[View]]
 
     def __init__(self, app: AppT) -> None:

@@ -9,6 +9,7 @@ __all__ = [
 
 
 class Join(JoinT):
+    """Base class for join strategies."""
 
     def __init__(self, *,
                  stream: JoinableT,
@@ -21,16 +22,16 @@ class Join(JoinT):
 
 
 class RightJoin(Join):
-    ...
+    """Right-join strategy."""
 
 
 class LeftJoin(Join):
-    ...
+    """Left-join strategy."""
 
 
 class InnerJoin(Join):
-    ...
+    """Inner-join strategy."""
 
 
 class OuterJoin(Join):
-    ...
+    """Outer-join strategy."""

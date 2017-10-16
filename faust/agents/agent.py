@@ -1,3 +1,4 @@
+"""Agent implementation."""
 import asyncio
 import typing
 
@@ -98,7 +99,7 @@ __all__ = [
 
 
 class Actor(ActorT, Service):
-    'An actor is a specific agent instance.'
+    """An actor is a specific agent instance."""
 
     # Agent will start n * concurrency actors.
 
@@ -203,6 +204,11 @@ class AgentService(Service):
 
 
 class Agent(AgentT, ServiceProxy):
+    """Agent.
+
+    This is the type of object returned by the ``@app.agent`` decorator.
+    """
+
     _channel_iterator: AsyncIterator = None
     _sinks: List[SinkT] = None
 

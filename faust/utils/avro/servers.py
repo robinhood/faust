@@ -35,10 +35,12 @@ class LatestSchemaTuple(NamedTuple):
 
 
 class ClientError(Exception):
-    ...
+    """Error raised by :class:`RegistryClient`."""
 
 
 class RegistryClient:
+    """Client for confluents Avro registry service."""
+
     valid_levels = {'NONE', 'FULL', 'FORWARD', 'BACKWARD'}
     content_type = 'application/vnd.schemaregistry.v1+json'
 

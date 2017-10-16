@@ -1,3 +1,4 @@
+"""Client Assignment."""
 import copy
 from typing import List, MutableMapping, Sequence, Set, Tuple
 from faust.models import Record
@@ -10,6 +11,8 @@ R_COPART_ASSIGNMENT = """
 
 
 class CopartitionedAssignment:
+    """Copartitioned Assignment."""
+
     actives: Set[int]
     standbys: Set[int]
     topics: Set[str]
@@ -77,6 +80,8 @@ class ClientAssignment(Record,
                        serializer='json',
                        include_metadata=False,
                        namespace='@ClientAssignment'):
+    """Client Assignment data model."""
+
     actives: MutableMapping[str, List[int]]  # Topic -> Partition
     standbys: MutableMapping[str, List[int]]  # Topic -> Partition
 
@@ -125,6 +130,8 @@ class ClientMetadata(Record,
                      serializer='json',
                      include_metadata=False,
                      namespace='@ClientMetadata'):
+    """Client Metadata data model."""
+
     assignment: ClientAssignment
     url: str
     changelog_distribution: HostToPartitionMap

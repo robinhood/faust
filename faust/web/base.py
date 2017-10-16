@@ -1,3 +1,4 @@
+"""Base interface for Web server and views."""
 from typing import Any, Callable, MutableMapping
 from mode import Service
 from yarl import URL
@@ -10,10 +11,12 @@ _bytes = bytes
 
 
 class Response:
-    ...
+    """Web server response and status."""
 
 
 class Web(Service):
+    """Web server and HTTP interface."""
+
     app: AppT
 
     bind: str
@@ -52,6 +55,8 @@ class Web(Service):
 
 
 class Request:
+    """HTTP Request."""
+
     method: str
     url: URL
 

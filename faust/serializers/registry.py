@@ -1,3 +1,4 @@
+"""Registry of supported codecs (serializers, compressors, etc.)."""
 import sys
 from typing import Any, Optional, Tuple, Type, cast
 from .codecs import CodecArg, dumps, loads
@@ -13,6 +14,12 @@ IsInstanceArg = Tuple[Type, ...]
 
 
 class Registry(RegistryT):
+    """Registry for serialization/deserialization.
+
+    Keyword Arguments:
+        key_serializer: Default key serializer to use when none provided.
+        value_serializer: Default value serializer to use when none provided.
+    """
 
     def __init__(self,
                  key_serializer: CodecArg = None,

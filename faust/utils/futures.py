@@ -85,7 +85,7 @@ class stampede:
 
 def done_future(result: Any = None, *,
                 loop: asyncio.AbstractEventLoop = None) -> asyncio.Future:
-    """Returns :class:`asyncio.Future` that is already evaluated."""
+    """Return :class:`asyncio.Future` that is already evaluated."""
     f = (loop or asyncio.get_event_loop()).create_future()
     f.set_result(result)
     return f
@@ -142,6 +142,7 @@ class FlowControlEvent:
     Notes:
         In Faust queues are managed by the ``app.flow_control`` event.
     """
+
     if typing.TYPE_CHECKING:
         _queues: WeakSet['FlowControlQueue']
     _queues = None

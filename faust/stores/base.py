@@ -1,3 +1,4 @@
+"""Base class for table storage drivers."""
 import abc
 from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
@@ -8,6 +9,7 @@ from ..types import AppT, CodecArg, CollectionT, EventT, StoreT, TP
 
 
 class Store(StoreT, Service):
+    """Base class for table storage drivers."""
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
@@ -63,7 +65,7 @@ class Store(StoreT, Service):
         return f'{type(self).__name__}: {self.table_name}'
 
 
-class SerializedStoreKeysView(KeysView):
+class _SerializedStoreKeysView(KeysView):
 
     def __init__(self, store: 'SerializedStore') -> None:
         self._mapping = store
@@ -72,7 +74,7 @@ class SerializedStoreKeysView(KeysView):
         yield from self._mapping._keys_decoded()
 
 
-class SerializedStoreValuesView(ValuesView):
+class _SerializedStoreValuesView(ValuesView):
 
     def __init__(self, store: 'SerializedStore') -> None:
         self._mapping = store
@@ -81,7 +83,7 @@ class SerializedStoreValuesView(ValuesView):
         yield from self._mapping._values_decoded()
 
 
-class SerializedStoreItemsView(ItemsView):
+class _SerializedStoreItemsView(ItemsView):
 
     def __init__(self, store: 'SerializedStore') -> None:
         self._mapping = store
@@ -91,6 +93,7 @@ class SerializedStoreItemsView(ItemsView):
 
 
 class SerializedStore(Store):
+    """Base class for table storage drivers requiring serialization."""
 
     @abc.abstractmethod
     def _get(self, key: bytes) -> bytes:
@@ -157,21 +160,21 @@ class SerializedStore(Store):
         return self._contains(self._encode_key(key))
 
     def keys(self) -> KeysView:
-        return SerializedStoreKeysView(self)
+        return _SerializedStoreKeysView(self)
 
     def _keys_decoded(self) -> Iterator:
         for key in self._iterkeys():
             yield self._decode_key(key)
 
     def values(self) -> ValuesView:
-        return SerializedStoreValuesView(self)
+        return _SerializedStoreValuesView(self)
 
     def _values_decoded(self) -> Iterator:
         for value in self._itervalues():
             yield self._decode_value(value)
 
     def items(self) -> ItemsView:
-        return SerializedStoreItemsView(self)
+        return _SerializedStoreItemsView(self)
 
     def _items_decoded(self) -> Iterator[Tuple[Any, Any]]:
         for key, value in self._iteritems():

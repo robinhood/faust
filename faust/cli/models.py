@@ -1,4 +1,4 @@
-"""Program ``faust models`` used to list models
+"""Program ``faust models`` used to list models available.
 
 .. program:: faust models
 """
@@ -13,7 +13,7 @@ __all__ = ['models']
 
 
 class models(AppCommand):
-    """List available models."""
+    """List all available models as tabulated list."""
 
     title = 'Models'
     headers = ['name', 'help']

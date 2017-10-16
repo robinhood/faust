@@ -1,3 +1,4 @@
+"""Partition assignor."""
 from collections import defaultdict
 from typing import Iterable, List, MutableMapping, Sequence, Set, cast
 from kafka.cluster import ClusterMetadata
@@ -38,6 +39,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         https://github.com/dpkp/kafka-python/blob/master/
         kafka/coordinator/assignors/abstract.py
     """
+
     _metadata: ClientMetadata
     _assignment: ClientAssignment
     _table_manager: TableManagerT

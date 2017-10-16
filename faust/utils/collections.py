@@ -1,3 +1,4 @@
+"""Custom data structures."""
 import threading
 from collections import OrderedDict, UserDict, UserList
 from typing import (
@@ -20,7 +21,11 @@ VT = TypeVar('VT')
 
 
 class FastUserDict(UserDict):
-    """Like UserDict but reimplements some methods for better performance."""
+    """Proxy to dict.
+
+    Like :class:`collection.UserDict` but reimplements some methods
+    for better performance when the underlying dictionary is a real dict.
+    """
 
     data: MutableMapping
 
@@ -67,6 +72,8 @@ class FastUserDict(UserDict):
 
 
 class FastUserSet(MutableSet):
+    """Proxy to set."""
+
     data: MutableMapping[Any, bool]
 
     def __contains__(self, key: Any) -> bool:
@@ -91,7 +98,7 @@ class FastUserSet(MutableSet):
 
 
 class FastUserList(UserList):
-    ...  # UserList is already fast.
+    """Proxy to list."""
 
 
 class LRUCacheKeysView(KeysView):
@@ -267,19 +274,19 @@ class ManagedUserDict(FastUserDict):
     """A UserDict that adds callbacks for when keys are get/set/deleted."""
 
     def on_key_get(self, key: Any) -> None:
-        """Called when a key is retrieved."""
+        """Handle that key is being retrieved."""
         ...
 
     def on_key_set(self, key: Any, value: Any) -> None:
-        """Called when a key is set."""
+        """Handle that value for a key is being set."""
         ...
 
     def on_key_del(self, key: Any) -> None:
-        """Called when a key is deleted."""
+        """Handle that a key is deleted."""
         ...
 
     def on_clear(self) -> None:
-        """Called when the dict is cleared."""
+        """Handle that the mapping is being cleared."""
         ...
 
     def __getitem__(self, key: Any) -> Any:

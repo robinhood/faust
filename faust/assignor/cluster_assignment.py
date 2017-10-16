@@ -1,3 +1,4 @@
+"""Cluster assignement."""
 from typing import Any, List, MutableMapping, Sequence, Set
 from .client_assignment import (
     ClientAssignment, ClientMetadata, CopartitionedAssignment,
@@ -11,6 +12,8 @@ class ClusterAssignment(Record,
                         serializer='json',
                         include_metadata=False,
                         namespace='@ClusterAssignment'):
+    """Cluster assignment state."""
+
     subscriptions: MutableMapping[str, Sequence[str]] = None
     assignments: MutableMapping[str, ClientAssignment] = None
 

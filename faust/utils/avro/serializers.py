@@ -18,6 +18,8 @@ MAGIC_BYTE = 0
 
 
 class MessageSerializer:
+    """Avro serializer for Kafka messages."""
+
     Decoder: Type[BinaryDecoder] = BinaryDecoder
     Encoder: Type[BinaryEncoder] = BinaryEncoder
     Reader: Type[DatumReader] = DatumReader

@@ -294,6 +294,7 @@ _extensions_finalized: MutableMapping[str, bool] = {}
 
 
 def register(name: str, codec: CodecT) -> None:
+    """Register new codec in the codec registy."""
     codecs[name] = codec
 
 

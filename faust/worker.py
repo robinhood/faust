@@ -1,4 +1,4 @@
-"""Worker
+"""Worker.
 
 A "worker" starts a single instance of a Faust application.
 
@@ -146,6 +146,7 @@ class Worker(mode.Worker):
            (defaults to the current host name).
         loop (asyncio.AbstractEventLoop): Custom event loop object.
     """
+
     logger = logger
 
     #: The Faust app started by this worker.

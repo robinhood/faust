@@ -1,3 +1,4 @@
+"""Copartitioned Assignor."""
 from itertools import cycle
 from math import ceil
 from typing import Iterable, Iterator, MutableMapping, Optional, Sequence, Set
@@ -24,6 +25,7 @@ class CopartitionedAssignor:
         Currently we raise an exception if number of clients is not enough
         for the desired `replication`.
     """
+
     capacity: int
     num_partitions: int
     replicas: int

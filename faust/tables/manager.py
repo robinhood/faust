@@ -3,7 +3,7 @@ import asyncio
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterable, Iterable, List, MutableMapping, cast,
+    Any, AsyncIterable, Iterable, List, MutableMapping, Set, cast,
 )
 from mode import PoisonpillSupervisor, Service
 from mode.utils.compat import Counter
@@ -34,6 +34,8 @@ TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
 
 class ChangelogReader(Service, ChangelogReaderT):
+    """Service synchronizing table state from changelog topic."""
+
     wait_for_shutdown = True
     shutdown_timeout = None
 
@@ -97,43 +99,46 @@ class ChangelogReader(Service, ChangelogReaderT):
     def _should_start_reading(self) -> bool:
         return self._highwaters != self.offsets
 
+    def _shutdown_early(self) -> None:
+        self._started_reading.set()
+        self.set_shutdown()
+
     @Service.task
     @Service.transitions_to(CHANGELOG_STARTING)
     async def _read(self) -> None:
-        print('READER STARTING: %r' % (self,))
-        table = self.table
         consumer = self.app.consumer
         await consumer.pause_partitions(self.tps)
         await self._build_highwaters()
         if not self._should_start_reading():
             self.log.info('No updates needed')
-            self._started_reading.set()
-            self.set_shutdown()
-            return
+            return self._shutdown_early()
 
-        # RocksDB: Find partitions that we have database files for,
-        # since only one process can have them open at a time.
-        local_tps = {
-            tp for tp in self.tps
-            if not await table.need_active_standby_for(tp)
-        }
+        local_tps = await self._local_tps()
         if local_tps:
             self.log.info('Partitions %r are local to this node',
                           sorted(local_tps))
-
         self.tps = list(set(self.tps) - local_tps)
         if not self.tps:
             self.log.info('No active standby needed')
-            self._started_reading.set()
-            self.set_shutdown()
-            return
+            return self._shutdown_early()
 
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         self.log.info(f'Reading %s records...', self._remaining_total())
         self._started_reading.set()
-        buf: List[EventT] = []
         self.diag.set_flag(CHANGELOG_READING)
+        try:
+            await self._slurp_stream()
+        finally:
+            self.diag.unset_flag(CHANGELOG_READING)
+            await self.app.consumer.pause_partitions({
+                tp for tp in self.tps
+                if tp in self.app.consumer.assignment()
+            })
+            self.set_shutdown()
+
+    async def _slurp_stream(self) -> None:
+        buf: List[EventT] = []
         try:
             async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
@@ -141,7 +146,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                     self.log.info('Recovery aborted')
                     break
                 if len(buf) >= 1000:
-                    table.apply_changelog_batch(buf)
+                    self.table.apply_changelog_batch(buf)
                     buf.clear()
                 if self._should_stop_reading():
                     break
@@ -151,13 +156,17 @@ class ChangelogReader(Service, ChangelogReaderT):
         except StopAsyncIteration:
             pass
         finally:
-            self.diag.unset_flag(CHANGELOG_READING)
             if buf:
-                table.apply_changelog_batch(buf)
+                self.table.apply_changelog_batch(buf)
                 buf.clear()
-            pause_tps = {tp for tp in self.tps if tp in consumer.assignment()}
-            await consumer.pause_partitions(pause_tps)
-            self.set_shutdown()
+
+    async def _local_tps(self) -> Set[TP]:
+        # RocksDB: Find partitions that we have database files for,
+        # since only one process can have them open at a time.
+        return {
+            tp for tp in self.tps
+            if not await self.table.need_active_standby_for(tp)
+        }
 
     async def _read_changelog(self) -> AsyncIterable[EventT]:
         offsets = self.offsets
@@ -181,6 +190,7 @@ class ChangelogReader(Service, ChangelogReaderT):
 
 
 class StandbyReader(ChangelogReader):
+    """Service reading table changelogs to keep an up-to-date backup."""
 
     async def on_stop(self) -> None:
         await self.channel.throw(StopAsyncIteration())
@@ -193,6 +203,7 @@ class StandbyReader(ChangelogReader):
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
+    """Manage tables used by Faust worker."""
 
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]

@@ -103,7 +103,7 @@ class worker(AppCommand):
         return worker.execute_from_commandline()
 
     def banner(self, worker: Worker) -> str:
-        'Generate the text banner emitted before the worker starts.'
+        """Generate the text banner emitted before the worker starts."""
         app = worker.app
         loop = worker.loop
         website = worker.website

@@ -510,7 +510,7 @@ class App(AppT, ServiceProxy):
               name: str = None,
               concurrency: int = 1,
               sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
-        """Decorator used to convert async def function into Faust agent.
+        """Create Agent from async def function.
 
         The decorated function may be an async iterator, in this
         mode the value yielded in reaction to a request will be the reply::
@@ -582,12 +582,20 @@ class App(AppT, ServiceProxy):
                 self.log.exception('Consumer error callback raised: %r', exc)
 
     def task(self, fun: TaskArg) -> TaskArg:
-        """Decorator creating an asyncio.Task started with the app.
+        """Define an async def function to be started with the app.
 
         This is like :meth:`timer` but a one-shot task only
-        executed at startup.
+        executed at worker startup (after recovery and the worker is
+        fully ready for operation).
 
-        Example:
+        If the target function is unary the ``app`` argument is passed::
+
+            >>> @app.task
+            >>> async def on_startup(app):
+            ...    print('STARTING UP: %r' % (app,))
+
+        Nullary functions are also supported::
+
             >>> @app.task
             >>> async def on_startup():
             ...     print('STARTING UP')
@@ -597,7 +605,10 @@ class App(AppT, ServiceProxy):
 
     def timer(self, interval: Seconds,
               on_leader: bool = False) -> Callable:
-        """Decorator creating an asyncio.Task waking up periodically.
+        """Define an async def function to be run at periodic intervals.
+
+        Like :meth:`task`, but executes periodically until the worker
+        is shut down.
 
         This decorator takes an async function and adds it to a
         list of timers started with the app.
@@ -1048,7 +1059,6 @@ class App(AppT, ServiceProxy):
 
     @property
     def producer(self) -> ProducerT:
-        """Default producer instance."""
         if self._producer is None:
             self._producer = self._new_producer()
         return self._producer
@@ -1087,7 +1097,7 @@ class App(AppT, ServiceProxy):
 
     @cached_property
     def tables(self) -> TableManagerT:
-        """Mapping of available tables, and the table manager service."""
+        """Map of available tables, and the table manager service."""
         return self.TableManager(
             app=self, loop=self.loop, beacon=self.beacon)
 

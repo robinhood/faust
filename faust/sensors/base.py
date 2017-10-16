@@ -1,3 +1,4 @@
+"""Base-interface for sensors."""
 from typing import Any, Iterator, Set
 from mode import Service
 from ..types import AppT, CollectionT, EventT, Message, StreamT, TP
@@ -20,7 +21,7 @@ class Sensor(SensorT, Service):
             tp: TP,
             offset: int,
             message: Message) -> None:
-        """Called whenever a message is received by a consumer."""
+        """Message received by a consumer."""
         # WARNING: Sensors must never keep a reference to the Message,
         #          as this means the message won't go out of scope!
         ...
@@ -31,7 +32,7 @@ class Sensor(SensorT, Service):
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
-        """Called whenever a message is sent to a stream as an event."""
+        """Message sent to a stream as an event."""
         ...
 
     async def on_stream_event_out(
@@ -40,7 +41,16 @@ class Sensor(SensorT, Service):
             offset: int,
             stream: StreamT,
             event: EventT) -> None:
-        """Called whenever an event is acknowledged (finished processing)."""
+        """Event was acknowledged by stream.
+
+        Notes:
+            Acknowledged means a stream finished processing the event, but
+            given that multiple streams may be handling the same event,
+            the message can not be committed before all streams have
+            processed it.  When all streams have acknowledged the event,
+            it will go through :meth:`on_message_out` just before offsets
+            are committed.
+        """
         ...
 
     async def on_message_out(
@@ -49,43 +59,43 @@ class Sensor(SensorT, Service):
             tp: TP,
             offset: int,
             message: Message = None) -> None:
-        """Called when all streams have processed the message."""
+        """All streams finished processing message."""
         ...
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
-        """Called whenever a key is retrieved from a table."""
+        """Key retrieved from table."""
         ...
 
     def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
-        """Called whenever a key is updated in a table."""
+        """Value set for key in table."""
         ...
 
     def on_table_del(self, table: CollectionT, key: Any) -> None:
-        """Called whenever a key is deleted from a table."""
+        """Key deleted from table."""
         ...
 
     async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
-        """Called when a consumer is about to commit the offset."""
+        """Consumer is about to committ topic offset."""
         ...
 
     async def on_commit_completed(
             self, consumer: ConsumerT, state: Any) -> None:
-        """Called after the offset is committed."""
+        """Consumer finished comittting topic offset."""
         ...
 
     async def on_send_initiated(
             self, producer: ProducerT, topic: str,
             keysize: int, valsize: int) -> Any:
-        """Called when a producer is about to send a message."""
+        """About to send a message."""
         ...
 
     async def on_send_completed(
             self, producer: ProducerT, state: Any) -> None:
-        """Called after a producer has sent a message."""
-        ...
+        """Message successfully sent."""
 
 
 class SensorDelegate(SensorDelegateT):
+    """A class that redelegates sensor methods to a list of sensors."""
 
     _sensors: Set[SensorT]
 

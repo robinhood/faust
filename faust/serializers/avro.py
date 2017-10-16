@@ -1,3 +1,4 @@
+"""Apache Avro serialization support."""
 from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
 from ..types import AppT, ModelT
 from ..utils.avro import MessageSerializer, RegistryClient
@@ -21,6 +22,7 @@ AVRO_FAST_TYPE: Mapping[Any, str] = {
 
 
 def to_avro_type(typ: Type) -> str:
+    """Convert Python type to Avro type name."""
     if typ in AVRO_FAST_TYPE:
         return AVRO_FAST_TYPE[typ]
     elif issubclass(typ, Sequence):
@@ -33,6 +35,8 @@ def to_avro_type(typ: Type) -> str:
 
 
 class AvroSerializer:
+    """Serialize/deserialize the Apache Avro format."""
+
     app: AppT
     key_subject = '{}-key'
     value_subject = '{}-value'

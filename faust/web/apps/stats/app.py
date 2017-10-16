@@ -1,3 +1,4 @@
+"""HTTP endpoint showing statistics from the Faust monitor."""
 from collections import defaultdict
 from typing import Iterable, List, MutableMapping
 from faust.types.topics import TP
@@ -11,6 +12,8 @@ TPMap = MutableMapping[str, List[int]]
 
 
 class Stats(views.View):
+    """Monitor statistics."""
+
     package = 'faust.web.apps.stats'
 
     async def get(self, web: Web, request: Request) -> Response:
@@ -21,6 +24,8 @@ class Stats(views.View):
 
 
 class Assignment(views.View):
+    """Cluster assignment information."""
+
     package = 'faust.web.apps.stats'
 
     @classmethod
@@ -39,6 +44,8 @@ class Assignment(views.View):
 
 
 class Site(views.Site):
+    """Statistics views."""
+
     views = {
         '/': Stats,
         '/assignment/': Assignment,

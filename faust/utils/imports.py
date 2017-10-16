@@ -141,7 +141,6 @@ def symbol_by_name(
     mappings, the name is looked up in the aliases first.
 
     Examples:
-
         >>> symbol_by_name('mazecache.backends.redis:RedisBackend')
         <class 'mazecache.backends.redis.RedisBackend'>
 
@@ -156,11 +155,10 @@ def symbol_by_name(
 
     """
     # This code was copied from kombu.utils.symbol_by_name
-    if imp is None:
-        imp = importlib.import_module
+    imp = importlib.import_module if imp is None else imp
 
     if not isinstance(name, str):
-        return name                                 # already a class
+        return name  # already a class
 
     name = (aliases or {}).get(name) or name
     sep = ':' if ':' in name else sep

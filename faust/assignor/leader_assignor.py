@@ -1,3 +1,4 @@
+"""Leader assignor."""
 from typing import Any
 from mode import Service
 from ..types import AppT, TP, TopicT
@@ -6,6 +7,7 @@ from ..utils.objects import cached_property
 
 
 class LeaderAssignor(Service, LeaderAssignorT):
+    """Leader assignor, ensures election of a leader."""
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)

@@ -1,3 +1,9 @@
+"""Channel.
+
+A channel is just like an :class:`asyncio.Queue`: you can subscribe to it,
+and send things to it.
+
+"""
 import asyncio
 import typing
 from types import TracebackType
@@ -87,7 +93,7 @@ class Event(EventT):
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
-        'Send object to channel.'
+        """Send object to channel."""
         if key is USE_EXISTING_KEY:
             key = self.key
         if value is USE_EXISTING_VALUE:
@@ -106,7 +112,7 @@ class Event(EventT):
                       value_serializer: CodecArg = None,
                       callback: MessageSentCallback = None,
                       force: bool = False) -> Awaitable[RecordMetadata]:
-        'Forward original message (will not be reserialized).'
+        """Forward original message (will not be reserialized)."""
         if key is USE_EXISTING_KEY:
             key = self.message.key
         if value is USE_EXISTING_VALUE:
@@ -172,6 +178,20 @@ class Event(EventT):
 
 
 class Channel(ChannelT):
+    """Create new channel.
+
+    Arguments:
+        app: The app this channel is used with.
+             Note: Channels are usually created by calling ``app.channel()``
+
+    Keyword Arguments:
+        key_type:  The Model used for keys in this channel.
+        value_type: The Model used for values in this channel.
+        maxsize: Max number of messages the channel can hold before
+           if exceeded ``put`` calls will block until a message is removed.
+        loop: The asyncio event loop to use.
+    """
+
     app: AppT
     key_type: ModelArg
     value_type: ModelArg
@@ -239,7 +259,7 @@ class Channel(ChannelT):
 
     def stream(self, coroutine: StreamCoroutine = None,
                **kwargs: Any) -> StreamT:
-        'Create stream from channel.'
+        """Create stream reading from this channel."""
         return self.app.stream(self, coroutine, **kwargs)
 
     def get_topic_name(self) -> str:
@@ -254,7 +274,7 @@ class Channel(ChannelT):
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None,
             force: bool = False) -> Awaitable[RecordMetadata]:
-        'Send message to channel.'
+        """Send message to channel."""
         if not force:
             event = current_event()
             if event is not None:

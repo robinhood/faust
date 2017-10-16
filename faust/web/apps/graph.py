@@ -1,3 +1,4 @@
+"""Web endpoint showing graph of running :pypi:`mode` services."""
 import io
 from .. import views
 from ..base import Request, Response, Web
@@ -6,6 +7,7 @@ __all__ = ['Graph', 'Site']
 
 
 class Graph(views.View):
+    """Render image from graph of running services."""
 
     async def get(self, web: Web, request: Request) -> Response:
         import pydot
@@ -17,6 +19,8 @@ class Graph(views.View):
 
 
 class Site(views.Site):
+    """Graph views."""
+
     views = {
         '/': Graph,
     }

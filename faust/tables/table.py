@@ -14,6 +14,7 @@ __all__ = ['Table']
 
 
 class Table(Collection, TableT, ManagedUserDict):
+    """Table (non-windowed)."""
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         self.window = window

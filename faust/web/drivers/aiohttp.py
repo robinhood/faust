@@ -1,3 +1,4 @@
+"""Web driver using :pypi:`aiohttp`."""
 import asyncio
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
@@ -13,13 +14,14 @@ _bytes = bytes
 
 
 class Web(base.Web):
+    """Web server and framework implemention using :pypi:`aiohttp`."""
 
     driver_version = f'aiohttp={aiohttp_version}'
 
     #: We serve the web server in a separate thread, with its own even loop.
     _thread: ServiceThread = None
 
-    class WebserverServiceThread(Service):
+    class _WebserverServiceThread(Service):
 
         def __init__(self, web: 'Web', **kwargs: Any) -> None:
             self.web = web
@@ -63,7 +65,7 @@ class Web(base.Web):
         self._app.router.add_route('*', pattern, handler)
 
     async def on_start(self) -> None:
-        self._thread = ServiceThread(self.WebserverServiceThread(
+        self._thread = ServiceThread(self._WebserverServiceThread(
             self,
             beacon=self.beacon,
         ))

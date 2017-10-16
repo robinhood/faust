@@ -1,3 +1,4 @@
+"""Monitor - sensor tracking metrics."""
 import asyncio
 import statistics
 import typing
@@ -28,6 +29,7 @@ MAX_SEND_LATENCY_HISTORY = 30
 
 
 class TableState(KeywordReduce):
+    """Represents the current state of a table."""
 
     #: The table this object records statistics for.
     table: CollectionT = None
@@ -64,6 +66,7 @@ class TableState(KeywordReduce):
 
 
 class EventState(KeywordReduce):
+    """Represents the current state of an event received on a stream."""
 
     #: The stream that received this event.
     stream: StreamT = None
@@ -105,6 +108,7 @@ class EventState(KeywordReduce):
 
 
 class MessageState(KeywordReduce):
+    """Represents the current state of a message received."""
 
     #: ID of the consumer that received this message.
     consumer_id: int = None

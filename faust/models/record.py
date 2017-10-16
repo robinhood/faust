@@ -1,3 +1,4 @@
+"""Record - Dictionary Model."""
 from datetime import datetime
 from typing import (
     Any, Callable, ClassVar, Dict, Iterable,
@@ -76,6 +77,7 @@ class Record(Model):
         >>> LogEvent.severity
         >>> <FieldDescriptor: LogEvent.severity (str)>
     """
+
     _schema_type: ClassVar[str] = 'record'
 
     @classmethod

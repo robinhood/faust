@@ -12,6 +12,7 @@ class HoppingWindow(WindowT):
 
     Fixed-size, overlapping windows.
     """
+
     size: float
     step: float
 

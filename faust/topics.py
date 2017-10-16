@@ -1,3 +1,4 @@
+"""Topic - Named channel using Kafka."""
 import asyncio
 import re
 import typing
@@ -54,6 +55,7 @@ class Topic(Channel, TopicT):
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
     """
+
     clone_shares_queue = False
 
     _partitions: int = None
@@ -320,6 +322,7 @@ class TopicConductor(ConductorT, Service):
     - Consumes messages from topic using a single consumer.
     - Forwards messages to all channels subscribing to a topic.
     """
+
     logger = logger
 
     #: Fast index to see if Topic is registered.

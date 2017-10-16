@@ -1,3 +1,4 @@
+"""Admin related Kafka protocol extensions."""
 from kafka.protocol.types import (
     Array, Boolean, Int16, Int32, Schema, String,
 )
@@ -6,6 +7,8 @@ from ..protocol.api import Request, Response
 
 
 class CreateTopicsResponse_v0(Response):
+    """Response from Create Topic request (version 0)."""
+
     API_KEY = 19
     API_VERSION = 0
     SCHEMA = Schema(
@@ -16,6 +19,8 @@ class CreateTopicsResponse_v0(Response):
 
 
 class CreateTopicsResponse_v1(Response):
+    """Response from Create Topic request (version 1)."""
+
     API_KEY = 19
     API_VERSION = 1
     SCHEMA = Schema(
@@ -27,6 +32,8 @@ class CreateTopicsResponse_v1(Response):
 
 
 class CreateTopicsRequest_v0(Request):
+    """Request to create topic (version 0)."""
+
     API_KEY = 19
     API_VERSION = 0
     RESPONSE_TYPE = CreateTopicsResponse_v0
@@ -46,6 +53,8 @@ class CreateTopicsRequest_v0(Request):
 
 
 class CreateTopicsRequest_v1(Request):
+    """Request to create topic (version 1)."""
+
     API_KEY = 19
     API_VERSION = 1
     RESPONSE_TYPE = CreateTopicsResponse_v1

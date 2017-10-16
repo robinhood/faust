@@ -29,6 +29,7 @@ TABLE_CLEANING = 'CLEANING'
 
 
 class Collection(Service, CollectionT):
+    """Base class for changelog-backed data structures stored in Kafka."""
 
     _store: URL
     _changelog_topic: TopicT

@@ -1,3 +1,4 @@
+"""Set stored as table with True values."""
 from typing import Any
 from .base import Collection
 from ..types.tables import SetT
@@ -7,6 +8,7 @@ __all__ = ['Set']
 
 
 class Set(Collection, SetT, ManagedUserSet):
+    """Table where keys are either present, or not present."""
 
     def on_key_get(self, key: Any) -> None:
         self._sensor_on_get(self, key)

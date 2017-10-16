@@ -1,3 +1,4 @@
+"""Website served by the Faust web server."""
 from typing import Any, Sequence, Tuple, Type, Union
 from mode import Service
 from . import drivers
@@ -14,6 +15,8 @@ DEFAULT_DRIVER = 'aiohttp://'
 
 
 class Website(Service):
+    """Service starting the Faust web server and endpoints."""
+
     web: Web
 
     pages: Sequence[Tuple[str, Type[Site]]] = [

@@ -49,7 +49,7 @@ _locals = cast(_StreamLocal, Local())
 
 
 def current_event() -> Optional[EventT]:
-    """Returns the event being currently processed, or None."""
+    """Return the event currently being processed, or None."""
     try:
         eventref = getattr(_locals, 'current_event', None)
     except ValueError:  # has no context
@@ -67,6 +67,7 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
 
 
 class Stream(StreamT, Service):
+    """A stream: async iterator processing events in channels/topics."""
 
     _processors: MutableSequence[Processor] = None
     _coroutine: CoroCallbackT = None
@@ -432,7 +433,7 @@ class Stream(StreamT, Service):
         raise ValueError('Cannot derive topic from non-topic channel.')
 
     async def throw(self, exc: BaseException) -> None:
-        await self.channel.throw(exc)
+        await cast(ChannelT, self.channel).throw(exc)
 
     def combine(self, *nodes: JoinableT, **kwargs: Any) -> StreamT:
         # A combined stream is composed of multiple streams that

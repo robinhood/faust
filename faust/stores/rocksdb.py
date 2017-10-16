@@ -30,10 +30,12 @@ else:
 
 
 class CheckpointWriteBusy(Exception):
-    'Raised when another instance has the checkpoint db open for writing.'
+    """Raised when another instance has the checkpoint db open for writing."""
 
 
 class PartitionDB(NamedTuple):
+    """Tuple of ``(partition, rocksdb.DB)``."""
+
     partition: int
     db: DB
 
@@ -44,6 +46,8 @@ class _DBValueTuple(NamedTuple):
 
 
 class RocksDBOptions:
+    """Options required to open a RocksDB database."""
+
     max_open_files: int = 300000
     write_buffer_size: int = 67108864
     max_write_buffer_number: int = 3
@@ -97,6 +101,8 @@ class RocksDBOptions:
 
 
 class CheckpointDBOptions(RocksDBOptions):
+    """RocksDB Options used for checkpoint database."""
+
     write_buffer_size: int = 3000
     max_write_buffer_number: int = 2
     target_file_size_base: int = 8864
@@ -105,6 +111,7 @@ class CheckpointDBOptions(RocksDBOptions):
 
 
 class CheckpointDB:
+    """Instance-global checkpoint database."""
 
     # The checkpoint DB is not a singleton, but whatever table
     # is used first, will create one and set an App._rocksdb_checkpoints
@@ -216,6 +223,7 @@ class CheckpointDB:
 
 
 class Store(base.SerializedStore):
+    """RocksDB table storage."""
 
     #: How often we write offsets to the checkpoints db (30s).
     sync_frequency: float

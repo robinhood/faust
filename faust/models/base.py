@@ -136,7 +136,7 @@ class Model(ModelT):
 
     @classmethod
     def as_schema(cls) -> Mapping:
-        'Return Avro schema as mapping.'
+        """Return Avro schema as mapping."""
         return {
             'namespace': cls._options.namespace,
             'type': cls._schema_type,
@@ -146,7 +146,7 @@ class Model(ModelT):
 
     @classmethod
     def as_avro_schema(cls) -> schema.Schema:
-        'Return Avro schema as :class:`avro.schema.Schema`.'
+        """Return Avro schema as :class:`avro.schema.Schema`."""
         if cls._schema_cache is None:
             cls._schema_cache = cls._as_avro_schema()
         return cls._schema_cache
@@ -235,16 +235,16 @@ class Model(ModelT):
         raise NotImplementedError()
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
-        'Serialize object to the target serialization format.'
+        """Serialize object to the target serialization format."""
         return dumps(serializer or self._options.serializer,
                      self.to_representation())
 
     def to_representation(self) -> Any:
-        'Convert object to JSON serializable object.'
+        """Convert object to JSON serializable object."""
         raise NotImplementedError()
 
     def _humanize(self) -> str:
-        'String representation of object for debugging purposes.'
+        """Return string representation of object for debugging purposes."""
         raise NotImplementedError()
 
     def __repr__(self) -> str:

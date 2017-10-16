@@ -1,3 +1,4 @@
+"""Agent replies: waiting for replies, sending them, etc."""
 import asyncio
 import typing
 from collections import defaultdict
@@ -17,6 +18,7 @@ class ReplyTuple(NamedTuple):
 
 class ReplyPromise(asyncio.Future):
     """Reply promise can be awaited to wait until result ready."""
+
     reply_to: str
     correlation_id: str
 
@@ -36,6 +38,12 @@ class ReplyPromise(asyncio.Future):
 
 
 class BarrierState(ReplyPromise):
+    """State of pending/complete barrier.
+
+    A barrier is a synchronization primitive that will wait until
+    a group of coroutines have completed.
+    """
+
     #: This is the size while the messages are being sent.
     #: (it's a tentative total, added to until the total is finalized).
     size: int = 0
@@ -96,6 +104,8 @@ class BarrierState(ReplyPromise):
 
 
 class ReplyConsumer(Service):
+    """Consumer responsible for redelegation of replies received."""
+
     if typing.TYPE_CHECKING:
         _waiting: MutableMapping[str, WeakSet[ReplyPromise]]
     _waiting = None

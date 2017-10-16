@@ -1,3 +1,4 @@
+"""Route messages to Faust nodes by partitioning."""
 from functools import wraps
 from typing import Tuple
 import aiohttp
@@ -13,6 +14,7 @@ from .types.tables import CollectionT
 
 
 class Router(RouterT):
+    """Router for ``app.router``."""
 
     _assignor: PartitionAssignorT
 

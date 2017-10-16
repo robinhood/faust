@@ -1,3 +1,4 @@
+"""Models used by agents internally."""
 from ..models import Record
 from ..types import K, ModelT
 

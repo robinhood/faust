@@ -43,6 +43,7 @@ TUPLE_TYPES: Tuple[Type, ...] = cast(Tuple[Type, ...], (Tuple,))
 
 @total_ordering
 class Unordered(Generic[_T]):
+    """Shield object from being ordered in heapq/``__le__``/etc."""
 
     # Used to put anything inside a heapq, even things that can not be ordered
     # like dicts and lists.
@@ -129,7 +130,6 @@ def annotations(cls: Type,
             is required.
 
     Examples:
-
         .. sourcecode:: text
 
             >>> class Point:
@@ -198,6 +198,7 @@ def guess_concrete_type(
         list_types: Tuple[Type, ...] = LIST_TYPES,
         tuple_types: Tuple[Type, ...] = TUPLE_TYPES,
         dict_types: Tuple[Type, ...] = DICT_TYPES) -> Tuple[Type, Type]:
+    """Try to find the real type of an abstract type."""
     if (typ.__class__.__name__ == '_Union' and
             hasattr(typ, '__args__') and
             typ.__args__[1] is type(None)):  # noqa

@@ -68,12 +68,10 @@ class ActorT(Generic[_T], ServiceT):
 
 class AsyncIterableActorT(ActorT[AsyncIterable], AsyncIterable):
     """Used for agent function that yields."""
-    ...
 
 
 class AwaitableActorT(ActorT[Awaitable], Awaitable):
     """Used for agent function that do not yield."""
-    ...
 
 
 ActorRefT = ActorT[Union[AsyncIterable, Awaitable]]

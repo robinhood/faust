@@ -34,6 +34,7 @@ __all__ = [
 
 
 class InputStream(InputStreamT):
+    """Inbox for async iterator function."""
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
@@ -75,6 +76,8 @@ class InputStream(InputStreamT):
 
 
 class CoroCallback(Service, CoroCallbackT):
+    """Callback used to pass data to target coroutine."""
+
     inbox: InputStreamT
 
     def __init__(self,
@@ -104,6 +107,8 @@ class CoroCallback(Service, CoroCallbackT):
 
 
 class GeneratorCoroCallback(CoroCallback):
+    """Callback type used when the target is a normal (sync.) generator."""
+
     gen: Generator[Any, None, None]
 
     def __init__(self,
@@ -119,6 +124,8 @@ class GeneratorCoroCallback(CoroCallback):
 
 
 class AsyncCoroCallback(CoroCallback):
+    """Callback type used when the target function returns AsyncIterator."""
+
     gen: AsyncIterator[Any]
 
     def __init__(self,
@@ -134,6 +141,8 @@ class AsyncCoroCallback(CoroCallback):
 
 
 class AsyncGeneratorCoroCallback(CoroCallback):
+    """Callback type used when the target function returns coroutine."""
+
     coro: Coroutine[Any, None, None]
     gen: AsyncIterator[Any]
     gen_started = False
@@ -159,6 +168,7 @@ def wrap_callback(
         callback: StreamCoroutineCallback = None,
         *,
         loop: asyncio.AbstractEventLoop = None) -> CoroCallbackT:
+    """Wrap callback in a way such that we can send and receive data."""
     loop = loop or asyncio.get_event_loop()
     inbox = InputStream(loop=loop)
     gen = fun(inbox)
