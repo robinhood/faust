@@ -35,7 +35,7 @@ __all__ = [
 ]
 
 
-RecoverCallback = Callable[..., Awaitable[None]]
+RecoverCallback = Callable[[], Awaitable[None]]
 
 
 class CollectionT(JoinableT, ServiceT):
@@ -49,7 +49,6 @@ class CollectionT(JoinableT, ServiceT):
     partitions: int
     window: WindowT = None
     help: str
-    recover_callback: RecoverCallback = None
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -63,6 +62,7 @@ class CollectionT(JoinableT, ServiceT):
                  window: WindowT = None,
                  changelog_topic: TopicT = None,
                  help: str = None,
+                 on_recover: RecoverCallback = None,
                  **kwargs: Any) -> None:
         ...
 
@@ -103,6 +103,9 @@ class CollectionT(JoinableT, ServiceT):
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
         ...
 
+    @abc.abstractmethod
+    async def on_recovery(self) -> None:
+        ...
 
 CollectionTps = MutableMapping[CollectionT, List[TP]]
 

@@ -28,15 +28,13 @@ __all__ = ['Collection']
 TABLE_CLEANING = 'CLEANING'
 
 
-RecoverCallbackHandler = Callable[..., RecoverCallback]
-
-
 class Collection(Service, CollectionT):
 
     _store: URL
     _changelog_topic: TopicT
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
+    _recover_callbacks: MutableSet[RecoverCallback]
 
     @abc.abstractmethod
     def _get_key(self, key: Any) -> Any:
@@ -61,6 +59,7 @@ class Collection(Service, CollectionT):
                  window: WindowT = None,
                  changelog_topic: TopicT = None,
                  help: str = None,
+                 on_recover: RecoverCallback = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -90,15 +89,14 @@ class Collection(Service, CollectionT):
         # Table.start() also starts Store
         self.add_dependency(cast(StoreT, self.data))
 
+        self._recover_callbacks = set()
+        if on_recover:
+            self.on_recover(on_recover)
+
         # Aliases
         self._sensor_on_get = self.app.sensors.on_table_get
         self._sensor_on_set = self.app.sensors.on_table_set
         self._sensor_on_del = self.app.sensors.on_table_del
-
-    def on_recover(self, fun: RecoverCallback) -> RecoverCallbackHandler:
-        assert self.recover_callback is None
-        self.recover_callback = fun
-        return fun
 
     def __hash__(self) -> int:
         # We have to override MutableMapping __hash__, so that this table
@@ -107,6 +105,16 @@ class Collection(Service, CollectionT):
 
     async def on_start(self) -> None:
         await self.changelog_topic.maybe_declare()
+
+    def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
+        '''Decorator to register table callbacks'''
+        assert fun not in self._recover_callbacks
+        self._recover_callbacks.add(fun)
+        return fun
+
+    async def on_recovery(self) -> None:
+        for fun in self._recover_callbacks:
+            await fun()
 
     def info(self) -> Mapping[str, Any]:
         # Used to recreate object in .clone()

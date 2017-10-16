@@ -370,8 +370,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if not stop_recovery.is_set():
             # This needs to happen if all goes well
             recover_callback_coros = [
-                table.recover_callback() for table in self.values()
-                if table.recover_callback is not None
+                table.on_recovery() for table in self.values()
             ]
             if recover_callback_coros:
                 await asyncio.wait(recover_callback_coros)
