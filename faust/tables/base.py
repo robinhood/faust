@@ -112,7 +112,7 @@ class Collection(Service, CollectionT):
         self._recover_callbacks.add(fun)
         return fun
 
-    async def on_recovery(self) -> None:
+    async def call_recover_callbacks(self) -> None:
         for fun in self._recover_callbacks:
             await fun()
 

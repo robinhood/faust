@@ -104,7 +104,7 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_recovery(self) -> None:
+    async def call_recover_callbacks(self) -> None:
         ...
 
 CollectionTps = MutableMapping[CollectionT, List[TP]]
