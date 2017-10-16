@@ -66,6 +66,12 @@ async def find_large_user_withdrawals(withdrawals):
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
+@user_to_total.on_recover
+async def echo_size():
+    await asyncio.sleep(1.0)
+    print('Total size', len(user_to_total))
+
+
 @app.command()
 async def produce(self):
     'Produce example Withdrawal events.'

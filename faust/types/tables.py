@@ -3,7 +3,7 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Callable, ClassVar, Iterable, List, MutableMapping,
+    Any, Awaitable, Callable, ClassVar, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
@@ -35,6 +35,9 @@ __all__ = [
 ]
 
 
+RecoverCallback = Callable[[], Awaitable[None]]
+
+
 class CollectionT(JoinableT, ServiceT):
     StateStore: ClassVar[Type[StoreT]] = None
 
@@ -59,6 +62,7 @@ class CollectionT(JoinableT, ServiceT):
                  window: WindowT = None,
                  changelog_topic: TopicT = None,
                  help: str = None,
+                 on_recover: RecoverCallback = None,
                  **kwargs: Any) -> None:
         ...
 
@@ -95,6 +99,13 @@ class CollectionT(JoinableT, ServiceT):
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         ...
 
+    @abc.abstractmethod
+    def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
+        ...
+
+    @abc.abstractmethod
+    async def call_recover_callbacks(self) -> None:
+        ...
 
 CollectionTps = MutableMapping[CollectionT, List[TP]]
 
