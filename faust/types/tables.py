@@ -2,6 +2,7 @@ import abc
 
 import asyncio
 import typing
+from datetime import datetime
 from typing import (
     Any, Awaitable, Callable, ClassVar, Iterable, List, MutableMapping,
     MutableSet, Optional, Set, Type, Union,
@@ -38,7 +39,7 @@ __all__ = [
 ]
 
 
-RelativeHandler = Callable[[Optional[EventT]], float]
+RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 RelativeArg = Union[FieldDescriptorT, RelativeHandler]
 

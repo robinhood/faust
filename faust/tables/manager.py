@@ -393,19 +393,17 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await self._on_recovery_completed()
 
     async def _maybe_abort_ongoing_recovery(self) -> None:
-        if self._ongoing_recovery is None:
-            return
-        self.log.info('Aborting ongoing recovery')
-        if not self._ongoing_recovery.done():
-            self._stop_recovery.set()
-            await self.wait(self._ongoing_recovery)
-        self._ongoing_recovery = None
-        self._stop_recovery = None
+        if self._ongoing_recovery is not None:
+            self.log.info('Aborting ongoing recovery')
+            if not self._ongoing_recovery.done():
+                self._stop_recovery.set()
+                await self.wait(self._ongoing_recovery)
+            self._ongoing_recovery = None
+            self._stop_recovery = None
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self._maybe_abort_ongoing_recovery()
-        self.log.info('Attempting to stop standbys')
         await self._stop_standbys()
         for table in self.values():
             await table.on_partitions_revoked(revoked)

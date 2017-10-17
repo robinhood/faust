@@ -1,6 +1,7 @@
 """Wrappers for windowed tables."""
 import operator
 import typing
+from datetime import datetime
 from typing import Any, Callable, Iterator, Optional, cast
 from mode import Seconds
 from ..exceptions import ImproperlyConfigured
@@ -162,7 +163,7 @@ class WindowWrapper(WindowWrapperT):
         return self.clone(relative_to=self.table._relative_now)
 
     def relative_to_field(self, field: FieldDescriptorT) -> WindowWrapperT:
-        return self.clone(relative_to=operator.attrgetter(field.field))
+        return self.clone(relative_to=self.table._relative_field(field))
 
     def relative_to_stream(self) -> WindowWrapperT:
         return self.clone(relative_to=self.table._relative_event)
@@ -170,19 +171,17 @@ class WindowWrapper(WindowWrapperT):
     def get_timestamp(self, event: EventT = None) -> float:
         event = event or current_event()
         if self.relative_to:
-            return self.relative_to(event)
+            timestamp = self.relative_to(event)
+            if isinstance(timestamp, datetime):
+                return timestamp.timestamp()
+            return timestamp
         return event.message.timestamp
 
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
         return self.table.on_recover(fun)
 
     def __contains__(self, key: Any) -> bool:
-        try:
-            self[key].value()
-        except KeyError:
-            return False
-        else:
-            return True
+        return self.table._windowed_contains(key, self.get_timestamp())
 
     def __getitem__(self, key: Any) -> WindowSetT:
         return WindowSet(key, self.table, self)
@@ -205,7 +204,7 @@ class WindowWrapper(WindowWrapperT):
         if relative_to is None:
             return None
         elif isinstance(relative_to, FieldDescriptorT):
-            return operator.attrgetter(relative_to.field)
+            return self.table._relative_field(field)
         elif callable(relative_to):
             return relative_to
         raise ImproperlyConfigured(

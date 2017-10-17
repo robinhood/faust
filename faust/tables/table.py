@@ -38,6 +38,9 @@ class Table(Collection, TableT, ManagedUserDict):
             return self.default()
         raise KeyError(key)
 
+    def _has_key(self, key: Any) -> bool:
+        return key in self
+
     def _get_key(self, key: Any) -> Any:
         return self[key]
 

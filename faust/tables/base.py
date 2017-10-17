@@ -20,7 +20,7 @@ from ..types import (
 from ..types.models import ModelArg
 from ..types.stores import StoreT
 from ..types.streams import JoinableT, StreamT
-from ..types.tables import CollectionT, RecoverCallback
+from ..types.tables import CollectionT, RecoverCallback, RelativeHandler
 from ..types.windows import WindowRange, WindowT
 
 __all__ = ['Collection']
@@ -36,6 +36,10 @@ class Collection(Service, CollectionT):
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
     _recover_callbacks: MutableSet[RecoverCallback]
+
+    @abc.abstractmethod
+    def _has_key(self, key: Any) -> bool:
+        ...
 
     @abc.abstractmethod
     def _get_key(self, key: Any) -> Any:
@@ -259,17 +263,26 @@ class Collection(Service, CollectionT):
             yield window_range
 
     def _relative_now(self, event: EventT = None) -> float:
+        # get current timestamp
         return datetime.utcnow().timestamp()
 
     def _relative_event(self, event: EventT = None) -> float:
+        # get event timestamp
         return event.message.timestamp
 
+    def _relative_field(self, field: FieldDescriptorT) -> RelativeHandler:
+        def to_value(event: EventT) -> float:
+            return getattr(event.value, field.field)
+        return to_value
+
     def _windowed_now(self, key: Any) -> Any:
-        now = datetime.utcnow().timestamp()
-        return self._get_key((key, self.window.current(now)))
+        return self._windowed_timestamp(key, self._relative_now())
 
     def _windowed_timestamp(self, key: Any, timestamp: float) -> Any:
         return self._get_key((key, self.window.current(timestamp)))
+
+    def _windowed_contains(self, key: Any, timestamp: float) -> bool:
+        return self._has_key((key, self.window.current(timestamp)))
 
     def _windowed_delta(self, key: Any, d: Seconds,
                         event: EventT = None) -> Any:
