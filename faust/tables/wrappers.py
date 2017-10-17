@@ -204,7 +204,7 @@ class WindowWrapper(WindowWrapperT):
         if relative_to is None:
             return None
         elif isinstance(relative_to, FieldDescriptorT):
-            return self.table._relative_field(field)
+            return self.table._relative_field(relative_to)
         elif callable(relative_to):
             return relative_to
         raise ImproperlyConfigured(
