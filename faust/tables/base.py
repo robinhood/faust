@@ -240,41 +240,41 @@ class Collection(Service, CollectionT):
                          op: Callable[[Any, Any], Any],
                          key: Any,
                          value: Any,
-                         event: EventT = None) -> None:
+                         timestamp: float) -> None:
         get_ = self._get_key
         set_ = self._set_key
-        for window_range in self._window_ranges(event):
+        for window_range in self._window_ranges(timestamp):
             set_((key, window_range), op(get_((key, window_range)), value))
 
-    def _set_windowed(self, key: Any, value: Any,
-                      event: EventT = None) -> None:
-        for window_range in self._window_ranges(event):
+    def _set_windowed(self, key: Any, value: Any, timestamp: float) -> None:
+        for window_range in self._window_ranges(timestamp):
             self._set_key((key, window_range), value)
 
-    def _del_windowed(self, key: Any, event: EventT = None) -> None:
-        for window_range in self._window_ranges(event):
+    def _del_windowed(self, key: Any, timestamp: float) -> None:
+        for window_range in self._window_ranges(timestamp):
             self._del_key((key, window_range))
 
-    def _window_ranges(self, event: EventT = None) -> Iterator[WindowRange]:
-        timestamp = self._get_timestamp(event)
+    def _window_ranges(self, timestamp: float) -> Iterator[WindowRange]:
         for window_range in self.window.ranges(timestamp):
             yield window_range
+
+    def _relative_now(self, event: EventT = None) -> float:
+        return datetime.utcnow().timestamp()
+
+    def _relative_event(self, event: EventT = None) -> float:
+        return event.message.timestamp
 
     def _windowed_now(self, key: Any) -> Any:
         now = datetime.utcnow().timestamp()
         return self._get_key((key, self.window.current(now)))
 
-    def _windowed_current(self, key: Any, event: EventT = None) -> Any:
-        return self._get_key(
-            (key, self.window.current(self._get_timestamp(event))))
+    def _windowed_timestamp(self, key: Any, timestamp: float) -> Any:
+        return self._get_key((key, self.window.current(timestamp)))
 
     def _windowed_delta(self, key: Any, d: Seconds,
                         event: EventT = None) -> Any:
         return self._get_key(
-            (key, self.window.delta(self._get_timestamp(event), d)))
-
-    def _get_timestamp(self, event: EventT = None) -> float:
-        return (event or current_event()).message.timestamp
+            (key, self.window.delta(self._relative_event(event), d)))
 
     async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         await self.data.on_partitions_assigned(self, assigned)

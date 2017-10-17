@@ -18,12 +18,15 @@ from .windows import WindowT
 
 if typing.TYPE_CHECKING:
     from .app import AppT
-    from .models import ModelArg
+    from .models import FieldDescriptorT, ModelArg
 else:
-    class AppT: ...      # noqa
+    class AppT: ...  # noqa
+    class FieldDescriptorT: ...  # noqa
     class ModelArg: ...  # noqa
 
 __all__ = [
+    'RecoverCallback',
+    'RelativeArg',
     'CollectionT',
     'TableT',
     'SetT',
@@ -35,7 +38,9 @@ __all__ = [
 ]
 
 
+RelativeHandler = Callable[[Optional[EventT]], float]
 RecoverCallback = Callable[[], Awaitable[None]]
+RelativeArg = Union[FieldDescriptorT, RelativeHandler]
 
 
 class CollectionT(JoinableT, ServiceT):
@@ -106,6 +111,7 @@ class CollectionT(JoinableT, ServiceT):
     @abc.abstractmethod
     async def call_recover_callbacks(self) -> None:
         ...
+
 
 CollectionTps = MutableMapping[CollectionT, List[TP]]
 
@@ -184,6 +190,7 @@ class WindowSetT(MutableMapping):
     def __init__(self,
                  key: Any,
                  table: TableT,
+                 wrapper: 'WindowWrapperT',
                  event: EventT = None) -> None:
         ...
 
@@ -195,11 +202,15 @@ class WindowSetT(MutableMapping):
         ...
 
     @abc.abstractmethod
-    def now(self) -> Any:
+    def value(self, event: EventT = None) -> Any:
         ...
 
     @abc.abstractmethod
     def current(self, event: EventT = None) -> Any:
+        ...
+
+    @abc.abstractmethod
+    def now(self) -> Any:
         ...
 
     @abc.abstractmethod
@@ -259,9 +270,39 @@ class WindowWrapperT(MutableMapping):
     table: TableT
 
     @abc.abstractmethod
-    def __init__(self, table: TableT) -> None:
+    def __init__(self, table: TableT,
+                 *,
+                 relative_to: RelativeArg = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def clone(self, relative_to: RelativeArg) -> 'WindowWrapperT':
+        ...
+
+    @abc.abstractmethod
+    def relative_to_now(self) -> 'WindowWrapperT':
+        ...
+
+    @abc.abstractmethod
+    def relative_to_field(self, field: FieldDescriptorT) -> 'WindowWrapperT':
+        ...
+
+    @abc.abstractmethod
+    def relative_to_stream(self) -> 'WindowWrapperT':
+        ...
+
+    @abc.abstractmethod
+    def get_timestamp(self, event: EventT = None) -> float:
         ...
 
     @abc.abstractmethod
     def __getitem__(self, key: Any) -> WindowSetT:
+        ...
+
+    @property
+    def relative_to(self) -> RelativeHandler:
+        ...
+
+    @relative_to.setter
+    def relative_to(self, relative_to: RelativeArg) -> None:
         ...

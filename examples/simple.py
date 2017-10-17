@@ -24,7 +24,6 @@ import faust
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
-
 class Withdrawal(faust.Record, isodates=True, serializer='json'):
     user: str
     country: str
@@ -33,14 +32,15 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'f-simple',
+    'f-simple2',
     url='kafka://127.0.0.1:9092',
     store='rocksdb://',
     default_partitions=6,
 )
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
-user_to_total = app.Table('user_to_total', default=int)
+user_to_total = app.Table(
+    'user_to_total', default=int).tumbling(3600).relative_to_stream()
 country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
@@ -63,6 +63,9 @@ async def find_large_user_withdrawals(withdrawals):
                 time_now - time_first_start))
             time_first_start = time_now
         print('WITHDRAWAL: %r' % (withdrawal,))
+        if withdrawal.user in user_to_total:
+            print('ALREADY HAVE IT:')
+            print(user_to_total[withdrawal.user].value())
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
