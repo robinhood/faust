@@ -107,6 +107,7 @@ class CollectionT(JoinableT, ServiceT):
     async def call_recover_callbacks(self) -> None:
         ...
 
+
 CollectionTps = MutableMapping[CollectionT, List[TP]]
 
 
