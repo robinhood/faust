@@ -12,6 +12,7 @@ from typing import (
 from mode import Seconds, Service, want_seconds
 from yarl import URL
 from . import base
+from ..exceptions import ImproperlyConfigured
 from ..streams import current_event
 from ..types import AppT, CollectionT, EventT, TP
 from ..utils.collections import LRUCache
@@ -257,6 +258,9 @@ class Store(base.SerializedStore):
                  key_index_size: int = 10_000,
                  options: Mapping = None,
                  **kwargs: Any) -> None:
+        if rocksdb is None:
+            raise ImproperlyConfigured(
+                'RocksDB bindings not installed: pip install python-rocksdb')
         super().__init__(url, app, **kwargs)
         if not self.url.path:
             self.url /= self.table_name
