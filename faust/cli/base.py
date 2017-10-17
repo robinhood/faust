@@ -180,7 +180,7 @@ def cli(ctx: click.Context,
         datadir: str,
         json: bool,
         color: bool) -> None:
-    """Command-line interface for the :program:`faust` umbrella command."""
+    """Faust command-line interface."""
     ctx.obj = {
         'app': app,
         'quiet': quiet,
