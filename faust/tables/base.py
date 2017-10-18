@@ -89,6 +89,8 @@ class Collection(Service, CollectionT):
             self.data = stores.by_url(url)(
                 url, app,
                 table_name=self.name,
+                key_type=self.key_type,
+                value_type=self.value_type,
                 loop=self.loop)
 
         # Table.start() also starts Store

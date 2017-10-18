@@ -4,8 +4,7 @@ from collections import ItemsView, KeysView, ValuesView
 from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
 from mode import Service
 from yarl import URL
-from ..serializers.codecs import dumps, loads
-from ..types import AppT, CodecArg, CollectionT, EventT, StoreT, TP
+from ..types import AppT, CodecArg, CollectionT, EventT, ModelArg, StoreT, TP
 
 
 class Store(StoreT, Service):
@@ -14,6 +13,8 @@ class Store(StoreT, Service):
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
                  table_name: str = '',
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  key_serializer: CodecArg = 'json',
                  value_serializer: CodecArg = 'json',
                  **kwargs: Any) -> None:
@@ -21,6 +22,8 @@ class Store(StoreT, Service):
         self.url = URL(url)
         self.app = app
         self.table_name = table_name
+        self.key_type = key_type
+        self.value_type = value_type
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
 
@@ -46,16 +49,18 @@ class Store(StoreT, Service):
         ...
 
     def _encode_key(self, key: Any) -> bytes:
-        return dumps(self.key_serializer, key)
+        return self.app.serializers.dumps_key(key, self.key_serializer)
 
     def _encode_value(self, value: Any) -> bytes:
-        return dumps(self.value_serializer, value)
+        return self.app.serializers.dumps_value(value, self.value_serializer)
 
     def _decode_key(self, key: bytes) -> Any:
-        return loads(self.key_serializer, key)
+        return self.app.serializers.loads_key(
+            self.key_type, key, serializer=self.key_serializer)
 
     def _decode_value(self, value: bytes) -> Any:
-        return loads(self.value_serializer, value)
+        return self.app.serializers.loads_value(
+            self.value_type, value, serializer=self.value_serializer)
 
     def _repr_info(self) -> str:
         return f'table_name={self.table_name} url={self.url}'

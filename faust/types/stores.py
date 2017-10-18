@@ -9,9 +9,11 @@ from .tuples import TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
+    from .models import ModelArg
     from .tables import CollectionT
 else:
-    class AppT: ...    # noqa
+    class AppT: ...  # noqa
+    class ModelArg: ...  # noqa
     class CollectionT: ...  # noqa
 
 __all__ = ['StoreT']
@@ -22,6 +24,8 @@ class StoreT(ServiceT, MutableMapping):
     url: URL
     app: AppT
     table_name: str
+    key_type: ModelArg
+    value_type: ModelArg
     key_serializer: CodecArg
     value_serializer: CodecArg
 
@@ -29,6 +33,8 @@ class StoreT(ServiceT, MutableMapping):
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
                  table_name: str = '',
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  key_serializer: CodecArg = '',
                  value_serializer: CodecArg = '',
                  **kwargs: Any) -> None:
