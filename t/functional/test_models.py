@@ -145,6 +145,17 @@ def test_ne(a, b):
     assert a != b
 
 
+class test_FieldDescriptor:
+
+    def test_getattr(self):
+        u = User(id=1, username=2, account=Account(id=3, name=4))
+
+        assert User.id.getattr(u) == 1
+        assert User.username.getattr(u) == 2
+        assert User.account.id.getattr(u) == 3
+        assert User.account.name.getattr(u) == 4
+
+
 @pytest.mark.parametrize('record', [
     Account(id=None, name=None),
     Account(id='123', name='123'),

@@ -16,7 +16,7 @@ from . import joins
 from ._coroutines import CoroCallbackT, wrap_callback
 
 from ..exceptions import ImproperlyConfigured
-from ..types import AppT, EventT, K, Message, ModelArg, TopicT
+from ..types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
@@ -361,7 +361,7 @@ class Stream(StreamT, Service):
                 'Agent with concurrency>1 cannot use stream.group_by!')
         if not name:
             if isinstance(key, FieldDescriptorT):
-                name = key.ident
+                name = cast(FieldDescriptorT, key).ident
             else:
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
@@ -399,8 +399,8 @@ class Stream(StreamT, Service):
 
     async def _format_key(self, key: GroupByKeyArg, value: T_contra):
         if isinstance(key, FieldDescriptorT):
-            return getattr(value, key.field)
-        return await maybe_async(key(value))
+            return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
+        return await maybe_async(cast(Callable, key)(value))
 
     def derive_topic(self, name: str,
                      *,

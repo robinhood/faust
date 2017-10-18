@@ -1,6 +1,9 @@
 """Serializing/deserializing message keys and values."""
+import inspect
+from operator import attrgetter
 from typing import (
-    Any, ClassVar, Dict, Mapping, MutableMapping, Optional, Tuple, Type,
+    Any, ClassVar, Dict, Iterable, Mapping,
+    MutableMapping, Optional, Tuple, Type,
 )
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
@@ -209,7 +212,7 @@ class Model(ModelT):
         # Add introspection capabilities
         cls._contribute_to_options(options)
         # Add FieldDescriptor's for every field.
-        cls._contribute_field_descriptors(options)
+        cls._contribute_field_descriptors(cls, options)
 
         # Store options on new subclass.
         cls._options = options
@@ -225,7 +228,10 @@ class Model(ModelT):
 
     @classmethod
     def _contribute_field_descriptors(
-            cls, options: ModelOptions) -> None:
+            cls,
+            target: Type,
+            options: ModelOptions,
+            parent: FieldDescriptorT = None) -> None:
         raise NotImplementedError()
 
     def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
@@ -249,6 +255,15 @@ class Model(ModelT):
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._humanize()}>'
+
+
+def _is_concrete_model(typ: Type = None) -> bool:
+    return (
+        inspect.isclass(typ) and
+        issubclass(typ, ModelT) and
+        typ is not ModelT and
+        not getattr(typ, '__abstract__', False)
+    )
 
 
 class FieldDescriptor(FieldDescriptorT):
@@ -295,12 +310,19 @@ class FieldDescriptor(FieldDescriptorT):
                  type: Type,
                  model: Type[ModelT],
                  required: bool = True,
-                 default: Any = None) -> None:
+                 default: Any = None,
+                 parent: FieldDescriptorT = None) -> None:
         self.field = field
         self.type = type
         self.model = model
         self.required = required
         self.default = default
+        self.parent = parent
+        self._copy_descriptors(self.type)
+
+    def _copy_descriptors(self, typ: Type = None) -> None:
+        if _is_concrete_model(typ):
+            typ._contribute_field_descriptors(self, typ._options, parent=self)
 
     def __get__(self, instance: Any, owner: Type) -> Any:
         # class attribute accessed
@@ -314,6 +336,15 @@ class FieldDescriptor(FieldDescriptorT):
             if self.required:
                 raise
             return self.default
+
+    def getattr(self, obj: ModelT) -> Any:
+        return attrgetter('.'.join(reversed(list(self._parents_path()))))(obj)
+
+    def _parents_path(self) -> Iterable[str]:
+        node: FieldDescriptorT = self
+        while node:
+            yield node.field
+            node = node.parent
 
     def __set__(self, instance: Any, value: Any) -> None:
         instance.__dict__[self.field] = value

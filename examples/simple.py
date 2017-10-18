@@ -24,6 +24,7 @@ import faust
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
+
 class Withdrawal(faust.Record, isodates=True, serializer='json'):
     user: str
     country: str

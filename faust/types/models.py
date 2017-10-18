@@ -95,22 +95,30 @@ class ModelT:
         ...
 
 
-class FieldDescriptorT:
+class FieldDescriptorT(abc.ABC):
     field: str
     type: Type
     model: Type[ModelT]
     required: bool = True
     default: Any = None  # noqa: E704
+    parent: 'FieldDescriptorT' = None
 
+    @abc.abstractmethod
     def __init__(self,
                  field: str,
                  type: Type,
                  model: Type[ModelT],
                  required: bool = True,
-                 default: Any = None) -> None:
+                 default: Any = None,
+                 parent: 'FieldDescriptorT' = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def getattr(self, obj: ModelT) -> Any:
         ...
 
     @property
+    @abc.abstractmethod
     def ident(self) -> str:
         ...
 

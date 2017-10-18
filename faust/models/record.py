@@ -6,7 +6,7 @@ from typing import (
 )
 from .base import FieldDescriptor, Model
 from ..serializers.avro import to_avro_type
-from ..types.models import Converter, ModelOptions, ModelT
+from ..types.models import Converter, FieldDescriptorT, ModelOptions, ModelT
 from ..utils import iso8601
 from ..utils.objects import annotations, guess_concrete_type
 from ..utils.text import pluralize
@@ -132,7 +132,11 @@ class Record(Model):
         return iso8601.parse(data)
 
     @classmethod
-    def _contribute_field_descriptors(cls, options: ModelOptions) -> None:
+    def _contribute_field_descriptors(
+            cls,
+            target: Type,
+            options: ModelOptions,
+            parent: FieldDescriptorT = None) -> None:
         fields = options.fields
         defaults = options.defaults
         for field, typ in fields.items():
@@ -140,8 +144,8 @@ class Record(Model):
                 default, required = defaults[field], False
             except KeyError:
                 default, required = None, True
-            setattr(cls, field, FieldDescriptor(
-                field, typ, cls, required, default))
+            setattr(target, field, FieldDescriptor(
+                field, typ, cls, required, default, parent))
 
     def __init__(self, _data: Any = None, **fields: Any) -> None:
         if _data is not None:

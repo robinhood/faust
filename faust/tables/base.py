@@ -17,7 +17,7 @@ from ..types import (
     AppT, EventT, FieldDescriptorT, FutureMessage, JoinT,
     RecordMetadata, TP, TopicT,
 )
-from ..types.models import ModelArg
+from ..types.models import ModelArg, ModelT
 from ..types.stores import StoreT
 from ..types.streams import JoinableT, StreamT
 from ..types.tables import CollectionT, RecoverCallback, RelativeHandler
@@ -274,7 +274,7 @@ class Collection(Service, CollectionT):
 
     def _relative_field(self, field: FieldDescriptorT) -> RelativeHandler:
         def to_value(event: EventT) -> float:
-            return getattr(event.value, field.field)
+            return field.getattr(cast(ModelT, event.value))
         return to_value
 
     def _windowed_now(self, key: Any) -> Any:
