@@ -1,9 +1,18 @@
 """Text and string manipulation utilities."""
+import sys
 from difflib import SequenceMatcher
-from typing import Iterable, Iterator, NamedTuple, Optional
+from typing import (
+    Any, IO, Iterable, Iterator, NamedTuple, Optional, Sequence, Type,
+)
+from terminaltables import AsciiTable, SingleTable
+from terminaltables.base_table import BaseTable as Table
+from .compat import isatty
 
 __all__ = [
+    'Table',
+    'TableDataT',
     'FuzzyMatch',
+    'table',
     'title',
     'didyoumean',
     'fuzzymatch_choices',
@@ -14,6 +23,34 @@ __all__ = [
     'shorten_fqdn',
     'pluralize',
 ]
+
+TableDataT = Sequence[Sequence[str]]
+
+
+def table(data: TableDataT,
+          *,
+          title: str,
+          target: IO = None,
+          **kwargs: Any) -> Table:
+    """Create suitable :pypi:`terminaltables` table for target.
+
+    Arguments:
+        data (Sequence[Sequence[str]]): Table data.
+
+    Keyword Arguments:
+        target (IO): Target should be the destination output file
+                     for your table, and defaults to :data:`sys.stdout`.
+                     ANSI codes will be used if the target has a controlling
+                     terminal, but not otherwise, which is why it's important
+                     to pass the correct output file.
+    """
+    if target is None:
+        target = sys.stdout
+    return _get_best_table_type(target)(data, title=title)
+
+
+def _get_best_table_type(target: IO) -> Type[Table]:
+    return SingleTable if isatty(target) else AsciiTable
 
 
 class FuzzyMatch(NamedTuple):

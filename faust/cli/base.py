@@ -13,13 +13,11 @@ from typing import (
 )
 import click
 from colorclass import Color, disable_all_colors, enable_all_colors
-from terminaltables import SingleTable
-from terminaltables.base_table import BaseTable
 from ._env import DATADIR, DEBUG, WORKDIR
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
 from ..utils import text
-from ..utils.compat import want_bytes
+from ..utils.compat import isatty, want_bytes
 from ..utils.imports import import_from_cwd, symbol_by_name
 
 __all__ = [
@@ -200,7 +198,7 @@ def cli(ctx: click.Context,
         # WARNING: Note that the faust.app module *MUST not* have
         # been imported before setting the envvar.
         os.environ['F_DATADIR'] = datadir
-    if color:
+    if color and not isatty(sys.stdout):
         enable_all_colors()
     else:
         disable_all_colors()
@@ -310,7 +308,7 @@ class Command(abc.ABC):
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
 
-    def tabulate(self, data: Sequence[Sequence[str]],
+    def tabulate(self, data: text.TableDataT,
                  headers: Sequence[str] = None,
                  wrap_last_row: bool = True,
                  title: str = None,
@@ -331,7 +329,7 @@ class Command(abc.ABC):
         if headers:
             data = [headers] + list(data)
         title = self.bold(self.colored(title_color, title))
-        table = SingleTable(data, title=title, **kwargs)
+        table = self.table(data, title=title, **kwargs)
         if wrap_last_row:
             # slow, but not big data
             data = [
@@ -339,6 +337,11 @@ class Command(abc.ABC):
                 for l in data
             ]
         return table.table
+
+    def table(self, data: text.TableDataT,
+              title: str = None,
+              **kwargs: Any) -> text.Table:
+        return text.table(data, title=title, target=sys.stdout, **kwargs)
 
     def colored(self, color: str, text: str) -> str:
         return Color(f'{{{color}}}{text}{{/{color}}}')
@@ -350,7 +353,7 @@ class Command(abc.ABC):
         head, fsep, tail = text.rpartition(sep)
         return fsep.join([head, self.bold(tail)])
 
-    def _table_wrap(self, table: BaseTable, text: str) -> str:
+    def _table_wrap(self, table: text.Table, text: str) -> str:
         max_width = max(table.column_max_width(1), 10)
         return '\n'.join(wrap(text, max_width))
 

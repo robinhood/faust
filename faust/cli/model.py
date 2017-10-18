@@ -8,7 +8,7 @@ import click
 from .base import AppCommand
 from ..models import registry
 from ..types import FieldDescriptorT, ModelT
-from ..utils.text import didyoumean
+from ..utils.text import TableDataT, didyoumean
 
 __all__ = ['model']
 
@@ -53,7 +53,7 @@ class model(AppCommand):
             fmt_none=f'Please run `{self.prog_name} models` for a list.')
         return click.UsageError(f'No model {name!r}. {alt}')
 
-    def model_fields(self, model: Type[ModelT]) -> Sequence[Sequence[str]]:
+    def model_fields(self, model: Type[ModelT]) -> TableDataT:
         return [
             self.field(getattr(model, k)) for k in model._options.fields
         ]

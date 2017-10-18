@@ -32,7 +32,6 @@ import socket
 import typing
 from typing import Any
 from mode.utils.logging import level_name
-from terminaltables import SingleTable
 from yarl import URL
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, option
@@ -128,7 +127,7 @@ class worker(AppCommand):
                 http_v=website.web.driver_version)),
             ('datadir', f'{str(app.datadir.absolute()):<40}'),
         ]
-        table = SingleTable(
+        table = self.table(
             [(self.bold(x), y) for x, y in data],
             title=self.faust_ident(),
         )

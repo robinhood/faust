@@ -1,6 +1,7 @@
 """Table (key/value changelog stream)."""
+import sys
 from operator import itemgetter
-from typing import Any, Callable, Iterable, List, cast
+from typing import Any, Callable, IO, Iterable, List, cast
 from mode import Seconds
 from .base import Collection
 from .wrappers import WindowWrapper
@@ -69,15 +70,15 @@ class Table(Collection, TableT, ManagedUserDict):
                      value: str = 'Value',
                      sort: bool = False,
                      sortkey: Callable[[Any], Any] = itemgetter(0),
+                     target: IO = sys.stdout,
                      title: str = '{table.name}') -> str:
-        from terminaltables import SingleTable
         header = [text.title(key), text.title(value)]
         data = cast(
             Iterable[List[str]], dict(self).items())
         data = list(sorted(data, key=sortkey)) if sort else list(data)
         if sort:
             data = list(sorted(data, key=sortkey))
-        return SingleTable(
+        return text.table(
             [header] + list(data),
             title=text.title(title.format(table=self)),
         ).table
