@@ -3,7 +3,6 @@ import asyncio
 from typing import Any, Callable, cast
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
-from mode import Service
 from mode.threads import ServiceThread
 from .. import base
 from ...types import AppT
@@ -13,25 +12,26 @@ __all__ = ['Web']
 _bytes = bytes
 
 
+class ServerThread(ServiceThread):
+
+    def __init__(self, web: 'Web', **kwargs: Any) -> None:
+        self.web = web
+        super().__init__(**kwargs)
+
+    async def on_start(self) -> None:
+        await self.web.start_server(self.loop)
+
+    async def on_thread_stop(self) -> None:
+        await self.web.stop_server(self.loop)
+
+
 class Web(base.Web):
     """Web server and framework implemention using :pypi:`aiohttp`."""
 
     driver_version = f'aiohttp={aiohttp_version}'
 
     #: We serve the web server in a separate thread, with its own even loop.
-    _thread: ServiceThread = None
-
-    class _WebserverServiceThread(Service):
-
-        def __init__(self, web: 'Web', **kwargs: Any) -> None:
-            self.web = web
-            super().__init__(**kwargs)
-
-        async def on_start(self) -> None:
-            await self.web.start_server(self.loop)
-
-        async def on_stop(self) -> None:
-            await self.web.stop_server(self.loop)
+    _thread: ServerThread = None
 
     def __init__(self, app: AppT,
                  *,
@@ -65,14 +65,8 @@ class Web(base.Web):
         self._app.router.add_route('*', pattern, handler)
 
     async def on_start(self) -> None:
-        self._thread = ServiceThread(self._WebserverServiceThread(
-            self,
-            beacon=self.beacon,
-        ))
-        self._thread.start()
-
-    async def on_stop(self) -> None:
-        self._thread.stop()
+        self._thread = ServerThread(self, loop=self.loop, beacon=self.beacon)
+        self.add_dependency(self._thread)
 
     async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
         self._handler = self._app.make_handler()
