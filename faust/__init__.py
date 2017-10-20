@@ -24,7 +24,7 @@ import typing
 from contextlib import suppress
 from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple
 
-__version__ = '0.9.2'
+__version__ = '0.9.3'
 __author__ = 'Robinhood Markets'
 __contact__ = 'opensource@robinhood.com'
 __homepage__ = 'http://fauststream.com'
