@@ -75,6 +75,7 @@ class Topic(Channel, TopicT):
                  deleting: bool = None,
                  replicas: int = None,
                  acks: bool = True,
+                 internal: bool = False,
                  config: Mapping[str, Any] = None,
                  queue: asyncio.Queue = None,
                  errors: asyncio.Queue = None,
@@ -102,6 +103,7 @@ class Topic(Channel, TopicT):
         self.deleting = deleting
         self.replicas = replicas
         self.acks = acks
+        self.internal = internal
         self.config = config or {}
         self.decode = self._compile_decode()    # type: ignore
 
@@ -139,6 +141,7 @@ class Topic(Channel, TopicT):
             'compacting': self.compacting,
             'deleting': self.deleting,
             'replicas': self.replicas,
+            'internal': self.internal,
             'key_serializer': self.key_serializer,
             'value_serializer': self.value_serializer,
             'acks': self.acks,
@@ -190,6 +193,7 @@ class Topic(Channel, TopicT):
                retention: Seconds = None,
                compacting: bool = None,
                deleting: bool = None,
+               internal: bool = None,
                config: Mapping[str, Any] = None,
                prefix: str = '',
                suffix: str = '') -> TopicT:
@@ -221,6 +225,7 @@ class Topic(Channel, TopicT):
             compacting=self.compacting if compacting is None else compacting,
             deleting=self.deleting if deleting is None else deleting,
             config=self.config if config is None else config,
+            internal=self.internal if internal is None else internal,
         )
 
     def get_topic_name(self) -> str:
@@ -302,6 +307,9 @@ class Topic(Channel, TopicT):
                 partitions=self.partitions,
                 replication=self.replicas,
                 config=self.config,
+                compacting=self.compacting,
+                deleting=self.deleting,
+                retention=self.retention,
             )
 
     def __aiter__(self) -> ChannelT:
@@ -402,14 +410,14 @@ class TopicConductor(ConductorT, Service):
         await self.sleep(2.0)
 
         # tell the consumer to subscribe to the topics.
-        await self.app.consumer.subscribe(self._update_topicmap())
+        await self.app.consumer.subscribe(await self._update_topicmap())
         notify(self._subscription_done)
 
         # Now we wait for changes
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
             await ev.wait()
-            await self.app.consumer.subscribe(self._update_topicmap())
+            await self.app.consumer.subscribe(await self._update_topicmap())
             ev.clear()
             notify(self._subscription_done)
 
@@ -417,9 +425,11 @@ class TopicConductor(ConductorT, Service):
         if self._subscription_done is not None:
             await self._subscription_done
 
-    def _update_topicmap(self) -> Iterable[str]:
+    async def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
         for channel in self._topics:
+            if channel.internal:
+                await channel.maybe_declare()
             for topic in channel.topics:
                 if channel.acks:
                     self._acking_topics.add(topic)

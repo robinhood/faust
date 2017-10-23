@@ -305,7 +305,8 @@ class Stream(StreamT, Service):
     def group_by(self, key: GroupByKeyArg,
                  *,
                  name: str = None,
-                 topic: TopicT = None) -> StreamT:
+                 topic: TopicT = None,
+                 partitions: int = None) -> StreamT:
         """Create new stream that repartitions the stream using a new key.
 
         Arguments:
@@ -369,7 +370,9 @@ class Stream(StreamT, Service):
             if not isinstance(self.channel, TopicT):
                 raise ValueError('Need to specify topic for non-topic channel')
             suffix = '-' + name + '-repartition'
-            topic = cast(TopicT, self.channel).derive(suffix=suffix)
+            p = self.app.default_partitions if partitions else partitions
+            topic = cast(TopicT, self.channel).derive(
+                suffix=suffix, partitions=p, internal=True)
         topic_created = False
         format_key = self._format_key
 
