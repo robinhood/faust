@@ -38,7 +38,7 @@ class InputStream(InputStreamT):
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
-        self.queue = asyncio.Queue(maxsize=1, loop=self.loop)
+        self.queue = asyncio.Queue(maxsize=1000, loop=self.loop)
 
     async def put(self, value: Any) -> None:
         await self.queue.put(value)

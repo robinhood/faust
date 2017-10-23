@@ -115,6 +115,9 @@ REPLY_TOPIC_PREFIX = 'f-reply-'
 #: Default expiry time for replies in seconds (float/timedelta).
 REPLY_EXPIRES = timedelta(days=1)
 
+#: Max number of messages channels/streams/topics can "prefetch".
+STREAM_BUFFER_MAXSIZE = 1000
+
 #: Format string for ``repr(app)``.
 APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} agents({agents}) topics({topics})>
@@ -353,6 +356,7 @@ class App(AppT, ServiceProxy):
             Worker: SymbolArg[Type[WorkerT]] = WORKER_TYPE,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
+            stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
         self.id = id
@@ -397,6 +401,7 @@ class App(AppT, ServiceProxy):
         self.origin = origin
         self.autodiscover = autodiscover
         self.pages = []
+        self.stream_buffer_maxsize = stream_buffer_maxsize
         ServiceProxy.__init__(self)
 
     def discover(self,

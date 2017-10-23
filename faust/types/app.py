@@ -108,6 +108,7 @@ class AppT(ServiceT):
     canonical_url: URL
     origin: str
     autodiscover: AutodiscoverArg
+    stream_buffer_maxsize: int
 
     agents: MutableMapping[str, AgentT]
     sensors: SensorDelegateT
@@ -149,6 +150,7 @@ class AppT(ServiceT):
             Worker: SymbolArg[Type[WorkerT]] = None,
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
+            stream_buffer_maxsize: int = 1,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.on_startup_finished: Callable = None
 

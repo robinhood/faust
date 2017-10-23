@@ -209,7 +209,7 @@ class Channel(ChannelT):
                  is_iterator: bool = False,
                  queue: asyncio.Queue = None,
                  errors: asyncio.Queue = None,
-                 maxsize: int = 1,
+                 maxsize: int = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
@@ -219,6 +219,8 @@ class Channel(ChannelT):
         self._queue = queue
         self._errors = errors
         self.maxsize = maxsize
+        if self.maxsize is None:
+            self.maxsize = self.app.stream_buffer_maxsize
         self.deliver = self._compile_deliver()  # type: ignore
 
     @property
