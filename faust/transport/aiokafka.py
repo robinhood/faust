@@ -1,4 +1,5 @@
 """Message transport using :pypi:`aiokafka`."""
+from itertools import cycle
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, List,
     Mapping, MutableMapping, Optional, Set, Tuple, Type, cast,
@@ -20,6 +21,7 @@ from mode import Seconds, Service, want_seconds
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
+from ..utils.aiter import aiter
 from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.objects import cached_property
@@ -140,9 +142,12 @@ class Consumer(base.Consumer):
             max_records=None,
         )
         create_message = Message  # localize
+
+        iterators = []
         for tp, messages in records.items():
-            for message in messages:
-                yield tp, create_message(
+            iterators.append((
+                tp,
+                (create_message(
                     message.topic,
                     message.partition,
                     message.offset,
@@ -153,8 +158,21 @@ class Consumer(base.Consumer):
                     message.checksum,
                     message.serialized_key_size,
                     message.serialized_value_size,
-                    tp,
-                )
+                    tp)
+                 for message in messages),
+            ))
+
+        sentinel = object()
+        all: Set[TP] = set(records)
+        empty: Set[TP] = set()
+        for tp, it in cycle(iterators):
+            message = next(it, sentinel)
+            if message is sentinel:
+                empty.add(tp)
+            else:
+                yield tp, message
+            if len(all) == len(empty):
+                break
 
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return cast(TP, _TopicPartition(topic, partition))
