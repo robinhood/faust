@@ -76,6 +76,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             tp: highwaters[tp] - 1
             for tp in tps
         })
+        self.log.info(f'Highwaters for recovery: {self._highwaters}')
 
     def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
