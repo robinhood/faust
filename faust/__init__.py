@@ -92,10 +92,18 @@ def _extract_arg_from_argv(
     return None
 
 
-_datadir = _extract_arg_from_argv(longopts=('--datadir',))
+_datadir = (
+    _extract_arg_from_argv(longopts=('--datadir',)) or
+    os.environ.get('FAUST_DATADIR') or
+    os.environ.get('F_DATADIR')
+)
 if _datadir:
-    os.environ['F_DATADIR'] = _datadir
-_loop = _extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',))
+    os.environ['FAUST_DATADIR'] = _datadir
+_loop = (
+    _extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',)) or
+    os.environ.get('FAUST_LOOP') or
+    os.environ.get('F_LOOP')
+)
 if _loop:
     os.environ['FAUST_LOOP'] = _loop
     import mode.loop

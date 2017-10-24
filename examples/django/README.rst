@@ -1,0 +1,38 @@
+Directory Layout
+
+- ``proj/``
+
+  This is the main Django project.
+
+  We have also added a ``proj/__main__.py`` that executes if you do
+  ``python -m proj``, and it will work as the manage.py for the project.
+
+  This is also installed by setup.py as an entrypoint, so after
+  ``python setup.py install`` or ``python setup.py develop`` the
+  ``proj`` command will be available::
+
+        $ python setup.py develop
+        $ proj runserver
+
+    The above is the same as running ``manage.py runserver``, but it will
+    be installed in the system path.
+
+- ``faustapp/``
+
+    This is a Django App that defines the Faust app used by the project,
+    and it also configures Faust from the Django settings.
+
+    The ``faustapp/__main__.py`` module ensures the package is executable
+    with ``python -m faustapp`` and is a shortcut to running ``faust -A
+    faustapp``.
+
+    This faustapp is also installed by setup.py as the ``proj-faust`` program,
+    and can be used to start a Faust worker for your Django project by doing::
+
+        $ python setup.py develop
+        $ faust-proj worker -l info
+
+- ``accounts/``
+
+    This is an example Django App that defines an Account model, and some
+    Faust agents that work on that model.
