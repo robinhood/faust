@@ -30,7 +30,7 @@ or add `import mode.loop.gevent` at the top of your entrypoint script:
 .. sourcecode:: python
 
     #!/usr/bin/env python3
-    import faust.loop.gevent  # noqa
+    import mode.loop.gevent  # noqa
 
 REMEMBER: It's very important this is at the very top of the module,
 and that it executes before you import libraries.
@@ -60,7 +60,7 @@ or add `import mode.loop.eventlet` at the top of your entrypoint script:
 .. sourcecode:: python
 
     #!/usr/bin/env python3
-    import faust.loop.eventlet  # noqa
+    import mode.loop.eventlet  # noqa
 
 REMEMBER: It's very important this is at the very top of the module,
 and that it executes before you import libraries.
