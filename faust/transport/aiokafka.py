@@ -21,7 +21,6 @@ from mode import Seconds, Service, want_seconds
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.aiter import aiter
 from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 from ..utils.objects import cached_property
