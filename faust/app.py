@@ -460,6 +460,7 @@ class App(AppT, ServiceProxy):
               deleting: bool = None,
               replicas: int = None,
               acks: bool = True,
+              internal: bool = False,
               config: Mapping[str, Any] = None) -> TopicT:
         """Create topic description.
 
@@ -483,6 +484,7 @@ class App(AppT, ServiceProxy):
             deleting=deleting,
             replicas=replicas,
             acks=acks,
+            internal=internal,
             config=config,
         )
 

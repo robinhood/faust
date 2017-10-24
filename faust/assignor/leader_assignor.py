@@ -23,6 +23,7 @@ class LeaderAssignor(Service, LeaderAssignorT):
             self._leader_topic_name,
             partitions=1,
             acks=False,
+            internal=True,
         )
 
     @cached_property

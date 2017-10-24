@@ -36,7 +36,7 @@ app = faust.App(
     'f-simple2',
     url='kafka://127.0.0.1:9092',
     store='rocksdb://',
-    default_partitions=6,
+    default_partitions=4,
 )
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
