@@ -33,7 +33,6 @@ __all__ = [
 argument = click.argument
 option = click.option
 
-
 builtin_options: Sequence[Callable] = [
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
@@ -49,6 +48,8 @@ builtin_options: Sequence[Callable] = [
            help='Directory to keep application state.'),
     option('--json/--no-json', default=False,
            help='Prefer data to be emitted in json format.'),
+    option('--loop', '-L', default='aio',
+           help='Event loop implementation to use: aio, gevent, uvloop.'),
 ]
 
 
@@ -177,7 +178,8 @@ def cli(ctx: click.Context,
         workdir: str,
         datadir: str,
         json: bool,
-        color: bool) -> None:
+        color: bool,
+        loop: str) -> None:
     """Faust command-line interface."""
     ctx.obj = {
         'app': app,
@@ -187,6 +189,7 @@ def cli(ctx: click.Context,
         'datadir': datadir,
         'json': json,
         'color': color,
+        'loop': loop,
     }
     if workdir:
         os.environ['F_WORKDIR'] = workdir

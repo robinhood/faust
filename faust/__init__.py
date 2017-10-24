@@ -21,7 +21,6 @@ import os
 import re
 import sys
 import typing
-from contextlib import suppress
 from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 __version__ = '0.9.3'
@@ -67,27 +66,40 @@ del(re)
 # A side effect is that anything importing faust
 # that also happens to have a '-D' argument in sys.argv will have the
 # F_DATADIR environment variable set.  I think that's ok. [ask]
-def _extract_datadir_from_argv(
+def _extract_arg_from_argv(
         argv: Sequence[str] = sys.argv,
         *,
+        shortopts: Tuple[str, ...] = (),
         longopts: Tuple[str, ...] = ('--datadir',)) -> Optional[str]:
     for i, arg in enumerate(argv):
+        if arg in shortopts:
+            try:
+                value = argv[i + 1]
+            except IndexError:
+                import click
+                raise click.UsageError(f'Missing value for {arg} option')
+            return value
         if arg.startswith(longopts):
-            _, _, value = arg.partition('=')
+            key, _, value = arg.partition('=')
             if not value:
                 try:
                     value = argv[i + 1]
                 except IndexError:
                     import click
                     raise click.UsageError(
-                        'Missing workdir! Did you mean --workdir=value?')
+                        f'Missing {key}! Did you mean --{key}=value?')
             return value
     return None
 
 
-_datadir = _extract_datadir_from_argv()
+_datadir = _extract_arg_from_argv(longopts=('--datadir',))
 if _datadir:
     os.environ['F_DATADIR'] = _datadir
+_loop = _extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',))
+if _loop:
+    os.environ['FAUST_LOOP'] = _loop
+    import mode.loop
+    mode.loop.use(_loop)
 
 # This module loads attributes lazily so that `import faust` loads
 # quickly.  The next section provides static type checkers
@@ -127,16 +139,7 @@ __all__ = [
     'TopicT',
     'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
     'Worker',
-    'use_uvloop',
 ]
-
-
-def use_uvloop() -> None:
-    """Use uvloop as the event loop implementation (if available)."""
-    with suppress(ImportError):
-        import uvloop
-        import asyncio
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
 # Lazy loading.
@@ -208,5 +211,4 @@ new_module.__dict__.update({
     'version_info_t': version_info_t,
     'version_info': version_info,
     'VERSION': VERSION,
-    'use_uvloop': use_uvloop,
 })

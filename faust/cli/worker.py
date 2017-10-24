@@ -21,10 +21,6 @@
 .. cmdoption:: --web-port, -p
 
     Port to run web server on.
-
-.. cmdoption:: --with-uvloop, --without-uvloop
-
-    Use uvloop event loop.
 """
 import os
 import platform
@@ -64,17 +60,7 @@ class worker(AppCommand):
         option('--web-host', '-h',
                default=socket.gethostname(), type=str,
                help='Canonical host name for the web server.'),
-        option('--with-uvloop/--without-uvloop',
-               help='Use fast uvloop event loop.'),
     ]
-
-    def __init__(self, *args: Any,
-                 with_uvloop: bool = None,
-                 **kwargs: Any) -> None:
-        if with_uvloop:
-            from .. import use_uvloop
-            use_uvloop()
-        super().__init__(*args, **kwargs)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.start_worker(
@@ -111,6 +97,8 @@ class worker(AppCommand):
         # and also there's no uvloop.__version__ attribute.
         if loop.__class__.__module__ == 'uvloop':
             transport_extra = '+uvloop'
+        if 'gevent' in loop.__class__.__module__:
+            transport_extra = '+gevent'
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
         data = [
