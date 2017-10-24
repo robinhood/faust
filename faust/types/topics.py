@@ -34,6 +34,7 @@ class TopicT(ChannelT):
     replicas: int
     config: Mapping[str, Any]
     acks: bool
+    internal: bool
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -49,6 +50,7 @@ class TopicT(ChannelT):
                  deleting: bool = None,
                  replicas: int = None,
                  acks: bool = True,
+                 internal: bool = False,
                  config: Mapping[str, Any] = None,
                  queue: asyncio.Queue = None,
                  errors: asyncio.Queue = None,
@@ -95,6 +97,7 @@ class TopicT(ChannelT):
                retention: Seconds = None,
                compacting: bool = None,
                deleting: bool = None,
+               internal: bool = False,
                config: Mapping[str, Any] = None,
                prefix: str = '',
                suffix: str = '') -> 'TopicT':
