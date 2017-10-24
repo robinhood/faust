@@ -329,6 +329,7 @@ class App(AppT, ServiceProxy):
     def __init__(
             self, id: str,
             *,
+            version: int = 1,
             url: Union[str, URL] = TRANSPORT_URL,
             store: Union[str, URL] = 'memory://',
             autodiscover: AutodiscoverArg = False,
@@ -359,7 +360,7 @@ class App(AppT, ServiceProxy):
             stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE,
             loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop
-        self.id = id
+        self.id = f'{id}-{version}'
         self.url = URL(url)
         self.client_id = client_id
         self.canonical_url = URL(canonical_url or '')
