@@ -90,7 +90,7 @@ class Stream(StreamT, Service):
         self.app = app
         self.channel = channel
         self.outbox = self.app.FlowControlQueue(
-            maxsize=self.app.stram_buffer_maxsize,
+            maxsize=self.app.stream_buffer_maxsize,
             loop=self.loop,
             clear_on_resume=True,
         )
