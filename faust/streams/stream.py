@@ -153,7 +153,8 @@ class Stream(StreamT, Service):
     async def events(self) -> AsyncIterable[EventT]:
         """Iterate over the stream as events exclusively.
 
-        This means the stream must be iterating over a channel.
+        This means the stream must be iterating over a channel,
+        or at least an iterable of event objects.
         """
         async for _ in self:  # noqa: F841
             if self.current_event is not None:
@@ -165,9 +166,10 @@ class Stream(StreamT, Service):
 
         Keyword Arguments:
             within: Timeout for when we give up waiting for another value,
-                and return the list of values that we have.
-                Warning: If this is not set, it can potentially wait forever
-                for a new value, and buffered items will not be processed.
+                and process the values we have.
+                Warning: If there's no timeout (i.e. `timeout=None`),
+                the agent is likely to stall and block buffered events for an
+                unreasonable length of time(!).
         """
         buffer: List[T_co] = []
         add = buffer.append
@@ -565,16 +567,18 @@ class Stream(StreamT, Service):
                 # decrement reference count for previous event processed.
                 _prev, self.current_event = self.current_event, None
                 if _prev is not None:
-                    await _prev.ack()
-                    _msg = _prev.message
-                    await self._on_stream_event_out(
-                        _msg.tp, _msg.offset, self, _prev)
+                    await self.ack(_prev)
 
             delegated_to_outbox, value = await self._on_message()
             if delegated_to_outbox:
                 value = await self.outbox.get()
             value = await self.on_merge(value)
         return value
+
+    async def ack(self, event: EventT) -> None:
+        await event.ack()
+        msg = event.message
+        await self._on_stream_event_out(msg.tp, msg.offset, self, event)
 
     def __and__(self, other: Any) -> Any:
         return self.combine(self, other)

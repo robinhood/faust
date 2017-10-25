@@ -182,3 +182,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     @abc.abstractmethod
     async def __anext__(self) -> T_co:
         ...
+
+    @abc.abstractmethod
+    async def ack(self, event: EventT) -> None:
+        ...
