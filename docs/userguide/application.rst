@@ -20,20 +20,16 @@ Basics
 The application is an instance of the Faust library.
 
 To create one in Python you need to provide
-a name (the id), message broker, and a table storage driver to use.
+a name for the application (the id), a message broker, and a driver to use for
+table storage.
 
 .. sourcecode:: pycon
 
     >>> import faust
     >>> app = faust.App('example', url='kafka://', store='rocksdb://')
 
-.. _application-trivia:
 
-Trivia
-------
-
-
-For very special needs it can be inherited from, and a subclass
+For very special needs the :class:`faust.App` class can be inherited from, and a subclass
 will have the ability to change how almost everything works.
 
 Comparing the application to the interface of frameworks like Django,
@@ -65,11 +61,10 @@ Configuration
 
 The defaults are sensible so you can safely
 use Faust without changing them.  You probably *will want* to
-set the ``url`` and ``store`` options, to configure the broker and
+set the ``url`` and ``store`` options, though, to configure the broker and
 storage driver.
 
-Here we set the broker url to ``kafka://kafka.example.com``, and
-the storage driver to ``rocksdb://``:
+Here we set the broker url to Kafka, and the storage driver to `RocksDB`_:
 
 .. sourcecode:: python
 
@@ -79,26 +74,25 @@ the storage driver to ``rocksdb://``:
     ...     store='rocksdb://',
     ... )
 
-"localhost" is used If a broker url is not set.
-The first part of the broker URL ("kafka://") is the driver. Only
-:pypi:`aiokafka` is supported in version 1.0.
+"kafka://localhost" is used if no broker url is set at all.
+The first part of the broker URL ("kafka://") is the driver.
 
 The store decides how distributed tables are stored locally, and version
-1.0 only supports two options:
+1.0 supports two options:
 
 +----------------+-----------------------------------------------+
-| ``memory://``  | In-memory only (development)                  |
-+----------------+-----------------------------------------------+
 | ``rocksdb://`` | `RocksDB`_ an embedded database (production)  |
++----------------+-----------------------------------------------+
+| ``memory://``  | In-memory (development)                       |
 +----------------+-----------------------------------------------+
 
 Using the ``memory://`` store is OK when developing your project and testing
 things out, but for large tables it can take hours to recover after
-restart.
+restart, so you should never use it in production.
 
-`RocksDB`_ recovers in seconds or less, is embedded so don't require a server or
-additional infrastructure, and it's stored on the file system so tables can exceed
-available memory.
+`RocksDB`_ recovers in seconds or less, is embedded and don't require a server or
+additional infrastructure, and stored on the file system so tables can exceed
+the size of available memory.
 
 .. _`RocksDB`: http://rocksdb.org/
 
@@ -108,9 +102,9 @@ Parameters
 `id`
     :type: ``str``
 
-    A string that uniquely identifies the app, to be shared between all
-    instances of the app.  Two app instances with the same id is considered
-    to be in the same group.
+    A string uniquely identifiying the app, shared across all
+    instances such that two app instances with the same `id` is
+    considered to be in the same "group".
 
     This parameter is required.
 
@@ -123,11 +117,12 @@ Parameters
     :type: ``str``
     :default: ``"aiokafka://localhost:9092"``
 
-    Faust needs the URL of a transport to send and receive messages.
+    Faust needs the URL of a "transport" used to send and receive messages.
 
     Currently the only supported transport is the ``aiokafka://`` Kafka client.
 
-    You can specify a list of hosts by separating them using semi-comma:
+    You can specify multiple hosts at the same time by separating them using
+    the semi-comma::
 
     .. sourcecode:: text
 
@@ -141,7 +136,8 @@ Parameters
     Tables are stored in-memory only by default, but this is only really
     suitable for testing and development purposes.
 
-    In production a persistent store, such as ``rocksdb://`` should be used.
+    In production a persistent table store, such as ``rocksdb://`` is
+    preferred.
 
 `autodiscover`
     :type: ``Union[bool, Iterable[str], Callable[[], Iterable[str]]]``
@@ -152,23 +148,23 @@ Parameters
 
         The autodiscover functionality uses :pypi:`venusian` to
         scan wanted packages for ``@app.agent``, ``@app.page``, and
-        ``@app.command`` decorators, but to do so it needs
+        ``@app.command`` decorators, but to do so it is required
         to traverse the package directory and import every package
-        in it.
+        in them.
 
         Importing random modules like this can be dangerous if best
-        practices are not followed: starting threads, network
-        I/O, monkey-patching, etc. should not happen as a side effect
-        of importing a module.
+        practices are not followed in user modules: starting threads,
+        network I/O, monkey-patching, or similar, should not happen as
+        a side effect of importing a module.
 
     The value for this argument can be:
 
     ``bool``
-        If ``App(autodiscover=True)`` is set the autodiscovery will
+        If ``App(autodiscover=True)`` is set, the autodiscovery will
         scan the package name described in the ``origin`` attribute.
         The ``origin`` attribute is automatically set when you start
-        a worker using the :program:`faust` command with the
-        :option:`faust -A examples.simple <faust -A>`, option set, or
+        a worker using the :program:`faust` command and the
+        :option:`-A examples.simple <faust -A>`, option set, or
         execute your main script using `python examples/simple.py`` when
         that script calls ``app.main()``.
 
@@ -182,9 +178,9 @@ Parameters
         to scan::
 
             def get_all_packages_to_scan():
-                ...
+                return ['proj_orders', 'proj_accounts']
 
-             app = App(..., autodiscover=get_all_apps)
+             app = App(..., autodiscover=get_all_packages_to_scan)
 
     .. admonition:: Django
 
@@ -207,26 +203,13 @@ Parameters
 
         We use :keyword:`lambda` in the first example, and a generator
         expression in the latter example. This way you can safely import the
-        module containing this app before the Django settings machinery is
-        initialized.
+        module containing this app without forcing the Django settings machinery
+        to be initialized (i.e. settings imported).
 
     .. tip::
 
-        For manual control over autodiscovery, you can also use the
-        :meth:`@discover` method.
-
-
-`origin`
-    :type: ``str``
-    :default: :const:`None`
-
-    This is automatically set when using the :option:`faust -A` option,
-    and when using your app module as a script calling ``app.main()``,
-
-    The origin options defines the name of the module that the app is defined
-    in.  If you create your app in ``examples/simple.py``, then a good value
-    will be "examples.simple" as that's how you'd locate the app on
-    the command line.
+        For manual control over autodiscovery, you can also call the
+        :meth:`@discover` method, manually.
 
 `avro_registry_url`
     :type: ``str``
@@ -242,14 +225,19 @@ Parameters
     :type:  ``str``
     :default: ``socket.gethostname()``
 
+    You shouldn't have to set this manually.
+
     The canonical URL defines how to reach the web server on a running
     worker node, and is usually set by combining the :option:`faust worker --web-host`
     and :option:`faust worker --web-port` command line arguments, not
     by passing it as a keyword argument to :class:`App`.
 
+
 `client_id
     :type: ``str``
     :default: `faust-VERSION`
+
+    You shouldn't have to set this manually.
 
     The client id is used to identify the software used, and is not usually
     configured by the user.
@@ -259,8 +247,11 @@ Parameters
     :default: ``{appid}-data``
 
     The directory in which this instance stores local table data, etc.
-    Usually set by the :option:`faust worker --datadir` option, but a default
-    can be passed as a keyword argument to :class:`App`.
+
+    .. seealso::
+
+        Can also be set this using :option:`faust worker --datadir` option, but a default
+        can be passed as a keyword argument to :class:`App`.
 
 `commit_interval`
     :type: `float`, :class:`~datetime.timedelta`
@@ -295,7 +286,7 @@ Parameters
     Serializer used for values by default when no serializer is specified, or a
     model is not being used.
 
-    This can be the name of a serializer/codec, or an actual
+    This can be string, the name of a serializer/codec, or an actual
     :class:`faust.serializers.codecs.Codec` instance.
 
     .. seealso::
