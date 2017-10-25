@@ -43,6 +43,8 @@ class Registry(RegistryT):
                the default will be used (:attr:`key_serializer`).
         """
         if key is None:
+            if typ is not None and issubclass(typ, ModelT):
+                raise KeyDecodeError(f'Expected {typ!r}, received {key!r}!')
             return key
         serializer = serializer or self.key_serializer
         try:
@@ -95,6 +97,9 @@ class Registry(RegistryT):
                the default will be used (:attr:`value_serializer`).
         """
         if value is None:
+            if typ is not None and issubclass(typ, ModelT):
+                raise ValueDecodeError(
+                    f'Expected {typ!r}, received {value!r}!')
             return None
         try:
             serializer = serializer or self.value_serializer
@@ -106,13 +111,12 @@ class Registry(RegistryT):
                 typ = bytes if typ is None else typ
                 v = self.Model._maybe_reconstruct(
                     self._loads(serializer, value))
-                if typ is not None:
-                    if typ is str:
-                        return want_str(v)
-                    elif typ is bytes:
-                        return want_bytes(v)
-                    elif not isinstance(v, ModelT):
-                        return typ(v)
+                if typ is str:
+                    return want_str(v)
+                elif typ is bytes:
+                    return want_bytes(v)
+                elif not isinstance(v, ModelT):
+                    return typ(v)
                 return v
         except MemoryError:
             raise

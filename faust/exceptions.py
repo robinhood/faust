@@ -3,6 +3,7 @@
 __all__ = [
     'FaustError',
     'ImproperlyConfigured',
+    'DecodeError',
     'KeyDecodeError',
     'ValueDecodeError',
 ]
@@ -16,13 +17,13 @@ class ImproperlyConfigured(FaustError):
     """The library is not configured/installed correctly."""
 
 
-class KeyDecodeError(FaustError):
+class DecodeError(FaustError):
+    """Error while decoding/deserializing message key/value."""
+
+
+class KeyDecodeError(DecodeError):
     """Error while decoding/deserializing message key."""
 
 
-class ValueDecodeError(FaustError):
+class ValueDecodeError(DecodeError):
     """Error while decoding/deserialization message value."""
-
-
-class MaxRestartsExceeded(FaustError):
-    """Service was restarted too many times."""

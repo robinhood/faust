@@ -391,12 +391,11 @@ class Channel(ChannelT):
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
-        logger.exception('Cannot decode key: %r: %r', message.key, exc)
+        await self.throw(exc)
 
     async def on_value_decode_error(
             self, exc: Exception, message: Message) -> None:
-        logger.exception('Cannot decode value for key=%r (%r): %r',
-                         message.key, message.value, exc)
+        await self.throw(exc)
 
     def __aiter__(self) -> ChannelT:
         return self if self.is_iterator else self.clone(is_iterator=True)
@@ -420,7 +419,8 @@ class Channel(ChannelT):
                 loop=loop)
             if coro_get_exc.done():
                 # we got an exception from Channel.throw(exc):
-                raise coro_get_exc.result()
+                exc: BaseException = coro_get_exc.result()
+                raise exc from None
             return coro_get_val.result()
         finally:
             if coro_get_exc and not coro_get_exc.done():
