@@ -88,10 +88,10 @@ def strip_comments(l):
     return l.split('#', 1)[0].strip()
 
 
-def _pip_requirement(req):
+def _pip_requirement(req, *root):
     if req.startswith('-r '):
         _, path = req.split()
-        return reqs(*path.split('/'))
+        return reqs(*root, *path.split('/'))
     return [req]
 
 
@@ -99,7 +99,7 @@ def _reqs(*f):
     path = (Path.cwd() / 'requirements').joinpath(*f)
     with path.open() as fh:
         reqs = [strip_comments(l) for l in fh.readlines()]
-        return [_pip_requirement(r) for r in reqs if r]
+        return [_pip_requirement(r, *f[:-1]) for r in reqs if r]
 
 
 def reqs(*f):
