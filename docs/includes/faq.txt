@@ -4,7 +4,7 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use gevent/eventlet and use a bridge to integrate with asyncio.
+Yes! Use gevent/eventlet as a bridge to integrate with asyncio.
 
 Using ``gevent``
 ~~~~~~~~~~~~~~~~
