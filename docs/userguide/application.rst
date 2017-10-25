@@ -19,7 +19,7 @@ Basics
 
 The application is an instance of the Faust library.
 
-To create one in Pythonk you need to provide
+To create one in Python you need to provide
 a name (the id), message broker, and a table storage driver to use.
 
 .. sourcecode:: pycon
