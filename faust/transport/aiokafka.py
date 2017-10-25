@@ -2,7 +2,7 @@
 from itertools import cycle
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, List,
-    Mapping, MutableMapping, Optional, Set, Tuple, Type, cast,
+    Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
 )
 
 import aiokafka
@@ -165,11 +165,11 @@ class Consumer(base.Consumer):
         all: Set[TP] = set(records)
         empty: Set[TP] = set()
         for tp, it in cycle(iterators):
-            message = next(it, sentinel)
+            message: Union[Message, object] = next(it, sentinel)
             if message is sentinel:
                 empty.add(tp)
             else:
-                yield tp, message
+                yield tp, cast(Message, message)
             if len(all) == len(empty):
                 break
 

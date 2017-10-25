@@ -34,7 +34,7 @@ class ServerThread(ServiceThread):
         await self.web.start_server(self.loop)
         notify(self._port_open)  # <- .start() can return now
 
-    async def crash(self, exc) -> None:
+    async def crash(self, exc: BaseException) -> None:
         if self._port_open and not self._port_open.done():
             self._port_open.set_exception(exc)  # <- .start() will raise
         await super().crash(exc)
