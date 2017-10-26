@@ -214,7 +214,7 @@ def guess_concrete_type(
         elif issubclass(typ, list_types):
             # List[x]
             return list, _unary_type_arg(typ)
-        elif issubclass(typ, DICT_TYPES):
+        elif issubclass(typ, dict_types):
             # Dict[_, x]
             return dict, (
                 typ.__args__[1]
