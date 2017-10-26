@@ -82,7 +82,7 @@ class SpinnerHandler(logging.Handler):
         self.worker = worker
         super().__init__(**kwargs)
 
-    def emit(self, record: logging.LogRecord) -> None:
+    def emit(self, _record: logging.LogRecord) -> None:
         # the spinner is only in effect with WARN level and below.
         if self.worker.spinner:
             self.worker.spinner.next()  # noqa: B305

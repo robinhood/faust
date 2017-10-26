@@ -7,4 +7,5 @@ twine
 packaging
 pytest-sugar
 asyncio-ipython-magic
+vulture
 -r flakes.txt

@@ -76,7 +76,7 @@ class model(AppCommand):
             self.colored('autoblack', self._help(model)),
         ]
 
-    def _name(self, model: Type[ModelT], short: str = '@') -> str:
+    def _name(self, model: Type[ModelT]) -> str:
         return self.abbreviate_fqdn(model._options.namespace)
 
     def _help(self, model: Type[ModelT]) -> str:

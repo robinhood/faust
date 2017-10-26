@@ -182,7 +182,7 @@ class AgentService(Service):
             self.supervisor.add(res)
         await self.supervisor.start()
 
-    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
+    async def _replace_actor(self, _service: ServiceT, index: int) -> ServiceT:
         return await self._start_one(index)
 
     async def on_stop(self) -> None:

@@ -170,9 +170,9 @@ class Event(EventT):
         return self
 
     async def __aexit__(self,
-                        exc_type: Type[BaseException] = None,
-                        exc_val: BaseException = None,
-                        exc_tb: TracebackType = None) -> Optional[bool]:
+                        _exc_type: Type[BaseException] = None,
+                        _exc_val: BaseException = None,
+                        _exc_tb: TracebackType = None) -> Optional[bool]:
         await self.ack()
         return None
 

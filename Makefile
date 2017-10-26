@@ -12,8 +12,11 @@ PYDOCSTYLE ?= pydocstyle
 MYPY ?= mypy
 SPHINX2RST ?= sphinx2rst
 BUMPVERSION ?= bumpversion
+VULTURE ?= vulture
+VULTURE_MIN_CONFIDENCE=100
 
 TESTDIR ?= t
+EXAMPLESDIR ?= examples
 SPHINX_DIR ?= docs/
 SPHINX_BUILDDIR ?= "${SPHINX_DIR}/_build"
 README ?= README.rst
@@ -37,9 +40,10 @@ help:
 	@echo "    readmecheck      - Check README.rst encoding."
 	@echo "    contribcheck     - Check CONTRIBUTING.rst encoding"
 	@echo "    flakes --------  - Check code for syntax and style errors."
-	@echo "      typecheck      - Run the mypy type checker"
 	@echo "      flakecheck     - Run flake8 on the source code."
-	@echo "      pep257check    - Run pep257 on the source code."
+	@echo "    typecheck        - Run the mypy type checker"
+	@echo "    pep257check      - Run pep257 on the source code."
+	@echo "    vulture          - Run vulture to find unused code."
 	@echo "readme               - Regenerate README.rst file."
 	@echo "contrib              - Regenerate CONTRIBUTING.rst file"
 	@echo "coc                  - Regenerate CODE_OF_CONDUCT.rst file"
@@ -89,7 +93,7 @@ dockerdocs: dockerimage
 clean-docs:
 	-rm -rf "$(SPHINX_BUILDDIR)"
 
-lint: flakecheck apicheck readmecheck
+lint: flakecheck apicheck readmecheck pep257check vulture
 
 apicheck:
 	(cd "$(SPHINX_DIR)"; $(MAKE) apicheck)
@@ -99,6 +103,10 @@ flakecheck:
 
 pep257check:
 	$(PYDOCSTYLE) "$(PROJ)"
+
+vulture:
+	$(VULTURE) "$(PROJ)" "$(TESTDIR)" "$(EXAMPLESDIR)" \
+		--min-confidence="$(VULTURE_MIN_CONFIDENCE)"
 
 flakediag:
 	-$(MAKE) flakecheck
