@@ -35,13 +35,6 @@ def test_stream(channel):
     assert s.channel.queue is channel.queue
 
 
-def test_stream_with_coroutine(channel):
-    async def processor(stream):
-        return (x for x in stream)
-    s = channel.stream(processor)
-    assert s._coroutine
-
-
 def test_get_topic_name(channel):
     with pytest.raises(NotImplementedError):
         channel.get_topic_name()

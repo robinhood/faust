@@ -75,16 +75,6 @@ def test_stream(app):
 
 
 @pytest.mark.asyncio
-async def test_stream_with_coroutine(app):
-
-    async def coro(it):
-        ...
-
-    s = app.topic(TEST_TOPIC).stream(coro)
-    assert s._coroutine
-
-
-@pytest.mark.asyncio
 async def test_on_stop_producer(app):
     app._service._active_children.append(app._producer)
     app._producer.stop.return_value = done_future()

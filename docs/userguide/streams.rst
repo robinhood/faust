@@ -96,39 +96,6 @@ reduction after all processors are applied:
         #   event = add_default_language(add_client_info(event))
 
 
-S-routines
-----------
-
-A Stream can also have a special callback, called an *S-routine*, that
-encapsulates a stream processing chain in a coroutine.
-
-.. sourcecode:: pycon
-
-    >>> def filter_large_withdrawals(it: AsyncIterator) -> AsyncIterator:
-    ...     return (e async for e in it if e.value >= 1000.0)
-
-    >>> s = app.stream(my_topic, filter_large_withdrawals)
-    >>> for event in s:
-    ...     print(s)
-
-
-.. admonition:: S-routines vs coroutines
-
-    An S-routine is really just an alternative way of defining a sending and
-    receving generator.  Instead of writing that in the traditional way of:
-
-    .. sourcecode:: python
-
-        def filter_large_withdrawals():
-            while 1:
-                event = (yield)
-                if event.value >= 1000.0:
-                    yield event
-
-    we receive messages via an infinite iterator.
-
-S-routines are useful when joining and combining streams.
-
 Combining streams
 -----------------
 

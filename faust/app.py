@@ -45,8 +45,8 @@ from .streams import current_event
 from .topics import ConductorT, Topic, TopicConductor
 
 from .types import (
-    CodecArg, FutureMessage, K, Message, MessageSentCallback, ModelArg,
-    RecordMetadata, StreamCoroutine, TP, TopicT, V,
+    CodecArg, FutureMessage, K, Message, MessageSentCallback,
+    ModelArg, RecordMetadata, TP, TopicT, V,
 )
 from .types.app import AppT, AutodiscoverArg, PageArg, TaskArg, ViewGetHandler
 from .types.assignor import LeaderAssignorT
@@ -655,7 +655,6 @@ class App(AppT, ServiceProxy):
         return self._leader_assignor.is_leader()
 
     def stream(self, channel: Union[AsyncIterable, Iterable],
-               coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from channel/topic/iterable/async iterable.
@@ -664,7 +663,6 @@ class App(AppT, ServiceProxy):
             channel: Iterable to stream over (async or non-async).
 
         Keyword Arguments:
-            coroutine: Coroutine to filter events in this stream.
             kwargs: See :class:`Stream`.
 
         Returns:
@@ -674,7 +672,6 @@ class App(AppT, ServiceProxy):
         return self.Stream(
             app=self,
             channel=aiter(channel) if channel is not None else None,
-            coroutine=coroutine,
             beacon=beacon or self.beacon,
             **kwargs)
 

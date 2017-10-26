@@ -7,7 +7,6 @@ from typing import (
 )
 from mode import Seconds
 from mode.utils.compat import AsyncContextManager
-from ._coroutines import StreamCoroutine
 from .codecs import CodecArg
 from .core import K, V
 from .tuples import FutureMessage, Message, MessageSentCallback, RecordMetadata
@@ -93,8 +92,7 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    def stream(self, coroutine: StreamCoroutine = None,
-               **kwargs: Any) -> StreamT:
+    def stream(self, **kwargs: Any) -> StreamT:
         ...
 
     @abc.abstractmethod

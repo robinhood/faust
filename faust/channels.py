@@ -17,7 +17,7 @@ from .types import (
     MessageSentCallback, ModelArg, PendingMessage, RecordMetadata, V,
 )
 from .types.channels import ChannelT, EventT
-from .types.streams import StreamCoroutine, StreamT
+from .types.streams import StreamT
 from .utils.futures import maybe_async, stampede
 
 if typing.TYPE_CHECKING:
@@ -259,10 +259,9 @@ class Channel(ChannelT):
             'maxsize': self.maxsize,
         }
 
-    def stream(self, coroutine: StreamCoroutine = None,
-               **kwargs: Any) -> StreamT:
+    def stream(self, **kwargs: Any) -> StreamT:
         """Create stream reading from this channel."""
-        return self.app.stream(self, coroutine, **kwargs)
+        return self.app.stream(self, **kwargs)
 
     def get_topic_name(self) -> str:
         raise NotImplementedError('Channels are unnamed topics')

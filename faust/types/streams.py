@@ -6,7 +6,6 @@ from typing import (
     List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
 )
 from mode import Seconds, ServiceT
-from ._coroutines import StreamCoroutine
 from .channels import ChannelT, EventT
 from .core import K
 from .models import FieldDescriptorT, ModelArg
@@ -22,7 +21,6 @@ else:
 __all__ = [
     'Processor',
     'GroupByKeyArg',
-    'StreamCoroutine',
     'StreamT',
     'T',
     'T_co',
@@ -87,7 +85,6 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor] = None,
-                 coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
                  join_strategy: JoinT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:

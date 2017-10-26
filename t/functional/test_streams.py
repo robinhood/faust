@@ -4,11 +4,11 @@ import pytest
 from .helpers import channel_empty, message, put
 
 
-def new_stream(app):
+def new_stream(app, *args, **kwargs):
     loop = asyncio.get_event_loop()
     app.loop = loop
     channel = app.channel(loop=loop, maxsize=1000)
-    stream = channel.stream(loop=loop)
+    stream = channel.stream(*args, loop=loop, **kwargs)
     return stream
 
 

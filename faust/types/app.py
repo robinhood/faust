@@ -12,7 +12,6 @@ from mode import Seconds, ServiceT
 from mode.utils.types.trees import NodeT
 from yarl import URL
 
-from ._coroutines import StreamCoroutine
 from .agents import AgentFun, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
@@ -206,7 +205,6 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def stream(self, channel: AsyncIterable,
-               coroutine: StreamCoroutine = None,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         ...

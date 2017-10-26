@@ -39,13 +39,6 @@ Glossary
         and is responsibile for serializing keys and
         values in messages so that they can be sent over the network.
 
-    S-routine
-        An S-routine is like a coroutine but instead of `coro.send()`
-        it communicates via an async iterable::
-
-            async def sroutine(inbox):
-                return (process(message) async for message in inbox)
-
     topic
         Messages are sent to topics, and consumers subscribe to topics of
         interest.

@@ -13,15 +13,13 @@ from mode import Seconds, Service, want_seconds
 from mode.utils.types.trees import NodeT
 
 from . import joins
-from ._coroutines import CoroCallbackT, wrap_callback
 
 from ..exceptions import ImproperlyConfigured
 from ..types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
 from ..types.joins import JoinT
 from ..types.models import FieldDescriptorT
 from ..types.streams import (
-    GroupByKeyArg, JoinableT, Processor, StreamCoroutine, StreamT,
-    T, T_co, T_contra,
+    GroupByKeyArg, JoinableT, Processor, StreamT, T, T_co, T_contra,
 )
 from ..types.topics import ChannelT
 from ..utils.aiolocals import Context, Local
@@ -31,7 +29,6 @@ from ..utils.futures import StampedeWrapper, maybe_async
 __all__ = ['Stream', 'current_event']
 
 __make_flake8_happy_List: List  # XXX flake8 thinks this is unused
-__make_flake8_happy_CoroCallbackT: CoroCallbackT
 __make_flake8_happy_Message: Message
 
 
@@ -70,7 +67,6 @@ class Stream(StreamT, Service):
     """A stream: async iterator processing events in channels/topics."""
 
     _processors: MutableSequence[Processor] = None
-    _coroutine: CoroCallbackT = None
     _anext_started: bool = False
     _context: Context = None
     _passive = False
@@ -79,7 +75,6 @@ class Stream(StreamT, Service):
                  *,
                  app: AppT = None,
                  processors: Iterable[Processor] = None,
-                 coroutine: StreamCoroutine = None,
                  children: List[JoinableT] = None,
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
@@ -99,10 +94,6 @@ class Stream(StreamT, Service):
         self.concurrency_index = concurrency_index
 
         self._processors = list(processors) if processors else []
-        if coroutine:
-            self._coroutine = wrap_callback(coroutine, None, loop=loop)
-            # XXX set coroutine callbacks
-            self._coroutine.callback = self._send_to_outbox
         self._on_start = on_start
 
         # attach beacon to channel, or if iterable attach to current task.
@@ -126,7 +117,6 @@ class Stream(StreamT, Service):
             'app': self.app,
             'channel': self.channel,
             'processors': self._processors,
-            'coroutine': self._coroutine,
             'on_start': self._on_start,
             'loop': self.loop,
             'children': self.children,
@@ -471,14 +461,11 @@ class Stream(StreamT, Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    def _create_message_handler(
-            self) -> Callable[[], Awaitable[Tuple[bool, Any]]]:
+    def _create_message_handler(self) -> Callable[[], Awaitable[Any]]:
         # get from channel
         get_next_value = self.channel.__anext__
         # Topic description -> processors
         processors = self._processors
-        # Topic description -> special coroutine
-        coroutine = self._coroutine
         # Sensor: on_stream_event_in
         on_stream_event_in = self._on_stream_event_in
 
@@ -486,7 +473,7 @@ class Stream(StreamT, Service):
         threadlocals = _locals
         create_ref = weakref.ref
 
-        async def on_message() -> Tuple[bool, Any]:
+        async def on_message() -> Any:
             # get message from channel
             value: Any = await get_next_value()
 
@@ -509,14 +496,7 @@ class Stream(StreamT, Service):
             # reduce using processors
             for processor in processors:
                 value = await maybe_async(processor(value))
-
-            if coroutine is not None:
-                # if there is an S-routine we apply that and delegate
-                # on done to its callback.
-                await coroutine.send(value)
-                return True, None
-            else:
-                return False, value
+            return value
         return on_message
 
     async def on_merge(self, value: T = None) -> Optional[T]:
@@ -536,8 +516,6 @@ class Stream(StreamT, Service):
     async def on_start(self) -> None:
         if self._on_start:
             await self._on_start()
-        if self._coroutine:
-            await self._coroutine.start()
 
     async def on_stop(self) -> None:
         if self.current_event is not None:
@@ -569,9 +547,7 @@ class Stream(StreamT, Service):
                 if _prev is not None:
                     await self.ack(_prev)
 
-            delegated_to_outbox, value = await self._on_message()
-            if delegated_to_outbox:
-                value = await self.outbox.get()
+            value = await self._on_message()
             value = await self.on_merge(value)
         return value
 

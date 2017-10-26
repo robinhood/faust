@@ -1,10 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import re
-import sys
-from setuptools import find_packages, setup
 from pathlib import Path
+from setuptools import find_packages, setup
 
 NAME = 'proj'
 

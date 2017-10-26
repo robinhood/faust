@@ -13,7 +13,6 @@ from .stores import StoreT
 from .streams import (
     JoinableT,
     Processor,
-    StreamCoroutine,
     StreamT,
 )
 from .tables import CollectionT, SetT, TableT
@@ -62,7 +61,7 @@ __all__ = [
     'StoreT',
 
     # types.streams
-    'JoinableT', 'Processor', 'StreamCoroutine', 'StreamT',
+    'JoinableT', 'Processor', 'StreamT',
 
     # types.tables
     'CollectionT', 'SetT', 'TableT',
