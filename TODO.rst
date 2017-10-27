@@ -69,13 +69,6 @@ See ``faust/joins.py``
 
 API already exposed in faust.streams.Stream, but not implemented.
 
-CLI Commands
-============
-
-- ``faust table``
-
-    Show tables from the command-line (maybe use https://robpol86.github.io/terminaltables/)
-
 Fault Tolerance
 ===============
 
@@ -88,24 +81,6 @@ Fault Tolerance
     * https://cwiki.apache.org/confluence/display/KAFKA/Kafka+Client-side+Assignment+Proposal (Partition assignor protocol used by kafka)
     * https://github.com/dpkp/kafka-python/blob/master/kafka/coordinator/assignors/roundrobin.py (Kafka python’s roundrobin parition assignor for a simpler example of the partition assignor)
     * https://cwiki.apache.org/confluence/display/KAFKA/KIP-54+-+Sticky+Partition+Assignment+Strategy (Sticky Partition Assignment strategy that was added recently)
-
-- Standby Tables
-
-    - Like standby tasks in KS
-
-        Note: There are no standby streams, this is only for tables.
-
-    - TopicConductor consumes data from other partitions, to quickly recover if
-      one of the nodes go down.
-
-    - Probably will have to change TopicConductor._topicmap to
-      use ``(topic, partition)`` as key.
-
-    - New attribute: ``Table.standby``
-
-        Can be used for introspection only, to quickly check if a stream is
-        standby, or to be used in for example ``repr(table)``.
-
 
 Tables
 ======
