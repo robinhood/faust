@@ -91,8 +91,9 @@ class ChangelogReader(Service, ChangelogReaderT):
     async def _seek_tps(self) -> None:
         consumer = self.app.consumer
         tps = self.tps
+        earliest_offsets = await consumer.earliest_offsets(*tps)
         for tp in tps:
-            offset = max(self.offsets[tp], 0)
+            offset = max(self.offsets[tp], earliest_offsets[tp])
             self.log.info(f'Seeking {tp} to offset: {offset}')
             await consumer.seek(tp, offset)
             assert await consumer.position(tp) == offset

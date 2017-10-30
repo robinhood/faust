@@ -130,6 +130,11 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def earliest_offsets(self,
+                               *partitions: TP) -> MutableMapping[TP, int]:
+        ...
+
+    @abc.abstractmethod
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         ...
 
