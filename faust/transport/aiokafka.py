@@ -239,6 +239,10 @@ class Consumer(base.Consumer):
     def highwater(self, tp: TP) -> int:
         return self._consumer.highwater(tp)
 
+    async def earliest_offsets(self,
+                               *partitions: TP) -> MutableMapping[TP, int]:
+        return await self._consumer.beginning_offsets(partitions)
+
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         return await self._consumer.end_offsets(partitions)
 
