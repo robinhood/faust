@@ -87,13 +87,20 @@ class ChangelogReader(Service, ChangelogReaderT):
     def _remaining_total(self) -> int:
         return sum(self._remaining().values())
 
+    async def _update_offsets(self) -> None:
+        # Offsets may have been compacted, need to get to the recent ones
+        earliest = await self.consumer.earliest_offsets(*tps)
+        # FIXME: To be consistent with the offset -1 logic
+        earliest = {tp: offset - 1 for tp, offset in earliest.items()}
+        for tp in self.tps:
+            self.offsets[tp] = max(self.offsets[tp], earliest[tp])
+
     @Service.transitions_to(CHANGELOG_SEEKING)
     async def _seek_tps(self) -> None:
         consumer = self.app.consumer
         tps = self.tps
-        earliest_offsets = await consumer.earliest_offsets(*tps)
         for tp in tps:
-            offset = max(self.offsets[tp], earliest_offsets[tp])
+            offset = max(self.offsets[tp], 0)
             self.log.info(f'Seeking {tp} to offset: {offset}')
             await consumer.seek(tp, offset)
             assert await consumer.position(tp) == offset
@@ -111,6 +118,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         consumer = self.app.consumer
         await consumer.pause_partitions(self.tps)
         await self._build_highwaters()
+        await self._update_offsets()
         if not self._should_start_reading():
             self.log.info('No updates needed')
             return self._shutdown_early()
