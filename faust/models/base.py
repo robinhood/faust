@@ -76,6 +76,12 @@ class Model(ModelT):
     #: It forces __init_subclass__ to skip class initialization.
     __abstract__: ClassVar[bool] = True
 
+    #: _init_subclass sets this, and can be used to test if the model
+    #: is abstract (do not use __abstract__ for that, as that field is
+    #: set to False when an abstract class is created, so that the next
+    #: subclass is abstract=False.
+    __is_abstract__: ClassVar[bool] = False
+
     #: Name used in Avro schema's "type" field (e.g. "record").
     _schema_type: ClassVar[str] = None
 
@@ -188,8 +194,9 @@ class Model(ModelT):
                        isodates: bool = False) -> None:
         if cls.__abstract__:
             # Custom base classes can set this to skip class initialization.
-            cls.__abstract__ = False
+            cls.__is_abstract__, cls.__abstract__ = True, False
             return
+        cls.__is_abstract__ = False
 
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='avro', namespace='com.vandelay.X'):
@@ -262,6 +269,7 @@ def _is_concrete_model(typ: Type = None) -> bool:
         inspect.isclass(typ) and
         issubclass(typ, ModelT) and
         typ is not ModelT and
+        not getattr(typ, '__is_abstract__', False) and
         not getattr(typ, '__abstract__', False)
     )
 
