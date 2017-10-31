@@ -129,10 +129,11 @@ class Store(base.SerializedStore):
         offset = self._db_for_partition(tp.partition).get(self.offset_key)
         if offset:
             return int(offset)
+        return None
 
     def set_persisted_offset(self, tp: TP, offset: int) -> None:
         self._db_for_partition(tp.partition).put(
-            self.offset_key, bytes(offset))
+            self.offset_key, str(offset).encode())
 
     async def need_active_standby_for(self, tp: TP) -> bool:
         try:
@@ -262,28 +263,38 @@ class Store(base.SerializedStore):
     def _size(self) -> int:
         return sum(self._size1(db) for db in self._dbs.values())
 
-    def _size1(self, db: DB) -> int:
+    def _visible_keys(self, db: DB) -> Iterator[bytes]:
         it = db.iterkeys()  # noqa: B301
         it.seek_to_first()
-        return sum(1 for _ in it)
+        for key in it:
+            if key != self.offset_key:
+                yield key
+
+    def _visible_items(self, db: DB) -> Iterator[Tuple[bytes, bytes]]:
+        it = db.itervalues()  # noqa: B301
+        it.seek_to_first()
+        for key, value in it:
+            if key != self.offset_key:
+                yield key, value
+
+    def _visible_values(self, db: DB) -> Iterator[bytes]:
+        for _, value in self._visible_items(db):
+            yield value
+
+    def _size1(self, db: DB) -> int:
+        return sum(1 for _ in self._visible_keys(db))
 
     def _iterkeys(self) -> Iterator[bytes]:
         for db in self._dbs.values():
-            it = db.iterkeys()  # noqa: B301
-            it.seek_to_first()
-            yield from it
+            yield from self._visible_keys(db)
 
     def _itervalues(self) -> Iterator[bytes]:
         for db in self._dbs.values():
-            it = db.itervalues()  # noqa: B301
-            it.seek_to_first()
-            yield from it
+            yield from self._visible_values(db)
 
     def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
         for db in self._dbs.values():
-            it = db.iteritems()  # noqa: B301
-            it.seek_to_first()
-            yield from it
+            yield from self._visible_items(db)
 
     def _clear(self) -> None:
         # XXX
