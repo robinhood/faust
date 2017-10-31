@@ -1,5 +1,4 @@
 """RocksDB storage."""
-import random
 import shutil
 import typing
 from collections import defaultdict
@@ -9,7 +8,6 @@ from typing import (
     Any, Callable, DefaultDict, Iterable, Iterator, Mapping,
     MutableMapping, NamedTuple, Optional, Tuple, Union, cast,
 )
-from mode import Seconds, Service, want_seconds
 from yarl import URL
 from . import base
 from ..exceptions import ImproperlyConfigured
@@ -28,10 +26,6 @@ if typing.TYPE_CHECKING:
 else:
     class DB: ...  # noqa
     class Options: ...  # noqa
-
-
-class CheckpointWriteBusy(Exception):
-    """Raised when another instance has the checkpoint db open for writing."""
 
 
 class PartitionDB(NamedTuple):
@@ -101,148 +95,13 @@ class RocksDBOptions:
             **self.extra_options)
 
 
-class CheckpointDBOptions(RocksDBOptions):
-    """RocksDB Options used for checkpoint database."""
-
-    write_buffer_size: int = 3000
-    max_write_buffer_number: int = 2
-    target_file_size_base: int = 8864
-    block_cache_size: int = 262144
-    block_cache_compressed_size: int = 262144 * 2
-
-
-class CheckpointDB:
-    """Instance-global checkpoint database."""
-
-    # The checkpoint DB is not a singleton, but whatever table
-    # is used first, will create one and set an App._rocksdb_checkpoints
-    # attribute that is reused by all tables.
-
-    options: CheckpointDBOptions
-
-    tp_separator: str = '//'
-
-    # RocksDB database files do not allow concurrent access from multiple
-    # processes.
-
-    # when we first start, we import tps and offsets from a readonly
-    # DB instance to _imported.
-    _imported: MutableMapping[TP, int]
-    _offsets_imported = False
-
-    # later as changelogs are set by tables, the in-memory _offsets
-    # dict will be updated.
-    _offsets: MutableMapping[TP, int]
-
-    # the dirty flag is set whenever a tp is updated, that way
-    # when the Tables shutdown, stopping their Store, the store
-    # will call Checkpoints.sync() to write the contents of _offsets
-    # to the db.
-    #
-    # The _dirty flag also helps controlling what happens when 20 tables
-    # all shutdown and call sync: only the first will sync, the rest will
-    # sync only if the offsets have changed for some reason.
-    _dirty: bool = False
-
-    def __init__(self, app: AppT,
-                 *,
-                 options: Mapping = None) -> None:
-        self.app = app
-        self.options = CheckpointDBOptions(**options or {})
-        self._imported = {}
-        self._offsets = {}
-
-    def reset_state(self) -> None:
-        self._db = None
-        with suppress(FileNotFoundError):
-            shutil.rmtree(self.path.absolute())
-
-    def get_offset(self, tp: TP) -> Optional[int]:
-        try:
-            # check in-memory copy first.
-            return self._offsets[tp]
-        except KeyError:
-            # then check the checkpoints imported from the db.
-            if not self._offsets_imported and (self.path / 'CURRENT').exists():
-                self._offsets_imported = True
-                self._import()
-            try:
-                return self._imported[tp]
-            except KeyError:
-                return None
-
-    def _import(self) -> None:
-        db = self.options.open(self.path, read_only=True)
-        cursor = db.iteritems()  # noqa: B301
-        cursor.seek_to_first()
-        self._imported.update({
-            self._bytes_to_tp(key): self._bytes_to_offset(value)
-            for key, value in cursor
-        })
-
-    def set_offset(self, tp: TP, offset: int) -> None:
-        self._offsets[tp] = offset
-        self._dirty = True
-
-    def sync(self) -> None:
-        if self._dirty:
-            self._dirty = False
-            self._export()
-
-    def _export(self) -> None:
-        try:
-            db = self.options.open(self.path, read_only=False)
-        except rocksdb.errors.RocksIOError:
-            raise CheckpointWriteBusy()
-        else:
-            w = rocksdb.WriteBatch()
-            for tp, offset in self._offsets.items():
-                w.put(self._tp_to_bytes(tp), self._offset_to_bytes(offset))
-            db.write(w, sync=True)
-
-    def _offset_to_bytes(self, offset: int) -> bytes:
-        # bytes(num) gives zero-padded bytes of num length
-        return str(offset).encode()
-
-    def _bytes_to_offset(self, offset: bytes) -> int:
-        return int(offset.decode())
-
-    def _tp_to_bytes(self, tp: TP) -> bytes:
-        return f'{tp.topic}{self.tp_separator}{tp.partition}'.encode()
-
-    def _bytes_to_tp(self, tp: bytes) -> TP:
-        topic, _, partition = tp.decode().rpartition(self.tp_separator)
-        return TP(topic, int(partition))
-
-    @property
-    def filename(self) -> Path:
-        return Path('__checkpoints.db')
-
-    @property
-    def path(self) -> Path:
-        return self.app.tabledir / self.filename
-
-
 class Store(base.SerializedStore):
     """RocksDB table storage."""
 
-    #: How often we write offsets to the checkpoints db (30s).
-    sync_frequency: float
+    offset_key = b'__faust\0offset__'
 
     #: Decides the size of the K=>TopicPartition index (10_000).
     key_index_size: int
-
-    #: The checkpoints file can only be open by one process at a time,
-    #: and contention occurs if many nodes attempt it at the same time,
-    #: so we skew the frequency by ``gauss(freq, max_ratio)``, where
-    #: ratio by default is one quarter of the frequency (0.25).
-    #: For example if the frequency is 30.0, then the skew can
-    #: be +/-7.5 seconds at most.
-    sync_frequency_skew_max_ratio: float
-
-    #: How long to wait before retrying when another instance
-    #: is writing to the checkpoints db (1s).
-    sync_locked_wait_max: float
 
     #: Used to configure the RocksDB settings for table stores.
     options: RocksDBOptions
@@ -252,9 +111,6 @@ class Store(base.SerializedStore):
 
     def __init__(self, url: Union[str, URL], app: AppT,
                  *,
-                 sync_frequency: Seconds = 30.0,
-                 sync_frequency_skew_max_ratio: float = 0.25,
-                 sync_locked_wait_max: Seconds = 1.0,
                  key_index_size: int = 10_000,
                  options: Mapping = None,
                  **kwargs: Any) -> None:
@@ -265,18 +121,15 @@ class Store(base.SerializedStore):
         if not self.url.path:
             self.url /= self.table_name
         self.options = RocksDBOptions(**options or {})
-        self.sync_frequency = want_seconds(sync_frequency)
-        self.sync_frequency_skew_max_ratio = sync_frequency_skew_max_ratio
-        self.sync_locked_wait_max = want_seconds(sync_locked_wait_max)
         self.key_index_size = key_index_size
         self._dbs = {}
         self._key_index = LRUCache(limit=self.key_index_size)
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
-        return self.checkpoints.get_offset(tp)
+        return self._db_for_partition(tp.partition).get(self.offset_key)
 
     def set_persisted_offset(self, tp: TP, offset: int) -> None:
-        self.checkpoints.set_offset(tp, offset)
+        self._db_for_partition(tp.partition).put(self.offset_key, offset)
 
     async def need_active_standby_for(self, tp: TP) -> bool:
         try:
@@ -453,39 +306,6 @@ class Store(base.SerializedStore):
     @property
     def basename(self) -> Path:
         return Path(self.url.path)
-
-    async def on_stop(self) -> None:
-        await self.sync_checkpoints()
-
-    @Service.task
-    async def _background_sync_checkpoints(self) -> None:
-        while not self.should_stop:
-            await self.sleep(random.gauss(
-                self.sync_frequency, self.sync_frequency_skew_max_ratio))
-            await self.sync_checkpoints()
-
-    async def sync_checkpoints(self) -> None:
-        while 1:
-            self.log.debug('Flush checkpoints to disk...')
-            try:
-                self.checkpoints.sync()
-            except CheckpointWriteBusy:
-                self.log.info('Checkpoint lock held, retry in %ss...',
-                              self.sync_locked_wait_max)
-                await self.sleep(self.sync_locked_wait_max)
-            else:
-                self.log.debug('Checkpoints written OK!')
-                break
-
-    @property
-    def checkpoints(self) -> CheckpointDB:
-        # We cache this on the app, so that the CheckpointDB is shared
-        # between all Rocksdb Store instances.
-        try:
-            return self.app._rocksdb_checkpoints
-        except AttributeError:
-            cp = self.app._rocksdb_checkpoints = CheckpointDB(self.app)
-            return cp
 
 
 __flake8_DefaultDict_is_used: DefaultDict  # XXX flake8 bug
