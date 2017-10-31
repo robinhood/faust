@@ -88,6 +88,7 @@ class Consumer(base.Consumer):
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
+            auto_offset_reset='earliest',
         )
 
     def _create_client_consumer(
