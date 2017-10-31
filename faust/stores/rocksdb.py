@@ -126,10 +126,13 @@ class Store(base.SerializedStore):
         self._key_index = LRUCache(limit=self.key_index_size)
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
-        return self._db_for_partition(tp.partition).get(self.offset_key)
+        offset = self._db_for_partition(tp.partition).get(self.offset_key)
+        if offset:
+            return int(offset)
 
     def set_persisted_offset(self, tp: TP, offset: int) -> None:
-        self._db_for_partition(tp.partition).put(self.offset_key, offset)
+        self._db_for_partition(tp.partition).put(
+            self.offset_key, bytes(offset))
 
     async def need_active_standby_for(self, tp: TP) -> bool:
         try:
