@@ -88,6 +88,7 @@ class Consumer(base.Consumer):
             bootstrap_servers=transport.bootstrap_servers,
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
+            auto_offset_reset='earliest',
         )
 
     def _create_client_consumer(
@@ -238,6 +239,10 @@ class Consumer(base.Consumer):
 
     def highwater(self, tp: TP) -> int:
         return self._consumer.highwater(tp)
+
+    async def earliest_offsets(self,
+                               *partitions: TP) -> MutableMapping[TP, int]:
+        return await self._consumer.beginning_offsets(partitions)
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         return await self._consumer.end_offsets(partitions)
