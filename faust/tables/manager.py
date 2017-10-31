@@ -89,7 +89,8 @@ class ChangelogReader(Service, ChangelogReaderT):
 
     async def _update_offsets(self) -> None:
         # Offsets may have been compacted, need to get to the recent ones
-        earliest = await self.consumer.earliest_offsets(*self.tps)
+        consumer = self.app.consumer
+        earliest = await consumer.earliest_offsets(*self.tps)
         # FIXME: To be consistent with the offset -1 logic
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
