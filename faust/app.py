@@ -366,7 +366,7 @@ class App(AppT, ServiceProxy):
             raise ImproperlyConfigured(
                 'Version cannot be {self.version}, please start at 1')
         if self.version > 1:
-            self.id = f'{self.id}-{self.version}'
+            self.id = f'{self.id}-v{self.version}'
         self.url = URL(url)
         self.client_id = client_id
         self.canonical_url = URL(canonical_url or '')
