@@ -78,8 +78,8 @@ class Model(ModelT):
 
     #: _init_subclass sets this, and can be used to test if the model
     #: is abstract (do not use __abstract__ for that, as that field is
-    #: set to False when an abstract class is created, so that the next
-    #: subclass is abstract=False.
+    #: set to False when an abstract class is created (that way the next
+    #: subclass is created with abstract=False).
     __is_abstract__: ClassVar[bool] = False
 
     #: Name used in Avro schema's "type" field (e.g. "record").
