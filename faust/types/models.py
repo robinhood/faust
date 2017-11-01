@@ -20,6 +20,25 @@ __all__ = [
 
 ModelArg = Union[Type['ModelT'], Type[bytes], Type[str]]
 
+# Workaround for https://bugs.python.org/issue29581
+try:
+    @typing.no_type_check
+    class _InitSubclassCheck(metaclass=abc.ABCMeta):
+
+        def __init_subclass__(self, *args: Any,
+                              ident: int = 808,
+                              **kwargs: Any) -> None:
+            self.ident = ident
+            super().__init__(*args, **kwargs)  # type: ignore
+
+    @typing.no_type_check
+    class _UsingKwargsInNew(_InitSubclassCheck, ident=909):
+        ...
+except TypeError:
+    ModelMetaclass: Type = type
+else:
+    ModelMetaclass: abc.ABCMeta
+
 
 class Converter(NamedTuple):
     target: Type
@@ -55,8 +74,7 @@ class ModelOptions(abc.ABC):
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
 
-class ModelT:
-    # uses __init_subclass__ so cannot use ABCMeta
+class ModelT(metaclass=ModelMetaclass):
 
     _options: ClassVar[ModelOptions]
 
