@@ -359,8 +359,14 @@ class App(AppT, ServiceProxy):
             on_startup_finished: Callable = None,
             stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE,
             loop: asyncio.AbstractEventLoop = None) -> None:
+        self.id = id
         self.loop = loop
-        self.id = f'{id}-{version}'
+        self.version = version if version is not None else 1
+        if not self.version:
+            raise ImproperlyConfigured(
+                'Version cannot be {self.version}, please start at 1')
+        if self.version > 1:
+            self.id = f'{self.id}-{self.version}'
         self.url = URL(url)
         self.client_id = client_id
         self.canonical_url = URL(canonical_url or '')
