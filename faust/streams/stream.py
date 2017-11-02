@@ -251,8 +251,8 @@ class Stream(StreamT, Service):
             channelchannel = channel
 
         channel_created = False
-        it = aiter(channelchannel)
-        through = self.clone(channel=it, on_start=self.maybe_start)
+        channel_it = aiter(channelchannel)
+        through = self.clone(channel=channel_it, on_start=self.maybe_start)
 
         declare = StampedeWrapper(channelchannel.maybe_declare)
 
@@ -265,17 +265,22 @@ class Stream(StreamT, Service):
             return await maybe_forward(event, channelchannel)
 
         self.add_processor(forward)
-        self._enable_passive()
+        self._enable_passive(cast(ChannelT, channel_it))
         return through
 
-    def _enable_passive(self) -> None:
+    def _enable_passive(self, channel: ChannelT) -> None:
         if not self._passive:
             self._passive = True
-            self.add_future(self._drainer())
+            self.add_future(self._passive_drainer(channel))
 
-    async def _drainer(self) -> None:
-        async for item in self:  # noqa
-            ...
+    async def _passive_drainer(self, channel: ChannelT) -> None:
+        try:
+            async for item in self:  # noqa
+                ...
+        except BaseException as exc:
+            # forward the exception to the final destination channel,
+            # e.g. in through/group_by/etc.
+            await channel.throw(exc)
 
     def echo(self, *channels: Union[str, ChannelT]) -> StreamT:
         """Forward values to one or more channels.
@@ -371,7 +376,8 @@ class Stream(StreamT, Service):
         topic_created = False
         format_key = self._format_key
 
-        grouped = self.clone(channel=aiter(topic), on_start=self.maybe_start)
+        channel_it = aiter(topic)
+        grouped = self.clone(channel=channel_it, on_start=self.maybe_start)
 
         declare = StampedeWrapper(topic.maybe_declare)
 
@@ -392,7 +398,7 @@ class Stream(StreamT, Service):
             )
             return value
         self.add_processor(repartition)
-        self._enable_passive()
+        self._enable_passive(cast(ChannelT, channel_it))
         return grouped
 
     async def _format_key(self, key: GroupByKeyArg, value: T_contra):
