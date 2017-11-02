@@ -96,6 +96,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
+        self.log.info(f'Updated offsets at start of reading: {self.offsets}')
 
     @Service.transitions_to(CHANGELOG_SEEKING)
     async def _seek_tps(self) -> None:
@@ -120,10 +121,11 @@ class ChangelogReader(Service, ChangelogReaderT):
 
     @property
     def _remaining_stats(self) -> MutableMapping[TP, Tuple[int, int, int]]:
+        offsets = self.offsets
         return {
-            tp: (highwater, self.offsets[tp], highwater-self.offsets[tp])
+            tp: (highwater, offsets[tp], highwater - offsets[tp])
             for tp, highwater in self._highwaters.items()
-            if highwater - self.offsets[tp] != 0
+            if highwater - offsets[tp] != 0
         }
 
     def recovered(self) -> bool:
@@ -449,6 +451,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self.log.info('Aborting ongoing recovery')
             if not self._ongoing_recovery.done():
                 assert self._recoverers is not None
+                # TableManager.stop() will now block until all recoverers are
+                # stopped. This is expected. Ideally the recoverers should stop
+                # almost immediately upon receiving a stop()
                 await asyncio.wait([recoverer.stop()
                                     for recoverer in self._recoverers])
                 self.log.info('Waiting ongoing recovery')
