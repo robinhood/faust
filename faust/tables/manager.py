@@ -3,10 +3,11 @@ import asyncio
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterable, Iterable, List, MutableMapping, Set, cast,
+    Any, AsyncIterable, Iterable, List, MutableMapping, Set, Tuple, cast,
 )
-from mode import PoisonpillSupervisor, Service
+from mode import Service
 from mode.utils.compat import Counter
+from mode.utils.times import Seconds
 from .table import Table
 from ..types import AppT, EventT, TP
 from ..types.tables import (
@@ -47,7 +48,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                  app: AppT,
                  tps: Iterable[TP],
                  offsets: Counter[TP] = None,
-                 stop_event: asyncio.Event = None,
+                 stats_interval: Seconds = 5.0,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
@@ -55,16 +56,16 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.app = app
         self.tps = tps
         self.offsets = Counter() if offsets is None else offsets
+        self.stats_interval = stats_interval
         for tp in self.tps:
             self.offsets.setdefault(tp, -1)
         self._highwaters = Counter()
-        self._started_reading = asyncio.Event(loop=self.loop)
-        self._stop_event = stop_event
+        self._stop_event = asyncio.Event(loop=self.loop)
 
-    async def on_started(self) -> None:
-        # We wait for the background task to start reading
-        # before considering this service to be started.
-        await self.wait(self._started_reading.wait())
+    async def on_stop(self) -> None:
+        # Stop reading changelog
+        if not self._stop_event.is_set():
+            await self.channel.throw(StopAsyncIteration())
 
     async def _build_highwaters(self) -> None:
         consumer = self.app.consumer
@@ -95,6 +96,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
+        self.log.info(f'Updated offsets at start of reading: {self.offsets}')
 
     @Service.transitions_to(CHANGELOG_SEEKING)
     async def _seek_tps(self) -> None:
@@ -102,16 +104,43 @@ class ChangelogReader(Service, ChangelogReaderT):
         tps = self.tps
         for tp in tps:
             offset = max(self.offsets[tp], 0)
-            self.log.info(f'Seeking {tp} to offset: {offset}')
+            # self.log.info(f'Seeking {tp} to offset: {offset}')
             await consumer.seek(tp, offset)
             assert await consumer.position(tp) == offset
 
     def _should_start_reading(self) -> bool:
         return self._highwaters != self.offsets
 
-    def _shutdown_early(self) -> None:
-        self._started_reading.set()
+    async def wait_done_reading(self) -> None:
+        await self._stop_event.wait()
+
+    def _done_reading(self) -> None:
         self.set_shutdown()
+        self._stop_event.set()
+        self.log.info(f'Setting stop event')
+
+    @property
+    def _remaining_stats(self) -> MutableMapping[TP, Tuple[int, int, int]]:
+        offsets = self.offsets
+        return {
+            tp: (highwater, offsets[tp], highwater - offsets[tp])
+            for tp, highwater in self._highwaters.items()
+            if highwater - offsets[tp] != 0
+        }
+
+    def recovered(self) -> bool:
+        did_recover = self._highwaters == self.offsets
+        if not did_recover:
+            self.log.info(f'Did not recover. '
+                          f'Remaining {self._remaining_stats}')
+        return did_recover
+
+    @Service.task
+    async def _publish_stats(self) -> None:
+        while not self.should_stop and not self._stop_event.is_set():
+            self.log.info(f'Still fetching. '
+                          f'Remaining: {self._remaining_stats}')
+            await self.sleep(self.stats_interval)
 
     @Service.task
     @Service.transitions_to(CHANGELOG_STARTING)
@@ -122,7 +151,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         await self._update_offsets()
         if not self._should_start_reading():
             self.log.info('No updates needed')
-            return self._shutdown_early()
+            return self._done_reading()
 
         local_tps = await self._local_tps()
         if local_tps:
@@ -131,31 +160,27 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.tps = list(set(self.tps) - local_tps)
         if not self.tps:
             self.log.info('No active standby needed')
-            return self._shutdown_early()
+            return self._done_reading()
 
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
         self.log.info(f'Reading %s records...', self._remaining_total())
-        self._started_reading.set()
         self.diag.set_flag(CHANGELOG_READING)
         try:
             await self._slurp_stream()
         finally:
             self.diag.unset_flag(CHANGELOG_READING)
+            self._done_reading()
             await self.app.consumer.pause_partitions({
                 tp for tp in self.tps
                 if tp in self.app.consumer.assignment()
             })
-            self.set_shutdown()
 
     async def _slurp_stream(self) -> None:
         buf: List[EventT] = []
         try:
             async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
-                if self._stop_event is not None and self._stop_event.is_set():
-                    self.log.info('Recovery aborted')
-                    break
                 if len(buf) >= 1000:
                     self.table.apply_changelog_batch(buf)
                     buf.clear()
@@ -165,8 +190,10 @@ class ChangelogReader(Service, ChangelogReaderT):
                     self.log.info('Still waiting for %s records...',
                                   self._remaining_total())
         except StopAsyncIteration:
+            self.log.info(f'Got stop iteration')
             pass
         finally:
+            self.log.info(f'Stopped reading!')
             if buf:
                 self.table.apply_changelog_batch(buf)
                 buf.clear()
@@ -203,14 +230,18 @@ class ChangelogReader(Service, ChangelogReaderT):
 class StandbyReader(ChangelogReader):
     """Service reading table changelogs to keep an up-to-date backup."""
 
-    async def on_stop(self) -> None:
-        await self.channel.throw(StopAsyncIteration())
+    @Service.task
+    async def _publish_stats(self) -> None:
+        return
 
     def _should_start_reading(self) -> bool:
         return True
 
     def _should_stop_reading(self) -> bool:
         return self.should_stop
+
+    def recovered(self) -> bool:
+        return False
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
@@ -220,6 +251,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
+    _recoverers: List[ChangelogReaderT] = None
     _ongoing_recovery: asyncio.Future = None
     _stop_recovery: asyncio.Event = None
     _recovery_started: asyncio.Event
@@ -336,30 +368,39 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._update_channels()
 
     async def on_stop(self) -> None:
-        if self.recovery_completed.is_set():
-            for table in self.values():
-                await table.stop()
+        await self._maybe_abort_ongoing_recovery()
+        await self._stop_standbys()
+        for table in self.values():
+            await table.stop()
 
     @Service.transitions_to(TABLEMAN_RECOVER)
-    async def _recover_changelogs(self, tps: Iterable[TP],
-                                  stop_event: asyncio.Event) -> None:
+    async def _recover_changelogs(self, tps: Iterable[TP]) -> bool:
         self.log.info('Recovering from changelog topics...')
-        table_recoverers: List[ChangelogReaderT] = [
-            self._create_recoverer(table, tps, stop_event)
+        table_recoverers = self._recoverers = [
+            self._create_recoverer(table, tps)
             for table in self.values()
         ]
-        supervisor = PoisonpillSupervisor(*table_recoverers,
-                                          loop=self.loop, beacon=self.beacon)
-        await supervisor.start()
-        await supervisor.stop()
+        for recoverer in table_recoverers:
+            await recoverer.start()
+            self.log.info(f'Started recoverer: {recoverer.label}')
+        self.log.info(f'Started all recoverers, now will wait for '
+                      f'them to stop')
+        await asyncio.wait([recoverer.wait_done_reading()
+                            for recoverer in table_recoverers])
+        self.log.info(f'Done reading all changelogs')
         for recoverer in table_recoverers:
             self._sync_offsets(recoverer)
-        self.log.info('Done recovering from changelog topics')
+        self.log.info('Done reading from changelog topics')
+        for recoverer in table_recoverers:
+            await recoverer.stop()
+            self.log.info(f'Stopped recoverer: {recoverer.label}')
+        self.log.info('Stopped all recoveres')
+        return all(recoverer.recovered()
+                   for recoverer in table_recoverers)
 
     def _create_recoverer(self,
                           table: CollectionT,
-                          tps: Iterable[TP],
-                          stop_event: asyncio.Event) -> ChangelogReaderT:
+                          tps: Iterable[TP]) -> ChangelogReaderT:
         table = cast(Table, table)
         offsets = self._table_offsets
         table_tps = {tp for tp in tps
@@ -374,7 +415,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
             table, channel, self.app, table_tps, tp_offsets,
             loop=self.loop,
             beacon=self.beacon,
-            stop_event=stop_event,
         )
 
     async def _recover(self, assigned: Iterable[TP]) -> None:
@@ -386,10 +426,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._on_recovery_started()
         for table in self.values():
             await table.on_partitions_assigned(assigned)
-        assert self._stop_recovery is None
-        stop_recovery = self._stop_recovery = asyncio.Event(loop=self.loop)
-        await self._recover_changelogs(assigned_tps, stop_recovery)
-        if not stop_recovery.is_set():
+        did_recover = await self._recover_changelogs(assigned_tps)
+
+        if did_recover and not self._stopped.is_set():
+            self.log.info(f'Recovered fine!')
             # This needs to happen if all goes well
             callback_coros = [table.call_recover_callbacks()
                               for table in self.values()]
@@ -402,26 +442,36 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await self._start_standbys(standby_tps)
             self.log.info('New assignments handled')
             await self._on_recovery_completed()
+        else:
+            self.log.info(f'Recovery interrupted')
+        self._recoverers = None
 
     async def _maybe_abort_ongoing_recovery(self) -> None:
         if self._ongoing_recovery is not None:
             self.log.info('Aborting ongoing recovery')
             if not self._ongoing_recovery.done():
-                self._stop_recovery.set()
+                assert self._recoverers is not None
+                # TableManager.stop() will now block until all recoverers are
+                # stopped. This is expected. Ideally the recoverers should stop
+                # almost immediately upon receiving a stop()
+                await asyncio.wait([recoverer.stop()
+                                    for recoverer in self._recoverers])
+                self.log.info('Waiting ongoing recovery')
                 await self.wait(self._ongoing_recovery)
+                self.log.info('Done with ongoing recovery')
             self._ongoing_recovery = None
-            self._stop_recovery = None
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self._maybe_abort_ongoing_recovery()
+        self.log.info(f'Aborted any ongoing recovery!')
         await self._stop_standbys()
         for table in self.values():
             await table.on_partitions_revoked(revoked)
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
-        assert self._ongoing_recovery is None and self._stop_recovery is None
+        assert self._ongoing_recovery is None and self._recoverers is None
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')
 
