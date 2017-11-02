@@ -3,10 +3,11 @@ import asyncio
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterable, Iterable, List, MutableMapping, Set, cast,
+    Any, AsyncIterable, Iterable, List, MutableMapping, Set, Tuple, cast,
 )
-from mode import PoisonpillSupervisor, Service
+from mode import Service
 from mode.utils.compat import Counter
+from mode.utils.times import Seconds
 from .table import Table
 from ..types import AppT, EventT, TP
 from ..types.tables import (
@@ -47,6 +48,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                  app: AppT,
                  tps: Iterable[TP],
                  offsets: Counter[TP] = None,
+                 stats_interval: Seconds = 5.0,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.table = table
@@ -54,6 +56,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.app = app
         self.tps = tps
         self.offsets = Counter() if offsets is None else offsets
+        self.stats_interval = stats_interval
         for tp in self.tps:
             self.offsets.setdefault(tp, -1)
         self._highwaters = Counter()
@@ -115,29 +118,27 @@ class ChangelogReader(Service, ChangelogReaderT):
         self._stop_event.set()
         self.log.info(f'Setting stop event')
 
+    @property
+    def _remaining_stats(self) -> MutableMapping[TP, Tuple[int, int, int]]:
+        return {
+            tp: (highwater, self.offsets[tp], highwater-self.offsets[tp])
+            for tp, highwater in self._highwaters.items()
+            if highwater - self.offsets[tp] != 0
+        }
+
     def recovered(self) -> bool:
         did_recover = self._highwaters == self.offsets
-        self.log.info(f'Recovered? {did_recover}')
         if not did_recover:
-            h = dict(self._highwaters)
-            o = dict(self.offsets)
-            wrong = {
-                tp: (hw, o[tp], hw-o[tp])
-                for tp, hw in h.items()
-                if hw - o[tp] != 0
-            }
-            assert len(list(self.tps)) == len(h) and len(h) == len(o)
-            self.log.info(f'DID NOT RECOVER {wrong}')
+            self.log.info(f'Did not recover. '
+                          f'Remaining {self._remaining_stats}')
         return did_recover
 
     @Service.task
     async def _publish_stats(self) -> None:
         while not self.should_stop and not self._stop_event.is_set():
-            # self.log.info(f'Still fetching, highwater: {self._highwaters} '
-            #               f'offsets: {self.offsets}')
-            await self.sleep(5.0)
-        self.log.info(
-            f'Stop publishing stats! {self.should_stop} {self._stop_event}')
+            self.log.info(f'Still fetching. '
+                          f'Remaining: {self._remaining_stats}')
+            await self.sleep(self.stats_interval)
 
     @Service.task
     @Service.transitions_to(CHANGELOG_STARTING)
@@ -157,7 +158,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.tps = list(set(self.tps) - local_tps)
         if not self.tps:
             self.log.info('No active standby needed')
-            return
+            return self._done_reading()
 
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
@@ -425,7 +426,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await table.on_partitions_assigned(assigned)
         did_recover = await self._recover_changelogs(assigned_tps)
 
-        if did_recover:
+        if did_recover and not self._stopped.is_set():
             self.log.info(f'Recovered fine!')
             # This needs to happen if all goes well
             callback_coros = [table.call_recover_callbacks()
@@ -458,7 +459,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self._maybe_abort_ongoing_recovery()
-        self.log.info(f'Aborted any ongoing recovery: {self._ongoing_recovery}')
+        self.log.info(f'Aborted any ongoing recovery!')
         await self._stop_standbys()
         for table in self.values():
             await table.on_partitions_revoked(revoked)
