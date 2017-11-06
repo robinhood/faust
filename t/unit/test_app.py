@@ -74,14 +74,6 @@ def test_stream(app):
     assert s.channel.app == app
 
 
-@pytest.mark.asyncio
-async def test_on_stop_producer(app):
-    app._service._children.append(app._producer)
-    app._producer.stop.return_value = done_future()
-    await app.stop()
-    app._producer.stop.assert_called_with()
-
-
 def test_new_producer(app):
     app._producer = None
     app._transport = Mock(name='transport')
