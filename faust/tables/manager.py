@@ -383,10 +383,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for recoverer in table_recoverers:
             await recoverer.start()
             self.log.info(f'Started recoverer: {recoverer.label}')
-        self.log.info(f'Started all recoverers, now will wait for '
-                      f'them to stop')
-        await asyncio.wait([recoverer.wait_done_reading()
-                            for recoverer in table_recoverers])
+        self.log.info('Waiting for recoverers to finish...')
+        await asyncio.gather(
+            *[r.wait_done_reading() for r in table_recoverers],
+            loop=self.loop,
+        )
         self.log.info(f'Done reading all changelogs')
         for recoverer in table_recoverers:
             self._sync_offsets(recoverer)
