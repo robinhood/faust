@@ -178,7 +178,7 @@ class Model(ModelT):
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
         # metaclasses (:pep:`487`).
-        super().__init_subclass__(**kwargs)  # type: ignore
+        super().__init_subclass__(**kwargs)
 
         # mypy does not recognize `__init_subclass__` as a classmethod
         # and thinks we're mutating a ClassVar when setting:

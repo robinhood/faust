@@ -35,9 +35,9 @@ try:
     class _UsingKwargsInNew(_InitSubclassCheck, ident=909):
         ...
 except TypeError:
-    ModelMetaclass: Type = type
+    abc_compatible_with_init_subclass = False
 else:
-    ModelMetaclass: abc.ABCMeta
+    abc_compatible_with_init_subclass = True
 
 
 class Converter(NamedTuple):
@@ -74,7 +74,10 @@ class ModelOptions(abc.ABC):
     defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
 
-class ModelT(metaclass=ModelMetaclass):
+base = abc.ABC if abc_compatible_with_init_subclass else object
+
+
+class ModelT(base):  # type: ignore
 
     _options: ClassVar[ModelOptions]
 
