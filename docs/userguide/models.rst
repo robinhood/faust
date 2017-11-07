@@ -15,32 +15,74 @@
 Basics
 ======
 
-Models describe how to serialize/deserialize message keys and values,
-using modern Python type annotation syntax.
+Models describe the fields of data structures used as keys and values
+in messages.  They're defined using a ``NamedTuple``-like syntax,
+as introduced by Python 3.6, and look like this::
 
-It's important to note that you don't actually need to use models to
-describe the content of your messages, streams can happily take any
-value or even work with raw byte strings, but models add value
-by serving as documentation and enabling static type checks of
-for example JSON dictionary fields.
+    class Point(Record, serializer='json'):
+        x: int
+        y: int
 
-If you're integrating with existing systems Faust's :ref:`codecs
-<guide-codecs>` can help you support serialization and deserialization
-in any format.  Models describe the content of messages, while codecs describe
-how they are serialized/compressed/encoded/etc.
+This is a point record with ``x``, and ``y`` fields of type int. There is
+no type checking at runtime, but the :pypi:`mypy` type checker can be used to
+verify that the right types are provided.
+
+A record is a model of the dictionary type, and describes keys and values.
+When using JSON as the target serialization format, the Point model above
+serializes as:
+
+.. sourcecode:: Python
+
+    >>> Point(x=10, y=100).dumps()
+    {"x": 10, "y": 100}
+
+"Record" is the only model type supported by this version of Faust,
+but is just one of many possible model types to include in the future.
+The nomenclature is based on the Avro serialization description format,
+that supports records, arrays, and more. The Faust models can also be exported
+as Avro schemas.
+
+Manual Serialization
+====================
+
+You're not required to define models! Manual de-serialization works
+and is rather easy to perform, but models provide additional benefit,
+such as the field descriptors that let you refer to fields in `group_by`
+statements, static typing using :pypi:`mypi`, automatic conversion
+of :class:`datetime`, and so on...
+
+To deserialize streams manually, simply use a topic with bytes values:
+
+.. sourcecode:: python
+
+    topic = app.topic('custom', value_type=bytes)
+
+    @app.agent
+    async def processor(stream):
+        async for payload in stream:
+            data = json.loads(payload)
+
+If you're integrating with an existing systems Faust's :ref:`codecs
+<guide-codecs>` can help you support serialization and de-serialization
+to and from any format.  Models describe the format of messages, while codecs describe
+how they're serialized/compressed/encoded/etc.
 The default codec is configured by the applications ``key_serializer`` and
-``value_serializer`` arguments, and individual model may override the default
-by specifying the ``serializer`` argument when creating the model class,
-for example:
+``value_serializer`` arguments::
+
+    app = faust.App(key_serializer='json')
+
+and any individual model may override the default
+by specifying the ``serializer`` argument when creating the model class.
+For example:
 
 .. sourcecode:: python
 
     class MyRecord(Record, serializer='json')
         ...
 
-Codecs can also be combined so that they consist of multiple encoding/decoding
+Codecs can also be combined so they consist of multiple encoding and decoding
 stages, for example data serialized with JSON and then Base64 encoded would
-be ``serializer='json|binary'``.
+be described as the keyword argument ``serializer='json|binary'``.
 
 .. seealso::
 
@@ -49,7 +91,9 @@ be ``serializer='json|binary'``.
 
 .. topic:: Sending/receiving raw values
 
-    Sending/receiving non-described keys and values is easy:
+    Serializing/Deserializing keys and values manually is easy,
+    for example the JSON codec happily accepts lists and dictionaries,
+    as arguments to the ``.send`` methods:
 
     .. sourcecode:: python
 
@@ -218,6 +262,84 @@ To convert the JSON back into a model use the ``.loads()`` class method:
 .. sourcecode:: pycon
 
     >>> transfer = Transfer.loads(json)
+
+
+Lists of lists, etc.
+~~~~~~~~~~~~~~~~~~~~
+
+Records can also have fields that are a list of other models, or mappings
+to other models, and these are also described using the type annotation
+syntax.
+
+To define a model that points to a list of Account objects you can do this:
+
+.. sourcecode:: python
+
+    from typing import List
+    import faust
+
+
+    class LOL(faust.Record):
+        accounts: List[Account]
+
+This works with most of the iterable types (`Sequence`, ``MutableSequence``, etc.),
+for full list of supported generic data types see the following table:
+
+==========  ================
+Collection  Recognized Types
+==========  ================
+List        - ``List[ModelT]``
+            - ``Sequence[ModelT]``
+            - ``MutableSequence[ModelT]``
+
+Mapping     - ``Dict[Any, ModelT]``
+            - ``Dict[ModelT, ModelT]``
+            - ``Mapping[Any, ModelT]
+            - ``MutableMapping[Any, ModelT]``
+
+Set         - ``AbstractSet[ModelT]``
+            - ``FrozenSet[ModelT]``
+            - ``Set[ModelT]``
+            - ``MutableSet[ModelT]``
+
+So from this table we can see that we could have a mapping
+of username to account as well:
+
+.. sourcecode:: python
+
+    from typing import Mapping
+    import faust
+
+    class DOA(faust.Record):
+        accounts: Mapping[str, Account]
+
+and Faust will automatically reconstruct the ``DOA.accounts`` field into
+a mapping of string to ``Account`` objects.
+
+
+There are limitations of this, Faust may not recognize your custom
+mapping or list type, so use only what is found in this table.
+
+
+Automatic conversion of datetimes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Faust will automatically serialize datetimes fields to ISO-8601 string
+format, but will not automatically deserialize ISO-8601 strings to datatimes,
+as it's impossible to distinguish them from normal strings.
+
+However, if you use a model with a ``datetime`` field, and enable the
+``isodates`` model class setting, the model will correctly convert the strings
+to datetime objects (with timezone information if available):
+
+.. sourcecode:: python
+
+    from datetime import datetime
+    import faust
+
+    class Account(faust.Record, isodates=True, serializer='json'):
+        date_joined: datetime
+
 
 Reference
 ~~~~~~~~~
