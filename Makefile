@@ -32,6 +32,7 @@ all: help
 
 help:
 	@echo "docs                 - Build documentation."
+	@echo "livedocs             - Start documentation live web server."
 	@echo "test-all             - Run tests for all supported python versions."
 	@echo "distcheck ---------- - Check distribution for problems."
 	@echo "  test               - Run unittests using current python."
@@ -82,6 +83,12 @@ Documentation:
 
 . PHONY: docs
 docs: Documentation
+
+. PHONY: livedocs
+livedocs:
+	$(PIP) install -r requirements/docs.txt
+	$(PIP) install -r requirements/dist.txt
+	(cd "$(SPHINX_DIR)"; $(MAKE) livehtml)
 
 dockerimage:
 	docker build -t faust-docbuilder -f docker/docbuilder/Dockerfile .

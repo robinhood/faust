@@ -8,4 +8,5 @@ packaging
 pytest-sugar
 asyncio-ipython-magic
 vulture
+sphinx-autobuild
 -r flakes.txt
