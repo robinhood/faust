@@ -26,7 +26,7 @@ from typing import (
 )
 from uuid import uuid4
 
-from mode import Seconds, Service, ServiceT, want_seconds
+from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.utils.types.trees import NodeT
 import venusian
@@ -523,6 +523,7 @@ class App(AppT, ServiceProxy):
               *,
               name: str = None,
               concurrency: int = 1,
+              supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
         """Create Agent from async def function.
 
@@ -549,6 +550,7 @@ class App(AppT, ServiceProxy):
                 app=self,
                 channel=channel,
                 concurrency=concurrency,
+                supervisor_strategy=supervisor_strategy,
                 sink=sink,
                 on_error=self._on_agent_error,
                 help=fun.__doc__,

@@ -3,9 +3,9 @@ import asyncio
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Generic, Iterable, List, Tuple, TypeVar, Union, no_type_check,
+    Generic, Iterable, List, Tuple, Type, TypeVar, Union, no_type_check,
 )
-from mode import ServiceT
+from mode import ServiceT, SupervisorStrategyT
 from .codecs import CodecArg
 from .core import K, V
 from .streams import StreamT
@@ -84,6 +84,7 @@ class AgentT(ServiceT):
     channel: ChannelT
     concurrency: int
     help: str
+    supervisor_strategy: Type[SupervisorStrategyT]
 
     @abc.abstractmethod
     def __init__(self, fun: AgentFun,
@@ -94,6 +95,7 @@ class AgentT(ServiceT):
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: AgentErrorHandler = None,
+                 supervisor_strategy: Type[SupervisorStrategyT] = None,
                  help: str = None) -> None:
         self.fun: AgentFun = fun
 

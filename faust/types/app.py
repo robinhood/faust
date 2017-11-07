@@ -8,7 +8,7 @@ from typing import (
     Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
 
-from mode import Seconds, ServiceT
+from mode import Seconds, ServiceT, SupervisorStrategyT
 from mode.utils.types.trees import NodeT
 from yarl import URL
 
@@ -191,6 +191,7 @@ class AppT(ServiceT):
               *,
               name: str = None,
               concurrency: int = 1,
+              supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
         ...
 

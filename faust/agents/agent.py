@@ -40,6 +40,8 @@ __all__ = [
     'Agent',
 ]
 
+SUPERVISOR_STRATEGY: Type[SupervisorStrategyT] = OneForOneSupervisor
+
 # --- What is an agent?
 #
 # An agent is an asynchronous function processing a stream
@@ -172,7 +174,7 @@ class AgentService(Service):
         return await cast(Agent, self.agent)._start_task(index, self.beacon)
 
     async def on_start(self) -> None:
-        self.supervisor = OneForOneSupervisor(
+        self.supervisor = self.agent.supervisor_strategy(
             max_restarts=100.0, over=1.0,
             replacement=self._replace_actor,
             loop=self.loop, beacon=self.beacon,
@@ -220,6 +222,7 @@ class Agent(AgentT, ServiceProxy):
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
                  on_error: AgentErrorHandler = None,
+                 supervisor_strategy: Type[SupervisorStrategyT] = None,
                  help: str = None) -> None:
         self.app = app
         self.fun: AgentFun = fun
@@ -229,6 +232,7 @@ class Agent(AgentT, ServiceProxy):
         self.help = help
         self._sinks = list(sink) if sink is not None else []
         self._on_error: AgentErrorHandler = on_error
+        self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
         ServiceProxy.__init__(self)
 
     def _prepare_channel(self,
