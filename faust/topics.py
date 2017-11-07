@@ -286,14 +286,16 @@ class Topic(Channel, TopicT):
                     key_serializer: CodecArg) -> Any:
         if key is not None:
             return self.app.serializers.dumps_key(
-                key, key_serializer or self.key_serializer)
+                self.key_type, key,
+                serializer=key_serializer or self.key_serializer)
         return None
 
     def prepare_value(self,
                       value: V,
                       value_serializer: CodecArg) -> Any:
         return self.app.serializers.dumps_value(
-            value, value_serializer or self.value_serializer)
+            self.value_type, value,
+            serializer=value_serializer or self.value_serializer)
 
     @stampede
     async def maybe_declare(self) -> None:

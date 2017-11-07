@@ -45,11 +45,17 @@ class RegistryT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def dumps_key(self, key: K,
+    def dumps_key(self,
+                  typ: Optional[ModelArg],
+                  key: K,
+                  *,
                   serializer: CodecArg = None) -> Optional[bytes]:
         ...
 
     @abc.abstractmethod
-    def dumps_value(self, value: V,
+    def dumps_value(self,
+                    typ: Optional[ModelArg],
+                    value: V,
+                    *,
                     serializer: CodecArg = None) -> Optional[bytes]:
         ...

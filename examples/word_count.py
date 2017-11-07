@@ -9,19 +9,11 @@ app = faust.App(
     'word-counts5',
     url='kafka://localhost:9092',
     default_partitions=6,
-    key_serializer='json',
-    value_serializer='json',
     store='rocksdb://',
 )
 
-posts_topic = app.topic('posts3',
-                        value_type=str,
-                        value_serializer='raw')
-words_topic = app.topic('words3',
-                        key_type=str,
-                        key_serializer='raw',
-                        value_type=str,
-                        value_serializer='raw')
+posts_topic = app.topic('posts3', value_type=str)
+words_topic = app.topic('words3', key_type=str, value_type=str)
 
 word_counts = app.Table('word_counts3', default=int,
                         help='Keep count of words (str to int).')
@@ -31,7 +23,7 @@ word_counts = app.Table('word_counts3', default=int,
 async def shuffle_words(posts):
     async for post in posts:
         for word in post.split():
-            await words_topic.send(key=word, value=word)
+            await count_words.send(key=word, value=word)
 
 
 @app.agent(words_topic)

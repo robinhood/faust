@@ -49,10 +49,12 @@ class Store(StoreT, Service):
         ...
 
     def _encode_key(self, key: Any) -> bytes:
-        return self.app.serializers.dumps_key(key, self.key_serializer)
+        return self.app.serializers.dumps_key(
+            self.key_type, key, serializer=self.key_serializer)
 
     def _encode_value(self, value: Any) -> bytes:
-        return self.app.serializers.dumps_value(value, self.value_serializer)
+        return self.app.serializers.dumps_value(
+            self.value_type, value, serializer=self.value_serializer)
 
     def _decode_key(self, key: bytes) -> Any:
         return self.app.serializers.loads_key(

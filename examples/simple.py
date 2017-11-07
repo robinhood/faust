@@ -48,26 +48,9 @@ country_to_total = app.Table(
 
 @app.agent(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
-    events = 0
-    time_start = monotonic()
-    time_first_start = monotonic()
-    async for withdrawal in withdrawals:
-        events += 1
-        if not events % 10_000:
-            time_now = monotonic()
-            print('TIME PROCESSING 10k: %r' % (
-                time_now - time_start))
-            time_start = time_now
-        if not events % 100_000:
-            time_now = monotonic()
-            print('----TIME PROCESSING 100k: %r' % (
-                time_now - time_first_start))
-            time_first_start = time_now
-        print('WITHDRAWAL: %r' % (withdrawal,))
-        if withdrawal.user in user_to_total:
-            print('ALREADY HAVE IT:')
-            print(user_to_total[withdrawal.user].value())
-        user_to_total[withdrawal.user] += withdrawal.amount
+    async for withdrawal in withdrawals.group_by(Withdrawal.user):
+        if withdrawal.amount > 1000:
+            yield withdrawal
 
 
 @user_to_total.on_recover
@@ -78,7 +61,9 @@ async def echo_size():
 
 @app.command()
 async def produce(self):
-    'Produce example Withdrawal events.'
+    """Produce example Withdrawal events."""
+    await withdrawals_topic.send(key=None, value=None)
+    return
     num_countries = 5
     countries = [f'country_{i}' for i in range(num_countries)]
     country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))

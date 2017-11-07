@@ -81,6 +81,19 @@ class Registry(RegistryT):
     def _loads(self, serializer: CodecArg, data: bytes) -> Any:
         return loads(serializer, data)
 
+    def _serializer(
+            self, typ: Optional[ModelArg], *alt: CodecArg) -> CodecArg:
+        serializer = None
+        for serializer in alt:
+            if serializer:
+                break
+        else:
+            if typ is str:
+                return 'raw'
+            elif typ is bytes:
+                return 'raw'
+        return serializer
+
     def loads_value(self,
                     typ: Optional[ModelArg],
                     value: bytes,
@@ -101,8 +114,9 @@ class Registry(RegistryT):
                 raise ValueDecodeError(
                     f'Expected {typ!r}, received {value!r}!')
             return None
+        serializer = self._serializer(typ, serializer, self.value_serializer)
+        print('SERIALIZER: %r' % (serializer,))
         try:
-            serializer = serializer or self.value_serializer
             if isinstance(value, ModelT):
                 return self._loads_model(
                     cast(Type[ModelT], typ), serializer, value)
@@ -124,44 +138,58 @@ class Registry(RegistryT):
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from exc
 
-    def dumps_key(self, key: K,
-                  serializer: CodecArg = None,
+    def dumps_key(self,
+                  typ: Optional[ModelArg],
+                  key: K,
                   *,
+                  serializer: CodecArg = None,
                   skip: IsInstanceArg = (bytes,)) -> Optional[bytes]:
         """Serialize key.
 
         Arguments:
-            key: The key to be serialized.
-            serializer: Custom serializer to use if value is not a Model.
+            typ: Model hint (can also be str/bytes).
+                 When `typ=str` or `bytes`, raw serializer is assumed.
+            key: The key value to serializer.
+
+        Keyword Arguments:
+            serializer: Codec to use for this key, if it is not a model type.
+               If not set the default will be used (:attr:`key_serializer`).
         """
-        serializer = self.key_serializer
         is_model = False
         if isinstance(key, ModelT):
             is_model = True
             key = cast(ModelT, key)
             serializer = key._options.serializer or serializer
+        serializer = self._serializer(typ, serializer, self.key_serializer)
         if serializer and not isinstance(key, skip):
             if is_model:
                 return cast(ModelT, key).dumps(serializer=serializer)
             return dumps(serializer, key)
         return want_bytes(cast(bytes, key)) if key is not None else None
 
-    def dumps_value(self, value: V,
-                    serializer: CodecArg = None,
+    def dumps_value(self,
+                    typ: Optional[ModelArg],
+                    value: V,
                     *,
+                    serializer: CodecArg = None,
                     skip: IsInstanceArg = (bytes,)) -> Optional[bytes]:
         """Serialize value.
 
         Arguments:
-            value: The value to be serialized.
-            serializer: Custom serializer to use if value is not a Model.
+            typ: Model hint (can also be str/bytes).
+                 When `typ=str` or `bytes`, raw serializer is assumed.
+            key: The value to serializer.
+
+        Keyword Arguments:
+            serializer: Codec to use for this value, if it is not a model type.
+              If not set the default will be used (:attr:`value_serializer`).
         """
-        serializer = serializer or self.value_serializer
         is_model = False
         if isinstance(value, ModelT):
             is_model = True
             value = cast(ModelT, value)
             serializer = value._options.serializer or serializer
+        serializer = self._serializer(typ, serializer, self.value_serializer)
         if serializer and not isinstance(value, skip):
             if is_model:
                 return cast(ModelT, value).dumps(serializer=serializer)
