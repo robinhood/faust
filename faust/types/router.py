@@ -1,3 +1,4 @@
+"""Types for module :mod:`faust.router`."""
 import abc
 import typing
 from .assignor import HostToPartitionMap
@@ -11,6 +12,7 @@ else:
 
 
 class RouterT(abc.ABC):
+    """Router type class."""
 
     app: AppT
 

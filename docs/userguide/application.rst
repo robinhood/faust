@@ -233,9 +233,9 @@ Parameters
     by passing it as a keyword argument to :class:`App`.
 
 
-`client_id
+`client_id`
     :type: ``str``
-    :default: `faust-VERSION`
+    :default: ``faust-VERSION``
 
     You shouldn't have to set this manually.
 
@@ -250,7 +250,7 @@ Parameters
 
     .. seealso::
 
-        Can also be set this using :option:`faust worker --datadir` option, but a default
+        Can also be set this using :option:`faust --datadir` option, but a default
         can be passed as a keyword argument to :class:`App`.
 
 `commit_interval`
@@ -277,7 +277,7 @@ Parameters
 
     .. seealso::
 
-        :ref:`guide-codecs`
+        :ref:`codecs`
 
 `value_serializer`
     :type: ``Union[str, Codec]``
@@ -291,7 +291,7 @@ Parameters
 
     .. seealso::
 
-        :ref:`guide-codecs`
+        :ref:`codecs`
 
 `num_standby_replicas`
     :type: ``int``
@@ -420,10 +420,11 @@ Decorators
 Command line
 ^^^^^^^^^^^^
 
-.. classa:: App
+.. class:: App
     :noindex:
 
     .. automethod:: main
+        :noindex:
 
 Defining Tables
 ^^^^^^^^^^^^^^^

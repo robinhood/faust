@@ -24,8 +24,11 @@ except ImportError:
 if typing.TYPE_CHECKING:
     from rocksdb import DB, Options
 else:
-    class DB: ...  # noqa
-    class Options: ...  # noqa
+    class DB:  # noqa
+        """Dummy DB."""
+
+    class Options:  # noqa
+        """Dummy Options."""
 
 
 class PartitionDB(NamedTuple):

@@ -74,6 +74,10 @@ else:
 
 __all__ = ['App']
 
+
+class Foo(object):
+    pass
+
 #: Default transport URL.
 TRANSPORT_URL = 'kafka://localhost:9092'
 

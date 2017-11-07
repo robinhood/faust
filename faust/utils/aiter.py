@@ -15,10 +15,10 @@ async def aenumerate(it: AsyncIterable[Any],
 
 
 class AsyncIterWrapper(AsyncIterator):
-    """Wraps regular Iterator in an AsyncIterator."""
+    """Wrap regular Iterator into an AsyncIterator."""
 
     def __init__(self, it: Iterator) -> None:
-        self._it = it
+        self._it: Iterator = it
 
     def __aiter__(self) -> AsyncIterator:
         return self
@@ -55,7 +55,12 @@ def _aiter_iter(it: Iterable) -> AsyncIterator:
 
 
 async def anext(it: AsyncIterator, *default: Any) -> Any:
-    """Get next value from async iterator."""
+    """Get next value from async iterator, or `default` if empty.
+
+    Raises
+        :exc:`StopAsyncIteration`: if default is not defined and
+            the async iterator is fully consumed.
+    """
     if default:
         try:
             return await it.__anext__()

@@ -62,8 +62,8 @@ To deserialize streams manually, simply use a topic with bytes values:
         async for payload in stream:
             data = json.loads(payload)
 
-If you're integrating with an existing systems Faust's :ref:`codecs
-<guide-codecs>` can help you support serialization and de-serialization
+If you're integrating with an existing systems Faust's :ref:`codecs`
+can help you support serialization and de-serialization
 to and from any format.  Models describe the format of messages, while codecs describe
 how they're serialized/compressed/encoded/etc.
 The default codec is configured by the applications ``key_serializer`` and
@@ -86,7 +86,7 @@ be described as the keyword argument ``serializer='json|binary'``.
 
 .. seealso::
 
-    See the :ref:`guide-codecs` section for information about codecs
+    See the :ref:`codecs` section for information about codecs
     and how to define your own.
 
 .. topic:: Sending/receiving raw values
@@ -146,7 +146,8 @@ Using static type checks you can now be alerted if something sends
 the wrong type of value for the `account_id` for example.
 The most compelling reason for using non-described messages would
 be to integrate with existing Kafka topics and systems, but if you're
-writing new systems in Faust the best practice would be to describe models.
+writing new systems in Faust the best practice would be to describe models
+for your message data.
 
 Model Types
 ===========
@@ -282,25 +283,30 @@ To define a model that points to a list of Account objects you can do this:
     class LOL(faust.Record):
         accounts: List[Account]
 
-This works with most of the iterable types (`Sequence`, ``MutableSequence``, etc.),
-for full list of supported generic data types see the following table:
+This works with most of the iterable types (``Sequence``,
+``MutableSequence``, etc.), for a full list of generic data types
+recognized by Faust consult the following table:
 
-==========  ================
-Collection  Recognized Types
-==========  ================
+=========== ===================================================
+Collection  Recognized Annotations
+=========== ===================================================
 List        - ``List[ModelT]``
             - ``Sequence[ModelT]``
             - ``MutableSequence[ModelT]``
 
-Mapping     - ``Dict[Any, ModelT]``
-            - ``Dict[ModelT, ModelT]``
-            - ``Mapping[Any, ModelT]
-            - ``MutableMapping[Any, ModelT]``
-
 Set         - ``AbstractSet[ModelT]``
-            - ``FrozenSet[ModelT]``
             - ``Set[ModelT]``
             - ``MutableSet[ModelT]``
+
+Tuple       - ``Tuple[ModelT, ...]``
+            - ``Tuple[ModelT, ModelT, str]``
+
+Mapping     - ``Dict[KT, ModelT]``
+            - ``Dict[ModelT, ModelT]``
+            - ``Mapping[KT, ModelT]``
+            - ``MutableMapping[KT, ModelT]``
+=========== ===================================================
+
 
 So from this table we can see that we could have a mapping
 of username to account as well:
@@ -371,7 +377,7 @@ Schemas
     .. automethod:: as_avro_schema
         :noindex:
 
-.. _guide-codecs:
+.. _codecs:
 
 Codecs
 ======
