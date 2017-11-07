@@ -8,4 +8,4 @@ yarl~=0.11
 terminaltables~=3.1.0
 colorclass~=2.2
 venusian~=1.1
-mode~=1.2.0
+mode~=1.2.1
