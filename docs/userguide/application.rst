@@ -14,14 +14,14 @@
 
 .. _application-basics:
 
-Basics
-======
+What is an Application?
+=======================
 
-The application is an instance of the Faust library.
+An application is an *instance of the Faust library*.
 
 To create one in Python you need to provide
 a name for the application (the id), a message broker, and a driver to use for
-table storage.
+table storage:
 
 .. sourcecode:: pycon
 

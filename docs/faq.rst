@@ -1,7 +1,7 @@
-.            . _faq:
+.. _faq:
 
 ==================================
- FAQ: Frequently Asked Questions
+ Frequently Asked Questions (FAQ)
 ==================================
 
 .. include:: includes/faq.txt

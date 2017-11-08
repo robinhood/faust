@@ -14,23 +14,41 @@
 
 .. _agent-basics:
 
-Basics
-======
+What is an Agent?
+=================
 
-Faust differentiates itself from other Stream processing frameworks by fusing
-stream processing with Python async iterators in a way that gives you the
-flexibility to embed stream processing directly
-into your programs, or web servers; the agent portion means that you can
-communicate with your stream processors, or create event processing handlers
-that extend the scope of traditional stream processing systems.
+An agent is a stream processor, but more specifically an async function
+decorated with the ``@app.agent`` decorator.
 
-With Faust agents can be used to define both passive stream processing
-workflows, and active network services, with zero overhead from the features
+The agent takes a stream as argument, and then consumes that stream
+processing the messages in it:
 
-An agent in Faust is simply an async function that takes a stream as argument
-and iterates over it.
+.. sourcecode:: python
 
-Here's an example agent that adds numbers:
+    @app.agent()
+    async def myagent(stream):
+        async for event in stream:
+            ...  # process event
+
+
+Starting multiple workers for your application means the agent is running
+on multiple machines at the same time, and each agent instance will be
+receiving a portion of the stream.
+
+.. topic:: Partitioning
+
+    When an agent reads from a topic, the stream is partitioned based on the
+    key of the message.  For example the stream could have keys that are
+    account ids, and values that are high scores, and then partitioning
+    means that any message with the same account_id key will be delivered
+    to the same agent instance.
+
+    Sometimes you will have to repartition the stream, to ensure you are
+    receiving the right portion of the data.  See :ref:`guide-streams` for
+    more information on the :meth:`Stream.group_by() <faust.Stream.group_by>`
+    method.
+
+Here's a more complete example of an app with an agent that adds numbers:
 
 .. sourcecode:: python
 
@@ -83,6 +101,27 @@ To send values to it, you can open a second console to run this program:
 .. sourcecode:: console
 
     $ python examples/send_to_agent.py
+
+
+.. seealso::
+
+    You can also use :ref:`tasks-cli-commands` to add actions on the command
+    line for your application.  Using the ``@app.command`` decorator, the
+    above ``examples/send_to_agent.py`` program can be written like this:
+
+    .. sourcecode:: python
+
+
+        @app.command()
+        async def send_value() -> None:
+            print(await adding.ask(Add(a=4, b=4)))
+
+    then after adding this to your ``examples/agent.py`` module, you can run your
+    command using the :program:`faust` program:
+
+    .. sourcecode:: console
+
+        $ faust -A examples.agent send_value
 
 The :meth:`Agent.ask() <faust.Agent.ask>` method wraps the value sent in
 a special structure that includes the return address (reply-to).  When the

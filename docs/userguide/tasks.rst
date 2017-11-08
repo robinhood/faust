@@ -1,8 +1,8 @@
 .. _guide-tasks:
 
-==========================================
- Tasks
-==========================================
+============================================
+ Tasks, Timers, CLI Commands, and Web Views
+============================================
 
 .. contents::
     :local:
@@ -60,21 +60,7 @@ statistics every 30 seconds:
     if __name__ == '__main__':
         app.main()
 
-Agents
-======
-
-Concurrency
------------
-
-For idempotent, stateless tasks you may use the ``concurrency`` argument to
-start multiple instances of the same task:
-
-.. sourcecode:: python
-
-    @app.agent(feed_topics, concurrency=100)
-    async def import_feeds(feeds):
-        async for feed in feeds:
-            await import_feed(feed)
+.. _tasks-timers:
 
 Timers
 ======
@@ -87,3 +73,16 @@ some action at regular intervals.
     @app.timer(interval=30.0)
     def dump_stats():
         print(f'Logs processed: {stats.logs_received})
+
+
+.. _tasks-cli-commands:
+
+
+CLI Commands
+============
+
+
+.. _tasks-web-views:
+
+Web Views
+=========

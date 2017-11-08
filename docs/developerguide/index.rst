@@ -8,7 +8,7 @@
 :Date: |today|
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
     overview
     partition_assignor

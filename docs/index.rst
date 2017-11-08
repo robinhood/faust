@@ -17,9 +17,14 @@ Contents
     copyright
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
     introduction
+    quickstart
+
+.. toctree::
+    :maxdepth: 2
+
     userguide/index
     playbooks/index
 

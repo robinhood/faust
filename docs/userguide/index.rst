@@ -8,17 +8,16 @@
 :Date: |today|
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    quickstart
     application
     agents
     tasks
-    channels
     streams
-    tables
+    channels
     models
-    sensors
+    tables
     deployment
+    sensors
     http
     vskafka

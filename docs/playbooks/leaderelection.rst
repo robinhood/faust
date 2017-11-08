@@ -1,7 +1,7 @@
 .. _playbooks-leader-election:
 
 ============================================================
-  Leader Election
+  Tutorial: Leader Election
 ============================================================
 
 .. contents::

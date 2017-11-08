@@ -5,7 +5,7 @@
 :Keywords: distributed, stream, async, processing, data, queue
 
 Faust is a Python library for event processing and streaming applications
-that are distributed and fault-tolerant.
+that are decentralized and fault-tolerant.
 
 It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
 `Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes

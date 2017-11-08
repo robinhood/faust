@@ -24,6 +24,7 @@ globals().update(conf.build_config(
         'sphinx.ext.napoleon',
         'sphinxcontrib.asyncio',
         'alabaster',
+        'typehints',
         'faustdocs',
     ],
     extra_intersphinx_mapping={
@@ -71,3 +72,5 @@ with suppress(NameError):
 
 if not os.environ.get('APICHECK'):
     extensions.append('sphinx_autodoc_annotation')
+
+napoleon_use_keyword = True

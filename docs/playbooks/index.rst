@@ -1,7 +1,7 @@
 .. _playbooks:
 
 ===============
- Play Books
+ Playbooks
 ===============
 
 :Release: |version|

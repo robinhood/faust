@@ -283,29 +283,30 @@ To define a model that points to a list of Account objects you can do this:
     class LOL(faust.Record):
         accounts: List[Account]
 
-This works with most of the iterable types (``Sequence``,
-``MutableSequence``, etc.), for a full list of generic data types
+This works with most of the iterable types, so for a list all
+of :class:`~typing.Sequence`, :class:`~typing.MutableSequence`, and :class:`~typing.List`
+can be used. For a full list of generic data types
 recognized by Faust consult the following table:
 
-=========== ===================================================
+=========== =================================================================
 Collection  Recognized Annotations
-=========== ===================================================
-List        - ``List[ModelT]``
-            - ``Sequence[ModelT]``
-            - ``MutableSequence[ModelT]``
+=========== =================================================================
+List        - :class:`List[ModelT] <typing.List>`
+            - :class:`Sequence[ModelT] <typing.Sequence>`
+            - :class:`MutableSequence[ModelT] <typing.MutableSequence>`
 
-Set         - ``AbstractSet[ModelT]``
-            - ``Set[ModelT]``
-            - ``MutableSet[ModelT]``
+Set         - :class:`AbstractSet[ModelT] <typing.AbstractSet>`
+            - :class:`Set[ModelT] <typing.Set>`
+            - :class:`MutableSet[ModelT] <typing.MutableSet>`
 
-Tuple       - ``Tuple[ModelT, ...]``
-            - ``Tuple[ModelT, ModelT, str]``
+Tuple       - :class:`Tuple[ModelT, ...] <typing.Tuple>`
+            - :class:`Tuple[ModelT, ModelT, str] <typing.Tuple>`
 
-Mapping     - ``Dict[KT, ModelT]``
-            - ``Dict[ModelT, ModelT]``
-            - ``Mapping[KT, ModelT]``
-            - ``MutableMapping[KT, ModelT]``
-=========== ===================================================
+Mapping     - :class:`Dict[KT, ModelT] <typing.Dict>`
+            - :class:`Dict[ModelT, ModelT] <typing.Dict>`
+            - :class:`Mapping[KT, ModelT] <typing.Mapping>`
+            - :class:`MutableMapping[KT, ModelT] <typing.MutableMapping>`
+=========== =================================================================
 
 
 So from this table we can see that we could have a mapping
