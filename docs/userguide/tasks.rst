@@ -1,7 +1,7 @@
 .. _guide-tasks:
 
 ============================================
- Tasks, Timers, CLI Commands, and Web Views
+ Tasks, Timers, Web Views, and CLI Commands
 ============================================
 
 .. contents::
@@ -54,12 +54,13 @@ A timer is also a task, but one that executes every ``n`` seconds:
 The above timer will print something every minute, starting from one minute
 after the worker is started and fully operational.
 
+.. _tasks-web-views:
+
+Web Views
+=========
+
 .. _tasks-cli-commands:
 
 CLI Commands
 ============
 
-.. _tasks-web-views:
-
-Web Views
-=========
