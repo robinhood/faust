@@ -154,12 +154,10 @@ def process_docstring(app, what, name, obj, options, lines):
                         break
                 searchfor2 = ':keyword {}:'.format(argname)
                 for i, line in enumerate(lines):
+                    line.replace(':keyword ', ':param ')
                     if line.startswith(searchfor2):
-                        print('FOUND KEYWORD: %r' % (line,))
                         lines.insert(i, ':type {}: {}'.format(
                             argname, formatted_annotation))
-                        print('---------------------------------')
-                        print('LINES NOW: %r' % ('\n'.join(lines),))
                         break
 
 
