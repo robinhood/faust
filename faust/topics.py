@@ -39,7 +39,6 @@ class Topic(Channel, TopicT):
     Arguments:
         app: App instance this topic is bound to.
 
-    Keyword Arguments:
         topics: List of topic names.
         partitions: Number of partitions for these topics.
             On declaration, topics are created using this.

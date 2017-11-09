@@ -277,7 +277,6 @@ class App(AppT, ServiceProxy):
     Arguments:
         id (str): Application ID.
 
-    Keyword Arguments:
         url (str):
             Transport URL.  Default: ``"aiokafka://localhost:9092"``.
         client_id (str):  Client id used for producer/consumer.
@@ -636,7 +635,6 @@ class App(AppT, ServiceProxy):
         Arguments:
             interval (Seconds): How often the timer executes in seconds.
 
-        Keyword Arguments:
             on_leader (bool) = False: Should the timer only run on the leader?
 
         Example:
@@ -674,7 +672,6 @@ class App(AppT, ServiceProxy):
         Arguments:
             channel: Iterable to stream over (async or non-async).
 
-        Keyword Arguments:
             kwargs: See :class:`Stream`.
 
         Returns:
@@ -700,9 +697,8 @@ class App(AppT, ServiceProxy):
             name: Name used for table, note that two tables living in
                 the same application cannot have the same name.
 
-        Keyword Arguments:
             default: A callable, or type that will return a default value
-            for keys missing in this table.
+               for keys missing in this table.
             window: A windowing strategy to wrap this window in.
 
         Examples:

@@ -154,7 +154,7 @@ class Stream(StreamT, Service):
                    within: Seconds) -> AsyncIterable[Sequence[T_co]]:
         """Buffer n values at a time and yield a list of buffered values.
 
-        Keyword Arguments:
+        Arguments:
             within: Timeout for when we give up waiting for another value,
                 and process the values we have.
                 Warning: If there's no timeout (i.e. `timeout=None`),
@@ -317,7 +317,6 @@ class Stream(StreamT, Service):
                 Note: The ``name`` argument must be provided if the key
                     argument is a callable.
 
-        Keyword Arguments:
             name: Suffix to use for repartitioned topics.
                 This argument is required if `key` is a callable.
 
@@ -417,7 +416,6 @@ class Stream(StreamT, Service):
         Arguments:
             name: Topic name.
 
-        Keyword Arguments:
             key_type: Specific key type to use for this topic.
                 If not set, the key type of this stream will be used.
             value_type: Specific value type to use for this topic.

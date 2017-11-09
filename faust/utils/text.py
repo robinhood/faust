@@ -37,7 +37,6 @@ def table(data: TableDataT,
     Arguments:
         data (Sequence[Sequence[str]]): Table data.
 
-    Keyword Arguments:
         target (IO): Target should be the destination output file
                      for your table, and defaults to :data:`sys.stdout`.
                      ANSI codes will be used if the target has a controlling
@@ -97,7 +96,6 @@ def didyoumean(haystack: Iterable[str], needle: str,
         haystack: List of all available choices.
         needle: What the user provided.
 
-    Keyword Arguments:
         fmt_many: String format returned when there are more than one
             alternative.  Default is: ``"Did you mean one of {alt}?"``.
         fmt_one: String format returned when there's a single fuzzy match.

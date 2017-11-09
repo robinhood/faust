@@ -132,7 +132,7 @@ class Model(ModelT):
             default_serializer: CodecArg = None) -> ModelT:
         """Deserialize model object from bytes.
 
-        Keyword Arguments:
+        Arguments:
             default_serializer (CodecArg): Default serializer to use
                 if no custom serializer was set for this model subclass.
             **kwargs: Additional attributes to set on the model object.

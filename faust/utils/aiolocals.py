@@ -46,7 +46,7 @@ class Context:
     Tracks a context, or set of locals for a given task.
     Should only be used as a context manager or via wrap_async.
 
-    Keyword Arguments:
+    Arguments:
         ident: The function to use to find a local state identifier
         locals: A list of Local instances to manage
         parent: The parent context

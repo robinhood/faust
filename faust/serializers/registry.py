@@ -16,7 +16,7 @@ IsInstanceArg = Tuple[Type, ...]
 class Registry(RegistryT):
     """Registry for serialization/deserialization.
 
-    Keyword Arguments:
+    Arguments:
         key_serializer: Default key serializer to use when none provided.
         value_serializer: Default value serializer to use when none provided.
     """
@@ -38,7 +38,6 @@ class Registry(RegistryT):
             typ: Model to use for deserialization.
             key: Serialized key.
 
-        Keyword Arguments:
             serializer: Codec to use for this value.  If not set
                the default will be used (:attr:`key_serializer`).
         """
@@ -105,7 +104,6 @@ class Registry(RegistryT):
             typ: Model to use for deserialization.
             value: Bytestring to deserialize.
 
-        Keyword Arguments:
             serializer: Codec to use for this value.  If not set
                the default will be used (:attr:`value_serializer`).
         """
@@ -150,7 +148,6 @@ class Registry(RegistryT):
                  When `typ=str` or `bytes`, raw serializer is assumed.
             key: The key value to serializer.
 
-        Keyword Arguments:
             serializer: Codec to use for this key, if it is not a model type.
                If not set the default will be used (:attr:`key_serializer`).
         """
@@ -179,7 +176,6 @@ class Registry(RegistryT):
                  When `typ=str` or `bytes`, raw serializer is assumed.
             key: The value to serializer.
 
-        Keyword Arguments:
             serializer: Codec to use for this value, if it is not a model type.
               If not set the default will be used (:attr:`value_serializer`).
         """

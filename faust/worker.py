@@ -122,7 +122,6 @@ class Worker(mode.Worker):
         *services: Services to start with worker.
             This includes application instances to start.
 
-    Keyword Arguments:
         sensors (Iterable[SensorT]): List of sensors to include.
         debug (bool): Enables debugging mode [disabled by default].
         quiet (bool): Do not output anything to console [disabled by default].

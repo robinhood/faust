@@ -233,7 +233,7 @@ class Consumer(Service, ConsumerT):
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
 
-        Keyword Arguments:
+        Arguments:
             topics: Set containing topics and/or TopicPartitions to commit.
         """
         did_commit = False

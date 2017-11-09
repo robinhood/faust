@@ -136,7 +136,6 @@ class LRUCache(FastUserDict, MutableMapping[KT, VT]):
             When a new key is inserted and the limit has been exceeded,
             the *Least Recently Used* key will be discarded from the
             cache.
-    Keyword Arguments:
         thread_safety (bool): Enable if multiple OS threads are going
             to access/mutate the cache.
     """

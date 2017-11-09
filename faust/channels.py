@@ -184,7 +184,6 @@ class Channel(ChannelT):
         app: The app this channel is used with.
              Note: Channels are usually created by calling ``app.channel()``
 
-    Keyword Arguments:
         key_type:  The Model used for keys in this channel.
         value_type: The Model used for values in this channel.
         maxsize: Max number of messages the channel can hold before
