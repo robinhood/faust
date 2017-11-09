@@ -14,73 +14,50 @@
 
 .. _task-basics:
 
-Basics
-======
+Tasks
+=====
 
-A task in Faust is simply an async function iterating over a stream,
-but more than that it builds on the concept of a task in ``asyncio``,
-so any async callable can act as a task.  This is useful if you want
-your application to have background tasks that do not directly consume a
-stream, like periodic timers.
+Your application will have agents that process events in streams, but
+can also start asyncio.Tasks that do other things, like periodic timers,
+views for the embedded web server, or command-line commands.
 
-Here is an example Faust app consuming log messages, and also emitting
-statistics every 30 seconds:
+Decorating an async function with the `@app.task` decorator will
+tell the worker to start that function as soon as the worker is fully
+operational:
 
 .. sourcecode:: python
 
-    import faust
+    @app.task
+    async def on_started():
+        print('APP STARTED')
 
+If you add the above to the module that defines your app and start the worker,
+you should see the message printed after starting the worker.
 
-    class LogRecord(faust.Record):
-        severity: str
-        message: str
-
-
-    class Stats:
-        logs_received = 0
-
-
-    app = faust.App('logs', url='aiokafka://localhost:9092')
-    log_topic = app.topic('logs', value_type=LogRecord)
-    stats = Stats()
-
-
-    @app.agent(log_topic)
-    async def process_logs(logs):
-        async for log in logs:
-            state.logs_received += 1
-            if log.severity == 'ERROR':
-                print(f'ERROR: {log.message}')
-
-
-    @app.timer(interval=30.0)
-    async def dumps_stats():
-        print(f'Logs processed: {stats.logs_received})
-
-    if __name__ == '__main__':
-        app.main()
+A task is a one-off task, if you want to do something at periodic intervals
+you can use a timer.
 
 .. _tasks-timers:
 
 Timers
 ======
 
-A shortcut decorator is included for starting background tasks that perform
-some action at regular intervals.
+A timer is also a task, but one that executes every ``n`` seconds:
 
 .. sourcecode:: python
 
-    @app.timer(interval=30.0)
-    def dump_stats():
-        print(f'Logs processed: {stats.logs_received})
+    @app.timer(interval=60.0)
+    async def every_minute():
+        print('WAKE UP')
 
+
+The above timer will print something every minute, starting from one minute
+after the worker is started and fully operational.
 
 .. _tasks-cli-commands:
 
-
 CLI Commands
 ============
-
 
 .. _tasks-web-views:
 
