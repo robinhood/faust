@@ -115,7 +115,6 @@ class Registry(RegistryT):
                     f'Expected {typ!r}, received {value!r}!')
             return None
         serializer = self._serializer(typ, serializer, self.value_serializer)
-        print('SERIALIZER: %r' % (serializer,))
         try:
             if isinstance(value, ModelT):
                 return self._loads_model(
