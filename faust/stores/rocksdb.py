@@ -1,4 +1,5 @@
 """RocksDB storage."""
+import math
 import shutil
 import typing
 from collections import defaultdict
@@ -13,7 +14,13 @@ from . import base
 from ..exceptions import ImproperlyConfigured
 from ..streams import current_event
 from ..types import AppT, CollectionT, EventT, TP
+from ..utils import platforms
 from ..utils.collections import LRUCache
+
+_max_open_files = platforms.max_open_files()
+if _max_open_files is not None:
+    _max_open_files = math.ceil(_max_open_files * 0.90)
+DEFAULT_MAX_OPEN_FILES = _max_open_files
 
 try:
     import rocksdb
@@ -46,7 +53,7 @@ class _DBValueTuple(NamedTuple):
 class RocksDBOptions:
     """Options required to open a RocksDB database."""
 
-    max_open_files: int = 300000
+    max_open_files: int = DEFAULT_MAX_OPEN_FILES
     write_buffer_size: int = 67108864
     max_write_buffer_number: int = 3
     target_file_size_base: int = 67108864

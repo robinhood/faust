@@ -161,6 +161,7 @@ Utils
     faust.utils.iso8601
     faust.utils.json
     faust.utils.objects
+    faust.utils.platforms
     faust.utils.text
 
 Web
