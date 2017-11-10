@@ -28,9 +28,6 @@ from ..utils.futures import StampedeWrapper, maybe_async
 
 __all__ = ['Stream', 'current_event']
 
-__make_flake8_happy_List: List  # XXX flake8 thinks this is unused
-__make_flake8_happy_Message: Message
-
 
 class _StreamLocal(Local):
     # This holds task-local variables related to streams.

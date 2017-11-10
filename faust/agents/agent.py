@@ -557,6 +557,3 @@ class Agent(AgentT, ServiceProxy):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}: {shorten_fqdn(qualname(self.fun))}'
-
-
-__flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug

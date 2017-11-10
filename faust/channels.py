@@ -438,6 +438,3 @@ class Channel(ChannelT):
 
     def __str__(self) -> str:
         return f'{id(self):#x}'
-
-
-__flake8_TracebackType_is_used: TracebackType  # XXX flake8 bug

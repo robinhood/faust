@@ -270,6 +270,3 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     def key_store(self, topic: str, key: bytes) -> URL:
         return URL(self._tps_url[self.app.producer.key_partition(topic, key)])
-
-
-__flake8_Sequence_is_used: Sequence  # XXX flake8 bug

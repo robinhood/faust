@@ -506,6 +506,3 @@ class AppCommand(Command):
 
     def abbreviate_fqdn(self, name: str, *, prefix: str = '') -> str:
         return text.abbr_fqdn(self.app.origin, name, prefix=prefix)
-
-
-__flake8_ModelT_is_used: ModelT  # XXX: flake8 bug

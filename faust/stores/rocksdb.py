@@ -330,6 +330,3 @@ class Store(base.SerializedStore):
     @property
     def basename(self) -> Path:
         return Path(self.url.path)
-
-
-__flake8_DefaultDict_is_used: DefaultDict  # XXX flake8 bug

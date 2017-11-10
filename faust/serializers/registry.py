@@ -195,6 +195,3 @@ class Registry(RegistryT):
     def Model(self) -> Type[ModelT]:
         from ..models.base import Model
         return Model
-
-
-__flake8_Any_is_really_used: Any  # XXX flake8 bug

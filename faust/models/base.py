@@ -365,7 +365,3 @@ class FieldDescriptor(FieldDescriptorT):
     @property
     def ident(self) -> str:
         return f'{self.model.__name__}.{self.field}'
-
-
-# flake8 thinks Dict is unused for some reason
-__flake8_ignore_this_Dict: Dict  # XXX

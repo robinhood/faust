@@ -332,6 +332,3 @@ class Collection(Service, CollectionT):
 
     def _to_value(self, v: Any) -> Any:
         return v
-
-
-__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug

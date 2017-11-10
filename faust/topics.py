@@ -479,9 +479,3 @@ class TopicConductor(ConductorT, Service):
     @property
     def shortlabel(self) -> str:
         return type(self).__name__
-
-
-__flake8_Awaitable_is_used: Awaitable            # XXX flake8 bug
-__flake8_Callable_is_used: Callable              # XXX flake8 bug
-__flake8_PendingMessage_is_used: PendingMessage  # XXX flake8 bug
-__flake8_RecordMetadata_is_used: RecordMetadata  # XXX flake8 bug

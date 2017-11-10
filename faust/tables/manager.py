@@ -475,6 +475,3 @@ class TableManager(Service, TableManagerT, FastUserDict):
         assert self._ongoing_recovery is None and self._recoverers is None
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')
-
-
-__flake8_List_is_used: List  # XXX flake8 bug

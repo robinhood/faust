@@ -1,7 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 from itertools import cycle
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar, Iterable, List,
+    Any, AsyncIterator, Awaitable, ClassVar, Iterable,
     Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
 )
 
@@ -434,8 +434,3 @@ class Transport(base.Transport):
                 owner.log.info(f'Topic {topic} created.')
                 return
         raise Exception(f'No controller found among brokers: {nodes}')
-
-
-__flake8_MutableMapping_is_used: MutableMapping  # XXX flake8 bug
-__flake8_Set_is_used: Set
-__flake8_List_is_used: List

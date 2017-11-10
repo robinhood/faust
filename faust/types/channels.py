@@ -1,10 +1,7 @@
 import abc
 import asyncio
 import typing
-from types import TracebackType
-from typing import (
-    Any, AsyncIterator, Awaitable, Type, Union,
-)
+from typing import Any, AsyncIterator, Awaitable, Union
 from mode import Seconds
 from mode.utils.compat import AsyncContextManager
 from .codecs import CodecArg
@@ -179,7 +176,3 @@ class ChannelT(AsyncIterator):
     @abc.abstractmethod
     async def throw(self, exc: BaseException) -> None:
         ...
-
-
-__flake8_TracebackType_is_used: TracebackType  # XXX flake8 bug
-__flake8_Type_is_used: Type
