@@ -110,14 +110,6 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def seek_to_latest(self, *partitions: TP) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def seek_to_beginning(self, *partitions: TP) -> None:
-        ...
-
-    @abc.abstractmethod
     async def seek(self, partition: TP, offset: int) -> None:
         ...
 

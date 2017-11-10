@@ -198,7 +198,7 @@ class Consumer(base.Consumer):
                 seek(tp, checkpoint)
             else:
                 self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', tp)
-                await self.seek_to_beginning(tp)
+                await self._seek_to_beginning(tp)
 
     async def _commit(self, offsets: Any) -> None:
         self.log.dev('COMMITTING OFFSETS: %r', offsets)
@@ -218,13 +218,7 @@ class Consumer(base.Consumer):
         for partition in tps:
             await self._consumer.position(partition)
 
-    async def seek_to_latest(self, *partitions: TP) -> None:
-        for partition in partitions:
-            self.log.dev('SEEK TO LATEST: %r', partition)
-            self._consumer._subscription.need_offset_reset(
-                partition, OffsetResetStrategy.LATEST)
-
-    async def seek_to_beginning(self, *partitions: TP) -> None:
+    async def _seek_to_beginning(self, *partitions: TP) -> None:
         for partition in partitions:
             self.log.dev('SEEK TO BEGINNING: %r', partition)
             self._consumer._subscription.need_offset_reset(
@@ -232,6 +226,7 @@ class Consumer(base.Consumer):
 
     async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)
+        self._read_offset[partition] = offset
         self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
