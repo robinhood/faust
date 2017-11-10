@@ -1,0 +1,196 @@
+import asyncio
+from collections import defaultdict, deque
+from time import time
+from typing import (
+    Any, AsyncIterator, Awaitable, ClassVar, Deque, Iterable,
+    Mapping, MutableMapping, Optional, Set, Tuple, Type, cast,
+)
+import faust
+from mode import Seconds
+from . import base
+from ..types import Message, RecordMetadata, TP
+from ..types.transports import ConsumerT, ProducerT
+from ..utils.futures import done_future
+
+
+class RebalanceListener:
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        ...
+
+
+class Consumer(base.Consumer):
+    RebalanceListener: ClassVar[Type] = RebalanceListener
+
+    consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = ()
+
+    async def create_topic(self, topic: str, partitions: int, replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
+                           ensure_created: bool = False) -> None:
+        ...
+
+    async def subscribe(self, topics: Iterable[str]) -> None:
+        print('SUBSCRIBE: %r' % (topics,))
+        await cast(Transport, self.transport).subscribe(topics)
+
+    async def getmany(
+            self,
+            *partitions: TP,
+            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+        transport = cast(Transport, self.transport)
+        max_per_partition = 100
+        if not partitions:
+            partitions = tuple(self.assignment())
+
+        if not partitions:
+            await self.wait(transport._subscription_ready.wait())
+
+        for tp in partitions:
+            messages = transport._messages[tp.topic]
+            if not messages:
+                await self.wait(transport._messages_ready.wait())
+                transport._messages_ready.clear()
+
+            i = 0
+            while messages:
+                yield tp, messages.popleft()
+                i += 1
+                if i > max_per_partition:
+                    break
+
+    def _new_topicpartition(
+            self, topic: str, partition: int) -> TP:
+        return TP(topic, partition)
+
+    def _new_offsetandmetadata(self, offset: int, meta: str) -> Any:
+        return offset, None
+
+    async def _perform_seek(self) -> None:
+        ...
+
+    async def _commit(self, offsets: Any) -> None:
+        ...
+
+    async def pause_partitions(self, tps: Iterable[TP]) -> None:
+        ...
+
+    async def position(self, tp: TP) -> Optional[int]:
+        return 0
+
+    async def resume_partitions(self, partitions: Iterable[TP]) -> None:
+        ...
+
+    async def seek_to_latest(self, *partitions: TP) -> None:
+        ...
+
+    async def seek_to_beginning(self, *partitions: TP) -> None:
+        ...
+
+    async def seek(self, partition: TP, offset: int) -> None:
+        ...
+
+    def assignment(self) -> Set[TP]:
+        return {
+            TP(t, 0)
+            for t in cast(Transport, self.transport)._subscription
+        }
+
+    def highwater(self, tp: TP) -> int:
+        return 0
+
+    async def earliest_offsets(self,
+                               *partitions: TP) -> MutableMapping[TP, int]:
+        return {tp: 0 for tp in partitions}
+
+    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+        return {tp: 0 for tp in partitions}
+
+
+class Producer(base.Producer):
+
+    async def create_topic(self, topic: str, partitions: int, replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = None,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
+                           ensure_created: bool = False) -> None:
+        ...
+
+    async def send(
+            self,
+            topic: str,
+            key: Optional[bytes],
+            value: Optional[bytes],
+            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+        res = await self.send_and_wait(topic, key, value, partition)
+        return done_future(res)
+
+    async def send_and_wait(
+            self,
+            topic: str,
+            key: Optional[bytes],
+            value: Optional[bytes],
+            partition: Optional[int]) -> RecordMetadata:
+        return await cast(Transport, self.transport).send(
+            topic, value, key, partition)
+
+
+class Transport(base.Transport):
+    Consumer: ClassVar[Type[ConsumerT]] = Consumer
+    Producer: ClassVar[Type[ProducerT]] = Producer
+
+    default_port = 9092
+    driver_version = f'memory-{faust.__version__}'
+
+    _subscription: Set[str]
+    _messages: MutableMapping[str, Deque[Message]]
+    _messages_ready: asyncio.Event
+    _subscription_ready: asyncio.Event
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._subscription = set()
+        self._messages = defaultdict(deque)
+        self._messages_ready = asyncio.Event(loop=self.loop)
+        self._subscription_ready = asyncio.Event(loop=self.loop)
+
+    async def subscribe(self, topics: Iterable[str]) -> None:
+        self._subscription_ready.clear()
+        self._subscription.clear()
+        self._subscription.update(topics)
+        self._subscription_ready.set()
+
+    async def send(
+            self,
+            topic: str,
+            key: Optional[bytes],
+            value: Optional[bytes],
+            partition: Optional[int]) -> RecordMetadata:
+        tp = TP(topic, partition)
+        self._messages[topic].append(Message(
+            topic,
+            partition=partition,
+            offset=0,
+            timestamp=time(),
+            timestamp_type='unix',
+            key=key,
+            value=value,
+            checksum=None,
+            serialized_key_size=len(key) if key else 0,
+            serialized_value_size=len(value) if value else 0,
+            tp=tp,
+        ))
+        self._messages_ready.set()
+        return RecordMetadata(
+            topic=topic,
+            partition=partition,
+            topic_partition=tp,
+            offset=0,
+        )
