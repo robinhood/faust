@@ -96,6 +96,12 @@ class ChangelogReader(Service, ChangelogReaderT):
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
+            # Set the updated offset in the consumer's offsets for bookkeeping
+            # We seek anyway but there seems to be a race condition with the
+            # aiokafka consumer having pre-fetched older messages
+            # Setting the offsets ensures that faust consumer will not
+            # deliver any stale messages
+            consumer._read_offset[tp] = self.offsets[tp]
         self.log.info(f'Updated offsets at start of reading: {self.offsets}')
 
     @Service.transitions_to(CHANGELOG_SEEKING)
