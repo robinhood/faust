@@ -37,7 +37,7 @@ class StatsdMonitor(Monitor):
                  host: str = 'localhost',
                  port: int = 8125,
                  prefix: str = 'faust-app',
-                 rate: float = 1.,
+                 rate: float = 1.0,
                  **kwargs: Any) -> None:
         self.host = host
         self.port = port
@@ -49,7 +49,8 @@ class StatsdMonitor(Monitor):
         super().__init__(**kwargs)
 
     def _new_statsd_client(self) -> StatsClient:
-        return StatsClient(host=self.host, port=self.port, prefix=self.prefix)
+        return statsd.StatsClient(host=self.host, port=self.port,
+                                  prefix=self.prefix)
 
     async def on_message_in(
             self,

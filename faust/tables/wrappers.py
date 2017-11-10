@@ -159,6 +159,10 @@ class WindowWrapper(WindowWrapperT):
             relative_to=relative_to or self.relative_to,
         )
 
+    @property
+    def name(self) -> str:
+        return self.table.name
+
     def relative_to_now(self) -> WindowWrapperT:
         return self.clone(relative_to=self.table._relative_now)
 

@@ -276,6 +276,11 @@ class WindowWrapperT(MutableMapping):
                  relative_to: RelativeArg = None) -> None:
         ...
 
+    @property
+    @abc.abstractmethod
+    def name(self) -> str:
+        ...
+
     @abc.abstractmethod
     def clone(self, relative_to: RelativeArg) -> 'WindowWrapperT':
         ...
