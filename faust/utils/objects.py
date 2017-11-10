@@ -38,6 +38,7 @@ LIST_TYPES: Tuple[Type, ...] = (
 )
 DICT_TYPES: Tuple[Type, ...] = (Dict, Mapping, MutableMapping)
 # XXX cast required for mypy bug
+# "expression has type Tuple[_SpecialForm]"
 TUPLE_TYPES: Tuple[Type, ...] = cast(Tuple[Type, ...], (Tuple,))
 
 

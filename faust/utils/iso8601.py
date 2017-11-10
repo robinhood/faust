@@ -34,7 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 import re
 from datetime import datetime, timedelta, timezone, tzinfo
-from typing import Mapping, Pattern, cast, no_type_check
+from typing import Mapping, Pattern, cast
 
 __all__ = ['parse']
 
@@ -48,7 +48,6 @@ RE_TIMEZONE: Pattern = re.compile(
     '(?P<prefix>[+-])(?P<hours>[0-9]{2}).(?P<minutes>[0-9]{2})')
 
 
-@no_type_check   # XXX mypy bug with groupdict
 def parse(datestring: str) -> datetime:
     """Parse and convert ISO 8601 string into a datetime object."""
     m = RE_ISO8601.match(datestring)
