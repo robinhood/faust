@@ -48,6 +48,7 @@ classes = """
     Operating System :: MacOS :: MacOS X
     Operating System :: POSIX :: BSD
     Operating System :: Microsoft :: Windows
+    Framework :: AsyncIO
     Topic :: System :: Networking
     Topic :: System :: Distributed Computing
     Topic :: Software Development :: Object Brokering
