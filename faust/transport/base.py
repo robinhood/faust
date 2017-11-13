@@ -88,9 +88,6 @@ class Consumer(Service, ConsumerT):
     #: Fast lookup to see if tp+offset was acked.
     _acked_index: MutableMapping[TP, Set[int]]
 
-    #: Keeps track of the currently read offset in each TP
-    _read_offset: MutableMapping[TP, int]
-
     #: Keeps track of the currently commited offset in each TP.
     _committed_offset: MutableMapping[TP, int] = None
 
@@ -127,7 +124,6 @@ class Consumer(Service, ConsumerT):
             commit_interval or self._app.commit_interval)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
-        self._read_offset = defaultdict(lambda: None)
         self._committed_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._rebalance_listener = self.RebalanceListener(self)
@@ -155,12 +151,6 @@ class Consumer(Service, ConsumerT):
     async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
         await self._on_partitions_assigned(assigned)
         await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
-        # All internal queues/buffers have now been cleared,
-        # so the registered read offsets may now be out of date.
-        # We have to refetch all messages that we had in the buffers
-        # and did not committ, to do so we reset read offsets to the
-        # committed offsets.
-        self._read_offset.update(self._committed_offset)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
@@ -325,7 +315,7 @@ class Consumer(Service, ConsumerT):
         return None
 
     async def _do_commit(self, tp: TP, offset: int, meta: str) -> None:
-        await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
+        await self._commit({tp: self._new_offsetandmetadata(offset + 1, meta)})
 
     async def on_task_error(self, exc: BaseException) -> None:
         await self.commit()
@@ -340,8 +330,6 @@ class Consumer(Service, ConsumerT):
         consumer_should_stop = self._stopped.is_set
         fetcher_should_stop = fetcher._stopped.is_set
 
-        get_read_offset = self._read_offset.__getitem__
-        set_read_offset = self._read_offset.__setitem__
         flag_consumer_fetching = CONSUMER_FETCHING
         set_flag = self.diag.set_flag
         unset_flag = self.diag.unset_flag
@@ -351,14 +339,7 @@ class Consumer(Service, ConsumerT):
                 set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
-                    offset = message.offset
-                    r_offset = get_read_offset(tp)
-                    if r_offset is None or offset > r_offset:
-                        await callback(message)
-                        set_read_offset(tp, offset)
-                    else:
-                        self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
-                                     offset, message.key, message.value)
+                    await callback(message)
                 unset_flag(flag_consumer_fetching)
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
