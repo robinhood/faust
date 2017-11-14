@@ -365,7 +365,7 @@ class Stream(StreamT, Service):
         if topic is None:
             if not isinstance(self.channel, TopicT):
                 raise ValueError('Need to specify topic for non-topic channel')
-            suffix = '-' + name + '-repartition'
+            suffix = '-' + self.app.id + '-' + name + '-repartition'
             p = self.app.default_partitions if partitions else partitions
             topic = cast(TopicT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
