@@ -103,10 +103,12 @@ class ChangelogReader(Service, ChangelogReaderT):
         consumer = self.app.consumer
         tps = self.tps
         for tp in tps:
-            offset = max(self.offsets[tp], 0)
+            offset = self.offsets[tp]
             # self.log.info(f'Seeking {tp} to offset: {offset}')
-            await consumer.seek(tp, offset)
-            assert await consumer.position(tp) == offset
+            if offset >= 0:
+                # FIXME: Remove check when fixed offset-1 discrepancy
+                await consumer.seek(tp, offset)
+                assert await consumer.position(tp) == offset
 
     def _should_start_reading(self) -> bool:
         return self._highwaters != self.offsets
