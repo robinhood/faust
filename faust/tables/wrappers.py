@@ -2,7 +2,7 @@
 import operator
 import typing
 from datetime import datetime
-from typing import Any, Callable, Iterator, Optional, cast
+from typing import Any, Callable, Iterator, Optional, Union, cast
 from mode import Seconds
 from ..exceptions import ImproperlyConfigured
 from ..streams import current_event
@@ -151,17 +151,20 @@ class WindowWrapper(WindowWrapperT):
                  *,
                  relative_to: RelativeArg = None) -> None:
         self.table = table
-        self._relative_to = self._relative_handler(relative_to)
+        self._get_relative_timestamp = self._relative_handler(relative_to)
 
     def clone(self, relative_to: RelativeArg) -> WindowWrapperT:
         return type(self)(
             table=self.table,
-            relative_to=relative_to or self.relative_to,
+            relative_to=relative_to or self._get_relative_timestamp,
         )
 
     @property
     def name(self) -> str:
         return self.table.name
+
+    def relative_to(self, ts: RelativeArg) -> WindowWrapperT:
+        return self.clone(relative_to=ts)
 
     def relative_to_now(self) -> WindowWrapperT:
         return self.clone(relative_to=self.table._relative_now)
@@ -174,8 +177,9 @@ class WindowWrapper(WindowWrapperT):
 
     def get_timestamp(self, event: EventT = None) -> float:
         event = event or current_event()
-        if self.relative_to:
-            timestamp = self.relative_to(event)
+        get_relative_timestamp = self.get_relative_timestamp
+        if get_relative_timestamp:
+            timestamp = get_relative_timestamp(event)
             if isinstance(timestamp, datetime):
                 return timestamp.timestamp()
             return timestamp
@@ -207,6 +211,10 @@ class WindowWrapper(WindowWrapperT):
     def _relative_handler(self, relative_to: RelativeArg) -> RelativeHandler:
         if relative_to is None:
             return None
+        elif isinstance(relative_to, datetime):
+            return self.table._relative_timestamp(relative_to.timestamp())
+        elif isinstance(relative_to, float):
+            return self.table._relative_timestamp(relative_to)
         elif isinstance(relative_to, FieldDescriptorT):
             return self.table._relative_field(relative_to)
         elif callable(relative_to):
@@ -215,9 +223,9 @@ class WindowWrapper(WindowWrapperT):
             f'Relative cannot be type {type(relative_to)}')
 
     @property
-    def relative_to(self) -> Optional[RelativeHandler]:
-        return self._relative_to
+    def get_relative_timestamp(self) -> Optional[RelativeHandler]:
+        return self._get_relative_timestamp
 
-    @relative_to.setter
-    def relative_to(self, relative_to: RelativeArg) -> None:
-        self._relative_to = self._relative_handler(relative_to)
+    @get_relative_timestamp.setter
+    def get_relative_timestamp(self, relative_to: RelativeArg) -> None:
+        self._get_relative_timestamp = self._relative_handler(relative_to)

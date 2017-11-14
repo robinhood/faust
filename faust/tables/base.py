@@ -278,6 +278,11 @@ class Collection(Service, CollectionT):
             return field.getattr(cast(ModelT, event.value))
         return to_value
 
+    def _relative_timestamp(self, timestamp: float) -> RelativeHandler:
+        def handler(event: EventT) -> float:
+            return timestamp
+        return handler
+
     def _windowed_now(self, key: Any) -> Any:
         return self._windowed_timestamp(key, self._relative_now())
 

@@ -41,7 +41,7 @@ __all__ = [
 
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
-RelativeArg = Union[FieldDescriptorT, RelativeHandler]
+RelativeArg = Union[FieldDescriptorT, RelativeHandler, datetime, float]
 
 
 class CollectionT(JoinableT, ServiceT):
@@ -306,9 +306,9 @@ class WindowWrapperT(MutableMapping):
         ...
 
     @property
-    def relative_to(self) -> RelativeHandler:
+    def get_relative_timestamp(self) -> RelativeHandler:
         ...
 
-    @relative_to.setter
-    def relative_to(self, relative_to: RelativeArg) -> None:
+    @get_relative_timestamp.setter
+    def get_relative_timestamp(self, relative_to: RelativeArg) -> None:
         ...
