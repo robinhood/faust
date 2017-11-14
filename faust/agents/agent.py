@@ -323,9 +323,13 @@ class Agent(AgentT, ServiceProxy):
     async def _slurp(self, res: ActorRefT, it: AsyncIterator):
         # this is used when the agent returns an AsyncIterator,
         # and simply consumes that async iterator.
+        stream: StreamT = None
         async for value in it:
             self.log.debug('%r yielded: %r', self.fun, value)
-            event = res.stream.current_event
+            if stream is None:
+                stream = res.stream.get_active_stream()
+            event = stream.current_event
+            assert stream.current_event is not None
             if isinstance(event.value, ReqRepRequest):
                 await self._reply(event.key, value, event.value)
             await self._delegate_to_sinks(value)

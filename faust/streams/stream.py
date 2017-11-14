@@ -103,6 +103,12 @@ class Stream(StreamT, Service):
         self._on_stream_event_out = self.app.sensors.on_stream_event_out
         self._on_message = self._create_message_handler()
 
+    def get_active_stream(self) -> StreamT:
+        node = self
+        while node.link:
+            node = node.link
+        return node
+
     async def _send_to_outbox(self, value: T_contra) -> None:
         await self.outbox.put(value)
 
@@ -249,7 +255,13 @@ class Stream(StreamT, Service):
 
         channel_created = False
         channel_it = aiter(channelchannel)
-        through = self.clone(channel=channel_it, on_start=self.maybe_start)
+        if self.link is not None:
+            raise ImproperlyConfigured(
+                'Stream is already using group_by/through')
+        self.link = through = self.clone(
+            channel=channel_it,
+            on_start=self.maybe_start,
+        )
 
         declare = StampedeWrapper(channelchannel.maybe_declare)
 
@@ -373,8 +385,12 @@ class Stream(StreamT, Service):
         format_key = self._format_key
 
         channel_it = aiter(topic)
-        grouped = self.clone(channel=channel_it, on_start=self.maybe_start)
-
+        if self.link is not None:
+            raise ImproperlyConfigured('Stream already uses group_by/through')
+        self.link = grouped = self.clone(
+            channel=channel_it,
+            on_start=self.maybe_start,
+        )
         declare = StampedeWrapper(topic.maybe_declare)
 
         async def repartition(value: T) -> T:
@@ -440,7 +456,7 @@ class Stream(StreamT, Service):
         # The resulting stream's `on_merge` callback can be used to
         # process values from all the combined streams, and e.g.
         # joins uses this to consolidate multiple values into one.
-        stream = self.clone(
+        self.link = stream = self.clone(
             children=self.children + list(nodes),
         )
         for node in stream.children:

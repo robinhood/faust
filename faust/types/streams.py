@@ -81,6 +81,15 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
 
     children: List[JoinableT] = None
 
+    # group_by, through, etc. sets this, and it means the
+    # active stream (the one the agent would be reading from) can be found
+    # by walking the path of links::
+    #    >>> node = stream
+    #    >>> while node.link:
+    #    ...     node = node.link
+    # which is also what .get_active_stream() gives
+    link: 'StreamT' = None
+
     @abc.abstractmethod
     def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
@@ -88,6 +97,9 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
                  children: List[JoinableT] = None,
                  join_strategy: JoinT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
+
+    def get_active_stream(self) -> 'StreamT':
         ...
 
     @abc.abstractmethod
