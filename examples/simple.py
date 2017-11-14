@@ -62,8 +62,6 @@ async def echo_size():
 @app.command()
 async def produce(self):
     """Produce example Withdrawal events."""
-    await withdrawals_topic.send(key=None, value=None)
-    return
     num_countries = 5
     countries = [f'country_{i}' for i in range(num_countries)]
     country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
