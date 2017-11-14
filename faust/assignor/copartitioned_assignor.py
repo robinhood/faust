@@ -69,6 +69,7 @@ class CopartitionedAssignor:
                    for partition in range(self.num_partitions))
 
     def _assign(self, active: bool) -> None:
+        self._unassign_overassigned(active)
         unassigned = self._get_unassigned(active)
         self._assign_round_robin(unassigned, active)
         assert self._all_assigned(active)
@@ -85,6 +86,21 @@ class CopartitionedAssignor:
 
     def _total_assigns_per_partition(self, active: bool) -> int:
         return 1 if active else self.replicas
+
+    def _unassign_overassigned(self, active) -> None:
+        '''There are cases when multiple clients could have the same
+        assignment (zombies). We need to handle that appropriately'''
+        partition_counts = self._assigned_partition_counts(active)
+        total_assigns = self._total_assigns_per_partition(active=active)
+        for partition in range(self.num_partitions):
+            extras = partition_counts[partition] - total_assigns
+            for _ in range(extras):
+                assgn = next(
+                    assgn
+                    for assgn in self._client_assignments
+                    if assgn.partition_assigned(partition, active=active)
+                )
+                assgn.unassign_partition(partition, active=active)
 
     def _get_unassigned(self, active: bool) -> Sequence[int]:
         partition_counts = self._assigned_partition_counts(active)

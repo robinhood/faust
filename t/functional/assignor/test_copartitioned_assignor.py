@@ -3,7 +3,7 @@ from collections import Counter
 from typing import MutableMapping
 from faust.assignor.client_assignment import CopartitionedAssignment
 from faust.assignor.copartitioned_assignor import CopartitionedAssignor
-from hypothesis import assume, given
+from hypothesis import assume, given, settings
 from hypothesis.strategies import integers
 
 
@@ -60,6 +60,7 @@ def client_removal_sticky(old: MutableMapping[str, CopartitionedAssignment],
 @given(partitions=integers(min_value=0, max_value=256),
        replicas=integers(min_value=0, max_value=64),
        num_clients=integers(min_value=1, max_value=1024))
+@settings(deadline=2000)
 def test_fresh_assignment(partitions, replicas, num_clients):
     assume(replicas < num_clients)
     client_assignments = {
@@ -76,6 +77,7 @@ def test_fresh_assignment(partitions, replicas, num_clients):
        replicas=integers(min_value=0, max_value=64),
        num_clients=integers(min_value=1, max_value=1024),
        num_additional_clients=integers(min_value=1, max_value=16))
+@settings(deadline=2000)
 def test_add_new_clients(partitions, replicas, num_clients,
                          num_additional_clients):
     assume(replicas < num_clients and num_additional_clients < num_clients)
@@ -104,6 +106,7 @@ def test_add_new_clients(partitions, replicas, num_clients,
        replicas=integers(min_value=0, max_value=64),
        num_clients=integers(min_value=1, max_value=1024),
        num_removal_clients=integers(min_value=1, max_value=16))
+@settings(deadline=2000)
 def test_remove_clients(partitions, replicas, num_clients,
                         num_removal_clients):
     assume(num_removal_clients < num_clients and
