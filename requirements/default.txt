@@ -1,5 +1,5 @@
-git+ssh://git@github.com/robinhoodmarkets/aiokafka.git@0.3.2
 aiohttp~=2.2
+aiokafka~=0.3.2
 avro-python3~=1.8
 click~=6.7
 jinja2~=2.9
