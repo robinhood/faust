@@ -991,6 +991,7 @@ class App(AppT, ServiceProxy):
             await self.topics.wait_for_subscriptions()
             await self.consumer.pause_partitions(assigned)
             await self._fetcher.restart()
+            self.log.info(f'Restarted fetcher')
             await self.topics.on_partitions_assigned(assigned)
             await self.tables.on_partitions_assigned(assigned)
         except Exception as exc:
