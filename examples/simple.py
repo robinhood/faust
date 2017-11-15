@@ -49,8 +49,8 @@ country_to_total = app.Table(
 @app.agent(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals.group_by(Withdrawal.user):
-        if withdrawal.amount > 1000:
-            yield withdrawal
+        print(f'Withdrawal: {withdrawal}')
+        user_to_total[withdrawal.user] += withdrawal.amount
 
 
 @user_to_total.on_recover
