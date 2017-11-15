@@ -214,9 +214,6 @@ class Consumer(base.Consumer):
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
         for partition in tps:
             self._consumer._subscription.resume(partition=partition)
-        # XXX This will actually update our paused partitions
-        for partition in tps:
-            await self._consumer.position(partition)
 
     async def _seek_to_beginning(self, *partitions: TP) -> None:
         for partition in partitions:
