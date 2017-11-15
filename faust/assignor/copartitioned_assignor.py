@@ -87,9 +87,9 @@ class CopartitionedAssignor:
     def _total_assigns_per_partition(self, active: bool) -> int:
         return 1 if active else self.replicas
 
-    def _unassign_overassigned(self, active) -> None:
-        '''There are cases when multiple clients could have the same
-        assignment (zombies). We need to handle that appropriately'''
+    def _unassign_overassigned(self, active: bool) -> None:
+        # There are cases when multiple clients could have the same
+        # assignment (zombies).  We need to handle that appropriately.
         partition_counts = self._assigned_partition_counts(active)
         total_assigns = self._total_assigns_per_partition(active=active)
         for partition in range(self.num_partitions):
