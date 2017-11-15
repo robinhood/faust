@@ -105,6 +105,7 @@ Transports
     faust.transport
     faust.transport.aiokafka
     faust.transport.base
+    faust.transport.memory
 
 Assignor
 ========
