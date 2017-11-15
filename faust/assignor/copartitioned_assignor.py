@@ -97,7 +97,7 @@ class CopartitionedAssignor:
             for _ in range(extras):
                 assgn = next(
                     assgn
-                    for assgn in self._client_assignments
+                    for assgn in self._client_assignments.values()
                     if assgn.partition_assigned(partition, active=active)
                 )
                 assgn.unassign_partition(partition, active=active)
