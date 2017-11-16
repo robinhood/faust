@@ -56,9 +56,8 @@ class Router(RouterT):
             @wraps(fun)
             async def get(web: Web, request: Request) -> Response:
                 key = request.query[shard_param]
-                table_name = table.name
 
-                dest_url = router.key_store(table_name, key)
+                dest_url = router.key_store(table.name, key)
                 dest_ident = (host, port) = self._urlident(dest_url)
                 if dest_ident == self._urlident(app.canonical_url):
                     return await fun(web, request)
