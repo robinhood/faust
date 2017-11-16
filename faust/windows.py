@@ -1,5 +1,5 @@
 """Windowing strategies."""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from mode import Seconds, want_seconds
 from .types import WindowRange, WindowT
@@ -7,7 +7,14 @@ from .types import WindowRange, WindowT
 __all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
 
 
-class HoppingWindow(WindowT):
+class Window(WindowT):
+    tz: timezone = timezone.utc
+
+    def now(self, tz: timezone = None) -> datetime:
+        return datetime.utcnow().replace(tzinfo=tz or self.tz)
+
+
+class HoppingWindow(Window):
     """Hopping window type.
 
     Fixed-size, overlapping windows.
@@ -47,8 +54,7 @@ class HoppingWindow(WindowT):
         return WindowRange.from_start(start, self.size)
 
     def _stale_before(self, expires: float) -> float:
-        now = datetime.utcnow().timestamp()
-        return self._timestamp_window(now - expires).start
+        return self._timestamp_window(self.now().timestamp() - expires).start
 
 
 class TumblingWindow(HoppingWindow):
@@ -62,7 +68,7 @@ class TumblingWindow(HoppingWindow):
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
-class SlidingWindow(WindowT):
+class SlidingWindow(Window):
     """Sliding window type.
 
     Fixed-size, overlapping windows that work on differences between
@@ -99,6 +105,5 @@ class SlidingWindow(WindowT):
             if self.expires else False
         )
 
-    @classmethod
-    def _stale_before(cls, expires: float) -> float:
-        return datetime.utcnow().timestamp() - expires
+    def _stale_before(self, expires: float) -> float:
+        return self.now().timestamp() - expires

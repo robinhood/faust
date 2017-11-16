@@ -1,7 +1,6 @@
 """Base class Collection for Tables/Sets/etc."""
 import abc
 from collections import defaultdict
-from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
@@ -267,7 +266,7 @@ class Collection(Service, CollectionT):
 
     def _relative_now(self, event: EventT = None) -> float:
         # get current timestamp
-        return datetime.utcnow().timestamp()
+        return self.window.now().timestamp()
 
     def _relative_event(self, event: EventT = None) -> float:
         # get event timestamp

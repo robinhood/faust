@@ -1,4 +1,5 @@
 import abc
+from datetime import datetime, timezone
 from typing import List, NamedTuple
 from mode import Seconds
 
@@ -14,6 +15,11 @@ class WindowRange(NamedTuple):
 
 class WindowT(abc.ABC):
     expires: float = None
+    tz: timezone = None
+
+    @abc.abstractmethod
+    def now(self, tz: timezone = None) -> datetime:
+        ...
 
     @abc.abstractmethod
     def ranges(self, timestamp: float) -> List[WindowRange]:
