@@ -230,7 +230,7 @@ class Record(Model):
                     return {callback(subtyp, v) for v in data}
         return data
 
-    def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
+    def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         data = cast(Dict, self.to_representation())
         for obj in objects:
             data.update(cast(Record, obj).to_representation())

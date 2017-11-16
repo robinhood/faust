@@ -432,9 +432,9 @@ class Channel(ChannelT):
     def __repr__(self) -> str:
         return f'<{self.label}>'
 
+    def __str__(self) -> str:
+        return f'{id(self):#x}'
+
     @property
     def label(self) -> str:
         return f'{type(self).__name__}: {self}'
-
-    def __str__(self) -> str:
-        return f'{id(self):#x}'

@@ -111,6 +111,28 @@ def test_submodels():
     }
 
 
+def test_derive():
+    a1 = Account(id='123', name='foo', active=True)
+    b1 = Account(id='456', name='bar', active=False)
+    c1 = Account(id='789', name='baz', active=True)
+
+    assert a1.active
+    a2 = a1.derive(active=False)
+    assert a2.id == '123'
+    assert a2.name == 'foo'
+    assert not a2.active
+
+    c2 = a1.derive(b1, c1, name='xuzzy')
+    assert c2.id == '789'
+    assert c2.name == 'xuzzy'
+    assert c2.active
+
+    b2 = b1.derive(active=True)
+    assert b2.active
+    assert b2.id == '456'
+    assert b2.name == 'bar'
+
+
 def test_constructor_from_data():
     with pytest.raises(TypeError):
         Account({'id': '123'})

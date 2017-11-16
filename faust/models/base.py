@@ -242,9 +242,9 @@ class Model(ModelT):
         raise NotImplementedError()
 
     def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
-        return self._derive(objects, fields)
+        return self._derive(*objects, **fields)
 
-    def _derive(self, objects: Tuple[ModelT, ...], fields: Dict) -> ModelT:
+    def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         raise NotImplementedError()
 
     def dumps(self, *, serializer: CodecArg = None) -> bytes:
