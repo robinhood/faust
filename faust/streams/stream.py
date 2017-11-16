@@ -145,9 +145,25 @@ class Stream(StreamT, Service):
         await self.outbox.put(value)
 
     def add_processor(self, processor: Processor) -> None:
+        """Add processor callback executed whenever a new event is received.
+
+        Processor functions can be async or non-async, must accept
+        a single argument, and should return the value, mutated or not.
+
+        For example a processor handling a stream of numbers may modify
+        the value::
+
+            def double(value: int) -> int:
+                return value * 2
+
+            stream.add_processor(double)
+        """
         self._processors.append(processor)
 
     def info(self) -> Mapping[str, Any]:
+        """Return stream settings as a dictionary."""
+        # used by e.g. .clone to reconstruct keyword arguments
+        # needed to create a clone of the stream.
         return {
             'app': self.app,
             'channel': self.channel,
@@ -159,6 +175,13 @@ class Stream(StreamT, Service):
         }
 
     def clone(self, **kwargs: Any) -> Any:
+        """Create a clone of this stream.
+
+        Notes:
+            If the cloned stream is supposed to "supercede" this stream,
+            you should set `stream.link = cloned_stream` so that
+            :meth:`get_active_stream` returns the cloned stream.
+        """
         return self.__class__(**{**self.info(), **kwargs})
 
     async def items(self) -> AsyncIterator[Tuple[K, T_co]]:
@@ -247,10 +270,10 @@ class Stream(StreamT, Service):
 
     def enumerate(self,
                   start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
-        """Enumerate values received in this stream.
+        """Enumerate values received on this stream.
 
-        Akin to Python's built-in ``enumerate``, but works for an asynchronous
-        stream.
+        Unlike Python's built-in ``enumerate``, this works with
+        async generators.
         """
         return aenumerate(self, start)
 
@@ -456,7 +479,7 @@ class Stream(StreamT, Service):
                      value_type: ModelArg = None,
                      prefix: str = '',
                      suffix: str = '') -> TopicT:
-        """Create topic derived from the key/value type of this stream.
+        """Create Topic description derived from the K/V type of this stream.
 
         Arguments:
             name: Topic name.
@@ -549,13 +572,17 @@ class Stream(StreamT, Service):
         return on_message
 
     async def on_merge(self, value: T = None) -> Optional[T]:
+        # TODO for joining streams
+        # The join strategy.process method can return None
+        # to eat the value, and on the next event create a merged
+        # event out of the previous event and new event.
         join_strategy = self.join_strategy
         if join_strategy:
             value = await join_strategy.process(value)
         return value
 
     async def send(self, value: T_contra) -> None:
-        """Send value into stream manually."""
+        """Send value into stream locally (bypasses topic)."""
         if isinstance(self.channel, ChannelT):
             await cast(ChannelT, self.channel).put(value)
         else:
@@ -579,11 +606,12 @@ class Stream(StreamT, Service):
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
     def __aiter__(self) -> AsyncIterator:
+        # start iterating over the stream
         self._context = Context(locals=[_locals]).__enter__()
         return self
 
     async def __anext__(self) -> T:
-        # fetch next message and get value from outbox
+        # wait for next message
         value: T = None
         while value is None:  # we iterate until on_merge gives back a value
             if not self._anext_started:
@@ -601,6 +629,16 @@ class Stream(StreamT, Service):
         return value
 
     async def ack(self, event: EventT) -> None:
+        """Ack event.
+
+        This will decrease the reference count of the event message by one,
+        and when the reference count reaches zero, the worker will
+        commit the offset so that the message will not be seen by a worker
+        again.
+
+        Arguments:
+            event: Event to ack.
+        """
         await event.ack()
         msg = event.message
         await self._on_stream_event_out(msg.tp, msg.offset, self, event)
@@ -621,4 +659,5 @@ class Stream(StreamT, Service):
 
     @property
     def label(self) -> str:
+        # used as textual description in graphs
         return f'{type(self).__name__}: {self._repr_channel()}'
