@@ -26,6 +26,7 @@ from typing import (
 )
 from uuid import uuid4
 
+from aiohttp.client import ClientSession
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.utils.types.trees import NodeT
@@ -324,6 +325,8 @@ class App(AppT, ServiceProxy):
     # with the app here.
     _tasks: MutableSequence[TaskArg]
 
+    _client_session: Optional[ClientSession] = None
+
     def __init__(
             self, id: str,
             *,
@@ -408,6 +411,10 @@ class App(AppT, ServiceProxy):
         self.pages = []
         self.stream_buffer_maxsize = stream_buffer_maxsize
         ServiceProxy.__init__(self)
+
+    async def on_stop(self) -> None:
+        if self._client_session:
+            self._client_session.close()
 
     def discover(self,
                  *extra_modules: str,
@@ -1155,3 +1162,9 @@ class App(AppT, ServiceProxy):
     @cached_property
     def flow_control(self) -> FlowControlEvent:
         return FlowControlEvent(loop=self.loop)
+
+    @property
+    def client_session(self) -> ClientSession:
+        if self._client_session is None:
+            self._client_session = ClientSession()
+        return self._client_session

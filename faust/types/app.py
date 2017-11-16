@@ -8,6 +8,7 @@ from typing import (
     Mapping, MutableMapping, Pattern, Tuple, Type, Union,
 )
 
+from aiohttp.client import ClientSession
 from mode import Seconds, ServiceT, SupervisorStrategyT
 from mode.utils.types.trees import NodeT
 from yarl import URL
@@ -321,3 +322,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def flow_control(self) -> FlowControlEvent:
         return FlowControlEvent(loop=self.loop)
+
+    @property
+    @abc.abstractmethod
+    def client_session(self) -> ClientSession:
+        ...
