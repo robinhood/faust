@@ -6,7 +6,7 @@ import weakref
 
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, List,
-    Mapping, MutableSequence, Optional, Sequence, Tuple, Union, cast,
+    Mapping, MutableSequence, Optional, Sequence, Set, Tuple, Union, cast,
 )
 
 from mode import Seconds, Service, want_seconds
@@ -104,8 +104,40 @@ class Stream(StreamT, Service):
         self._on_message = self._create_message_handler()
 
     def get_active_stream(self) -> StreamT:
+        """Returns the currently active stream.
+
+        A stream can be derived using ``Stream.group_by`` etc,
+        so if this stream was used to create another derived
+        stream, this function will return the stream being actively
+        consumed from.  E.g. in the example::
+
+            >>> @app.agent()
+            ... async def agent(a):
+            ..      a = a
+            ...     b = a.group_by(Withdrawal.account_id)
+            ...     c = b.through('backup_topic')
+            ...     async for value in c:
+            ...         ...
+
+        The return value of ``a.get_active_stream()`` would be ``c``.
+
+        Notes:
+            The chain of streams that leads to the active stream
+            is decided by the :attr:`link` attribute, and getting
+            the active stream is just traversing this linked-list::
+
+                >>> def get_active_stream(self):
+                ...     node = self
+                ...     while node.link:
+                ...         node = node.link
+        """
         node = self
+        seen: Set[StreamT] = set()
         while node.link:
+            if node in seen:
+                raise RuntimeError(
+                    'Loop in Stream.link linked-list. Call support!')
+            seen.add(node)
             node = node.link
         return node
 
