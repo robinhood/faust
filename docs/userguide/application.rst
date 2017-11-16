@@ -28,7 +28,6 @@ table storage:
     >>> import faust
     >>> app = faust.App('example', url='kafka://', store='rocksdb://')
 
-
 For very special needs the :class:`faust.App` class can be inherited from, and a subclass
 will have the ability to change how almost everything works.
 
