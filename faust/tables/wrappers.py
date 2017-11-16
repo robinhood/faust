@@ -2,7 +2,7 @@
 import operator
 import typing
 from datetime import datetime
-from typing import Any, Callable, Iterator, Optional, Union, cast
+from typing import Any, Callable, Iterator, Optional, cast
 from mode import Seconds
 from ..exceptions import ImproperlyConfigured
 from ..streams import current_event

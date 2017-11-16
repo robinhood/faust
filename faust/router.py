@@ -1,7 +1,6 @@
 """Route messages to Faust nodes by partitioning."""
 from functools import wraps
 from typing import Tuple
-import aiohttp
 from yarl import URL
 from .types.app import (
     AppT, Request, Response, RoutedViewGetHandler,
