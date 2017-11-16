@@ -65,10 +65,9 @@ class Router(RouterT):
                     return await fun(web, request)
 
                 routed_url = request.url.with_host(host).with_port(int(port))
-                resp = await aiohttp.request('get', routed_url)
-
-                return web.text(await resp.text(),
-                                content_type=resp.content_type)
+                async with app.client_session.get(routed_url) as response:
+                    return web.text(await response.text(),
+                                    content_type=response.content_type)
 
             return get
 
