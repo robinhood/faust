@@ -541,15 +541,17 @@ class Stream(StreamT, Service):
         # Sensor: on_stream_event_in
         on_stream_event_in = self._on_stream_event_in
 
-        # localize this global variable
+        # localize global variables
         threadlocals = _locals
         create_ref = weakref.ref
+        _maybe_async = maybe_async
+        event_cls = EventT
 
         async def on_message() -> Any:
             # get message from channel
             value: Any = await get_next_value()
 
-            if isinstance(value, EventT):
+            if isinstance(value, event_cls):
                 event: EventT = value
                 message: Message = event.message
                 tp = message.tp
@@ -563,11 +565,14 @@ class Stream(StreamT, Service):
                 # set Stream._current_event
                 self.current_event = event
 
-                value = event.value  # Stream yields Event.value
+                # Stream yields Event.value
+                value = event.value
+            else:
+                self.current_event = None
 
             # reduce using processors
             for processor in processors:
-                value = await maybe_async(processor(value))
+                value = await _maybe_async(processor(value))
             return value
         return on_message
 
