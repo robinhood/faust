@@ -58,7 +58,7 @@ from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.aiter import aiter
 from .utils.compat import OrderedDict
-from .utils.futures import FlowControlEvent, FlowControlQueue, stampede
+from .utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.objects import Unordered, cached_property
 from .web.views import Site, View
@@ -1049,9 +1049,9 @@ class App(AppT, ServiceProxy):
             maxsize: int = None,
             *,
             clear_on_resume: bool = False,
-            loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+            loop: asyncio.AbstractEventLoop = None) -> ThrowableQueue:
         """Like :class:`asyncio.Queue`, but can be suspended/resumed."""
-        return FlowControlQueue(
+        return ThrowableQueue(
             maxsize=maxsize,
             flow_control=self.flow_control,
             clear_on_resume=clear_on_resume,

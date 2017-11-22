@@ -18,7 +18,7 @@ from .types import (
 )
 from .types.channels import ChannelT, EventT
 from .types.streams import StreamT
-from .utils.futures import maybe_async, stampede
+from .utils.futures import ThrowableQueue, maybe_async, stampede
 
 if typing.TYPE_CHECKING:
     from .app import App
@@ -198,16 +198,14 @@ class Channel(ChannelT):
     is_iterator: bool
     clone_shares_queue: bool = True
 
-    _queue: asyncio.Queue = None
-    _errors: asyncio.Queue = None
+    _queue: ThrowableQueue = None
 
     def __init__(self, app: AppT,
                  *,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  is_iterator: bool = False,
-                 queue: asyncio.Queue = None,
-                 errors: asyncio.Queue = None,
+                 queue: ThrowableQueue = None,
                  maxsize: int = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
@@ -216,14 +214,13 @@ class Channel(ChannelT):
         self.value_type = value_type
         self.is_iterator = is_iterator
         self._queue = queue
-        self._errors = errors
         self.maxsize = maxsize
         if self.maxsize is None:
             self.maxsize = self.app.stream_buffer_maxsize
         self.deliver = self._compile_deliver()  # type: ignore
 
     @property
-    def queue(self) -> asyncio.Queue:
+    def queue(self) -> ThrowableQueue:
         if self._queue is None:
             # this should only be set after clone = channel.__aiter__()
             # which means the loop is not accessed by merely defining
@@ -234,12 +231,6 @@ class Channel(ChannelT):
                 clear_on_resume=True,
             )
         return self._queue
-
-    @property
-    def errors(self) -> asyncio.Queue:
-        if self._errors is None:
-            self._errors = asyncio.Queue(maxsize=1, loop=self.loop)
-        return self._errors
 
     def clone(self, *, is_iterator: bool = None) -> ChannelT:
         return type(self)(
@@ -254,7 +245,6 @@ class Channel(ChannelT):
             'key_type': self.key_type,
             'value_type': self.value_type,
             'queue': self.queue if self.clone_shares_queue else None,
-            'errors': self.errors if self.clone_shares_queue else None,
             'maxsize': self.maxsize,
         }
 
@@ -385,7 +375,7 @@ class Channel(ChannelT):
         return await self.queue.get()
 
     def empty(self) -> bool:
-        return self.queue.empty() and self.errors.empty()
+        return self.queue.empty()
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
@@ -401,33 +391,10 @@ class Channel(ChannelT):
     async def __anext__(self) -> EventT:
         if not self.is_iterator:
             raise RuntimeError('Need to call channel.__aiter__()')
-        loop = self.loop
-        coro_get_val = None
-        coro_get_exc = None
-        try:
-            # coro #1: Get value from channel queue.
-            coro_get_val = asyncio.ensure_future(self.queue.get(), loop=loop)
-            coro_get_exc = asyncio.ensure_future(self.errors.get(), loop=loop)
-
-            # wait for first thing to happen:
-            #    event on channel,or exception thrown
-            done, pending = await asyncio.wait(
-                [coro_get_val, coro_get_exc],
-                return_when=asyncio.FIRST_COMPLETED,
-                loop=loop)
-            if coro_get_exc.done():
-                # we got an exception from Channel.throw(exc):
-                exc: BaseException = coro_get_exc.result()
-                raise exc from None
-            return coro_get_val.result()
-        finally:
-            if coro_get_exc and not coro_get_exc.done():
-                coro_get_exc.cancel()
-            if coro_get_val and not coro_get_val.done():
-                coro_get_val.cancel()
+        return await self.queue.get()
 
     async def throw(self, exc: BaseException) -> None:
-        await self.errors.put(exc)
+        await self.queue.throw(exc)
 
     def __repr__(self) -> str:
         return f'<{self.label}>'

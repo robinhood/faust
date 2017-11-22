@@ -9,6 +9,7 @@ from mode import Seconds, ServiceT
 from .channels import ChannelT
 from .codecs import CodecArg
 from .tuples import TP
+from ..utils.futures import ThrowableQueue
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -52,8 +53,7 @@ class TopicT(ChannelT):
                  acks: bool = True,
                  internal: bool = False,
                  config: Mapping[str, Any] = None,
-                 queue: asyncio.Queue = None,
-                 errors: asyncio.Queue = None,
+                 queue: ThrowableQueue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
                  maxsize: int = 1,

@@ -2,8 +2,7 @@
 import inspect
 from operator import attrgetter
 from typing import (
-    Any, ClassVar, Dict, Iterable, Mapping,
-    MutableMapping, Optional, Tuple, Type,
+    Any, ClassVar, Iterable, Mapping, MutableMapping, Optional, Type,
 )
 from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads

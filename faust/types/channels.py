@@ -7,7 +7,7 @@ from mode.utils.compat import AsyncContextManager
 from .codecs import CodecArg
 from .core import K, V
 from .tuples import FutureMessage, Message, MessageSentCallback, RecordMetadata
-from ..utils.futures import stampede
+from ..utils.futures import ThrowableQueue, stampede
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -78,8 +78,7 @@ class ChannelT(AsyncIterator):
             key_type: ModelArg = None,
             value_type: ModelArg = None,
             is_iterator: bool = False,
-            queue: asyncio.Queue = None,
-            errors: asyncio.Queue = None,
+            queue: ThrowableQueue = None,
             maxsize: int = 1,
             loop: asyncio.AbstractEventLoop = None) -> None:
         ...

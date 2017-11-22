@@ -18,7 +18,7 @@ from .types import (
 )
 from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
-from .utils.futures import stampede
+from .utils.futures import ThrowableQueue, stampede
 
 if typing.TYPE_CHECKING:
     from .app import App
@@ -76,8 +76,7 @@ class Topic(Channel, TopicT):
                  acks: bool = True,
                  internal: bool = False,
                  config: Mapping[str, Any] = None,
-                 queue: asyncio.Queue = None,
-                 errors: asyncio.Queue = None,
+                 queue: ThrowableQueue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
                  maxsize: int = 1,
@@ -90,7 +89,6 @@ class Topic(Channel, TopicT):
             loop=loop,
             is_iterator=is_iterator,
             queue=queue,
-            errors=errors,
             maxsize=maxsize,
         )
         self.key_serializer = key_serializer

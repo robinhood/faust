@@ -1,8 +1,9 @@
 """Async I/O Future utilities."""
 import asyncio
 import typing
+from collections import deque
 from functools import singledispatch
-from typing import Any, Awaitable, Callable, Type
+from typing import Any, Awaitable, Callable, Deque, Type, TypeVar
 from weakref import WeakSet
 
 __all__ = [
@@ -12,6 +13,8 @@ __all__ = [
     'maybe_async',
     'stampede',
 ]
+
+_T = TypeVar('_T')
 
 
 class StampedeWrapper:
@@ -199,6 +202,41 @@ class FlowControlQueue(asyncio.Queue):
     def clear(self) -> None:
         self._queue.clear()  # type: ignore
 
-    async def put(self, value: Any) -> None:  # type: ignore
+    async def put(self, value: _T) -> None:  # type: ignore
         await self._flow_control.acquire()
         await super().put(value)
+
+
+class ThrowableQueue(FlowControlQueue):
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._errors: Deque[BaseException] = deque()
+
+    @typing.no_type_check
+    async def get(self) -> _T:
+        if self._errors:
+            raise self._errors.popleft()
+        return await super().get()
+
+    def empty(self) -> bool:
+        return super().empty() and not self._errors
+
+    def clear(self) -> None:
+        self._queue.clear()  # type: ignore
+        self._errors.clear()
+
+    def get_nowait(self) -> _T:
+        if self._errors:
+            raise self._errors.popleft()
+        return super().get_nowait()
+
+    async def throw(self, exc: BaseException) -> None:
+        waiters = self._getters  # type: ignore
+        while waiters:
+            waiter = waiters.popleft()
+            if not waiter.done():
+                waiter.set_exception(exc)
+                break
+        else:
+            self._errors.append(exc)

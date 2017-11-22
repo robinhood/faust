@@ -27,7 +27,7 @@ from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata
 from .windows import WindowT
 
-from ..utils.futures import FlowControlEvent, stampede
+from ..utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from ..utils.imports import SymbolArg
 from ..utils.objects import cached_property
 
@@ -277,7 +277,7 @@ class AppT(ServiceT):
             maxsize: int = None,
             *,
             clear_on_resume: bool = False,
-            loop: asyncio.AbstractEventLoop = None) -> asyncio.Queue:
+            loop: asyncio.AbstractEventLoop = None) -> ThrowableQueue:
         ...
 
     @abc.abstractmethod
