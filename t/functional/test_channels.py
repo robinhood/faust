@@ -57,7 +57,6 @@ def test_clone(app):
     assert c2.loop == 33
     assert not c2.is_iterator
     assert c2.queue is c.queue
-    assert c2.errors is c.errors
 
     c3 = c2.clone(is_iterator=True)
     assert c3.key_type is Point
@@ -66,7 +65,6 @@ def test_clone(app):
     assert c3.loop == 33
     assert c3.is_iterator
     assert c3.queue is c.queue
-    assert c3.errors is c.errors
 
 
 @pytest.mark.asyncio
@@ -81,8 +79,6 @@ async def test_send_receive(app):
     it1 = aiter(channel1)
     assert it1.queue is channel1.queue
     assert channel1.queue is not channel2.queue
-    assert channel1.errors is it1.errors
-    assert channel1.errors is not channel2.errors
     assert await channel_empty(channel1)
     await channel1.put(b'foo')
     assert await anext(it1) == b'foo'
