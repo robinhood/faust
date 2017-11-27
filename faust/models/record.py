@@ -89,8 +89,9 @@ class Record(Model):
 
     @classmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
-        # Find attributes and their types, and create indexes for these
-        # for performance at runtime.
+        # Find attributes and their types, and create indexes for these.
+        # This only happens once when the class is created, so Faust
+        # models are fast at runtime.
         fields, defaults = annotations(cls, stop=Record)
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
@@ -195,17 +196,21 @@ class Record(Model):
         self.__dict__.update(fields)
 
     def _to_models(self, typ: Type[ModelT], data: Any) -> Any:
+        # convert argument that is a submodel (can be List[X] or X)
         return self._reconstruct_type(typ, data, self._to_model)
 
     def _to_model(self, typ: Type[ModelT], data: Any) -> ModelT:
+        # _to_models uses this as a callback to _reconstruct_type,
+        # called everytime something needs to be converted into a model.
         if data is not None and not isinstance(data, ModelT):
             self_cls = self._maybe_namespace(data)
             if self_cls:
+                # uses a blessed key to mandate it must be reconstructed
+                # as a specific type
                 data = self_cls(data)
-            elif typ is not ModelT:  # is not base class
-                data = typ(data)
-            if data is not None and not isinstance(data, typ):
-                return typ(data)
+            else:
+                if data is not None and not isinstance(data, typ):
+                    return typ(data)
         return data
 
     def _reconstruct_type(
