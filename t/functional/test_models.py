@@ -193,3 +193,20 @@ def test_dumps(record):
     assert repr(record)
     assert record.as_schema()
     assert record.as_avro_schema()
+
+
+def test_subclass_default_values():
+
+    class X(Record):
+        x: int
+        y: int = None
+
+    class Z(X):
+        z: int = None
+
+    assert X(x=None).y is None
+    assert X(x=None, y=303).y == 303
+    assert Z(x=None).y is None
+    assert Z(x=None).z is None
+    assert Z(x=None, y=101, z=303).y == 101
+    assert Z(x=None, y=101, z=303).z == 303
