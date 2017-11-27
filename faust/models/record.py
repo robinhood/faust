@@ -100,7 +100,7 @@ class Record(Model):
 
         # extract all default values, but only for actual fields.
         options.defaults = {
-            k: v
+            k: v.default if isinstance(v, FieldDescriptor) else v
             for k, v in defaults.items()
             if k in fields
         }
