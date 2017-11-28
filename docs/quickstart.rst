@@ -48,7 +48,7 @@ among different instances of the application.
 We specify ``value_serializer`` here as ``raw`` to avoid deserializing
 incoming ``greetings``. The default ``value_serializer`` is ``json`` as we
 typically would serialize/deserialize messages into well-defined models. See
-:doc:`models`.
+:ref:`guide-models`.
 
 Here you defined a Kafka topic ``greetings`` and then iterated over the
 messages in the topic and printed each one of them.

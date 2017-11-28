@@ -109,6 +109,7 @@ Schemas
 
     .. automethod:: as_avro_schema
         :noindex:
+
 Topics
 ======
 
