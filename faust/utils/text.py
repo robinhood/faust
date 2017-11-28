@@ -4,6 +4,7 @@ from difflib import SequenceMatcher
 from typing import (
     Any, IO, Iterable, Iterator, NamedTuple, Optional, Sequence, Type,
 )
+from mode.utils import logging
 from terminaltables import AsciiTable, SingleTable
 from terminaltables.base_table import BaseTable as Table
 from .compat import isatty
@@ -31,6 +32,7 @@ def table(data: TableDataT,
           *,
           title: str,
           target: IO = None,
+          tty: bool = None,
           **kwargs: Any) -> Table:
     """Create suitable :pypi:`terminaltables` table for target.
 
@@ -45,11 +47,27 @@ def table(data: TableDataT,
     """
     if target is None:
         target = sys.stdout
-    return _get_best_table_type(target)(data, title=title)
+    if tty is None:
+        tty = isatty(target)
+    return _get_best_table_type(tty)(data, title=title, **kwargs)
 
 
-def _get_best_table_type(target: IO) -> Type[Table]:
-    return SingleTable if isatty(target) else AsciiTable
+def logtable(data: TableDataT,
+             *,
+             title: str,
+             target: IO = None,
+             tty: bool = None,
+             headers: Sequence[str] = None,
+             **kwargs: Any) -> str:
+    if tty is None:
+        tty = logging.LOG_ISATTY
+    if headers:
+        data = [headers] + data
+    return table(data, title=title, target=target, tty=tty, **kwargs).table
+
+
+def _get_best_table_type(tty: bool) -> Type[Table]:
+    return SingleTable if tty else AsciiTable
 
 
 class FuzzyMatch(NamedTuple):

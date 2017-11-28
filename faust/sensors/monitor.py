@@ -361,9 +361,12 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.messages_received_total += 1
         self.messages_active += 1
         self.messages_received_by_topic[tp.topic] += 1
-        state = MessageState(consumer_id, tp, offset, time_in=monotonic())
-        self.messages.append(state)
-        self.message_index[tp, offset] = state
+        #state = MessageState(consumer_id, tp, offset, time_in=monotonic())
+        #self.messages.append(state)
+        #self.message_index[tp, offset] = state
+
+    _on_events_ins = 0
+    _on_events_outs = 0
 
     async def on_stream_event_in(
             self,
@@ -372,10 +375,10 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             stream: StreamT,
             event: EventT) -> None:
         self.events_total += 1
-        self.events_by_stream[label(stream)] += 1
-        self.events_by_task[label(stream.task_owner)] += 1
+        #self.events_by_stream[label(stream)] += 1
+        #self.events_by_task[label(stream.task_owner)] += 1
         self.events_active += 1
-        self.message_index[tp, offset].on_stream_in(stream, event)
+        #self.message_index[tp, offset].on_stream_in(stream, event)
 
     async def on_stream_event_out(
             self,
@@ -384,8 +387,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             stream: StreamT,
             event: EventT) -> None:
         self.events_active -= 1
-        state = self.message_index[tp, offset].on_stream_out(stream, event)
-        self.events_runtime.append(state.time_total)
+        #state = self.message_index[tp, offset].on_stream_out(stream, event)
+        #self.events_runtime.append(state.time_total)
 
     async def on_message_out(
             self,
