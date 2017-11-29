@@ -83,7 +83,12 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(o, textual):
             return str(o)
         else:
-            return super(JSONEncoder, self).default(o)
+            try:
+                to_json = o.__json__
+            except AttributeError:
+                return super(JSONEncoder, self).default(o)
+            else:
+                return to_json()
 
 
 def dumps(obj: Any,
