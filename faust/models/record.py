@@ -266,6 +266,9 @@ class Record(Model):
         }
         return _kvrepr(fields)
 
+    def __json__(self) -> Any:
+        return self.to_representation()
+
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, type(self)):
             return all(
