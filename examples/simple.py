@@ -42,7 +42,7 @@ app = faust.App(
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 user_to_total = app.Table(
-    'user_to_total', default=int)#.tumbling(3600).relative_to_stream()
+    'user_to_total', default=int).tumbling(3600).relative_to_stream()
 country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
