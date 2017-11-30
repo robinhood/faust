@@ -72,10 +72,8 @@ class Registry(RegistryT):
             typ: Type[ModelT],
             default_serializer: CodecArg,
             data: bytes) -> Any:
-        data = self._loads(
-            typ._options.serializer or default_serializer, data)
-        self_cls = self.Model._maybe_namespace(data)
-        return self_cls.from_data(data) if self_cls else typ.from_data(data)
+        return self.Model.from_data(self._loads(
+            typ._options.serializer or default_serializer, data))
 
     def _loads(self, serializer: CodecArg, data: bytes) -> Any:
         return loads(serializer, data)

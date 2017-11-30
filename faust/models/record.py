@@ -151,7 +151,9 @@ class Record(Model):
 
     @classmethod
     def from_data(cls, data: Mapping) -> 'Record':
-        return cls(**data, __strict__=False)
+        # check for blessed key to see if another model should be used.
+        self_cls = cls._maybe_namespace(data)
+        return (self_cls or cls)(**data, __strict__=False)
 
     def __init__(self,
                  *args: Any,
@@ -216,15 +218,8 @@ class Record(Model):
     def _to_model(self, typ: Type[ModelT], data: Any) -> ModelT:
         # _to_models uses this as a callback to _reconstruct_type,
         # called everytime something needs to be converted into a model.
-        if data is not None and not isinstance(data, ModelT):
-            self_cls = self._maybe_namespace(data)
-            if self_cls:
-                # uses a blessed key to mandate it must be reconstructed
-                # as a specific type
-                data = self_cls.from_data(data)
-            else:
-                if data is not None and not isinstance(data, typ):
-                    return typ.from_data(data)
+        if data is not None and not isinstance(data, typ):
+            return typ.from_data(data)
         return data
 
     def _reconstruct_type(

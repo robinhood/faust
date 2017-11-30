@@ -139,8 +139,7 @@ class Model(ModelT):
                 present in the message takes precedence.
         """
         data = loads(cls._options.serializer or default_serializer, s)
-        self_cls = cls._maybe_namespace(data)
-        return self_cls.from_data(data) if self_cls else cls.from_data(data)
+        return cls.from_data(data)
 
     @classmethod
     def as_schema(cls) -> Mapping:
