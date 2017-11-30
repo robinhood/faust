@@ -204,10 +204,10 @@ class Record(Model):
 
     def _to_fieldmap(self, positional: Tuple, keywords: Dict) -> Dict:
         if positional:
-           pos2field = self._options.fieldpos.__getitem__
-           keywords.update({
-               pos2field(i): arg
-               for i, arg in enumerate(positional)
+            pos2field = self._options.fieldpos.__getitem__
+            keywords.update({
+                pos2field(i): arg
+                for i, arg in enumerate(positional)
             })
         return keywords
 
