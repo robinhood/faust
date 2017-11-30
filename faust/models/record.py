@@ -95,6 +95,7 @@ class Record(Model):
         fields, defaults = annotations(cls, stop=Record)
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
+        options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
         options.optionalset = frozenset(defaults)
         is_model = _is_model
         is_date = _is_date
@@ -148,17 +149,21 @@ class Record(Model):
             setattr(target, field, FieldDescriptor(
                 field, typ, cls, required, default, parent))
 
-    def __init__(self, _data: Any = None, **fields: Any) -> None:
-        if _data is not None:
-            assert not fields
-            self._init_fields(_data, strict=False)
-        else:
-            # Set fields from keyword arguments.
-            self._init_fields(fields)
+    @classmethod
+    def from_data(cls, data: Mapping) -> 'Record':
+        return cls(**data, __strict__=False)
 
-    def _init_fields(self, fields: Dict,
+    def __init__(self,
+                 *args: Any,
+                 __strict__: bool = True,
+                 **kwargs: Any) -> None:
+        # Set fields from keyword arguments.
+        self._init_fields(args, kwargs, strict=__strict__)
+
+    def _init_fields(self, positional: Tuple, keywords: Dict,
                      *,
                      strict: bool = True) -> None:
+        fields = self._to_fieldmap(positional, keywords)
         fields.pop('__faust', None)  # remove metadata
         fieldset = frozenset(fields)
         options = self._options
@@ -195,6 +200,15 @@ class Record(Model):
         # Fast: This sets attributes from kwargs.
         self.__dict__.update(fields)
 
+    def _to_fieldmap(self, positional: Tuple, keywords: Dict) -> Dict:
+        if positional:
+           pos2field = self._options.fieldpos.__getitem__
+           keywords.update({
+               pos2field(i): arg
+               for i, arg in enumerate(positional)
+            })
+        return keywords
+
     def _to_models(self, typ: Type[ModelT], data: Any) -> Any:
         # convert argument that is a submodel (can be List[X] or X)
         return self._reconstruct_type(typ, data, self._to_model)
@@ -207,10 +221,10 @@ class Record(Model):
             if self_cls:
                 # uses a blessed key to mandate it must be reconstructed
                 # as a specific type
-                data = self_cls(data)
+                data = self_cls.from_data(data)
             else:
                 if data is not None and not isinstance(data, typ):
-                    return typ(data)
+                    return typ.from_data(data)
         return data
 
     def _reconstruct_type(

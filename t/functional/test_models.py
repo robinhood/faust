@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
+from faust.utils import json
 import pytest
 
 
@@ -54,6 +55,80 @@ class SetOfDate(Record, isodates=True):
 
 class MapOfDate(Record, isodates=True):
     dates: Mapping[int, datetime]
+
+
+def test_parameters():
+    account = Account('id', 'name', True)
+    assert account.id == 'id'
+    assert account.name == 'name'
+    assert account.active
+
+    account2 = Account('id', 'name', active=False)
+    assert account2.id == 'id'
+    assert account2.name == 'name'
+    assert not account2.active
+
+
+    class Account3(Account):
+        foo: int = None
+
+    account3 = Account3('id', 'name', False, 'foo')
+    assert account3.id == 'id'
+    assert account3.name == 'name'
+    assert not account3.active
+    assert account3.foo == 'foo'
+
+    with pytest.raises(AttributeError):
+        account2.foo
+
+
+def test_paramters_with_custom_init():
+
+    class Point(Record, include_metadata=False):
+        x: int
+        y: int
+
+        def __init__(self, x, y, **kwargs):
+            self.x = x
+            self.y = y
+
+
+    p = Point(30, 10)
+    assert p.x == 30
+    assert p.y == 10
+
+    payload = p.dumps(serializer='json')
+    assert payload == b'{"x": 30, "y": 10}'
+
+    data = json.loads(payload)
+    p2 = Point.from_data(data)
+    assert p2.x == 30
+    assert p2.y == 10
+
+
+def test_parameters_with_custom_init_and_super():
+
+    class Point(Record, include_metadata=False):
+        x: int
+        y: int
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.z = self.x + self.y
+
+    p = Point(30, 10)
+    assert p.x == 30
+    assert p.y == 10
+    assert p.z == 40
+
+    payload = p.dumps(serializer='json')
+    assert payload == b'{"x": 30, "y": 10}'
+
+    data = json.loads(payload)
+    p2 = Point.from_data(data)
+    assert p2.x == 30
+    assert p2.y == 10
+    assert p2.z == 40
 
 
 def test_isodates():
@@ -135,16 +210,17 @@ def test_derive():
 
 def test_constructor_from_data():
     with pytest.raises(TypeError):
-        Account({'id': '123'})
+        Account.from_data({'id': '123'})
     with pytest.raises(TypeError):
-        Account({'name': 'foo'})
+        Account.from_data({'name': 'foo'})
     with pytest.raises(TypeError):
-        Account({'unknown_argument': 303})
-    account = Account({'id': '123', 'name': 'foo'})
+        Account.from_data({'unknown_argument': 303})
+    account = Account.from_data({'id': '123', 'name': 'foo'})
     assert account.id == '123'
     assert account.name == 'foo'
     assert account.active
-    assert not Account({'id': '123', 'name': 'foo', 'active': False}).active
+    assert not Account.from_data(
+        {'id': '123', 'name': 'foo', 'active': False}).active
 
 
 @pytest.mark.parametrize('a,b', [

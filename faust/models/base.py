@@ -122,7 +122,7 @@ class Model(ModelT):
     @classmethod
     def _maybe_reconstruct(cls, data: Any) -> Any:
         model = cls._maybe_namespace(data)
-        return model(data) if model else data
+        return model.from_data(data) if model else data
 
     @classmethod
     def loads(
@@ -140,7 +140,7 @@ class Model(ModelT):
         """
         data = loads(cls._options.serializer or default_serializer, s)
         self_cls = cls._maybe_namespace(data)
-        return self_cls(data) if self_cls else cls(data)
+        return self_cls.from_data(data) if self_cls else cls.from_data(data)
 
     @classmethod
     def as_schema(cls) -> Mapping:

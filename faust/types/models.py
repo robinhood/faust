@@ -51,23 +51,27 @@ class ModelOptions(abc.ABC):
     include_metadata: bool = True
     isodates: bool = False
 
-    # Index: Flattened view of __annotations__ in MRO order.
+    #: Index: Flattened view of __annotations__ in MRO order.
     fields: Mapping[str, Type]
 
-    # Index: Set of required field names, for fast argument checking.
+    #: Index: Set of required field names, for fast argument checking.
     fieldset: FrozenSet[str]
 
-    # Index: Set of optional field names, for fast argument checking.
+    #: Index: Positional argument index to field name.
+    #: Used by Record.__init__ to map positional arguments to fields.
+    fieldpos: Mapping[int, str] = None
+
+    #: Index: Set of optional field names, for fast argument checking.
     optionalset: FrozenSet[str]
 
-    # Index: Mapping of fields that are ModelT
+    #: Index: Mapping of fields that are ModelT
     models: Mapping[str, Type['ModelT']]
 
-    # Index: Set of field names that are ModelT
+    #: Index: Set of field names that are ModelT
     modelset: FrozenSet[str]
 
-    # Index: Mapping of fields that are not builtin-types.
-    # E.g. datetime.
+    #: Index: Mapping of fields that are not builtin-types.
+    #: E.g. datetime.
     converse: Mapping[str, Converter]
 
     #: Mapping of field names to default value.
@@ -89,6 +93,11 @@ class ModelT(base):  # type: ignore
     @classmethod
     @abc.abstractmethod
     def as_avro_schema(cls) -> Schema:
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def from_data(cls, data: Any) -> 'ModelT':
         ...
 
     @classmethod
