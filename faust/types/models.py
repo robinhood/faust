@@ -67,8 +67,8 @@ class ModelOptions(abc.ABC):
     #: Index: Mapping of fields that are ModelT
     models: Mapping[str, Type['ModelT']]
 
-    #: Index: Set of field names that are ModelT
-    modelset: FrozenSet[str]
+    # Index: Set of field names that are ModelT and there concrete type
+    modeldict: Mapping[str, Type]
 
     #: Index: Mapping of fields that are not builtin-types.
     #: E.g. datetime.

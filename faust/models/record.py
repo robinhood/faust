@@ -113,7 +113,17 @@ class Record(Model):
             for field, typ in fields.items()
             if is_model(typ)
         }
-        modelset = options.modelset = frozenset(options.models)
+
+        def _model_type(typ: Type) -> Optional[Type]:
+            try:
+                return guess_concrete_type(typ)[0]
+            except TypeError:
+                pass
+
+        modeldict = options.modeldict = {
+            field: _model_type(typ)
+            for field, typ in options.models.items()
+        }
 
         # extract all fields that are not built-in types,
         # e.g. List[datetime]
@@ -122,7 +132,7 @@ class Record(Model):
             options.converse = {
                 field: Converter(typ, cls._parse_iso8601)
                 for field, typ in fields.items()
-                if field not in modelset and is_date(typ)
+                if field not in modeldict and is_date(typ)
             }
 
     @staticmethod
@@ -256,11 +266,17 @@ class Record(Model):
 
     def _asitems(self) -> Iterable[Tuple[Any, Any]]:
         # Iterate over known fields as items-tuples.
-        modelset = self._options.modelset
+        modeldict = self._options.modeldict
         for key in self._options.fields:
             value = getattr(self, key)
-            if key in modelset and isinstance(value, ModelT):
-                value = value.to_representation()
+            if key in modeldict:
+                if modeldict[key] == list:
+                    value = [v.to_representation() for v in value]
+                elif modeldict[key] == dict:
+                    value = {k: v.to_representation()
+                             for k, v in value.items()}
+                elif isinstance(value, ModelT):
+                    value = value.to_representation()
             yield key, value
         if self._options.include_metadata:
             yield '__faust', {'ns': self._options.namespace}
