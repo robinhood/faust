@@ -318,26 +318,27 @@ class MonitorService(Service):
 
     @Service.task
     async def _sampler(self) -> None:
+        monitor = self.monitor
         median = statistics.median
-        prev_message_total = self.monitor.messages_received_total
-        prev_event_total = self.monitor.events_total
+        prev_message_total = monitor.messages_received_total
+        prev_event_total = monitor.events_total
         while not self.should_stop:
             await self.sleep(1.0)
 
             # Update average event runtime.
-            if self.monitor.events_runtime:
-                self.monitor.events_runtime_avg = median(
-                    self.monitor.events_runtime)
+            if monitor.events_runtime:
+                monitor.events_runtime_avg = median(monitor.events_runtime)
 
             # Update events/s
-            self.monitor.events_s = self.monitor.events_total - \
-                prev_event_total
-            prev_event_total = self.monitor.events_total
+            monitor.events_s, prev_event_total = (
+                monitor.events_total - prev_event_total,
+                monitor.events_total,
+            )
 
             # Update messages/s
-            self.messages_s = self.monitor.messages_received_total \
-                - prev_message_total
-            prev_message_total = self.monitor.messages_received_total
+            monitor.messages_s, prev_message_total = (
+                monitor.messages_received_total - prev_message_total,
+                monitor.messages_received_total)
 
             # Cleanup
-            self.monitor._cleanup()
+            monitor._cleanup()
