@@ -125,7 +125,7 @@ class Registry(RegistryT):
                 elif typ is bytes:
                     return want_bytes(v)
                 elif not isinstance(v, ModelT):
-                    return typ(v)
+                    return typ(**v)
                 return v
         except MemoryError:
             raise
