@@ -7,20 +7,6 @@ from hypothesis.strategies import decimals, text
 import pytest
 
 
-@given(text())
-def test_str_to_decimal_text_values(x):
-    try:
-        str_to_decimal(x)
-    except InvalidOperation:
-        reject()
-    except ValueError:
-        try:
-            assume(not Decimal(x).is_finite())
-        except ValueError:
-            pass
-        raise
-
-
 @given(decimals())
 def test_str_to_decimal_decimals(x):
     assume(x.is_finite())

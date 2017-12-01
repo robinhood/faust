@@ -226,6 +226,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.events_active += 1
         event.message.stream_meta[id(stream)] = {
             'time_in': monotonic(),
+            'time_out': None,
+            'time_total': None,
         }
 
     async def on_stream_event_out(

@@ -119,6 +119,14 @@ class Message:
         #: Total processing time (in seconds), or None if the event is
         #: still processing.
         self.time_total: float = time_total
+        #: Monitor stores timing information for every stream
+        #: processing this message here.  It's stored as::
+        #:
+        #:    messsage.stream_meta[id(stream)] = {
+        #:        'time_in': float,
+        #:        'time_out': float,
+        #:        'time_total': float,
+        #:   }
         self.stream_meta: Dict[int, Any] = {}
 
     def incref(self, channel: ChannelT = None, n: int = 1) -> None:
