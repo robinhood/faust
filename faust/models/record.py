@@ -118,9 +118,9 @@ class Record(Model):
             try:
                 return guess_concrete_type(typ)[0]
             except TypeError:
-                pass
+                return None
 
-        modeldict = options.modeldict = {
+        modelattrs = options.modelattrs = {
             field: _model_type(typ)
             for field, typ in options.models.items()
         }
@@ -132,7 +132,7 @@ class Record(Model):
             options.converse = {
                 field: Converter(typ, cls._parse_iso8601)
                 for field, typ in fields.items()
-                if field not in modeldict and is_date(typ)
+                if field not in modelattrs and is_date(typ)
             }
 
     @staticmethod
@@ -266,13 +266,13 @@ class Record(Model):
 
     def _asitems(self) -> Iterable[Tuple[Any, Any]]:
         # Iterate over known fields as items-tuples.
-        modeldict = self._options.modeldict
+        modelattrs = self._options.modelattrs
         for key in self._options.fields:
             value = getattr(self, key)
-            if key in modeldict:
-                if modeldict[key] == list:
+            if key in modelattrs:
+                if modelattrs[key] == list:
                     value = [v.to_representation() for v in value]
-                elif modeldict[key] == dict:
+                elif modelattrs[key] == dict:
                     value = {k: v.to_representation()
                              for k, v in value.items()}
                 elif isinstance(value, ModelT):

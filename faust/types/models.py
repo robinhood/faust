@@ -68,7 +68,7 @@ class ModelOptions(abc.ABC):
     models: Mapping[str, Type['ModelT']]
 
     # Index: Set of field names that are ModelT and there concrete type
-    modeldict: Mapping[str, Type]
+    modelattrs: Mapping[str, Type]
 
     #: Index: Mapping of fields that are not builtin-types.
     #: E.g. datetime.
