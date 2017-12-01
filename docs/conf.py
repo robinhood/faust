@@ -46,7 +46,6 @@ globals().update(conf.build_config(
         'faust.transport.confluent',
         'faust.types',
         'faust.utils',
-        'faust.utils.avro',
         r'faust.utils.kafka.*',
         'faust.utils.types',
         'faust.web',

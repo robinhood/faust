@@ -59,7 +59,6 @@ Serializers
 .. toctree::
     :maxdepth: 1
 
-    faust.serializers.avro
     faust.serializers.codecs
     faust.serializers.registry
 
@@ -152,8 +151,6 @@ Utils
 
     faust.utils.aiolocals
     faust.utils.aiter
-    faust.utils.avro.serializers
-    faust.utils.avro.servers
     faust.utils.collections
     faust.utils.compat
     faust.utils.functional

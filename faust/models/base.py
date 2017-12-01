@@ -4,7 +4,6 @@ from operator import attrgetter
 from typing import (
     Any, ClassVar, Iterable, Mapping, MutableMapping, Optional, Type,
 )
-from avro import schema
 from ..serializers.codecs import CodecArg, dumps, loads
 from ..types.models import FieldDescriptorT, ModelOptions, ModelT
 from ..utils.objects import canoname
@@ -81,12 +80,6 @@ class Model(ModelT):
     #: subclass is created with abstract=False).
     __is_abstract__: ClassVar[bool] = False
 
-    #: Name used in Avro schema's "type" field (e.g. "record").
-    _schema_type: ClassVar[str] = None
-
-    #: Cache for ``.as_avro_schema()``.
-    _schema_cache: ClassVar[schema.Schema] = None
-
     #: Serialized data may contain a "blessed key" that mandates
     #: how the data should be deserialized.  This probably only
     #: applies to records, but we need to support it at Model level.
@@ -141,32 +134,6 @@ class Model(ModelT):
         data = loads(cls._options.serializer or default_serializer, s)
         return cls.from_data(data)
 
-    @classmethod
-    def as_schema(cls) -> Mapping:
-        """Return Avro schema as mapping."""
-        return {
-            'namespace': cls._options.namespace,
-            'type': cls._schema_type,
-            'name': cls.__name__,
-            'fields': cls._schema_fields(),
-        }
-
-    @classmethod
-    def as_avro_schema(cls) -> schema.Schema:
-        """Return Avro schema as :class:`avro.schema.Schema`."""
-        if cls._schema_cache is None:
-            cls._schema_cache = cls._as_avro_schema()
-        return cls._schema_cache
-
-    @classmethod
-    def _as_avro_schema(cls) -> schema.Schema:
-        names = schema.Names()
-        return schema.SchemaFromJSONData(cls.as_schema(), names)
-
-    @classmethod
-    def _schema_fields(cls) -> Any:
-        raise NotImplementedError()
-
     def __init_subclass__(cls,
                           serializer: str = None,
                           namespace: str = None,
@@ -197,7 +164,7 @@ class Model(ModelT):
         cls.__is_abstract__ = False
 
         # Can set serializer/namespace/etc. using:
-        #    class X(Record, serializer='avro', namespace='com.vandelay.X'):
+        #    class X(Record, serializer='json', namespace='com.vandelay.X'):
         #        ...
         try:
             custom_options = cls.Options

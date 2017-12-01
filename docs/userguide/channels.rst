@@ -98,18 +98,6 @@ Declaring
     .. automethod:: declare
         :noindex:
 
-Schemas
-^^^^^^^
-
-.. class:: Record
-    :noindex:
-
-    .. automethod:: as_schema
-        :noindex:
-
-    .. automethod:: as_avro_schema
-        :noindex:
-
 Topics
 ======
 

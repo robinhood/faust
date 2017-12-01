@@ -101,7 +101,6 @@ class AppT(ServiceT):
     reply_to: str
     create_reply_topic: float
     reply_expires: float
-    avro_registry_url: URL
     store: URL
     assignor: PartitionAssignorT
     router: RouterT
@@ -127,7 +126,6 @@ class AppT(ServiceT):
             store: Union[str, URL] = 'memory://',
             autodiscover: AutodiscoverArg = False,
             origin: str = None,
-            avro_registry_url: Union[str, URL] = None,
             canonical_url: Union[str, URL] = None,
             client_id: str = '',
             datadir: Union[Path, str] = None,

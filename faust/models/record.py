@@ -1,11 +1,9 @@
 """Record - Dictionary Model."""
 from datetime import datetime
 from typing import (
-    Any, Callable, ClassVar, Dict, Iterable,
-    Mapping, Optional, Sequence, Tuple, Type, cast,
+    Any, Callable, Dict, Iterable, Mapping, Optional, Tuple, Type, cast,
 )
 from .base import FieldDescriptor, Model
-from ..serializers.avro import to_avro_type
 from ..types.models import Converter, FieldDescriptorT, ModelOptions, ModelT
 from ..utils import iso8601
 from ..utils.objects import annotations, guess_concrete_type
@@ -77,15 +75,6 @@ class Record(Model):
         >>> LogEvent.severity
         >>> <FieldDescriptor: LogEvent.severity (str)>
     """
-
-    _schema_type: ClassVar[str] = 'record'
-
-    @classmethod
-    def _schema_fields(cls) -> Sequence[Mapping]:
-        return [
-            {'name': key, 'type': to_avro_type(typ)}
-            for key, typ in cls._options.fields.items()
-        ]
 
     @classmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:

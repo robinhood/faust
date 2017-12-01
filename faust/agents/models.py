@@ -5,7 +5,7 @@ from ..types import K, ModelT
 __all__ = ['ReqRepRequest', 'ReqRepResponse']
 
 
-# XXX "namespace" below is the Avro registry key.
+# XXX "namespace" below is used as e.g. the Avro registry key.
 # It's going to be included in every single agent request,
 # so I figured "org.faust.ReqRepRequest" was too long,
 # but maybe that's silly?

@@ -5,11 +5,6 @@ from typing import (
 )
 from .codecs import CodecArg
 
-if typing.TYPE_CHECKING:
-    from avro.schema import Schema
-else:
-    class Schema: ...   # noqa
-
 __all__ = [
     'Converter',
     'ModelArg',
@@ -84,16 +79,6 @@ base = abc.ABC if abc_compatible_with_init_subclass else object
 class ModelT(base):  # type: ignore
 
     _options: ClassVar[ModelOptions]
-
-    @classmethod
-    @abc.abstractmethod
-    def as_schema(cls) -> Mapping:
-        ...
-
-    @classmethod
-    @abc.abstractmethod
-    def as_avro_schema(cls) -> Schema:
-        ...
 
     @classmethod
     @abc.abstractmethod

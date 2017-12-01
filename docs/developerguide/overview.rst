@@ -26,7 +26,7 @@ Module Overview
     Sensors record statistics from a running Faust application.
 
 ``faust.serializers``
-    Serialization using JSON/Avro, and codecs.
+    Serialization using JSON, and codecs for encoding.
 
 ``faust.stores``
     Table storage: in-memory, RocksDB, etc.

@@ -39,8 +39,7 @@ serializes as:
 "Record" is the only model type supported by this version of Faust,
 but is just one of many possible model types to include in the future.
 The nomenclature is based on the Avro serialization description format,
-that supports records, arrays, and more. The Faust models can also be exported
-as Avro schemas.
+that supports records, arrays, and more.
 
 Manual Serialization
 ====================
@@ -364,18 +363,6 @@ Serialization/Deserialization
         :noindex:
 
     .. automethod:: to_representation
-        :noindex:
-
-Schemas
-^^^^^^^
-
-.. class:: Record
-    :noindex:
-
-    .. automethod:: as_schema
-        :noindex:
-
-    .. automethod:: as_avro_schema
         :noindex:
 
 .. _codecs:

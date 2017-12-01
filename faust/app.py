@@ -335,7 +335,6 @@ class App(AppT, ServiceProxy):
             store: Union[str, URL] = 'memory://',
             autodiscover: AutodiscoverArg = False,
             origin: str = None,
-            avro_registry_url: Union[str, URL] = None,
             canonical_url: Union[str, URL] = None,
             client_id: str = CLIENT_ID,
             datadir: Union[Path, str] = DATADIR,
@@ -384,7 +383,6 @@ class App(AppT, ServiceProxy):
         self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
         self.create_reply_topic = create_reply_topic
         self.reply_expires = want_seconds(reply_expires or REPLY_EXPIRES)
-        self.avro_registry_url = avro_registry_url
         self.Stream = symbol_by_name(Stream)
         self.TableType = symbol_by_name(Table)
         self.SetType = symbol_by_name(Set)

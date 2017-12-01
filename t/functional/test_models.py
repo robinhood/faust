@@ -267,8 +267,6 @@ class test_FieldDescriptor:
 def test_dumps(record):
     assert record.loads(record.dumps()) == record
     assert repr(record)
-    assert record.as_schema()
-    assert record.as_avro_schema()
 
 
 def test_subclass_default_values():

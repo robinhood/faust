@@ -210,16 +210,6 @@ Parameters
         For manual control over autodiscovery, you can also call the
         :meth:`@discover` method, manually.
 
-`avro_registry_url`
-    :type: ``str``
-    :default: :const:`None`
-
-    The URL of an Avro schema registry server.
-
-    See http://docs.confluent.io/1.0/schema-registry/docs/intro.html
-
-    NOTE:: Currently unsupported.
-
 `canonical_url`
     :type:  ``str``
     :default: ``socket.gethostname()``
