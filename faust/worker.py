@@ -42,16 +42,20 @@ import os
 import socket
 import sys
 
+from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Any, IO, Iterable, Set, Type, Union
+from typing import Any, Dict, IO, Iterable, Mapping, Set, Tuple, Type, Union
 
+from kafka.structs import TopicPartition as _TopicPartition
 import mode
 from mode import ServiceT, get_logger
+from mode.utils.logging import formatter
 from progress.spinner import Spinner
 
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
-from .types import AppT, SensorT
+from .types import AppT, SensorT, TP, TopicT
+from .utils import text
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.objects import cached_property
 from .web.site import Website as _Website
@@ -70,7 +74,41 @@ WEBSITE_CLS = 'faust.web.site:Website'
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
 
+TP_TYPES: Tuple[Type, ...] = (TP, _TopicPartition)
+
 logger = get_logger(__name__)
+
+
+@formatter
+def format_log_arguments(arg: Any) -> Any:
+    print('FORMAT: %r' % (arg,))
+    if arg and isinstance(arg, Mapping):
+        first_k, first_v = next(iter(arg.items()))
+        if (isinstance(first_k, str) and
+                isinstance(first_v, set) and
+                isinstance(next(iter(first_v), None), TopicT)):
+            return '\n' + text.logtable(
+                [(k, v) for k, v in arg.items()],
+                title='Subscription',
+                headers=['Topic', 'Descriptions'],
+            )
+        elif isinstance(first_v, TP_TYPES):
+            return '\n' + text.logtable(
+                [(k.topic, k.partition, v) for k, v in arg.items()],
+                title='Topic Partition Map',
+                headers=['topic', 'partition', 'offset'],
+            )
+    elif arg and isinstance(arg, (set, list)):
+        if isinstance(next(iter(arg)), TP_TYPES):
+            topics: Dict[str, Set[int]] = defaultdict(set)
+            for tp in arg:
+                topics[tp.topic].add(tp.partition)
+
+            return '\n' + text.logtable(
+                [(k, repr(v)) for k, v in topics.items()],
+                title='Topic Partition Set',
+                headers=['topic', 'partitions'],
+            )
 
 
 class SpinnerHandler(logging.Handler):

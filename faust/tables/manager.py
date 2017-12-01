@@ -14,6 +14,7 @@ from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
 )
 from ..types.topics import ChannelT
+from ..utils import text
 from ..utils.aiter import aenumerate, aiter
 from ..utils.collections import FastUserDict
 
@@ -77,7 +78,12 @@ class ChangelogReader(Service, ChangelogReaderT):
             tp: highwaters[tp] - 1
             for tp in tps
         })
-        self.log.info(f'Highwaters for recovery: {self._highwaters}')
+        table = text.logtable(
+            [(k.topic, k.partition, v) for k, v in self._highwaters.items()],
+            title='Highwater',
+            headers=['topic', 'partition', 'highwater'],
+        )
+        self.log.info(f'Highwater for changelog partitions:\n{table}')
 
     def _should_stop_reading(self) -> bool:
         return self._highwaters == self.offsets
@@ -96,7 +102,12 @@ class ChangelogReader(Service, ChangelogReaderT):
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
-        self.log.info(f'Updated offsets at start of reading: {self.offsets}')
+        table = text.logtable(
+            [(k.topic, k.partition, v) for k, v in self.offsets.items()],
+            title='Reading Starts At',
+            headers=['topic', 'partition', 'offset'],
+        )
+        self.log.info(f'Updated offsets at start of reading:\n{table}')
 
     @Service.transitions_to(CHANGELOG_SEEKING)
     async def _seek_tps(self) -> None:
@@ -311,7 +322,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 self._table_offsets[tp] = max(curr_offset, persisted_offset)
 
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
-        self.log.info(f'Syncing offsets {reader.offsets}')
+        table = text.logtable(
+            [(k.topic, k.partition, v) for k, v in reader.offsets.items()],
+            title='Sync Offset',
+            headers=['topic', 'partition', 'offset'],
+        )
+        self.log.info(f'Syncing offsets:\n{table}')
         # We do counter union as new offsets should be >= old offsets
         self._table_offsets = self._table_offsets | reader.offsets
 

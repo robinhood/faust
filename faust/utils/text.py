@@ -62,7 +62,7 @@ def logtable(data: TableDataT,
     if tty is None:
         tty = logging.LOG_ISATTY
     if headers:
-        data = [headers] + data
+        data = [headers] + list(data)
     return table(data, title=title, target=target, tty=tty, **kwargs).table
 
 
