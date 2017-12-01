@@ -263,12 +263,13 @@ class test_FieldDescriptor:
          account=Account(id='123', name='Foo', active=True)),
     User(id='123', username='foo', account=None),
     User(id=None, username=None, account=None),
+    AccountList(accounts=[Account(id=None, name=None)]),
+    AccountMap(accounts={'foo': Account(id=None, name='foo')}),
 ])
 def test_dumps(record):
     assert record.loads(record.dumps()) == record
     assert repr(record)
     assert record.as_schema()
-    assert record.as_avro_schema()
 
 
 def test_subclass_default_values():
