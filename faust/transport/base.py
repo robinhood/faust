@@ -380,6 +380,10 @@ class Consumer(Service, ConsumerT):
             self.set_shutdown()
             fetcher.set_shutdown()
 
+    @property
+    def unacked(self) -> Set[Message]:
+        return cast(Set[Message], self._unacked_messages)
+
 
 class Fetcher(Service):
     app: AppT

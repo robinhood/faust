@@ -152,9 +152,6 @@ Configuration Attributes
 .. class:: Monitor
     :noindex:
 
-        .. autoattribute:: max_messages
-            :noindex:
-
         .. autoattribute:: max_avg_history
             :noindex:
 
@@ -162,55 +159,6 @@ Configuration Attributes
             :noindex:
 
         .. autoattribute:: max_send_latency_history
-            :noindex:
-
-.. _monitor-messagestate:
-
-Class: ``MessageState``
-~~~~~~~~~~~~~~~~~~~~~~~
-
-.. class:: faust.sensors.MessageState
-    :noindex:
-
-        .. autoattribute:: consumer_id
-            :noindex:
-
-        .. autoattribute:: tp
-            :noindex:
-
-        .. autoattribute:: offset
-            :noindex:
-
-        .. autoattribute:: time_in
-            :noindex:
-
-        .. autoattribute:: time_out
-            :noindex:
-
-        .. autoattribute:: time_total
-            :noindex:
-
-        .. autoattribute:: streams
-            :noindex:
-
-.. _monitor-eventstate:
-
-Class: ``EventState``
-~~~~~~~~~~~~~~~~~~~~~
-
-.. class:: faust.sensors.EventState
-    :noindex:
-
-        .. autoattribute:: stream
-            :noindex:
-
-        .. autoattribute:: time_in
-            :noindex:
-
-        .. autoattribute:: time_out
-            :noindex:
-
-        .. autoattribute:: time_total
             :noindex:
 
 .. _monitor-tablestate:

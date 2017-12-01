@@ -130,6 +130,11 @@ class ConsumerT(ServiceT):
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         ...
 
+    @property
+    @abc.abstractmethod
+    def unacked(self) -> Set[Message]:
+        ...
+
 
 class ProducerT(ServiceT):
     transport: 'TransportT'

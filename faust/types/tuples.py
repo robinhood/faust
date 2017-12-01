@@ -1,6 +1,6 @@
 import asyncio
 import typing
-from typing import Any, Awaitable, Callable, NamedTuple, Sequence, Union
+from typing import Any, Awaitable, Callable, Dict, NamedTuple, Sequence, Union
 from weakref import WeakSet
 from .codecs import CodecArg
 from .core import K, V
@@ -73,7 +73,11 @@ class Message:
         'acked',
         'refcount',
         'channels',
+        'time_in',
+        'time_out',
+        'time_total',
         'tp',
+        'stream_meta',
         '__weakref__',
     )
 
@@ -82,7 +86,10 @@ class Message:
                  key: bytes, value: bytes, checksum: bytes,
                  serialized_key_size: int = None,
                  serialized_value_size: int = None,
-                 tp: TP = None) -> None:
+                 tp: TP = None,
+                 time_in: float = None,
+                 time_out: float = None,
+                 time_total: float = None) -> None:
         self.topic: str = topic
         self.partition: int = partition
         self.offset: int = offset
@@ -105,6 +112,14 @@ class Message:
             self.channels: WeakSet[ChannelT] = WeakSet()
         else:
             self.channels = WeakSet()
+        #: Monotonic timestamp of when the consumer received this message.
+        self.time_in: float = time_in
+        #: Monotonic timestamp of when the consumer acknowledged this message.
+        self.time_out: float = time_out
+        #: Total processing time (in seconds), or None if the event is
+        #: still processing.
+        self.time_total: float = time_total
+        self.stream_meta: Dict[int, Any] = {}
 
     def incref(self, channel: ChannelT = None, n: int = 1) -> None:
         self.channels.add(channel)
