@@ -14,17 +14,18 @@ __all__ = ['Record']
 DATE_TYPES = (datetime,)
 
 
-def _is_model(cls: Type) -> bool:
-    # This is used only to see if cls is a Model type.
+def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
+    # Returns if is model. If model returns concrete type if available.
+    concrete_type = None
     try:
         # Check for List[Model], Set[Model], etc.
-        _, cls = guess_concrete_type(cls)
+        concrete_type, cls = guess_concrete_type(cls)
     except TypeError:
         pass
     try:
-        return issubclass(cls, ModelT)
+        return issubclass(cls, ModelT), concrete_type
     except TypeError:  # typing.Any cannot be used with subclass
-        return False
+        return False, None
 
 
 def _is_date(cls: Type,
@@ -86,7 +87,6 @@ class Record(Model):
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
         options.optionalset = frozenset(defaults)
-        is_model = _is_model
         is_date = _is_date
 
         # extract all default values, but only for actual fields.
@@ -96,13 +96,16 @@ class Record(Model):
             if k in fields
         }
 
-        # extract all Model fields.
-        options.models = {
-            field: typ
-            for field, typ in fields.items()
-            if is_model(typ)
-        }
-        modelset = options.modelset = frozenset(options.models)
+        options.models = {}
+        modelattrs = options.modelattrs = {}
+
+        for field, typ in fields.items():
+            is_model, concrete_type = _is_model(typ)
+            if is_model:
+                # Extract all model fields
+                options.models[field] = typ
+                # Create mapping of model fields to concrete types if available
+                modelattrs[field] = concrete_type
 
         # extract all fields that are not built-in types,
         # e.g. List[datetime]
@@ -111,7 +114,7 @@ class Record(Model):
             options.converse = {
                 field: Converter(typ, cls._parse_iso8601)
                 for field, typ in fields.items()
-                if field not in modelset and is_date(typ)
+                if field not in modelattrs and is_date(typ)
             }
 
     @staticmethod
@@ -245,11 +248,17 @@ class Record(Model):
 
     def _asitems(self) -> Iterable[Tuple[Any, Any]]:
         # Iterate over known fields as items-tuples.
-        modelset = self._options.modelset
+        modelattrs = self._options.modelattrs
         for key in self._options.fields:
             value = getattr(self, key)
-            if key in modelset and isinstance(value, ModelT):
-                value = value.to_representation()
+            if key in modelattrs:
+                if modelattrs[key] == list:
+                    value = [v.to_representation() for v in value]
+                elif modelattrs[key] == dict:
+                    value = {k: v.to_representation()
+                             for k, v in value.items()}
+                elif isinstance(value, ModelT):
+                    value = value.to_representation()
             yield key, value
         if self._options.include_metadata:
             yield '__faust', {'ns': self._options.namespace}

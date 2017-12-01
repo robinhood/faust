@@ -220,7 +220,7 @@ def guess_concrete_type(
             return dict, (
                 typ.__args__[1]
                 if typ.__args__ and len(typ.__args__) > 1 else Any)
-    raise TypeError('Nuot a generic type')
+    raise TypeError('Not a generic type')
 
 
 def _unary_type_arg(typ: Type) -> Type:
