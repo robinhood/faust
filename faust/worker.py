@@ -81,7 +81,6 @@ logger = get_logger(__name__)
 
 @formatter
 def format_log_arguments(arg: Any) -> Any:
-    print('FORMAT: %r' % (arg,))
     if arg and isinstance(arg, Mapping):
         first_k, first_v = next(iter(arg.items()))
         if (isinstance(first_k, str) and
