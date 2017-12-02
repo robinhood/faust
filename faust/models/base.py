@@ -26,8 +26,8 @@ dictionaries, so the model describe the fields, and their types:
 
 Models are mainly used for describing the data in messages: both keys and
 values can be described as models.
-
 """
+import abc
 import inspect
 from operator import attrgetter
 from typing import (
@@ -213,7 +213,7 @@ class Model(ModelT):
 
         # Add introspection capabilities
         cls._contribute_to_options(options)
-        # Add FieldDescriptor's for every field.
+        # Add FieldDescriptors for every field.
         cls._contribute_field_descriptors(cls, options)
 
         # Store options on new subclass.
@@ -224,21 +224,32 @@ class Model(ModelT):
         registry[options.namespace] = cls
 
     @classmethod
-    def _contribute_to_options(
-            cls, options: ModelOptions) -> None:
-        raise NotImplementedError()
+    @abc.abstractmethod
+    def _contribute_to_options(cls, options: ModelOptions) -> None:
+        ...
 
     @classmethod
+    @abc.abstractmethod
     def _contribute_field_descriptors(
             cls,
             target: Type,
             options: ModelOptions,
             parent: FieldDescriptorT = None) -> None:
-        raise NotImplementedError()
+        ...
+
+    @abc.abstractmethod
+    def to_representation(self) -> Any:
+        """Convert object to JSON serializable object."""
+
+    @abc.abstractmethod
+    def _humanize(self) -> str:
+        """Return string representation of object for debugging purposes."""
+        ...
 
     def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         return self._derive(*objects, **fields)
 
+    @abc.abstractmethod
     def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         raise NotImplementedError()
 
@@ -246,14 +257,6 @@ class Model(ModelT):
         """Serialize object to the target serialization format."""
         return dumps(serializer or self._options.serializer,
                      self.to_representation())
-
-    def to_representation(self) -> Any:
-        """Convert object to JSON serializable object."""
-        raise NotImplementedError()
-
-    def _humanize(self) -> str:
-        """Return string representation of object for debugging purposes."""
-        raise NotImplementedError()
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._humanize()}>'
