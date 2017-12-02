@@ -42,7 +42,7 @@ def _is_date(cls: Type,
         return False
 
 
-class Record(Model):
+class Record(Model, abstract=True):
     """Describes a model type that is a record (Mapping).
 
     Examples:

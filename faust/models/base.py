@@ -1,4 +1,33 @@
-"""Serializing/deserializing message keys and values."""
+"""Model descriptions.
+
+The model describes the components of a data structure, kind of like a struct
+in C, but there's no limitation of what type of data structure the model is,
+or what it's used for.
+
+A record (faust.models.record) is a model type that serialize into
+dictionaries, so the model describe the fields, and their types:
+
+.. sourcecode:: python
+
+    >>> class Point(Record):
+    ...    x: int
+    ...    y: int
+
+    >>> p = Point(10, 3)
+    >>> assert p.x == 10
+    >>> assert p.y == 3
+    >>> p
+    <Point: x=10, y=3>
+    >>> payload = p.dumps(serializer='json')
+    '{"x": 10, "y": 3, "__faust": {"ns": "__main__.Point"}}'
+    >>> p2 = Record.loads(payload)
+    >>> p2
+    <Point: x=10, y=3>
+
+Models are mainly used for describing the data in messages: both keys and
+values can be described as models.
+
+"""
 import inspect
 from operator import attrgetter
 from typing import (
@@ -50,8 +79,13 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #       class Example:
 #           foo = MyDescriptor()
 #
-#   The above descriptor only overrides getting, so is executed when you access
-#   the attribute:
+#   The above descriptor overrides __get__, which is called when the attribute
+#   is accessed (a descriptor may also override __set__ and __del__).
+#
+#
+#   You can see the difference in what happens when you access the attribute
+#   on the class, vs. the instance:
+
 #       >>> Example.foo
 #       ACCESS ON CLASS ATTRIBUTE
 #       <__main__.MyDescriptor at 0x1049caac8>
@@ -62,23 +96,16 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #       42
 
 #: Global map of namespace -> Model, used to find model classes by name.
-#: Every single model defined is added here automatically on class creation.
+#: Every single model defined is added here automatically when a model
+#: class is defined.
 registry: MutableMapping[str, Type[ModelT]] = {}
 
 
 class Model(ModelT):
     """Meta description model for serialization."""
 
-    #: If you want to make a custom Model base class, you have to
-    #: set this attribute to True in your class.
-    #: It forces __init_subclass__ to skip class initialization.
-    __abstract__: ClassVar[bool] = True
-
-    #: _init_subclass sets this, and can be used to test if the model
-    #: is abstract (do not use __abstract__ for that, as that field is
-    #: set to False when an abstract class is created (that way the next
-    #: subclass is created with abstract=False).
-    __is_abstract__: ClassVar[bool] = False
+    #: Set to True if this is an abstract base class.
+    __is_abstract__: ClassVar[bool] = True
 
     #: Serialized data may contain a "blessed key" that mandates
     #: how the data should be deserialized.  This probably only
@@ -139,6 +166,7 @@ class Model(ModelT):
                           namespace: str = None,
                           include_metadata: bool = True,
                           isodates: bool = False,
+                          abstract: bool = False,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -147,19 +175,21 @@ class Model(ModelT):
 
         # mypy does not recognize `__init_subclass__` as a classmethod
         # and thinks we're mutating a ClassVar when setting:
-        #   cls.__abstract__ = False
+        #   cls.__is_abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
-        cls._init_subclass(serializer, namespace, include_metadata, isodates)
+        cls._init_subclass(
+            serializer, namespace, include_metadata, isodates, abstract)
 
     @classmethod
     def _init_subclass(cls,
                        serializer: str = None,
                        namespace: str = None,
                        include_metadata: bool = True,
-                       isodates: bool = False) -> None:
-        if cls.__abstract__:
+                       isodates: bool = False,
+                       abstract: bool = False) -> None:
+        if abstract:
             # Custom base classes can set this to skip class initialization.
-            cls.__is_abstract__, cls.__abstract__ = True, False
+            cls.__is_abstract__ = True
             return
         cls.__is_abstract__ = False
 
@@ -234,8 +264,7 @@ def _is_concrete_model(typ: Type = None) -> bool:
         inspect.isclass(typ) and
         issubclass(typ, ModelT) and
         typ is not ModelT and
-        not getattr(typ, '__is_abstract__', False) and
-        not getattr(typ, '__abstract__', False)
+        not getattr(typ, '__is_abstract__', False)
     )
 
 

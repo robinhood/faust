@@ -347,6 +347,35 @@ to datetime objects (with timezone information if available):
         date_joined: datetime
 
 
+Subclassing models: Abstract model classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can mark a model class as ``abstract=True`` to create
+a model base class, that is only intended to be used by subclassing it
+to create new models.
+
+For example you may want to have a base class for all models that
+have creation and updated at times:
+
+.. sourcecode:: python
+
+    class MyBaseRecord(Record, abstract=True):
+        time_created: float = None
+        time_updated: float = None
+
+
+This "abstract" class can not be used as a model, it can only be used to
+create new models:
+
+.. sourcecode:: python
+
+    class Account(MyBaseRecord):
+        id: str
+
+    account = Account(id='X', time_created=3124312.3442)
+    print(account.time_created)
+
+
 Reference
 ~~~~~~~~~
 
