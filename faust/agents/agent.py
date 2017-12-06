@@ -241,7 +241,7 @@ class Agent(AgentT, ServiceProxy):
         if isinstance(channel, ChannelT):
             return cast(ChannelT, channel)
         elif isinstance(channel, str):
-            return self.app.topic(channel)
+            return self.app.topic(channel, internal=True)
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
 
