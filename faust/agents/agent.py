@@ -237,7 +237,7 @@ class Agent(AgentT, ServiceProxy):
 
     def _prepare_channel(self,
                          channel: Union[str, ChannelT] = None) -> ChannelT:
-        channel = self.name if channel is None else channel
+        channel = f'{self.app.id}-{self.name}' if channel is None else channel
         if isinstance(channel, ChannelT):
             return cast(ChannelT, channel)
         elif isinstance(channel, str):
