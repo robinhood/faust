@@ -6,31 +6,33 @@ WORDS = ['the', 'quick', 'brown', 'fox']
 
 
 app = faust.App(
-    'word-counts5',
+    'word-counts',
     url='kafka://localhost:9092',
-    default_partitions=6,
+    default_partitions=8,
     store='rocksdb://',
 )
 
-posts_topic = app.topic('posts3', value_type=str)
-words_topic = app.topic('words3', key_type=str, value_type=str)
-
-word_counts = app.Table('word_counts3', default=int,
+posts_topic = app.topic('posts', value_type=str)
+word_counts = app.Table('word_counts', default=int,
                         help='Keep count of words (str to int).')
+
+
+class Word(faust.Record):
+    word: str
 
 
 @app.agent(posts_topic)
 async def shuffle_words(posts):
     async for post in posts:
         for word in post.split():
-            await count_words.send(key=word, value=word)
+            await count_words.send(key=word, value=Word(word=word))
 
 
-@app.agent(words_topic)
+@app.agent()
 async def count_words(words):
     """Count words from blog post article body."""
     async for word in words:
-        word_counts[word] += 1
+        word_counts[word.word] += 1
 
 
 @app.page('/count/')
@@ -38,7 +40,7 @@ async def count_words(words):
 async def get_count(web, request):
     word = request.GET['word']
     return web.json({
-        word: word_counts[word],
+        word.word: word_counts[word.word],
     })
 
 
