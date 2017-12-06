@@ -82,7 +82,7 @@ class Record(Model, abstract=True):
         # Find attributes and their types, and create indexes for these.
         # This only happens once when the class is created, so Faust
         # models are fast at runtime.
-        fields, defaults = annotations(cls, stop=Record)
+        fields, defaults = annotations(cls, stop=Record, skip_classvar=True)
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
@@ -246,21 +246,27 @@ class Record(Model, abstract=True):
         # Convert known fields to mapping of ``{field: value}``.
         return dict(self._asitems())
 
-    def _asitems(self) -> Iterable[Tuple[Any, Any]]:
+    def asdict(self) -> Mapping[str, Any]:
+        return dict(self._asitems(include_metadata=False))
+
+    def _asitems(self, *,
+                 include_metadata: bool = None) -> Iterable[Tuple[Any, Any]]:
         # Iterate over known fields as items-tuples.
         modelattrs = self._options.modelattrs
+        if include_metadata is None:
+            include_metadata = self._options.include_metadata
         for key in self._options.fields:
             value = getattr(self, key)
             if key in modelattrs:
-                if modelattrs[key] == list:
+                if modelattrs[key] is list:
                     value = [v.to_representation() for v in value]
-                elif modelattrs[key] == dict:
+                elif modelattrs[key] is dict:
                     value = {k: v.to_representation()
                              for k, v in value.items()}
                 elif isinstance(value, ModelT):
                     value = value.to_representation()
             yield key, value
-        if self._options.include_metadata:
+        if include_metadata:
             yield '__faust', {'ns': self._options.namespace}
 
     def _humanize(self) -> str:

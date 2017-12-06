@@ -8,6 +8,7 @@ from typing import (
     Iterable, List, Mapping, MutableMapping, MutableSequence,
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
+from typing import _ClassVar  # type: ignore
 
 __all__ = [
     'FieldMapping',
@@ -116,7 +117,9 @@ def _detect_main_name() -> str:
 
 def annotations(cls: Type,
                 *,
-                stop: Type = object) -> Tuple[FieldMapping, DefaultsMapping]:
+                stop: Type = object,
+                skip_classvar: bool = False) -> Tuple[
+                    FieldMapping, DefaultsMapping]:
     """Get class field definition in MRO order.
 
     Arguments:
@@ -152,7 +155,14 @@ def annotations(cls: Type,
         defaults.update(subcls.__dict__)
         with suppress(AttributeError):
             annotations = subcls.__annotations__
-            fields.update(annotations)
+            if skip_classvar:
+                fields.update({
+                    name: typ
+                    for name, typ in annotations.items()
+                    if type(typ) is not _ClassVar
+                })
+            else:
+                fields.update(annotations)
     return fields, defaults
 
 

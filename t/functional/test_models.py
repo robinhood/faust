@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Mapping, Optional, Set, Tuple
+from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
 from faust.utils import json
 import pytest
@@ -68,7 +68,6 @@ def test_parameters():
     assert account2.name == 'name'
     assert not account2.active
 
-
     class Account3(Account):
         foo: int = None
 
@@ -91,7 +90,6 @@ def test_paramters_with_custom_init():
         def __init__(self, x, y, **kwargs):
             self.x = x
             self.y = y
-
 
     p = Point(30, 10)
     assert p.x == 30
@@ -206,6 +204,25 @@ def test_derive():
     assert b2.active
     assert b2.id == '456'
     assert b2.name == 'bar'
+
+
+def test_classvar_is_not_a_field():
+
+    class PP(Record):
+        x: int
+        y: int
+        z: ClassVar[int] = 3
+
+    p = PP(10, 3)
+    assert 'z' not in repr(p)
+    assert p.asdict() == {'x': 10, 'y': 3}
+    assert p.z == 3
+
+    with pytest.raises(TypeError):
+        PP(10, 3, z=300)
+
+    p.z = 4
+    assert p.z == 4
 
 
 def test_constructor_from_data():
