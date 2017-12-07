@@ -2,7 +2,6 @@ aiohttp~=2.2
 aiokafka~=0.3.2
 click~=6.7
 jinja2~=2.9
-progress~=1.3
 yarl~=0.11
 terminaltables~=3.1.0
 colorclass~=2.2

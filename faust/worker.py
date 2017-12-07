@@ -37,6 +37,7 @@ signal handlers, logging, debugging mechanisms, etc.
     include web servers for them (also passed in as ``*services`` starargs).
 """
 import asyncio
+import atexit
 import logging
 import os
 import socket
@@ -45,13 +46,14 @@ import sys
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, IO, Iterable, Mapping, Set, Tuple, Type, Union
+from typing import (
+    Any, Dict, IO, Iterable, Mapping, Sequence, Set, Tuple, Type, Union,
+)
 
 from kafka.structs import TopicPartition as _TopicPartition
 import mode
 from mode import ServiceT, get_logger
 from mode.utils.logging import formatter
-from progress.spinner import Spinner
 
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT, TP, TopicT
@@ -110,6 +112,47 @@ def format_log_arguments(arg: Any) -> Any:
             )
 
 
+class Spinner:
+    bell = '\b'
+    phases: Sequence[str] = ('-', '\\', '|', '/')
+    cursor_hide: str = '\x1b[?25l'
+    cursor_show: str = '\x1b[?25h'
+    hide_cursor: bool = True
+
+    def __init__(self, file: IO = sys.stderr) -> None:
+        self.file: IO = file
+        self.width: int = 0
+        self.count = 0
+
+    def update(self) -> None:
+        if not self.count:
+            self.begin()
+        i = self.count % len(self.phases)
+        self.count += 1
+        self.write(self.phases[i])
+
+    def write(self, s: str) -> None:
+        if self.file.isatty():
+            self._print(f'{self.bell * self.width}{s.ljust(self.width)}')
+            self.width = max(self.width, len(s))
+
+    def _print(self, s: str) -> None:
+        print(s, end='', file=self.file)
+        self.file.flush()
+
+    def begin(self) -> None:
+        atexit.register(type(self)._finish, self.file, at_exit=True)
+        self._print(self.cursor_hide)
+
+    def finish(self) -> None:
+        self._finish(self.file)
+
+    @classmethod
+    def _finish(cls, file: IO, *, at_exit: bool = False) -> None:
+        print(cls.cursor_show, end='', file=file)
+        file.flush()
+
+
 class SpinnerHandler(logging.Handler):
     """A logger handler that iterates our progress spinner for each log."""
 
@@ -122,7 +165,7 @@ class SpinnerHandler(logging.Handler):
     def emit(self, _record: logging.LogRecord) -> None:
         # the spinner is only in effect with WARN level and below.
         if self.worker.spinner:
-            self.worker.spinner.next()  # noqa: B305
+            self.worker.spinner.update()
 
 
 class Worker(mode.Worker):
