@@ -37,7 +37,6 @@ signal handlers, logging, debugging mechanisms, etc.
     include web servers for them (also passed in as ``*services`` starargs).
 """
 import asyncio
-import atexit
 import logging
 import os
 import socket
@@ -46,9 +45,7 @@ import sys
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import (
-    Any, Dict, IO, Iterable, Mapping, Sequence, Set, Tuple, Type, Union,
-)
+from typing import Any, Dict, IO, Iterable, Mapping, Set, Tuple, Type, Union
 
 from kafka.structs import TopicPartition as _TopicPartition
 import mode
@@ -60,6 +57,7 @@ from .types import AppT, SensorT, TP, TopicT
 from .utils import text
 from .utils.imports import SymbolArg, symbol_by_name
 from .utils.objects import cached_property
+from .utils.spinners import Spinner
 from .web.site import Website as _Website
 
 try:
@@ -112,47 +110,6 @@ def format_log_arguments(arg: Any) -> Any:
             )
 
 
-class Spinner:
-    bell = '\b'
-    phases: Sequence[str] = ('-', '\\', '|', '/')
-    cursor_hide: str = '\x1b[?25l'
-    cursor_show: str = '\x1b[?25h'
-    hide_cursor: bool = True
-
-    def __init__(self, file: IO = sys.stderr) -> None:
-        self.file: IO = file
-        self.width: int = 0
-        self.count = 0
-
-    def update(self) -> None:
-        if not self.count:
-            self.begin()
-        i = self.count % len(self.phases)
-        self.count += 1
-        self.write(self.phases[i])
-
-    def write(self, s: str) -> None:
-        if self.file.isatty():
-            self._print(f'{self.bell * self.width}{s.ljust(self.width)}')
-            self.width = max(self.width, len(s))
-
-    def _print(self, s: str) -> None:
-        print(s, end='', file=self.file)
-        self.file.flush()
-
-    def begin(self) -> None:
-        atexit.register(type(self)._finish, self.file, at_exit=True)
-        self._print(self.cursor_hide)
-
-    def finish(self) -> None:
-        self._finish(self.file)
-
-    @classmethod
-    def _finish(cls, file: IO, *, at_exit: bool = False) -> None:
-        print(cls.cursor_show, end='', file=file)
-        file.flush()
-
-
 class SpinnerHandler(logging.Handler):
     """A logger handler that iterates our progress spinner for each log."""
 
@@ -164,7 +121,7 @@ class SpinnerHandler(logging.Handler):
 
     def emit(self, _record: logging.LogRecord) -> None:
         # the spinner is only in effect with WARN level and below.
-        if self.worker.spinner:
+        if self.worker.spinner and not self.worker.absolutely_no_smiley:
             self.worker.spinner.update()
 
 
@@ -251,6 +208,9 @@ class Worker(mode.Worker):
     #: Class that displays a terminal progress spinner (see :pypi:`progress`).
     spinner: Spinner
 
+    #: Set by signal to avoid printing an OK status.
+    absolutely_no_smiley: bool = False
+
     def __init__(
             self, app: AppT, *services: ServiceT,
             sensors: Iterable[SensorT] = None,
@@ -290,14 +250,28 @@ class Worker(mode.Worker):
             **kwargs)
         self.spinner = Spinner(file=self.stdout)
 
+    def _on_sigint(self) -> None:
+        self.absolutely_no_smiley = True
+        super()._on_sigint()
+
+    def _on_sigterm(self) -> None:
+        self.absolutely_no_smiley = True
+        super()._on_sigterm()
+
     async def on_startup_finished(self) -> None:
+        if self.absolutely_no_smiley:
+            self.say('')
+            return
         # block detection started here after changelog stuff,
         # and blocking RocksDB bulk updates.
         await self.maybe_start_blockdetection()
         if self.spinner:
             self.spinner.finish()
+            if self.spinner.file.isatty():
+                self.say(' 😊')
+            else:
+                self.say(' OK ^')
             self.spinner = None
-            self.say('ready- ^')
         else:
             self.log.info('Ready')
 
@@ -325,7 +299,10 @@ class Worker(mode.Worker):
     async def on_execute(self) -> None:
         # This is called as soon as we starts
         self._setproctitle('init')
-        self._say('^ ', end='')
+        if self.spinner and self.spinner.file.isatty():
+            self._say('starting➢ ', end='')
+        else:
+            self._say('starting^', end='')
 
     def on_setup_root_logger(self,
                              logger: logging.Logger,
