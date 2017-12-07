@@ -49,16 +49,18 @@ country_to_total = app.Table(
 @app.agent(withdrawals_topic)
 async def find_large_user_withdrawals(withdrawals):
     async for withdrawal in withdrawals:
-        #print(f'Withdrawal: {withdrawal}')
-        ...
-        #user_to_total[withdrawal.user] += withdrawal.amount
+        user_to_total[withdrawal.user] += withdrawal.amount
 
 
 @app.command(
-        option('--max-latency',
-               type=float, default=PRODUCE_LATENCY,
-               help='Sleep (at most) n seconds between publishing.'))
-async def produce(self, stop: int, max_latency: float):
+    option('--max-latency',
+           type=float, default=PRODUCE_LATENCY,
+           help='Add delay of (at most) n seconds between publishing.'),
+    option('--max-messages',
+           type=int, default=None,
+           help='Send at most N messages or 0 for infinity.'),
+)
+async def produce(self, max_latency: float, max_messages: int):
     """Produce example Withdrawal events."""
     num_countries = 5
     countries = [f'country_{i}' for i in range(num_countries)]
@@ -66,7 +68,7 @@ async def produce(self, stop: int, max_latency: float):
     num_users = 500
     users = [f'user_{i}' for i in range(num_users)]
     self.say('Done setting up. SENDING!')
-    for i in range(stop) if stop is not None else count():
+    for i in range(max_messages) if max_messages is not None else count():
         withdrawal = Withdrawal(
             user=random.choice(users),
             amount=random.uniform(0, 25_000),
