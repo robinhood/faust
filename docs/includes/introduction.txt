@@ -1,4 +1,4 @@
-:Version: 0.9.18
+:Version: 0.9.19
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/fauststream/faust
