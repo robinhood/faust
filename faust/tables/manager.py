@@ -166,7 +166,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             self.log.info('No updates needed')
             return self._done_reading()
 
-        local_tps = await self._local_tps()
+        local_tps = await self._local_tps(self.tps)
         if local_tps:
             self.log.info('Partitions %r are local to this node',
                           sorted(local_tps))
@@ -211,11 +211,11 @@ class ChangelogReader(Service, ChangelogReaderT):
                 self.table.apply_changelog_batch(buf)
                 buf.clear()
 
-    async def _local_tps(self) -> Set[TP]:
+    async def _local_tps(self, tps: Iterable[TP]) -> Set[TP]:
         # RocksDB: Find partitions that we have database files for,
         # since only one process can have them open at a time.
         return {
-            tp for tp in self.tps
+            tp for tp in tps
             if not await self.table.need_active_standby_for(tp)
         }
 
@@ -437,7 +437,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         )
 
     async def _recover(self, assigned: Iterable[TP]) -> None:
-        standby_tps = self.app.assignor.assigned_standbys()
+        standby_tps = await self._local_tps(
+            self.app.assignor.assigned_standbys())
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
         self.log.info('New assignments found')
