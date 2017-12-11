@@ -28,13 +28,21 @@ no type checking at runtime, but the :pypi:`mypy` type checker can be used to
 verify that the right types are provided.
 
 A record is a model of the dictionary type, and describes keys and values.
-When using JSON as the target serialization format, the Point model above
+When using JSON as the serialization format, the Point model above
 serializes as:
 
-.. sourcecode:: Python
+.. sourcecode:: python
 
     >>> Point(x=10, y=100).dumps()
     {"x": 10, "y": 100}
+
+You can also specify a different serializer as an argument to ``.dumps``:
+
+.. sourcecode:: python
+
+    >>> Point(x=10, y=100).dumps('pickle')  # pickle + Base64
+    b'gAN9cQAoWAEAAAB4cQFLClgBAAAAeXECS2RYBwAAAF9fZmF1c3RxA31xBFg
+    CAAAAbnNxBVgOAAAAX19tYWluX18uUG9pbnRxBnN1Lg=='
 
 "Record" is the only model type supported by this version of Faust,
 but is just one of many possible model types to include in the future.
@@ -141,9 +149,9 @@ Using models to describe topics gives benefits:
             value=Transfer(account_id=account_id, amount=amount),
         )
 
-Using static type checks you can now be alerted if something sends
-the wrong type of value for the `account_id` for example.
-The most compelling reason for using non-described messages would
+The :pypi:`mypy` static type analyzer can now be alert you if your
+code is passing the wrong type of value for the ``account_id`` field,
+and more.  The most compelling reason for using non-described messages would
 be to integrate with existing Kafka topics and systems, but if you're
 writing new systems in Faust the best practice would be to describe models
 for your message data.
@@ -152,12 +160,15 @@ Model Types
 ===========
 
 The first version of Faust only supports dictionary models (records),
-but can easily extended to support other types of models, like arrays.
+but can be easily extended to support other types of models, like arrays.
 
 Records
 -------
 
-A record is a model based on a dictionary/mapping.
+A record is a model based on a dictionary/mapping.  The storage
+used is a dictionary, and it serializes to a dictionary, but the same
+is true for normal Python objects and their ``__dict__`` storage, so you can
+consider record models to be "objects" that can have methods and properties.
 
 Here's a simple record describing a 2d point, with two required fields: ``x``
 and ``y``:
@@ -221,9 +232,11 @@ We can now use ``Point`` objects as message keys, and message values:
 
     await app.send('mytopic', key=Point(x=10, y=20), value=Point(x=30, y=10))
 
-The above will send a message to Kafka, to have a stream automatically
-deserialize these points, use ``faust.topic`` to describe a topic as having
-points as key and value types:
+The above will send a message to Kafka, and whatever receives that
+message must be able to deserialize the data.
+
+To define an agent that is able to do so, define the topic to have
+specific key/value types:
 
 .. sourcecode:: python
 
@@ -261,7 +274,7 @@ To convert the JSON back into a model use the ``.loads()`` class method:
 
 .. sourcecode:: pycon
 
-    >>> transfer = Transfer.loads(json)
+    >>> transfer = Transfer.loads(json_bytes_data)
 
 
 Lists of lists, etc.
@@ -351,8 +364,8 @@ Subclassing models: Abstract model classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can mark a model class as ``abstract=True`` to create
-a model base class, that is only intended to be used by subclassing it
-to create new models.
+a model base class, that must be subclassed to create new models
+with common functionality.
 
 For example you may want to have a base class for all models that
 have creation and updated at times:
@@ -374,6 +387,31 @@ create new models:
 
     account = Account(id='X', time_created=3124312.3442)
     print(account.time_created)
+
+
+Positional Arguments
+~~~~~~~~~~~~~~~~~~~~
+
+Models may also be instantiated using positional arguments,
+so ``Point(x=10, y=30)`` may also be expressed as ``Point(10, 30)``.
+
+The ordering of fields in positional arguments gets tricky when you
+add subclasses into the mix.  In that case the ordering is decided by the method
+resolution order:
+
+.. sourccode:: python
+
+    import faust
+
+    class Point(faust.Record):
+        x: int
+        y: int
+
+    class 3DPoint(Point):
+        z: int
+
+    point = 3DPoint(10, 20, 30)
+    assert (point.x, point.y, point.z) == (10, 20, 30)
 
 
 Reference
@@ -553,5 +591,5 @@ That's it! To install and use our new extension we do:
 
     $ python setup.py install
 
-At this point may want to publish this on PyPI to share
+At this point you could publish this on PyPI to share
 the extension with other Faust users.
