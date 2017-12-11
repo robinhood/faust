@@ -211,14 +211,6 @@ class ChangelogReader(Service, ChangelogReaderT):
                 self.table.apply_changelog_batch(buf)
                 buf.clear()
 
-    async def _local_tps(self, tps: Iterable[TP]) -> Set[TP]:
-        # RocksDB: Find partitions that we have database files for,
-        # since only one process can have them open at a time.
-        return {
-            tp for tp in tps
-            if not await self.table.need_active_standby_for(tp)
-        }
-
     async def _read_changelog(self) -> AsyncIterable[EventT]:
         offsets = self.offsets
 
@@ -465,6 +457,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
         else:
             self.log.info(f'Recovery interrupted')
         self._recoverers = None
+
+    async def _local_tps(self, tps: Iterable[TP]) -> Set[TP]:
+        # RocksDB: Find partitions that we have database files for,
+        # since only one process can have them open at a time.
+        return {
+            tp for tp in tps
+            if not await self.table.need_active_standby_for(tp)
+        }
 
     async def _maybe_abort_ongoing_recovery(self) -> None:
         if self._ongoing_recovery is not None:
