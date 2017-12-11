@@ -607,7 +607,8 @@ class App(AppT, ServiceProxy):
         executed at worker startup (after recovery and the worker is
         fully ready for operation).
 
-        If the target function is unary the ``app`` argument is passed::
+        The function may take zero or one argument.
+        If the target function takes an argument, the ``app`` argument is passed::
 
             >>> @app.task
             >>> async def on_startup(app):
@@ -1112,8 +1113,7 @@ class App(AppT, ServiceProxy):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        return self.TableManager(
-            app=self, loop=self.loop, beacon=self.beacon)
+        return self.TableManager(app=self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def topics(self) -> ConductorT:
