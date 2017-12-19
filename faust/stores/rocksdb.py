@@ -281,7 +281,7 @@ class Store(base.SerializedStore):
                 yield key
 
     def _visible_items(self, db: DB) -> Iterator[Tuple[bytes, bytes]]:
-        it = db.itervalues()  # noqa: B301
+        it = db.iteritems()  # noqa: B301
         it.seek_to_first()
         for key, value in it:
             if key != self.offset_key:
