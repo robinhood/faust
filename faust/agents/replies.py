@@ -139,7 +139,7 @@ class ReplyConsumer(Service):
             self._fetchers[topic_name] = self.add_future(
                 self._drain_replies(topic))
 
-    async def _drain_replies(self, channel: ChannelT):
+    async def _drain_replies(self, channel: ChannelT) -> None:
         async for reply in channel.stream():
             for promise in self._waiting[reply.correlation_id]:
                 promise.fulfill(reply.correlation_id, reply.value)

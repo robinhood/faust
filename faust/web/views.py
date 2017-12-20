@@ -25,7 +25,7 @@ class View:
             'put': self.put,
         }
 
-    async def dispatch(self, request: Any):
+    async def dispatch(self, request: Any) -> None:
         return await self.methods[request.method.lower()](
             self.web,
             cast(Request, request))

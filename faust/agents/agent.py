@@ -320,7 +320,7 @@ class Agent(AgentT, ServiceProxy):
 
             raise
 
-    async def _slurp(self, res: ActorRefT, it: AsyncIterator):
+    async def _slurp(self, res: ActorRefT, it: AsyncIterator) -> None:
         # this is used when the agent returns an AsyncIterator,
         # and simply consumes that async iterator.
         stream: StreamT = None

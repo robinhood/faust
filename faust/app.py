@@ -608,7 +608,8 @@ class App(AppT, ServiceProxy):
         fully ready for operation).
 
         The function may take zero or one argument.
-        If the target function takes an argument, the ``app`` argument is passed::
+        If the target function takes an argument, the ``app`` argument
+        is passed::
 
             >>> @app.task
             >>> async def on_startup(app):

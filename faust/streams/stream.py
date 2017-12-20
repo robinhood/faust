@@ -468,7 +468,7 @@ class Stream(StreamT, Service):
         self._enable_passive(cast(ChannelT, channel_it))
         return grouped
 
-    async def _format_key(self, key: GroupByKeyArg, value: T_contra):
+    async def _format_key(self, key: GroupByKeyArg, value: T_contra) -> str:
         if isinstance(key, FieldDescriptorT):
             return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
         return await maybe_async(cast(Callable, key)(value))
