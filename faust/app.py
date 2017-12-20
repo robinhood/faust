@@ -10,6 +10,7 @@ has the ability to change how almost everything works.
 import asyncio
 import importlib
 import inspect
+import logging
 import re
 import typing
 
@@ -358,7 +359,8 @@ class App(AppT, ServiceProxy):
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
             stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE,
-            loop: asyncio.AbstractEventLoop = None) -> None:
+            loop: asyncio.AbstractEventLoop = None,
+            loghandlers: List[logging.StreamHandler] = None) -> None:
         self.id = id
         self.loop = loop
         self.version = version if version is not None else 1
@@ -392,6 +394,7 @@ class App(AppT, ServiceProxy):
             key_serializer=self.key_serializer,
             value_serializer=self.value_serializer,
         )
+        self.loghandlers = loghandlers
         self._worker_type = Worker
         self.assignor = PartitionAssignor(self,
                                           replicas=self.num_standby_replicas)
