@@ -35,6 +35,15 @@ TABLEMAN_PARTITIONS_REVOKED = 'PARTITIONS REVOKED'
 TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
 
+async def _local_tps(table: CollectionT, tps: Iterable[TP]) -> Set[TP]:
+    # RocksDB: Find partitions that we have database files for,
+    # since only one process can have them open at a time.
+    return {
+        tp for tp in tps
+        if not await table.need_active_standby_for(tp)
+    }
+
+
 class ChangelogReader(Service, ChangelogReaderT):
     """Service synchronizing table state from changelog topic."""
 
@@ -166,7 +175,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             self.log.info('No updates needed')
             return self._done_reading()
 
-        local_tps = await self._local_tps(self.tps)
+        local_tps = await _local_tps(self.table, self.tps)
         if local_tps:
             self.log.info('Partitions %r are local to this node',
                           sorted(local_tps))
@@ -429,8 +438,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         )
 
     async def _recover(self, assigned: Iterable[TP]) -> None:
-        standby_tps = await self._local_tps(
-            self.app.assignor.assigned_standbys())
+        standby_tps = await _local_tps(
+            self.table, self.app.assignor.assigned_standbys())
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
         self.log.info('New assignments found')
@@ -457,14 +466,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         else:
             self.log.info(f'Recovery interrupted')
         self._recoverers = None
-
-    async def _local_tps(self, tps: Iterable[TP]) -> Set[TP]:
-        # RocksDB: Find partitions that we have database files for,
-        # since only one process can have them open at a time.
-        return {
-            tp for tp in tps
-            if not await self.table.need_active_standby_for(tp)
-        }
 
     async def _maybe_abort_ongoing_recovery(self) -> None:
         if self._ongoing_recovery is not None:
