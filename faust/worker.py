@@ -243,6 +243,7 @@ class Worker(mode.Worker):
             loglevel=loglevel,
             logfile=logfile,
             logformat=logformat,
+            loghandlers=app.loghandlers,
             stdout=stdout,
             stderr=stderr,
             blocking_timeout=blocking_timeout,
