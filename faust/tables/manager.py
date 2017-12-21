@@ -440,7 +440,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _recover(self, assigned: Iterable[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
         for table in self.values():
-            standby_tps = _local_tps(table, standby_tps)
+            standby_tps = await _local_tps(table, standby_tps)
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
         self.log.info('New assignments found')
