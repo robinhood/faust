@@ -329,8 +329,17 @@ class TableManager(Service, TableManagerT, FastUserDict):
             headers=['topic', 'partition', 'offset'],
         )
         self.log.info(f'Syncing offsets:\n{table}')
-        # We do counter union as new offsets should be >= old offsets
-        self._table_offsets = self._table_offsets | reader.offsets
+        for tp, offset in reader.offsets.items():
+            if offset >= 0:
+                table_offset = self._table_offsets.get(tp, -1)
+                self._table_offsets[tp] = max(table_offset, offset)
+        table = text.logtable(
+            [(k.topic, k.partition, v)
+             for k, v in self._table_offsets.items()],
+            title='Table Offsets',
+            headers=['topic', 'partition', 'offset'],
+        )
+        self.log.info(f'After syncing:\n{table}')
 
     @Service.transitions_to(TABLEMAN_STOP_STANDBYS)
     async def _stop_standbys(self) -> None:
