@@ -438,7 +438,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         )
 
     async def _recover(self, assigned: Iterable[TP]) -> None:
-        standy_tps = self.app.assignor.assigned_standbys()
+        standby_tps = self.app.assignor.assigned_standbys()
         for table in self.values():
             standby_tps = _local_tps(table, standby_tps)
         assigned_tps = self.app.assignor.assigned_actives()
