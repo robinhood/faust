@@ -204,6 +204,10 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def service(self, cls: Type[ServiceT]) -> Type[ServiceT]:
+        ...
+
+    @abc.abstractmethod
     def stream(self, channel: AsyncIterable,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:

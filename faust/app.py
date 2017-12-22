@@ -176,6 +176,8 @@ class AppService(Service):
     # in a way so that the AppService is started lazily only when first
     # needed.
 
+    _extra_service_instances: List[ServiceT] = None
+
     def __init__(self, app: 'App', **kwargs: Any) -> None:
         self.app: App = app
         super().__init__(loop=self.app.loop, **kwargs)
@@ -253,11 +255,22 @@ class AppService(Service):
                 target = cast(Callable[[], Awaitable], task)()
             self.add_future(target)
 
+        await self.on_started_init_extra_services()
+
         # Call the app-is-fully-started callback used by Worker
         # to print the "ready" message when Faust is ready to
         # start processing.
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
+
+    async def on_started_init_extra_services(self) -> None:
+        if self._extra_service_instances is None:
+            self._extra_service_instances = [
+                s(loop=self.loop, beacon=self.beacon)
+                for s in self.app._extra_services
+            ]
+            for service in self._extra_service_instances:
+                await self.add_runtime_dependency(service)
 
     @property
     def label(self) -> str:
@@ -327,6 +340,8 @@ class App(AppT, ServiceProxy):
     _tasks: MutableSequence[TaskArg]
 
     _client_session: Optional[ClientSession] = None
+
+    _extra_services: List[ServiceT] = None
 
     def __init__(
             self, id: str,
@@ -411,6 +426,7 @@ class App(AppT, ServiceProxy):
         self.autodiscover = autodiscover
         self.pages = []
         self.stream_buffer_maxsize = stream_buffer_maxsize
+        self._extra_services = []
         ServiceProxy.__init__(self)
 
     async def on_stop(self) -> None:
@@ -665,6 +681,26 @@ class App(AppT, ServiceProxy):
                         await fun(*args)  # type: ignore
             return around_timer
         return _inner
+
+    def service(self, cls: Type[ServiceT]) -> Type[ServiceT]:
+        """Decorate :class:`mode.Service` to be started with the app.
+
+        Examples:
+            .. sourcecode:: python
+
+                from mode import Service
+
+                @app.service
+                class Foo(Service):
+                    ...
+        """
+        def on_discovered(scanner: venusian.Scanner,
+                          name: str,
+                          obj: Type[ServiceT]) -> None:
+            ...
+        venusian.attach(cls, on_discovered, category='faust.service')
+        self._extra_services.append(cls)
+        return cls
 
     def is_leader(self) -> bool:
         return self._leader_assignor.is_leader()
