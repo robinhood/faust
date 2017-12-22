@@ -1,3 +1,3 @@
-from .base import AppCommand, Command, option
+from .base import AppCommand, Command, option, argument
 
-__all__ = ['AppCommand', 'Command', 'option']
+__all__ = ['AppCommand', 'Command', 'option', 'argument']
