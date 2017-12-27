@@ -421,6 +421,9 @@ class AppCommand(Command):
                     p = p.parent
                 package = '.'.join(
                     [p.name for p in paths] + [prog.with_suffix('').name])
+                if package.endswith('.__main__'):
+                    # when `python -m pkg`: remove .__main__ from pkg.__main__
+                    package = package[:-9]
                 self.app.origin = package
         else:
             appstr = self.ctx.obj['app']
