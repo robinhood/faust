@@ -266,7 +266,8 @@ class AppService(Service):
     async def on_started_init_extra_services(self) -> None:
         if self._extra_service_instances is None:
             self._extra_service_instances = [
-                s(loop=self.loop, beacon=self.beacon)
+                s(loop=self.loop,
+                  beacon=self.beacon) if inspect.isclass(s) else s
                 for s in self.app._extra_services
             ]
             for service in self._extra_service_instances:
