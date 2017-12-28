@@ -96,7 +96,8 @@ class AgentT(ServiceT):
                  sink: Iterable[SinkT] = None,
                  on_error: AgentErrorHandler = None,
                  supervisor_strategy: Type[SupervisorStrategyT] = None,
-                 help: str = None) -> None:
+                 help: str = None,
+                 **kwargs: Any) -> None:
         self.fun: AgentFun = fun
 
     @abc.abstractmethod

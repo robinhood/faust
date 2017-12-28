@@ -223,11 +223,12 @@ class Agent(AgentT, ServiceProxy):
                  sink: Iterable[SinkT] = None,
                  on_error: AgentErrorHandler = None,
                  supervisor_strategy: Type[SupervisorStrategyT] = None,
-                 help: str = None) -> None:
+                 help: str = None,
+                 **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
         self.name = name or canoname(self.fun)
-        self.channel = self._prepare_channel(channel)
+        self.channel = self._prepare_channel(channel, **kwargs)
         self.concurrency = concurrency
         self.help = help
         self._sinks = list(sink) if sink is not None else []
@@ -236,12 +237,14 @@ class Agent(AgentT, ServiceProxy):
         ServiceProxy.__init__(self)
 
     def _prepare_channel(self,
-                         channel: Union[str, ChannelT] = None) -> ChannelT:
+                         channel: Union[str, ChannelT] = None,
+                         internal: bool = True,
+                         **kwargs: Any) -> ChannelT:
         channel = f'{self.app.id}-{self.name}' if channel is None else channel
         if isinstance(channel, ChannelT):
             return cast(ChannelT, channel)
         elif isinstance(channel, str):
-            return self.app.topic(channel, internal=True)
+            return self.app.topic(channel, internal=internal, **kwargs)
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
 

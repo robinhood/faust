@@ -1,10 +1,7 @@
 """Faust Application.
 
-Everything starts here.
 An app is an instance of the Faust library.
-
-For very special needs it can be inherited from, and a subclass
-has the ability to change how almost everything works.
+Everything starts here.
 
 """
 import asyncio
@@ -547,7 +544,8 @@ class App(AppT, ServiceProxy):
               name: str = None,
               concurrency: int = 1,
               supervisor_strategy: Type[SupervisorStrategyT] = None,
-              sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
+              sink: Iterable[SinkT] = None,
+              **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         """Create Agent from async def function.
 
         The decorated function may be an async iterator, in this
@@ -577,7 +575,7 @@ class App(AppT, ServiceProxy):
                 sink=sink,
                 on_error=self._on_agent_error,
                 help=fun.__doc__,
-            )
+                **kwargs)
 
             self.agents[agent.name] = agent
 

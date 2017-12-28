@@ -191,7 +191,8 @@ class AppT(ServiceT):
               name: str = None,
               concurrency: int = 1,
               supervisor_strategy: Type[SupervisorStrategyT] = None,
-              sink: Iterable[SinkT] = None) -> Callable[[AgentFun], AgentT]:
+              sink: Iterable[SinkT] = None,
+              **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         ...
 
     @abc.abstractmethod
