@@ -113,6 +113,7 @@ if _loop:
 # quickly.  The next section provides static type checkers
 # information about the contents of this module.
 if typing.TYPE_CHECKING:
+    from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
     from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
@@ -140,6 +141,7 @@ __all__ = [
     'Monitor',
     'Sensor',
     'Codec',
+    'Service', 'ServiceT',
     'Stream', 'StreamT', 'current_event',
     'Set',
     'Table',
@@ -171,6 +173,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
         'SlidingWindow',
     ],
     'faust.worker': ['Worker'],
+    'mode.services': ['Service', 'ServiceT'],
 }
 
 object_origins = {}
