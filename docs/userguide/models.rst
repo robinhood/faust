@@ -23,9 +23,9 @@ as introduced by Python 3.6, and look like this::
         x: int
         y: int
 
-This is a point record with ``x``, and ``y`` fields of type int. There is
-no type checking at runtime, but the :pypi:`mypy` type checker can be used to
-verify that the right types are provided.
+This is a point record with ``x``, and ``y`` fields of type int. There's
+no type checking at runtime, but the :pypi:`mypy` type checker can be used
+as a separate build step, to verify that the right types are provided.
 
 A record is a model of the dictionary type, and describes keys and values.
 When using JSON as the serialization format, the Point model above
@@ -52,11 +52,11 @@ that supports records, arrays, and more.
 Manual Serialization
 ====================
 
-You're not required to define models! Manual de-serialization works
-and is rather easy to perform, but models provide additional benefit,
-such as the field descriptors that let you refer to fields in `group_by`
-statements, static typing using :pypi:`mypi`, automatic conversion
-of :class:`datetime`, and so on...
+You're not required to define models to read the data from a stream.
+Manual de-serialization also works and is rather easy to perform, but models
+provide additional benefit, such as the field descriptors that let you refer
+to fields in `group_by` statements, static typing using :pypi:`mypi`,
+automatic conversion of :class:`datetime`, and so on...
 
 To deserialize streams manually, simply use a topic with bytes values:
 
@@ -98,8 +98,8 @@ be described as the keyword argument ``serializer='json|binary'``.
 
 .. topic:: Sending/receiving raw values
 
-    Serializing/Deserializing keys and values manually is easy,
-    for example the JSON codec happily accepts lists and dictionaries,
+    Serializing/deserializing keys and values manually is easy.
+    The JSON codec happily accepts lists and dictionaries,
     as arguments to the ``.send`` methods:
 
     .. sourcecode:: python
@@ -397,9 +397,9 @@ so ``Point(x=10, y=30)`` may also be expressed as ``Point(10, 30)``.
 
 The ordering of fields in positional arguments gets tricky when you
 add subclasses into the mix.  In that case the ordering is decided by the method
-resolution order:
+resolution order, as demonstrated by this example:
 
-.. sourccode:: python
+.. sourcecode:: python
 
     import faust
 
@@ -407,10 +407,10 @@ resolution order:
         x: int
         y: int
 
-    class 3DPoint(Point):
+    class XYZPoint(Point):
         z: int
 
-    point = 3DPoint(10, 20, 30)
+    point = XYZPoint(10, 20, 30)
     assert (point.x, point.y, point.z) == (10, 20, 30)
 
 
@@ -431,6 +431,32 @@ Serialization/Deserialization
 
     .. automethod:: to_representation
         :noindex:
+
+    .. automethod:: from_data
+
+    .. automethod:: derive
+
+    .. attribute:: _options
+
+        Model metadata for introspection. An instance of
+        :class:`faust.types.models.ModelOptions`.
+
+.. class:: ModelOptions
+    :noindex:
+
+    .. autoattribute:: fields
+
+    .. autoattribute:: fieldset
+
+    .. autoattribute:: fieldpos
+
+    .. autoattribute:: optionalset
+
+    .. autoattribute:: models
+
+    .. autoattribute:: converse
+
+    .. autoattribute:: defaults
 
 .. _codecs:
 

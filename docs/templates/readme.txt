@@ -4,6 +4,10 @@
 
 |build-status| |license| |wheel| |pyversion| |pyimp|
 
+.. include:: ../includes/tags.txt
+
+.. include:: ../includes/blurb.txt
+
 .. include:: ../includes/introduction.txt
 
 .. include:: ../includes/installation.txt

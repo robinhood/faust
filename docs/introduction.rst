@@ -1,14 +1,21 @@
 .. _intro:
 
 =============================
- Introduction to Faust
+ Welcome to Faust
 =============================
+
+.. include:: includes/tags.txt
+
+**Table of Contents**
 
 .. contents::
     :local:
     :depth: 1
 
-.. include:: includes/introduction.txt
+What is Faust?
+==============
+
+.. include:: includes/blurb.txt
 
 .. topic:: Faust can be used for...
 
@@ -41,7 +48,7 @@ What do I need?
 
     **Core**
 
-    - Python 3.6
+    - Python 3.6 or later.
     - Kafka 0.10.1 or later.
 
     **Extensions**
@@ -77,6 +84,8 @@ Extensions
     See bundles in the installation instructions section of this document
     for a list of supported setuptools extensions.
 
+.. include:: includes/introduction.txt
+
 What is Kafka?
 ==============================================
 
@@ -111,22 +120,56 @@ How do I use it?
 Examples
 ========
 
-.. topic:: Iterate over events in a topic
+.. topic:: Process events in a topic
 
     .. sourcecode:: python
+
+        import faust
+
+        orders_topic = app.topic('orders', value_serializer='json')
+
+        @app.agent(orders_topic)
+        async def process_order(orders):
+            async for order in orders:
+                print(order['product_id'])
+
+.. topic:: Describe stream data using models
+
+    .. sourcecode:: python
+
+        from datetime import datetime
+        import faust
+
+        class Order(faust.Record, serializer='json', isodates=True):
+            id: str
+            user_id: str
+            product_id: str
+            amount: float
+            price: float
+            date_created: datatime = None
+            date_updated: datetime = None
 
         orders_topic = app.topic('orders', value_type=Order)
-        async for order in orders_topic.stream():
-            print(order.product_id)
 
-.. topic:: Asynchronously processing events in a topic
+        @app.agent(orders_topic)
+        async def process_order(orders):
+            async for order in orders:
+                print(order.product_id)
+
+
+.. topic:: Use async. I/O to perform other actions while processing the stream
 
     .. sourcecode:: python
 
-        session = aiohttp.ClientSession()
-        async for order in orders_topic.stream():
-            product_info = await session.get(f'http://e.com/api/{order.id}/')
-            await aiohttp.post(f'http://cache/{order.id}/', data=product_info)
+        # [...]
+        @app.agent(orders_topic)
+        async def process_order(orders):
+            session = aiohttp.ClientSession()
+            async for order in orders:
+                async with session.get(f'http://e.com/api/{order.id}/') as resp:
+                    product_info = await request.text()
+                    await session.post(
+                        f'http://cache/{order.id}/', data=product_info)
 
 .. topic:: Buffer up many events at a time
 
@@ -134,7 +177,8 @@ Examples
 
     .. sourcecode:: python
 
-        async for orders in orders_topic.stream().take(100, within=30.0):
+        [...]
+        async for orders_batch in orders.take(100, within=30.0):
             print(len(orders))
 
 .. topic:: Aggregate information into a table
@@ -143,10 +187,12 @@ Examples
 
         orders_by_country = app.Table('orders_by_country', default=int)
 
-        async for order in orders_topic.stream():
-            country = order.country_origin
-            orders_by_country[country] += 1
-            print(f'Orders for country {country}: {orders_by_country[country]}')
+        @app.agent(orders_topic)
+        async def process_order(orders):
+            async for order in orders.group_by(order.country_origin):
+                country = order.country_origin
+                orders_by_country[country] += 1
+                print(f'Orders for country {country}: {orders_by_country[country]}')
 
 .. topic:: Aggregate information using a window
 
