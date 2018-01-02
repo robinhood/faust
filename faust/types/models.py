@@ -47,30 +47,30 @@ class ModelOptions(abc.ABC):
     isodates: bool = False
 
     #: Index: Flattened view of __annotations__ in MRO order.
-    fields: Mapping[str, Type]
+    fields: Mapping[str, Type] = None
 
     #: Index: Set of required field names, for fast argument checking.
-    fieldset: FrozenSet[str]
+    fieldset: FrozenSet[str] = None
 
     #: Index: Positional argument index to field name.
     #: Used by Record.__init__ to map positional arguments to fields.
     fieldpos: Mapping[int, str] = None
 
     #: Index: Set of optional field names, for fast argument checking.
-    optionalset: FrozenSet[str]
+    optionalset: FrozenSet[str] = None
 
     #: Index: Mapping of fields that are ModelT
-    models: Mapping[str, Type['ModelT']]
+    models: Mapping[str, Type['ModelT']] = None
 
     # Index: Set of field names that are ModelT and there concrete type
-    modelattrs: Mapping[str, Type]
+    modelattrs: Mapping[str, Type] = None
 
     #: Index: Mapping of fields that are not builtin-types.
     #: E.g. datetime.
-    converse: Mapping[str, Converter]
+    converse: Mapping[str, Converter] = None
 
     #: Mapping of field names to default value.
-    defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
+    defaults: Mapping[str, Any] = None  # noqa: E704 (flake8 bug)
 
 
 base = abc.ABC if abc_compatible_with_init_subclass else object

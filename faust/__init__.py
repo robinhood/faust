@@ -117,7 +117,7 @@ if typing.TYPE_CHECKING:
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
     from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
-    from .models import Record                                  # noqa: E402
+    from .models import ModelOptions, Record                    # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
     from .serializers import Codec                              # noqa: E402
     from .streams.stream import Stream, StreamT, current_event  # noqa: E402
@@ -137,7 +137,7 @@ __all__ = [
     'ChannelT',
     'Event',
     'EventT',
-    'Record',
+    'ModelOptions', 'Record',
     'Monitor',
     'Sensor',
     'Codec',
@@ -160,7 +160,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.agents': ['Agent'],
     'faust.app': ['App'],
     'faust.channels': ['Channel', 'ChannelT', 'Event', 'EventT'],
-    'faust.models': ['Record'],
+    'faust.models': ['ModelOptions', 'Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.serializers': ['Codec'],
     'faust.streams.stream': ['Stream', 'StreamT', 'current_event'],
