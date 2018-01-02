@@ -15,6 +15,10 @@ Contents
     :maxdepth: 1
 
     copyright
+
+.. toctree::
+    :maxdepth: 1
+
     introduction
 
 .. toctree::
