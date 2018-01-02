@@ -19,5 +19,4 @@
     tables
     deployment
     sensors
-    http
     vskafka
