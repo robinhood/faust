@@ -14,10 +14,10 @@ Tables
 Basics
 ------
 
-A table is a distributed in-memory dictionary. Tables are backed by a kafka
-changelog topic for persistence and fault-tolerance. This allows us to replay
-the changelog upon failure allowing to rebuild the state of the Table before
-the fault.
+A table is a distributed in-memory dictionary. Tables are backed by a Kafka
+changelog topic for persistence and fault-tolerance. This enables us to replay
+the changelog upon network failure and node restarts, allowing us to rebuild the
+state of the Table as it was before the fault.
 
 Tables can be initialized as follows:
 
@@ -72,8 +72,10 @@ as follows:
     withdrawals_stream = app.topic('withdrawals', value_type=Withdrawal).stream()
     withdrawals_by_country = withdrawals_stream.group_by(Withdrawal.country)
 
-    async for withdrawal in withdrawals_by_country:
-        country_to_total[withdrawal.country] += withdrawal.amount
+    @app.agent
+    async def process_withdrawal(withdrawals):
+        async for withdrawal in withdrawals.group_by(Withdrawal.country):
+            country_to_total[withdrawal.country] += withdrawal.amount
 
 Without co-partitioning Stream and Table partitions, we could end up with a
 table shard ending up on a different worker than the worker processing its
@@ -87,7 +89,7 @@ corresponding Stream partition.
 Table Sharding
 --------------
 
-Tables should be sharded such that the key distribution across Kafka
+Tables shall be sharded such that the key distribution across Kafka
 partitions is disjoint. This ensures that all computation for a subset of
 keys happen together in the same worker process.
 
@@ -104,15 +106,17 @@ subsets across partitions being disjoint.
 
 
     @app.agent(withdrawals_topic)
-    async def find_large_withdrawals(withdrawals):
+    async def process_withdrawal(withdrawals):
         async for withdrawal in withdrawals:
             user_to_total[withdrawal.user] += withdrawal.amount
             country_to_total[withdrawal.country] += withdrawal.amount
 
-Here the stream ``withdrawals`` is partitioned by ``Withdrawal.user`` hence the
-``country_to_total`` table which is expected to partitioned by country would
-end up actually being partitioned by user, resulting in the same country
-being present in multiple partitions.
+Here the stream ``withdrawals`` is (implicitly) partitioned by ``Withdrawal.user``,
+since that's what's used as message key. Hence the ``country_to_total`` table
+which is expected to be partitioned by country, would
+end up actually being partitioned by user.  In practice this means
+the data for a country may reside in multiple partitions and the calculations
+will be wrong.
 
 The above use case should be re-implemented as follows:
 
@@ -143,6 +147,12 @@ Table updates are published to a Kafka topic for recovery upon failures. We
 use Log Compaction to ensure that the changelog topic doesn't grow
 exponentially, keeping the number of messages in the changelog
 topic ``O(n)``, where n is the number of keys in the table.
+
+.. note::
+
+    In production it is recommended that you use the ``rocksdb`` store,
+    as that will allow for almost instantaneous recovery (only needing
+    to retrieve the updates since last time the instance was up).
 
 In order to publish a changelog message into Kafka for fault-tolerance the
 table needs to be set explicitly. Hence, while changing values in Tables by
