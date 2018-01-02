@@ -10,5 +10,6 @@
 .. toctree::
     :maxdepth: 1
 
+    quickstart
     pageviews
     leaderelection

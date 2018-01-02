@@ -15,12 +15,7 @@ Contents
     :maxdepth: 1
 
     copyright
-
-.. toctree::
-    :maxdepth: 1
-
     introduction
-    quickstart
 
 .. toctree::
     :maxdepth: 2
