@@ -43,7 +43,7 @@ receiving a portion of the stream.
     means that any message with the same account_id key will be delivered
     to the same agent instance.
 
-    Sometimes you will have to repartition the stream, to ensure you are
+    Sometimes you'll have to repartition the stream, to ensure you are
     receiving the right portion of the data.  See :ref:`guide-streams` for
     more information on the :meth:`Stream.group_by() <faust.Stream.group_by>`
     method.
@@ -56,7 +56,7 @@ Here's a more complete example of an app with an agent that adds numbers:
     import faust
 
     # The model describes the data sent to our agent,
-    # and in our case we will use a JSON serialized dictionary
+    # We will use a JSON serialized dictionary
     # with two integer fields: a, and b.
     class Add(faust.Record):
         a: int
@@ -111,7 +111,6 @@ To send values to it, you can open a second console to run this program:
 
     .. sourcecode:: python
 
-
         @app.command()
         async def send_value() -> None:
             print(await adding.ask(Add(a=4, b=4)))
@@ -126,7 +125,7 @@ To send values to it, you can open a second console to run this program:
 The :meth:`Agent.ask() <faust.Agent.ask>` method wraps the value sent in
 a special structure that includes the return address (reply-to).  When the
 agent sees this type of structure it will reply with the result yielded
-as a result of processing the value.
+by the agent as a result of processing the event.
 
 .. admonition:: Static types
 
@@ -245,11 +244,10 @@ then the default serializer defined by the app will be used.
 The Stream
 ----------
 
-The decorated function should be unary, acceping a single ``stream`` argument.
-which is created from the agents topic.
+The decorated function should be unary, meaning it must accept one argument.
 
-This object is async iterable and an instance of the :class:`~faust.Stream`
-class, created from the topic provided to the decorator.
+The object passed in as argument is async iterable and an instance of
+the :class:`~faust.Stream` class, created from the topic provided to the decorator.
 
 Iterating over this stream, using the :keyword:`async for`, will iterate
 over the messages in the topic.
@@ -441,7 +439,8 @@ Performing a ``cast`` means no reply is expected, you are only sending the
 agent a message, not expecting a reply back.  This is the preferred mode
 of operation for most agents, and any time you are about to use the RPC
 facilities of agents you should take a step back to reconsider if there
-is a way to solve your problem in a streaming manner.
+is a way to solve your problem in a streaming manner (A causes B to happen,
+as opposed to B waiting for A to complete).
 
 ``cast(value, *, key=None, partition=None)``
     Casting a value to an agent is asynchronous:
@@ -465,7 +464,7 @@ is a way to solve your problem in a streaming manner.
     ``ask``, and enables you to request that a reply is sent to another agent
     or a specific topic.
 
-    Send to another agent::
+    Send to another agent:
 
     .. sourcecode:: python
 
