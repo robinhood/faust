@@ -3,7 +3,7 @@
 This examples starts a separate :pypi:`mode` service with the app.
 
 If you want the service instance to be generally available
-you may create a subclass of app:
+you may create a subclass of app, to define a new app.myservice attribute:
 
 .. sourcecode:: python
 
@@ -33,7 +33,6 @@ class MyService(faust.Service):
         self.log.info('STOPPED')
 
 
-
 @app.agent(value_type=str)
 async def consumer(stream):
     async for message in stream:
@@ -43,8 +42,6 @@ async def consumer(stream):
 @app.timer(1.0)
 async def producer():
     await consumer.send('hello')
-
-
 
 
 if __name__ == '__main__':
