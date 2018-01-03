@@ -121,12 +121,20 @@ APP_REPR = """
 <{name}({s.id}): {s.url} {s.state} agents({agents}) topics({topics})>
 """.strip()
 
+SCAN_CATEGORY_AGENT = 'faust.agent'
+SCAN_CATEGORY_COMMAND = 'faust.command'
+SCAN_CATEGORY_PAGE = 'faust.page'
+SCAN_CATEGORY_SERVICE = 'faust.service'
+SCAN_CATEGORY_TASK = 'faust.task'
+
 #: Default decorator categories for :pypi`venusian` to scan for when
 #: autodiscovering.
 SCAN_CATEGORIES: Iterable[str] = [
-    'faust.agent',
-    'faust.command',
-    'faust.page',
+    SCAN_CATEGORY_AGENT,
+    SCAN_CATEGORY_COMMAND,
+    SCAN_CATEGORY_PAGE,
+    SCAN_CATEGORY_SERVICE,
+    SCAN_CATEGORY_TASK,
 ]
 
 #: List of regular expressions for :pypi:`venusian` that acts as a filter
@@ -153,6 +161,7 @@ origin will be "project":
         origin='project',
     )
 """
+
 
 
 class _AttachedHeapEntry(NamedTuple):
@@ -583,7 +592,7 @@ class App(AppT, ServiceProxy):
                               name: str,
                               obj: AgentT) -> None:
                 ...
-            venusian.attach(agent, on_discovered, category='faust.agent')
+            venusian.attach(agent, on_discovered, category=SCAN_CATEGORY_AGENT)
             return agent
         return _inner
     actor = agent  # XXX Compatibility alias: REMOVE FOR 1.0
@@ -639,6 +648,11 @@ class App(AppT, ServiceProxy):
             >>> async def on_startup():
             ...     print('STARTING UP')
         """
+        def on_discovered(scanner: venusian.Scanner,
+                          name: str,
+                          obj: TaskArg]) -> None:
+            ...
+        venusian.attach(cls, on_discovered, category=SCAN_CATEGORY_TASK)
         self._tasks.append(fun)
         return fun
 
@@ -697,7 +711,7 @@ class App(AppT, ServiceProxy):
                           name: str,
                           obj: Type[ServiceT]) -> None:
             ...
-        venusian.attach(cls, on_discovered, category='faust.service')
+        venusian.attach(cls, on_discovered, category=SCAN_CATEGORY_SERVICE)
         self._extra_services.append(cls)
         return cls
 
@@ -821,7 +835,7 @@ class App(AppT, ServiceProxy):
                               name: str,
                               obj: Site) -> None:
                 ...
-            venusian.attach(site, on_discovered, category='faust.page')
+            venusian.attach(site, on_discovered, category=SCAN_CATEGORY_PAGE)
             return site
         return _decorator
 
@@ -855,7 +869,7 @@ class App(AppT, ServiceProxy):
                               name: str,
                               obj: AppCommand) -> None:
                 ...
-            venusian.attach(cmd, on_discovered, category='faust.command')
+            venusian.attach(cmd, on_discovered, category=SCAN_CATEGORY_COMMAND)
             return cmd
         return _inner
 
