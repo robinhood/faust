@@ -481,6 +481,8 @@ class App(AppT, ServiceProxy):
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
         from .cli.faust import cli
+        if self.autodiscover:
+            self.discover()
         cli(app=self)
 
     def topic(self, *topics: str,

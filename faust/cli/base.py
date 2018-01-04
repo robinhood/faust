@@ -105,7 +105,15 @@ def find_app(app: str,
             # proj.app:x where x is a module
             raise AttributeError(f'Looks like module, not app: -A {app}')
         val = found
-    return val
+    return prepare_app(val, app)
+
+
+
+def prepare_app(app: AppT, name: str) -> AppT:
+    app.origin = name
+    if app.autodiscover:
+        app.discover()
+    return app
 
 
 # We just use this to apply many @click.option/@click.argument
@@ -409,6 +417,7 @@ class AppCommand(Command):
         self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is not None:
             # XXX How to find full argv[0] with click?
+            origin = app.origin
             if sys.argv:
                 prog = Path(sys.argv[0]).absolute()
                 paths = []
@@ -424,15 +433,13 @@ class AppCommand(Command):
                 if package.endswith('.__main__'):
                     # when `python -m pkg`: remove .__main__ from pkg.__main__
                     package = package[:-9]
-                self.app.origin = package
+                origin = package
+            prepare_app(self.app, origin)
         else:
             appstr = self.ctx.obj['app']
             if not appstr:
                 raise self.UsageError('Need to specify app using -A parameter')
             self.app = find_app(appstr)
-            self.app.origin = appstr
-        if self.app.autodiscover:
-            self.app.discover()
         self.key_serializer = key_serializer or self.app.key_serializer
         self.value_serializer = value_serializer or self.app.value_serializer
         self.args = args
