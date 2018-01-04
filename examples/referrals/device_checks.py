@@ -7,6 +7,8 @@ app = faust.App(
     'referrals-device-check',
     url='kafka://localhost:9092',
     default_partitions=4,
+    autodiscover=True,
+    origin='examples.referrals',
 )
 journal_updates_topic = app.topic('stock_journal_updates',
                                   value_type=StockJournalUpdate)
