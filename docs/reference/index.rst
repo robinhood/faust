@@ -160,6 +160,7 @@ Utils
     faust.utils.json
     faust.utils.objects
     faust.utils.platforms
+    faust.utils.spinners
     faust.utils.text
 
 Web

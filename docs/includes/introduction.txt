@@ -52,8 +52,9 @@ Faust is...
     Start more instances of your application as needed.
 
 **Fast**
-    Faust applications can hopefully handle millions of events per second
-    in the future.
+    A single-core Faust worker instance can already process tens of thousands
+    of events every second, and we are fairly confident that this will
+    increase significantly once we can support a more optimized Kafka client.
 
 **Flexible**
     Faust is just Python, and a stream is just an infinite async iterator.
