@@ -108,7 +108,6 @@ def find_app(app: str,
     return prepare_app(val, app)
 
 
-
 def prepare_app(app: AppT, name: str) -> AppT:
     app.origin = name
     if app.autodiscover:
@@ -417,7 +416,7 @@ class AppCommand(Command):
         self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is not None:
             # XXX How to find full argv[0] with click?
-            origin = app.origin
+            origin = self.app.origin
             if sys.argv:
                 prog = Path(sys.argv[0]).absolute()
                 paths = []
