@@ -1,5 +1,3 @@
-.. _installation:
-
 Installation
 ============
 
@@ -9,8 +7,6 @@ or from source.
 To install using `pip`,::
 
     $ pip install -U faust
-
-.. _bundles:
 
 Bundles
 -------
@@ -73,8 +69,6 @@ Debugging
     use it to set a nicer process name in ps/top listings.  Also installed
     with the ``fast`` and ``debug`` bundles.
 
-.. _installing-from-source:
-
 Downloading and installing from source
 --------------------------------------
 
@@ -90,8 +84,6 @@ You can install it by doing the following,::
 
 The last command must be executed as a privileged user if
 you are not currently using a virtualenv.
-
-.. _installing-from-git:
 
 Using the development version
 -----------------------------

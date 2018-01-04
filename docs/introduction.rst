@@ -81,8 +81,8 @@ Extensions
 
 .. note::
 
-    See bundles in the installation instructions section of this document
-    for a list of supported setuptools extensions.
+    See bundles in the :ref:`installation` instructions section of
+    this document for a list of supported setuptools extensions.
 
 .. include:: includes/introduction.txt
 
@@ -177,7 +177,7 @@ Examples
 
     .. sourcecode:: python
 
-        [...]
+        # [...]
         async for orders_batch in orders.take(100, within=30.0):
             print(len(orders))
 
@@ -215,9 +215,11 @@ Examples
 
     TODO This is not implemented yet
 
-    async for event in my_topic.stream():
-        # forward to other topic, but only after two days
-        await topic.send(event, eta=timedelta(days=2))
+    .. sourcecode:: python
+
+        async for event in my_topic.stream():
+            # forward to other topic, but only after two days
+            await topic.send(event, eta=timedelta(days=2))
 
 Design considerations
 =====================
@@ -260,6 +262,10 @@ Table HTTP API
     Query tables using the Faust HTTP server.
 Delayed messages
     Send messages to be processed later, e.g. *"after two days, do something"*.
+
+.. _installation:
+
+.. include:: includes/installation.txt
 
 .. _`mypy`: http://mypy-lang.org
 

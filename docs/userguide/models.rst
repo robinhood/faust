@@ -433,10 +433,13 @@ Serialization/Deserialization
         :noindex:
 
     .. automethod:: from_data
+        :noindex:
 
     .. automethod:: derive
+        :noindex:
 
     .. attribute:: _options
+        :noindex:
 
         Model metadata for introspection. An instance of
         :class:`faust.types.models.ModelOptions`.
@@ -445,18 +448,25 @@ Serialization/Deserialization
     :noindex:
 
     .. autoattribute:: fields
+        :noindex:
 
     .. autoattribute:: fieldset
+        :noindex:
 
     .. autoattribute:: fieldpos
+        :noindex:
 
     .. autoattribute:: optionalset
+        :noindex:
 
     .. autoattribute:: models
+        :noindex:
 
     .. autoattribute:: converse
+        :noindex:
 
     .. autoattribute:: defaults
+        :noindex:
 
 .. _codecs:
 

@@ -81,7 +81,7 @@ additional web server drivers should you want to use something different.
 To expose a simple view returning a JSON structure you can add the
 following code to your app module:
 
-.. sourcecode::
+.. sourcecode:: python
 
     # this counter exists in-memory only,
     # so will be wiped when the worker restarts.
