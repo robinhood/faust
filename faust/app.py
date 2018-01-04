@@ -163,7 +163,6 @@ origin will be "project":
 """
 
 
-
 class _AttachedHeapEntry(NamedTuple):
     offset: int
     message: Unordered[FutureMessage]
@@ -650,9 +649,9 @@ class App(AppT, ServiceProxy):
         """
         def on_discovered(scanner: venusian.Scanner,
                           name: str,
-                          obj: TaskArg]) -> None:
+                          obj: TaskArg) -> None:
             ...
-        venusian.attach(cls, on_discovered, category=SCAN_CATEGORY_TASK)
+        venusian.attach(fun, on_discovered, category=SCAN_CATEGORY_TASK)
         self._tasks.append(fun)
         return fun
 
