@@ -227,6 +227,7 @@ class Worker(mode.Worker):
             web_port: int = None,
             web_bind: str = None,
             web_host: str = None,
+            console_port: int = 50101,
             loop: asyncio.AbstractEventLoop = None,
             **kwargs: Any) -> None:
         self.app = app
@@ -247,6 +248,7 @@ class Worker(mode.Worker):
             stdout=stdout,
             stderr=stderr,
             blocking_timeout=blocking_timeout,
+            console_port=console_port,
             loop=loop,
             **kwargs)
         self.spinner = Spinner(file=self.stdout)

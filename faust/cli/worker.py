@@ -21,6 +21,11 @@
 .. cmdoption:: --web-port, -p
 
     Port to run web server on.
+
+.. cmdoption:: --console-port
+
+    When :option:`faust --debug` is enabled this specifies the port
+    to run the aiomonitor console on (default is 50101).
 """
 import os
 import platform
@@ -60,6 +65,9 @@ class worker(AppCommand):
         option('--web-host', '-h',
                default=socket.gethostname(), type=str,
                help='Canonical host name for the web server.'),
+        option('--console-port',
+               default=50101, type=int,
+               help='Port to run aiomonitor console on when --debug.'),
     ]
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -73,7 +81,8 @@ class worker(AppCommand):
                      blocking_timeout: float,
                      web_port: int,
                      web_bind: str,
-                     web_host: str) -> Any:
+                     web_host: str,
+                     console_port: int) -> Any:
         self.app.canonical_url = URL(f'http://{web_host}:{web_port}')
         worker = self.app.Worker(
             debug=self.debug,
@@ -83,6 +92,7 @@ class worker(AppCommand):
             web_port=web_port,
             web_bind=web_bind,
             web_host=web_host,
+            console_port=console_port,
         )
         self.say(self.banner(worker))
         return worker.execute_from_commandline()
