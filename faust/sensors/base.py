@@ -75,12 +75,12 @@ class Sensor(SensorT, Service):
         ...
 
     async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
-        """Consumer is about to committ topic offset."""
+        """Consumer is about to commit topic offset."""
         ...
 
     async def on_commit_completed(
             self, consumer: ConsumerT, state: Any) -> None:
-        """Consumer finished comittting topic offset."""
+        """Consumer finished committing topic offset."""
         ...
 
     async def on_send_initiated(
@@ -95,7 +95,7 @@ class Sensor(SensorT, Service):
 
 
 class SensorDelegate(SensorDelegateT):
-    """A class that redelegates sensor methods to a list of sensors."""
+    """A class that delegates sensor methods to a list of sensors."""
 
     _sensors: Set[SensorT]
 
