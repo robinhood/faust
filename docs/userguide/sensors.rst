@@ -200,10 +200,10 @@ Message Callbacks
 .. class:: Sensor
     :noindex:
 
-        .. automethod:: on_message_in
+        .. autocomethod:: on_message_in
             :noindex:
 
-        .. automethod:: on_message_out
+        .. autocomethod:: on_message_out
             :noindex:
 
 .. _sensor-event:
@@ -214,10 +214,10 @@ Event Callbacks
 .. class:: Sensor
     :noindex:
 
-        .. automethod:: on_stream_event_in
+        .. autocomethod:: on_stream_event_in
             :noindex:
 
-        .. automethod:: on_stream_event_out
+        .. autocomethod:: on_stream_event_out
             :noindex:
 
 .. _sensor-table:
@@ -245,14 +245,14 @@ Operation Callbacks
 .. class:: Sensor
     :noindex:
 
-        .. automethod:: on_commit_initiated
+        .. autocomethod:: on_commit_initiated
             :noindex:
 
-        .. automethod:: on_commit_completed
+        .. autocomethod:: on_commit_completed
             :noindex:
 
-        .. automethod:: on_send_initiated
+        .. autocomethod:: on_send_initiated
             :noindex:
 
-        .. automethod:: on_send_completed
+        .. autocomethod:: on_send_completed
             :noindex:

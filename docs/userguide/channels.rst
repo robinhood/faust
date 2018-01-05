@@ -69,13 +69,13 @@ Sending messages to channel
 .. class:: Channel
     :noindex:
 
-    .. automethod:: send
+    .. autocomethod:: send
         :noindex:
 
     .. automethod:: as_future_message
         :noindex:
 
-    .. automethod:: publish_message
+    .. autocomethod:: publish_message
         :noindex:
 
 
@@ -92,10 +92,10 @@ Declaring
 .. class:: Channel
     :noindex:
 
-    .. automethod:: maybe_declare
+    .. autocomethod:: maybe_declare
         :noindex:
 
-    .. automethod:: declare
+    .. autocomethod:: declare
         :noindex:
 
 Topics
@@ -104,4 +104,3 @@ Topics
 A *topic* is a **named channel**, backed by a Kafka topic. The name is used as the address
 of the channel, that way it can be shared by multiple processes and each
 process will receive a partition of the topic.
-

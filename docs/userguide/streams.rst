@@ -170,7 +170,8 @@ Iteration tools
 .. class:: Stream
     :noindex:
 
-    .. automethod:: items
+    .. autocomethod:: items
+        :async-for:
         :noindex:
 
     .. automethod:: tee
@@ -194,7 +195,7 @@ Processing
 .. class:: Stream
     :noindex:
 
-    .. automethod:: send
+    .. autocomethod:: send
         :noindex:
 
 Topics

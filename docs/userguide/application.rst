@@ -451,7 +451,7 @@ Sending messages
 .. class:: App
     :noindex:
 
-    .. automethod:: send
+    .. autocomethod:: send
         :noindex:
 
 Committing topic offsets
@@ -460,5 +460,5 @@ Committing topic offsets
 .. class:: App
     :noindex:
 
-    .. automethod:: commit
+    .. autocomethod:: commit
         :noindex:
