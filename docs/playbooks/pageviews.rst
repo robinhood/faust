@@ -8,7 +8,7 @@
     :local:
     :depth: 2
 
-In the :ref:`guide-quickstart` we went over a simple example where
+In the :ref:`quickstart` we went over a simple example where
 we read through a stream of greetings and printed them to the console. In
 this playbook we will do something more meaningful with an incoming stream.
 We will maintain real-time counts of page views from a stream of page views.
@@ -16,7 +16,7 @@ We will maintain real-time counts of page views from a stream of page views.
 Application
 -----------
 
-As we did in the :ref:`guide-quickstart`, we first define our application.
+As we did in the :ref:`quickstart`, we first define our application.
 Let us create a module ``page_views.py`` and define the application:
 
 .. sourcecode:: python
@@ -113,7 +113,7 @@ Next, start Kafka:
 Running the Faust worker
 ------------------------
 
-As in the :ref:`guide-quickstart` start the application as follows:
+As in the :ref:`quickstart` start the application as follows:
 
 .. sourcecode:: console
 

@@ -8,6 +8,24 @@
 
     -- Goethe, *Faust: First part*
 
+**Faust** is a Python library for *event processing* and streaming applications
+that are decentralized and fault-tolerant.
+
+It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
+`Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
+a radically much simpler approach to stream processing.
+
+To learn more about faust go to the :ref:`intro` introduction page,
+or go directly to the :ref:`quickstart` tutorial.
+
+.. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
+.. _`Apache Spark`: http://spark.apache.org
+.. _`Apache Storm`: http://storm.apache.org
+.. _`Apache Flink`: http://flink.apache.org
+.. _`Apache Samza`: http://samza.apache.org
+
+
+
 Contents
 ========
 

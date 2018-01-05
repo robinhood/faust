@@ -351,15 +351,28 @@ class Command(abc.ABC):
     def table(self, data: text.TableDataT,
               title: str = None,
               **kwargs: Any) -> text.Table:
+        """Format table data as ANSI/ASCII table."""
         return text.table(data, title=title, target=sys.stdout, **kwargs)
 
     def colored(self, color: str, text: str) -> str:
+        """Return colored text.
+
+        Examples::
+
+            >>> self.colored('blue', 'text_to_color')
+            >>> self.colored('hiblue', text_to_color')
+
+        See Also:
+            :pypi:`colorclass`: for a list of available colors.
+        """
         return Color(f'{{{color}}}{text}{{/{color}}}')
 
     def bold(self, text: str) -> str:
+        """Return text in bold."""
         return self.colored('b', text)
 
     def bold_tail(self, text: str, *, sep: str = '.') -> str:
+        """Put bold emphasis on the last part of a foo.bar.baz string."""
         head, fsep, tail = text.rpartition(sep)
         return fsep.join([head, self.bold(tail)])
 

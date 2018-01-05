@@ -1,4 +1,4 @@
-Faust is a Python library for event processing and streaming applications
+**Faust** is a Python library for event processing and streaming applications
 that are decentralized and fault-tolerant.
 
 It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,

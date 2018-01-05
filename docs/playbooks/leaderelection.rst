@@ -109,7 +109,7 @@ Next, start Kafka:
 Running the Faust worker
 ------------------------
 
-As in the :ref:`guide-quickstart` start the application as follows:
+As in the :ref:`quickstart` start the application as follows:
 
 .. sourcecode:: console
 
