@@ -8,7 +8,7 @@
 
 .. cmdoption:: --loglevel, -l
 
-    Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.
+    Logging level to use: ``CRIT|ERROR|WARN|INFO|DEBUG``.
 
 .. cmdoption:: --blocking-timeout
 
@@ -25,7 +25,7 @@
 .. cmdoption:: --console-port
 
     When :option:`faust --debug` is enabled this specifies the port
-    to run the aiomonitor console on (default is 50101).
+    to run the :pypi:`aiomonitor` console on (default is 50101).
 """
 import os
 import platform

@@ -66,7 +66,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     events, etc.
     """
 
-    #: Max number of total runtimes to keep to build average.
+    #: Max number of total run time values to keep to build average.
     max_avg_history: int = 0
 
     #: Max number of commit latency numbers to keep.
@@ -114,7 +114,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     #: Average event runtime over the last second.
     events_runtime_avg: float = None
 
-    #: List of runtimes used for averages
+    #: List of run times used for averages
     events_runtime: List[float] = None
 
     #: List of commit latency values
@@ -303,7 +303,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 class MonitorService(Service):
     """Service responsible for starting/stopping a sensor."""
 
-    # Users may pass custom monitor to app, for example:
+    # Users may pass custom monitor to app, for example::
     #     app = faust.App(monitor=StatsdMonitor(prefix='word-count'))
 
     # When they do it's important to remember that the app is created during
