@@ -17,7 +17,7 @@ class ReplyTuple(NamedTuple):
 
 
 class ReplyPromise(asyncio.Future):
-    """Reply promise can be awaited to wait until result ready."""
+    """Reply promise can be :keyword:`await`-ed to wait until result ready."""
 
     reply_to: str
     correlation_id: str

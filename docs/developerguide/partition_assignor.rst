@@ -8,7 +8,7 @@ Kafka Streams
 ==============
 
 Kafka Streams distributes work across multiple processes by using the
-consumer group protocol introduced in Kafka 0.9.0. Kafka elects 1 of the
+consumer group protocol introduced in Kafka 0.9.0. Kafka elects one of the
 consumers in the consumer group to use its partition assignment strategy to
 assign partitions to the consumers in the group. The leader gets access to
 every client's subscriptions and assigns partitions accordingly.
@@ -20,7 +20,7 @@ store replicas.
 
 The `StreamPartitionAssignor
 <https://github.com/apache/kafka/blob/trunk/streams/src/main/java/org/apache/kafka/streams/processor/internals/StreamPartitionAssignor.java>`_
-used by KafkaStreams works as follows:
+used by Kafka Streams works as follows:
 
 1. Check all repartition source topics and use internal topic manager to make
    sure they have been created with the right number of partitions.
@@ -53,20 +53,20 @@ that a task in Faust differs from a task in Kafka Streams. Further, Faust
 doesn't have the concept of a pre-defined topology and subscribes to streams as
 and when required in the application.
 
-As a result, the PartitionAssignor in Faust can get rid of steps 1 and 2
-mentioned above and rely on the primitives repartitioning streams and
+As a result, the ``PartitionAssignor`` in Faust can get rid of steps one and
+two mentioned above and rely on the primitives repartitioning streams and
 creating changelog topics to create topics with the correct number of
 partitions based on the source topics.
 
-We can largely simplify step 3 above since there is no concept of task as in
-KafkaStreams, i.e. we do not introspect the application topology to define a
+We can largely simplify step three above since there is no concept of task as in
+Kafka Streams, i.e. we do not introspect the application topology to define a
 task that would be assigned to the clients. We simply need to make sure that
 the correct partitions are assigned to the clients and the client streams and
 processors should handle dealing with the co-partitioning while processing
 the streams and forwarding data between the different processors.
 
-PartitionGrouper
-----------------
+``PartitionGrouper``
+--------------------
 
 This can be simplified immensely by grouping the same partition numbers onto
 the same clients for all topics with the same number of partitions. This way
@@ -75,14 +75,16 @@ co-partitioning (ex: in the case of joins and aggregates) as long as the
 topics have the correct number of partitions (which we are making the
 processors implicitly guarantee).
 
-StickAssignor
--------------
+``StickyAssignor``
+------------------
 
-With our simple `PartitionGrouper` we can use a StickyPartitionAssignor to
+With our simple `PartitionGrouper` we can use a ``StickyPartitionAssignor`` to
 assign partitions to the clients. However we need to explicitly handle
-standby assignments here. We use the StickPartitionAssignor design approved
-in `KIP 54 <https://cwiki.apache.org/confluence/display/KAFKA/KIP-54+-+Sticky+Partition+Assignment+Strategy>`_
-as the basis for our StickyAssignor.
+standby assignments here. We use the ``StickyPartitionAssignor`` design
+approved in `KIP-54`_ as the basis for our sticky assignor.
+
+.. _`KIP-54`:
+    https://cwiki.apache.org/confluence/display/KAFKA/KIP-54+-+Sticky+Partition+Assignment+Strategy
 
 Concerns
 ========
@@ -90,9 +92,9 @@ Concerns
 With the above design we need to be careful around the following concerns:
 
 - We need to assign a partition (where changelog) is involved to a client
-  which contains a standby replica for the given topic/parition whenever
+  which contains a standby replica for the given topic/partition whenever
   possible. This can result in unbalanced assignment. We can fix this by evenly
-  and randomly distributing stanbys such that over the long term each
+  and randomly distributing standbys such that over the long term each
   rebalance will cause the partitions being re-assigned be evenly balanced
   across all clients.
 

@@ -18,18 +18,23 @@ KStream
 
     .. sourcecode:: python
 
-        async for event in stream:
-            if event.amount >= 300.0:
-                yield event
+        @app.agent(topic)
+        async def process(stream):
+            async for event in stream:
+                if event.amount >= 300.0:
+                    yield event
 
 - ``.map()``
 
-    Just call the function you want:
+    Just call the function you want from within the
+    :keyword:`async for` iteration:
 
     .. sourcecode:: python
 
-        async for key, event in stream.items():
-            yield myfun(key, event)
+        @app.agent(Topic)
+        async def process(stream):
+            async for key, event in stream.items():
+                yield myfun(key, event)
 
 - ``.forEach()``
 
@@ -44,33 +49,42 @@ KStream
 
     .. sourcecode:: python
 
-        async for event in stream:
-            yield myfun(event)
+
+        @app.agent(topic)
+        async def process(stream):
+            async for event in stream:
+                yield myfun(event)
 
 - ``.print()``:
 
     .. sourcecode:: python
 
-        async for event in stream:
-            print(event)
+        @app.agent(topic)
+        async def process(stream):
+            async for event in stream:
+                print(event)
 
 - ``.writeAsText()``:
 
     .. sourcecode:: python
 
-        async for key, event in stream.items():
-            with open(path, 'a') as f:
-                f.write(repr(key, event))
+        @app.agent(topic)
+        async def process(stream):
+            async for key, event in stream.items():
+                with open(path, 'a') as f:
+                    f.write(repr(key, event))
 
 - ``.flatMap()``
 - ``.flatMapValues()``
 
     .. sourcecode:: python
 
-        async for event in stream:
-            # split sentences into words
-            for word in event.text.split():
-                yield event.derive(text=word)
+        @app.agent(topic)
+        async def process(stream):
+            async for event in stream:
+                # split sentences into words
+                for word in event.text.split():
+                    yield event.derive(text=word)
 
 - ``.branch()``
 
@@ -80,33 +94,47 @@ KStream
     .. sourcecode:: python
 
         app = faust.App('transfer-demo')
+
+        # source topic
+        source_topic = app.topic('transfers')
+
+        # destination topics
         tiny_transfers = app.topic('tiny_transfers')
         small_transfers = app.topic('small_transfers')
         large_transfers = app.topic('large_transfers')
 
-        async for event in stream:
-            if event.amount >= 1000.0:
-                event.forward(large_transfers)
-            elif event.amount >= 100.0:
-                event.forward(small_transfers)
-            else:
-                event.forward(tiny_transfers)
+
+        @app.agent(source_topic)
+        async def process(stream):
+            async for event in stream:
+                if event.amount >= 1000.0:
+                    event.forward(large_transfers)
+                elif event.amount >= 100.0:
+                    event.forward(small_transfers)
+                else:
+                    event.forward(tiny_transfers)
 
 - ``.through()``:
 
     .. sourcecode:: python
 
-        async for event in stream.through('topic'):
-            yield event
+        @app.agent(topic)
+        async def process(stream):
+            async for event in stream.through('other-topic'):
+                yield event
 
 - ``.to()``:
 
     .. sourcecode:: python
 
         app = faust.App('to-demo')
+        source_topic = app.topic('source')
         other_topic = app.topic('other')
-        async for event in stream:
-            event.forward(other_topic)
+
+        @app.agent(source_topic)
+        async def process(stream):
+            async for event in stream:
+                event.forward(other_topic)
 
 - ``.selectKey()``
 
@@ -114,23 +142,29 @@ KStream
 
     .. sourcecode:: python
 
-        async for key, value in stream.items():
-            key = format_key(key)
+        @app.agent(source_topic)
+        async def process(stream):
+            async for key, value in stream.items():
+                key = format_key(key)
 
     If you want to transform the key for processors to use, then you
     have to change the current context to have the new key:
 
     .. sourcecode:: python
 
-        async for event in stream:
-            event.req.key = format_key(event.req.key)
+        @app.agent(source_topic)
+        async def process(stream):
+            async for event in stream:
+                event.req.key = format_key(event.req.key)
 
 - ``groupBy()``
 
     .. sourcecode:: python
 
-        async for event in stream.group_by(Withdrawal.account):
-            yield event
+        @app.agent(source_topic)
+        async def process(stream):
+            async for event in stream.group_by(Withdrawal.account):
+                yield event
 
 - ``groupByKey()``
 

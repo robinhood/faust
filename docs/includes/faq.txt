@@ -4,66 +4,70 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use gevent/eventlet as a bridge to integrate with asyncio.
+Yes! Use :pypi:`gevent`/:pypi:`eventlet` as a bridge to integrate with
+:mod:`asyncio`.
 
-Using ``gevent``
-~~~~~~~~~~~~~~~~
+Using :pypi`gevent`
+~~~~~~~~~~~~~~~~---
 
-This works with any blocking Python library that can work with gevent.
+This works with any blocking Python library that can work with :pypi:`gevent`.
 
-Using gevent requires you to install the ``aiogevent`` module,
+Using :pypi:`gevent` requires you to install the :pypi:`aiogevent` module,
 and you can install this as a bundle with Faust:
 
 .. sourcecode:: console
 
     $ pip install -U faust[gevent]
 
-Then to actually use gevent as the event loop you have to either
-use the ``-L`` argument to the :program:`faust` program:
+Then to actually use :pypi:`gevent` as the event loop you have to either
+use the :option:`-L <faust --loop>` option to the :program:`faust` program:
 
 .. sourcecode:: console
 
     $ faust -L gevent -A myproj worker -l info
 
-or add `import mode.loop.gevent` at the top of your entrypoint script:
+or add ``import mode.loop.gevent`` at the top of your entry point script:
 
 .. sourcecode:: python
 
     #!/usr/bin/env python3
-    import mode.loop.gevent  # noqa
+    import mode.loop.gevent
 
-REMEMBER: It's very important this is at the very top of the module,
+REMEMBER: It's very important that this is at the very top of the module,
 and that it executes before you import libraries.
 
 
-Using ``eventlet``
-~~~~~~~~~~~~~~~~~~
+Using :pypi:`eventlet`
+~~~~~~~~~~~~~~~~~~----
 
-This works with any blocking Python library that can work with eventlet.
+This works with any blocking Python library that can work with
+:pypi:`eventlet`.
 
-Using eventlet requires you to install the ``aioeventlet`` module,
-and you can install this as a bundle with Faust:
+Using :pypi:`eventlet` requires you to install the :pypi:`aioeventlet` module,
+and you can install this as a bundle along with Faust:
 
 .. sourcecode:: console
 
     $ pip install -U faust[eventlet]
 
 Then to actually use eventlet as the event loop you have to either
-use the ``-L`` argument to the :program:`faust` program:
+use the :option:`-L <faust --loop>` argument to the :program:`faust` program:
 
 .. sourcecode:: console
 
     $ faust -L eventlet -A myproj worker -l info
 
-or add `import mode.loop.eventlet` at the top of your entrypoint script:
+or add ``import mode.loop.eventlet`` at the top of your entry point script:
 
 .. sourcecode:: python
 
     #!/usr/bin/env python3
     import mode.loop.eventlet  # noqa
 
-REMEMBER: It's very important this is at the very top of the module,
-and that it executes before you import libraries.
+.. warning::
+
+    It's very important this is at the very top of the module,
+    and that it executes before you import libraries.
 
 Can I use Faust with Tornado?
 -----------------------------
@@ -74,7 +78,7 @@ http://www.tornadoweb.org/en/stable/asyncio.html
 Can I use Faust with Twisted?
 -----------------------------
 
-Yes! Use the asyncio reactor implementation:
+Yes! Use the :mod:`asyncio` reactor implementation:
 https://twistedmatrix.com/documents/17.1.0/api/twisted.internet.asyncioreactor.html
 
 Will you support Python 3.5 or earlier?

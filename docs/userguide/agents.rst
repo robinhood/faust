@@ -122,6 +122,30 @@ To send values to it, you can open a second console to run this program:
 
         $ faust -A examples.agent send_value
 
+    You may specify command line arguments and options also:
+
+    .. sourcecode:: python
+
+        from faust.cli import argument, option
+
+        @app.command(
+            argument('a', type=int, help='First number to add'),
+            argument('b', type=int, help='Second number to add'),
+            option('--print/--no-print', help='Enable debug output'),
+        )
+        async def send_value(a: int, b: int, print: bool) -> None:
+            if print:
+                print(f'Sending Add({x}, {y})...')
+            print(await adding.ask(Add(a, b)))
+
+    Then pass those arguments on the command line:
+
+    .. sourcecode:: console
+
+        $ faust -A examples.agent send_value 4 8 --print
+        Sending Add(4, 8)...
+        12
+
 The :meth:`Agent.ask() <faust.Agent.ask>` method wraps the value sent in
 a special structure that includes the return address (reply-to).  When the
 agent sees this type of structure it will reply with the result yielded
@@ -246,11 +270,18 @@ The Stream
 
 The decorated function should be unary, meaning it must accept one argument.
 
-The object passed in as argument is async iterable and an instance of
-the :class:`~faust.Stream` class, created from the topic provided to the decorator.
+The object passed as argument to the agent is an async iterable :class:`~faust.Stream`
+instance, created from the topic/channel provided to the decorator:
+
+.. sourcecode:: python
+
+    @app.agent(topic_or_channel)
+    async def myagent(stream):
+        async for item in stream:
+            ...
 
 Iterating over this stream, using the :keyword:`async for`, will iterate
-over the messages in the topic.
+over the messages in the topic/channel.
 
 You can also use the Stream API, for using :meth:`~faust.Stream.group_by`
 to partition the stream differently:
@@ -276,10 +307,13 @@ to partition the stream differently:
             ...
 
 Using stream-to-stream joins with agents is a bit more tricky, considering
-that the agent always needs to have one main topic.  You may use one topic
+that the agent always needs to have one "main" topic.  You may use one topic
 as the seed and combine that with more topics, but then it will be impossible
 to communicate directly with the agent since you have to send a message to all
-the topics, and that is more than challenging:
+the topics to satisfy the join requirement, and that will not be possible
+just by sending a single value using ``stream.send``, or ``stream.ask``.
+
+For this reason you are not encouraged use joins with an agent:
 
 .. sourcecode:: python
 
@@ -288,30 +322,17 @@ the topics, and that is more than challenging:
 
     @app.agent(topic)
     async def mystream(stream):
+        # XXX This is technically not proper use of an agent,
+        # since it performs a join, but works fine as long as you don't
+        # expect to be able to use ``agent.ask``, ``agent.map`` and similar
+        # methods that wait for a reply.
         async for event in (stream & topic2.stream()).join(...):
             ...
 
-What you could do is define a separate topic for communicating with the agent:
 
-.. sourcecode:: python
-
-    topic1 = app.topic('foo1')
-    topic2 = app.topic('foo2')
-    backchannel_topic = app.topic('foo-backchannel')
-
-    @app.agent(backchannel_topic)
-    async def mystream(backchannel):
-        joined_streams = (topic1.stream() & topic2.stream()).join(...)
-        async for event in (backchannel & joined_streams):
-            if event.topic in backchannel.source.topic.topics:
-                yield 'some_reply'
-            else:
-                # handle joined stream
-
-But even when you want to remotely inquire about the state of this stream processor,
-there are better ways to do so (like using one stream processor task, and one
-agent), so agents are not the best way to process joined streams, instead you
-should use a traditional asyncio Task:
+For joins the best practice is to use the ``@app.task`` decorator
+to define a regular :class:`asyncio.Task`, to be started with the app,
+that iterates over the joined stream:
 
 .. sourcecode:: python
 
@@ -323,7 +344,6 @@ should use a traditional asyncio Task:
 .. seealso::
 
     The :ref:`guide-streams` guide for more information about streams and topics.
-
 
 .. _agent-concurrency:
 
@@ -343,10 +363,18 @@ argument.
     An agent with `concurrency > 1`, can only read from a table, never write.
 
 Here's an agent example that can safely process the stream out of order:
-whenever a new newsarticle is created something posts to the 'news' topic,
-this agent retrieves that article and stores it in a database.
+whenever a new news article is published by an author, the backend system posts
+a message to the 'news' topic in Kafka.
+
+The agent we define, consumes from this topic and
+retrieves the full article via HTTP, then stores that in a database somewhere
+(yeah, pretty contrived...):
 
 .. sourcecode:: python
+
+    class Article(faust.Record, isodates=True):
+        url: str
+        date_published: datetime
 
     news_topic = app.topic('news')
 
@@ -363,7 +391,7 @@ Sinks
 
 Sinks can be used to perform additional actions after the agent has processed
 an event in the stream, such as forwarding alerts to a monitoring system,
-logging to Slack, etc. A sink can be callable, async callable, a topic or
+logging to Slack, etc. A sink can be callable, async callable, a topic/channel or
 another agent.
 
 Function Callback
@@ -380,13 +408,13 @@ Function Callback
 
 Async Function Callback
     Async functions can also be used, in this case the async function will be
-    awaiated by the agent:
+    :keyword:`await`-ed by the agent:
 
     .. sourcecode:: python
 
         async def mysink(value):
             print(f'AGENT YIELD: {value!r}')
-            # This will force the agent instance that yielded this value
+            # OBS This will force the agent instance that yielded this value
             # to sleep for 1.0 second before continuing on the next event
             # in the stream.
             await asyncio.sleep(1)
@@ -408,7 +436,7 @@ Topic
             ...
 
 Another Agent
-    Specyfing another agent as sink will force the agent to forward yielded
+    Specifying another agent as sink will force the agent to forward yielded
     values to that agent:
 
     .. sourcecode:: python
@@ -452,7 +480,7 @@ as opposed to B waiting for A to complete).
     The agent will receive this value, but it will not send a reply.
 
 ``ask(value, *, key=None, partition=None, reply_to=None, correlation_id=None)``
-    Asking an agent will send a reply back to the current process:
+    Asking an agent will send a reply back to process that send the request:
 
     .. sourcecode:: python
 

@@ -13,11 +13,11 @@ What you must know about Apache Kafka to use Faust
     A topic is a stream name to which records are published.
     Topics in Kafka are always multi-subscriber; that is, a topic can have zero,
     one, or many consumers that subscribe to the data written to it. Topics are
-    also the base abstraction of where data lives within kafka. Each topic is
+    also the base abstraction of where data lives within Kafka. Each topic is
     backed by logs which are *partitioned* and distributed.
 
     Faust uses the abstraction of a topic to both consume data from a stream as
-    well as publish data to more streams represented by kafka topics.
+    well as publish data to more streams represented by Kafka topics.
     A Faust application needs to be consuming from at least one topic and may
     create many intermediate topics as a by product of your streaming
     application. Every topic that is not created by Faust internally can be
@@ -26,26 +26,26 @@ What you must know about Apache Kafka to use Faust
 
 **Partitions**
 
-    Partitions are the fundamental unit within kafka where data lives. Every
+    Partitions are the fundamental unit within Kafka where data lives. Every
     topic is split into one or more partitions. These partitions are
     represented internally as logs and messages always make their
     way to one partition (log). Each partition is replicated and has one leader
     at any point of time.
 
     Faust uses the notion of a partition to maintain order amongst messages and
-    as a way to split the processing of data to increasing throughput. A faust
+    as a way to split the processing of data to increasing throughput. A Faust
     application uses the notion of a "key" to make sure that messages that
     should appear together and be processed on the same box do end up on the
     same box.
 
 **Fault Tolerance**
 
-    Every partition is replicated with the total copies represented by the ISRs
-    (In Sync Replicas). Every ISR is a candidate to take over should the current
-    leader fail. The maximum number of faulty kafka brokers that can be
-    tolerated is the number of ISRs - 1. I.e if every partition has 3 replicas,
-    all fault tolerance guarantees hold as long as at least one replica is
-    functional
+    Every partition is replicated with the total copies represented by the
+    In Sync Replicas (ISR). Every ISR is a candidate to take over as new
+    leader should the current leader fail. The maximum number of faulty Kafka
+    brokers that can be tolerated is the number of ISR - 1. I.e. if every
+    partition has three replicas, all fault tolerance guarantees hold as long
+    as at least one replica is functional
 
     Faust has the same guarantees that Kafka offers with regards to fault
     tolerance of the data.
@@ -59,8 +59,8 @@ What you must know about Apache Kafka to use Faust
     parallel instances of the consumers can operate on messages.
 
     Faust uses parallel consumers and therefore is also limited by the number
-    of partitions to dictate how many concurrent faust application instances can
-    run to distribute work. Extra faust application instances beyond the source
+    of partitions to dictate how many concurrent Faust application instances can
+    run to distribute work. Extra Faust application instances beyond the source
     topic partition count will be idle and not improve message processing rates.
 
 
@@ -72,7 +72,7 @@ What you must know about Apache Kafka to use Faust
     "group". The group acts as a namespace for consumers to register to when
     multiple consumers want to share load on a single topic.
 
-    Kafka maintains processing guarantees of at least once by commiting offsets
+    Kafka maintains processing guarantees of at least once by committing offsets
     after message consumption. Once an offset has been committed at the consumer
     level, the message at that offset for the <group, topic, partition> will not
     be read again.
@@ -85,15 +85,15 @@ What you must know about Apache Kafka to use Faust
 
 **Log Compaction**
 
-    Log compaction is methodology kafka uses to make sure that as data for a key
+    Log compaction is methodology Kafka uses to make sure that as data for a key
     changes it doesn't affect the size of the log such that every state change
     is maintained for all time. Only the most recent value is guaranteed to be
     available. Periodic compaction removes all values for a key except the last
     one.
 
-    Tables in faust use log compaction to ensure table state can
+    Tables in Faust use log compaction to ensure table state can
     be recovered without a large space overhead.
 
 
-This summary and information about kafka is adapted from original documentation
-on kafka available at https://kafka.apache.org/
+This summary and information about Kafka is adapted from original documentation
+on Kafka available at https://kafka.apache.org/

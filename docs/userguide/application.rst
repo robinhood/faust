@@ -101,7 +101,7 @@ Parameters
 `id`
     :type: ``str``
 
-    A string uniquely identifiying the app, shared across all
+    A string uniquely identifying the app, shared across all
     instances such that two app instances with the same `id` is
     considered to be in the same "group".
 
@@ -121,7 +121,7 @@ Parameters
     Currently the only supported transport is the ``aiokafka://`` Kafka client.
 
     You can specify multiple hosts at the same time by separating them using
-    the semi-comma::
+    the semi-comma:
 
     .. sourcecode:: text
 
@@ -146,10 +146,10 @@ Parameters
     .. warning::
 
         The autodiscover functionality uses :pypi:`venusian` to
-        scan wanted packages for ``@app.agent``, ``@app.page``, and
-        ``@app.command`` decorators, but to do so it is required
-        to traverse the package directory and import every package
-        in them.
+        scan wanted packages for ``@app.agent``, ``@app.page``,
+        ``@app.command``, ``@app.task`` and ``@app.timer`` decorators,
+        but to do so it's required to traverse the package directory and import
+        every package in them.
 
         Importing random modules like this can be dangerous if best
         practices are not followed in user modules: starting threads,
@@ -292,7 +292,7 @@ Parameters
     :type: ``int``
     :default: ``1``
 
-    The replication factor for changlog topics and repartition topics created
+    The replication factor for changelog topics and repartition topics created
     by the application.
 
     .. note::
@@ -337,35 +337,96 @@ Parameters
     :default: ``"faust.Stream"``
 
     The :class:`~faust.Stream` class to use for streams, or the fully-qualified
-    path to one.
+    path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+
+    Example using a class::
+
+        class MyBaseStream(faust.Stream):
+            ...
+
+        app = App(..., Stream=MyBaseStream)
+
+    Example using the string path to a class::
+
+        app = App(..., Stream='myproj.streams.Stream')
 
 `Table`
     :type: ``Union[str, Type[TableT]]``
     :default: ``"faust.Table"``
 
     The :class:`~faust.Table` class to use for tables, or the fully-qualified
-    path to one.
+    path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+
+    Example using a class::
+
+        class MyBaseTable(faust.Table):
+            ...
+
+        app = App(..., Table=MyBaseTable)
+
+    Example using the string path to a class::
+
+        app = App(..., Table='myproj.tables.Table')
 
 `Set`
     :type: ``Union[str, Type[SetT]]``
     :default: ``"faust.Set"``
 
     The :class:`~faust.Set` class to use for sets, or the fully-qualified
-    path to one.
+    path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+
+    Example using a class::
+
+        class MyBaseSetTable(faust.Set):
+            ...
+
+        app = App(..., Set=MyBaseSetTable)
+
+    Example using the string path to a class::
+
+        app = App(..., Set='myproj.tables.Set')
 
 `TableManager`
     :type: ``Union[str, Type[TableManagerT]]``
     :default: ``"faust.tables.TableManager"``
 
     The :class:`~faust.tables.TableManager` used for managing tables,
-    or the fully-qualified path to one.
+    or the fully-qualified path to one (supported by
+    :func:`~faust.utils.imports.symbol_by_name`).
+
+    Example using a class::
+
+        from faust.tables import TableManager
+
+        class MyTableManager(TableManager):
+            ...
+
+        app = App(..., TableManager=MyTableManager)
+
+    Example using the string path to a class::
+
+        app = App(..., TableManager='myproj.tables.TableManager')
 
 `Serializers`
     :type: ``Union[str, Type[RegistryT]]``
     :default: ``"faust.serializers.Registry"``
 
     The :class:`~faust.serializers.Registry` class used for
-    serializing/deserializing messages; or the fully-qualified path to one.
+    serializing/deserializing messages; or the fully-qualified path
+    to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+
+    Example using a class::
+
+        from faust.serialiers import Registry
+
+        class MyRegistry(Registry):
+            ...
+
+        app = App(..., Serializers=MyRegistry)
+
+    Example using the string path to a class::
+
+        app = App(..., Serializers='myproj.serializers.Registry')
 
 Reference
 =========
@@ -406,7 +467,10 @@ Decorators
     .. automethod:: command
         :noindex:
 
-Command line
+    .. automethod:: service
+        :noindex:
+
+Command Line
 ^^^^^^^^^^^^
 
 .. class:: App
@@ -436,7 +500,7 @@ Decorator Discovery
     .. automethod:: discover
         :noindex:
 
-Creating streams
+Creating Streams
 ^^^^^^^^^^^^^^^^
 
 .. class:: App
@@ -445,7 +509,7 @@ Creating streams
     .. automethod:: stream
         :noindex:
 
-Sending messages
+Sending Messages
 ^^^^^^^^^^^^^^^^
 
 .. class:: App
@@ -454,11 +518,41 @@ Sending messages
     .. autocomethod:: send
         :noindex:
 
-Committing topic offsets
+Consumer Methods
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. class:: App
     :noindex:
 
     .. autocomethod:: commit
+        :noindex:
+
+    .. automethod:: is_leader
+        :noindex:
+
+Attributes
+----------
+
+.. class:: App
+    :noindex:
+
+    .. autoattribute:: producer
+        :noindex:
+
+    .. autoattribute:: consumer
+        :noindex:
+
+    .. autoattribute:: transport
+        :noindex:
+
+    .. autoattribute:: tables
+        :noindex:
+
+    .. autoattribute:: topics
+        :noindex:
+
+    .. autoattribute:: monitor
+        :noindex:
+
+    .. autoattribute:: client_session
         :noindex:

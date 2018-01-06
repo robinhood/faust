@@ -63,10 +63,10 @@ After :pypi:`aiomonitor` is installed you may start the worker with the
     [2018-01-04 12:41:07,638: INFO]: [^-Website]: Starting...
     [...]
 
-From the log output you can tell that the aiomonitor console was started on the
-local port 50101.  If you get a different output, such as that the port is
-already taken you can set a custom port using the :option:`--console-port
-<faust worker --console-port>`.
+From the log output you can tell that the :pypi:`aiomonitor` console was
+started on the local port 50101. If you get a different output,
+such as that the port is already taken you can set a custom port
+using the :option:`--console-port <faust worker --console-port>`.
 
 Once you have the port number, you can telnet into the console to use it:
 

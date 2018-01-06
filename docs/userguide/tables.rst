@@ -182,7 +182,7 @@ not correctly build the state of the world before the crash.
         withdrawals = user_withdrawals[event.account]
         withdrawals.append(event.amount)
 
-Due to changelogging, keys and values should be serializable.
+Due to the table topic changelog, keys and values should be serializable.
 
 .. seealso::
 
@@ -234,7 +234,7 @@ A windowed table can be defined as follows:
                 print('Trending now')
             if views[page].current(event) >= 10000:
                 # Page would be trending in the event's time window
-                print('Trending when event happend')
+                print('Trending when event happened')
             if views[page].delta(timedelta(minutes=30)) > views[page].now():
                 print('Less popular compared to 30 minutes back')
 

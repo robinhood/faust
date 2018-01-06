@@ -13,7 +13,7 @@ Module Overview
 ``faust.app``
     Defines the Faust application: configuration, sending messages, etc.
 
-``faust.bin``
+``faust.cli``
     Command-line interface.
 
 ``faust.exceptions``

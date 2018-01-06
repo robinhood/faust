@@ -343,13 +343,15 @@ mapping or list type, so use only what is found in this table.
 Automatic conversion of datetimes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Faust will automatically serialize datetimes fields to ISO-8601 string
-format, but will not automatically deserialize ISO-8601 strings to datatimes,
-as it's impossible to distinguish them from normal strings.
+Faust will automatically serialize :class:`~datetime.datetime` fields
+to ISO-8601 string format, but will not automatically deserialize ISO-8601
+strings to :class:`~datetime.datetime`, as it's impossible to distinguish
+them from normal strings.
 
-However, if you use a model with a ``datetime`` field, and enable the
+However, if you use a model with a :class:`~datetime.datetime` field, and enable the
 ``isodates`` model class setting, the model will correctly convert the strings
-to datetime objects (with timezone information if available):
+to datetime objects (with timezone information if available) when
+deserialized:
 
 .. sourcecode:: python
 
@@ -364,7 +366,7 @@ Subclassing models: Abstract model classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can mark a model class as ``abstract=True`` to create
-a model base class, that must be subclassed to create new models
+a model base class, that must be inherited from to create new models
 with common functionality.
 
 For example you may want to have a base class for all models that
@@ -477,9 +479,12 @@ Supported codecs
 ----------------
 
 * **raw**     - no encoding/serialization (bytes only).
-* **json**    - json with utf-8 encoding.
-* **pickle**  - pickle with base64 encoding (not urlsafe).
-* **binary**  - base64 encoding (not urlsafe).
+* **json**    - :mod:`json` with UTF-8 encoding.
+* **pickle**  - :mod:`pickle` with Base64 encoding (not URL-safe).
+* **binary**  - Base64 encoding (not URL-safe).
+
+An encoding is not URL-safe if the encoded payload can not be embedded
+directly in a URL query parameter.
 
 Serialization by name
 ---------------------
@@ -539,7 +544,7 @@ and ``_dumps()``:
 Our codec now encodes/decodes to raw msgpack format, but we
 may also need to transfer this payload on a transport not
 handling binary data well.  Codecs may be chained together,
-so to add a text encoding like base64, which we use in this case,
+so to add a text encoding like Base64, which we use in this case,
 we use the ``|`` operator to form a combined codec:
 
 .. sourcecode:: python
@@ -563,8 +568,8 @@ The problem with monkey-patching is that we must make sure the patching
 happens before we use the feature.
 
 Faust also supports registering *codec extensions*
-using setuptools entrypoints, so instead we can create an installable msgpack
-extension.
+using :pypi:`setuptools` entry-points, so instead we can create an installable
+msgpack extension.
 
 To do so we need to define a package with the following directory layout:
 

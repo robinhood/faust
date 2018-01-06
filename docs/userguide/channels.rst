@@ -19,13 +19,23 @@ Channels are what Faust agents (stream processors) read from.
 You don't need to know how channels work to use Faust, as agents
 work with streams, not a channel directly.
 
-``Agent`` <--> ``Stream`` <--> ``Channel`` <--> ``Transport`` <--> :pypi:`aiokafka`
+.. topic:: \
+
+    Streams read from channels (either a local-channel or a topic).
+
+    Channels are local:
+
+    ``Agent`` <--> ``Stream`` <--> ``Channel``
+
+    Topics are backed by a transport (to use e.g. Kafka topics):
+
+    ``Agent`` <--> ``Stream`` <--> ``Topic`` <--> ``Transport`` <--> :pypi:`aiokafka`
 
 The agent reads from the stream, the stream reads events from a channel,
 and the channel is populated with messages from a message transport,
 where the message transport may range from everything from in-memory (pure
-channels), or to reading from a Kafka topic, using ``app.topic(name)`` which
-is also a type of channel.
+channels), or to reading from a Kafka topic (using ``app.topic(name)`` which
+is also a type of channel).
 
 These are all just layers of abstraction used so
 that agents can send and receive messages using more than one type of
@@ -88,6 +98,9 @@ Declaring
     to be created.  Faust will usually declare channels/topics that are used
     internally, but will not declare topics considered as "source topics",
     that is topics exposed for use by Kafka applications by other systems.
+
+    To define a topic as internal use
+    ``app.topic('name', ..., internal=True)``.
 
 .. class:: Channel
     :noindex:

@@ -322,7 +322,7 @@ always use the ``--rebase`` option to ``git pull``:
 
 .. sourcecode:: console
 
-    git pull --rebase upstream master
+    $ git pull --rebase upstream master
 
 With this option you don't clutter the history with merging
 commit notes. See `Rebasing merge commits in git`_.
@@ -330,9 +330,11 @@ If you want to learn more about rebasing see the `Rebase`_
 section in the GitHub guides.
 
 If you need to work on a different branch than the one git calls ``master``, you can
-fetch and checkout a remote branch like this::
+fetch and checkout a remote branch like this:
 
-    git checkout --track -b 2.0-devel origin/2.0-devel
+.. sourcecode:: console
+
+    $ git checkout --track -b 2.0-devel origin/2.0-devel
 
 .. _`Fork a Repo`: http://help.github.com/fork-a-repo/
 .. _`Rebasing merge commits in git`:

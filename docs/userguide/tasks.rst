@@ -18,8 +18,9 @@ Tasks
 =====
 
 Your application will have agents that process events in streams, but
-your application can also start asyncio.Tasks that do other things, like periodic timers,
-views for the embedded web server, or additional command-line commands.
+your application can also start :class:`asyncio.Task`-s that do other things,
+like periodic timers, views for the embedded web server, or additional
+command-line commands.
 
 Decorating an async function with the `@app.task` decorator will
 tell the worker to start that function as soon as the worker is fully
@@ -59,7 +60,7 @@ after the worker is started and fully operational.
 Web Views
 =========
 
-The Faust worker also exposes a webserver on every instance,
+The Faust worker also exposes a web server on every instance,
 and this server will by default be running on port 6066,
 so after starting a worker instance on your local machine:
 
@@ -74,7 +75,7 @@ to be presented with statistics about your running instance:
 
     http://localhost:6066
 
-Your app may also add additional views to be exposed by the webserver.
+Your app may also add additional views to be exposed by the web server.
 The server is using :pypi:`aiohttp` by default, but you may implement
 additional web server drivers should you want to use something different.
 
@@ -177,7 +178,7 @@ CLI Commands
 As you may already know, you can make your app into an executable, that
 can start Faust workers, list agents, models and more.
 
-The :program:`faust` command is always avaialable, and you can point it to any
+The :program:`faust` command is always available, and you can point it to any
 app:
 
 .. sourcecode:: console
@@ -190,9 +191,10 @@ To get a list of subcommands supported by the app, you can execute:
 
     $ faust -A myapp --help
 
-To turn your script into the faust command, with the app already set.
-For example for :file:`examples/simple.py` in the Faust distribution,
-you can add the following to the end:
+To turn your script into the :program:`faust` command, with the
+:option:`-A <faust -A>` option already set.
+For example for the :file:`examples/simple.py` example in the Faust distribution,
+you can append the following to the end of the file:
 
 .. sourcecode:: python
 

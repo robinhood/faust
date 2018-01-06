@@ -29,7 +29,7 @@ be active until you do.
 
 When iterated over the stream produces :ref:`events <stream-events>`.
 
-An event can either be a deserialized :class:`~faust.models.base.Model`,:
+An event can either be a :class:`~faust.Model` instance,:
 
 .. sourcecode:: python
 

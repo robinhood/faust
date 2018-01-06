@@ -130,7 +130,7 @@ directly send these views to the topic ``page_views`` defined above.
     $ faust -A page_views send page_views '{"id": "foo", "user": "bar"}'
 
 Now let us look at the changelog topic to see the counts. To look at the
-changelog topic we will use the kafka console consumer.
+changelog topic we will use the Kafka console consumer.
 
 .. sourcecode:: console
 

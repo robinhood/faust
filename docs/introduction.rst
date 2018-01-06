@@ -225,10 +225,11 @@ Design considerations
 =====================
 
 Modern Python
-    Faust uses modern Python 3 features such as ``async``/``await`` and type
-    annotations. It's statically typed and verified by the `mypy`_
-    type checker. You can take advantage of type annotations when writing
-    Faust applications, but this is not mandatory.
+    Faust uses modern Python 3 features such as
+    :keyword:`async`/:keyword:`await` and type annotations. It's statically
+    typed and verified by the `mypy`_ type checker. You can take advantage of
+    type annotations when writing Faust applications, but
+    this is not mandatory.
 
 Library
     Faust is designed to be used as a library, and embeds into

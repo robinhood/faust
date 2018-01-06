@@ -117,7 +117,7 @@ if typing.TYPE_CHECKING:
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
     from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
-    from .models import ModelOptions, Record                    # noqa: E402
+    from .models import Model, ModelOptions, Record             # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
     from .serializers import Codec                              # noqa: E402
     from .streams.stream import Stream, StreamT, current_event  # noqa: E402
@@ -137,7 +137,7 @@ __all__ = [
     'ChannelT',
     'Event',
     'EventT',
-    'ModelOptions', 'Record',
+    'Model', 'ModelOptions', 'Record',
     'Monitor',
     'Sensor',
     'Codec',
