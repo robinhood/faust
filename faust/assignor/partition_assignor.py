@@ -45,6 +45,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _table_manager: TableManagerT
     _member_urls: MutableMapping[str, str]
     _changelog_distribution: HostToPartitionMap
+    _active_tps: Set[TP]
+    _standby_tps: Set[TP]
     _tps_url: MutableMapping[TP, str]
 
     def __init__(self, app: AppT, replicas: int = 0) -> None:
@@ -56,6 +58,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self.replicas = replicas
         self._member_urls = {}
         self._tps_url = {}
+        self._active_tps = set()
+        self._standby_tps = set()
 
     @property
     def changelog_distribution(self) -> HostToPartitionMap:
@@ -88,6 +92,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         metadata = cast(ClientMetadata,
                         ClientMetadata.loads(assignment.user_data))
         self._assignment = metadata.assignment
+        self._active_tps = self._assignment.active_tps
+        self._standby_tps = self._assignment.standby_tps
         self.changelog_distribution = metadata.changelog_distribution
         a = sorted(assignment.assignment)
         b = sorted(self._assignment.kafka_protocol_assignment(
@@ -270,3 +276,9 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     def key_store(self, topic: str, key: bytes) -> URL:
         return URL(self._tps_url[self.app.producer.key_partition(topic, key)])
+
+    def is_active(self, tp: TP) -> bool:
+        return tp in self._active_tps
+
+    def is_standby(self, tp: TP) -> bool:
+        return tp in self._standby_tps
