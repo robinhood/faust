@@ -24,7 +24,7 @@ __all__ = ['WindowSet', 'WindowWrapper']
 class WindowSet(WindowSetT, FastUserDict):
     """Represents the windows available for table key.
 
-    ``Table[k]`` returns WinowSet since ``k`` can exist in multiple
+    ``Table[k]`` returns WindowSet since ``k`` can exist in multiple
     windows, and to retrieve an actual item we need a timestamp.
 
     The timestamp of the current event (if this is executing in a stream
