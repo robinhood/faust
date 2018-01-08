@@ -35,12 +35,14 @@ __all__ = [
     'WindowSetT',
     'WindowWrapperT',
     'ChangelogReaderT',
+    'ChangelogEventCallback',
     'CollectionTps',
 ]
 
 
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
+ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
 RelativeArg = Union[FieldDescriptorT, RelativeHandler, datetime, float]
 
 
@@ -55,6 +57,7 @@ class CollectionT(JoinableT, ServiceT):
     partitions: int
     window: WindowT = None
     help: str
+    recovery_buffer_size: int
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -69,6 +72,8 @@ class CollectionT(JoinableT, ServiceT):
                  changelog_topic: TopicT = None,
                  help: str = None,
                  on_recover: RecoverCallback = None,
+                 on_changelog_event: ChangelogEventCallback = None,
+                 recovery_buffer_size: int = 1000,
                  **kwargs: Any) -> None:
         ...
 
@@ -103,6 +108,10 @@ class CollectionT(JoinableT, ServiceT):
 
     @abc.abstractmethod
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_changelog_event(self, event: EventT) -> None:
         ...
 
     @abc.abstractmethod

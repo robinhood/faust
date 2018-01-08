@@ -203,7 +203,8 @@ class ChangelogReader(Service, ChangelogReaderT):
         try:
             async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
-                if len(buf) >= 1000:
+                await self.table.on_changelog_event(event)
+                if len(buf) >= self.table.recovery_buffer_size:
                     self.table.apply_changelog_batch(buf)
                     buf.clear()
                 if self._should_stop_reading():

@@ -19,7 +19,9 @@ from ..types import (
 from ..types.models import ModelArg, ModelT
 from ..types.stores import StoreT
 from ..types.streams import JoinableT, StreamT
-from ..types.tables import CollectionT, RecoverCallback, RelativeHandler
+from ..types.tables import (
+    ChangelogEventCallback, CollectionT, RecoverCallback, RelativeHandler,
+)
 from ..types.windows import WindowRange, WindowT
 
 __all__ = ['Collection']
@@ -64,6 +66,8 @@ class Collection(Service, CollectionT):
                  changelog_topic: TopicT = None,
                  help: str = None,
                  on_recover: RecoverCallback = None,
+                 on_changelog_event: ChangelogEventCallback = None,
+                 recovery_buffer_size: int = 1000,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -76,6 +80,8 @@ class Collection(Service, CollectionT):
         self.window = window
         self.changelog_topic = changelog_topic
         self.help = help
+        self._on_changelog_event = on_changelog_event
+        self.recovery_buffer_size = recovery_buffer_size
 
         # Table key expiration
         self._timestamp_keys = defaultdict(set)
@@ -301,6 +307,10 @@ class Collection(Service, CollectionT):
 
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self.data.on_partitions_revoked(self, revoked)
+
+    async def on_changelog_event(self, event: EventT) -> None:
+        if self._on_changelog_event:
+            await self._on_changelog_event(event)
 
     @property
     def label(self) -> str:
