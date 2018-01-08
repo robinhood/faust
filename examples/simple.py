@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from itertools import count
 import faust
 from faust.cli import option
+from faust.types import EventT
+
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
@@ -40,8 +42,13 @@ app = faust.App(
 )
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
+
+async def print_key_value(event: EventT) -> None:
+    print(f'{event.key}{type(event.key)}:{event.value}{type(event.value)}')
+
 user_to_total = app.Table(
-    'user_to_total', default=int).tumbling(3600).relative_to_stream()
+    'user_to_total', default=int, on_changelog_event=print_key_value,
+).tumbling(3600).relative_to_stream()
 country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
 
