@@ -219,8 +219,20 @@ A windowed table can be defined as follows:
 .. sourcecode:: python
 
     from datetime import timedelta
-    views = app.Table('views', default=int).tumbling(timedelta(minutes=1),
-        expires=timedelta(hours=1))
+    views = app.Table('views', default=int).tumbling(
+        timedelta(minutes=1),
+        expires=timedelta(hours=1),
+    )
+
+
+A windowed table returns a special wrapper for ``table[k]``, called a
+``WindowSet``, since ``k`` can exist in multiple windows at once.
+
+
+Let's show an example of a windowed table in use:
+
+
+.. sourcecode:: python
 
     events_topic = app.topic('events_elk', value_type=Event)
 
@@ -228,7 +240,10 @@ A windowed table can be defined as follows:
     async def aggregate_page_views(events):
         async for event in events:
             page = event.page
+
+            # increment one to all windows this event falls into.
             views[page] += 1
+
             if views[page].now() >= 10000:
                 # Page is trending for current processing time window
                 print('Trending now')
@@ -237,6 +252,56 @@ A windowed table can be defined as follows:
                 print('Trending when event happened')
             if views[page].delta(timedelta(minutes=30)) > views[page].now():
                 print('Less popular compared to 30 minutes back')
+
+
+In this table, the time is relative to the event being currently processed,
+as is the default, but you can also make the ``current()`` value be relative to
+the current time, or of another event.
+
+The default is equivalent to:
+
+.. sourcecode:: python
+
+    views = app.Table('views', default=int).tumbling(...).relative_to_stream()
+
+Where ``.relative_to_stream()`` means values are selected based on the window
+of the current event in the currently processing stream.
+
+You can also use ``.relative_to_now()``, which means the window of the current
+local time is used instead:
+
+.. sourcecode:: python
+
+    views = app.Table('views', default=int).tumbling(...).relative_to_now()
+
+If your stream events has a different timestamp field that you would like to
+use, then use ``relative_to_field(field_descriptor)``, which means the window
+of a field in the current event, in the currently processing stream will be
+used:
+
+    views = app.Table('views', default=int) \
+        .tumbling(...) \
+        .relative_to_field(Account.date_created)
+
+Now when accessing data in the table you can choose the ``.current()`` based
+on your selected default relative to option:
+
+.. sourcecode:: python
+
+    @app.agent(topic)
+    async def process(stream):
+        async for event in stream:
+            # Get latest value for key', based on the tables default
+            # relative to option.
+            print(table[key].current())
+
+            # You can bypass the default relative to option, and
+            # get the value closest to the current local time
+            print(table[key].now())
+
+            # Or get the value for a delta, e.g. 30 seconds ago
+            print(table[key].delta(30))
+
 
 Out of Order Events
 -------------------
@@ -248,8 +313,3 @@ aggregates for each window in the last ``expires`` seconds. The space
 complexity for handling out of order events is ``O(w * K)`` where ``w`` is
 the number of windows in the last ``expires`` seconds and ``K`` is the number
 of keys in the Table.
-
-.. note::
-
-    Currently we use the event timestamp for Windowing. We expect to support
-    using processing time and timestamp from the message payload for Windowing.
