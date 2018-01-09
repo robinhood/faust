@@ -28,7 +28,7 @@ To create a table use ``app.Table``:
 You cannot modify a table outside of a stream operation; this means that you can
 only mutate the table from within an ``async for event in stream:`` block.
 We require this to align the table's partitions with the stream's, and to
-ensure the source topic partitions are correctly rebalanced to a differento
+ensure the source topic partitions are correctly rebalanced to a different
 worker upon failure, along with any necessary table partitions.
 
 .. sourcecode:: python
