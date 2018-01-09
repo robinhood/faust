@@ -46,23 +46,29 @@ This source-topic-event to table-modification-event requirement also ensures
 that producing to the changelog and committing messages from the source
 happen simultaneously.
 
-.. note::
+.. warning::
 
-    In Kafka 0.10.x we can have a case where changelog messages are produced
-    but the source topic is not committed due to failures. This will result
-    in inconsistencies in accordance with Kafka's at-least once guarantees.
-    This is expected to be fixed with Kafka 0.11.0 which allows for stronger
-    consistency guarantees owing to exactly-once-semantics.
+
+    An abruptly terminated Faust worker can allow some changelog entries
+    to go through, before having committed the source topic offsets.
+
+    Duplicate messages may result in double-counting and other data
+    consistency issues, so we are hoping to take advantage of Kafka 0.11's
+    stronger consistency guarantees and new "exactly-once"-semantics features
+    soon.
 
 Co-partitioning Tables and Streams
 ----------------------------------
 
-Faust uses co-partitioning of stream partitions and their corresponding
-changelog partitions in order to ensure correct distribution of stateful
-processing among available clients. Therefore tables
-should be sharded according to the stream. If a table needs to be sharded
-differently, we should repartition the stream using :class:`~@Stream.group_by`
-as follows:
+When managing stream partitions and their corresponding changelog
+partitions, “co-partitioning” ensures the correct distribution of stateful
+processing among available clients, but one requirement is that tables and
+streams must share shards.
+
+To shard the table differently, you must first repartition the stream using
+:class:`~@Stream.group_by`.
+
+Repartion a stream:
 
 .. sourcecode:: python
 
@@ -79,9 +85,9 @@ as follows:
         async for withdrawal in withdrawals.group_by(Withdrawal.country):
             country_to_total[withdrawal.country] += withdrawal.amount
 
-Without co-partitioning Stream and Table partitions, we could end up with a
+If the stream and table are not co-partitioned, we could end up with a
 table shard ending up on a different worker than the worker processing its
-corresponding Stream partition.
+corresponding stream partition.
 
 .. note::
 
@@ -91,12 +97,12 @@ corresponding Stream partition.
 Table Sharding
 --------------
 
-Tables shall be sharded such that the key distribution across Kafka
-partitions is disjoint. This ensures that all computation for a subset of
-keys happen together in the same worker process.
+Tables shards in Kafka must organize using a disjoint distribution of keys
+so that any computation for a subset of keys always happen together in the
+same worker process.
 
-The following is an example of incorrect usage which may result in key
-subsets across partitions being disjoint.
+The following is an example of incorrect usage where subsets of keys are
+likely to be processed by different worker processes:
 
 .. sourcecode:: python
 

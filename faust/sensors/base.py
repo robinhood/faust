@@ -46,7 +46,7 @@ class Sensor(SensorT, Service):
         Notes:
             Acknowledged means a stream finished processing the event, but
             given that multiple streams may be handling the same event,
-            the message can not be committed before all streams have
+            the message cannot be committed before all streams have
             processed it.  When all streams have acknowledged the event,
             it will go through :meth:`on_message_out` just before offsets
             are committed.

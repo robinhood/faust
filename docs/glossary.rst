@@ -48,7 +48,7 @@ Glossary
         Since streams are infinite a task will usually not end unless
         the program is shut down.
 
-        A task is also a unit for concurrency, so a task can not execute
+        A task is also a unit for concurrency, so a task cannot execute
         on multiple threads.
 
     thread safe

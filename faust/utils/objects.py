@@ -47,7 +47,7 @@ TUPLE_TYPES: Tuple[Type, ...] = cast(Tuple[Type, ...], (Tuple,))
 class Unordered(Generic[_T]):
     """Shield object from being ordered in heapq/``__le__``/etc."""
 
-    # Used to put anything inside a heapq, even things that can not be ordered
+    # Used to put anything inside a heapq, even things that cannot be ordered
     # like dicts and lists.
 
     def __init__(self, value: _T) -> None:

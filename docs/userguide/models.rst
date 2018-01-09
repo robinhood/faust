@@ -372,15 +372,11 @@ deserialized:
 Subclassing models: Abstract model classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To create a model base class, with common functionality used to create new
-models, define it with ``abstract=True``.
+You can mark a model class as ``abstract=True`` to create a model base class,
+that you must inherit from to create new models having common functionality.
 
-You can mark a model class as ``abstract=True`` to create
-a model base class, that must be inherited from to create new models
-with common functionality.
-
-For example you may want to have a base class for all models that
-have creation and updated at times:
+For example, you may want to have a base class for all models that
+have fields for time of creation, and time last created.
 
 .. sourcecode:: python
 
@@ -388,9 +384,7 @@ have creation and updated at times:
         time_created: float = None
         time_updated: float = None
 
-
-This "abstract" class can not be used as a model, it can only be used to
-create new models:
+An “abstract” class is only used to create new models:
 
 .. sourcecode:: python
 
@@ -404,11 +398,11 @@ create new models:
 Positional Arguments
 ~~~~~~~~~~~~~~~~~~~~
 
-Models may also be instantiated using positional arguments,
-so ``Point(x=10, y=30)`` may also be expressed as ``Point(10, 30)``.
+You can also create model values using positional arguments,
+meaning that ``Point(x=10, y=30)`` can also be expressed as ``Point(10, 30)``.
 
 The ordering of fields in positional arguments gets tricky when you
-add subclasses into the mix.  In that case the ordering is decided by the method
+add subclasses to the mix.  In that case, the ordering is decided by the method
 resolution order, as demonstrated by this example:
 
 .. sourcecode:: python
@@ -493,28 +487,30 @@ Supported codecs
 * **pickle**  - :mod:`pickle` with Base64 encoding (not URL-safe).
 * **binary**  - Base64 encoding (not URL-safe).
 
-An encoding is not URL-safe if the encoded payload can not be embedded
-directly in a URL query parameter.
+Encodings are not URL-safe if the encoded payload cannot be embedded
+directly into a URL query parameter.
 
 Serialization by name
 ---------------------
 
-The func:`dumps` function takes a codec name and the object to encode,
-the return value is bytes:
+The :func:`dumps` function takes a codec name and the object to encode as arguments,
+and returns bytes
 
 .. sourcecode:: pycon
 
     >>> s = dumps('json', obj)
 
-For the reverse direction, the func:`loads` function takes a codec
-name and an encoded payload to decode (bytes):
+In reverse direction, the :func:`loads` function takes a codec name and
+an encoded payload to decode (in bytes), as arguments, and returns a
+reconstruction of the serialized object:
 
 .. sourcecode:: pycon
 
     >>> obj = loads('json', s)
 
-You can also combine encoders in the name, like in this case
-where json is combined with gzip compression:
+When passing in the codec type as a string (as in ``loads('json', ...)`` above), you can also
+combine multiple codecs to form a pipeline, for example ``"json|gzip"`` combines JSON
+serialization with gzip compression:
 
 .. sourcecode:: pycon
 
@@ -523,19 +519,19 @@ where json is combined with gzip compression:
 Codec registry
 --------------
 
-Codecs are configured by name and the :mod:`faust.serializers.codecs` module
-maintains a mapping from name to :class:`Codec` instance: the :attr:`codecs`
-attribute.
+All codecs have a name and the :attr:`faust.serializers.codecs` attribute
+maintains a mapping from name to :class:`Codec` instance.
 
-You can add a new codec to this mapping by:
+You can add a new codec to this mapping by executing:
 
 .. sourcecode:: pycon
 
     >>> from faust.serializers import codecs
     >>> codecs.register(custom, custom_serializer())
 
-A codec subclass requires two methods to be implemented: ``_loads()``
-and ``_dumps()``:
+To create a new codec, you need to define only two methods: first
+you need the ``_loads()`` method to deserialize bytes, then you need
+the ``_dumps()`` method to serialize an object:
 
 .. sourcecode:: python
 
@@ -551,11 +547,13 @@ and ``_dumps()``:
         def _loads(self, s: bytes) -> Any:
             return msgpack.loads(s)
 
-Our codec now encodes/decodes to raw msgpack format, but we
-may also need to transfer this payload on a transport not
-handling binary data well.  Codecs may be chained together,
-so to add a text encoding like Base64, which we use in this case,
-we use the ``|`` operator to form a combined codec:
+We use ``msgpack.dumps`` to serialize, and our codec now encodes
+to raw msgpack format in binary. We may have to write
+this payload to somewhere unable to handle binary data well,
+to solve that we combine the codec with Base64 encoding to convert
+the binary to text.
+
+Combining codecs is easy using the ``|`` operator:
 
 .. sourcecode:: python
 
@@ -564,7 +562,7 @@ we use the ``|`` operator to form a combined codec:
 
     codecs.register('msgpack', msgpack())
 
-At this point we monkey-patched Faust to support
+At this point, we monkey-patched Faust to support
 our codec, and we can use it to define records:
 
 .. sourcecode:: pycon
@@ -578,10 +576,10 @@ The problem with monkey-patching is that we must make sure the patching
 happens before we use the feature.
 
 Faust also supports registering *codec extensions*
-using :pypi:`setuptools` entry-points, so instead we can create an installable
+using :pypi:`setuptools` entry-points, so instead, we can create an installable
 msgpack extension.
 
-To do so we need to define a package with the following directory layout:
+To do so, we need to define a package with the following directory layout:
 
 .. sourcecode:: text
 
@@ -589,7 +587,7 @@ To do so we need to define a package with the following directory layout:
         setup.py
         faust_msgpack.py
 
-The first file, :file:`faust-msgpack/setup.py`, defines metadata about our
+The first file (:file:`faust-msgpack/setup.py`) defines metadata about our
 package and should look like the following example:
 
 .. sourcecode:: python
@@ -619,8 +617,8 @@ package and should look like the following example:
 The most important part being the ``entry_points`` key which tells
 Faust how to load our plugin. We have set the name of our
 codec to ``msgpack`` and the path to the codec class
-to be ``faust_msgpack:msgpack``. This will be imported by Faust
-as ``from faust_msgpack import msgpack``, so we need to define
+to be ``faust_msgpack:msgpack``. Faust imports this as it would
+``from faust_msgpack import msgpack``, so we need to define
 that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
 
 .. sourcecode:: python
@@ -636,11 +634,11 @@ that part next in our :file:`faust-msgpack/faust_msgpack.py` module:
     def msgpack() -> codecs.Codec:
         return raw_msgpack() | codecs.binary()
 
-That's it! To install and use our new extension we do:
+That's it! To install and use our new extension do:
 
 .. sourcecode:: console
 
     $ python setup.py install
 
-At this point you could publish this on PyPI to share
-the extension with other Faust users.
+At this point you can publish this to PyPI so it can be shared
+amongst other Faust users.
