@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Python Stream processing."""
-# :copyright: (c) 2017, Robinhood Markets
+# :copyright: (c) 2017-2018, Robinhood Markets
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
 
@@ -10,8 +10,8 @@
 
 # If you are here to read the code, we suggest you start with:
 #
-#  faust/app.py            - Configures the Faust instance.
-#  faust/channels.py       - Agents and streams receive messages on channels.
+#  faust/app.py            - Faust Application
+#  faust/channels.py       - Channels for communication.
 #  faust/topics.py         - A topic is a named channel (e.g. a Kafka topic)
 #  faust/streams/stream.py - The stream iterates over events in a channel.
 #  faust/tables.py         - Data is stored in tables.

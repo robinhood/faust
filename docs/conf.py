@@ -15,7 +15,7 @@ globals().update(conf.build_config(
     canonical_url='http://docs.fauststream.com',
     webdomain='',
     github_project='fauststream/faust',
-    copyright='2017',
+    copyright='2017-2018',
     html_logo='images/logo.png',
     html_favicon='images/favicon.ico',
     html_prepend_sidebars=[],
