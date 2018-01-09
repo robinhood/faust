@@ -10,7 +10,7 @@
 
 .. contents::
     :local:
-    :depth: 1
+    :depth: 3
 
 .. _application-basics:
 
@@ -98,335 +98,379 @@ the size of available memory.
 Parameters
 ----------
 
-`id`
-    :type: ``str``
+``id``
+~~~~~~
 
-    A string uniquely identifying the app, shared across all
-    instances such that two app instances with the same `id` are
-    considered to be in the same "group".
+:type: ``str``
 
-    This parameter is required.
+A string uniquely identifying the app, shared across all
+instances such that two app instances with the same `id` are
+considered to be in the same "group".
 
-    .. admonition:: The id and Kafka
+This parameter is required.
 
-        When using Kafka, the id is used to generate app-local topics, and
-        names for consumer groups, etc.
+.. admonition:: The id and Kafka
 
-`url`
-    :type: ``str``
-    :default: ``"aiokafka://localhost:9092"``
+    When using Kafka, the id is used to generate app-local topics, and
+    names for consumer groups, etc.
 
-    Faust needs the URL of a "transport" to send and receive messages.
+``url``
+~~~~~~~
 
-    Currently, the only supported transport is the ``aiokafka://`` Kafka client.
+:type: ``str``
+:default: ``"aiokafka://localhost:9092"``
 
-    You can specify multiple hosts at the same time by separating them using
-    the semi-comma:
+Faust needs the URL of a "transport" to send and receive messages.
 
-    .. sourcecode:: text
+Currently, the only supported transport is the ``aiokafka://`` Kafka client.
 
-        aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
+You can specify multiple hosts at the same time by separating them using
+the semi-comma:
 
-`store`
-    :type: ``str``
-    :default: ``memory://``
+.. sourcecode:: text
 
-    The backend used for table storage.
-    Tables are stored in-memory only by default, but you should
-    only used this for testing and development purposes.
+    aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
-    In production, a persistent table store, such as ``rocksdb://`` is
-    preferred.
+``store``
+~~~~~~~~~
 
-`autodiscover`
-    :type: ``Union[bool, Iterable[str], Callable[[], Iterable[str]]]``
+:type: ``str``
+:default: ``memory://``
 
-    Enable autodiscovery of agent, page and command decorators.
+The backend used for table storage.
+Tables are stored in-memory only by default, but you should
+only used this for testing and development purposes.
 
-    .. warning::
+In production, a persistent table store, such as ``rocksdb://`` is
+preferred.
 
-        The autodiscovery functionality uses :pypi:`Venusian` to
-        scan wanted packages for ``@app.agent``, ``@app.page``,
-        ``@app.command``, ``@app.task`` and ``@app.timer`` decorators,
-        but to do so, it's required to traverse the package directory and import
-        every package in them.
+``autodiscover``
+~~~~~~~~~~~~~~~~
 
-        Importing random modules like this can be dangerous if you don't
-        follow best practices for user modules:
-        do not start threads, perform network I/O, do monkey-patching, or similar,
-        as a side effect of importing a module.
+:type: ``Union[bool, Iterable[str], Callable[[], Iterable[str]]]``
 
-    The value for this argument can be:
+Enable autodiscovery of agent, page and command decorators.
 
-    ``bool``
-        If ``App(autodiscover=True)`` is set, the autodiscovery will
-        scan the package name described in the ``origin`` attribute.
-        The ``origin`` attribute is automatically set when you start
-        a worker using the :program:`faust` command and the
-        :option:`-A examples.simple <faust -A>`, option set, or
-        execute your main script using `python examples/simple.py`` when
-        that script calls ``app.main()``.
+.. warning::
 
-    ``Sequence[str]``
-        The argument can also be a list of packages to scan::
+    The autodiscovery functionality uses :pypi:`Venusian` to
+    scan wanted packages for ``@app.agent``, ``@app.page``,
+    ``@app.command``, ``@app.task`` and ``@app.timer`` decorators,
+    but to do so, it's required to traverse the package directory and import
+    every package in them.
 
-            app = App(..., autodiscover=['proj_orders', 'proj_accounts'])
+    Importing random modules like this can be dangerous if you don't
+    follow best practices for user modules:
+    do not start threads, perform network I/O, do monkey-patching, or similar,
+    as a side effect of importing a module.
 
-    ``Callable[[], Sequence[str]]``
-        The argument can also be a function returning a list of packages
-        to scan::
+The value for this argument can be:
 
-            def get_all_packages_to_scan():
-                return ['proj_orders', 'proj_accounts']
+``bool``
+    If ``App(autodiscover=True)`` is set, the autodiscovery will
+    scan the package name described in the ``origin`` attribute.
+    The ``origin`` attribute is automatically set when you start
+    a worker using the :program:`faust` command and the
+    :option:`-A examples.simple <faust -A>`, option set, or
+    execute your main script using `python examples/simple.py`` when
+    that script calls ``app.main()``.
 
-             app = App(..., autodiscover=get_all_packages_to_scan)
+``Sequence[str]``
+    The argument can also be a list of packages to scan::
 
-    .. admonition:: Django
+        app = App(..., autodiscover=['proj_orders', 'proj_accounts'])
 
-        If you're using Django you can use this to scan for
-        agents/pages/commands in all packages defined in ``INSTALLED_APPS``::
+``Callable[[], Sequence[str]]``
+    The argument can also be a function returning a list of packages
+    to scan::
 
-            from django.conf import settings
+        def get_all_packages_to_scan():
+            return ['proj_orders', 'proj_accounts']
 
-            app = App(..., autodiscover=lambda: settings.INSTALLED_APPS)
+        app = App(..., autodiscover=get_all_packages_to_scan)
 
-        If you're using a recent version of Django, where apps can
-        be defined in app configs, use the following
-        instead::
+.. admonition:: Django
 
-            from django.apps import apps
+    If you're using Django you can use this to scan for
+    agents/pages/commands in all packages defined in ``INSTALLED_APPS``::
 
-            app = App(...,
-                      autodiscover=(config.name
-                                    for config in apps.get_app_configs())
+        from django.conf import settings
 
-        We use :keyword:`lambda` in the first example, and a generator
-        expression in the latter example. This way you can safely import the
-        module containing this app, without forcing the Django settings machinery
-        to be initialized (i.e. settings imported).
+        app = App(..., autodiscover=lambda: settings.INSTALLED_APPS)
 
-    .. tip::
+    If you're using a recent version of Django, where apps can
+    be defined in app configs, use the following
+    instead::
 
-        For manual control over autodiscovery, you can also call the
-        :meth:`@discover` method, manually.
+        from django.apps import apps
 
-`canonical_url`
-    :type:  ``str``
-    :default: ``socket.gethostname()``
+        app = App(...,
+                  autodiscover=(config.name
+                                for config in apps.get_app_configs())
 
-    You shouldn't have to set this manually.
+    We use :keyword:`lambda` in the first example, and a generator
+    expression in the latter example. This way you can safely import the
+    module containing this app, without forcing the Django settings machinery
+    to be initialized (i.e. settings imported).
 
-    The canonical URL defines how to reach the web server on a running
-    worker node, and is usually set by combining the :option:`faust worker --web-host`
-    and :option:`faust worker --web-port` command line arguments, not
-    by passing it as a keyword argument to :class:`App`.
+.. tip::
 
+    For manual control over autodiscovery, you can also call the
+    :meth:`@discover` method, manually.
 
-`client_id`
-    :type: ``str``
-    :default: ``faust-VERSION``
+``canonical_url``
+~~~~~~~~~~~~~~~~~
 
-    You shouldn't have to set this manually.
+:type:  ``str``
+:default: ``socket.gethostname()``
 
-    The client id is used to identify the software used, and is not usually
-    configured by the user.
+You shouldn't have to set this manually.
 
-`datadir`
-    :type: ``Union[str, pathlib.Path]``
-    :default: ``{appid}-data``
+The canonical URL defines how to reach the web server on a running
+worker node, and is usually set by combining the :option:`faust worker --web-host`
+and :option:`faust worker --web-port` command line arguments, not
+by passing it as a keyword argument to :class:`App`.
 
-    The directory in which this instance stores local table data, etc.
 
-    .. seealso::
+``client_id``
+~~~~~~~~~~~~~
 
-        Can also be set this using :option:`faust --datadir` option, but a default
-        can be passed as a keyword argument to :class:`App`.
+:type: ``str``
+:default: ``faust-VERSION``
 
-`commit_interval`
-    :type: `float`, :class:`~datetime.timedelta`
-    :default: ``3.0``
+You shouldn't have to set this manually.
 
-    How often we commit messages that have been fully processed (:term:`acked`).
+The client id is used to identify the software used, and is not usually
+configured by the user.
 
-`table_cleanup_interval`
-    :type: `float`, :class:`~datetime.timedelta`
-    :default: ``30.0``
+``datadir``
+~~~~~~~~~~~
 
-    How often we cleanup tables to remove expired entries.
+:type: ``Union[str, pathlib.Path]``
+:default: ``{appid}-data``
 
-`key_serializer`
-    :type: ``Union[str, Codec]``
-    :default: ``"json"``
+The directory in which this instance stores local table data, etc.
 
-    Serializer used for keys by default when no serializer is specified, or a
-    model is not being used.
+.. seealso::
 
-    This can be the name of a serializer/codec, or an actual
-    :class:`faust.serializers.codecs.Codec` instance.
+    Can also be set this using :option:`faust --datadir` option, but a default
+    can be passed as a keyword argument to :class:`App`.
 
-    .. seealso::
+``commit_interval``
+~~~~~~~~~~~~~~~~~~~
 
-        :ref:`codecs`
+:type: `float`, :class:`~datetime.timedelta`
+:default: ``3.0``
 
-`value_serializer`
-    :type: ``Union[str, Codec]``
-    :default: ``"json"``
+How often we commit messages that have been fully processed (:term:`acked`).
 
-    Serializer used for values by default when no serializer is specified, or a
-    model is not being used.
+``table_cleanup_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    This can be string, the name of a serializer/codec, or an actual
-    :class:`faust.serializers.codecs.Codec` instance.
+:type: `float`, :class:`~datetime.timedelta`
+:default: ``30.0``
 
-    .. seealso::
+How often we cleanup tables to remove expired entries.
 
-        :ref:`codecs`
+``key_serializer``
+~~~~~~~~~~~~~~~~~~
 
-`num_standby_replicas`
-    :type: ``int``
-    :default: ``1``
+:type: ``Union[str, Codec]``
+:default: ``"json"``
 
-    The number of standby replicas for each table.
+Serializer used for keys by default when no serializer is specified, or a
+model is not being used.
 
-`replication_factor`
-    :type: ``int``
-    :default: ``1``
+This can be the name of a serializer/codec, or an actual
+:class:`faust.serializers.codecs.Codec` instance.
 
-    The replication factor for changelog topics and repartition topics created
-    by the application.
+.. seealso::
 
-    .. note::
+    :ref:`codecs`
 
-        This would generally be configured to the replication factor for your
-        Kafka cluster.
+``value_serializer``
+~~~~~~~~~~~~~~~~~~~~
 
-`default_partitions`
-    :type: ``int``
-    :default: ``8``
+:type: ``Union[str, Codec]``
+:default: ``"json"``
 
-    Default number of partitions for new topics.
+Serializer used for values by default when no serializer is specified, or a
+model is not being used.
 
-    .. note::
+This can be string, the name of a serializer/codec, or an actual
+:class:`faust.serializers.codecs.Codec` instance.
 
-        This defines the maximum number of workers we could distribute the
-        workload of the application (also sometimes referred as the sharding
-        factor of the application).
+.. seealso::
 
-`reply_to`
-    :type: ``str``
-    :default: `<generated>`
+    :ref:`codecs`
 
-    The name of the reply topic used by this instance.  If not set one will be
-    automatically generated when the app is created.
+``num_standby_replicas``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-`create_reply_topic`
-    :type: ``bool``
-    :default: :const:`False`
+:type: ``int``
+:default: ``1``
 
-    Set this to :const:`True` if you plan on using the RPC with agents.
+The number of standby replicas for each table.
 
-`reply_expires`
-    :type: ``Union[float, datetime.timedelta]``
-    :default: ``timedelta(days=1)``
+``replication_factor``
+~~~~~~~~~~~~~~~~~~~~~~
 
-    The expiry time (in seconds float, or timedelta), for how long replies
-    will stay in the instances local reply topic before being removed.
+:type: ``int``
+:default: ``1``
 
-`Stream`
-    :type: ``Union[str, Type]``
-    :default: ``"faust.Stream"``
+The replication factor for changelog topics and repartition topics created
+by the application.
 
-    The :class:`~faust.Stream` class to use for streams, or the fully-qualified
-    path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+.. note::
 
-    Example using a class::
+    This would generally be configured to the replication factor for your
+    Kafka cluster.
 
-        class MyBaseStream(faust.Stream):
-            ...
+``default_partitions``
+~~~~~~~~~~~~~~~~~~~~~~
 
-        app = App(..., Stream=MyBaseStream)
+:type: ``int``
+:default: ``8``
 
-    Example using the string path to a class::
+Default number of partitions for new topics.
 
-        app = App(..., Stream='myproj.streams.Stream')
+.. note::
 
-`Table`
-    :type: ``Union[str, Type[TableT]]``
-    :default: ``"faust.Table"``
+    This defines the maximum number of workers we could distribute the
+    workload of the application (also sometimes referred as the sharding
+    factor of the application).
 
-    The :class:`~faust.Table` class to use for tables, or the fully-qualified
-    path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+``reply_to``
+~~~~~~~~~~~~
 
-    Example using a class::
+:type: ``str``
+:default: `<generated>`
 
-        class MyBaseTable(faust.Table):
-            ...
+The name of the reply topic used by this instance.  If not set one will be
+automatically generated when the app is created.
 
-        app = App(..., Table=MyBaseTable)
+``create_reply_topic``
+~~~~~~~~~~~~~~~~~~~~~~
 
-    Example using the string path to a class::
+:type: ``bool``
+:default: :const:`False`
 
-        app = App(..., Table='myproj.tables.Table')
+Set this to :const:`True` if you plan on using the RPC with agents.
 
-`Set`
-    :type: ``Union[str, Type[SetT]]``
-    :default: ``"faust.Set"``
+``reply_expires``
+~~~~~~~~~~~~~~~~~
 
-    The :class:`~faust.Set` class to use for sets, or the fully-qualified
-    path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+:type: ``Union[float, datetime.timedelta]``
+:default: ``timedelta(days=1)``
 
-    Example using a class::
+The expiry time (in seconds float, or timedelta), for how long replies
+will stay in the instances local reply topic before being removed.
 
-        class MyBaseSetTable(faust.Set):
-            ...
+``Stream``
+~~~~~~~~~~
 
-        app = App(..., Set=MyBaseSetTable)
+:type: ``Union[str, Type]``
+:default: ``"faust.Stream"``
 
-    Example using the string path to a class::
+The :class:`~faust.Stream` class to use for streams, or the fully-qualified
+path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
 
-        app = App(..., Set='myproj.tables.Set')
+Example using a class::
 
-`TableManager`
-    :type: ``Union[str, Type[TableManagerT]]``
-    :default: ``"faust.tables.TableManager"``
+    class MyBaseStream(faust.Stream):
+        ...
 
-    The :class:`~faust.tables.TableManager` used for managing tables,
-    or the fully-qualified path to one (supported by
-    :func:`~faust.utils.imports.symbol_by_name`).
+    app = App(..., Stream=MyBaseStream)
 
-    Example using a class::
+Example using the string path to a class::
 
-        from faust.tables import TableManager
+    app = App(..., Stream='myproj.streams.Stream')
 
-        class MyTableManager(TableManager):
-            ...
+``Table``
+~~~~~~~~~
 
-        app = App(..., TableManager=MyTableManager)
+:type: ``Union[str, Type[TableT]]``
+:default: ``"faust.Table"``
 
-    Example using the string path to a class::
+The :class:`~faust.Table` class to use for tables, or the fully-qualified
+path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
 
-        app = App(..., TableManager='myproj.tables.TableManager')
+Example using a class::
 
-`Serializers`
-    :type: ``Union[str, Type[RegistryT]]``
-    :default: ``"faust.serializers.Registry"``
+    class MyBaseTable(faust.Table):
+        ...
 
-    The :class:`~faust.serializers.Registry` class used for
-    serializing/deserializing messages; or the fully-qualified path
-    to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+    app = App(..., Table=MyBaseTable)
 
-    Example using a class::
+Example using the string path to a class::
 
-        from faust.serialiers import Registry
+    app = App(..., Table='myproj.tables.Table')
 
-        class MyRegistry(Registry):
-            ...
+``Set``
+~~~~~~~
 
-        app = App(..., Serializers=MyRegistry)
+:type: ``Union[str, Type[SetT]]``
+:default: ``"faust.Set"``
 
-    Example using the string path to a class::
+The :class:`~faust.Set` class to use for sets, or the fully-qualified
+path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
 
-        app = App(..., Serializers='myproj.serializers.Registry')
+Example using a class::
+
+    class MyBaseSetTable(faust.Set):
+        ...
+
+    app = App(..., Set=MyBaseSetTable)
+
+Example using the string path to a class::
+
+    app = App(..., Set='myproj.tables.Set')
+
+``TableManager``
+~~~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[TableManagerT]]``
+:default: ``"faust.tables.TableManager"``
+
+The :class:`~faust.tables.TableManager` used for managing tables,
+or the fully-qualified path to one (supported by
+:func:`~faust.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.tables import TableManager
+
+    class MyTableManager(TableManager):
+        ...
+
+    app = App(..., TableManager=MyTableManager)
+
+Example using the string path to a class::
+
+    app = App(..., TableManager='myproj.tables.TableManager')
+
+``Serializers``
+~~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[RegistryT]]``
+:default: ``"faust.serializers.Registry"``
+
+The :class:`~faust.serializers.Registry` class used for
+serializing/deserializing messages; or the fully-qualified path
+to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.serialiers import Registry
+
+    class MyRegistry(Registry):
+        ...
+
+    app = App(..., Serializers=MyRegistry)
+
+Example using the string path to a class::
+
+    app = App(..., Serializers='myproj.serializers.Registry')
 
 Reference
 =========
