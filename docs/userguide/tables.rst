@@ -31,16 +31,14 @@ We require this to align the table's partitions with the stream's, and to
 ensure the source topic partitions are correctly rebalanced to a different
 worker upon failure, along with any necessary table partitions.
 
-.. sourcecode:: python
+Updating table outside of a stream will raise an error:
 
-    class Withdrawal(faust.Record):
-        account: str
-        amount: float
+.. sourcecode:: python
 
     totals = app.Table('totals', default=int)
 
-    async for event in app.topic('withdrawals', value_type=Withdrawal).stream():
-        table[event.account] += event.amount
+    # cannot modify table, as we are not iterating over stream
+    table['foo'] += 30
 
 This source-topic-event to table-modification-event requirement also ensures
 that producing to the changelog and committing messages from the source
@@ -149,7 +147,7 @@ and repartition the stream by country when populating the table:
         async for withdrawal in withdrawals.group_by(Withdrawal.country):
             country_to_total[withdrawal.country] += withdrawal.amount
 
-Changelogging
+The Changelog
 -------------
 
 Every modification to a table has a corresponding changelog update,
@@ -210,11 +208,6 @@ Due to this changelog, both table keys and values must be serializable.
 
     Faust creates an internal changelog topic for each table. The Faust
     application should be the only client producing to the changelog topics.
-
-.. warning::
-
-    The most current key/value pair is serialized and published to changelog
-    upon every update.
 
 Windowing
 =========
@@ -334,7 +327,7 @@ until the message is as old as the table expiry configuration.
 
 .. note::
 
-    We do so by storing separate aggregates for each window in the last
-    ``expires`` seconds. The space complexity for handling out of order
-    events is ``O(w * K)`` where ``w`` is the number of windows in the last
+    We handle out of order events by storing separate aggregates for each
+    window in the last ``expires`` seconds. The space complexity for this
+    is ``O(w * K)`` where ``w`` is the number of windows in the last
     expires seconds and ``K`` is the number of keys in the table.
