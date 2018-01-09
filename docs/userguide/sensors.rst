@@ -17,14 +17,20 @@
 Basics
 ======
 
-Sensors record information about events happening inside of a running Faust
-application.
+Sensors record information about events in a Faust application
+as they happen.
 
-The default sensor will keep track of messages, and events as they go into the
-system, but also record the latency of sending messages, committing the Kafka
-offset, and so on.
+You can define custom sensors to record information that you care about,
+just add it to the list of application sensors. There's also a default
+sensor called the "monitor" that record the runtime of messages and events
+as they go through the worker, the latency of publishing messages,
+the latency of committing Kafka offsets, and so on.
 
-You can also create your own sensors to record additional information.
+The web server uses this monitor to present graphs and statistics about
+your instance, and there's also a version of the monitor available that
+forwards statistics to `StatsD`_.
+
+.. _`StatsD`: https://github.com/etsy/statsd
 
 .. _sensor-monitor:
 
@@ -33,23 +39,24 @@ Monitor
 
 The :class:`faust.Monitor` is a built-in sensor that captures information like:
 
-* Total number of events
+* Average message processing time (when all agents have processed a message).
 
-* Average processing time (from event received to event acked)
+* Average event processing time (from an event received by an agent to
+  the event is :term:`acked`.)
 
-* number of events processed/s
+* The total number of events processed every second.
 
-* Number of events processed/s by topic
+* The total number of events processed every second listed by topic.
 
-* Number of events processed/s by task
+* The total number of events processed every second listed by agent.
 
-* Number of records written to tables.
+* The total number of records written to tables.
 
-* How long it takes to commit messages.
+* Duration of Kafka topic commit operations (latency).
 
-* How long it takes to send messages.
+* Duration of producing messages (latency).
 
-When the Faust application is running you can access the state of this monitor
+You can access the state of the monitor, while the worker is running,
 in ``app.monitor``:
 
 .. sourcecode:: python
@@ -187,7 +194,7 @@ Sensor API Reference
 ====================
 
 This reference describes the sensor interface and is useful when you want to
-build your own sensors.
+build custom sensors.
 
 Methods
 -------

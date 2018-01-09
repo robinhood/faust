@@ -4,13 +4,14 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use :pypi:`gevent`/:pypi:`eventlet` as a bridge to integrate with
+Yes! Use :pypi:`gevent` or :pypi:`eventlet` as a bridge to integrate with
 :mod:`asyncio`.
 
-Using :pypi`gevent`
-~~~~~~~~~~~~~~~~---
+Using :pypi:`gevent`
+~~~~~~~~~~~~~~~~~~~~
 
-This works with any blocking Python library that can work with :pypi:`gevent`.
+This approach works with any blocking Python library that can work
+with :pypi:`gevent`.
 
 Using :pypi:`gevent` requires you to install the :pypi:`aiogevent` module,
 and you can install this as a bundle with Faust:
@@ -40,7 +41,7 @@ and that it executes before you import libraries.
 Using :pypi:`eventlet`
 ~~~~~~~~~~~~~~~~~~----
 
-This works with any blocking Python library that can work with
+This approach works with any blocking Python library that can work with
 :pypi:`eventlet`.
 
 Using :pypi:`eventlet` requires you to install the :pypi:`aioeventlet` module,
@@ -120,4 +121,4 @@ Will you support Python 2?
 --------------------------
 
 There are no plans to support Python 2, but you are welcome to contribute to
-the project (details in question above is relevant also for Python 2).
+the project (details in the question above is relevant also for Python 2).

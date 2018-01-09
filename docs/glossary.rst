@@ -7,49 +7,47 @@ Glossary
     :sorted:
 
     acked
-        Short for :term:`acknowledged`
+        Short for :term:`acknowledged`.
 
     acknowledged
-        A message is acknowledged once the message is fully processed.  It's
-        a signal that the program does not want to see the message again.
-        Faust will advance the offset, and commit, only after a message has
-        been acknowledged.
+        Acknowledgement marks a message as fully processed.
+        It’s a signal that the program does not want to see the message again.
+        Faust advances the offset by committing after a message is acknowledged.
 
     codec
         A codec encodes/decodes data to some format or encoding.
-        Examples of codecs includes Base64 encoding, json serialization,
-        pickle serialization, text encoding conversion, etc.
+        Examples of codecs include Base64 encoding, JSON serialization,
+        pickle serialization, text encoding conversion, and more.
 
     consumer
-        A process receiving messages.
+        A process that receives messages.
 
     message
-        The unit of data published to, or received from the message transport.
-        A message has a key and a value and is sent to a topic.
+        The unit of data published or received from the message transport.
+        A message has a key and a value.
 
     publisher
         A process sending messages.
 
     sensor
-        A sensor is called when events happen in Faust and can record
-        statistics.
+        A sensor records information about events happening in a running
+        Faust application.
 
     serializer
-        A serializer is a combination of :term:`codecs <codec>`,
-        and is responsibile for serializing keys and
-        values in messages so that they can be sent over the network.
+        A serializer is a :term:`codecs <codec>`, responsible for serializing
+        keys and values in messages sent over the network.
 
     topic
-        Messages are sent to topics, and consumers subscribe to topics of
-        interest.
+        Consumers subscribe to topics of interest, and producers send messages
+        to consumers via the topic.
 
-    task
-        A function that starts and operates on one or more streams.
-        Since streams are infinite a task will usually not end unless
+    agent
+        An async function that operates on on a stream.
+        Since streams are infinite the agent will usually not end unless
         the program is shut down.
 
-        A task is also a unit for concurrency, so a task cannot execute
-        on multiple threads.
+    task
+        A task is the unit of concurrency in an :mod:`asyncio` program.
 
     thread safe
         A function or process that is thread safe means that multiple POSIX
@@ -57,5 +55,6 @@ Glossary
         situations.
 
     transport
-        A communication channel used to send and receive messages, e.g. Kafka.
+        A communication mechanism used to send and receive messages, for
+        example Kafka.
 

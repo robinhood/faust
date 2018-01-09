@@ -14,12 +14,12 @@ Hello World
 Application
 -----------
 
-The first thing you need to get up and running with Faust is to define an
-Application or simple a Faust app. Multiple instances of a Faust application
-can be started independently to distribute the stream processing.
+The first thing you need to get up and running with Faust is to define
+an application.
 
-In this tutorial we will keep everything in a single module, but for larger
-projects you may want to create a dedicated module.
+The application (or app for short) configures your project and implements
+common functionality. We also define a topic description, and an agent
+to process messages in that topic.
 
 Lets create the file `hello_world.py`:
 
@@ -40,15 +40,15 @@ Lets create the file `hello_world.py`:
         async for greeting in greetings:
             print(greeting)
 
+In this tutorial, we keep everything in a single module, but for larger
+projects, you can create a dedicated package with a submodule layout.
 
-The first argument to ``faust.App`` is the ``id`` of the application. This is
-needed for internal bookkeeping for the application and to distribute work
-among different instances of the application.
+The first argument passed to the app is the ``id`` of the application, needed
+for internal bookkeeping and to distribute work among worker instances.
 
-We specify ``value_serializer`` here as ``raw`` to avoid deserializing
-incoming ``greetings``. The default ``value_serializer`` is ``json`` as we
-typically would serialize/deserialize messages into well-defined models. See
-:ref:`guide-models`.
+By default Faust will use JSON serialization, so we specify ``value_serializer``
+here as ``raw`` to avoid deserializing incoming greetings.  For real
+applications you should define models (see :ref:`guide-models`).
 
 Here you defined a Kafka topic ``greetings`` and then iterated over the
 messages in the topic and printed each one of them.
@@ -63,38 +63,40 @@ messages in the topic and printed each one of them.
 Starting Kafka
 --------------
 
-You first need to start Kafka before running your first app that you wrote
-above.
+Before running your app, you need to start Zookeeper and Kafka.
 
-For Kafka, you first need to start Zookeeper:
+Start Zookeeper first:
 
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/zookeeper-server-start $KAFKA_HOME/etc/kafka/zookeeper.properties
 
-Next, start Kafka:
+Then start Kafka:
 
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/kafka-server-start $KAFKA_HOME/etc/kafka/server.properties
 
-
 Running the Faust worker
 ------------------------
 
-Now that you have created a simple Faust application and have kafka running,
-you need to run an instance of the application. This can be done as follows:
+Now that you have created a simple Faust application and have Kafka and
+Zookeeper running, you need to run a worker instance for the application.
+
+Start a worker:
 
 .. sourcecode:: console
 
     $ faust -A hello_world worker -l info
 
+Multiple instances of a Faust worker can be started independently to distribute
+stream processing across machines and CPU cores.
 
-In production you'll want to run the worker in the
-background as a daemon. To do this you need to use the tools provided
-by your platform, or something like `supervisord`_.
+In production, you'll want to run the worker in the
+background as a daemon. Use the tools provided
+by your platform, or use something like `supervisord`_.
 
-For a complete listing of the command-line options available, do:
+Use ``--help`` to get a complete listing of available command-line options:
 
 .. sourcecode:: console
 
@@ -105,28 +107,30 @@ For a complete listing of the command-line options available, do:
 Seeing things in Action
 -----------------------
 
-At this point you may have an application running but nothing much is
-happening. You need to feed in data into the Kafka topic defined above to see
-Faust print the greetings as it processes the stream. Let us use the Kafka
-console producer to push some messages into the ``greetings`` topic:
+At this point, you have an application running, but not much is happening.
+You need to feed data into the Kafka topic to see Faust print the greetings
+as it processes the stream, and right now that topic is probably empty.
+
+Let's use the :program:`faust send` command to push some messages into the
+``greetings`` topic:
 
 .. sourcecode:: console
 
     $ faust -A hello_world send @greet "Hello Faust"
 
 The above command sends a message to the ``greet`` agent by using the ``@``
-prefix.  You can also send it to the topic by not using any prefix:
+prefix. If you don't use the prefix, it will be treated as the name of a topic:
 
 .. sourcecode:: console
 
     $ faust -A hello_world send greetings "Hello Kafka topic"
 
-After sending these messages you can see your worker start processing
-these greetings as they come in and print them.
+After sending the messages, you can see your worker start processing them
+and print the greetings to the console.
 
-Where to go from here
----------------------
+Where to go from here...
+------------------------
 
-Now that you have tried out a basic Faust application in action, you may dive
-into other sections of the :ref:`guide` or jump right into the :ref:`playbooks`
-which are a collection of example use cases and patterns.
+Now that you have seen a simple Faust application in action,
+you should dive into the other sections of the :ref:`guide` or jump right
+into the :ref:`playbooks` for tutorials and solutions to common patterns.
