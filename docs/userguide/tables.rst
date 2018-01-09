@@ -89,10 +89,11 @@ If the stream and table are not co-partitioned, we could end up with a
 table shard ending up on a different worker than the worker processing its
 corresponding stream partition.
 
-.. note::
+.. warning::
 
-    Due to this reason Table changelogs should have the same number of
-    partitions as the source topic.
+    For this reason, table changelog topics must have the same number of partitions as the
+    source topic.
+
 
 Table Sharding
 --------------
@@ -106,7 +107,7 @@ likely to be processed by different worker processes:
 
 .. sourcecode:: python
 
-    withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+    withdrawals_topic = app.topic('withdrawals', key_type=str, value_type=Withdrawal)
 
     user_to_total = app.Table('user_to_total', default=int)
     country_to_total = app.Table(
@@ -119,14 +120,14 @@ likely to be processed by different worker processes:
             user_to_total[withdrawal.user] += withdrawal.amount
             country_to_total[withdrawal.country] += withdrawal.amount
 
-Here the stream ``withdrawals`` is (implicitly) partitioned by ``Withdrawal.user``,
-since that's what's used as message key. Hence the ``country_to_total`` table
-which is expected to be partitioned by country, would
-end up actually being partitioned by user.  In practice this means
-the data for a country may reside in multiple partitions and the calculations
-will be wrong.
+Here the stream ``withdrawals`` is (implicitly) partitioned by the user ID used
+as message key. So the ``country_to_total`` table, instead of being
+partitioned by country name, is partitioned by the user ID. In practice,
+this means that data for a country may reside on multiple partitions, and
+worker instances end up with incomplete data.
 
-The above use case should be re-implemented as follows:
+To fix that reimplement your program like this, using two distinct agents
+and repartition the stream by country when populating the table:
 
 .. sourcecode:: python
 
@@ -151,16 +152,22 @@ The above use case should be re-implemented as follows:
 Changelogging
 -------------
 
-Table updates are published to a Kafka topic for recovery upon failures. We
-use Log Compaction to ensure that the changelog topic doesn't grow
-exponentially, keeping the number of messages in the changelog
-topic ``O(n)``, where n is the number of keys in the table.
+Every modification to a table has a corresponding changelog update,
+the changelog is used to recover data after a failure.
+
+We store the changelog in Kafka as a topic and use log compaction
+to only keep the *most recent value for a key in the log*.
+Kafka periodically compacts the table, to ensure the log does not
+grow beyond the number of keys in the table.
 
 .. note::
 
-    In production it is recommended that you use the ``rocksdb`` store,
-    as that will allow for almost instantaneous recovery (only needing
-    to retrieve the updates since last time the instance was up).
+    In production the RocksDB store allows for almost instantaneous recovery
+    of tables: a worker only needs to retrieve updates missed since last time
+    the instance was up.
+
+If you change the value for a key in the table, please make sure you update
+the table with the new value after:
 
 In order to publish a changelog message into Kafka for fault-tolerance the
 table needs to be set explicitly. Hence, while changing values in Tables by
@@ -173,13 +180,15 @@ changelog, as shown below:
     topic = app.topic('withdrawals', value_type=Withdrawal)
 
     async for event in topic.stream():
+        # get value for key in table
         withdrawals = user_withdrawals[event.account]
+        # modify the value
         withdrawals.append(event.amount)
+        # write it back to the table (also updating changelog):
         user_withdrawals[event.account] = withdrawals
 
-The following code would not be fault-tolerant as it would not publish to the
-kafka changelog. It would still work locally but recovery upon failure would
-not correctly build the state of the world before the crash.
+If you forget to do so, like in the following example, the program will
+work but will have inconsistent data if a recovery is needed for any reason:
 
 .. sourcecode:: python
 
@@ -189,8 +198,9 @@ not correctly build the state of the world before the crash.
     async for event in topic.stream():
         withdrawals = user_withdrawals[event.account]
         withdrawals.append(event.amount)
+        # OOPS! Did not update the table with the new value
 
-Due to the table topic changelog, keys and values should be serializable.
+Due to this changelog, both table keys and values must be serializable.
 
 .. seealso::
 
@@ -211,9 +221,9 @@ Windowing
 
 Windowing allows us to process streams while preserving state over defined
 windows of time. A windowed table preserves key-value pairs according to the
-configured Windowing Policy.
+configured "Windowing Policy."
 
-We support the following Window Policies:
+We support the following policies:
 
 .. class:: HoppingWindow
 
@@ -222,7 +232,7 @@ We support the following Window Policies:
 How To
 ------
 
-A windowed table can be defined as follows:
+You can define a windowed table like this:
 
 .. sourcecode:: python
 
@@ -233,12 +243,10 @@ A windowed table can be defined as follows:
     )
 
 
-A windowed table returns a special wrapper for ``table[k]``, called a
-``WindowSet``, since ``k`` can exist in multiple windows at once.
+Since a key can exist in multiple windows, the windowed table returns a special
+wrapper for ``table[k]``, called a ``WindowSet``.
 
-
-Let's show an example of a windowed table in use:
-
+Here's an example of a windowed table in use:
 
 .. sourcecode:: python
 
@@ -262,11 +270,13 @@ Let's show an example of a windowed table in use:
                 print('Less popular compared to 30 minutes back')
 
 
-In this table, the time is relative to the event being currently processed,
-as is the default, but you can also make the ``current()`` value be relative to
-the current time, or of another event.
+In this table, ``table[k].current()`` returns the most recent value relative
+to the time of the currently processing event, and is the default behavior.
+You can also make the current value relative to the current local time,
+relative to a different field in the event (if it has a custom timestamp
+field), or of another event.
 
-The default is equivalent to:
+The default behavior is "relative to current stream":
 
 .. sourcecode:: python
 
@@ -275,24 +285,22 @@ The default is equivalent to:
 Where ``.relative_to_stream()`` means values are selected based on the window
 of the current event in the currently processing stream.
 
-You can also use ``.relative_to_now()``, which means the window of the current
+You can also use ``.relative_to_now()``: this means the window of the current
 local time is used instead:
 
 .. sourcecode:: python
 
     views = app.Table('views', default=int).tumbling(...).relative_to_now()
 
-If your stream events has a different timestamp field that you would like to
-use, then use ``relative_to_field(field_descriptor)``, which means the window
-of a field in the current event, in the currently processing stream will be
-used:
+If the current event has a custom timestamp field that you want to use,
+``relative_to_field(field_descriptor)`` is suited for that task::
 
     views = app.Table('views', default=int) \
         .tumbling(...) \
         .relative_to_field(Account.date_created)
 
-Now when accessing data in the table you can choose the ``.current()`` based
-on your selected default relative to option:
+
+You can override this default behavior when accessing data in the table:
 
 .. sourcecode:: python
 
@@ -311,13 +319,22 @@ on your selected default relative to option:
             print(table[key].delta(30))
 
 
-Out of Order Events
--------------------
+"Out of Order" Events
+---------------------
 
-Events can sometimes come out of order due to various reasons such as network
-issues. Windowed Tables in Faust handle out of order events until
-``expires`` seconds``. In order to handle out of order events we store separate
-aggregates for each window in the last ``expires`` seconds. The space
-complexity for handling out of order events is ``O(w * K)`` where ``w`` is
-the number of windows in the last ``expires`` seconds and ``K`` is the number
-of keys in the Table.
+Kafka maintains the order of messages published to it, but when using custom
+timestamp fields, relative ordering is not guaranteed.
+
+For example, a producer can lose network connectivity while sending a batch
+of messages and be forced to retry sending them later, then messages in the
+topic won't be in timestamp order.
+
+Windowed tables in Faust correctly handles such "out of order " events, at least
+until the message is as old as the table expiry configuration.
+
+.. note::
+
+    We do so by storing separate aggregates for each window in the last
+    ``expires`` seconds. The space complexity for handling out of order
+    events is ``O(w * K)`` where ``w`` is the number of windows in the last
+    expires seconds and ``K`` is the number of keys in the table.
