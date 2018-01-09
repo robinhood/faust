@@ -44,7 +44,7 @@ withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 
 async def print_key_value(event: EventT) -> None:
-    print(f'{event.key}{type(event.key)}:{event.value}{type(event.value)}')
+    print(f'{event.key}:{event.value}')
 
 user_to_total = app.Table(
     'user_to_total', default=int, on_changelog_event=print_key_value,
