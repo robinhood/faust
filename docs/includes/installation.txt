@@ -15,7 +15,7 @@ Faust also defines a group of :pypi:`setuptools` extensions that can be used
 to install Faust and the dependencies for a given feature.
 
 You can specify these in your requirements or on the :command:`pip`
-command-line by using brackets. Multiple bundles can be separated by comma:
+command-line by using brackets. Separate multiple bundles using the comma:
 
 
 .. code-block:: console

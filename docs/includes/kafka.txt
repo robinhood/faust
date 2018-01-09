@@ -1,7 +1,7 @@
 `Kafka` is a distributed streaming platform which uses logs as the unit of
 storage for messages passed within the system. It is horizontally scalable,
-fault-tolerant, fast, and runs in production in thousands of companies. Chances
-are that your company is already using it in some form.
+fault-tolerant, fast, and runs in production in thousands of companies.
+Likely your business is already using it in some form.
 
 
 .. _`Kafka`: https://kafka.apache.org/intro
@@ -19,10 +19,10 @@ What you must know about Apache Kafka to use Faust
     Faust uses the abstraction of a topic to both consume data from a stream as
     well as publish data to more streams represented by Kafka topics.
     A Faust application needs to be consuming from at least one topic and may
-    create many intermediate topics as a by product of your streaming
+    create many intermediate topics as a by-product of your streaming
     application. Every topic that is not created by Faust internally can be
     thought of as a source (for your application to process) or sink
-    (for other systems to pickup).
+    (for other systems to pick up).
 
 **Partitions**
 
@@ -30,10 +30,10 @@ What you must know about Apache Kafka to use Faust
     topic is split into one or more partitions. These partitions are
     represented internally as logs and messages always make their
     way to one partition (log). Each partition is replicated and has one leader
-    at any point of time.
+    at any point in time.
 
     Faust uses the notion of a partition to maintain order amongst messages and
-    as a way to split the processing of data to increasing throughput. A Faust
+    as a way to split the processing of data to increase throughput. A Faust
     application uses the notion of a "key" to make sure that messages that
     should appear together and be processed on the same box do end up on the
     same box.
@@ -41,9 +41,9 @@ What you must know about Apache Kafka to use Faust
 **Fault Tolerance**
 
     Every partition is replicated with the total copies represented by the
-    In Sync Replicas (ISR). Every ISR is a candidate to take over as new
+    In Sync Replicas (ISR). Every ISR is a candidate to take over as the new
     leader should the current leader fail. The maximum number of faulty Kafka
-    brokers that can be tolerated is the number of ISR - 1. I.e. if every
+    brokers that can be tolerated is the number of ISR - 1. I.e., if every
     partition has three replicas, all fault tolerance guarantees hold as long
     as at least one replica is functional
 
@@ -68,17 +68,17 @@ What you must know about Apache Kafka to use Faust
     For every <topic, partition> combination Kafka keeps track of the offset
     of messages in the log to know where new messages should be appended. On a
     consumer level, offsets are maintained at the <group, topic, partition>
-    level for consumers to know where to continue consuming from for a given
-    "group". The group acts as a namespace for consumers to register to when
-    multiple consumers want to share load on a single topic.
+    level for consumers to know where to continue consuming for a given
+    "group". The group acts as a namespace for consumers to register when
+    multiple consumers want to share the load on a single topic.
 
     Kafka maintains processing guarantees of at least once by committing offsets
     after message consumption. Once an offset has been committed at the consumer
     level, the message at that offset for the <group, topic, partition> will not
-    be read again.
+    be reread.
 
     Faust uses the notion of a group to maintain a namespace within an app.
-    Faust commits offsets when a message has been processed through all of its
+    Faust commits offsets after when a message is processed through all of its
     operations. Faust allows a configurable *commit interval* which makes sure
     that all messages that have been processed completely since the last
     interval will be committed.

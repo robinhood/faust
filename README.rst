@@ -10,26 +10,28 @@
 :Source: http://github.com/fauststream/faust
 :Keywords: distributed, stream, async, processing, data, queue
 
-Faust is a Python library for event processing and streaming applications
-that are distributed and fault-tolerant.
+
+**Faust** is a Python library for event processing and streaming applications
+that are decentralized and fault-tolerant.
 
 It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
 `Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
-a radically much simpler approach to stream processing.
+a radically more straightforward approach to stream processing.
 
-Modern web applications are increasingly being written as a collection
-of microservices and even before this it has been difficult to write
+Modern web applications are increasingly built as a collection
+of microservices and even before this, it has been difficult to write
 data reporting operations at scale.  In a reactive stream based system,
-you don't have to strain your database with costly queries, instead a streaming
-data pipeline updates information as events happen in your system, in real-time.
+you don't have to strain your database with costly queries. In Faust,
+a streaming data pipeline updates information as events happen
+in your system, in real-time.
 
-Faust also enables you to take advantage of asyncio and asynchronous
+Faust also enables you to take advantage of ``asyncio`` and asynchronous
 processing, moving complicated and costly operations outside
 of the web server process: converting video, notifying third-party services,
 etc. are common use cases for event processing.
 
 You may not know it yet, but if you're writing a modern web application,
-you probably already have a need for Faust.
+you probably already need Faust.
 
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org
@@ -37,16 +39,17 @@ you probably already have a need for Faust.
 .. _`Apache Flink`: http://flink.apache.org
 .. _`Apache Samza`: http://samza.apache.org
 
+
 Faust is...
 ==========================
 
 **Simple**
     Faust is extremely easy to use compared to other stream processing
     solutions.  There's no DSL to limit your creativity, no restricted
-    set of operations to work from, and since Faust is a library it can
+    set of operations to work from, and since Faust is a library, it can
     integrate with just about anything.
 
-    Here's one of the simplest applications you can make::
+    Here's one of the easier applications you can make::
 
         import faust
 
@@ -72,56 +75,53 @@ Faust is...
             app.main()
 
     You're probably a bit intimidated by the `async` and `await` keywords,
-    but you don't have to know how asyncio works to use
-    Faust: just mimic the examples and you'll be fine.
+    but you don't have to know how ``asyncio`` works to use
+    Faust: just mimic the examples, and you'll be fine.
 
     The example application starts two tasks: one is processing a stream,
     the other is a background thread sending events to that stream.
-    In a real-live application your system will publish
+    In a real-life application, your system will publish
     events to Kafka topics that your processors can consume from,
     and the background thread is only needed to feed data into our
     example.
 
 **Highly Available**
     Faust is highly available and can survive network problems and server
-    crashes.  In the case of node failure it can automatically recover,
+    crashes.  In the case of node failure, it can automatically recover,
     and tables have standby nodes that will take over.
 
 **Distributed**
     Start more instances of your application as needed.
 
 **Fast**
-    Faust applications can hopefully handle millions of events per second
-    in the future.
+    A single-core Faust worker instance can already process tens of thousands
+    of events every second, and we are reasonably confident that throughput will
+    increase once we can support a more optimized Kafka client.
 
 **Flexible**
-    Faust is just Python, and a stream is just an infinite async iterator.
+    Faust is just Python, and a stream is an infinite async iterator.
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
 
-.. _installation:
-
 Installation
 ============
 
-You can install faust either via the Python Package Index (PyPI)
+You can install Faust either via the Python Package Index (PyPI)
 or from source.
 
-To install using `pip`,::
+To install using `pip`::
 
     $ pip install -U faust
-
-.. _bundles:
 
 Bundles
 -------
 
-Faust also defines a group of setuptools extensions that can be used
+Faust also defines a group of ``setuptools`` extensions that can be used
 to install Faust and the dependencies for a given feature.
 
 You can specify these in your requirements or on the ``pip``
-command-line by using brackets. Multiple bundles can be separated by comma:
+command-line by using brackets. Separate multiple bundles using the comma:
 
 ::
 
@@ -136,9 +136,12 @@ Stores
 ~~~~~~
 
 :``faust[rocksdb]``:
-    for using RocksDB for storing Faust table state.
+    for using `RocksDB`_ for storing Faust table state.
 
     **Recommended in production.**
+
+
+.. _`RocksDB`: http://rocksdb.org
 
 Optimization
 ~~~~~~~~~~~~
@@ -158,26 +161,30 @@ Event Loops
 :``faust[uvloop]``:
     for using Faust with ``uvloop``.
 
+:``faust[gevent]``:
+    for using Faust with ``gevent``.
+
+:``faust[eventlet]``:
+    for using Faust with ``eventlet``
+
 Debugging
 ~~~~~~~~~
 
 :``faust[debug]``:
-    for using ``aiomonitor`` to connect and debug a running faust worker.
+    for using ``aiomonitor`` to connect and debug a running Faust worker.
 
 :``faust[setproctitle]``:
     when the ``setproctitle`` module is installed the Faust worker will
-    use it to set a nicer process name in ps/top listings.  Also installed
-    with the ``fast`` and ``debug`` bundles.
-
-.. _installing-from-source:
+    use it to set a nicer process name in ``ps``/``top`` listings.
+    Also installed with the ``fast`` and ``debug`` bundles.
 
 Downloading and installing from source
 --------------------------------------
 
-Download the latest version of faust from
+Download the latest version of Faust from
 http://pypi.python.org/pypi/faust
 
-You can install it by doing the following,::
+You can install it by doing::
 
     $ tar xvfz faust-0.0.0.tar.gz
     $ cd faust-0.0.0
@@ -187,16 +194,14 @@ You can install it by doing the following,::
 The last command must be executed as a privileged user if
 you are not currently using a virtualenv.
 
-.. _installing-from-git:
-
 Using the development version
 -----------------------------
 
 With pip
 ~~~~~~~~
 
-You can install the latest snapshot of faust using the following
-pip command::
+You can install the latest snapshot of Faust using the following
+``pip`` command::
 
     $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
 
@@ -206,43 +211,70 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use gevent/eventlet and use a bridge to integrate with asyncio.
+Yes! Use ``gevent``/``eventlet`` as a bridge to integrate with
+``asyncio``.
 
-- ``aiogevent`` enables you to run Faust on top of gevent:
+Using :pypi`gevent`
+~~~~~~~~~~~~~~~~---
 
-    https://pypi.python.org/pypi/aiogevent
+This works with any blocking Python library that can work with ``gevent``.
 
-    Example::
+Using ``gevent`` requires you to install the ``aiogevent`` module,
+and you can install this as a bundle with Faust:
 
-        import aiogevent
-        import asyncio
-        asyncio.set_event_loop_policy(aiogevent.EventLoopPolicy())
-        import gevent.monkey
-        gevent.monkey.patch_all()
-        # if you use PostgreSQL with psycopg, make sure you also
-        # install psycogreen and call this pather:
-        #  import psycogreen.gevent
-        #  psycogreen.gevent.patch_psycopg()
+.. sourcecode:: console
 
-        # Import Django/Flask etc, stuff and use them with Faust.
+    $ pip install -U faust[gevent]
 
-- ``aioeventlet`` enables you to run Faust on top of eventlet:
+Then to actually use ``gevent`` as the event loop you have to either
+use the ``-L <faust --loop>`` option to the ``faust`` program:
 
-    http://aioeventlet.readthedocs.io
+.. sourcecode:: console
 
-    Example::
+    $ faust -L gevent -A myproj worker -l info
 
-        import aioeventlet
-        import asyncio
-        asyncio.set_event_loop_policy(aioeventlet.EventloopPolicy())
-        import eventlet
-        eventlet.monkey_patch()
-        # if you use PostgreSQL with psycopg, make sure you also
-        # install psycogreen and call this pather:
-        #  import psycogreen.eventlet
-        #  psycogreen.eventlet.patch_psycopg()
+or add ``import mode.loop.gevent`` at the top of your entry point script:
 
-        # Import Django/Flask etc, stuff and use them with Faust.
+.. sourcecode:: python
+
+    #!/usr/bin/env python3
+    import mode.loop.gevent
+
+REMEMBER: It's very important that this is at the very top of the module,
+and that it executes before you import libraries.
+
+
+Using ``eventlet``
+~~~~~~~~~~~~~~~~~~----
+
+This works with any blocking Python library that can work with
+``eventlet``.
+
+Using ``eventlet`` requires you to install the ``aioeventlet`` module,
+and you can install this as a bundle along with Faust:
+
+.. sourcecode:: console
+
+    $ pip install -U faust[eventlet]
+
+Then to actually use eventlet as the event loop you have to either
+use the ``-L <faust --loop>`` argument to the ``faust`` program:
+
+.. sourcecode:: console
+
+    $ faust -L eventlet -A myproj worker -l info
+
+or add ``import mode.loop.eventlet`` at the top of your entry point script:
+
+.. sourcecode:: python
+
+    #!/usr/bin/env python3
+    import mode.loop.eventlet  # noqa
+
+.. warning::
+
+    It's very important this is at the very top of the module,
+    and that it executes before you import libraries.
 
 Can I use Faust with Tornado?
 -----------------------------
@@ -253,7 +285,7 @@ http://www.tornadoweb.org/en/stable/asyncio.html
 Can I use Faust with Twisted?
 -----------------------------
 
-Yes! Use the asyncio reactor implementation:
+Yes! Use the ``asyncio`` reactor implementation:
 https://twistedmatrix.com/documents/17.1.0/api/twisted.internet.asyncioreactor.html
 
 Will you support Python 3.5 or earlier?
@@ -341,10 +373,10 @@ https://wiki.github.com/fauststream/faust/
 Contributing
 ============
 
-Development of `faust` happens at GitHub: https://github.com/fauststream/faust
+Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
 
 You're highly encouraged to participate in the development
-of `faust`.
+of `Faust`.
 
 Be sure to also read the `Contributing to Faust`_ section in the
 documentation.

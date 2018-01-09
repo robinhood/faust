@@ -57,8 +57,8 @@ What do I need?
 
 Faust requires Python 3.6 or later, and a running Kafka broker.
 
-There's currently no plan to port Faust to earlier Python versions,
-please get in touch if this is something that you want to work on.
+There's currently no plan to port Faust to earlier Python versions;
+please get in touch if you want to work on this.
 
 Extensions
 ----------
@@ -82,7 +82,7 @@ Extensions
 .. note::
 
     See bundles in the :ref:`installation` instructions section of
-    this document for a list of supported setuptools extensions.
+    this document for a list of supported :pypi:`setuptools` extensions.
 
 .. include:: includes/introduction.txt
 
@@ -99,19 +99,19 @@ How do I use it?
 
     - Was an account created? Publish to Kafka.
 
-    - Did someone change their password? Publish to Kafka.
+    - Did a user change their password? Publish to Kafka.
 
     - Did someone make an order, create a comment, tag something, ...?
       Publish it all to Kafka!
 
 .. topic:: Step 2: Use Faust to process those events
 
-    Some ideas based around the events mentioned above:
+    Some ideas based on the events mentioned above:
 
-    - Send email once an order is dispatched.
+    - Send email when an order is dispatches.
 
-    - Find orders that were made, but no associated dispatch event
-      after three days.
+    - Find orders created with no corresponding dispatch event for
+      more than three consecutive days.
 
     - Find accounts that changed their password from a suspicious IP address.
 
@@ -225,7 +225,7 @@ Design considerations
 =====================
 
 Modern Python
-    Faust uses modern Python 3 features such as
+    Faust uses current Python 3 features such as
     :keyword:`async`/:keyword:`await` and type annotations. It's statically
     typed and verified by the `mypy`_ type checker. You can take advantage of
     type annotations when writing Faust applications, but
@@ -236,25 +236,25 @@ Library
     any existing Python program, while also including helpers that
     make it easy to deploy applications without boilerplate.
 
-Live happy, die hard
+Live happily, die quickly
     Faust is programmed to crash on encountering an error such as losing
-    the connection to Kafka.  This means error recovery is up to supervisor
+    the connection to Kafka.  That means error recovery is up to supervisor
     tools such as `supervisord`_, `Circus`_, or one provided by your Operating
     System.
 
 Extensible
-    Faust abstracts away storages, serializers and even message transports,
+    Faust abstracts away storages, serializers, and even message transports,
     to make it easy for developers to extend Faust with new capabilities,
     and integrate into your existing systems.
 
 Lean
-    The source code is short and readable, and serves as a good starting point
+    The source code is short and readable and serves as a good starting point
     for anyone who wants to learn how Kafka stream processing systems work.
 
 Upcoming Features
 =================
 
-Some features are planned, but not available in the first version
+Some features are planned, but not available in the first version.
 
 Joins
     Faust will soon support Table/Table, Stream/Stream, and Table/Stream
@@ -262,7 +262,7 @@ Joins
 Table HTTP API
     Query tables using the Faust HTTP server.
 Delayed messages
-    Send messages to be processed later, e.g. *"after two days, do something"*.
+    Send messages to be processed later, e.g. *"after two days, do something."*
 
 .. _installation:
 

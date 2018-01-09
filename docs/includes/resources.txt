@@ -42,10 +42,10 @@ https://wiki.github.com/fauststream/faust/
 Contributing
 ============
 
-Development of `faust` happens at GitHub: https://github.com/fauststream/faust
+Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
 
 You're highly encouraged to participate in the development
-of `faust`.
+of `Faust`.
 
 Be sure to also read the `Contributing to Faust`_ section in the
 documentation.

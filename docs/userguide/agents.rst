@@ -20,7 +20,7 @@ What is an Agent?
 An agent is a stream processor, but more specifically an async function
 decorated with the ``@app.agent`` decorator.
 
-The agent takes a stream as argument, and then consumes that stream
+The agent takes a stream as the argument, and then consumes that stream
 processing the messages in it:
 
 .. sourcecode:: python
@@ -32,15 +32,15 @@ processing the messages in it:
 
 
 Starting multiple workers for your application means the agent is running
-on multiple machines at the same time, and each agent instance will be
+on many machines at the same time, and each agent instance will be
 receiving a portion of the stream.
 
 .. topic:: Partitioning
 
     When an agent reads from a topic, the stream is partitioned based on the
-    key of the message.  For example the stream could have keys that are
+    key of the message.  For example, the stream could have keys that are
     account ids, and values that are high scores, and then partitioning
-    means that any message with the same account_id key will be delivered
+    means that any message with the same account_id key will always be delivered
     to the same agent instance.
 
     Sometimes you'll have to repartition the stream, to ensure you are

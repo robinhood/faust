@@ -19,7 +19,7 @@ What is an Application?
 
 An application is an *instance of the Faust library*.
 
-To create one in Python you need to provide
+To create one you need to provide
 a name for the application (the id), a message broker, and a driver to use for
 table storage:
 
@@ -28,16 +28,16 @@ table storage:
     >>> import faust
     >>> app = faust.App('example', url='kafka://', store='rocksdb://')
 
-For very special needs the :class:`faust.App` class can be inherited from, and a subclass
+For special needs, you can inherit from the :class:`faust.App` class, and a subclass
 will have the ability to change how almost everything works.
 
 Comparing the application to the interface of frameworks like Django,
 there are clear benefits.
 
-In Django the global settings module means having multiple configurations is
-impossible, and the API is organized by modules so you sometimes
-end up with lots of import statements, and many modules to keep track of.
-Further you often end up monkey patching to change how something works.
+In Django, the global settings module means having multiple configurations
+are impossible, and with an API organized by modules, you sometimes end up
+with lots of import statements and keeping track of many modules. Further,
+you often end up monkey patching to change how something works.
 
 The application keeps the library flexible to changes, and allows
 for many applications to coexist in the same process space.
@@ -63,7 +63,7 @@ use Faust without changing them.  You probably *will want* to
 set the ``url`` and ``store`` options, though, to configure the broker and
 storage driver.
 
-Here we set the broker url to Kafka, and the storage driver to `RocksDB`_:
+Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
 
 .. sourcecode:: python
 
@@ -73,10 +73,10 @@ Here we set the broker url to Kafka, and the storage driver to `RocksDB`_:
     ...     store='rocksdb://',
     ... )
 
-"kafka://localhost" is used if no broker url is set at all.
-The first part of the broker URL ("kafka://") is the driver.
+"kafka://localhost" is used if you don't configure a broker URL.
+The first part of the URL ("kafka://") is the driver you want to use.
 
-The store decides how distributed tables are stored locally, and version
+The store decides how to keep distributed tables locally, and version
 1.0 supports two options:
 
 +----------------+-----------------------------------------------+
@@ -86,8 +86,8 @@ The store decides how distributed tables are stored locally, and version
 +----------------+-----------------------------------------------+
 
 Using the ``memory://`` store is OK when developing your project and testing
-things out, but for large tables it can take hours to recover after
-restart, so you should never use it in production.
+things out, but for large tables, it can take hours to recover after
+a restart, so you should never use it in production.
 
 `RocksDB`_ recovers in seconds or less, is embedded and don't require a server or
 additional infrastructure, and stored on the file system so tables can exceed
@@ -102,7 +102,7 @@ Parameters
     :type: ``str``
 
     A string uniquely identifying the app, shared across all
-    instances such that two app instances with the same `id` is
+    instances such that two app instances with the same `id` are
     considered to be in the same "group".
 
     This parameter is required.
@@ -116,9 +116,9 @@ Parameters
     :type: ``str``
     :default: ``"aiokafka://localhost:9092"``
 
-    Faust needs the URL of a "transport" used to send and receive messages.
+    Faust needs the URL of a "transport" to send and receive messages.
 
-    Currently the only supported transport is the ``aiokafka://`` Kafka client.
+    Currently, the only supported transport is the ``aiokafka://`` Kafka client.
 
     You can specify multiple hosts at the same time by separating them using
     the semi-comma:
@@ -132,10 +132,10 @@ Parameters
     :default: ``memory://``
 
     The backend used for table storage.
-    Tables are stored in-memory only by default, but this is only really
-    suitable for testing and development purposes.
+    Tables are stored in-memory only by default, but you should
+    only used this for testing and development purposes.
 
-    In production a persistent table store, such as ``rocksdb://`` is
+    In production, a persistent table store, such as ``rocksdb://`` is
     preferred.
 
 `autodiscover`
@@ -145,16 +145,16 @@ Parameters
 
     .. warning::
 
-        The autodiscover functionality uses :pypi:`venusian` to
+        The autodiscovery functionality uses :pypi:`Venusian` to
         scan wanted packages for ``@app.agent``, ``@app.page``,
         ``@app.command``, ``@app.task`` and ``@app.timer`` decorators,
-        but to do so it's required to traverse the package directory and import
+        but to do so, it's required to traverse the package directory and import
         every package in them.
 
-        Importing random modules like this can be dangerous if best
-        practices are not followed in user modules: starting threads,
-        network I/O, monkey-patching, or similar, should not happen as
-        a side effect of importing a module.
+        Importing random modules like this can be dangerous if you don't
+        follow best practices for user modules:
+        do not start threads, perform network I/O, do monkey-patching, or similar,
+        as a side effect of importing a module.
 
     The value for this argument can be:
 
@@ -183,15 +183,15 @@ Parameters
 
     .. admonition:: Django
 
-        If you're using Django you could use this to scan for
-        agents/pages/commands for all packages in ``INSTALLED_APPS``::
+        If you're using Django you can use this to scan for
+        agents/pages/commands in all packages defined in ``INSTALLED_APPS``::
 
             from django.conf import settings
 
             app = App(..., autodiscover=lambda: settings.INSTALLED_APPS)
 
-        If you're using recent versions of Django, apps may
-        be defined outside of the setting and you should use the following
+        If you're using a recent version of Django, where apps can
+        be defined in app configs, use the following
         instead::
 
             from django.apps import apps
@@ -202,7 +202,7 @@ Parameters
 
         We use :keyword:`lambda` in the first example, and a generator
         expression in the latter example. This way you can safely import the
-        module containing this app without forcing the Django settings machinery
+        module containing this app, without forcing the Django settings machinery
         to be initialized (i.e. settings imported).
 
     .. tip::

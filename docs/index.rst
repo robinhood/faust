@@ -11,18 +11,18 @@
 **Faust** is a Python library for *event processing* and *streaming applications*
 that are decentralized and fault-tolerant.
 
-It is heavily inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
-`Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
-a radically much simpler approach to stream processing.
+Heavily inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
+`Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; Faust takes
+a radically much more straightforward approach to stream processing.
 
-Faust defines a simple API that can be used for both *stream processing*
-(e.g. `Kafka Streams`_), and *event processing* (as provided by libraries such as
+Faust defines a simple API used for both *stream processing*
+(e.g., `Kafka Streams`_), and *event processing* (as provided by libraries such as
 :pypi:`celery`).  It also runs a web server so you can optionally host your web
-app directly from Faust. This enables you to rapidly prototype traditionally
-complicated web app architectures, in a simple manner that is also easy
+app directly from Faust, and that enables you to rapidly prototype traditionally
+complex web app architectures, in a simple manner that is also easy
 to deploy and maintain.
 
-To learn more about faust go to the :ref:`intro` introduction page,
+To learn more about Faust go to the :ref:`intro` introduction page,
 or go directly to the :ref:`quickstart` tutorial.
 
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams

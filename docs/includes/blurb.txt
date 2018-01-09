@@ -3,13 +3,14 @@ that are decentralized and fault-tolerant.
 
 It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
 `Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
-a radically much simpler approach to stream processing.
+a radically more straightforward approach to stream processing.
 
-Modern web applications are increasingly being written as a collection
-of micro services and even before this it has been difficult to write
+Modern web applications are increasingly built as a collection
+of microservices and even before this, it has been difficult to write
 data reporting operations at scale.  In a reactive stream based system,
-you don't have to strain your database with costly queries, instead a streaming
-data pipeline updates information as events happen in your system, in real-time.
+you don't have to strain your database with costly queries. In Faust,
+a streaming data pipeline updates information as events happen
+in your system, in real-time.
 
 Faust also enables you to take advantage of :mod:`asyncio` and asynchronous
 processing, moving complicated and costly operations outside
@@ -17,7 +18,7 @@ of the web server process: converting video, notifying third-party services,
 etc. are common use cases for event processing.
 
 You may not know it yet, but if you're writing a modern web application,
-you probably already have a need for Faust.
+you probably already need Faust.
 
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org

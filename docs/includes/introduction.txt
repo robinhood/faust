@@ -4,10 +4,10 @@ Faust is...
 **Simple**
     Faust is extremely easy to use compared to other stream processing
     solutions.  There's no DSL to limit your creativity, no restricted
-    set of operations to work from, and since Faust is a library it can
+    set of operations to work from, and since Faust is a library, it can
     integrate with just about anything.
 
-    Here's one of the simplest applications you can make::
+    Here's one of the easier applications you can make::
 
         import faust
 
@@ -34,18 +34,18 @@ Faust is...
 
     You're probably a bit intimidated by the `async` and `await` keywords,
     but you don't have to know how :mod:`asyncio` works to use
-    Faust: just mimic the examples and you'll be fine.
+    Faust: just mimic the examples, and you'll be fine.
 
     The example application starts two tasks: one is processing a stream,
     the other is a background thread sending events to that stream.
-    In a real-live application your system will publish
+    In a real-life application, your system will publish
     events to Kafka topics that your processors can consume from,
     and the background thread is only needed to feed data into our
     example.
 
 **Highly Available**
     Faust is highly available and can survive network problems and server
-    crashes.  In the case of node failure it can automatically recover,
+    crashes.  In the case of node failure, it can automatically recover,
     and tables have standby nodes that will take over.
 
 **Distributed**
@@ -53,11 +53,11 @@ Faust is...
 
 **Fast**
     A single-core Faust worker instance can already process tens of thousands
-    of events every second, and we are fairly confident that this will
-    increase significantly once we can support a more optimized Kafka client.
+    of events every second, and we are reasonably confident that throughput will
+    increase once we can support a more optimized Kafka client.
 
 **Flexible**
-    Faust is just Python, and a stream is just an infinite async iterator.
+    Faust is just Python, and a stream is an infinite async iterator.
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
