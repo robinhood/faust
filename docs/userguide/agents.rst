@@ -38,17 +38,17 @@ receiving a portion of the stream.
 .. topic:: Partitioning
 
     When an agent reads from a topic, the stream is partitioned based on the
-    key of the message.  For example, the stream could have keys that are
-    account ids, and values that are high scores, and then partitioning
-    means that any message with the same account_id key will always be delivered
-    to the same agent instance.
+    key of the message. For example, the stream could have keys that are
+    account ids, and values that are high scores, then partitioning decide
+    that any message with the same account id as key, is delivered to the same
+    agent instance.
 
     Sometimes you'll have to repartition the stream, to ensure you are
     receiving the right portion of the data.  See :ref:`guide-streams` for
     more information on the :meth:`Stream.group_by() <faust.Stream.group_by>`
     method.
 
-Here's a more complete example of an app with an agent that adds numbers:
+Here's a complete example of an app, having an agent that adds numbers:
 
 .. sourcecode:: python
 
@@ -83,7 +83,7 @@ Starting a worker will now start a single instance of this agent:
 
     $ faust -A examples.agent worker -l info
 
-To send values to it, you can open a second console to run this program:
+To send values to it, open a second console to run this program:
 
 .. sourcecode:: python
 
@@ -105,9 +105,9 @@ To send values to it, you can open a second console to run this program:
 
 .. seealso::
 
-    You can also use :ref:`tasks-cli-commands` to add actions on the command
-    line for your application.  Using the ``@app.command`` decorator, the
-    above ``examples/send_to_agent.py`` program can be written like this:
+    You can also use :ref:`tasks-cli-commands` to add actions for your
+    application on the command line.  Use the ``@app.command`` decorator to
+    rewrite the example program above (:file:`examples/agent.py`), like this:
 
     .. sourcecode:: python
 
@@ -115,14 +115,14 @@ To send values to it, you can open a second console to run this program:
         async def send_value() -> None:
             print(await adding.ask(Add(a=4, b=4)))
 
-    then after adding this to your ``examples/agent.py`` module, you can run your
-    command using the :program:`faust` program:
+    After adding this to your :file:`examples/agent.py` module, run your
+    new command using the :program:`faust` program:
 
     .. sourcecode:: console
 
         $ faust -A examples.agent send_value
 
-    You may specify command line arguments and options also:
+    You may also specify command line arguments and options:
 
     .. sourcecode:: python
 
@@ -147,8 +147,8 @@ To send values to it, you can open a second console to run this program:
         12
 
 The :meth:`Agent.ask() <faust.Agent.ask>` method wraps the value sent in
-a special structure that includes the return address (reply-to).  When the
-agent sees this type of structure it will reply with the result yielded
+a particular structure that includes the return address (reply-to).  When the
+agent sees this type of arrangement, it will reply with the result yielded
 by the agent as a result of processing the event.
 
 .. admonition:: Static types
@@ -158,7 +158,7 @@ by the agent as a result of processing the event.
 
     .. _`mypy`: http://mypy-lang.org
 
-    The same function above can be annotated like this:
+    Add type hints to your agent function like this:
 
     .. sourcecode:: python
 
@@ -170,9 +170,9 @@ by the agent as a result of processing the event.
             async for value in stream:
                 yield value.a + value.b
 
-    The ``StreamT`` type used for the agents stream argument is a subclass
+    The ``StreamT`` type used for the agent's stream argument is a subclass
     of :class:`~typing.AsyncIterable` extended with the stream API.
-    You could type this argument using
+    You could type this call using
     ``AsyncIterable``, but then :pypi:`mypy` would stop you with a typing
     error should you use stream-specific methods such as ``.group_by()``,
     ``through()``, etc.
@@ -181,8 +181,8 @@ by the agent as a result of processing the event.
 Under the Hood: The ``@agent`` decorator
 ----------------------------------------
 
-You can easily start a stream processor in Faust without using agents,
-by simply starting an :mod:`asyncio` task that iterates over a stream:
+You can quickly start a stream processor in Faust without using agents.
+Do so merely by launching an :mod:`asyncio` task that iterates over a stream:
 
 .. sourcecode:: python
 
@@ -214,7 +214,7 @@ Essentially what the ``@agent`` decorator does, given a function like this:
             print(f'Received: {event!r}')
             yield event
 
-Is that it wraps your function, that returns an async iterator (since it uses
+It wraps your function returning async iterator (since it uses
 ``yield``) in code similar to this:
 
 .. sourcecode:: python
@@ -239,7 +239,7 @@ The topic argument to the agent decorator defines the main topic
 that agent reads from (this implies it's not necessarily the only
 topic, as is the case when using stream joins, for example).
 
-Topics are defined using the :meth:`@topic` helper, and returns a
+Topics are defined using the :meth:`@topic` helper and return a
 :class:`faust.Topic` description::
 
     topic = app.topic('topic_name1', 'topic_name2',
@@ -247,19 +247,20 @@ Topics are defined using the :meth:`@topic` helper, and returns a
                       value_type=Model,
                       ...)
 
-If the topic description provides multiple topic names, the main
+Should the topic description provide multiple topic names, the main
 topic of the agent will be the first topic in that list (``"topic_name1"``).
 
-The ``key_type`` and ``value_type`` describes how messages in the topics
-are serialized.  This can either be a model (such as :class:`faust.Record`,
-), a :class:`faust.Codec`, or the name of a serializer.  If not specified
-then the default serializer defined by the app will be used.
+The ``key_type`` and ``value_type`` describe how to serialize and deserialize
+messages in the topic, and you provide it as a model (such
+as :class:`faust.Record`), a :class:`faust.Codec`, or the name of a serializer.
+
+If not specified it will use the default serializer defined by the app.
 
 .. tip::
 
     If you don't specify a topic, the agent will use the agent name
-    as topic: the name will be the fully qualified name of the agent function
-    (e.g. ``examples.agent.adder``).
+    as the topic: the name will be the fully qualified name of the agent function
+    (e.g., ``examples.agent.adder``).
 
 .. seealso::
 
@@ -268,10 +269,11 @@ then the default serializer defined by the app will be used.
 The Stream
 ----------
 
-The decorated function should be unary, meaning it must accept one argument.
+The decorated function is unary, meaning it must accept a single argument.
 
-The object passed as argument to the agent is an async iterable :class:`~faust.Stream`
-instance, created from the topic/channel provided to the decorator:
+The object passed in as the argument to the agent is an async iterable
+:class:`~faust.Stream` instance, created from the topic/channel provided
+to the decorator:
 
 .. sourcecode:: python
 
@@ -280,10 +282,10 @@ instance, created from the topic/channel provided to the decorator:
         async for item in stream:
             ...
 
-Iterating over this stream, using the :keyword:`async for`, will iterate
-over the messages in the topic/channel.
+Iterating over this stream, using the :keyword:`async for` keyword, will in turn
+iterate over messages in the topic/channel.
 
-You can also use the Stream API, for using :meth:`~faust.Stream.group_by`
+You can also use the :meth:`~faust.Stream.group_by` method of the Stream API,
 to partition the stream differently:
 
 .. sourcecode:: python
@@ -306,14 +308,14 @@ to partition the stream differently:
             # instance
             ...
 
-Using stream-to-stream joins with agents is a bit more tricky, considering
-that the agent always needs to have one "main" topic.  You may use one topic
-as the seed and combine that with more topics, but then it will be impossible
-to communicate directly with the agent since you have to send a message to all
-the topics to satisfy the join requirement, and that will not be possible
-just by sending a single value using ``stream.send``, or ``stream.ask``.
+A two-way join works by waiting until it has a message from both topics,
+so to synchronously wait for a reply from the agent you would
+have to send messages to both topics.  A three-way join means
+you have to send a message to each of the three topics and only
+then can a reply be produced.
 
-For this reason you are not encouraged use joins with an agent:
+For this reason, you're discouraged from using joins in an agent,
+unless you know what you're doing:
 
 .. sourcecode:: python
 
@@ -322,17 +324,17 @@ For this reason you are not encouraged use joins with an agent:
 
     @app.agent(topic)
     async def mystream(stream):
-        # XXX This is technically not proper use of an agent,
-        # since it performs a join, but works fine as long as you don't
-        # expect to be able to use ``agent.ask``, ``agent.map`` and similar
+        # XXX This is not proper use of an agent, as it performs a join.
+        # It works fine as long as you don't expect to be able to use
+        #``agent.ask``, ``agent.map`` and similar
         # methods that wait for a reply.
         async for event in (stream & topic2.stream()).join(...):
             ...
 
 
-For joins the best practice is to use the ``@app.task`` decorator
-to define a regular :class:`asyncio.Task`, to be started with the app,
-that iterates over the joined stream:
+For joins, the best practice is to use the ``@app.task`` decorator instead,
+to launch an :class:`asyncio.Task` when the app starts,
+that manually iterates over the joined stream:
 
 .. sourcecode:: python
 
@@ -350,25 +352,26 @@ that iterates over the joined stream:
 Concurrency
 -----------
 
-You can start multiple instances of an agent by specifying the ``concurrency``
-argument.
+Use the ``concurrency`` argument to start multiple instances of an agent
+on every worker instance.  Each agent instance (actor) will process
+items in the stream concurrently (and in no particular order).
 
 .. warning::
 
-    Since having concurrent instances of an agent means that events in
-    the stream will be processed out of order, it's very important that
-    you do not mutate :ref:`tables <guide-tables>` from witin the
-    agent function:
+    Concurrent instances of an agent will process the stream out-of-order,
+    so you aren't allowed to mutate :ref:`tables <guide-tables>`
+    from within the agent function:
 
-    An agent with `concurrency > 1`, can only read from a table, never write.
+    An agent having `concurrency > 1`, can only read from a table, never write.
 
-Here's an agent example that can safely process the stream out of order:
-whenever a new news article is published by an author, the backend system posts
-a message to the 'news' topic in Kafka.
+Here's an agent example that can safely process the stream out of order.
 
-The agent we define, consumes from this topic and
-retrieves the full article via HTTP, then stores that in a database somewhere
-(yeah, pretty contrived...):
+Our hypothetical backend system publishes a message to the Kafka "news" topic
+every time a news article is published by an author.
+
+We define an agent that consumes from this topic and
+for every new article will retrieve the full article over HTTP,
+then store that in a database somewhere (yeah, pretty contrived):
 
 .. sourcecode:: python
 
@@ -407,8 +410,7 @@ Function Callback
             ...
 
 Async Function Callback
-    Async functions can also be used, in this case the async function will be
-    :keyword:`await`-ed by the agent:
+    If you provide an async function, the agent will :keyword:`await` it:
 
     .. sourcecode:: python
 
@@ -424,8 +426,8 @@ Async Function Callback
             ...
 
 Topic
-    Specifying a topic as sink will force the agent to forward yielded values
-    to that topic:
+    Specifying a topic as the sink will force the agent to forward yielded
+    values it:
 
     .. sourcecode:: python
 
@@ -436,8 +438,8 @@ Topic
             ...
 
 Another Agent
-    Specifying another agent as sink will force the agent to forward yielded
-    values to that agent:
+    Specifying another agent as the sink will force the agent to forward yielded
+    values to it:
 
     .. sourcecode:: python
 
@@ -457,30 +459,33 @@ Using Agents
 Cast or Ask?
 ------------
 
-When communicating with an agent you can request the result of the
-operation to be sent to a topic: this is the ``reply_to`` topic.
-The reply topic may be the topic of another agent, a topic used by a different
-system altogether, or it may be a local ephemeral topic that will collect
-replies to the current process.
+When communicating with an agent, you can ask for the result of the
+request to be forwarded to another topic: this is the ``reply_to`` topic.
 
-Performing a ``cast`` means no reply is expected, you are only sending the
-agent a message, not expecting a reply back.  This is the preferred mode
-of operation for most agents, and any time you are about to use the RPC
-facilities of agents you should take a step back to reconsider if there
-is a way to solve your problem in a streaming manner (A causes B to happen,
-as opposed to B waiting for A to complete).
+The ``reply_to`` topic may be the topic of another agent, a source topic
+populated by a different system, or it may be a local ephemeral topic
+collecting replies to the current process.
+
+If you perform a ``cast``, you're passively sending something to the agent,
+and it will not reply back.
+
+Systems perform better when no synchronization is required, so you should
+try to solve your problems in a streaming manner.  If B needs to happen
+after A, try to have A call B instead (which could be accomplished
+using ``reply_to=B``).
+
 
 ``cast(value, *, key=None, partition=None)``
-    Casting a value to an agent is asynchronous:
+    A cast is non-blocking as it will not wait for a reply:
 
     .. sourcecode:: python
 
         await adder.cast(Add(a=2, b=2))
 
-    The agent will receive this value, but it will not send a reply.
+    The agent will receive the request, but it will not send a reply.
 
 ``ask(value, *, key=None, partition=None, reply_to=None, correlation_id=None)``
-    Asking an agent will send a reply back to process that send the request:
+    Asking an agent will send a reply back to process that sent the request:
 
     .. sourcecode:: python
 
@@ -489,10 +494,9 @@ as opposed to B waiting for A to complete).
 
 ``send(key, value, partition, reply_to=None, correlation_id=None)``
     The ``Agent.send`` method is the underlying mechanism used by ``cast`` and
-    ``ask``, and enables you to request that a reply is sent to another agent
-    or a specific topic.
+    ``ask``.
 
-    Send to another agent:
+    Use it to send the reply to another agent:
 
     .. sourcecode:: python
 
@@ -503,7 +507,7 @@ Streaming Map/Reduce
 
 The agent also provides operations for streaming values to the agents and
 gathering the results: ``map`` streams results as they come in (unordered),
-and ``join`` waits until the operations are complete and return the results
+and ``join`` waits until all the steps are complete and return the results
 in order as a list.
 
 ``map(values: Union[AsyncIterable[V], Iterable[V]])``
@@ -516,8 +520,8 @@ in order as a list.
             print(f'RECEIVED REPLY: {reply!r}')
 
     The iterator will start before all the messages have been sent, and
-    should be efficient even for infinite lists.  Note that order of replies
-    is not preserved since the map is executed concurrently.
+    should be efficient even for infinite lists. As the map executes
+    concurrently, the replies will not appear in any particular order.
 
 ``kvmap(items: Union[AsyncIterable[Tuple[K, V], Iterable[Tuple[K, V]]]])``
     Same as ``map``, but takes an async iterable/iterable of ``(key, value)`` tuples,
@@ -525,8 +529,8 @@ in order as a list.
 
 ``join(values: Union[AsyncIterable[V], Iterable[V]])``
     Join works like ``map`` but will wait until all of the values have been
-    processed and returns them as a list in the original order (so
-    cannot be used for infinite lists).
+    processed and returns them as a list in the original order (
+    cannot be used with infinite data structures).
 
     .. sourcecode:: python
 
@@ -535,4 +539,4 @@ in order as a list.
 
 ``kvjoin(items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]])``
     Same as join, but takes an async iterable/iterable of ``(key, value)`` tuples,
-    where the key in each pair is used as the Kafka message key.
+    where the key in each pair is used as the message key.

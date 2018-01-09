@@ -15,35 +15,28 @@
 Basics
 ======
 
-Channels are what Faust agents (stream processors) read from.
-You don't need to know how channels work to use Faust, as agents
-work with streams, not a channel directly.
+Faust agents iterate over streams, and streams iterate over channels.
+
+A channel is a construct used to send and receive messages,
+then we have the "topic", which is a named-channel backed by a Kafka topic.
 
 .. topic:: \
 
     Streams read from channels (either a local-channel or a topic).
 
-    Channels are local:
-
     ``Agent`` <--> ``Stream`` <--> ``Channel``
 
-    Topics are backed by a transport (to use e.g. Kafka topics):
+    Topics are named-channels backed by a transport (to use e.g. Kafka topics):
 
     ``Agent`` <--> ``Stream`` <--> ``Topic`` <--> ``Transport`` <--> :pypi:`aiokafka`
 
-The agent reads from the stream, the stream reads events from a channel,
-and the channel is populated with messages from a message transport,
-where the message transport may range from everything from in-memory (pure
-channels), or to reading from a Kafka topic (using ``app.topic(name)`` which
-is also a type of channel).
+Faust defines these layers of abstraction so that agents can send and
+receive messages using more than one type of transport.
 
-These are all just layers of abstraction used so
-that agents can send and receive messages using more than one type of
-transport.  The Faust ``Transport`` class is highly Kafka specific, but
-channels are not, and that makes them easier to subclass if you require
-a different type of channel, for example using `RabbitMQ`_ (AMQP),
-`Stomp`_, `MQTT`_, `NSQ`_, `ZeroMQ`_, or similar.
-etc., instead of Kafka as the message transport.
+Topics are highly Kafka specific, while channels are not. That makes
+channels more natural to subclass should you require a different
+means of communication, for example using `RabbitMQ`_ (AMQP),
+`Stomp`_, `MQTT`_, `NSQ`_, `ZeroMQ`_, etc.
 
 .. _`RabbitMQ`: http://rabbitmq.com/
 .. _`STOMP`: https://stomp.github.io/
@@ -54,9 +47,9 @@ etc., instead of Kafka as the message transport.
 Channels
 ========
 
-A *channel* is a buffer/queue used to send and receive messages,
-where this buffer can be in-memory, an IPC construct, or transmit
-serialized messages over the network.
+A **channel** is a buffer/queue used to send and receive messages.
+This buffer could exist in-memory in the local process only,
+or transmit serialized messages over the network.
 
 You can create channels manually and read/write from them:
 
@@ -94,10 +87,10 @@ Declaring
 
 .. note::
 
-    Some channels may require a declaration on the server side
-    to be created.  Faust will usually declare channels/topics that are used
-    internally, but will not declare topics considered as "source topics",
-    that is topics exposed for use by Kafka applications by other systems.
+    Some channels may require you to declare them on the server side
+    before they're used. Faust will create topics considered internal but
+    will not create or modify "source topics" (i.e., exposed for use by
+    other Kafka applications).
 
     To define a topic as internal use
     ``app.topic('name', ..., internal=True)``.
@@ -115,5 +108,5 @@ Topics
 ======
 
 A *topic* is a **named channel**, backed by a Kafka topic. The name is used as the address
-of the channel, that way it can be shared by multiple processes and each
+of the channel, to share it between multiple processes and each
 process will receive a partition of the topic.

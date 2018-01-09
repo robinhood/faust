@@ -18,7 +18,7 @@ Tasks
 =====
 
 Your application will have agents that process events in streams, but
-your application can also start :class:`asyncio.Task`-s that do other things,
+can also start :class:`asyncio.Task`-s that do other things,
 like periodic timers, views for the embedded web server, or additional
 command-line commands.
 
@@ -33,17 +33,17 @@ operational:
         print('APP STARTED')
 
 If you add the above to the module that defines your app and start the worker,
-you should see the message printed after starting the worker.
+you should see the message printed in the output of the worker.
 
-A task is a one-off task, if you want to do something at periodic intervals
-you can use a timer.
+A task is a one-off task; if you want to do something at periodic
+intervals, you can use a timer.
 
 .. _tasks-timers:
 
 Timers
 ======
 
-A timer is also a task, but one that executes every ``n`` seconds:
+A timer is a task that executes every ``n`` seconds:
 
 .. sourcecode:: python
 
@@ -52,35 +52,34 @@ A timer is also a task, but one that executes every ``n`` seconds:
         print('WAKE UP')
 
 
-The above timer will print something every minute, starting from one minute
-after the worker is started and fully operational.
+After starting the worker, and it's operational, the above timer will print
+something every minute.
 
 .. _tasks-web-views:
 
 Web Views
 =========
 
-The Faust worker also exposes a web server on every instance,
-and this server will by default be running on port 6066,
-so after starting a worker instance on your local machine:
+The Faust worker will also expose a web server on every instance,
+that by default runs on port 6066. You can access this in your web browser
+after starting a worker instance on your local machine:
 
 .. sourcecode:: console
 
     $ faust -A myapp worker -l info
 
-You can visit the web server in your browser,
-to be presented with statistics about your running instance:
+Just point your browser to the local port to see statistics about your
+running instance:
 
 .. sourcecode:: text
 
     http://localhost:6066
 
-Your app may also add additional views to be exposed by the web server.
-The server is using :pypi:`aiohttp` by default, but you may implement
-additional web server drivers should you want to use something different.
+You can define additional views for the web server (called pages). The server
+will use the :pypi:`aiohttp` HTTP server library, but you can also
+write custom web server drivers.
 
-To expose a simple view returning a JSON structure you can add the
-following code to your app module:
+Add a simple page returning a JSON structure by adding this to your app module:
 
 .. sourcecode:: python
 
@@ -98,8 +97,8 @@ following code to your app module:
         })
 
 
-This example view is pretty useless, as it's only providing you with
-a count of how many times the view was requested (on that particular server,
+This example view has limited usefulness, as it only provides you with
+a count of how many times the page was requested (on that particular server,
 for as long as it's up).
 
 Restart your Faust worker, and you can visit your new page at:
@@ -108,23 +107,28 @@ Restart your Faust worker, and you can visit your new page at:
 
     http://localhost:6066/count/
 
-Your workers may have arbitrary views, and it's up to you what they provide.
-They could be communicating with Redis, or an SQL database just like other
-web apps.  You may decide to develop your web app directly in the Faust
-workers, or you may decide to keep your normal web server separate from your Faust
-workers.  The choice is up to you, but you can definitely create very
-complicated systems very easily, by keeping everything in a Faust app.
+Your workers may have an arbitrary number of views, and it's up to you what
+they provide. Just like other web apps they can communicate with Redis,
+SQL databases, and so on.
+
+You can decide to develop your web app directly in the Faust workers, or you
+may choose to keep your regular web server separate from your Faust workers.
+
+The choice is yours, but you can unquestionably create complex systems
+quickly, just by putting everything in a single Faust app.
 
 Exposing Tables
 ---------------
 
-One common need, is to expose table values in a web view.
-Since tables are routed by key, and the data for one key may exist
-on a specific worker instance, you need to reroute the request to the
-instance having that partition, using the ``@app.table_route`` decorator.
+A frequent requirement is the ability to expose table values in a web view,
+and while this is likely to be built-in to Faust in the future,
+you will have to implement this manually for now.
 
-First we define our table, and the agent that reads the stream and populates
-the table:
+Tables are partitioned by key, and data for any specific key will exist
+on a particular worker instance. You can use the ``@app.table_route``
+decorator to reroute the request to the worker holding that partition.
+
+We define our table, and an agent reading from the stream to populate the table:
 
 .. sourcecode:: python
 
@@ -157,8 +161,8 @@ the table:
         async for word in words:
             word_counts[word.word] += 1
 
-Then we define our view, using the ``@app.table_route`` decorator to route
-the request to the correct worker instance:
+After that we define the view, using the ``@app.table_route`` decorator to
+reroute the request to the correct worker instance:
 
 .. sourcecode:: python
 
@@ -175,45 +179,47 @@ the request to the correct worker instance:
 CLI Commands
 ============
 
-As you may already know, you can make your app into an executable, that
-can start Faust workers, list agents, models and more.
+As you may already know, you can make your project into an executable,
+that can start Faust workers, list agents, models and more,
+just by calling ``app.main()``.
 
-The :program:`faust` command is always available, and you can point it to any
-app:
+Even if you don't do that, the :program:`faust` program is always available
+and you can point it to any app:
+
+The :program:`faust` command is always available,
+and you can point it to any app:
 
 .. sourcecode:: console
 
     $ faust -A myapp worker -l info
 
-To get a list of subcommands supported by the app, you can execute:
+Do this to get a list of subcommands supported by the app:
 
 .. sourcecode:: console
 
     $ faust -A myapp --help
 
 To turn your script into the :program:`faust` command, with the
-:option:`-A <faust -A>` option already set.
-For example for the :file:`examples/simple.py` example in the Faust distribution,
-you can append the following to the end of the file:
+:option:`-A <faust -A>` option already set, add this to the end of the module:
 
 .. sourcecode:: python
 
     if __name__ == '__main__':
         app.main()
 
-and you can now execute :file:`examples.simple` as if it was the
-:program:`faust` program:
+If saved as :file:`simple.py` you can now execute it as if it was
+the :program:`faust` program:
 
 .. sourcecode:: console
 
-    $ python examples/main.py worker -l info
+    $ python simple.py worker -l info
 
 Custom CLI Commands
 -------------------
 
-To add a custom command to your app, see for example the
-:file:`examples/simple.py` file, where an additional `produce` command is
-added to send example data into the stream processors:
+To add a custom command to your app, see the :file:`examples/simple.py`
+example in the Faust distribution, where we've added a ``produce`` command
+used to send example data into the stream processors:
 
 .. sourcecode:: python
 
@@ -251,6 +257,6 @@ added to send example data into the stream processors:
             if max_latency:
                 await asyncio.sleep(random.uniform(0, max_latency))
 
-The ``@app.command`` decorator takes both :class:`click.option` and
-:class:`click.argument`, so you can both add custom command-line options, as
+The ``@app.command`` decorator accepts both :class:`click.option` and
+:class:`click.argument`, so you can specify command-line options, as
 well as command-line positional arguments.
