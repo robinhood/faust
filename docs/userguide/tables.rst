@@ -14,21 +14,22 @@ Tables
 Basics
 ------
 
-A table is a distributed in-memory dictionary. Tables are backed by a Kafka
-changelog topic for persistence and fault-tolerance. This enables us to replay
+A table is a distributed in-memory dictionary, backed by a Kafka
+changelog topic used for persistence and fault-tolerance. We can replay
 the changelog upon network failure and node restarts, allowing us to rebuild the
-state of the Table as it was before the fault.
+state of the table as it was before the fault.
 
-Tables can be initialized as follows:
+To create a table use ``app.Table``:
 
 .. sourcecode:: python
 
     table = app.Table('totals', default=int)
 
-Tables should be *updated within a stream iteration* in order to align the
-table's partitions with the stream's partitions in order to ensure that
-upon failures stream partitions are rebalanced to a different worker along
-with their respective table partitions:
+You cannot modify a table outside of a stream operation; this means that you can
+only mutate the table from within an ``async for event in stream:`` block.
+We require this to align the table's partitions with the stream's, and to
+ensure the source topic partitions are correctly rebalanced to a differento
+worker upon failure, along with any necessary table partitions.
 
 .. sourcecode:: python
 
@@ -41,8 +42,9 @@ with their respective table partitions:
     async for event in app.topic('withdrawals', value_type=Withdrawal).stream():
         table[event.account] += event.amount
 
-This also ensures that producing to the changelog and committing messages
-from the source happen simultaneously.
+This source-topic-event to table-modification-event requirement also ensures
+that producing to the changelog and committing messages from the source
+happen simultaneously.
 
 .. note::
 
