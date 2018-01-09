@@ -8,16 +8,16 @@
     :local:
     :depth: 2
 
-In the :ref:`quickstart` we went over a simple example where
-we read through a stream of greetings and printed them to the console. In
-this playbook we will do something more meaningful with an incoming stream.
-We will maintain real-time counts of page views from a stream of page views.
+In the :ref:`quickstart` tutorial, we went over a simple example
+reading through a stream of greetings and printing them to the console.
+In this playbook we do something more meaningful with an incoming stream,
+we'll maintain real-time counts of page views from a stream of page views.
 
 Application
 -----------
 
-As we did in the :ref:`quickstart`, we first define our application.
-Let us create a module ``page_views.py`` and define the application:
+As we did in the :ref:`quickstart` tutorial, we first define our application.
+Let's create the module :file:`page_views.py`:
 
 .. sourcecode:: python
 
@@ -29,18 +29,19 @@ Let us create a module ``page_views.py`` and define the application:
         default_partitions=4,
     )
 
-The ``default_partitions`` parameter defines the maximum number of workers we
-could distribute the workload of the application (also sometimes referred as
-the sharding factor of the application). In this example we have set this to
-4, in a production app with high throughput we would ideally set a higher
-value for ``default_partition``.
+The ``default_partitions`` parameter defines the maximum number
+of workers we can distribute the workload to (also sometimes referred as
+the "sharding factor"). In this example, we set this to 4, but in a
+production app, we ideally use a higher number.
 
 Page View
 ----------
 
-Let us now define the model for a page view event. Each page view event
-from the stream of page view events would be deserialized into this
-:ref:`model <guide-models>`.
+Let's now define a :ref:`model <guide-models>` that each page view event
+from the stream deserializes into, for easy access to fields and static
+typing support.
+
+Create a model for our page view event:
 
 .. sourcecode:: python
 
@@ -51,16 +52,17 @@ from the stream of page view events would be deserialized into this
 Input Stream
 ------------
 
-Now we define the input stream to read the page view events from.
+Next we define the source topic to read the page view events from.
 
 .. sourcecode:: python
 
-    page_view_topic = app.topic('page_views')
+    page_view_topic = app.topic('page_views', value_type=PageView)
 
 Counts Table
 ------------
 
-Now we define a :ref:`Table <guide-tables>` to maintain counts for page views.
+Then define a :ref:`Table <guide-tables>` to maintain running
+counts for page views.
 
 .. sourcecode:: python
 
@@ -69,9 +71,11 @@ Now we define a :ref:`Table <guide-tables>` to maintain counts for page views.
 Count Page Views
 ----------------
 
-Now that we have defined our input stream as well as a table to maintain
-counts, we define an agent that would read each page view event coming in the
-stream and actually do the counting.
+Now that we have defined our input stream, as well as a table to maintain
+counts, we define an agent reading each page view event coming into the
+stream, always incrementing the count for that page in the table.
+
+Create the agent:
 
 .. sourcecode:: python
 
@@ -88,48 +92,47 @@ stream and actually do the counting.
     processing of some partition to another node, the counts for that
     partition (hence, those page ids) also move together.
 
-Now we have our basic application working. Lets try running this as is and
-see the counts being updated in the changelog topic for the table defined above.
+Now that we written our project, let's try running it to see the counts
+update in the changelog topic for the table.
 
 Starting Kafka
 --------------
 
-You first need to start Kafka before running your first app that you wrote
-above.
+Before starting a worker, you need to start Zookeeper and Kafka.
 
-For Kafka, you first need to start Zookeeper:
+First start Zookeeper:
 
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/zookeeper-server-start $KAFKA_HOME/etc/kafka/zookeeper.properties
 
-Next, start Kafka:
+Then start Kafka:
 
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/kafka-server-start $KAFKA_HOME/etc/kafka/server.properties
 
 
-Running the Faust worker
-------------------------
+Starting the Faust worker
+-------------------------
 
-As in the :ref:`quickstart` start the application as follows:
+Start the worker, similar to what we did in the :ref:`quickstart` tutorial:
 
 .. sourcecode:: console
 
     $ faust -A page_views worker -l info
 
-Seeing things in Action
------------------------
+Seeing it in action
+-------------------
 
-Now let us produce some fake page views to see things in action. Let us
-directly send these views to the topic ``page_views`` defined above.
+Now let's produce some fake page views to see things in action. Send
+this data to the ``page_views`` topic:
 
 .. sourcecode:: console
 
     $ faust -A page_views send page_views '{"id": "foo", "user": "bar"}'
 
-Now let us look at the changelog topic to see the counts. To look at the
+Look at the changelog topic to see the counts. To look at the
 changelog topic we will use the Kafka console consumer.
 
 .. sourcecode:: console
@@ -140,4 +143,3 @@ changelog topic we will use the Kafka console consumer.
 
     By default the changelog topic for a given ``Table`` has the format
     ``<app_id>-<table_name>-changelog``
-

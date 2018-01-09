@@ -8,26 +8,26 @@
     :local:
     :depth: 2
 
-Faust can be used for long running applications that need to distribute some
-periodic work across a cluster of machines. A common pattern for such
-applications is to elect one of the workers as a Leader, which distributes
-the periodic task across the cluster of machines.
+Faust processes streams of data forming pipelines. Sometimes steps in
+the pipeline require synchronization, but instead of using mutexes,
+a better solution is to have one of the workers elected as the leader.
 
-An example of such an application is a news crawler. We can elect one of the
-workers to be the leader, which queues up the different sources to crawl. Then
-the different queued up sources could be crawled by the cluster of machines
-in parallel.
+An example of such an application is a news crawler. We can elect one
+of the workers to be the leader, and the leader maintains
+all subscriptions (the sources to crawl), then periodically tells the
+other workers in the cluster to process them.
 
-In this playbook we will go over a very simple example in which we will elect
-one of our workers as the leader. This leader will then periodically send out
-random greetings to be printed out by the available workers.
+To demonstrate this we implement a straightforward example where we
+elect one of our workers as the leader. This leader then periodically
+send out random greetings to be printed out by available workers.
 
 Application
 -----------
 
-As we did in the :ref:`playbooks-pageviews` tutorial, we first define our
-application.  Let's create a module named :file:`leader.py` and define
-the application:
+As we did in the :ref:`playbooks-pageviews` tutorial, we first define your
+application.
+
+Create a module named :file:`leader.py`:
 
 .. sourcecode:: python
 
@@ -44,8 +44,10 @@ the application:
 Greetings Agent
 ---------------
 
-We first define an :class:`~@App.agent` that will get the greetings from the
-leader and print it out to the console.
+Next we define the ``say`` :class:`~@App.agent` that will get greetings from the
+leader and print them out to the console.
+
+Create the agent:
 
 .. sourcecode:: python
 
@@ -54,9 +56,6 @@ leader and print it out to the console.
         async for greeting in greetings:
             print(greeting)
 
-Here we have defined an ``agent`` to which we can send greetings
-which would be printed to the console.
-
 .. seealso::
 
     The :ref:`agents-guide` guide for more information about agents.
@@ -64,9 +63,14 @@ which would be printed to the console.
 Leader Timer
 ------------
 
-Let us now define the :class:`~@App.timer` that want to run only on the leader.
-This ``timer`` will periodically send out a random greeting to be printed on
-one of the workers in the cluster.
+Now define a :class:`~@App.timer` with the ``on_leader`` flag enabled
+so it only executes on the leader.
+
+The ``timer`` will periodically send out a random greeting, to be printed
+by one of the workers in the cluster.
+
+
+Create the leader timer:
 
 .. sourcecode:: python
 
@@ -78,10 +82,6 @@ one of the workers in the cluster.
         greeting = str(random.random())
         await say.send(value=greeting)
 
-Here we send a random greeting to the ``agent`` defined above.
-
-The ``on_leader=True`` ensures that the ``timer``
-
 .. note::
 
     The greeting could be picked up by the agent ``say`` on any one of the
@@ -90,32 +90,32 @@ The ``on_leader=True`` ensures that the ``timer``
 Starting Kafka
 --------------
 
-You first need to start Kafka before running your first app that you wrote
-above.
+To run the project you first need to start Zookeeper and Kafka.
 
-For Kafka, you first need to start Zookeeper:
+Start Zookeeper:
 
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/zookeeper-server-start $KAFKA_HOME/etc/kafka/zookeeper.properties
 
-Next, start Kafka:
+Then start Kafka:
 
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/kafka-server-start $KAFKA_HOME/etc/kafka/server.properties
 
 
-Running the Faust worker
-------------------------
+Starting the Faust worker
+-------------------------
 
-As in the :ref:`quickstart` start the application as follows:
+Start the Faust worker, similarly to how we do it in the :ref:`quickstart`
+tutorial:
 
 .. sourcecode:: console
 
     $ faust -A leader worker -l info --web-port 6066
 
-Let us start two more workers in different processes
+Let's start two more workers in different terminals on the same machine:
 
 .. sourcecode:: console
 
@@ -128,6 +128,6 @@ Let us start two more workers in different processes
 Seeing things in Action
 -----------------------
 
-Now try to arbitrary shut down (:kbd:`Control-c`) some workers to see how the leader
-stays at just *one* worker - electing a new leader upon killing a leader -- and
-how the greetings are randomly printed across the available workers.
+Next try to arbitrary shut down (:kbd:`Control-c`) some of the workers,
+to see how the leader stays at just *one* worker - electing a new leader
+upon killing a leader -- and to see the greetings printed by the workers.
