@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from itertools import count
 import faust
 from faust.cli import option
-from faust.types import EventT
+from faust.types import EventT, TP
 
 
 PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
@@ -44,7 +44,9 @@ withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 
 async def print_key_value(event: EventT) -> None:
-    print(f'{event.key}:{event.value}')
+    tp = TP(topic=event.message.topic, partition=event.message.partition)
+    if not app.assignor.is_active(tp):
+        print(f'{event.key}:{event.value}')
 
 user_to_total = app.Table(
     'user_to_total', default=int, on_changelog_event=print_key_value,

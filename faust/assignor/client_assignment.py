@@ -2,6 +2,7 @@
 import copy
 from typing import List, MutableMapping, Sequence, Set, Tuple
 from faust.models import Record
+from faust.types import TP
 from faust.types.assignor import HostToPartitionMap
 from faust.types.tables import TableManagerT
 
@@ -84,6 +85,22 @@ class ClientAssignment(Record,
 
     actives: MutableMapping[str, List[int]]  # Topic -> Partition
     standbys: MutableMapping[str, List[int]]  # Topic -> Partition
+
+    @property
+    def active_tps(self) -> Set[TP]:
+        return self._get_tps(active=True)
+
+    @property
+    def standby_tps(self) -> Set[TP]:
+        return self._get_tps(active=False)
+
+    def _get_tps(self, active: bool) -> Set[TP]:
+        assignment = self.actives if active else self.standbys
+        return {
+            TP(topic=topic, partition=partition)
+            for topic, partitions in assignment.items()
+            for partition in partitions
+        }
 
     def kafka_protocol_assignment(
             self,

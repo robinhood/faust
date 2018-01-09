@@ -29,6 +29,14 @@ class PartitionAssignorT(abc.ABC):
         ...
 
     @abc.abstractmethod
+    def is_active(self, tp: TP) -> bool:
+        ...
+
+    @abc.abstractmethod
+    def is_standby(self, tp: TP) -> bool:
+        ...
+
+    @abc.abstractmethod
     def key_store(self, topic: str, key: bytes) -> str:
         ...
 
