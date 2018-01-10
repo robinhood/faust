@@ -24,14 +24,14 @@ that can be described using :ref:`models <guide-models>` for type safety
 and straightforward serialization support.
 
 Streams can be sharded in a round-robin manner, or partitioned by
-the message key, and this decides how the stream divides
+the message key; this decides how the stream divides
 between available agent instances in the cluster.
 
 **Create an agent**
-    To create an agent you need to use the ``@app.agent`` decorator
-    on an async function taking a stream as the argument, and that
-    consumes the stream using the :keyword:`async for` keyword,
-    processing the events in it:
+    To create an agent, you need to use the ``@app.agent`` decorator
+    on an async function taking a stream as the argument. Further,
+    it must iterate over the stream using the :keyword:`async for` keyword
+    to process the stream:
 
     .. sourcecode:: python
 
@@ -46,7 +46,7 @@ between available agent instances in the cluster.
             async for event in stream:
                 ...  # process event
 
-**Start a worker for this agent**
+**Start a worker for the agent**
     The :program:`faust worker` program can be used to start a worker from
     the same directory as the :file:`faustexample.py` file:
 
