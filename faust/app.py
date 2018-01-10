@@ -72,45 +72,49 @@ else:
 
 __all__ = ['App']
 
-#: Default transport URL.
+#: Transport URL, used sa default for ``app.url``.
 TRANSPORT_URL = 'kafka://localhost:9092'
 
-#: Default table state directory path (unless absolute, relative to datadir).
-TABLEDIR = 'tables'  # {appid}-data/tables/
+#: Table state directory path used as default for ``app.tabledir``.
+#: This path will be treated as relative to datadir, unless the provided
+#: poth is absolute.
+TABLEDIR = 'tables'
 
-#: Default path to stream class used by ``app.stream``.
+#: Path to stream class, used as default for ``app.stream``.
 STREAM_TYPE = 'faust.Stream'
 
-#: Default path to table manager class used by ``app.tables``.
+#: Path to table manager class, used as default for ``app.tables``.
 TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
 
-#: Default path to table class used by ``app.Table``.
+#: Path to table class, used as default for ``app.Table``.
 TABLE_TYPE = 'faust.Table'
 
-#: Default path to set class used by ``app.Set``.
+#: Path to set class, used as default for ``app.Set``.
 SET_TYPE = 'faust.Set'
 
-#: Default path to serializer registry class used by ``app.serializers``.
+#: Path to serializer registry class, used as the default for
+#: ``app.serializers``.
 REGISTRY_TYPE = 'faust.serializers.Registry'
 
-#: Default path to Worker class used by ``app.Worker``.
+#: Path to worker class, providing the default for ``app.Worker``.
 WORKER_TYPE = 'faust.worker.Worker'
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
 
-#: Default value for the :attr:`App.commit_interval` keyword argument
-#: that decides how often we commit acknowledged messages.
+#: How often we commit acknowledged messages.
+#: Used as the default value for the :attr:`App.commit_interval` argument.
 COMMIT_INTERVAL = 3.0
 
-#: Default value for the :attr:`App.table_cleanup_interval` keyword argument
-#: that decides how often we clean up expired items in windowed tables.
+#: How often we clean up expired items in windowed tables.
+#: Used as the default value for the :attr:`App.table_cleanup_interval`
+#: argument.
 TABLE_CLEANUP_INTERVAL = 30.0
 
 #: Prefix used for reply topics.
 REPLY_TOPIC_PREFIX = 'f-reply-'
 
-#: Default expiry time for replies in seconds (float/timedelta).
+#: Default expiry time for replies, in seconds (float/timedelta).
 REPLY_EXPIRES = timedelta(days=1)
 
 #: Max number of messages channels/streams/topics can "prefetch".

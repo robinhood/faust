@@ -109,9 +109,9 @@ if _loop:
     import mode.loop
     mode.loop.use(_loop)
 
-# This module loads attributes lazily so that `import faust` loads
-# quickly.  The next section provides static type checkers
-# information about the contents of this module.
+# To ensure `import faust` executes quickly, this module imports
+# attributes lazily. The next section provides static type checkers
+# with information about the contents of this module.
 if typing.TYPE_CHECKING:
     from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
