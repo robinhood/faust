@@ -69,6 +69,7 @@ class Collection(Service, CollectionT):
                  on_changelog_event: ChangelogEventCallback = None,
                  recovery_buffer_size: int = 1000,
                  standby_buffer_size: int = None,
+                 extra_topic_configs: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -80,6 +81,7 @@ class Collection(Service, CollectionT):
         self.partitions = partitions
         self.window = window
         self.changelog_topic = changelog_topic
+        self.extra_topic_configs = extra_topic_configs or {}
         self.help = help
         self._on_changelog_event = on_changelog_event
         self.recovery_buffer_size = recovery_buffer_size
@@ -243,6 +245,7 @@ class Collection(Service, CollectionT):
             deleting=deleting,
             acks=False,
             internal=True,
+            config=self.extra_topic_configs,
         )
 
     def __copy__(self) -> Any:

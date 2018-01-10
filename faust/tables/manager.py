@@ -483,13 +483,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await self._on_recovery_completed()
         else:
             self.log.info('Recovery interrupted')
-        self._recoverers = None
+        self._revivers = None
 
     async def _maybe_abort_ongoing_recovery(self) -> None:
         if self._ongoing_recovery is not None:
             self.log.info('Aborting ongoing recovery')
             if not self._ongoing_recovery.done():
-                assert self._recoverers is not None
+                assert self._revivers is not None
                 # TableManager.stop() will now block until all revivers are
                 # stopped. This is expected. Ideally the revivers should stop
                 # almost immediately upon receiving a stop()

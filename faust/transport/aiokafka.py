@@ -344,7 +344,7 @@ class Transport(base.Transport):
     def _topic_config(self,
                       retention: int = None,
                       compacting: bool = None,
-                      deleting: bool = None) -> Mapping[str, Any]:
+                      deleting: bool = None) -> MutableMapping[str, Any]:
         config: MutableMapping[str, Any] = {}
         cleanup_flags: Set[str] = set()
         if compacting:
@@ -393,7 +393,9 @@ class Transport(base.Transport):
                                    ensure_created: bool = False) -> None:
         owner.log.info(f'Creating topic {topic}')
         protocol_version = 1
-        config = config or self._topic_config(retention, compacting, deleting)
+        extra_configs = config or {}
+        config = self._topic_config(retention, compacting, deleting)
+        config.update(extra_configs)
 
         # Create topic request needs to be sent to the kafka cluster controller
         # Since aiokafka client doesn't currently support MetadataRequest
