@@ -68,6 +68,7 @@ class Collection(Service, CollectionT):
                  on_recover: RecoverCallback = None,
                  on_changelog_event: ChangelogEventCallback = None,
                  recovery_buffer_size: int = 1000,
+                 standby_buffer_size: int = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -82,6 +83,8 @@ class Collection(Service, CollectionT):
         self.help = help
         self._on_changelog_event = on_changelog_event
         self.recovery_buffer_size = recovery_buffer_size
+        self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
+        assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
 
         # Table key expiration
         self._timestamp_keys = defaultdict(set)

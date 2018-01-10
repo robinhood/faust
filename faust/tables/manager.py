@@ -72,6 +72,10 @@ class ChangelogReader(Service, ChangelogReaderT):
         self._highwaters = Counter()
         self._stop_event = asyncio.Event(loop=self.loop)
 
+    @property
+    def _buff_size(self) -> int:
+        return self.table.recovery_buffer_size
+
     async def on_stop(self) -> None:
         # Stop reading changelog
         if not self._stop_event.is_set():
@@ -204,7 +208,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
                 await self.table.on_changelog_event(event)
-                if len(buf) >= self.table.recovery_buffer_size:
+                if len(buf) >= self._buff_size:
                     self.table.apply_changelog_batch(buf)
                     buf.clear()
                 if self._should_stop_reading():
@@ -244,6 +248,10 @@ class ChangelogReader(Service, ChangelogReaderT):
 
 class StandbyReader(ChangelogReader):
     """Service reading table changelogs to keep an up-to-date backup."""
+
+    @property
+    def _buff_size(self) -> int:
+        return self.table.standby_buffer_size
 
     @Service.task
     async def _publish_stats(self) -> None:
@@ -448,8 +456,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _recover(self, assigned: Iterable[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
-        for table in self.values():
-            standby_tps = await _local_tps(table, standby_tps)
+        # for table in self.values():
+        #     standby_tps = await _local_tps(table, standby_tps)
         assigned_tps = self.app.assignor.assigned_actives()
         assert set(assigned_tps).issubset(set(assigned))
         self.log.info('New assignments found')

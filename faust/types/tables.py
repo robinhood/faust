@@ -58,6 +58,7 @@ class CollectionT(JoinableT, ServiceT):
     window: WindowT = None
     help: str
     recovery_buffer_size: int
+    standby_buffer_size: int
 
     @abc.abstractmethod
     def __init__(self, app: AppT,
@@ -74,6 +75,7 @@ class CollectionT(JoinableT, ServiceT):
                  on_recover: RecoverCallback = None,
                  on_changelog_event: ChangelogEventCallback = None,
                  recovery_buffer_size: int = 1000,
+                 standby_buffer_size: int = None,
                  **kwargs: Any) -> None:
         ...
 
