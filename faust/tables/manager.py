@@ -266,7 +266,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
-    _recoverers: List[ChangelogReaderT] = None
+    _revivers: List[ChangelogReaderT] = None
     _ongoing_recovery: asyncio.Future = None
     _stop_recovery: asyncio.Event = None
     _recovery_started: asyncio.Event
@@ -404,33 +404,32 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     @Service.transitions_to(TABLEMAN_RECOVER)
     async def _recover_changelogs(self, tps: Iterable[TP]) -> bool:
-        self.log.info('Recovering from changelog topics...')
-        table_recoverers = self._recoverers = [
-            self._create_recoverer(table, tps)
+        self.log.info('Restoring state from changelog topics...')
+        table_revivers = self._revivers = [
+            self._create_reviver(table, tps)
             for table in self.values()
         ]
-        for recoverer in table_recoverers:
-            await recoverer.start()
-            self.log.info('Started recoverer: %s', recoverer.label)
-        self.log.info('Waiting for recoverers to finish...')
+        for reviver in table_revivers:
+            await reviver.start()
+            self.log.info('Started restoring: %s', reviver.label)
+        self.log.info('Waiting for restore to finish...')
         await asyncio.gather(
-            *[r.wait_done_reading() for r in table_recoverers],
+            *[r.wait_done_reading() for r in table_revivers],
             loop=self.loop,
         )
         self.log.info('Done reading all changelogs')
-        for recoverer in table_recoverers:
-            self._sync_offsets(recoverer)
+        for reviver in table_revivers:
+            self._sync_offsets(reviver)
         self.log.info('Done reading from changelog topics')
-        for recoverer in table_recoverers:
-            await recoverer.stop()
-            self.log.info('Stopped recoverer: %s', recoverer.label)
-        self.log.info('Stopped all recoveres')
-        return all(recoverer.recovered()
-                   for recoverer in table_recoverers)
+        for reviver in table_revivers:
+            await reviver.stop()
+            self.log.info('Stopped restoring: %s', reviver.label)
+        self.log.info('Stopped restoring')
+        return all(reviver.recovered() for reviver in table_revivers)
 
-    def _create_recoverer(self,
-                          table: CollectionT,
-                          tps: Iterable[TP]) -> ChangelogReaderT:
+    def _create_reviver(self,
+                        table: CollectionT,
+                        tps: Iterable[TP]) -> ChangelogReaderT:
         table = cast(Table, table)
         offsets = self._table_offsets
         table_tps = {tp for tp in tps
@@ -461,7 +460,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         did_recover = await self._recover_changelogs(assigned_tps)
 
         if did_recover and not self._stopped.is_set():
-            self.log.info('Recovered fine!')
+            self.log.info('Restore complete!')
             # This needs to happen if all goes well
             callback_coros = [table.call_recover_callbacks()
                               for table in self.values()]
@@ -483,12 +482,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self.log.info('Aborting ongoing recovery')
             if not self._ongoing_recovery.done():
                 assert self._recoverers is not None
-                # TableManager.stop() will now block until all recoverers are
-                # stopped. This is expected. Ideally the recoverers should stop
+                # TableManager.stop() will now block until all revivers are
+                # stopped. This is expected. Ideally the revivers should stop
                 # almost immediately upon receiving a stop()
-                await asyncio.wait([recoverer.stop()
-                                    for recoverer in self._recoverers])
-                self.log.info('Waiting ongoing recovery')
+                await asyncio.wait([
+                    reviver.stop() for reviver in self._revivers])
+                self.log.info('Waiting for ongoing recovery')
                 await self.wait(self._ongoing_recovery)
                 self.log.info('Done with ongoing recovery')
             self._ongoing_recovery = None
@@ -503,6 +502,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
-        assert self._ongoing_recovery is None and self._recoverers is None
+        assert self._ongoing_recovery is None and self._revivers is None
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')
