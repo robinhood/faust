@@ -17,23 +17,45 @@
 What is an Agent?
 =================
 
-An agent is a stream processor, but more specifically an async function
-decorated with the ``@app.agent`` decorator.
+An agent is a distributed system processing the events in a stream.
 
-The agent takes a stream as the argument, and then consumes that stream
-processing the messages in it:
+Every event is a message in the stream and is structured as a key/value pair
+that can be described using :ref:`models <guide-models>` for type safety
+and straightforward serialization support.
 
-.. sourcecode:: python
+Streams can be sharded in a round-robin manner, or partitioned by
+the message key, and this decides how the stream divides
+between available agent instances in the cluster.
 
-    @app.agent()
-    async def myagent(stream):
-        async for event in stream:
-            ...  # process event
+**Create an agent**
+    To create an agent you need to use the ``@app.agent`` decorator
+    on an async function taking a stream as the argument, and that
+    consumes the stream using the :keyword:`async for` keyword,
+    processing the events in it:
 
+    .. sourcecode:: python
 
-Starting multiple workers for your application means the agent is running
-on many machines at the same time, and each agent instance will be
-receiving a portion of the stream.
+        # faustexample.py
+
+        import faust
+
+        app = faust.App('example',  broker='kafka://localhost:9092')
+
+        @app.agent()
+        async def myagent(stream):
+            async for event in stream:
+                ...  # process event
+
+**Start a worker for this agent**
+    The :program:`faust worker` program can be used to start a worker from
+    the same directory as the :file:`faustexample.py` file:
+
+    .. sourcecode:: console
+
+        $ faust -A faustexample worker -l info
+
+Every new worker that you start will force the cluster to rebalance
+partitions so that every agent receives a specific portion of the stream.
 
 .. topic:: Partitioning
 

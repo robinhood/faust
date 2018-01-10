@@ -17,7 +17,10 @@
 What is an Application?
 =======================
 
-An application is an *instance of the Faust library*.
+An application is an *instance of the library*, and provides
+the core API of Faust.
+
+The application can define agents, streams, topics & channels, and more.
 
 To create one you need to provide
 a name for the application (the id), a message broker, and a driver to use for
