@@ -26,7 +26,7 @@ table storage:
 .. sourcecode:: pycon
 
     >>> import faust
-    >>> app = faust.App('example', url='kafka://', store='rocksdb://')
+    >>> app = faust.App('example', broker='kafka://', store='rocksdb://')
 
 For special needs, you can inherit from the :class:`faust.App` class, and a subclass
 will have the ability to change how almost everything works.
@@ -60,7 +60,7 @@ Configuration
 
 The defaults are sensible so you can safely
 use Faust without changing them.  You probably *will want* to
-set the ``url`` and ``store`` options, though, to configure the broker and
+set the ``broker`` and ``store`` options, though, to configure the broker and
 storage driver.
 
 Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
@@ -69,7 +69,7 @@ Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
 
     >>> app = faust.App(
     ...     'myid',
-    ...     url='kafka://kafka.example.com',
+    ...     broker='kafka://kafka.example.com',
     ...     store='rocksdb://',
     ... )
 
@@ -114,8 +114,8 @@ This parameter is required.
     When using Kafka, the id is used to generate app-local topics, and
     names for consumer groups, etc.
 
-``url``
-~~~~~~~
+``broker``
+~~~~~~~~~~
 
 :type: ``str``
 :default: ``"aiokafka://localhost:9092"``

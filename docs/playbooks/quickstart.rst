@@ -29,7 +29,7 @@ Lets create the file `hello_world.py`:
 
     app = faust.App(
         'hello-world',
-        url='kafka://localhost:9092',
+        broker='kafka://localhost:9092',
         value_serializer='raw',
     )
 

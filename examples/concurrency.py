@@ -8,7 +8,7 @@ class Record(faust.Record):
     value: int
 
 
-app = faust.App('concurrency', url='kafka://localhost')
+app = faust.App('concurrency', broker='kafka://localhost')
 topic = app.topic('concurrency', value_type=Record)
 
 

@@ -15,7 +15,7 @@ Faust is...
             from_name: str
             to_name: str
 
-        app = faust.App('hello-app', url='kafka://localhost')
+        app = faust.App('hello-app', broker='kafka://localhost')
         topic = app.topic('hello-topic', value_type=Greeting)
 
         @app.agent(topic)

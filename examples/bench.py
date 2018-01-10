@@ -20,7 +20,7 @@ from time import monotonic  # noqa
 from uuid import uuid4      # noqa
 
 group = str(uuid4())
-app = faust.App(f'faustbench-{group}', url='aiokafka://localhost')
+app = faust.App(f'faustbench-{group}', broker='aiokafka://localhost')
 
 
 class Request(faust.Record, serializer='json'):

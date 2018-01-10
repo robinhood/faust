@@ -25,7 +25,7 @@ Let's create the module :file:`page_views.py`:
 
     app = faust.App(
         'page_views',
-        url='kafka://localhost:9092',
+        broker='kafka://localhost:9092',
         default_partitions=4,
     )
 

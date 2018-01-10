@@ -113,7 +113,7 @@ class worker(AppCommand):
         loglevel = level_name(worker.loglevel or 'WARN').lower()
         data = [
             ('id', app.id),
-            ('transport', f'{app.url} {transport_extra}'),
+            ('transport', f'{app.broker} {transport_extra}'),
             ('store', app.store),
             ('web', website.web.url),
             ('log', f'{logfile} ({loglevel})'),

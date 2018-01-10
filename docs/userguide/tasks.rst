@@ -136,7 +136,7 @@ We define our table, and an agent reading from the stream to populate the table:
 
     app = faust.App(
         'word-counts',
-        url='kafka://localhost:9092',
+        broker='kafka://localhost:9092',
         default_partitions=8,
         store='rocksdb://',
     )

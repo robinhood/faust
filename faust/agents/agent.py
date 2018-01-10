@@ -62,7 +62,7 @@ SUPERVISOR_STRATEGY: Type[SupervisorStrategyT] = OneForOneSupervisor
 #       account: str
 #       amount: float
 #
-#   app = faust.app('myid', url='kafka://localhost:9092')
+#   app = faust.app('myid', broker='kafka://localhost:9092')
 #
 #   withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 #

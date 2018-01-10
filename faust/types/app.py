@@ -86,7 +86,7 @@ class AppT(ServiceT):
     Serializers: Type[RegistryT]
 
     id: str
-    url: URL
+    broker: URL
     client_id: str
     datadir: Path
     tabledir: Path
@@ -122,7 +122,7 @@ class AppT(ServiceT):
     def __init__(
             self, id: str,
             *,
-            url: Union[str, URL] = 'aiokafka://localhost:9092',
+            broker: Union[str, URL] = 'aiokafka://localhost:9092',
             store: Union[str, URL] = 'memory://',
             autodiscover: AutodiscoverArg = False,
             origin: str = None,
@@ -149,7 +149,8 @@ class AppT(ServiceT):
             monitor: Monitor = None,
             on_startup_finished: Callable = None,
             stream_buffer_maxsize: int = 1,
-            loop: asyncio.AbstractEventLoop = None) -> None:
+            loop: asyncio.AbstractEventLoop = None,
+            url: str = None) -> None:
         self.on_startup_finished: Callable = None
 
     @abc.abstractmethod

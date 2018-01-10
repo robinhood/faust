@@ -86,7 +86,7 @@ def test_new_transport(app, patching):
     by_url = patching('faust.transport.by_url')
     assert app._new_transport() is by_url.return_value.return_value
     assert app.transport is by_url.return_value.return_value
-    by_url.assert_called_with(app.url)
-    by_url.return_value.assert_called_with(app.url, app, loop=app.loop)
+    by_url.assert_called_with(app.broker)
+    by_url.return_value.assert_called_with(app.broker, app, loop=app.loop)
     app.transport = 10
     assert app.transport == 10

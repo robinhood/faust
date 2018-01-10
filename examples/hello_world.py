@@ -3,7 +3,7 @@ import faust
 
 app = faust.App(
     'hello-world',
-    url='kafka://localhost:9092',
+    broker='kafka://localhost:9092',
 )
 
 greetings_topic = app.topic('greetings', value_type=str)

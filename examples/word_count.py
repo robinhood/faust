@@ -7,9 +7,9 @@ WORDS = ['the', 'quick', 'brown', 'fox']
 
 app = faust.App(
     'word-counts',
-    url='kafka://localhost:9092',
-    default_partitions=8,
+    broker='kafka://localhost:9092',
     store='rocksdb://',
+    default_partitions=8,
 )
 
 posts_topic = app.topic('posts', value_type=str)

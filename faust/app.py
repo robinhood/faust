@@ -72,8 +72,8 @@ else:
 
 __all__ = ['App']
 
-#: Transport URL, used sa default for ``app.url``.
-TRANSPORT_URL = 'kafka://localhost:9092'
+#: Broker URL, used as default for ``app.broker``.
+BROKER_URL = 'kafka://localhost:9092'
 
 #: Table state directory path used as default for ``app.tabledir``.
 #: This path will be treated as relative to datadir, unless the provided
@@ -122,7 +122,7 @@ STREAM_BUFFER_MAXSIZE = 1000
 
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({s.id}): {s.url} {s.state} agents({agents}) topics({topics})>
+<{name}({s.id}): {s.broker} {s.state} agents({agents}) topics({topics})>
 """.strip()
 
 SCAN_CATEGORY_AGENT = 'faust.agent'
@@ -147,15 +147,6 @@ SCAN_CATEGORIES: Iterable[str] = [
 SCAN_IGNORE: Iterable[str] = ['test_.*']
 
 E_NEED_ORIGIN = """
-`origin` argument to faust.App is mandatory when autodiscovery enabled.
-
-This parameter sets the canonical path to the project package,
-and describes how a user, or program can find it on the command-line when using
-the `faust -A project` option.  It's also used as the default package
-to scan when autodiscovery is enabled.
-
-If your app is defined in a module: ``project/app.py``, then the
-origin will be "project":
 
     # file: project/app.py
     import faust
@@ -175,15 +166,17 @@ class _AttachedHeapEntry(NamedTuple):
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
 
+    # The App/AppService split is here for the convenience of badly
+    # written programs.
+
     # The App() is created during module import and cannot subclass Service
     # directly as Service.__init__ creates the asyncio event loop, and
     # creating the event loop as a side effect of importing a module
-    # is a bad practice (e.g. should you switch to uvloop you may end up
-    # in a situation where some services use the old event loop).
+    # is a dangerous practice (e.g., if you switch to uvloop after you can
+    # end up in a situation where some services use the old event loop).
 
     # To solve this we use ServiceProxy to split into App + AppService,
-    # in a way so that the AppService is started lazily only when first
-    # needed.
+    # in a way such that the AppService is started lazily when first needed.
 
     _extra_service_instances: List[ServiceT] = None
 
@@ -197,10 +190,11 @@ class AppService(Service):
         # XXX If we switch to socket RPC using routers we can remove this.
         if self.app.client_only:
             return self._components_client()
+        # Server: Starts everything.
         return self._components_server()
 
     def _components_client(self) -> Iterable[ServiceT]:
-        # The components started when running in Client-Only mode.
+        # Returns the components started when running in Client-Only mode.
         return cast(Iterable[ServiceT], chain(
             [self.app.producer],
             [self.app.consumer],
@@ -210,10 +204,13 @@ class AppService(Service):
         ))
 
     def _components_server(self) -> Iterable[ServiceT]:
-        # The components started when running normally (Server mode).
+        # Returns the components started when running normally (Server mode).
+        # Note: has side effects: adds the monitor to the app's list of
+        # sensors.
 
         # Add the main Monitor sensor.
-        # beacon reattached after initialized in case a custom monitor added
+        # The beacon is also reattached in case the monitor
+        # was created by the user.
         self.app.monitor.beacon.reattach(self.beacon)
         self.app.monitor.loop = self.loop
         self.app.sensors.add(self.app.monitor)
@@ -223,7 +220,7 @@ class AppService(Service):
         # stopped when the app stops,
         # etc...
         return cast(Iterable[ServiceT], chain(
-            # Sensors (Sensor): always start first, stop last.
+            # Sensors (Sensor): always start first and stop last.
             self.app.sensors,
             # Producer (transport.Producer): always stop after Consumer.
             [self.app.producer],
@@ -267,19 +264,22 @@ class AppService(Service):
         await self.on_started_init_extra_services()
 
         # Call the app-is-fully-started callback used by Worker
-        # to print the "ready" message when Faust is ready to
-        # start processing.
+        # to print the "ready" message that signals to the user that
+        # the worker is ready to start processing.
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
 
     async def on_started_init_extra_services(self) -> None:
+        # Start user-provided services.
         if self._extra_service_instances is None:
+            # instantiate the services added using the @app.service decorator.
             self._extra_service_instances = [
                 s(loop=self.loop,
                   beacon=self.beacon) if inspect.isclass(s) else s
                 for s in self.app._extra_services
             ]
             for service in self._extra_service_instances:
+                # start the services now, or when the app is started.
                 await self.add_runtime_dependency(service)
 
     @property
@@ -297,16 +297,14 @@ class App(AppT, ServiceProxy):
     Arguments:
         id (str): Application ID.
 
-        url (str):
-            Transport URL.  Default: ``"aiokafka://localhost:9092"``.
+        broker (str): Broker URL. Default is ``"aiokafka://localhost:9092"``.
         client_id (str):  Client id used for producer/consumer.
         commit_interval (Seconds): How often we commit messages that
             have been fully processed.  Default ``30.0``.
         key_serializer (CodecArg): Default serializer for Topics
-            that do not have an explicit serializer set.
-            Default: :const:`None`.
+            that don't have one set.  Default: :const:`None`.
         value_serializer (CodecArg): Default serializer for event types
-            that do not have an explicit serializer set.  Default: ``"json"``.
+            that don't have one set.  Default: ``"json"``.
         num_standby_replicas (int): The number of standby replicas for each
             table.  Default: ``1``.
         replication_factor (int): The replication factor for changelog topics
@@ -317,8 +315,8 @@ class App(AppT, ServiceProxy):
             Provide specific asyncio event loop instance.
     """
 
-    #: Set if app should only start the services required to operate
-    #: as an RPC client (producer and reply consumer).
+    #: Set this to True if app should only start the services required to
+    #: operate as an RPC client (producer and reply consumer).
     client_only = False
 
     # Default producer instance.
@@ -357,7 +355,7 @@ class App(AppT, ServiceProxy):
             self, id: str,
             *,
             version: int = 1,
-            url: Union[str, URL] = TRANSPORT_URL,
+            broker: Union[str, URL] = BROKER_URL,
             store: Union[str, URL] = 'memory://',
             autodiscover: AutodiscoverArg = False,
             origin: str = None,
@@ -385,7 +383,8 @@ class App(AppT, ServiceProxy):
             on_startup_finished: Callable = None,
             stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE,
             loop: asyncio.AbstractEventLoop = None,
-            loghandlers: List[logging.StreamHandler] = None) -> None:
+            loghandlers: List[logging.StreamHandler] = None,
+            url: Union[str, URL] = None) -> None:
         self.id = id
         self.loop = loop
         self.version = version if version is not None else 1
@@ -394,7 +393,7 @@ class App(AppT, ServiceProxy):
                 'Version cannot be {self.version}, please start at 1')
         if self.version > 1:
             self.id = f'{self.id}-v{self.version}'
-        self.url = URL(url)
+        self.broker = URL(broker or url)
         self.client_id = client_id
         self.canonical_url = URL(canonical_url or '')
         # datadir is a format string that can contain {appid}
@@ -1099,7 +1098,7 @@ class App(AppT, ServiceProxy):
         )
 
     def _new_transport(self) -> TransportT:
-        return transport.by_url(self.url)(self.url, self, loop=self.loop)
+        return transport.by_url(self.broker)(self.broker, self, loop=self.loop)
 
     def FlowControlQueue(
             self,
@@ -1209,7 +1208,7 @@ class App(AppT, ServiceProxy):
 
     @property
     def label(self) -> str:
-        return f'{self.shortlabel}: {self.id}@{self.url}'
+        return f'{self.shortlabel}: {self.id}@{self.broker}'
 
     @property
     def shortlabel(self) -> str:

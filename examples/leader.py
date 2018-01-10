@@ -5,7 +5,7 @@ import faust
 
 app = faust.App(
     'leader-example',
-    url='kafka://localhost:9092',
+    broker='kafka://localhost:9092',
     value_serializer='raw',
 )
 

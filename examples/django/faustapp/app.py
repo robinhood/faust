@@ -13,7 +13,7 @@ import faust  # noqa: E402
 
 app = faust.App(
     'django-proj',
-    url='kafka://localhost:9092',
+    broker='kafka://localhost:9092',
     store='rocksdb://',
     autodiscover=lambda: [config.name for config in apps.get_app_configs()],
 )
