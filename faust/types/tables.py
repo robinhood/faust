@@ -4,8 +4,8 @@ import asyncio
 import typing
 from datetime import datetime
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Iterable, List, MutableMapping,
-    MutableSet, Optional, Set, Type, Union,
+    Any, Awaitable, Callable, ClassVar, Iterable, List, Mapping,
+    MutableMapping, MutableSet, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
 from mode.utils.compat import Counter
@@ -76,6 +76,7 @@ class CollectionT(JoinableT, ServiceT):
                  on_changelog_event: ChangelogEventCallback = None,
                  recovery_buffer_size: int = 1000,
                  standby_buffer_size: int = None,
+                 extra_topic_configs: Mapping[str, Any] = None,
                  **kwargs: Any) -> None:
         ...
 
