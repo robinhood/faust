@@ -50,6 +50,7 @@ async def print_key_value(event: EventT) -> None:
 
 user_to_total = app.Table(
     'user_to_total', default=int, on_changelog_event=print_key_value,
+    standby_buffer_size=1, recovery_buffer_size=200,
 ).tumbling(3600).relative_to_stream()
 country_to_total = app.Table(
     'country_to_total', default=int).tumbling(10.0, expires=10.0)
