@@ -60,6 +60,16 @@ Faust requires Python 3.6 or later, and a running Kafka broker.
 There's currently no plan to port Faust to earlier Python versions;
 please get in touch if you want to work on this.
 
+.. admonition:: RocksDB On MacOS Sierra
+
+    To install :pypi:`python-rocksdb` on MacOS Sierra you need to
+    specify some additional compiler flags:
+
+    .. sourcecode:: console
+
+        $ CFLAGS='-std=c++11 -stdlib=libc++ -mmacosx-version-min=10.10' \
+            pip install -U --no-cache python-rocksdb
+
 Extensions
 ----------
 
