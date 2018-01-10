@@ -172,6 +172,7 @@ class Stream(StreamT, Service):
             'loop': self.loop,
             'children': self.children,
             'beacon': self.beacon,
+            'concurrency_index': self.concurrency_index,
         }
 
     def clone(self, **kwargs: Any) -> Any:

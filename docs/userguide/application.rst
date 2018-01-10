@@ -10,7 +10,7 @@
 
 .. contents::
     :local:
-    :depth: 3
+    :depth: 2
 
 .. _application-basics:
 
@@ -28,20 +28,6 @@ table storage:
     >>> import faust
     >>> app = faust.App('example', broker='kafka://', store='rocksdb://')
 
-For special needs, you can inherit from the :class:`faust.App` class, and a subclass
-will have the ability to change how almost everything works.
-
-Comparing the application to the interface of frameworks like Django,
-there are clear benefits.
-
-In Django, the global settings module means having multiple configurations
-are impossible, and with an API organized by modules, you sometimes end up
-with lots of import statements and keeping track of many modules. Further,
-you often end up monkey patching to change how something works.
-
-The application keeps the library flexible to changes, and allows
-for many applications to coexist in the same process space.
-
 .. topic:: It is safe to...
 
     - Run multiple application instances in the same process:
@@ -55,13 +41,15 @@ for many applications to coexist in the same process space.
 
 .. _application-configuration:
 
-Configuration
-=============
+Application Parameters
+======================
 
-The defaults are sensible so you can safely
-use Faust without changing them.  You probably *will want* to
-set the ``broker`` and ``store`` options, though, to configure the broker and
-storage driver.
+You must provide a name for the app, and also you *will want* to
+set the ``broker`` and ``store`` options to configure the broker URL and
+a storage driver.
+
+Other than that the rest have sensible defaults so you can safely use Faust
+without changing them.
 
 Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
 
@@ -74,10 +62,12 @@ Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
     ... )
 
 "kafka://localhost" is used if you don't configure a broker URL.
-The first part of the URL ("kafka://") is the driver you want to use.
+The first part of the URL ("kafka://"), is called the scheme and specifies
+the driver that you want to use (it can also be the fully qualified
+path to a Python class).
 
-The store decides how to keep distributed tables locally, and version
-1.0 supports two options:
+The storage driver decides how to keep distributed tables locally, and
+Faust version 1.0 supports two options:
 
 +----------------+-----------------------------------------------+
 | ``rocksdb://`` | `RocksDB`_ an embedded database (production)  |
@@ -89,14 +79,14 @@ Using the ``memory://`` store is OK when developing your project and testing
 things out, but for large tables, it can take hours to recover after
 a restart, so you should never use it in production.
 
-`RocksDB`_ recovers in seconds or less, is embedded and don't require a server or
-additional infrastructure, and stored on the file system so tables can exceed
-the size of available memory.
+`RocksDB`_ recovers tables in seconds or less, is embedded and don't require
+a server or additional infrastructure. It also stores them in the file system
+so tables can exceed the size of available memory.
 
 .. _`RocksDB`: http://rocksdb.org/
 
-Parameters
-----------
+Required Parameters
+-------------------
 
 ``id``
 ~~~~~~
@@ -113,6 +103,9 @@ This parameter is required.
 
     When using Kafka, the id is used to generate app-local topics, and
     names for consumer groups, etc.
+
+Common Parameters
+-----------------
 
 ``broker``
 ~~~~~~~~~~
@@ -218,31 +211,6 @@ The value for this argument can be:
     For manual control over autodiscovery, you can also call the
     :meth:`@discover` method, manually.
 
-``canonical_url``
-~~~~~~~~~~~~~~~~~
-
-:type:  ``str``
-:default: ``socket.gethostname()``
-
-You shouldn't have to set this manually.
-
-The canonical URL defines how to reach the web server on a running
-worker node, and is usually set by combining the :option:`faust worker --web-host`
-and :option:`faust worker --web-port` command line arguments, not
-by passing it as a keyword argument to :class:`App`.
-
-
-``client_id``
-~~~~~~~~~~~~~
-
-:type: ``str``
-:default: ``faust-VERSION``
-
-You shouldn't have to set this manually.
-
-The client id is used to identify the software used, and is not usually
-configured by the user.
-
 ``datadir``
 ~~~~~~~~~~~
 
@@ -256,21 +224,8 @@ The directory in which this instance stores local table data, etc.
     Can also be set this using :option:`faust --datadir` option, but a default
     can be passed as a keyword argument to :class:`App`.
 
-``commit_interval``
-~~~~~~~~~~~~~~~~~~~
-
-:type: `float`, :class:`~datetime.timedelta`
-:default: ``3.0``
-
-How often we commit messages that have been fully processed (:term:`acked`).
-
-``table_cleanup_interval``
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-:type: `float`, :class:`~datetime.timedelta`
-:default: ``30.0``
-
-How often we cleanup tables to remove expired entries.
+Serialization Parameters
+------------------------
 
 ``key_serializer``
 ~~~~~~~~~~~~~~~~~~
@@ -304,6 +259,53 @@ This can be string, the name of a serializer/codec, or an actual
 
     :ref:`codecs`
 
+Advanced Broker Options
+-----------------------
+
+``client_id``
+~~~~~~~~~~~~~
+
+:type: ``str``
+:default: ``faust-VERSION``
+
+You shouldn't have to set this manually.
+
+The client id is used to identify the software used, and is not usually
+configured by the user.
+
+``commit_interval``
+~~~~~~~~~~~~~~~~~~~
+
+:type: `float`, :class:`~datetime.timedelta`
+:default: ``3.0``
+
+How often we commit messages that have been fully processed (:term:`acked`).
+
+``default_partitions``
+~~~~~~~~~~~~~~~~~~~~~~
+
+:type: ``int``
+:default: ``8``
+
+Default number of partitions for new topics.
+
+.. note::
+
+    This defines the maximum number of workers we could distribute the
+    workload of the application (also sometimes referred as the sharding
+    factor of the application).
+
+Advanced Table Options
+----------------------
+
+``table_cleanup_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:type: `float`, :class:`~datetime.timedelta`
+:default: ``30.0``
+
+How often we cleanup tables to remove expired entries.
+
 ``num_standby_replicas``
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -326,19 +328,24 @@ by the application.
     This would generally be configured to the replication factor for your
     Kafka cluster.
 
-``default_partitions``
-~~~~~~~~~~~~~~~~~~~~~~
+Web Parameters
+--------------
 
-:type: ``int``
-:default: ``8``
+``canonical_url``
+~~~~~~~~~~~~~~~~~
 
-Default number of partitions for new topics.
+:type:  ``str``
+:default: ``socket.gethostname()``
 
-.. note::
+You shouldn't have to set this manually.
 
-    This defines the maximum number of workers we could distribute the
-    workload of the application (also sometimes referred as the sharding
-    factor of the application).
+The canonical URL defines how to reach the web server on a running
+worker node, and is usually set by combining the :option:`faust worker --web-host`
+and :option:`faust worker --web-port` command line arguments, not
+by passing it as a keyword argument to :class:`App`.
+
+Agent RPC Parameters
+--------------------
 
 ``reply_to``
 ~~~~~~~~~~~~
@@ -365,6 +372,9 @@ Set this to :const:`True` if you plan on using the RPC with agents.
 
 The expiry time (in seconds float, or timedelta), for how long replies
 will stay in the instances local reply topic before being removed.
+
+Subclassing Parameters
+----------------------
 
 ``Stream``
 ~~~~~~~~~~
@@ -471,6 +481,118 @@ Example using a class::
 Example using the string path to a class::
 
     app = App(..., Serializers='myproj.serializers.Registry')
+
+
+Actions
+=======
+
+Creating a topic-description
+----------------------------
+
+To create a topic description, used for example to tell agents what Kafka
+topic to read from, use the :meth:`~@topic` method:
+
+.. sourcecode:: python
+
+    topic = app.topic('name_of_topic')
+
+    @app.agent(topic)
+    async def process(stream):
+        async for event in stream:
+            ...
+
+
+Use the ``key_type`` and ``value_type`` arguments to specify the models used for key
+and value serialization:
+
+.. sourcecode:: python
+
+    topic = app.topic(
+        'name_of_topic',
+        key_type=MyKeyModel,
+        value_type=MyValueModel,
+    )
+
+.. seealso::
+
+    The :ref:`guide-channels` section in the user guide for more information
+    about topics and channels.
+
+    For more information about models and serialization go to the
+    :ref:`guide-models` guide.
+
+Creating a channel
+------------------
+
+A channel enables local in-memory communication between agents:
+
+.. sourcecode:: python
+
+    import faust
+
+    app = faust.App('channel')
+
+    class MyModel(faust.Record):
+        x: int
+
+    channel = app.channel(value_type=MyModel)
+
+    @app.agent(channel)
+    async def process(stream):
+        async for event in stream:
+            print(f'Received: {event!r}')
+
+    @app.timer(1.0)
+    async def populate():
+        await channel.send(MyModel(303))
+
+.. seealso::
+
+    The :ref:`guide-channels` section in the user guide for more information
+    about topics and channels.
+
+    For more information about models and serialization go to the
+    :ref:`guide-models` guide.
+
+Command-line interface
+----------------------
+
+To have your script extend the :program:`faust` program, you can call
+``app.main()``:
+
+.. sourcecode:: python
+
+    if __name__ == '__main__':
+        app.main()
+
+This will use the arguments in ``sys.argv`` and will support the same
+arguments as the :program:`faust` umbrella command.
+
+.. seealso::
+
+    The :meth:`~@main` method in the API reference.
+
+
+Miscellaneous
+=============
+
+Why use applications?
+---------------------
+
+For special needs, you can inherit from the :class:`faust.App` class, and a subclass
+will have the ability to change how almost everything works.
+
+Comparing the application to the interface of frameworks like Django,
+there are clear benefits.
+
+In Django, the global settings module means having multiple configurations
+are impossible, and with an API organized by modules, you sometimes end up
+with lots of import statements and keeping track of many modules. Further,
+you often end up monkey patching to change how something works.
+
+The application keeps the library flexible to changes, and allows
+for many applications to coexist in the same process space.
+
 
 Reference
 =========
