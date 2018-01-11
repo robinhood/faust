@@ -17,7 +17,10 @@ What is Faust?
 
 .. include:: includes/blurb.txt
 
-.. topic:: Faust can be used for...
+**Faust is...**
+    .. include:: includes/introduction.txt
+
+.. topic:: Faust is used for...
 
     .. hlist::
         :columns: 2
@@ -94,7 +97,13 @@ Extensions
     See bundles in the :ref:`installation` instructions section of
     this document for a list of supported :pypi:`setuptools` extensions.
 
-.. include:: includes/introduction.txt
+.. admonition:: To specify multiple extensions at the same time
+
+    separate extensions with the comma:
+
+    .. sourcecode:: console
+
+        $ pip install fuast[uvloop,fast,rocksdb,statsd]
 
 What is Kafka?
 ==============================================

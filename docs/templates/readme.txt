@@ -8,6 +8,9 @@
 
 .. include:: ../includes/blurb.txt
 
+Faust is...
+===========
+
 .. include:: ../includes/introduction.txt
 
 .. include:: ../includes/installation.txt

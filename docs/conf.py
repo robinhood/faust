@@ -58,12 +58,29 @@ globals().update(conf.build_config(
 ))
 
 html_theme = 'alabaster'
-html_sidebars = {}
+html_sidebars = {
+    '**': [
+        'about.html',
+        'navigation.html',
+        'relations.html',
+        'searchbox.html',
+    ]
+}
+html_theme_options = {
+    #'logo': 'logo.png',
+    'description': 'A library for building streaming applications in Python with a focus on simplicity.',
+    'github_banner': True,
+    'travis_button': True,
+    'show_related': True,
+    'github_user': 'fauststream',
+    'pre_bg': '#4c4c4c',
+    'github_repo': 'faust',
+}
 templates_path = ['_templates']
 
 autodoc_member_order = 'bysource'
 
-pygments_style = 'sphinx'
+pygments_style = 'monokai'
 
 # This option is deprecated and raises an error.
 with suppress(NameError):

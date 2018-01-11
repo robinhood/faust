@@ -604,7 +604,7 @@ Methods
 -------
 
 Topics & Channels
-^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -616,7 +616,7 @@ Topics & Channels
         :noindex:
 
 Decorators
-^^^^^^^^^^
+~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -640,7 +640,7 @@ Decorators
         :noindex:
 
 Command Line
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -649,7 +649,7 @@ Command Line
         :noindex:
 
 Defining Tables
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -661,7 +661,7 @@ Defining Tables
         :noindex:
 
 Decorator Discovery
-^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -670,7 +670,7 @@ Decorator Discovery
         :noindex:
 
 Creating Streams
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -679,7 +679,7 @@ Creating Streams
         :noindex:
 
 Sending Messages
-^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 .. class:: App
     :noindex:
@@ -688,7 +688,7 @@ Sending Messages
         :noindex:
 
 Consumer Methods
-^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~
 
 .. class:: App
     :noindex:

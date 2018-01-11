@@ -1,6 +1,3 @@
-Faust is...
-==========================
-
 **Simple**
     Faust is extremely easy to use compared to other stream processing
     solutions.  There's no DSL to limit your creativity, no restricted

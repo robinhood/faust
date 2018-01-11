@@ -41,7 +41,7 @@ you probably already need Faust.
 
 
 Faust is...
-==========================
+===========
 
 **Simple**
     Faust is extremely easy to use compared to other stream processing
@@ -57,7 +57,7 @@ Faust is...
             from_name: str
             to_name: str
 
-        app = faust.App('hello-app', url='kafka://localhost')
+        app = faust.App('hello-app', broker='kafka://localhost')
         topic = app.topic('hello-topic', value_type=Greeting)
 
         @app.agent(topic)
@@ -211,13 +211,14 @@ FAQ
 Can I use Faust with Django/Flask/etc.?
 ---------------------------------------
 
-Yes! Use ``gevent``/``eventlet`` as a bridge to integrate with
+Yes! Use ``gevent`` or ``eventlet`` as a bridge to integrate with
 ``asyncio``.
 
-Using :pypi`gevent`
-~~~~~~~~~~~~~~~~---
+Using ``gevent``
+~~~~~~~~~~~~~~~~~~~~
 
-This works with any blocking Python library that can work with ``gevent``.
+This approach works with any blocking Python library that can work
+with ``gevent``.
 
 Using ``gevent`` requires you to install the ``aiogevent`` module,
 and you can install this as a bundle with Faust:
@@ -247,7 +248,7 @@ and that it executes before you import libraries.
 Using ``eventlet``
 ~~~~~~~~~~~~~~~~~~----
 
-This works with any blocking Python library that can work with
+This approach works with any blocking Python library that can work with
 ``eventlet``.
 
 Using ``eventlet`` requires you to install the ``aioeventlet`` module,
@@ -327,7 +328,7 @@ Will you support Python 2?
 --------------------------
 
 There are no plans to support Python 2, but you are welcome to contribute to
-the project (details in question above is relevant also for Python 2).
+the project (details in the question above is relevant also for Python 2).
 
 .. _getting-help:
 
