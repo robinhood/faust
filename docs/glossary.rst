@@ -58,3 +58,8 @@ Glossary
         A communication mechanism used to send and receive messages, for
         example Kafka.
 
+    event
+        A happening in a system, or in the case of a stream, a single record
+        having a key/value pair, and a reference to the original message
+        object.
+
