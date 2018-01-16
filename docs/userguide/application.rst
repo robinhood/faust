@@ -224,8 +224,9 @@ The directory in which this instance stores local table data, etc.
 
 .. seealso::
 
-    Can also be set this using :option:`faust --datadir` option, but a default
-    can be passed as a keyword argument to :class:`App`.
+   The data directory can also be set using the :option:`faust --datadir` option,
+   from the command-line, so there's usually no reason to provide a default
+   value when creating the app.
 
 Serialization Parameters
 ------------------------
@@ -244,7 +245,7 @@ This can be the name of a serializer/codec, or an actual
 
 .. seealso::
 
-    :ref:`codecs`
+    The :ref:`codecs` section in the model guide.
 
 ``value_serializer``
 ~~~~~~~~~~~~~~~~~~~~
@@ -260,7 +261,7 @@ This can be string, the name of a serializer/codec, or an actual
 
 .. seealso::
 
-    :ref:`codecs`
+    The :ref:`codecs` section in the model guide.
 
 Advanced Broker Options
 -----------------------
@@ -524,11 +525,11 @@ string, but the key can also be specified as a model type.
 
 .. seealso::
 
-    The :ref:`guide-channels` section in the user guide for more information
-    about topics and channels.
+    For more information see also:
 
-    For more information about models and serialization go to the
-    :ref:`guide-models` guide.
+    - The :ref:`guide-channels` guide -- for more about topics and channels.
+
+    - The :ref:`guide-models` guide -- for more about models and serialization.
 
 ``app.channel()`` -- Create a local channel
 -------------------------------------------
@@ -557,11 +558,9 @@ Use :meth:`~@channel` to create an in-memory communication channel:
 
 .. seealso::
 
-    The :ref:`guide-channels` section in the user guide for more information
-    about topics and channels.
+    - The :ref:`guide-channels` guide -- for more about topics and channels.
 
-    For more information about models and serialization go to the
-    :ref:`guide-models` guide.
+    - The :ref:`guide-models` guide -- for more about models and serialization.
 
 ``app.Table()`` -- Define a new table
 -------------------------------------
@@ -612,11 +611,12 @@ order, so only agents with ``concurrency=1`` are allowed to update tables.
 
 .. seealso::
 
-    See the :ref:`guide-tables` guide for more information about tables,
-    for example how to create a "windowed table" where aggregate values are placed
-    into configurable time windows, providing you with answers to questions like
-    "what was the value in the last five minutes", or "what was the value of
-    this count like yesterday".
+    - The :ref:`guide-tables` guide -- for more information about tables.
+
+        Learn how to create a "windowed table" where aggregate values are placed
+        into configurable time windows, providing you with answers to questions like
+        "what was the value in the last five minutes", or "what was the value of
+        this count like yesterday".
 
 ``app.Set()`` -- Define a new Set-based table
 ---------------------------------------------
@@ -635,8 +635,8 @@ associate each key with a particular value:
 
 .. seealso::
 
-    See the :ref:`guide-tables` guide for more information about tables and
-    sets.
+    - The :ref:`guide-tables` gudie -- for more information about tables and
+      sets.
 
 ``@app.agent()`` -- Define a new stream processor
 -------------------------------------------------
