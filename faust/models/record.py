@@ -25,8 +25,8 @@ DATE_TYPES = (datetime,)
 #    y: Mapping[KeyModel, ValueModel]
 #
 # in the source code we refer to a concrete type, in the example above
-# the concrete type for x would be `list`, and the concrete type of for
-# y would be ``dict``.
+# the concrete type for x would be `list`, and the concrete type
+# for y would be `dict`.
 
 
 def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
