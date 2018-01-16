@@ -204,16 +204,26 @@ class Consumer(base.Consumer):
         self.log.dev('COMMITTING OFFSETS: %r', offsets)
         await self._consumer.commit(offsets)
 
+    async def pause_topics(self, topics: Iterable[str]) -> None:
+        for tp in self.assignment():
+            if tp.topic in topics:
+                self._consumer._subscription.pause(partition=tp)
+
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        for partition in tps:
-            self._consumer._subscription.pause(partition=partition)
+        for tp in tps:
+            self._consumer._subscription.pause(partition=tp)
+
+    async def resume_topics(self, topics: Iterable[str]) -> None:
+        for tp in self.assignment():
+            if tp.topic in topics:
+                self._consumer._subscription.resume(partition=tp)
+
+    async def resume_partitions(self, tps: Iterable[TP]) -> None:
+        for tp in tps:
+            self._consumer._subscription.resume(partition=tp)
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
-
-    async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        for partition in tps:
-            self._consumer._subscription.resume(partition=partition)
 
     async def _seek_to_beginning(self, *partitions: TP) -> None:
         for partition in partitions:

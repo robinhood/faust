@@ -60,6 +60,14 @@ class TopicT(ChannelT):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
+    @abc.abstractmethod
+    async def pause(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def resume(self) -> None:
+        ...
+
     @property
     @abc.abstractmethod
     def pattern(self) -> Optional[Pattern]:

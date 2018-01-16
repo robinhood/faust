@@ -104,6 +104,12 @@ class Topic(Channel, TopicT):
         self.config = config or {}
         self.decode = self._compile_decode()    # type: ignore
 
+    async def pause(self) -> None:
+        await self.app.consumer.pause_topics(self.topics)
+
+    async def resume(self) -> None:
+        await self.app.consumer.resume_topics(self.topics)
+
     def _compile_decode(self) -> Callable[[Message], Awaitable[EventT]]:
         app = self.app
         key_type = self.key_type
