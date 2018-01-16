@@ -492,8 +492,8 @@ Actions
 ``app.topic()`` -- Create a topic-description
 ---------------------------------------------
 
-To create a topic description, used for example to tell agents what Kafka
-topic to read from, use the :meth:`~@topic` method:
+Use the :meth:`~@topic` method to create a topic description, used
+for example to tell agents what Kafka topic to read from:
 
 .. sourcecode:: python
 
@@ -504,17 +504,23 @@ topic to read from, use the :meth:`~@topic` method:
         async for event in stream:
             ...
 
-
 Use the ``key_type`` and ``value_type`` arguments to specify the models used for key
 and value serialization:
 
 .. sourcecode:: python
 
+    class MyValueModel(faust.Record):
+        name: str
+        value: float
+
     topic = app.topic(
         'name_of_topic',
-        key_type=MyKeyModel,
+        key_type=bytes,
         value_type=MyValueModel,
     )
+
+The default ``key_type`` is :class:`bytes`, treating the key as a binary
+string, but the key can also be specified as a model type.
 
 .. seealso::
 
@@ -527,7 +533,7 @@ and value serialization:
 ``app.channel()`` -- Create a local channel
 -------------------------------------------
 
-A channel enables local in-memory communication between agents:
+Use :meth:`~@channel` to create an in-memory communication channel:
 
 .. sourcecode:: python
 
@@ -560,12 +566,78 @@ A channel enables local in-memory communication between agents:
 ``app.Table()`` -- Define a new table
 -------------------------------------
 
-XXX
+Use :meth:`~@Table` to define a new distributed dictionary; the only
+required argument is a unique and identifying name. Here we also
+set a default value so the table acts as a :class:`~collections.defaultdict`:
+
+.. sourcecode:: python
+
+    transfer_counts = app.Table(
+        'transfer_counts',
+        default=int,
+        key_type=str,
+        value_type=int,
+    )
+
+The default argument is passed in as a callable, and in our example
+calling ``int()`` returns the number zero, so whenever a key is missing
+in the table, it's added with a value of zero:
+
+.. sourcecode:: python
+
+    >>> table['missing']
+    0
+
+    >>> table['also-missing'] += 1
+    >>> table['also-missing']
+    1
+
+
+The table needs to relate every update to an associated source topic event,
+so you must be iterating over a stream to modify a table. Like in this agent
+where also ``.group_by()`` is used to repartition the stream by account id,
+ensuring every unique account delivers to the same agent instance,
+and the count-per-account records accurately:
+
+.. sourcecode:: python
+
+    @app.agent(transfers_topic)
+    async def transfer(transfers):
+        async for transfer in transfers.group_by(Transfer.account):
+            transfer_counts[transfer.account] += 1
+
+
+Moreover, the agent modifying the table cannot process the source topic out of
+order, so only agents with ``concurrency=1`` are allowed to update tables.
+
+.. seealso::
+
+    See the :ref:`guide-tables` guide for more information about tables,
+    for example how to create a "windowed table" where aggregate values are placed
+    into configurable time windows, providing you with answers to questions like
+    "what was the value in the last five minutes", or "what was the value of
+    this count like yesterday".
 
 ``app.Set()`` -- Define a new Set-based table
 ---------------------------------------------
 
-XXX
+Use :meth:`~@Set` to create a set table that only tracks membership and does not
+associate each key with a particular value:
+
+.. sourcecode:: python
+
+    users_with_transfer = app.Set('users-with-transfers', key_type=str)
+
+    @app.agent(transfers_topic)
+    async def transfer(transfers):
+        async for transfer in transfers:
+            users_with_transfer.add(transfer.username)
+
+.. seealso::
+
+    See the :ref:`guide-tables` guide for more information about tables and
+    sets.
+
 ``@app.agent()`` -- Define a new stream processor
 -------------------------------------------------
 
