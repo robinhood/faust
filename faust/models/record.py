@@ -13,12 +13,29 @@ __all__ = ['Record']
 
 DATE_TYPES = (datetime,)
 
+# Models can refer to other models:
+#
+#   class M(Model):
+#     x: OtherModel
+#
+# but can also have List-of-X, Mapping-of-X, etc:
+#
+#  class M(Model):
+#    x: List[OtherModel]
+#    y: Mapping[KeyModel, ValueModel]
+#
+# in the source code we refer to a concrete type, in the example above
+# the concrete type for x would be `list`, and the concrete type of for
+# y would be ``dict``.
+
 
 def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
-    # Returns if is model. If model returns concrete type if available.
+    # Returns (is_model, concrete_type).
+    #  concrete type (if available) will be list if it's a list, dict if dict,
+    #  etc, then that means it's a List[ModelType], Dict[ModelType] etc, so
+    # we have to deserialize them as such.
     concrete_type = None
     try:
-        # Check for List[Model], Set[Model], etc.
         concrete_type, cls = guess_concrete_type(cls)
     except TypeError:
         pass
