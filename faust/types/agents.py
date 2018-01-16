@@ -8,6 +8,7 @@ from typing import (
 from mode import ServiceT, SupervisorStrategyT
 from .codecs import CodecArg
 from .core import K, V
+from .models import ModelArg
 from .streams import StreamT
 from .topics import ChannelT
 from .tuples import RecordMetadata
@@ -97,6 +98,8 @@ class AgentT(ServiceT):
                  on_error: AgentErrorHandler = None,
                  supervisor_strategy: Type[SupervisorStrategyT] = None,
                  help: str = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  **kwargs: Any) -> None:
         self.fun: AgentFun = fun
 

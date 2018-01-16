@@ -16,7 +16,7 @@ from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
 
 from ..types import (
-    AppT, ChannelT, CodecArg, K, MessageSentCallback,
+    AppT, ChannelT, CodecArg, K, MessageSentCallback, ModelArg,
     RecordMetadata, StreamT, TopicT, V,
 )
 from ..types.agents import (
@@ -224,11 +224,23 @@ class Agent(AgentT, ServiceProxy):
                  on_error: AgentErrorHandler = None,
                  supervisor_strategy: Type[SupervisorStrategyT] = None,
                  help: str = None,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
         self.name = name or canoname(self.fun)
-        self.channel = self._prepare_channel(channel, **kwargs)
+        # key-type/value_type arguments only apply when a channel
+        # is not set
+        if key_type is not None:
+            assert channel is None or isinstance(channel, str)
+        if value_type is not None:
+            assert channel is None or isinstance(channel, str)
+        self.channel = self._prepare_channel(
+            channel,
+            key_type=key_type,
+            value_type=value_type,
+            **kwargs)
         self.concurrency = concurrency
         self.help = help
         self._sinks = list(sink) if sink is not None else []
@@ -239,12 +251,19 @@ class Agent(AgentT, ServiceProxy):
     def _prepare_channel(self,
                          channel: Union[str, ChannelT] = None,
                          internal: bool = True,
+                         key_type: ModelArg = None,
+                         value_type: ModelArg = None,
                          **kwargs: Any) -> ChannelT:
         channel = f'{self.app.id}-{self.name}' if channel is None else channel
         if isinstance(channel, ChannelT):
             return cast(ChannelT, channel)
         elif isinstance(channel, str):
-            return self.app.topic(channel, internal=internal, **kwargs)
+            return self.app.topic(
+                channel,
+                internal=internal,
+                key_type=key_type,
+                value_type=value_type,
+                **kwargs)
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
 
