@@ -12,11 +12,11 @@
 
     application
     agents
-    tasks
     streams
     channels
     models
     tables
+    tasks
     deployment
     sensors
     vskafka

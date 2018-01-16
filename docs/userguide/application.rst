@@ -489,8 +489,8 @@ Example using the string path to a class::
 Actions
 =======
 
-Creating a topic-description
-----------------------------
+``app.topic()`` -- Create a topic-description
+---------------------------------------------
 
 To create a topic description, used for example to tell agents what Kafka
 topic to read from, use the :meth:`~@topic` method:
@@ -524,8 +524,8 @@ and value serialization:
     For more information about models and serialization go to the
     :ref:`guide-models` guide.
 
-Creating a channel
-------------------
+``app.channel()`` -- Create a local channel
+-------------------------------------------
 
 A channel enables local in-memory communication between agents:
 
@@ -557,8 +557,37 @@ A channel enables local in-memory communication between agents:
     For more information about models and serialization go to the
     :ref:`guide-models` guide.
 
-Command-line interface
-----------------------
+``app.Table()`` -- Define a new table
+-------------------------------------
+
+XXX
+
+``app.Set()`` -- Define a new Set-based table
+---------------------------------------------
+
+XXX
+``@app.agent()`` -- Define a new stream processor
+-------------------------------------------------
+
+XXX
+
+``@app.task()`` -- Define a new support task.
+---------------------------------------------
+
+XXX
+
+``@app.timer()`` -- Define a new periodic task
+----------------------------------------------
+
+XXX
+
+``@app.page()`` -- Define a new Web View
+----------------------------------------
+
+XXX
+
+``@app.command()`` -- Define a new command-line command
+-------------------------------------------------------
 
 To have your script extend the :program:`faust` program, you can call
 ``app.main()``:
@@ -575,6 +604,11 @@ arguments as the :program:`faust` umbrella command.
 
     The :meth:`~@main` method in the API reference.
 
+
+``@app.service()`` -- Define a new service
+------------------------------------------
+
+XXX
 
 Miscellaneous
 =============
