@@ -40,7 +40,7 @@ instances, and this is decided by the topic's ``key_type`` and
     - The :ref:`guide-channels` guide -- fore more information about
       channels and topics.
 
-    - The :ref:`guide-model` guide -- for more information about models
+    - The :ref:`guide-models` guide -- for more information about models
       and serialization.
 
 The easiest way to process streams is to use :ref:`agents <guide-agents>`, but

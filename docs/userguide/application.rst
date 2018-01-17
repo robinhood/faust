@@ -787,7 +787,7 @@ Then visit your view in the browser by going to http://localhost:6066/path/to/vi
 
 .. seealso::
 
-    - The :ref:`tasks-web-views` section in the :ref:`tasks-guide` guide -- to
+    - The :ref:`tasks-web-views` section in the :ref:`guide-tasks` guide -- to
       learn more about defining views.
 
 ``app.main()`` -- Start the :program:`faust` command-line program.
