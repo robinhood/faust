@@ -12,7 +12,7 @@
 
 .. currentmodule:: faust
 
-.. _task-basics:
+.. _tasks-basics:
 
 Tasks
 =====

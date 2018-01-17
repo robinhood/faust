@@ -91,6 +91,8 @@ so tables can exceed the size of available memory.
 Required Parameters
 -------------------
 
+.. _application-id:
+
 ``id``
 ~~~~~~
 
@@ -635,36 +637,171 @@ associate each key with a particular value:
 
 .. seealso::
 
-    - The :ref:`guide-tables` gudie -- for more information about tables and
+    - The :ref:`guide-tables` guide -- for more information about tables and
       sets.
 
 ``@app.agent()`` -- Define a new stream processor
 -------------------------------------------------
 
-XXX
+Use the :meth:`~@agent` decorator to define an asynchronous stream processor:
+
+.. sourcecode:: python
+
+    # examples/agent.py
+    import faust
+
+    app = faust.App('stream-example')
+
+    @app.agent()
+    async def myagent(stream):
+        """Example agent."""
+        async for value in stream:
+            print(f'MYAGENT RECEIVED -- {value!r}')
+            yield value
+
+    if __name__ == '__main__':
+        app.main()
+
+
+This agent does not have a specific topic set -- so an anonymous topic will be
+created for it.  Use the :program:`faust agents` program to list the topics
+used by each agent:
+
+.. sourcecode:: console
+
+    $ python examples/agent.py agents
+    ┌Agents────┬───────────────────────────────────────┬────────────────┐
+    │ name     │ topic                                 │ help           │
+    ├──────────┼───────────────────────────────────────┼────────────────┤
+    │ @myagent │ stream-example-examples.agent.myagent │ Example agent. │
+    └──────────┴───────────────────────────────────────┴────────────────┘
+
+The agent reads from the "stream-example-examples.agent.myagent" topic, whose
+name is generated from the :ref:`application id <application-id>`, the
+application version, and the fully qualified path of the
+agent (``examples.agent.myagent``).
+
+**Start a worker to consume from the topic:**
+
+.. sourcecode:: console
+
+    $ python examples/agent.py worker -l info
+
+Next, in a new console, send the agent a value using the :program:`faust send`
+program.  The first argument to send is the name of the topic, and the second
+argument is the value to send (use ``--key=k`` to specify key).  The name of
+the topic can also start with the @ character to name an agent instead.
+
+Use ``@agent`` to send a value of ``"hello"`` to the topic of our agent:
+
+.. sourcecode:: console
+
+    $ python examples/agent.py send @myagent hello
+
+Finally, you should see in the worker console that it received our message:
+
+.. sourcecode:: console
+
+    MYAGENT RECEIVED -- b'hello'
+
+.. seealso::
+
+    - The :ref:`guide-agents` guide -- for more information about agents.
+
+    - The :ref:`guide-channels` guide -- for more information about channels
+      and topics.
 
 ``@app.task()`` -- Define a new support task.
 ---------------------------------------------
 
-XXX
+Use the :meth:`~@task` decorator to define an asynchronous task to be started
+with the app:
+
+.. sourcecode:: python
+
+    @app.task()
+    async def mytask():
+        print('APP STARTED AND OPERATIONAL')
+
+The task will be started when the app starts, by scheduling it as an
+:class:`asyncio.Task` on the event loop. It will only be started once the app
+is fully operational, meaning it has started consuming messages from Kafka.
+
+.. seealso::
+
+    - The :ref:`tasks-basics` section in the :ref:`guide-tasks` -- for more
+      information about defining tasks.
 
 ``@app.timer()`` -- Define a new periodic task
 ----------------------------------------------
 
-XXX
+Use the :meth:`~@timer` decorator to define an asynchronous periodic task
+that runs every 30.0 seconds:
+
+.. sourcecode:: python
+
+    @app.timer(30.0)
+    async def my_periodic_task():
+        print('THIRTY SECONDS PASSED')
+
+The timer will start 30 seconds after the worker instance has started and is in an
+operational state.
+
+.. seealso::
+
+    - The :ref:`tasks-timers` section in the :ref:`guide-tasks` guide -- for
+      more information about creating timers.
 
 ``@app.page()`` -- Define a new Web View
 ----------------------------------------
 
-XXX
+Use the :meth:`~@page` decorator to define a new web view from an
+async function:
 
-``@app.command()`` -- Define a new command-line command
--------------------------------------------------------
+.. sourcecode:: python
+
+    # examples/view.py
+    import faust
+
+    app = faust.App('view-example')
+
+    @app.page('/path/to/view/')
+    async def myview(web, request):
+        print(f'FOO PARAM: {request.query["foo"]}')
+
+    if __name__ == '__main__':
+        app.main()
+
+Next run a worker instance to start the web server on port 6066 (default):
+
+.. sourcecode:: console
+
+    $ python examples/view.py worker -l info
+
+Then visit your view in the browser by going to http://localhost:6066/path/to/view/:
+
+.. sourcecode:: console
+
+    $ open http://localhost:6066/path/to/view/
+
+
+.. seealso::
+
+    - The :ref:`tasks-web-views` section in the :ref:`tasks-guide` guide -- to
+      learn more about defining views.
+
+``app.main()`` -- Start the :program:`faust` command-line program.
+------------------------------------------------------------------
 
 To have your script extend the :program:`faust` program, you can call
 ``app.main()``:
 
 .. sourcecode:: python
+
+    # examples/command.py
+    import faust
+
+    app = faust.App('umbrella-command-example')
 
     if __name__ == '__main__':
         app.main()
@@ -672,15 +809,128 @@ To have your script extend the :program:`faust` program, you can call
 This will use the arguments in ``sys.argv`` and will support the same
 arguments as the :program:`faust` umbrella command.
 
+To see a list of available commands, execute your program:
+
+.. sourcecode:: console
+
+    $ python examples/command.py
+
+To get help for a particular subcommand run:
+
+.. sourcecode:: console
+
+    $ python examples/command.py worker --help
+
 .. seealso::
 
    - The :meth:`~@main` method in the API reference.
 
+   - The :ref:`guide-deployment` guide -- for more on deploying Faust
+     applications.
+
+``@app.command()`` -- Define a new command-line command
+-------------------------------------------------------
+
+Use the :meth:`~@command` decorator to define a new subcommand
+for the :program:`faust` command-line program:
+
+.. sourcecode:: python
+
+    # examples/command.py
+    impor faust
+
+    app = faust.App('example-subcommand')
+
+    @app.command()
+    async def example():
+        """This docstring is used as the command help in --help."""
+        print('RUNNING EXAMPLE COMMAND')
+
+    if __name__ == '__main__':
+        app.main()
+
+You can now run your subcommand:
+
+.. sourcecode:: console
+
+    $ python examples/command.py example
+    RUNNING EXAMPLE COMMAND
+
+.. seealso::
+
+    - The :ref:`tasks-cli-commands` section in the :ref:`guide-tasks` guide --
+      for more information about defining subcommands.
+
+        Including how to specify command-line arguments and parameters to your
+        command.
 
 ``@app.service()`` -- Define a new service
 ------------------------------------------
 
-XXX
+The :meth:`~@service` decorator adds a custom :class:`mode.Service` class
+as a dependency of the app.
+
+.. topic:: What is a Service?
+
+    A service is something that can be started and stopped, and Faust
+    is built out of many such services.
+
+    The :pypi:`mode` library was extracted out of Faust for being generally
+    useful, and Faust uses this library as a dependency.
+
+    Examples of classes that are services in Faust include: the
+    :class:`~faust.App`, a :class:`stream <faust.Stream>`, an :class:`agent <faust.Agent>`,
+    a :class:`table <faust.Table>`, the :class:`~faust.TableManager`, the
+    :class:`~faust.topics.TopicConductor`, and just about everything that is
+    started and stopped is.
+
+    Services can also have background tasks, or execute in an OS thread.
+
+You can *decorate a service class* to have it start with the app:
+
+.. sourcecode:: python
+
+    # examples/service.py
+    import faust
+    from mode import Service
+
+    app = faust.App('service-example')
+
+    @app.service
+    class MyService(Service):
+
+        async def on_start(self):
+            print('MYSERVICE IS STARTING')
+
+        async def on_stop(self):
+            print('MYSERVICE IS STOPPING')
+
+        @Service.task
+        async def _background_task(self):
+            while not self.should_stop:
+                print('BACKGROUND TASK WAKE UP')
+                await self.sleep(1.0)
+
+    if __name__ == '__main__':
+        app.main()
+
+To start the app and see it and action run a worker:
+
+.. sourcecode:: console
+
+    python examples/service.py worker -l info
+
+
+You can also add services at runtime in application subclasses:
+
+.. sourcecode:: python
+
+    class MyApp(App):
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.some_service = self.service(SomeService())
+
 
 Miscellaneous
 =============
@@ -706,128 +956,5 @@ for many applications to coexist in the same process space.
 Reference
 =========
 
-Methods
--------
-
-Topics & Channels
-~~~~~~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: topic
-        :noindex:
-
-    .. automethod:: channel
-        :noindex:
-
-Decorators
-~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: agent
-        :noindex:
-
-    .. automethod:: task
-        :noindex:
-
-    .. automethod:: timer
-        :noindex:
-
-    .. automethod:: page
-        :noindex:
-
-    .. automethod:: command
-        :noindex:
-
-    .. automethod:: service
-        :noindex:
-
-Command Line
-~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: main
-        :noindex:
-
-Defining Tables
-~~~~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: Table
-        :noindex:
-
-    .. automethod:: Set
-        :noindex:
-
-Decorator Discovery
-~~~~~~~~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: discover
-        :noindex:
-
-Creating Streams
-~~~~~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. automethod:: stream
-        :noindex:
-
-Sending Messages
-~~~~~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. autocomethod:: send
-        :noindex:
-
-Consumer Methods
-~~~~~~~~~~~~~~~~
-
-.. class:: App
-    :noindex:
-
-    .. autocomethod:: commit
-        :noindex:
-
-    .. automethod:: is_leader
-        :noindex:
-
-Attributes
-----------
-
-.. class:: App
-    :noindex:
-
-    .. autoattribute:: producer
-        :noindex:
-
-    .. autoattribute:: consumer
-        :noindex:
-
-    .. autoattribute:: transport
-        :noindex:
-
-    .. autoattribute:: tables
-        :noindex:
-
-    .. autoattribute:: topics
-        :noindex:
-
-    .. autoattribute:: monitor
-        :noindex:
-
-    .. autoattribute:: client_session
-        :noindex:
+See :class:`faust.App` in the API reference for a full list of methods
+and attributes supported.
