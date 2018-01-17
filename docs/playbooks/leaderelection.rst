@@ -58,7 +58,7 @@ Create the agent:
 
 .. seealso::
 
-    - The :ref:`agents-guide` guide -- for more information about agents.
+    - The :ref:`guide-agents` guide -- for more information about agents.
 
 Leader Timer
 ------------
