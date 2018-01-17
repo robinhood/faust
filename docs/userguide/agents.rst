@@ -125,7 +125,7 @@ To send values to it, open a second console to run this program:
     $ python examples/send_to_agent.py
 
 
-.. seealso::
+.. topic:: Define commands with the ``@app.command`` decorator.
 
     You can also use :ref:`tasks-cli-commands` to add actions for your
     application on the command line.  Use the ``@app.command`` decorator to
@@ -286,7 +286,8 @@ If not specified it will use the default serializer defined by the app.
 
 .. seealso::
 
-    The :ref:`guide-streams` guide for more information about topics.
+    - The :ref:`guide-channels` guide -- for more information about topics
+      and channels.
 
 The Stream
 ----------
@@ -367,7 +368,10 @@ that manually iterates over the joined stream:
 
 .. seealso::
 
-    The :ref:`guide-streams` guide for more information about streams and topics.
+    - The :ref:`guide-streams` guide -- for more information about streams.
+
+    - The :ref:`guide-channels` guide -- for more information about topics
+      and channels.
 
 .. _agent-concurrency:
 

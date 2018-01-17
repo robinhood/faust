@@ -93,8 +93,8 @@ be described as the keyword argument ``serializer='json|binary'``.
 
 .. seealso::
 
-    See the :ref:`codecs` section for more information about codecs
-    and how to define your own.
+    - The :ref:`codecs` section -- for more information about codecs
+      and how to define your own.
 
 .. topic:: Sending/receiving raw values
 

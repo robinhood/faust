@@ -224,9 +224,9 @@ The directory in which this instance stores local table data, etc.
 
 .. seealso::
 
-   The data directory can also be set using the :option:`faust --datadir` option,
-   from the command-line, so there's usually no reason to provide a default
-   value when creating the app.
+    - The data directory can also be set using the :option:`faust --datadir`
+      option, from the command-line, so there's usually no reason to provide
+      a default value when creating the app.
 
 Serialization Parameters
 ------------------------
@@ -245,7 +245,8 @@ This can be the name of a serializer/codec, or an actual
 
 .. seealso::
 
-    The :ref:`codecs` section in the model guide.
+    - The :ref:`codecs` section in the model guide -- for more information
+      about codecs.
 
 ``value_serializer``
 ~~~~~~~~~~~~~~~~~~~~
@@ -261,7 +262,8 @@ This can be string, the name of a serializer/codec, or an actual
 
 .. seealso::
 
-    The :ref:`codecs` section in the model guide.
+    - The :ref:`codecs` section in the model guide -- for more information
+      about codecs.
 
 Advanced Broker Options
 -----------------------
@@ -525,8 +527,6 @@ string, but the key can also be specified as a model type.
 
 .. seealso::
 
-    For more information see also:
-
     - The :ref:`guide-channels` guide -- for more about topics and channels.
 
     - The :ref:`guide-models` guide -- for more about models and serialization.
@@ -674,7 +674,7 @@ arguments as the :program:`faust` umbrella command.
 
 .. seealso::
 
-    The :meth:`~@main` method in the API reference.
+   - The :meth:`~@main` method in the API reference.
 
 
 ``@app.service()`` -- Define a new service

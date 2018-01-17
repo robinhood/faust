@@ -202,7 +202,8 @@ Due to this changelog, both table keys and values must be serializable.
 
 .. seealso::
 
-    :ref:`guide-models` for more information about models and serialization.
+    - The :ref:`guide-models` guide for more information about models and
+      serialization.
 
 .. note::
 
