@@ -99,7 +99,7 @@ Faust is...
     increase once we can support a more optimized Kafka client.
 
 **Flexible**
-    Faust is just Python, and a stream is an infinite async iterator.
+    Faust is just Python, and a stream is an infinite asynchronous iterator.
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.

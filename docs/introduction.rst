@@ -15,10 +15,75 @@
 What is Faust?
 ==============
 
-.. include:: includes/blurb.txt
+**Streams**
+    With Faust you process streams in a straightforward manner using iterators,
+    and the concept of having "Agents" make writing stream processors easy.
+
+    Use regular Python syntax to process streams and reuse your favorite
+    libraries:
+
+    .. sourcecode:: python
+
+        @app.agent()
+        async def process(stream):
+            async for value in stream:
+                process(value)
+
+**Tables**
+    Tables are sharded dictionaries that enable stream processors
+    to be stateful with persistent and durable data.
+
+    Streams are partitioned to keep relevant data close, and can be easily
+    repartitioned to achieve the topology you need.
+
+    In this example we repartition an order stream by account id, to count
+    orders in a distributed table:
+
+    .. sourcecode:: python
+
+        import faust
+
+        # this model describes how message values are serialized
+        # in the Kafka "orders" topic.
+        class Order(faust.Record, serializer='json'):
+            account_id: str
+            product_id: str
+            amount: int
+            price: float
+
+        orders_kafka_topic = app.topic('orders', value_type=Order)
+
+        # our table is sharded amongst worker instances, and replicated
+        # with standby copies to take over if one of the nodes fail.
+        order_count_by_account = app.Table('order_count', default=int)
+
+        @app.agent(orders_kafka_topic)
+        async def process(order: faust.Stream[Order]) -> None:
+            async for order in orders.group_by(Order.account_id):
+                order_count_by_account[order.account_id] += 1
+
+    If we start multiple instances of this Faust application on many machines,
+    any order with the same account id will be received by the same
+    stream processing agent, so the count updates correctly in the table.
+
+    Sharding and partitioning is an essential part of stateful stream
+    processing applications, so take this into account when designing your
+    system, but note that streams can also be processed in round-robin order
+    so you can use Faust for event processing and as a task queue also.
+
+**Asynchronous with** :mod:`asyncio`
+    Faust takes advantage of :mod:`asyncio` and the new :keyword:`async <async
+    def>`/:keyword:`await` keywords in Python 3.6+ to run multiple stream
+    processors in the same process, along with web servers and other network
+    services.
+
+    Thanks to Faust and :mod:`asyncio` you can now embed your stream processing
+    topology into your existing asyncio/gevent/eventlet/Twisted/Tornado
+    applications.
 
 **Faust is...**
     .. include:: includes/introduction.txt
+
 
 .. topic:: Faust is used for...
 
@@ -105,12 +170,6 @@ Extensions
 
         $ pip install fuast[uvloop,fast,rocksdb,statsd]
 
-What is Kafka?
-==============================================
-
-
-.. include:: includes/kafka.txt
-
 How do I use it?
 ================
 
@@ -136,10 +195,16 @@ How do I use it?
 
     - Starting to get the idea?
 
+What is Kafka?
+==============================================
+
+
+.. include:: includes/kafka.txt
+
 Examples
 ========
 
-.. topic:: Process events in a topic
+.. topic:: Process events in a Kafka topic
 
     .. sourcecode:: python
 
@@ -245,7 +310,7 @@ Design considerations
 
 Modern Python
     Faust uses current Python 3 features such as
-    :keyword:`async`/:keyword:`await` and type annotations. It's statically
+    :keyword:`async <async def>`/:keyword:`await` and type annotations. It's statically
     typed and verified by the `mypy`_ type checker. You can take advantage of
     type annotations when writing Faust applications, but
     this is not mandatory.
