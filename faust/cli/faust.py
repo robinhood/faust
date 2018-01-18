@@ -25,6 +25,10 @@
 .. cmdoption:: --json, --no-json
 
     Prefer data to be emitted in json format.
+
+.. cmdoption:: --loop, -L
+
+    Event loop implementation to use: aio (default), gevent, uvloop.
 """
 
 # Note: The command options above are defined in .cli.base.builtin_options

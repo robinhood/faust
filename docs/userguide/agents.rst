@@ -72,10 +72,10 @@ partitions so that every agent receives a specific portion of the stream.
 
 .. topic:: Round-Robin
 
-If you don't set a key (i.e. ``key=None``), the messages will be delivered to
-available workers in round-robin order. This is useful to simply distribute work
-amongst a cluster of workers, and you can always repartition that stream later
-should you need to access data in a table or similar.
+    If you don't set a key (i.e. ``key=None``), the messages will be delivered to
+    available workers in round-robin order. This is useful to simply distribute work
+    amongst a cluster of workers, and you can always repartition that stream later
+    should you need to access data in a table or similar.
 
 .. admonition:: Fault tolerancy
 

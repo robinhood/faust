@@ -225,7 +225,7 @@ the data in streams you can manually extract the key used for repartitioning:
         async for order in orders.group_by(get_order_account_id):
             ...
 
-.. seelaso::
+.. seealso::
 
     - The :ref:`guide-models` guide -- for more information on field
       descriptors and models.
@@ -466,6 +466,7 @@ General
         :noindex:
 
     .. automethod:: add_processor
+        :noindex:
 
 
 
