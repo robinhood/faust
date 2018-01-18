@@ -70,6 +70,23 @@ partitions so that every agent receives a specific portion of the stream.
     more information on the :meth:`Stream.group_by() <faust.Stream.group_by>`
     method.
 
+.. topic:: Round-Robin
+
+If you don't set a key (i.e. ``key=None``), the messages will be delivered to
+available workers in round-robin order. This is useful to simply distribute work
+amongst a cluster of workers, and you can always repartition that stream later
+should you need to access data in a table or similar.
+
+.. admonition:: Fault tolerancy
+
+    If the worker for a partition fails, or is blocked from the network for
+    some reason, there is no need to worry because Kafka solves this by moving
+    the partition to a worker that works.
+
+    Faust also takes advantage of "standby tables" and a custom partition
+    manager that prefes to promote any node with a full copy of the data,
+    saving startup time and ensuring availability.
+
 Here's a complete example of an app, having an agent that adds numbers:
 
 .. sourcecode:: python
@@ -531,10 +548,12 @@ using ``reply_to=B``).
 Streaming Map/Reduce
 --------------------
 
-The agent also provides operations for streaming values to the agents and
-gathering the results: ``map`` streams results as they come in (unordered),
-and ``join`` waits until all the steps are complete and return the results
-in order as a list.
+These map/reduce operations are shortcuts used to stream lots of values
+into agents while at the same time gathering the results.
+
+``map`` streams results as they come in (out-of-order), and ``join`` waits
+until all the steps are complete (back-to-order) and return the results
+in a list with orering preserved:
 
 ``map(values: Union[AsyncIterable[V], Iterable[V]])``
     Map takes an async iterable, or a regular iterable, and returns an async
@@ -546,8 +565,10 @@ in order as a list.
             print(f'RECEIVED REPLY: {reply!r}')
 
     The iterator will start before all the messages have been sent, and
-    should be efficient even for infinite lists. As the map executes
-    concurrently, the replies will not appear in any particular order.
+    should be efficient even for infinite lists.
+
+    As the map executes concurrently, the **replies will not appear in any
+    particular order**.
 
 ``kvmap(items: Union[AsyncIterable[Tuple[K, V], Iterable[Tuple[K, V]]]])``
     Same as ``map``, but takes an async iterable/iterable of ``(key, value)`` tuples,
@@ -555,8 +576,11 @@ in order as a list.
 
 ``join(values: Union[AsyncIterable[V], Iterable[V]])``
     Join works like ``map`` but will wait until all of the values have been
-    processed and returns them as a list in the original order (
-    cannot be used with infinite data structures).
+    processed and returns them as a list in the original order.
+
+    The :keyword:`await` will continue only after the map sequence is over,
+    and all results are accounted for, so do not attempt to use use ``join``
+    together with infinite data structures ;-)
 
     .. sourcecode:: python
 
