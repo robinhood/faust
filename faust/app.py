@@ -420,8 +420,8 @@ class App(AppT, ServiceProxy):
         )
         self.loghandlers = loghandlers
         self._worker_type = Worker
-        self.assignor = PartitionAssignor(self,
-                                          replicas=self.num_standby_replicas)
+        self.assignor = PartitionAssignor(
+            self, replicas=self.num_standby_replicas)
         self.router = Router(self)
         self.table_route = self.router.router
         self.agents = OrderedDict()

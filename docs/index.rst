@@ -35,8 +35,12 @@ Faust optionally runs a web server so you can host your Web App in
 the same system, allowing you to rapidly prototype traditionally complex
 web app architectures that are easy to deploy and scale.
 
-To learn more about Faust go to the :ref:`intro` introduction page,
-or go directly to the :ref:`quickstart` tutorial.
+**Learn more about Faust in the** :ref:`intro` **introduction page**
+    to read more about Faust, system requirements, installation instructions,
+    community resources, and more.
+
+**or go directly to the** :ref:`quickstart` **tutorial**
+    to see Faust in action by programming a streaming application.
 
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org

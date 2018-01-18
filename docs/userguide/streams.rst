@@ -16,7 +16,7 @@ Basics
 ======
 
 A stream is an infinite async iterable, being passed messages consumed
-from a topic:
+from a channel/topic:
 
 .. sourcecode:: pycon
 
@@ -27,8 +27,8 @@ from a topic:
 The stream *needs to be iterated over* to be processed, it will not
 be active until you do.
 
-When iterated over the stream gives the deserialized values in the
-topic/channel, but you can also iterate over key/value pairs (using
+When iterated over the stream gives deserialized values, but you can also
+iterate over key/value pairs (using
 :meth:`~@Stream.items`), or raw messages (using :meth:`~@Stream.events`).
 
 Keys and values can be bytes for manual deserialization, or :class:`~faust.Model`
@@ -44,7 +44,7 @@ instances, and this is decided by the topic's ``key_type`` and
       and serialization.
 
 The easiest way to process streams is to use :ref:`agents <guide-agents>`, but
-you can also you can create a stream manually from any topic/channel.
+you can also create a stream manually from any topic/channel.
 
 Here we define a model for our stream, create a stream from the "withdrawals"
 topic and iterate over it:
@@ -59,14 +59,37 @@ topic and iterate over it:
         print(w.amount)
 
 Do note that the worker must be started first (or at least the app),
-for this to work.
+for this to work, and the stream iterater probably needs to be started
+as an :class:`asyncio.Task`, so a more practical example is:
+
+.. sourcecode:: python
+
+    import faust
+
+    class Withdrawal(faust.Record):
+        account: str
+        amount: float
+
+    app = faust.App('example-app')
+
+    withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+
+    @app.task
+    async def mytask():
+        async for w in withdrawals_topic.stream():
+            print(w.amount)
+
+    if __name__ == '__main__':
+        app.main()
 
 You can also treat the stream as a stream of bytes values:
 
 .. sourcecode:: python
 
     async for value in app.topic('messages').stream():
-        print(value)  # <-- .value contains the bytes message value.
+        # the topic description has no value_type, so values
+        # are now the raw message value in bytes.
+        print(repr(value))
 
 Processors
 ==========
@@ -153,26 +176,272 @@ Operations
 ``group_by()`` -- Repartiton the stream
 ---------------------------------------
 
+The :meth:`Stream.group_by() <faust.Stream.group_by>` method repartitions the
+stream by taking a "key type" as argument:
+
+.. sourcecode:: python
+
+    import faust
+
+    class Order(faust.Record):
+        account_id: str
+        product_id: str
+        amount: float
+        price: float
+
+    app = faust.App('group-by-example')
+    orders_topic = app.topic('orders', value_type=Order)
+
+    @app.agent(orders_topic)
+    async def process(orders):
+        async for order in orders.group_by(Order.account_id):
+            ...
+
+
+In the example above the "key type" is a field descriptor, and the
+stream will be repartitioned by the account_id field found in the deserialized
+stream value.
+
+The new stream will be using a new intermediate topic where messages have
+account ids as key, and this is the stream that the agent will finally be
+iterating over.
+
+.. note::
+
+    ``Stream.group_by()`` returns a new stream subscribing to the intermediate
+    topic of the group by operation.
+
+Apart from field descriptors, the key type argument can also be specified as
+a callable, or an async callable, so if you're not using models to describe
+the data in streams you can manually extract the key used for repartitioning:
+
+.. sourcecode:: python
+
+    def get_order_account_id(order):
+        return json.loads(order)['account_id']
+
+    @app.agent(app.topic('order'))
+    async def process(orders):
+        async for order in orders.group_by(get_order_account_id):
+            ...
+
+.. seelaso::
+
+    - The :ref:`guide-models` guide -- for more information on field
+      descriptors and models.
+
+    - The :meth:`faust.Stream.group_by` method in the API reference.
+
 ``items()`` -- Iterate over keys and values
 -------------------------------------------
+
+Use :meth:`Stream.items() <faust.Stream.items>` to get access to both message
+key and value at the same time:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for key, value in stream.items():
+            ...
+
+
+Note that this changes the type of what you iterate over from ``Stream`` to
+``AsyncIterator``, so if you want to repartition the stream or similar,
+``.items()`` need to be the last operation:
+
+.. sourcecode:: python
+
+    async for key, value in stream.through('foo').group_by(M.id).items():
+        ...
 
 ``events()`` -- Access raw messages
 -----------------------------------
 
+Use :meth:`Stream.events() <faust.Stream.events>` to iterate over raw
+``Event`` values, including access to original message payload and message
+metadata:
+
+.. sourcecode:: python
+
+    @app.agent
+    async def process(stream):
+        async for event in stream.events():
+            message = event.message
+            topic = event.message.topic
+            partition = event.message.partition
+            offset = event.message.offset
+
+            key_bytes = event.message.key
+            value_bytes = event.message.value
+
+            key_deserialized = event.key
+            value_deserialized = event.value
+
+            async with event:  # use  `async with event` for manual ack
+                process(event)
+                # event will be acked when this block returns.
+
+.. seealso::
+
+    - The :class:`faust.Event` class in the API reference -- for more
+      information about events.
+
+    - The :class:`faust.types.tuples.Message` class in the API reference -- for more
+      information about the fields available in ``event.message``.
+
+
 ``take()`` -- Buffer up values in the stream
 --------------------------------------------
+
+Use :meth:`Stream.take() <faust.Stream.take>` to gather up multiple events in
+the stream before processing them, for example to take 100 values at a time:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for values in stream.take(100):
+            assert len(values) == 100
+            print(f'RECEIVED 100 VALUES: {values}')
+
+The problem with the above code is that it will block forever if there are 99
+messages and the last hundredth message is never received.
+
+To solve this add a ``within`` timeout so that up to 100 values will be
+processed within 10 seconds:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for values in stream.take(100, within=10):
+            print(f'RECEIVED {len(values)}: {values}')
+
+The above code works better: if values are constantly being streamed it will
+process hundreds and hundreds without delay, but if there are long periods of
+time with no events received it will still process what it has gathered.
 
 ``tee()`` -- Clone stream
 -------------------------
 
+Use :meth:`Stream.tee() <faust.Stream.tee>` to create clones of the stream
+so that you can iterate over the stream in many different ways.
+
+The operation works exactly like :func:`itertools.tee` and return ``n``
+independent async iterators from a single stream:
+
+.. sourcecode:: python
+
+    from faust.utils.aiter import aiter, anext
+
+    @app.agent()
+    async def process(stream):
+        backward, forward = stream.tee(2)
+        anext(forward)
+        async for value in forward:
+            previous_value = anext(backward)
+
+.. seealso::
+
+    - The :func:`itertools.tee` function in the Python standard library.
+
 ``enumerate()`` -- Count values
 -------------------------------
+
+Use :meth:`Stream.aenumerate()` to keep a count of the number of values
+seen so far in a stream.
+
+This operation works exactly like the Python :func:`enumerate` function, but
+for an asynchronous stream:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for i, value in stream.enumerate():
+            ...
+
+The count will start at zero by default, but ``aenumerate`` also accepts an
+optional starting point argument.
+
+.. seealso::
+
+    - The :func:`faust.utils.aiter.aenumerate` function -- for a general version
+      of :func:`enumerate` that let you enumerate any async iterator, not just
+      streams.
+
+    - The :func:`enumerate` function in the Python standard library.
 
 ``through()`` -- Forward through another topic
 ----------------------------------------------
 
+Use :meth:`Stream.through() <faust.Stream.through>` to forward every value
+to a new topic, and replace the stream by subscribing to the new topic:
+
+.. sourcecode:: python
+
+    source_topic = app.topic('source-topic')
+    destination_topic = app.topic('destination-topic')
+
+    @app.agent()
+    async def process(stream):
+        async for value in stream.through(destination_topic):
+            # we are now iterating over stream(destination_topic)
+            print(value)
+
+You can also specify the destination topic as a string:
+
+.. sourcecode:: python
+
+    # [...]
+    async for value in stream.through('foo'):
+
+
+Through is especially useful if you need to convert the number of partitions
+in a source topic, by using an intermediate table.
+
+If you simply want to forward a value to another topic, you can send it
+manually, or use the echo recipe below:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for value in stream:
+            await other_topic.send(value)
+
 ``echo()`` -- Repeat to one or more topics
 ------------------------------------------
+
+Use :meth:`echo` to repeat values received from a stream to another
+channel/topic, or many other channels/topics:
+
+.. sourcecode:: python
+
+    @app.agent()
+    async def process(stream):
+        async for event in stream.echo('other_topic'):
+            ...
+
+The operation takes one or more topics, as string topic names or :class:`topic
+descriptions <@topic>`, so this also works:
+
+.. sourcecode:: python
+
+    source_topic = app.topic('sourcetopic')
+    echo_topic1 = app.topic('source-copy-1')
+    echo_topic2 = app.topic('source-copy-2')
+
+    @app.agent(source_topic)
+    async def process(stream):
+        async for event in stream.echo(echo_topic1, echo_topic2):
+            ...
+
+.. seealso::
+
+    - The :ref:`guide-channels` guide -- for more information about channels
+      and topics.
 
 .. _stream-operations:
 
