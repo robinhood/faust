@@ -37,6 +37,7 @@ class Collection(Service, CollectionT):
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
     _recover_callbacks: MutableSet[RecoverCallback]
+    _data: MutableMapping = None
 
     @abc.abstractmethod
     def _has_key(self, key: Any) -> bool:
@@ -92,20 +93,6 @@ class Collection(Service, CollectionT):
         self._timestamp_keys = defaultdict(set)
         self._timestamps = []
 
-        if self.StateStore is not None:
-            self.data = self.StateStore(url=None, app=app, loop=self.loop)
-        else:
-            url = self._store or self.app.store
-            self.data = stores.by_url(url)(
-                url, app,
-                table_name=self.name,
-                key_type=self.key_type,
-                value_type=self.value_type,
-                loop=self.loop)
-
-        # Table.start() also starts Store
-        self.add_dependency(cast(StoreT, self.data))
-
         self._recover_callbacks = set()
         if on_recover:
             self.on_recover(on_recover)
@@ -119,6 +106,24 @@ class Collection(Service, CollectionT):
         # We have to override MutableMapping __hash__, so that this table
         # can be registered in the app.tables mapping.
         return object.__hash__(self)
+
+    @property
+    def data(self) -> MutableMapping:
+        if self._data is None:
+            app = self.app
+            if self.StateStore is not None:
+                self._data = self.StateStore(
+                    url=None, app=app, loop=self.loop)
+            else:
+                url = self._store or self.app.store
+                self._data = stores.by_url(url)(
+                    url, app,
+                    table_name=self.name,
+                    key_type=self.key_type,
+                    value_type=self.value_type,
+                    loop=self.loop)
+            self.add_dependency(cast(StoreT, self._data))
+        return self._data
 
     async def on_start(self) -> None:
         await self.changelog_topic.maybe_declare()
