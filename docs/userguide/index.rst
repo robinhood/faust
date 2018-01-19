@@ -19,4 +19,5 @@
     tasks
     deployment
     sensors
+    testing
     vskafka

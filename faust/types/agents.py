@@ -2,16 +2,17 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Generic, Iterable, List, Tuple, Type, TypeVar, Union, no_type_check,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Generic,
+    Iterable, Iterator, List, Tuple, Type, TypeVar, Union, no_type_check,
 )
 from mode import ServiceT, SupervisorStrategyT
+from .channels import EventT
 from .codecs import CodecArg
 from .core import K, V
 from .models import ModelArg
 from .streams import StreamT
 from .topics import ChannelT
-from .tuples import RecordMetadata
+from .tuples import Message, RecordMetadata
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -24,6 +25,7 @@ __all__ = [
     'ActorT',
     'ActorRefT',
     'AgentT',
+    'AgentTestWrapperT',
     'AsyncIterableActorT',
     'AwaitableActorT',
     'ReplyToArg',
@@ -187,4 +189,44 @@ class AgentT(ServiceT):
 
     @channel_iterator.setter
     def channel_iterator(self, channel: AsyncIterator) -> None:
+        ...
+
+
+class AgentTestWrapperT(AgentT, AsyncIterable):
+
+    offset_counter: Iterator[int] = None
+    new_value_processed: asyncio.Condition = None
+    original_channel: ChannelT
+
+    @abc.abstractmethod
+    def __init__(self, *args: Any,
+                 original_channel: ChannelT = None,
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def put(
+            self,
+            value: V = None,
+            key: K = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            *,
+            reply_to: ReplyToArg = None,
+            correlation_id: str = None,
+            wait: bool = True) -> EventT:
+        ...
+
+    @abc.abstractmethod
+    def to_message(self, key: K, value: V,
+                   *,
+                   partition: int = 0,
+                   offset: int = 0,
+                   timestamp: float = None,
+                   timestamp_type: str = 'unix') -> Message:
+        ...
+
+    @abc.abstractmethod
+    async def throw(self, exc: BaseException) -> None:
         ...

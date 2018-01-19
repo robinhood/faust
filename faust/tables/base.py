@@ -4,7 +4,7 @@ from collections import defaultdict
 from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Optional, Union, cast,
+    MutableMapping, MutableSet, Optional, Union, cast, no_type_check,
 )
 from mode import Seconds, Service
 from yarl import URL
@@ -37,7 +37,7 @@ class Collection(Service, CollectionT):
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
     _recover_callbacks: MutableSet[RecoverCallback]
-    _data: MutableMapping = None
+    _data: StoreT = None
 
     @abc.abstractmethod
     def _has_key(self, key: Any) -> bool:
@@ -107,8 +107,7 @@ class Collection(Service, CollectionT):
         # can be registered in the app.tables mapping.
         return object.__hash__(self)
 
-    @property
-    def data(self) -> MutableMapping:
+    def _get_store(self) -> StoreT:
         if self._data is None:
             app = self.app
             if self.StateStore is not None:
@@ -122,8 +121,12 @@ class Collection(Service, CollectionT):
                     key_type=self.key_type,
                     value_type=self.value_type,
                     loop=self.loop)
-            self.add_dependency(cast(StoreT, self._data))
+            self.add_dependency(self._data)
         return self._data
+
+    @property
+    def data(self) -> StoreT:
+        return self._get_store()
 
     async def on_start(self) -> None:
         await self.changelog_topic.maybe_declare()

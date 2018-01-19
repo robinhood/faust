@@ -2,26 +2,37 @@
 import asyncio
 import typing
 
+from itertools import count
+from time import time
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
-    Iterable, List, MutableMapping, MutableSequence, Tuple, Type, Union, cast,
+    Iterable, List, Mapping, MutableMapping, MutableSequence,
+    Tuple, Type, Union, cast,
 )
 from uuid import uuid4
 
-from mode import OneForOneSupervisor, Service, ServiceT, SupervisorStrategyT
+from mode import (
+    CrashingSupervisor,
+    OneForOneSupervisor,
+    Service,
+    ServiceT,
+    SupervisorStrategyT,
+)
 from mode.proxy import ServiceProxy
 from mode.utils.types.trees import NodeT
 
 from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
 
+from ..exceptions import ImproperlyConfigured
 from ..types import (
-    AppT, ChannelT, CodecArg, K, MessageSentCallback, ModelArg,
-    RecordMetadata, StreamT, TopicT, V,
+    AppT, ChannelT, CodecArg, EventT, K, Message, MessageSentCallback,
+    ModelArg, RecordMetadata, StreamT, TopicT, V,
 )
 from ..types.agents import (
     ActorRefT, ActorT, AgentErrorHandler, AgentFun, AgentT,
-    AsyncIterableActorT, AwaitableActorT, ReplyToArg, SinkT, _T,
+    AgentTestWrapperT, AsyncIterableActorT, AwaitableActorT,
+    ReplyToArg, SinkT, _T,
 )
 from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import maybe_async
@@ -248,6 +259,32 @@ class Agent(AgentT, ServiceProxy):
         self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
         ServiceProxy.__init__(self)
 
+    def info(self) -> Mapping:
+        return {
+            'app': self.app,
+            'fun': self.fun,
+            'name': self.name,
+            'channel': self.channel,
+            'concurrency': self.concurrency,
+            'help': self.help,
+            'sinks': self._sinks,
+            'on_error': self._on_error,
+            'supervisor_strategy': self.supervisor_strategy,
+        }
+
+    def clone(self, *, cls: Type[AgentT] = None, **kwargs: Any) -> AgentT:
+        return (cls or type(self))(**{**self.info(), **kwargs})
+
+    def test(self, channel: ChannelT = None,
+             supervisor_strategy: SupervisorStrategyT = None,
+             **kwargs: Any) -> 'AgentTestWrapper':
+        return self.clone(
+            cls=AgentTestWrapper,
+            channel=channel if channel is not None else self.app.channel(),
+            supervisor_strategy=supervisor_strategy or CrashingSupervisor,
+            original_channel=self.channel,
+            **kwargs)
+
     def _prepare_channel(self,
                          channel: Union[str, ChannelT] = None,
                          internal: bool = True,
@@ -285,17 +322,20 @@ class Agent(AgentT, ServiceProxy):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the agent
         # function is an `async def` function that yields)
-        stream = self.stream(concurrency_index=index)
+        return self.actor_from_stream(self.stream(concurrency_index=index))
+
+    def actor_from_stream(self, stream: StreamT) -> ActorRefT:
         res = self.fun(stream)
         typ = cast(Type[Actor], (
             AwaitableActor if isinstance(res, Awaitable)
             else AsyncIterableActor
         ))
-        return typ(self, stream, res, index,
+        return typ(self, stream, res, stream.concurrency_index,
                    loop=self.loop, beacon=self.beacon)
 
     def add_sink(self, sink: SinkT) -> None:
-        self._sinks.append(sink)
+        if sink not in self._sinks:
+            self._sinks.append(sink)
 
     def stream(self, **kwargs: Any) -> StreamT:
         s = self.app.stream(self.channel_iterator, loop=self.loop, **kwargs)
@@ -311,9 +351,19 @@ class Agent(AgentT, ServiceProxy):
         # If the agent is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
-        aref: ActorRefT = self(index=index)
-        coro = aref if isinstance(aref, Awaitable) else self._slurp(
-            aref, aiter(aref))
+        return await self._prepare_actor(self(index=index), beacon)
+
+    async def _prepare_actor(
+            self, aref: ActorRefT, beacon: NodeT) -> ActorRefT:
+        coro: Any
+        if isinstance(aref, Awaitable):
+            # agent does not yield
+            coro = aref
+            if self._sinks:
+                raise ImproperlyConfigured('Agent must yield to use sinks')
+        else:
+            # agent yields and is an AsyncIterator so we have to consume it.
+            coro = self._slurp(aref, aiter(aref))
         task = asyncio.Task(self._execute_task(coro, aref), loop=self.loop)
         task._beacon = beacon  # type: ignore
         aref.actor_task = task
@@ -583,3 +633,78 @@ class Agent(AgentT, ServiceProxy):
     @property
     def label(self) -> str:
         return f'{type(self).__name__}: {shorten_fqdn(qualname(self.fun))}'
+
+
+class AgentTestWrapper(Agent, AgentTestWrapperT):
+
+    _stream: StreamT = None
+
+    def __init__(self, *args: Any,
+                 original_channel: ChannelT = None,
+                 **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.offset_counter = count()
+        self.new_value_processed = asyncio.Condition(loop=self.loop)
+        self.original_channel = original_channel
+        self.add_sink(self._on_value_processed)
+        self._stream = self.channel.stream()
+
+    def stream(self, *args: Any, **kwargs: Any) -> StreamT:
+        return self._stream.get_active_stream()
+
+    async def _on_value_processed(self, value: Any) -> None:
+        async with self.new_value_processed:
+            self.new_value_processed.notify_all()
+
+    async def put(
+            self,
+            value: V = None,
+            key: K = None,
+            partition: int = None,
+            key_serializer: CodecArg = None,
+            value_serializer: CodecArg = None,
+            *,
+            reply_to: ReplyToArg = None,
+            correlation_id: str = None,
+            wait: bool = True) -> EventT:
+        if reply_to:
+            value = self._create_req(key, value, reply_to, correlation_id)
+        channel = cast(ChannelT, self.stream().channel)
+        message = self.to_message(
+            key, value,
+            partition=partition)
+        event: EventT = await channel.decode(message)
+        await channel.put(event)
+        if wait:
+            async with self.new_value_processed:
+                await self.new_value_processed.wait()
+        return event
+
+    def to_message(self, key: K, value: V,
+                   *,
+                   partition: int = 0,
+                   offset: int = 0,
+                   timestamp: float = None,
+                   timestamp_type: str = 'unix') -> Message:
+        try:
+            topic_name = self._get_strtopic(self.original_channel)
+        except ValueError:
+            topic_name = '<internal>'
+        return Message(
+            topic=topic_name,
+            partition=partition,
+            offset=offset or next(self.offset_counter),
+            timestamp=timestamp or time(),
+            timestamp_type=timestamp_type,
+            key=key,
+            value=value,
+            checksum=b'',
+            serialized_key_size=0,
+            serialized_value_size=0,
+        )
+
+    async def throw(self, exc: BaseException) -> None:
+        await self.stream().throw(exc)
+
+    def __aiter__(self) -> AsyncIterator:
+        return aiter(self._stream())
