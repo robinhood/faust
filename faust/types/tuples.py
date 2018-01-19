@@ -106,7 +106,8 @@ class Message:
             if serialized_value_size is None else serialized_value_size)
         self.acked: bool = False
         self.refcount: int = 0
-        self.tp = tp
+        self.tp = tp if tp is not None else TP(topic, partition)
+
         if typing.TYPE_CHECKING:
             # mypy supports this, but Python doesn't.
             self.channels: WeakSet[ChannelT] = WeakSet()
