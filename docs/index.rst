@@ -59,9 +59,9 @@ Contents
     copyright
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    introduction
+    introduction/index
 
 .. toctree::
     :maxdepth: 2
