@@ -108,7 +108,8 @@ class TopicT(ChannelT):
                internal: bool = False,
                config: Mapping[str, Any] = None,
                prefix: str = '',
-               suffix: str = '') -> 'TopicT':
+               suffix: str = '',
+               **kwargs: Any) -> 'TopicT':
         ...
 
 

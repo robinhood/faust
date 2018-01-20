@@ -2,7 +2,6 @@
 import asyncio
 import typing
 
-from itertools import count
 from time import time
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
@@ -275,9 +274,9 @@ class Agent(AgentT, ServiceProxy):
     def clone(self, *, cls: Type[AgentT] = None, **kwargs: Any) -> AgentT:
         return (cls or type(self))(**{**self.info(), **kwargs})
 
-    def test(self, channel: ChannelT = None,
-             supervisor_strategy: SupervisorStrategyT = None,
-             **kwargs: Any) -> 'AgentTestWrapper':
+    def test_context(self, channel: ChannelT = None,
+                     supervisor_strategy: SupervisorStrategyT = None,
+                     **kwargs: Any) -> AgentTestWrapperT:
         return self.clone(
             cls=AgentTestWrapper,
             channel=channel if channel is not None else self.app.channel(),
@@ -643,17 +642,25 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):
                  original_channel: ChannelT = None,
                  **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.offset_counter = count()
+        self.results = {}
         self.new_value_processed = asyncio.Condition(loop=self.loop)
         self.original_channel = original_channel
         self.add_sink(self._on_value_processed)
         self._stream = self.channel.stream()
+        self.sent_offset = 0
+        self.processed_offset = 0
 
     def stream(self, *args: Any, **kwargs: Any) -> StreamT:
         return self._stream.get_active_stream()
 
+    async def on_stop(self) -> None:
+        self.results.clear()
+        await super().on_stop()
+
     async def _on_value_processed(self, value: Any) -> None:
         async with self.new_value_processed:
+            self.results[self.processed_offset] = value
+            self.processed_offset += 1
             self.new_value_processed.notify_all()
 
     async def put(
@@ -672,9 +679,11 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):
         channel = cast(ChannelT, self.stream().channel)
         message = self.to_message(
             key, value,
-            partition=partition)
+            partition=partition,
+            offset=self.sent_offset)
         event: EventT = await channel.decode(message)
         await channel.put(event)
+        self.sent_offset += 1
         if wait:
             async with self.new_value_processed:
                 await self.new_value_processed.wait()
@@ -693,7 +702,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):
         return Message(
             topic=topic_name,
             partition=partition,
-            offset=offset or next(self.offset_counter),
+            offset=offset,
             timestamp=timestamp or time(),
             timestamp_type=timestamp_type,
             key=key,

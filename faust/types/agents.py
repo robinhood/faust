@@ -3,7 +3,8 @@ import asyncio
 import typing
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Generic,
-    Iterable, Iterator, List, Tuple, Type, TypeVar, Union, no_type_check,
+    Iterable, List, Mapping, MutableMapping, Tuple, Type, TypeVar, Union,
+    no_type_check,
 )
 from mode import ServiceT, SupervisorStrategyT
 from .channels import EventT
@@ -110,6 +111,12 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def test_context(self, channel: ChannelT = None,
+                     supervisor_strategy: SupervisorStrategyT = None,
+                     **kwargs: Any) -> 'AgentTestWrapperT':
+        ...
+
+    @abc.abstractmethod
     def add_sink(self, sink: SinkT) -> None:
         ...
 
@@ -182,6 +189,16 @@ class AgentT(ServiceT):
             reply_to: ReplyToArg = None) -> List[Any]:
         ...
 
+    @abc.abstractmethod
+    def info(self) -> Mapping:
+        ...
+
+    @abc.abstractmethod
+    def clone(self, *,
+              cls: Type['AgentT'] = None,
+              **kwargs: Any) -> 'AgentT':
+        ...
+
     @property
     @abc.abstractmethod
     def channel_iterator(self) -> AsyncIterator:
@@ -194,9 +211,11 @@ class AgentT(ServiceT):
 
 class AgentTestWrapperT(AgentT, AsyncIterable):
 
-    offset_counter: Iterator[int] = None
     new_value_processed: asyncio.Condition = None
     original_channel: ChannelT
+    results: MutableMapping[int, Any] = None
+    sent_offset: int = 0
+    processed_offset: int = 0
 
     @abc.abstractmethod
     def __init__(self, *args: Any,

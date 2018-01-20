@@ -421,6 +421,7 @@ class Stream(StreamT, Service):
                 async for event in s.group_by(get_key):
                     ...
         """
+        channel: ChannelT
         if self.concurrency_index is not None:
             raise ImproperlyConfigured(
                 'Agent with concurrency>1 cannot use stream.group_by!')
@@ -430,24 +431,24 @@ class Stream(StreamT, Service):
             else:
                 raise TypeError(
                     'group_by with callback must set name=topic_suffix')
-        if topic is None:
-            if not isinstance(self.channel, TopicT):
-                raise ValueError('Need to specify topic for non-topic channel')
+        if topic is not None:
+            channel = topic
+        else:
             suffix = '-' + self.app.id + '-' + name + '-repartition'
             p = self.app.default_partitions if partitions else partitions
-            topic = cast(TopicT, self.channel).derive(
+            channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
         topic_created = False
         format_key = self._format_key
 
-        channel_it = aiter(topic)
+        channel_it = aiter(channel)
         if self.link is not None:
             raise ImproperlyConfigured('Stream already uses group_by/through')
         self.link = grouped = self.clone(
             channel=channel_it,
             on_start=self.maybe_start,
         )
-        declare = StampedeWrapper(topic.maybe_declare)
+        declare = StampedeWrapper(channel.maybe_declare)
 
         async def repartition(value: T) -> T:
             event = self.current_event
@@ -460,10 +461,7 @@ class Stream(StreamT, Service):
             if not topic_created:
                 await declare()
                 topic_created = True
-            await event.forward(
-                topic.get_topic_name(),
-                key=new_key,
-            )
+            await event.forward(channel, key=new_key)
             return value
         self.add_processor(repartition)
         self._enable_passive(cast(ChannelT, channel_it))

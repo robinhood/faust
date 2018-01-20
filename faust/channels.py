@@ -385,6 +385,9 @@ class Channel(ChannelT):
             self, exc: Exception, message: Message) -> None:
         await self.throw(exc)
 
+    def derive(self, **kwargs: Any) -> ChannelT:
+        return self
+
     def __aiter__(self) -> ChannelT:
         return self if self.is_iterator else self.clone(is_iterator=True)
 

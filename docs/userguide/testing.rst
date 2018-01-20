@@ -40,13 +40,13 @@ To test an agent when unit testing or functional testing, use the special
 Our agent reads a stream of orders and keeps a count of them by account id
 in a distributed table also partitioned by the account id.
 
-To test this agent we can use ``order.test()``:
+To test this agent we use ``order.test_context()``:
 
 .. sourcecode:: python
 
     async def test_order():
         # start and stop the agent in this block
-        async with order.test() as agent:
+        async with order.test_context() as agent:
             order = Order(account_id='1', product_id='2', amount=1, price=300)
             # sent order to the test agents local channel, and wait
             # the agent to process it.
@@ -95,8 +95,6 @@ Here's an example agent that calls another agent:
 
     app = faust.App('example-test-agent-call')
 
-    topic = app.topic('orders')
-
     @app.agent()
     async def foo(stream):
         async for value in stream:
@@ -114,7 +112,7 @@ first test ``foo`` with ``bar`` mocked, then in a different test do ``bar``:
 .. sourcecode:: python
 
     import pytest
-    from unittest.mock import patch
+    from unittest.mock import Mock, patch
 
     from example import app, foo, bar
 
@@ -125,15 +123,23 @@ first test ``foo`` with ``bar`` mocked, then in a different test do ``bar``:
 
     @pytest.mark.asyncio()
     async def test_foo(test_app):
-        with patch('example.bar') as mocked_bar:
-            with foo.test() as agent:
+        with patch(__name__ + '.bar') as mocked_bar:
+            mocked_bar.send = mock_coro()
+            async with foo.test_context() as agent:
                 await agent.put('hey')
                 mocked_bar.send.assert_called_with('hey')
 
+    def mock_coro(return_value=None, **kwargs):
+        """Create mock coroutine function."""
+        async def wrapped(*args, **kwargs):
+             return return_value
+        return Mock(wraps=wrapped, **kwargs)
+
     @pytest.mark.asyncio()
     async def test_bar(test_app):
-        with bar.test() as agent:
-            assert await bar.put('hey').value == 'heyYOLO'
+        async with bar.test_context() as agent:
+            event = await agent.put('hey')
+            assert agent.results[event.message.offset] == 'heyYOLO'
 
 .. note::
 
@@ -154,10 +160,13 @@ the window of the current event:
 
 .. sourcecode:: python
 
+    import faust
+    import pytest
+
     @pytest.mark.asyncio()
-    async def test_agent():
+    async def test_process_order():
         app.store = 'memory://'
-        async with agent.test() as agent:
+        async with order.test_context() as agent:
             order = Order(account_id='1', product_id='2', amount=1, price=300)
             event = await agent.put(order)
 
@@ -165,10 +174,8 @@ the window of the current event:
             assert orders_for_account['1'].current(event) == 1
 
             # in the window 3 hours ago there were no orders:
-            assert orders_for_account['1'].delta(timedelta(hours=3), event)
+            assert orders_for_account['1'].delta(3600 * 3, event)
 
-
-    app = faust.App('test-example')
 
     class Order(faust.Record, serializer='json'):
         account_id: str
@@ -176,6 +183,7 @@ the window of the current event:
         amount: int
         price: float
 
+    app = faust.App('test-example')
     orders_topic = app.topic('orders', value_type=Order)
 
     # order count within the last hour (window is a 1-hour TumblingWindow).
@@ -184,7 +192,7 @@ the window of the current event:
     ).tumbling(3600).relative_to_stream()
 
     @app.agent(orders_topic)
-    async def order(orders):
+    async def process_order(orders):
         async for order in orders.group_by(Order.account_id):
             orders_for_account[order.account_id] += 1
             yield order
