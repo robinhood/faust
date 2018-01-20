@@ -1,4 +1,4 @@
-.. _introduction-index:
+.. _intro:
 
 ==================
  Welcome to Faust
