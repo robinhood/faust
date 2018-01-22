@@ -173,8 +173,7 @@ class Transport(base.Transport):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> RecordMetadata:
-        tp = TP(topic, partition)
-        self._messages[topic].append(Message(
+        message = Message(
             topic,
             partition=partition,
             offset=0,
@@ -185,12 +184,12 @@ class Transport(base.Transport):
             checksum=None,
             serialized_key_size=len(key) if key else 0,
             serialized_value_size=len(value) if value else 0,
-            tp=tp,
-        ))
+        )
+        self._messages[topic].append(message)
         self._messages_ready.set()
         return RecordMetadata(
             topic=topic,
             partition=partition,
-            topic_partition=tp,
+            topic_partition=message.tp,
             offset=0,
         )
