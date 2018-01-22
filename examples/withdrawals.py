@@ -15,16 +15,11 @@ Quick Start
     $ ./examples/simple.py produce
 """
 import asyncio
-import os
 import random
 from datetime import datetime, timezone
 from itertools import count
 import faust
 from faust.cli import option
-from faust.types import EventT, TP
-
-
-PRODUCE_LATENCY = float(os.environ.get('PRODUCE_LATENCY', 0.5))
 
 
 class Withdrawal(faust.Record, isodates=True, serializer='json'):
@@ -43,29 +38,30 @@ app = faust.App(
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 
-async def print_key_value(event: EventT) -> None:
-    tp = TP(topic=event.message.topic, partition=event.message.partition)
-    if not app.assignor.is_active(tp):
-        print(f'{event.key}:{event.value}')
-
 user_to_total = app.Table(
-    'user_to_total', default=int, on_changelog_event=print_key_value,
-    standby_buffer_size=1, recovery_buffer_size=200,
-    extra_topic_configs={'min.cleanable.dirty.ratio': '0.01'},
+    'user_to_total', default=int,
 ).tumbling(3600).relative_to_stream()
+
 country_to_total = app.Table(
-    'country_to_total', default=int).tumbling(10.0, expires=10.0)
+    'country_to_total', default=int,
+).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
 @app.agent(withdrawals_topic)
-async def find_large_user_withdrawals(withdrawals):
+async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
+@app.agent(withdrawals_topic)
+async def track_country_withdrawal(withdrawals):
+    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+        country_to_total[withdrawals.country] += withdrawal.amount
+
+
 @app.command(
     option('--max-latency',
-           type=float, default=PRODUCE_LATENCY,
+           type=float, default=0.5, envvar='PRODUCE_LATENCY',
            help='Add delay of (at most) n seconds between publishing.'),
     option('--max-messages',
            type=int, default=None,
