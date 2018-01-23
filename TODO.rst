@@ -25,14 +25,6 @@ interface:
 HTTP API
 --------
 
-* List available tables
-
-    .. sourcecode:: text
-
-        GET localhost:6666/api/table/
-
-        200 {"results": ["user_to_amount"]}
-
 * List of key/value pairs in the table (with pagination)
 
     .. sourcecode:: text
@@ -41,7 +33,15 @@ HTTP API
 
         200 {"results": {"key", "value"}}
 
-* Get value by key:
+* -List available tables-
+
+    .. sourcecode:: text
+
+        GET localhost:6666/api/table/
+
+        200 {"results": ["user_to_amount"]}
+
+* -Get value by key-:
 
     .. sourcecode:: text
 
@@ -68,19 +68,6 @@ Joins
 See ``faust/joins.py``
 
 API already exposed in faust.streams.Stream, but not implemented.
-
-Fault Tolerance
-===============
-
-- Rebalance listener:
-    https://github.com/apache/kafka/blob/4b3ea062be515bc173f6c788c4c1e14f77935aef/streams/src/main/java/org/apache/kafka/streams/processor/internals/StreamThread.java#L1264-L1342
-
-- Partition assignor links:
-
-    * https://github.com/apache/kafka/blob/trunk/streams/src/main/java/org/apache/kafka/streams/processor/internals/StreamPartitionAssignor.java (KafkaStream’s partition Assignor)
-    * https://cwiki.apache.org/confluence/display/KAFKA/Kafka+Client-side+Assignment+Proposal (Partition assignor protocol used by kafka)
-    * https://github.com/dpkp/kafka-python/blob/master/kafka/coordinator/assignors/roundrobin.py (Kafka python’s roundrobin parition assignor for a simpler example of the partition assignor)
-    * https://cwiki.apache.org/confluence/display/KAFKA/KIP-54+-+Sticky+Partition+Assignment+Strategy (Sticky Partition Assignment strategy that was added recently)
 
 Tables
 ======
@@ -137,36 +124,10 @@ Tables
             work just by the Window+key keying.
 
 
-Deployment
-==========
-
-- Daemonization
-
-    Handled by supervisord/circus ?
-
-- Sentry/Raven
-
-- ``faust`` command-line tool
-
-    DONE:
-
-    .. sourcecode:: console
-
-        $ faust -A examples.simple worker
-        $ FAUSTAPP=examples.simple faust worker
-
-    TODO(?):
-
-    .. sourcecode:: console
-
-        $ faust -A examples.simple status
-        $ faust -A examples.simple ping
-        $ faust -A examples.simple send topic [value [ key]]
-
 Tests
 =====
 
-Need to write functional tests: test behavior, not coverage.
+Need to write more functional tests: test behavior, not coverage.
 
 librdkafka asyncio client
 =========================
@@ -209,50 +170,17 @@ HTTP Graphs
 
 Show graphs in realtime:  Wow factor+++ :-)
 
-Optimize ``aiokafka``
-=====================
-
-Find out if there are any obvious optimizations that can be applied
-as it's currently quite slow.
-
 Documentation
 =============
 
-- Introduction/README
+- Availability guide
 
-- Tutorial
+    - partitioning
 
-- Glossary (docs/glossary.rst)
+    - recovery
 
-- User Guide (docs/userguide/)
+    - acknowledgements
 
-    - Streams
-
-    - Tables
-
-    - Models
-
-    - Availability
-
-        - partitioning
-
-        - recovery
-
-        - acknowledgements
-
-    - Sensors
-
-    - Deployment
-
-        * daemonization
-
-        * uvloop vs. asyncio
-
-        * debugging (aiomonitor)
-
-        * logging
-
-    - Web API
 
 Typing
 ======

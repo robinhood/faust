@@ -12,6 +12,10 @@ from .types.router import HostToPartitionMap, RouterT
 from .types.tables import CollectionT
 
 
+class SameNode(Exception):
+    ...
+
+
 class Router(RouterT):
     """Router for ``app.router``."""
 
@@ -48,28 +52,33 @@ class Router(RouterT):
 
     def router(self, table: CollectionT,
                shard_param: str) -> RoutedViewGetHandler:
-        app = self.app
-        router = app.router
-
         def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
 
             @wraps(fun)
             async def get(web: Web, request: Request) -> Response:
                 key = request.query[shard_param]
-
-                dest_url = router.key_store(table.name, key)
-                dest_ident = (host, port) = self._urlident(dest_url)
-                if dest_ident == self._urlident(app.canonical_url):
+                try:
+                    return await self.route_req(table.name, key, web, request)
+                except SameNode:
                     return await fun(web, request)
-
-                routed_url = request.url.with_host(host).with_port(int(port))
-                async with app.client_session.get(routed_url) as response:
-                    return web.text(await response.text(),
-                                    content_type=response.content_type)
-
             return get
 
         return _decorator
+
+    async def route_req(self,
+                        table_name: str,
+                        key: K,
+                        web: Web,
+                        request: Request) -> Response:
+        app = self.app
+        dest_url = app.router.key_store(table_name, key)
+        dest_ident = (host, port) = self._urlident(dest_url)
+        if dest_ident == self._urlident(app.canonical_url):
+            raise SameNode()
+        routed_url = request.url.with_host(host).with_port(int(port))
+        async with app.client_session.get(routed_url) as response:
+            return web.text(await response.text(),
+                            content_type=response.content_type)
 
     def _urlident(self, url: URL) -> Tuple[str, int]:
         return (

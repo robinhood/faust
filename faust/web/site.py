@@ -5,6 +5,7 @@ from . import drivers
 from .apps import graph
 from .apps import router
 from .apps import stats
+from .apps import tables
 from .base import Web
 from .views import Site
 from ..types import AppT
@@ -23,6 +24,7 @@ class Website(Service):
         ('/graph', graph.Site),
         ('', stats.Site),
         ('/router', router.Site),
+        ('/table', tables.Site),
     ]
 
     def __init__(self, app: AppT,

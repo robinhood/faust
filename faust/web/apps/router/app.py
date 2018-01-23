@@ -5,20 +5,21 @@ from faust.web.base import Request, Response, Web
 __all__ = ['TablesMetadata', 'TableMetadata', 'KeyMetadata']
 
 
-class TablesMetadata(views.View):
-    """List routes for all tables."""
-
+class RouterView(views.View):
+    # package to get templates from.
     package = 'faust.web.apps.router'
+
+
+class TablesMetadata(RouterView):
+    """List routes for all tables."""
 
     async def get(self, web: Web, request: Request) -> Response:
         router = self.app.router
         return web.json(router.tables_metadata())
 
 
-class TableMetadata(views.View):
+class TableMetadata(RouterView):
     """List route for specific table."""
-
-    package = 'faust.web.apps.router'
 
     async def get(self, web: Web, request: Request) -> Response:
         # FIXME request.match_info is an attribute of aiohttp.Request
@@ -27,10 +28,8 @@ class TableMetadata(views.View):
         return web.json(router.table_metadata(table_name))
 
 
-class KeyMetadata(views.View):
+class KeyMetadata(RouterView):
     """List information about key."""
-
-    package = 'faust.web.apps.router'
 
     async def get(self, web: Web, request: Request) -> Response:
         table_name = request.match_info['name']
