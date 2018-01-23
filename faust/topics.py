@@ -185,26 +185,33 @@ class Topic(Channel, TopicT):
             replicas = self.app.replication_factor
         self._replicas = replicas
 
-    def derive(self,
-               *,
-               topics: Sequence[str] = None,
-               key_type: ModelArg = None,
-               value_type: ModelArg = None,
-               key_serializer: CodecArg = None,
-               value_serializer: CodecArg = None,
-               partitions: int = None,
-               retention: Seconds = None,
-               compacting: bool = None,
-               deleting: bool = None,
-               internal: bool = None,
-               config: Mapping[str, Any] = None,
-               prefix: str = '',
-               suffix: str = '') -> TopicT:
+    def derive(self, **kwargs: Any) -> ChannelT:
         """Create new :class:`Topic` derived from this topic.
 
         Configuration will be copied from this topic, but any parameter
         overriden as a keyword argument.
+
+        See Also:
+            :meth:`derive_topic`: for a list of supported keyword arguments.
         """
+        return self.derive_topic(**kwargs)
+
+    def derive_topic(self,
+                     *,
+                     topics: Sequence[str] = None,
+                     key_type: ModelArg = None,
+                     value_type: ModelArg = None,
+                     key_serializer: CodecArg = None,
+                     value_serializer: CodecArg = None,
+                     partitions: int = None,
+                     retention: Seconds = None,
+                     compacting: bool = None,
+                     deleting: bool = None,
+                     internal: bool = None,
+                     config: Mapping[str, Any] = None,
+                     prefix: str = '',
+                     suffix: str = '',
+                     **kwargs: Any) -> TopicT:
         topics = self.topics if topics is None else topics
         if suffix or prefix:
             if self.pattern:

@@ -492,7 +492,7 @@ class Stream(StreamT, Service):
             ValueError: if the stream channel is not a topic.
         """
         if isinstance(self.channel, TopicT):
-            return cast(TopicT, self.channel).derive(
+            return self.channel.derive_topic(
                 topics=[name],
                 key_type=key_type,
                 value_type=value_type,

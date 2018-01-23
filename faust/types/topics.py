@@ -96,20 +96,24 @@ class TopicT(ChannelT):
         ...
 
     @abc.abstractmethod
-    def derive(self,
-               *,
-               topics: Sequence[str] = None,
-               key_type: ModelArg = None,
-               value_type: ModelArg = None,
-               partitions: int = None,
-               retention: Seconds = None,
-               compacting: bool = None,
-               deleting: bool = None,
-               internal: bool = False,
-               config: Mapping[str, Any] = None,
-               prefix: str = '',
-               suffix: str = '',
-               **kwargs: Any) -> 'TopicT':
+    def derive(self, **kwargs: Any) -> ChannelT:
+        ...
+
+    @abc.abstractmethod
+    def derive_topic(self,
+                     *,
+                     topics: Sequence[str] = None,
+                     key_type: ModelArg = None,
+                     value_type: ModelArg = None,
+                     partitions: int = None,
+                     retention: Seconds = None,
+                     compacting: bool = None,
+                     deleting: bool = None,
+                     internal: bool = False,
+                     config: Mapping[str, Any] = None,
+                     prefix: str = '',
+                     suffix: str = '',
+                     **kwargs: Any) -> 'TopicT':
         ...
 
 
