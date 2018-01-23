@@ -4,7 +4,7 @@ from collections import defaultdict
 from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Optional, Union, cast,
+    MutableMapping, MutableSet, Optional, Union, cast, no_type_check,
 )
 from mode import Seconds, Service
 from yarl import URL
@@ -124,7 +124,8 @@ class Collection(Service, CollectionT):
             self.add_dependency(self._data)
         return self._data
 
-    @property
+    @property  # type: ignore
+    @no_type_check  # XXX https://github.com/python/mypy/issues/4125
     def data(self) -> StoreT:
         return self._get_store()
 
