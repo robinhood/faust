@@ -20,7 +20,8 @@ What is an Application?
 An application is an *instance of the library*, and provides
 the core API of Faust.
 
-The application can define agents, streams, topics & channels, and more.
+The application can define stream processors (agents), topics, channels,
+web views, CLI commands and more.
 
 To create one you need to provide
 a name for the application (the id), a message broker, and a driver to use for
@@ -40,7 +41,7 @@ table storage:
             >>> app1 = faust.App('demo1')
             >>> app2 = faust.App('demo2')
 
-    - Share an app between multiple threads (the app is :term:`thread safe`).
+    - Share an app between multiple threads: the app is :term:`thread safe`.
 
 .. _application-configuration:
 
@@ -107,7 +108,7 @@ This parameter is required.
 .. admonition:: The id and Kafka
 
     When using Kafka, the id is used to generate app-local topics, and
-    names for consumer groups, etc.
+    names for consumer groups.
 
 Common Parameters
 -----------------
@@ -120,7 +121,8 @@ Common Parameters
 
 Faust needs the URL of a "transport" to send and receive messages.
 
-Currently, the only supported transport is the ``aiokafka://`` Kafka client.
+Currently, the only supported transport is the ``aiokafka://`` transport using
+the :pypi:`aiokafka` Kafka client.
 
 You can specify multiple hosts at the same time by separating them using
 the semi-comma:
@@ -136,8 +138,9 @@ the semi-comma:
 :default: ``memory://``
 
 The backend used for table storage.
-Tables are stored in-memory only by default, but you should
-only used this for testing and development purposes.
+
+Tables are stored in-memory by default, but you should
+not use the ``memory://`` store in production.
 
 In production, a persistent table store, such as ``rocksdb://`` is
 preferred.
@@ -147,19 +150,19 @@ preferred.
 
 :type: ``Union[bool, Iterable[str], Callable[[], Iterable[str]]]``
 
-Enable autodiscovery of agent, page and command decorators.
+Enable autodiscovery of agent, task, timer, page and command decorators.
 
 .. warning::
 
     The autodiscovery functionality uses :pypi:`Venusian` to
     scan wanted packages for ``@app.agent``, ``@app.page``,
     ``@app.command``, ``@app.task`` and ``@app.timer`` decorators,
-    but to do so, it's required to traverse the package directory and import
-    every package in them.
+    but to do so, it's required to traverse the package path and import
+    every module in it.
 
-    Importing random modules like this can be dangerous if you don't
-    follow best practices for user modules:
-    do not start threads, perform network I/O, do monkey-patching, or similar,
+    Importing random modules like this can be dangerous so make sure you
+    follow Python programming best practices, and for example do not start
+    threads; perform network I/O; do monkey-patching; or similar,
     as a side effect of importing a module.
 
 The value for this argument can be:
@@ -167,11 +170,25 @@ The value for this argument can be:
 ``bool``
     If ``App(autodiscover=True)`` is set, the autodiscovery will
     scan the package name described in the ``origin`` attribute.
+
     The ``origin`` attribute is automatically set when you start
-    a worker using the :program:`faust` command and the
-    :option:`-A examples.simple <faust -A>`, option set, or
-    execute your main script using `python examples/simple.py`` when
-    that script calls ``app.main()``.
+    a worker using the :program:`faust` command line program, e.g.:
+
+    .. sourcecode:: console
+
+        faust -A example.simple worker
+
+    The :option:`-A <faust -A>`, option specifies the app, but you can also
+    create a shortcut entrypoint entrypoint by calling ``app.main()``:
+
+    .. sourcecode:: python
+
+        if __name__ == '__main__':
+            app.main()
+
+    Then you can start the :program:`faust` program by executing for example
+    ``python myscript.py worker --loglevel=INFO``, and it will use the correct
+    application.
 
 ``Sequence[str]``
     The argument can also be a list of packages to scan::
@@ -498,7 +515,8 @@ Actions
 ---------------------------------------------
 
 Use the :meth:`~@topic` method to create a topic description, used
-for example to tell agents what Kafka topic to read from:
+for example to tell stream processors what Kafka topic to read from, and how the keys
+and values in that topic are serialized:
 
 .. sourcecode:: python
 
