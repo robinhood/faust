@@ -60,7 +60,7 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
     return value
 
 
-class Stream(StreamT, Service):
+class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
 
     _processors: MutableSequence[Processor] = None
