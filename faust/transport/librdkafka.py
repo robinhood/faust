@@ -22,6 +22,7 @@ from kafka.structs import (
 )
 from mode import Seconds, Service, want_seconds
 from mode.threads import ServiceThread
+from mode.utils.futures import notify
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
@@ -302,6 +303,7 @@ class ProducerThread(RPCServiceThread):
     method_queue = None
 
     _producer: confluent_kafka.Producer = None
+    _flush_soon: asyncio.Future = None
 
     def __init__(self, producer: ProducerT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -312,12 +314,12 @@ class ProducerThread(RPCServiceThread):
         self._producer = confluent_kafka.Producer({
             'bootstrap.servers': self.transport.bootstrap_servers,
             'client.id': self.transport.app.client_id,
+            'max.in.flight.requests.per.connection': 1,
         })
 
     async def on_stop(self) -> None:
-        producer, self._producer = self._producer, None
-        if producer is not None:
-            producer.flush()
+        if self._producer is not None:
+            self._producer.flush()
 
     def produce(self,
                 topic: str,
@@ -326,18 +328,30 @@ class ProducerThread(RPCServiceThread):
                 partition: int,
                 on_delivery: Callable) -> None:
         if partition is not None:
-            return self._producer.produce(
+            self._producer.produce(
                 topic, key, value, partition, on_delivery=on_delivery)
-        return self._producer.produce(
-            topic, key, value, on_delivery=on_delivery)
+        else:
+            self._producer.produce(
+                topic, key, value, on_delivery=on_delivery)
+        notify(self._flush_soon)
 
     @Service.task
-    async def _background_flush(self):
+    async def _background_flush(self) -> None:
+        producer = self._producer
+        _flush = producer.flush
+        _sleep = self.sleep
+        _create_future = self.loop.create_future
         while not self.should_stop:
-            self._producer.flush()
-            await self.sleep(0)
-            self._producer.poll(timeout=1)
-            await self.sleep(1)
+            flush_soon = self._flush_soon
+            if flush_soon is None:
+                flush_soon = self._flush_soon = _create_future()
+            try:
+                await flush_soon
+            finally:
+                self._flush_soon = None
+
+            await _sleep(0)
+            _flush(timeout=1)
 
 
 class ProducerProduceFuture(asyncio.Future):
@@ -350,17 +364,12 @@ class ProducerProduceFuture(asyncio.Future):
             # object and not a string [ask].
             self.set_exception(err)
         else:
-            print(f'RCPT {err} {msg}')
             self.set_result(self.message_to_metadata(msg))
 
     def message_to_metadata(
             self, message: confluent_kafka.Message) -> RecordMetadata:
-        return RecordMetadata(
-            message.topic,
-            message.partition,
-            TP(message.topic, message.partition),
-            message.offset,
-        )
+        topic, partition = tp = TP(message.topic(), message.partition())
+        return RecordMetadata(topic, partition, tp, message.offset())
 
 
 class Producer(base.Producer):
@@ -424,8 +433,7 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> RecordMetadata:
-        fut = await self.send(topic, key, value, partition)
-        return cast(RecordMetadata, await fut)
+        return await (await self.send(topic, key, value, partition))
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
