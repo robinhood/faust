@@ -6,9 +6,9 @@ from ..utils.imports import FactoryMapping
 __all__ = ['by_name', 'by_url']
 
 TRANSPORTS: FactoryMapping[Type[TransportT]] = FactoryMapping(
-    aiokafka='faust.transport.aiokafka:Transport',
+    aiokafka='faust.transport.librdkafka:Transport',
     confluent='faust.transport.confluent:Transport',
-    kafka='faust.transport.aiokafka:Transport',
+    kafka='faust.transport.librdkafka:Transport',
     memory='faust.transport.memory:Transport',
 )
 TRANSPORTS.include_setuptools_namespace('faust.transports')
