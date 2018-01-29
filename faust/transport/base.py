@@ -73,8 +73,6 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 class Consumer(Service, ConsumerT):
     """Base Consumer."""
 
-    RebalanceListener: ClassVar[Type]
-
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = None
 
     #: This counter generates new consumer ids.
@@ -130,7 +128,6 @@ class Consumer(Service, ConsumerT):
         self._read_offset = defaultdict(lambda: None)
         self._committed_offset = defaultdict(lambda: None)
         self._commit_mutex = asyncio.Lock(loop=self.loop)
-        self._rebalance_listener = self.RebalanceListener(self)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         super().__init__(loop=self.transport.loop, **kwargs)
@@ -140,15 +137,11 @@ class Consumer(Service, ConsumerT):
         ...
 
     @abc.abstractmethod
-    async def _commit(self, offsets: Any) -> None:
+    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         ...
 
     @abc.abstractmethod
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
-        ...
-
-    @abc.abstractmethod
-    def _new_offsetandmetadata(self, offset: int, meta: Any) -> Any:
         ...
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
@@ -284,7 +277,7 @@ class Consumer(Service, ConsumerT):
             # the commit.
             self._committed_offset[tp] = offset
             did_commit = True
-            await self._do_commit(tp, offset, meta='')
+            await self._commit(tp, offset, meta='')
         return did_commit
 
     def _filter_tps_with_pending_acks(
@@ -323,9 +316,6 @@ class Consumer(Service, ConsumerT):
             # return the highest commit offset
             return batch[-1]
         return None
-
-    async def _do_commit(self, tp: TP, offset: int, meta: str) -> None:
-        await self._commit({tp: self._new_offsetandmetadata(offset, meta)})
 
     async def on_task_error(self, exc: BaseException) -> None:
         await self.commit()

@@ -9,6 +9,7 @@ app = faust.App(
     'word-counts',
     broker='kafka://localhost:9092',
     store='rocksdb://',
+    version=2,
     default_partitions=8,
 )
 

@@ -67,13 +67,10 @@ class Consumer(base.Consumer):
             self, topic: str, partition: int) -> TP:
         return TP(topic, partition)
 
-    def _new_offsetandmetadata(self, offset: int, meta: str) -> Any:
-        return offset, None
-
     async def _perform_seek(self) -> None:
         ...
 
-    async def _commit(self, offsets: Any) -> None:
+    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         ...
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:

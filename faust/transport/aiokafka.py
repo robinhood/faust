@@ -55,9 +55,11 @@ class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
 class Consumer(base.Consumer):
     """Kafka consumer using :pypi:`aiokafka`."""
 
-    RebalanceListener: ClassVar[Type] = ConsumerRebalanceListener
+    RebalanceListener: ClassVar[Type[ConsumerRebalanceListener]]
+    RebalanceListener = ConsumerRebalanceListener
 
     _consumer: aiokafka.AIOKafkaConsumer
+    _rebalance_listener: ConsumerRebalanceListener
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -68,6 +70,7 @@ class Consumer(base.Consumer):
     def on_init(self) -> None:
         app = self.transport.app
         transport = cast(Transport, self.transport)
+        self._rebalance_listener = self.RebalanceListener(self)
         if app.client_only:
             self._consumer = self._create_client_consumer(app, transport)
         else:
@@ -200,9 +203,11 @@ class Consumer(base.Consumer):
                 self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', tp)
                 await self._seek_to_beginning(tp)
 
-    async def _commit(self, offsets: Any) -> None:
-        self.log.dev('COMMITTING OFFSETS: %r', offsets)
-        await self._consumer.commit(offsets)
+    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
+        self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
+        await self._consumer.commit({
+            tp: self._new_offsetandmetadata(offset, meta),
+        })
 
     async def pause_topics(self, topics: Iterable[str]) -> None:
         for tp in self.assignment():
