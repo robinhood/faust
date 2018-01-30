@@ -121,8 +121,13 @@ Common Parameters
 
 Faust needs the URL of a "transport" to send and receive messages.
 
-Currently, the only supported transport is the ``aiokafka://`` transport using
-the :pypi:`aiokafka` Kafka client.
+Currently, the only supported production transport is the ``ckafka://``
+transport using :pypi:`aiokafka` for consuming and :pypi:`confluent-kafka` for
+producing.
+
+
+The ``aiokafka://`` transport is only suitable for development, as it may not
+recover from broker failure.  Use ``ckafka://`` in production.
 
 You can specify multiple hosts at the same time by separating them using
 the semi-comma:

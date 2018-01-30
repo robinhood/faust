@@ -13,6 +13,7 @@ from setuptools import find_packages, setup
 
 NAME = 'faust'
 EXTENSIONS = {
+    'ckafka',
     'debug',
     'fast',
     'rocksdb',
