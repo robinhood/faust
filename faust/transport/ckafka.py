@@ -6,7 +6,7 @@ from ..types.transports import ConsumerT, ProducerT
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 Consumer = aiokafka.Consumer
-Producer = aiokafka.Producer
+Producer = confluent.Producer
 
 
 class Transport(aiokafka.Transport):
