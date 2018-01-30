@@ -1,4 +1,4 @@
-aiohttp~=2.2
+aiohttp~=2.3.9
 aiokafka~=0.3.2
 click~=6.7
 jinja2~=2.9
