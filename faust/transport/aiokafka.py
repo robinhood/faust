@@ -17,15 +17,25 @@ from kafka.structs import (
     TopicPartition as _TopicPartition,
 )
 from mode import Seconds, Service, want_seconds
+from yarl import URL
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
-from ..utils.objects import cached_property
 
 __all__ = ['Consumer', 'Producer', 'Transport']
+
+
+def server_list(url: URL, default_port: int) -> str:
+    # remove the scheme
+    servers = str(url).split('://', 1)[1]
+    # add default ports
+    return ';'.join(
+        host if ':' in host else f'{host}:{default_port}'
+        for host in servers.split(';')
+    )
 
 
 class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
@@ -83,12 +93,13 @@ class Consumer(base.Consumer):
             self,
             app: AppT,
             transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
-        self._assignor = self._app.assignor
+        self._assignor = self.app.assignor
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
             client_id=app.client_id,
             group_id=app.id,
-            bootstrap_servers=transport.bootstrap_servers,
+            bootstrap_servers=server_list(
+                transport.url, transport.default_port),
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
             auto_offset_reset='earliest',
@@ -101,7 +112,8 @@ class Consumer(base.Consumer):
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
             client_id=app.client_id,
-            bootstrap_servers=transport.bootstrap_servers,
+            bootstrap_servers=server_list(
+                transport.url, transport.default_port),
             enable_auto_commit=True,
             auto_offset_reset='earliest',
         )
@@ -264,7 +276,8 @@ class Producer(base.Producer):
         transport = cast(Transport, self.transport)
         self._producer = aiokafka.AIOKafkaProducer(
             loop=self.loop,
-            bootstrap_servers=transport.bootstrap_servers,
+            bootstrap_servers=server_list(
+                transport.url, transport.default_port),
             client_id=transport.app.client_id,
         )
 
@@ -345,16 +358,6 @@ class Transport(base.Transport):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._topic_waiters = {}
-
-    @cached_property
-    def bootstrap_servers(self) -> str:
-        # remove the scheme
-        servers = str(self.url).split('://', 1)[1]
-        # add default ports
-        return ';'.join(
-            host if ':' in host else f'{host}:{self.default_port}'
-            for host in servers.split(';')
-        )
 
     def _topic_config(self,
                       retention: int = None,

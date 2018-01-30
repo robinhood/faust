@@ -1,4 +1,4 @@
-"""Message transport using :pypi:`aiokafka`."""
+"""Message transport using :pypi:`confluent-kafka`."""
 import asyncio
 import typing
 from enum import Enum
@@ -8,23 +8,17 @@ from typing import (
     cast,
 )
 
-import aiokafka
 import confluent_kafka
 from confluent_kafka import TopicPartition as _TopicPartition
-from kafka.errors import (
-    NotControllerError, TopicAlreadyExistsError as TopicExistsError, for_code,
-)
-from kafka.protocol.offset import OffsetResetStrategy
-from mode import Seconds, Service, want_seconds
+from mode import Seconds, Service, ServiceT, want_seconds
 from mode.threads import ServiceThread
 from mode.utils.futures import notify
+from yarl import URL
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.futures import StampedeWrapper
-from ..utils.kafka.protocol.admin import CreateTopicsRequest
-from ..utils.objects import cached_property
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -63,25 +57,138 @@ class RPCServiceThread(ServiceThread):
                        method: Callable,
                        *args: Any, **kwargs: Any) -> asyncio.Future:
         fut = self.loop.create_future()
-        self.method_queue.put(EnqueuedMethod(method, fut, args, kwargs))
+        self.method_queue.put_nowait(EnqueuedMethod(method, fut, args, kwargs))
         return fut
 
-    @Service.task
-    async def _method_qeueuer(self) -> None:
+    async def _process_method_requests(self) -> None:
         while not self.should_stop:
             method = await self.method_queue.get()
             try:
-                result = method.callback(*method.args, **method.kwargs)
+                result = await method.callback(*method.args, **method.kwargs)
             except BaseException as exc:
                 method.fut.set_exception(exc)
             else:
                 method.fut.set_result(result)
 
 
-class Consumer(base.Consumer):
-    """Kafka consumer using :pypi:`aiokafka`."""
+def server_list(url: URL, default_port: int) -> str:
+    # remove the scheme
+    servers = str(url).split('://', 1)[1]
+    # add default ports
+    return ';'.join(
+        host if ':' in host else f'{host}:{default_port}'
+        for host in servers.split(';')
+    )
 
-    _consumer: confluent_kafka.Consumer
+
+class ConsumerThread(RPCServiceThread):
+    abstract: ClassVar[bool] = False
+    consumer: 'Consumer' = None
+    transport: 'Transport' = None
+    app: AppT = None
+    _consumer: confluent_kafka.Consumer = None
+    _fetch_requests: asyncio.Queue = None
+    wait_for_shutdown = True
+
+    @Service.task
+    async def _method_handler(self) -> None:
+        await self._process_method_requests()
+
+    def __init__(self, consumer: 'Consumer', **kwargs: Any) -> None:
+        self.consumer = consumer
+        super().__init__(**kwargs)
+
+    def on_init(self) -> None:
+        transport = self.transport = cast(Transport, self.consumer.transport)
+        app = self.app = self.transport.app
+        if app.client_only:
+            self._consumer = self._create_client_consumer(app, transport)
+        else:
+            self._consumer = self._create_worker_consumer(app, transport)
+        self.beacon.add(self._consumer)
+        self._fetch_requests = asyncio.Queue(loop=self.loop)
+
+    async def on_restart(self) -> None:
+        self.on_init()
+
+    async def on_thread_stop(self) -> None:
+        await self.consumer._commit_all()
+        self._consumer.close()
+        self.transport._topic_waiters.clear()
+
+    def _create_worker_consumer(
+            self,
+            app: AppT,
+            transport: 'Transport') -> confluent_kafka.Consumer:
+        self._assignor = self.app.assignor
+        return confluent_kafka.Consumer({
+            'bootstrap.servers': server_list(
+                transport.url, transport.default_port),
+            'group.id': app.id,
+            'client.id': app.client_id,
+            'default.topic.config': {
+                'auto.offset.reset': 'earliest',
+            },
+            'enable.auto.commit': False,
+            # XXX partition.assignment.strategy is string
+            # need to write C wrapper for this.
+            #  'partition.assignment.strategy': [self._assignor],
+        })
+
+    def _create_client_consumer(
+            self,
+            app: AppT,
+            transport: 'Transport') -> confluent_kafka.Consumer:
+        return confluent_kafka.Consumer({
+            'bootstrap.servers': server_list(
+                transport.url, transport.default_port),
+            'client.id': self.app.client_id,
+            'enable.auto.commit': True,
+            'default.topic.config': {
+                'auto.offset.reset': 'earliest',
+            },
+        })
+
+    async def subscribe(self, topics: Iterable[str]) -> None:
+        # XXX pattern does not work :/
+        self._consumer.subscribe(
+            list(topics),
+            on_assign=self._on_assign,
+            on_revoke=self._on_revoke,
+        )
+
+    def _on_assign(self,
+                   consumer: confluent_kafka.Consumer,
+                   partitions: List[_TopicPartition]) -> None:
+        self.consumer._assignments.put_nowait(AssignmentRequest(
+            AssignmentType.ASSIGNED, cast(Set[TP], set(partitions))))
+
+    def _on_revoke(self,
+                   consumer: confluent_kafka.Consumer,
+                   partitions: List[_TopicPartition]) -> None:
+        self.consumer._assignments.put_nowait(AssignmentRequest(
+            AssignmentType.REVOKED, cast(Set[TP], set(partitions))))
+
+    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
+        self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
+        self._consumer.commit(offsets=[
+            _TopicPartition(tp.topic, tp.partition, offset),
+        ])
+
+    async def _drain_messages(self, fetcher: ServiceT) -> None:
+        self._fetch_requests.put_nowait(fetcher)
+
+    @Service.task
+    async def _drainer(self) -> None:
+        while not self.should_stop:
+            fetcher: ServiceT = await self._fetch_requests.get()
+            await self.consumer._really_drain(fetcher)
+
+
+class Consumer(base.Consumer):
+    """Kafka consumer using :pypi:`confluent-kafka`."""
+
+    _consumer_thread: ConsumerThread = None
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -94,46 +201,26 @@ class Consumer(base.Consumer):
     _assignments = None
 
     def on_init(self) -> None:
-        app = self.transport.app
-        transport = cast(Transport, self.transport)
-        if app.client_only:
-            self._consumer = self._create_client_consumer(app, transport)
-        else:
-            self._consumer = self._create_worker_consumer(app, transport)
         self._assignments = asyncio.Queue(loop=self.loop)
+
+    async def on_start(self) -> None:
+        self._consumer_thread = ConsumerThread(
+            self, loop=self.loop, beacon=self.beacon)
+        await self._consumer_thread.start()
+
+    async def on_stop(self) -> None:
+        if self._consumer_thread is not None:
+            await self._consumer_thread.stop()
+            self._consumer_thread = None
 
     async def on_restart(self) -> None:
         self.on_init()
 
-    def _create_worker_consumer(
-            self,
-            app: AppT,
-            transport: 'Transport') -> confluent_kafka.Consumer:
-        self._assignor = self._app.assignor
-        return confluent_kafka.Consumer({
-            'bootstrap.servers': transport.bootstrap_servers,
-            'group.id': app.id,
-            'client.id': app.client_id,
-            'default.topic.config': {
-                'auto.offset.reset': 'earliest',
-            },
-            'enable.auto.commit': False,
-            # XXX partition.assignment.strategy is string
-            #'partition.assignment.strategy': [self._assignor],
-        })
+    async def _drain_messages(self, fetcher: ServiceT) -> None:
+        await self._consumer_thread._drain_messages(fetcher)
 
-    def _create_client_consumer(
-            self,
-            app: AppT,
-            transport: 'Transport') -> confluent_kafka.Consumer:
-        return confluent_kafka.Consumer({
-            'bootstrap.servers': transport.bootstrap_servers,
-            'client.id': self.app.client_id,
-            'enable.auto.commit': True,
-            'default.topic.config': {
-                'auto.offset.reset': 'earliest',
-            },
-        })
+    async def _really_drain(self, fetcher: ServiceT) -> None:
+        await super()._drain_messages(fetcher)
 
     async def create_topic(self, topic: str, partitions: int, replication: int,
                            *,
@@ -154,28 +241,9 @@ class Consumer(base.Consumer):
             ensure_created=ensure_created,
         )
 
-    async def on_start(self) -> None:
-        self.beacon.add(self._consumer)
-
     async def subscribe(self, topics: Iterable[str]) -> None:
-        # XXX pattern does not work :/
-        self._consumer.subscribe(
-            list(topics),
-            on_assign=self._on_assign,
-            on_revoke=self._on_revoke,
-        )
-
-    def _on_assign(self,
-                   consumer: confluent_kafka.Consumer,
-                   partitions: List[_TopicPartition]) -> None:
-        self._assignments.put_nowait(AssignmentRequest(
-            AssignmentType.ASSIGNED, cast(Set[TP], set(partitions))))
-
-    def _on_revoke(self,
-                   consumer: confluent_kafka.Consumer,
-                   partitions: List[_TopicPartition]) -> None:
-        self._assignments.put_nowait(AssignmentRequest(
-            AssignmentType.REVOKED, cast(Set[TP], set(partitions))))
+        await self._consumer_thread.enqueue_method(
+            self._consumer_thread.subscribe, list(topics))
 
     @Service.task
     async def _assignments_handler(self) -> None:
@@ -190,10 +258,23 @@ class Consumer(base.Consumer):
             self,
             *partitions: TP,
             timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+        # NOTE: This must execute in the ConsumerThread loop.
         create_message = Message  # localize
         _sleep = asyncio.sleep
-        for _ in range(1000):
-            record = self._consumer.poll(timeout=0)
+        poll = self._consumer_thread._consumer.poll
+        buf: List[Message] = []
+        loop_time = self.loop.time
+        timeout = timeout or 1.0
+        end_time = loop_time() + timeout
+        # can maybe reduce to 1k here, but 100 was too small and degrades
+        # performance.
+        max_messages = 10000
+
+        while len(buf) < max_messages:
+            time_left = max(end_time - loop_time(), 0)
+            if not time_left:
+                break
+            record = poll(timeout=time_left)
             if record is not None:
                 # XXX is the first field really the timestamp type?
                 timestamp_type, timestamp = record.timestamp() or (None, None)
@@ -207,25 +288,22 @@ class Consumer(base.Consumer):
                     record.value(),
                     None,  # checksum
                 )
-                yield message.tp, message
+                buf.append(message)
             await _sleep(0, loop=self.loop)
+        for message in buf:
+            yield message.tp, message
 
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return cast(TP, _TopicPartition(topic, partition))
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
-        self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
-        self._consumer.commit(offsets=[
-            _TopicPartition(tp.topic, tp.partition, offset),
-        ])
+        await self._consumer_thread.enqueue_method(
+            self._consumer_thread._commit, tp, offset, meta)
 
-    async def on_stop(self) -> None:
-        await self.commit()
-        self._consumer.close()
-        cast(Transport, self.transport)._topic_waiters.clear()
+    async def _commit_all(self) -> None:
+        await super().commit()
 
     async def _perform_seek(self) -> None:
-        return # XXX
         read_offset = self._read_offset
         seek = self._consumer.seek
         for tp in self._consumer.assignment():
@@ -241,56 +319,39 @@ class Consumer(base.Consumer):
                 await self._seek_to_beginning(tp)
 
     async def pause_topics(self, topics: Iterable[str]) -> None:
-        return # XXX
-        for tp in self.assignment():
-            if tp.topic in topics:
-                self._consumer._subscription.pause(partition=tp)
+        ...  # XXX needs implementation
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        return # XXX
-        for tp in tps:
-            self._consumer._subscription.pause(partition=tp)
+        ...  # XXX needs implementation
 
     async def resume_topics(self, topics: Iterable[str]) -> None:
-        return # XXX
-        for tp in self.assignment():
-            if tp.topic in topics:
-                self._consumer._subscription.resume(partition=tp)
+        ...  # XXX needs implementation
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        return # XXX
-        for tp in tps:
-            self._consumer._subscription.resume(partition=tp)
+        ...  # XXX needs implementation
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
 
     async def _seek_to_beginning(self, *partitions: TP) -> None:
-        return # XXX
-        for partition in partitions:
-            self.log.dev('SEEK TO BEGINNING: %r', partition)
-            self._consumer._subscription.need_offset_reset(
-                partition, OffsetResetStrategy.EARLIEST)
+        ...  # XXX needs implementation
 
     async def seek(self, partition: TP, offset: int) -> None:
-        return # XXX
-        self.log.dev('SEEK %r -> %r', partition, offset)
-        self._read_offset[partition] = offset
-        self._consumer.seek(partition, offset)
+        ...  # XXX needs implementation
 
     def assignment(self) -> Set[TP]:
-        return cast(Set[TP], self._consumer.assignment())
+        return cast(Set[TP], self._consumer_thread._consumer.assignment())
 
     def highwater(self, tp: TP) -> int:
-        return self._consumer.highwater(tp)
+        return self._consumer_thread._consumer.highwater(tp)
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
-        return {tp: -1 for tp in partitions} # XXX
+        return {tp: -1 for tp in partitions}  # XXX needs implementation
         return await self._consumer.beginning_offsets(partitions)
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
-        return {tp: -1 for tp in partitions}  # XXX
+        return {tp: -1 for tp in partitions}  # XXX needs implementation
         return await self._consumer.end_offsets(partitions)
 
 
@@ -311,7 +372,8 @@ class ProducerThread(RPCServiceThread):
 
     async def on_start(self) -> None:
         self._producer = confluent_kafka.Producer({
-            'bootstrap.servers': self.transport.bootstrap_servers,
+            'bootstrap.servers': server_list(
+                self.transport.url, self.transport.default_port),
             'client.id': self.transport.app.client_id,
             'max.in.flight.requests.per.connection': 1,
         })
@@ -337,20 +399,24 @@ class ProducerThread(RPCServiceThread):
     @Service.task
     async def _background_flush(self) -> None:
         producer = self._producer
+        _size = producer.__len__
         _flush = producer.flush
+        _poll = producer.poll
         _sleep = self.sleep
         _create_future = self.loop.create_future
         while not self.should_stop:
-            flush_soon = self._flush_soon
-            if flush_soon is None:
-                flush_soon = self._flush_soon = _create_future()
-            try:
-                await flush_soon
-            finally:
-                self._flush_soon = None
+            if not _size():
+                flush_soon = self._flush_soon
+                if flush_soon is None:
+                    flush_soon = self._flush_soon = _create_future()
+                try:
+                    await self.wait(flush_soon, timeout=1.0)
+                finally:
+                    self._flush_soon = None
 
+            _flush(timeout=100)
+            _poll(timeout=0)
             await _sleep(0)
-            _flush(timeout=1)
 
 
 class ProducerProduceFuture(asyncio.Future):
@@ -363,7 +429,8 @@ class ProducerProduceFuture(asyncio.Future):
             # object and not a string [ask].
             self.set_exception(err)
         else:
-            self.set_result(self.message_to_metadata(msg))
+            metadata: RecordMetadata = self.message_to_metadata(msg)
+            self.set_result(metadata)
 
     def message_to_metadata(
             self, message: confluent_kafka.Message) -> RecordMetadata:
@@ -372,7 +439,7 @@ class ProducerProduceFuture(asyncio.Future):
 
 
 class Producer(base.Producer):
-    """Kafka producer using :pypi:`confluent_kafka`."""
+    """Kafka producer using :pypi:`confluent-kafka`."""
 
     _producer_thread: ProducerThread
     _quick_produce: Any = None
@@ -393,13 +460,12 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        return
         _retention = (
             int(want_seconds(retention) * 1000.0)
             if retention else None
         )
         await cast(Transport, self.transport)._create_topic(
-            self, self._producer.client, topic, partitions, replication,
+            self, topic, partitions, replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=_retention,
@@ -410,6 +476,7 @@ class Producer(base.Producer):
 
     async def on_start(self) -> None:
         await self._producer_thread.start()
+        await self.sleep(0.5)
 
     async def on_stop(self) -> None:
         cast(Transport, self.transport)._topic_waiters.clear()
@@ -432,38 +499,29 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> RecordMetadata:
-        return await (await self.send(topic, key, value, partition))
+        fut = await self.send(topic, key, value, partition)
+        return await fut
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
 
 
 class Transport(base.Transport):
-    """Kafka transport using :pypi:`aiokafka`."""
+    """Kafka transport using :pypi:`confluent-kafka`."""
 
     Consumer: ClassVar[Type[ConsumerT]] = Consumer
     Producer: ClassVar[Type[ProducerT]] = Producer
 
     default_port = 9092
-    _version = '-'.join(map(str, confluent_kafka.version()))
-    _libversion = '-'.join(map(str, confluent_kafka.libversion()))
-    driver_version = f'confluent_kafka={_version} librdkafka={_libversion}'
+    version = '-'.join(map(str, confluent_kafka.version()))
+    libversion = '-'.join(map(str, confluent_kafka.libversion()))
+    driver_version = f'confluent_kafka={version} librdkafka={libversion}'
 
     _topic_waiters: MutableMapping[str, StampedeWrapper]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._topic_waiters = {}
-
-    @cached_property
-    def bootstrap_servers(self) -> str:
-        # remove the scheme
-        servers = str(self.url).split('://', 1)[1]
-        # add default ports
-        return ';'.join(
-            host if ':' in host else f'{host}:{self.default_port}'
-            for host in servers.split(';')
-        )
 
     def _topic_config(self,
                       retention: int = None,
@@ -483,7 +541,6 @@ class Transport(base.Transport):
 
     async def _create_topic(self,
                             owner: Service,
-                            client: aiokafka.AIOKafkaClient,
                             topic: str,
                             partitions: int,
                             replication: int,
@@ -494,7 +551,7 @@ class Transport(base.Transport):
         except KeyError:
             wrap = self._topic_waiters[topic] = StampedeWrapper(
                 self._really_create_topic,
-                owner, client, topic, partitions, replication,
+                owner, topic, partitions, replication,
                 loop=self.loop, **kwargs)
         try:
             await wrap()
@@ -504,7 +561,6 @@ class Transport(base.Transport):
 
     async def _really_create_topic(self,
                                    owner: Service,
-                                   client: aiokafka.AIOKafkaClient,
                                    topic: str,
                                    partitions: int,
                                    replication: int,
@@ -515,45 +571,4 @@ class Transport(base.Transport):
                                    compacting: bool = None,
                                    deleting: bool = None,
                                    ensure_created: bool = False) -> None:
-        owner.log.info(f'Creating topic {topic}')
-        protocol_version = 1
-        extra_configs = config or {}
-        config = self._topic_config(retention, compacting, deleting)
-        config.update(extra_configs)
-
-        # Create topic request needs to be sent to the kafka cluster controller
-        # Since aiokafka client doesn't currently support MetadataRequest
-        # version 1, client.controller will always be None. Hence we cycle
-        # through all brokers if we get Error 41 (not controller) until we
-        # hit the controller
-        nodes = [broker.nodeId for broker in client.cluster.brokers()]
-        owner.log.info(f'Nodes: {nodes}')
-        for node_id in nodes:
-            if node_id is None:
-                raise RuntimeError('Not connected to Kafka broker')
-
-            request = CreateTopicsRequest[protocol_version](
-                [(topic, partitions, replication, [], list(config.items()))],
-                timeout,
-                False,
-            )
-            response = await client.send(node_id, request)
-            assert len(response.topic_error_codes), 'Single topic requested.'
-
-            _, code, reason = response.topic_error_codes[0]
-
-            if code != 0:
-                if not ensure_created and code == TopicExistsError.errno:
-                    owner.log.debug(
-                        f'Topic {topic} exists, skipping creation.')
-                    return
-                elif code == NotControllerError.errno:
-                    owner.log.debug(f'Broker: {node_id} is not controller.')
-                    continue
-                else:
-                    raise for_code(code)(
-                        f'Cannot create topic: {topic} ({code}): {reason}')
-            else:
-                owner.log.info(f'Topic {topic} created.')
-                return
-        raise Exception(f'No controller found among brokers: {nodes}')
+        owner.log.info(f'Creating topic {topic}')  # XXX needs implementation

@@ -78,7 +78,7 @@ class Consumer(Service, ConsumerT):
     #: This counter generates new consumer ids.
     _consumer_ids: ClassVar[Iterator[int]] = count(0)
 
-    _app: AppT
+    app: AppT
 
     # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TP, List[int]] = None
@@ -116,13 +116,13 @@ class Consumer(Service, ConsumerT):
         assert callback is not None
         self.id = next(self._consumer_ids)
         self.transport = transport
-        self._app = self.transport.app
+        self.app = self.transport.app
         self.callback = callback
-        self._on_message_in = self._app.sensors.on_message_in
+        self._on_message_in = self.app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
-            commit_interval or self._app.commit_interval)
+            commit_interval or self.app.commit_interval)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
@@ -175,9 +175,9 @@ class Consumer(Service, ConsumerT):
             message.acked = True
             tp = message.tp
             offset = message.offset
-            await self._app.sensors.on_message_out(
+            await self.app.sensors.on_message_out(
                 self.id, tp, offset, message)
-            if self._app.topics.acks_enabled_for(message.topic):
+            if self.app.topics.acks_enabled_for(message.topic):
                 committed = self._committed_offset[tp]
                 try:
                     if committed is None or offset > committed:
@@ -243,14 +243,14 @@ class Consumer(Service, ConsumerT):
         try:
             # Only one coroutine can commit at a time.
             async with self._commit_mutex:
-                sensor_state = await self._app.sensors.on_commit_initiated(
+                sensor_state = await self.app.sensors.on_commit_initiated(
                     self)
 
                 # Go over the ack list in each topic/partition
                 commit_tps = list(self._filter_tps_with_pending_acks(topics))
                 did_commit = await self._commit_tps(commit_tps)
 
-                await self._app.sensors.on_commit_completed(self, sensor_state)
+                await self.app.sensors.on_commit_completed(self, sensor_state)
         finally:
             fut, self._commit_fut = self._commit_fut, None
             fut.set_result(None)
@@ -272,7 +272,7 @@ class Consumer(Service, ConsumerT):
         if offset is not None and self._should_commit(tp, offset):
             # if so, first send all messages attached to the new
             # offset
-            await cast(App, self._app)._commit_attached(tp, offset)
+            await cast(App, self.app)._commit_attached(tp, offset)
             # then, update the committed_offset and perform
             # the commit.
             self._committed_offset[tp] = offset

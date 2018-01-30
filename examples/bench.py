@@ -1,20 +1,5 @@
 #!/usr/bin/env python
 import asyncio
-
-_get_ev = asyncio.get_event_loop
-# Show where loop is first created to make sure we don't create
-# the event loop at module level when an app is created.
-
-
-def xxx():
-    print('-------- GET EVENT LOOP ----')
-    import traceback
-    traceback.print_stack()
-    asyncio.get_event_loop = _get_ev
-    return _get_ev()
-
-
-asyncio.get_event_loop = xxx
 import faust  # noqa
 from time import monotonic  # noqa
 from uuid import uuid4      # noqa

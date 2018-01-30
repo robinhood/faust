@@ -30,33 +30,46 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'f-simple2',
-    broker='kafka://127.0.0.1:9092',
+    'f-simple3',
+    broker='ckafka://127.0.0.1:9092',
     store='rocksdb://',
+    origin='withdrawals.simple',
     default_partitions=4,
 )
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 
-user_to_total = app.Table(
-    'user_to_total', default=int,
-).tumbling(3600).relative_to_stream()
+#user_to_total = app.Table(
+#    'user_to_total', default=int,
+#)
 
-country_to_total = app.Table(
-    'country_to_total', default=int,
-).tumbling(10.0, expires=10.0).relative_to_stream()
+#country_to_total = app.Table(
+#    'country_to_total', default=int,
+#)
+
+count = [[0]]
+time_start = [[None]]
 
 
-@app.agent(withdrawals_topic)
+@app.agent(withdrawals_topic, concurrency=100)
 async def track_user_withdrawal(withdrawals):
-    async for withdrawal in withdrawals:
-        user_to_total[withdrawal.user] += withdrawal.amount
+    counts = count[0]
+    time_starts = time_start[0]
+    async for i, withdrawal in withdrawals.enumerate():
+        #print(f'WITHDRAWAL: {withdrawal}')
+        counts[0] += 1
+        if time_starts[0] is None:
+            time_starts[0] = withdrawals.loop.time()
+        if not counts[0] % 10000:
+            prev_time, time_starts[0] = time_starts[0], withdrawals.loop.time()
+            print(f'10k!!! {time_starts[0] - prev_time}')
+        #user_to_total[withdrawal.user] += withdrawal.amount
 
 
-@app.agent(withdrawals_topic)
-async def track_country_withdrawal(withdrawals):
-    async for withdrawal in withdrawals.group_by(Withdrawal.country):
-        country_to_total[withdrawals.country] += withdrawal.amount
+#@app.agent(withdrawals_topic)
+#async def track_country_withdrawal(withdrawals):
+#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+#        country_to_total[withdrawals.country] += withdrawal.amount
 
 
 @app.command(
@@ -75,6 +88,8 @@ async def produce(self, max_latency: float, max_messages: int):
     num_users = 500
     users = [f'user_{i}' for i in range(num_users)]
     self.say('Done setting up. SENDING!')
+    from mode import Worker
+    Worker(track_user_withdrawal).install_signal_handlers()
     for i in range(max_messages) if max_messages is not None else count():
         withdrawal = Withdrawal(
             user=random.choice(users),
