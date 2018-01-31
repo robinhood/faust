@@ -6,15 +6,14 @@ from typing import (
 )
 
 import aiokafka
+import aiokafka.abc
 from aiokafka.errors import ConsumerStoppedError
-from kafka.consumer import subscription_state
-from kafka.errors import (
-    NotControllerError, TopicAlreadyExistsError as TopicExistsError, for_code,
-)
-from kafka.protocol.offset import OffsetResetStrategy
-from kafka.structs import (
+from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
+)
+from kafka.errors import (
+    NotControllerError, TopicAlreadyExistsError as TopicExistsError, for_code,
 )
 from mode import Seconds, Service, want_seconds
 from yarl import URL
@@ -38,7 +37,7 @@ def server_list(url: URL, default_port: int) -> str:
     )
 
 
-class ConsumerRebalanceListener(subscription_state.ConsumerRebalanceListener):
+class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
     # kafka's ridiculous class based callback interface makes this hacky.
 
     def __init__(self, consumer: ConsumerT) -> None:
@@ -143,7 +142,7 @@ class Consumer(base.Consumer):
     async def subscribe(self, topics: Iterable[str]) -> None:
         # XXX pattern does not work :/
         self._consumer.subscribe(
-            topics=topics,
+            topics=set(topics),
             listener=self._rebalance_listener,
         )
 
@@ -222,20 +221,26 @@ class Consumer(base.Consumer):
         })
 
     async def pause_topics(self, topics: Iterable[str]) -> None:
+        return
         for tp in self.assignment():
             if tp.topic in topics:
                 self._consumer._subscription.pause(partition=tp)
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
+        return
         for tp in tps:
+            #print('STATE: %r'
+            #        %(self._consumer._subscription.subscription.assignment.state_value(tp)))
             self._consumer._subscription.pause(partition=tp)
 
     async def resume_topics(self, topics: Iterable[str]) -> None:
+        return
         for tp in self.assignment():
             if tp.topic in topics:
                 self._consumer._subscription.resume(partition=tp)
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
+        return
         for tp in tps:
             self._consumer._subscription.resume(partition=tp)
 
@@ -243,10 +248,11 @@ class Consumer(base.Consumer):
         return await self._consumer.position(tp)
 
     async def _seek_to_beginning(self, *partitions: TP) -> None:
-        for partition in partitions:
-            self.log.dev('SEEK TO BEGINNING: %r', partition)
-            self._consumer._subscription.need_offset_reset(
-                partition, OffsetResetStrategy.EARLIEST)
+        self.log.dev('SEEK TO BEGINNING: %r', partitions)
+        await self._consumer.seek_to_beginning(*(
+            self._new_topicpartition(tp.topic, tp.partition)
+            for tp in partitions
+        ))
 
     async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)

@@ -1,5 +1,5 @@
 aiohttp~=2.3.9
-aiokafka~=0.3.2
+aiokafka~=0.4.0
 click~=6.7
 jinja2~=2.9
 yarl~=1.0
