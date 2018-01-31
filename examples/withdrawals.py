@@ -31,7 +31,7 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 app = faust.App(
     'f-simple3',
-    broker='ckafka://127.0.0.1:9092',
+    broker='kafka://127.0.0.1:9092',
     store='rocksdb://',
     origin='withdrawals.simple',
     default_partitions=4,
@@ -51,7 +51,7 @@ count = [[0]]
 time_start = [[None]]
 
 
-@app.agent(withdrawals_topic, concurrency=100)
+@app.agent(withdrawals_topic, concurrency=1)
 async def track_user_withdrawal(withdrawals):
     counts = count[0]
     time_starts = time_start[0]
