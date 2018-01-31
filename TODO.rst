@@ -173,6 +173,50 @@ Show graphs in realtime:  Wow factor+++ :-)
 Documentation
 =============
 
+
+- Topic
+
+  - Partitioning/Sharding illustration
+
+  - Arguments to ``app.topic``
+
+- Agent
+
+    - Message lifecycle
+
+    - Manual acknowledgement (``async with event``)
+
+    - Arguments to ``app.agent``
+
+- Tables
+
+    - Windowing (``value.current()``, ``Table.relative_to_stream()`` etc.)
+
+    - Windowing illustrations
+
+    - Changelog callbacks
+
+    - Arguments to ``app.Table``.
+
+- Models
+
+    - may have forgotten something (isodates, special cases, go through code).
+
+- Stream
+
+    - Arguments
+
+        - Stream from iterable/async iterable
+        - Stream from channel/topic.
+
+- Deployment
+
+    - supervisord
+
+    - Logging
+
+    - Sentry
+
 - Availability guide
 
     - partitioning
@@ -180,6 +224,9 @@ Documentation
     - recovery
 
     - acknowledgements
+
+- Go through comments in the code, some of it describes things that should
+  be documented.
 
 
 Typing
