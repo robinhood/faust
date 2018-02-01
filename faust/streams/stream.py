@@ -77,6 +77,7 @@ class Stream(StreamT[T_co], Service):
                  join_strategy: JoinT = None,
                  beacon: NodeT = None,
                  concurrency_index: int = None,
+                 noacks: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -92,6 +93,7 @@ class Stream(StreamT[T_co], Service):
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
+        self._noacks = bool
 
         # attach beacon to channel, or if iterable attach to current task.
         task = asyncio.Task.current_task(loop=self.loop)
@@ -173,6 +175,7 @@ class Stream(StreamT[T_co], Service):
             'children': self.children,
             'beacon': self.beacon,
             'concurrency_index': self.concurrency_index,
+            'noacks': self._noacks,
         }
 
     def clone(self, **kwargs: Any) -> Any:
@@ -223,17 +226,28 @@ class Stream(StreamT[T_co], Service):
         buffer: List[T_co] = []
         add = buffer.append
         timeout = want_seconds(within) if within else None
+        acks: List[EventT] = []
+        add_ack = acks.append
+
+        # Disable acking in __anext__
+        stream = self.clone(noacks=True)
 
         async def _buffer() -> None:
-            async for value in self:
-                add(value)
+            async for event in stream.events():
+                add(event.value)
+                add_ack(event)
                 if len(buffer) >= max_:
-                    break
+                    return
 
         while not self.should_stop:
             await self.wait(_buffer(), timeout=timeout)
-            yield list(buffer)
-            buffer.clear()
+            if buffer:
+                yield list(buffer)
+                ack = self.ack
+                for event in acks:
+                    await ack(event)
+                acks.clear()
+                buffer.clear()
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
         """Clone stream into n new streams, receiving copies of values.
@@ -625,7 +639,7 @@ class Stream(StreamT[T_co], Service):
             else:
                 # decrement reference count for previous event processed.
                 _prev, self.current_event = self.current_event, None
-                if _prev is not None:
+                if not self._noacks and _prev is not None:
                     await self.ack(_prev)
 
             value = await self._on_message()
