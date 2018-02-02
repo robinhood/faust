@@ -145,7 +145,7 @@ class Consumer(Service, ConsumerT):
         ...
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         await self._on_partitions_assigned(assigned)
         await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
         # All internal queues/buffers have now been cleared,
@@ -156,7 +156,7 @@ class Consumer(Service, ConsumerT):
         self._read_offset.update(self._committed_offset)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self._on_partitions_revoked(revoked)
 
     async def track_message(self, message: Message) -> None:

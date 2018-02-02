@@ -251,19 +251,19 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def version(self) -> int:
         return 2
 
-    def assigned_standbys(self) -> Iterable[TP]:
-        return [
+    def assigned_standbys(self) -> Set[TP]:
+        return {
             TP(topic, partition)
             for topic, partitions in self._assignment.standbys.items()
             for partition in partitions
-        ]
+        }
 
-    def assigned_actives(self) -> Iterable[TP]:
-        return [
+    def assigned_actives(self) -> Set[TP]:
+        return {
             TP(topic, partition)
             for topic, partitions in self._assignment.actives.items()
             for partition in partitions
-        ]
+        }
 
     def table_metadata(self, topic: str) -> HostToPartitionMap:
         return {

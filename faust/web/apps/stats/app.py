@@ -1,6 +1,6 @@
 """HTTP endpoint showing statistics from the Faust monitor."""
 from collections import defaultdict
-from typing import Iterable, List, MutableMapping
+from typing import List, MutableMapping, Set
 from faust.types.topics import TP
 from faust.web import views
 from faust.web.base import Request, Response, Web
@@ -29,9 +29,9 @@ class Assignment(views.View):
     package = 'faust.web.apps.stats'
 
     @classmethod
-    def _topic_grouped(cls, assignment: Iterable[TP]) -> TPMap:
+    def _topic_grouped(cls, assignment: Set[TP]) -> TPMap:
         tps = defaultdict(list)
-        for tp in assignment:
+        for tp in sorted(assignment):
             tps[tp.topic].append(tp.partition)
         return dict(tps)
 

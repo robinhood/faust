@@ -1,6 +1,5 @@
 """Tables (changelog stream)."""
 import asyncio
-import typing
 from collections import defaultdict
 from typing import (
     Any, AsyncIterable, Iterable, List, MutableMapping, Set, Tuple, cast,
@@ -56,7 +55,7 @@ class ChangelogReader(Service, ChangelogReaderT):
     def __init__(self, table: CollectionT,
                  channel: ChannelT,
                  app: AppT,
-                 tps: Iterable[TP],
+                 tps: Set[TP],
                  offsets: Counter[TP] = None,
                  stats_interval: Seconds = 5.0,
                  **kwargs: Any) -> None:
@@ -183,7 +182,8 @@ class ChangelogReader(Service, ChangelogReaderT):
         if local_tps:
             self.log.info('Partitions %r are local to this node',
                           sorted(local_tps))
-        self.tps = list(set(self.tps) - local_tps)
+        # remove local tps from set of assigned partitions.
+        self.tps.difference_update(local_tps)
         if not self.tps:
             self.log.info('No active standby needed')
             return self._done_reading()
@@ -295,7 +295,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         return object.__hash__(self)
 
     @property
-    def changelog_topics(self) -> typing.Set[str]:
+    def changelog_topics(self) -> Set[str]:
         return set(self._changelogs.keys())
 
     def add(self, table: CollectionT) -> CollectionT:
@@ -322,9 +322,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
-    def _sync_persisted_offsets(self,
-                                table: CollectionT,
-                                tps: Iterable[TP]) -> None:
+    def _sync_persisted_offsets(
+            self, table: CollectionT, tps: Set[TP]) -> None:
         for tp in tps:
             persisted_offset = table.persisted_offset(tp)
             if persisted_offset is not None:
@@ -358,30 +357,30 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._sync_offsets(standby)
         self._standbys = {}
 
-    def _group_table_tps(self, tps: Iterable[TP]) -> CollectionTps:
-        table_tps: CollectionTps = defaultdict(list)
+    def _group_table_tps(self, tps: Set[TP]) -> CollectionTps:
+        table_tps: CollectionTps = defaultdict(set)
         for tp in tps:
             if self._is_changelog_tp(tp):
-                table_tps[self._changelogs[tp.topic]].append(tp)
+                table_tps[self._changelogs[tp.topic]].add(tp)
         return table_tps
 
     @Service.transitions_to(TABLEMAN_START_STANDBYS)
     async def _start_standbys(self,
-                              tps: Iterable[TP]) -> None:
+                              tps: Set[TP]) -> None:
         self.log.info('Attempting to start standbys')
         assert not self._standbys
         table_standby_tps = self._group_table_tps(tps)
         offsets = self._table_offsets
-        for table, tps in table_standby_tps.items():
+        for table, table_tps in table_standby_tps.items():
             self.log.info('Starting standbys for tps: %s', tps)
-            self._sync_persisted_offsets(table, tps)
+            self._sync_persisted_offsets(table, table_tps)
             tp_offsets: Counter[TP] = Counter({
                 tp: offsets[tp]
-                for tp in tps if tp in offsets
+                for tp in table_tps if tp in offsets
             })
             channel = self._channels[table]
             standby = StandbyReader(
-                table, channel, self.app, tps, tp_offsets,
+                table, channel, self.app, table_tps, tp_offsets,
                 loop=self.loop,
                 beacon=self.beacon,
             )
@@ -411,7 +410,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await table.stop()
 
     @Service.transitions_to(TABLEMAN_RECOVER)
-    async def _recover_changelogs(self, tps: Iterable[TP]) -> bool:
+    async def _recover_changelogs(self, tps: Set[TP]) -> bool:
         self.log.info('Restoring state from changelog topics...')
         table_revivers = self._revivers = [
             self._create_reviver(table, tps)
@@ -435,9 +434,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.log.info('Stopped restoring')
         return all(reviver.recovered() for reviver in table_revivers)
 
-    def _create_reviver(self,
-                        table: CollectionT,
-                        tps: Iterable[TP]) -> ChangelogReaderT:
+    def _create_reviver(
+            self, table: CollectionT, tps: Set[TP]) -> ChangelogReaderT:
         table = cast(Table, table)
         offsets = self._table_offsets
         table_tps = {tp for tp in tps
@@ -454,12 +452,12 @@ class TableManager(Service, TableManagerT, FastUserDict):
             beacon=self.beacon,
         )
 
-    async def _recover(self, assigned: Iterable[TP]) -> None:
+    async def _recover(self, assigned: Set[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
         # for table in self.values():
         #     standby_tps = await _local_tps(table, standby_tps)
         assigned_tps = self.app.assignor.assigned_actives()
-        assert set(assigned_tps).issubset(set(assigned))
+        assert set(assigned_tps).issubset(assigned)
         self.log.info('New assignments found')
         # This needs to happen in background and be aborted midway
         await self._on_recovery_started()
@@ -501,14 +499,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
             self._ongoing_recovery = None
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self._maybe_abort_ongoing_recovery()
         await self._stop_standbys()
         for table in self.values():
             await table.on_partitions_revoked(revoked)
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         assert self._ongoing_recovery is None and self._revivers is None
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')

@@ -4,7 +4,7 @@ import asyncio
 import typing
 from datetime import datetime
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Iterable, List, Mapping,
+    Any, Awaitable, Callable, ClassVar, Iterable, Mapping,
     MutableMapping, MutableSet, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
@@ -106,11 +106,11 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
@@ -126,7 +126,7 @@ class CollectionT(JoinableT, ServiceT):
         ...
 
 
-CollectionTps = MutableMapping[CollectionT, List[TP]]
+CollectionTps = MutableMapping[CollectionT, Set[TP]]
 
 
 class TableT(CollectionT, MutableMapping):
@@ -173,11 +173,11 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
     @property
@@ -190,7 +190,7 @@ class ChangelogReaderT(ServiceT):
     table: CollectionT
     app: AppT
 
-    tps: Iterable[TP]
+    tps: Set[TP]
     offsets: Counter[TP]
 
 

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    NamedTuple, Optional, Pattern, Type, Union, cast,
+    NamedTuple, Optional, Pattern, Set as _Set, Type, Union, cast,
 )
 from uuid import uuid4
 
@@ -1039,7 +1039,7 @@ class App(AppT, ServiceProxy):
         """
         return await self.topics.commit(topics)
 
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: _Set[TP]) -> None:
         """Handle new topic partition assignment.
 
         This is called during a rebalance after :meth:`on_partitions_revoked`.
@@ -1060,7 +1060,7 @@ class App(AppT, ServiceProxy):
         except Exception as exc:
             await self.crash(exc)
 
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: _Set[TP]) -> None:
         """Handle revocation of topic partitions.
 
         This is called during a rebalance and is followed by

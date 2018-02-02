@@ -448,10 +448,10 @@ class TopicConductor(ConductorT, Service):
                 self._topicmap[topic].add(channel)
         return self._topicmap
 
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
     def __contains__(self, value: Any) -> bool:

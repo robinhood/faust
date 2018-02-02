@@ -1,6 +1,6 @@
 import abc
 import typing
-from typing import Iterable, List, MutableMapping
+from typing import List, MutableMapping, Set
 from mode import ServiceT
 from .topics import TP
 
@@ -21,11 +21,11 @@ class PartitionAssignorT(abc.ABC):
     app: AppT
 
     @abc.abstractmethod
-    def assigned_standbys(self) -> Iterable[TP]:
+    def assigned_standbys(self) -> Set[TP]:
         ...
 
     @abc.abstractmethod
-    def assigned_actives(self) -> Iterable[TP]:
+    def assigned_actives(self) -> Set[TP]:
         ...
 
     @abc.abstractmethod

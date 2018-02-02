@@ -33,8 +33,8 @@ ConsumerCallback = Callable[[Message], Awaitable]
 TPorTopic = Union[str, TP]
 TPorTopicSet = AbstractSet[TPorTopic]
 
-PartitionsRevokedCallback = Callable[[Iterable[TP]], Awaitable]
-PartitionsAssignedCallback = Callable[[Iterable[TP]], Awaitable]
+PartitionsRevokedCallback = Callable[[Set[TP]], Awaitable]
+PartitionsAssignedCallback = Callable[[Set[TP]], Awaitable]
 
 
 class ConsumerT(ServiceT):

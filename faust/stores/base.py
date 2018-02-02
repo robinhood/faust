@@ -1,7 +1,9 @@
 """Base class for table storage drivers."""
 import abc
 from collections import ItemsView, KeysView, ValuesView
-from typing import Any, Callable, Iterable, Iterator, Optional, Tuple, Union
+from typing import (
+    Any, Callable, Iterable, Iterator, Optional, Set, Tuple, Union,
+)
 from mode import Service
 from yarl import URL
 from ..types import AppT, CodecArg, CollectionT, EventT, ModelArg, StoreT, TP
@@ -37,15 +39,11 @@ class Store(StoreT, Service):
         return True
 
     async def on_partitions_assigned(
-            self,
-            table: CollectionT,
-            assigned: Iterable[TP]) -> None:
+            self, table: CollectionT, assigned: Set[TP]) -> None:
         ...
 
     async def on_partitions_revoked(
-            self,
-            table: CollectionT,
-            revoked: Iterable[TP]) -> None:
+            self, table: CollectionT, revoked: Set[TP]) -> None:
         ...
 
     def _encode_key(self, key: Any) -> bytes:

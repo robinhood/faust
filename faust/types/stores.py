@@ -1,6 +1,8 @@
 import abc
 import typing
-from typing import Any, Callable, Iterable, MutableMapping, Optional, Union
+from typing import (
+    Any, Callable, Iterable, MutableMapping, Optional, Set, Union,
+)
 from mode import ServiceT
 from yarl import URL
 from .channels import EventT
@@ -64,14 +66,10 @@ class StoreT(ServiceT, MutableMapping):
 
     @abc.abstractmethod
     async def on_partitions_assigned(
-            self,
-            table: CollectionT,
-            assigned: Iterable[TP]) -> None:
+            self, table: CollectionT, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
     async def on_partitions_revoked(
-            self,
-            table: CollectionT,
-            revoked: Iterable[TP]) -> None:
+            self, table: CollectionT, revoked: Set[TP]) -> None:
         ...

@@ -4,7 +4,7 @@ from collections import defaultdict
 from heapq import heappop, heappush
 from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Optional, Union, cast, no_type_check,
+    MutableMapping, MutableSet, Optional, Set, Union, cast, no_type_check,
 )
 from mode import Seconds, Service
 from yarl import URL
@@ -317,10 +317,10 @@ class Collection(Service, CollectionT):
         return self._get_key(
             (key, self.window.delta(self._relative_event(event), d)))
 
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         await self.data.on_partitions_assigned(self, assigned)
 
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self.data.on_partitions_revoked(self, revoked)
 
     async def on_changelog_event(self, event: EventT) -> None:

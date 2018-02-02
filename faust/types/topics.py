@@ -2,8 +2,7 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Iterable,
-    Mapping, MutableSet, Optional, Pattern, Sequence, Union,
+    Any, Mapping, MutableSet, Optional, Pattern, Sequence, Set, Union,
 )
 from mode import Seconds, ServiceT
 from .channels import ChannelT
@@ -138,9 +137,9 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Iterable[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...

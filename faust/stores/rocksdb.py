@@ -7,7 +7,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import (
     Any, Callable, DefaultDict, Iterable, Iterator, Mapping,
-    MutableMapping, NamedTuple, Optional, Tuple, Union, cast,
+    MutableMapping, NamedTuple, Optional, Set, Tuple, Union, cast,
 )
 from yarl import URL
 from . import base
@@ -219,9 +219,7 @@ class Store(base.SerializedStore):
             db.delete(key)
 
     async def on_partitions_revoked(
-            self,
-            table: CollectionT,
-            revoked: Iterable[TP]) -> None:
+            self, table: CollectionT, revoked: Set[TP]) -> None:
         for tp in revoked:
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
@@ -232,9 +230,7 @@ class Store(base.SerializedStore):
         self._key_index.clear()
 
     async def on_partitions_assigned(
-            self,
-            table: CollectionT,
-            assigned: Iterable[TP]) -> None:
+            self, table: CollectionT, assigned: Set[TP]) -> None:
         self._key_index.clear()
         standby_tps = self.app.assignor.assigned_standbys()
         my_topics = table.changelog_topic.topics
