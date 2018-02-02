@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import asyncio
 import faust  # noqa
 from time import monotonic  # noqa
 from uuid import uuid4      # noqa
