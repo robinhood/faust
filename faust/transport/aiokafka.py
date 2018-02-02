@@ -239,27 +239,18 @@ class Consumer(base.Consumer):
         return await self.pause_partitions(self._tps_for_topic(topics))
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        self._get_active_partitions().difference_update(
-            self._want_their_TPs(tps))
-
-    def _tps_for_topic(self, topics: Iterable[str]) -> Iterable[TP]:
-        for tp in self.assignment():
-            if tp.topic in topics:
-                yield tp
-
-    def _want_their_TPs(self, tps: Iterable[_TPTypes]) -> Set[_TopicPartition]:
-        return {self._want_their_TP(tp) for tp in tps}
-
-    def _want_their_TP(self, tp: _TPTypes) -> _TopicPartition:
-        if not isinstance(tp, _TopicPartition):
-            return _TopicPartition(tp.topic, tp.partition)
-        return tp
+        self._get_active_partitions().difference_update(tps)
 
     async def resume_topics(self, topics: Iterable[str]) -> None:
         return await self.resume_partitions(self._tps_for_topic(topics))
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        self._get_active_partitions().update(self._want_their_TPs(tps))
+        self._get_active_partitions().update(tps)
+
+    def _tps_for_topic(self, topics: Iterable[str]) -> Iterable[TP]:
+        for tp in self.assignment():
+            if tp.topic in topics:
+                yield tp
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
