@@ -2,12 +2,11 @@
 from typing import Any
 from .base import Collection
 from ..types.tables import SetT
-from ..utils.collections import ManagedUserSet
 
 __all__ = ['Set']
 
 
-class Set(Collection, SetT, ManagedUserSet):
+class Set(SetT, Collection):
     """Table where keys are either present, or not present."""
 
     def on_key_get(self, key: Any) -> None:

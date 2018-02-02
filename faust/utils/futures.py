@@ -1,5 +1,6 @@
 """Async I/O Future utilities."""
 import asyncio
+import collections
 import typing
 from collections import deque
 from functools import singledispatch
@@ -105,7 +106,8 @@ async def maybe_async(res: Any) -> Any:
     return res
 
 
-@maybe_async.register(Awaitable)
+# XXX In Py3.7: register does not work with typing.Awaitable
+@maybe_async.register(collections.Awaitable)
 async def _(res: Awaitable) -> Any:
     return await res
 

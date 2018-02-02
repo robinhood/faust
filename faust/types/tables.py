@@ -1,11 +1,10 @@
 import abc
-
 import asyncio
 import typing
 from datetime import datetime
 from typing import (
     Any, Awaitable, Callable, ClassVar, Iterable, Mapping,
-    MutableMapping, MutableSet, Optional, Set, Type, Union,
+    MutableMapping, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
 from mode.utils.compat import Counter
@@ -16,6 +15,8 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TP
 from .windows import WindowT
+from ..utils.collections import ManagedUserSet
+
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -46,7 +47,7 @@ ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
 RelativeArg = Union[FieldDescriptorT, RelativeHandler, datetime, float]
 
 
-class CollectionT(JoinableT, ServiceT):
+class CollectionT(ServiceT, JoinableT):
     StateStore: ClassVar[Type[StoreT]] = None
 
     app: AppT
@@ -156,7 +157,7 @@ class TableT(CollectionT, MutableMapping):
         ...
 
 
-class SetT(CollectionT, MutableSet):
+class SetT(CollectionT, ManagedUserSet):
     ...
 
 

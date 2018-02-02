@@ -4,11 +4,22 @@ from contextlib import suppress
 from functools import total_ordering
 from pathlib import Path
 from typing import (
-    AbstractSet, Any, Callable, Dict, FrozenSet, Generic,
+    AbstractSet, Any, Callable, ClassVar, Dict, FrozenSet, Generic,
     Iterable, List, Mapping, MutableMapping, MutableSequence,
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
-from typing import _ClassVar  # type: ignore
+
+try:
+    from typing import _ClassVar  # type: ignore
+except ImportError:
+    from typing import _GenericAlias  # type: ignore
+
+    def _is_class_var(x: Any) -> bool:  # noqa
+        return isinstance(x, _GenericAlias) and x.__origin__ is ClassVar
+else:
+    def _is_class_var(x: Any) -> bool:
+        return type(x) is _ClassVar
+
 
 __all__ = [
     'FieldMapping',
@@ -159,7 +170,7 @@ def annotations(cls: Type,
                 fields.update({
                     name: typ
                     for name, typ in annotations.items()
-                    if type(typ) is not _ClassVar
+                    if not _is_class_var(typ)
                 })
             else:
                 fields.update(annotations)

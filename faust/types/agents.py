@@ -47,7 +47,7 @@ SinkT = Union['AgentT', ChannelT, Callable[[Any], Union[Awaitable, None]]]
 ReplyToArg = Union['AgentT', ChannelT, str]
 
 
-class ActorT(Generic[_T], ServiceT):
+class ActorT(ServiceT, Generic[_T]):
 
     agent: 'AgentT'
     stream: StreamT

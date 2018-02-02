@@ -14,7 +14,7 @@ from ..utils.collections import ManagedUserDict
 __all__ = ['Table']
 
 
-class Table(Collection, TableT, ManagedUserDict):
+class Table(TableT, Collection, ManagedUserDict):
     """Table (non-windowed)."""
 
     def using_window(self, window: WindowT) -> WindowWrapperT:

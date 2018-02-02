@@ -29,7 +29,7 @@ class EventT(AsyncContextManager):
     message: Message
     acked: bool
 
-    __slots__ = ('app', 'key', 'value', 'message', 'acked', '__weakref__')
+    __slots__ = ('app', 'key', 'value', 'message', 'acked')
 
     @abc.abstractmethod
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:

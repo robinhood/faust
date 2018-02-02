@@ -1,4 +1,5 @@
 """Async iterator lost and found missing methods: aiter, anext, etc."""
+import collections
 from functools import singledispatch
 from typing import Any, AsyncIterable, AsyncIterator, Iterable, Iterator, Tuple
 
@@ -44,12 +45,14 @@ def aiter(it: Any) -> AsyncIterator:
     raise TypeError(f'{it!r} object is not an iterable')
 
 
-@aiter.register(AsyncIterable)
+# XXX In Py3.7: register cannot take typing.AsyncIterator
+@aiter.register(collections.AsyncIterable)
 def _aiter_async(it: AsyncIterable) -> AsyncIterator:
     return it.__aiter__()
 
 
-@aiter.register(Iterable)
+# XXX In Py3.7: register cannot take typing.Iterable
+@aiter.register(collections.Iterable)
 def _aiter_iter(it: Iterable) -> AsyncIterator:
     return AsyncIterWrapper(iter(it)).__aiter__()
 
