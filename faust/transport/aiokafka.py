@@ -54,18 +54,27 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         # that way they are typed and decoupled from the actual client
         # implementation.
         consumer = cast(Consumer, self.consumer)
-        if consumer._active_partitions is None:
-            consumer._active_partitions = set(assigned)
-        await cast(Consumer, self.consumer).on_partitions_assigned(
-            cast(Iterable[TP], assigned))
+        # cache set of assigned partitions
+        _active = consumer._active_partitions = cast(Set[TP], set(assigned))
+        # remove recently revoked tps from set of paused tps.
+        consumer._paused_partitions.intersection_update(_active)
+        # remove paused tps from set of active partitions.
+        _active.difference_update(consumer._paused_partitions)
+        # start callback chain of assigned callbacks.
+        #   need to copy set at this point, since we cannot have
+        #   the callbacks mutate our active list.
+        await consumer.on_partitions_assigned(set(_active))
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
         # see comment in on_partitions_assigned
         consumer = cast(Consumer, self.consumer)
         _revoked = cast(Set[TP], set(revoked))
-        await consumer.pause_partitions(_revoked)
-        await consumer.on_partitions_revoked(_revoked)
+        # remove revoked partitions from active + paused tps.
+        consumer._active_partitions.difference_update(_revoked)
+        consumer._paused_partitions.difference_update(_revoked)
+        # start callback chain of assigned callbacks.
+        await consumer.on_partitions_revoked(set(_revoked))
 
 
 class Consumer(base.Consumer):
@@ -77,6 +86,7 @@ class Consumer(base.Consumer):
     _consumer: aiokafka.AIOKafkaConsumer
     _rebalance_listener: ConsumerRebalanceListener
     _active_partitions: Set[_TopicPartition] = None
+    _paused_partitions: Set[_TopicPartition] = None
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -92,6 +102,7 @@ class Consumer(base.Consumer):
             self._consumer = self._create_client_consumer(app, transport)
         else:
             self._consumer = self._create_worker_consumer(app, transport)
+        self._paused_partitions = set()
 
     async def on_restart(self) -> None:
         self.on_init()
@@ -239,13 +250,17 @@ class Consumer(base.Consumer):
         return await self.pause_partitions(self._tps_for_topic(topics))
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        self._get_active_partitions().difference_update(tps)
+        tpset = set(tps)
+        self._get_active_partitions().difference_update(tpset)
+        self._paused_partitions.update(tpset)
 
     async def resume_topics(self, topics: Iterable[str]) -> None:
-        return await self.resume_partitions(self._tps_for_topic(topics))
+        await self.resume_partitions(self._tps_for_topic(topics))
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
+        tpset = set(tps)
         self._get_active_partitions().update(tps)
+        self._paused_partitions.difference_update(tpset)
 
     def _tps_for_topic(self, topics: Iterable[str]) -> Iterable[TP]:
         for tp in self.assignment():
