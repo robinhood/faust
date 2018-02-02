@@ -96,7 +96,6 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
                  processors: Iterable[Processor] = None,
                  children: List[JoinableT] = None,
                  join_strategy: JoinT = None,
-                 noacks: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
