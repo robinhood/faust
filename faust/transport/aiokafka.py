@@ -54,12 +54,11 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         # that way they are typed and decoupled from the actual client
         # implementation.
         consumer = cast(Consumer, self.consumer)
-        # cache set of assigned partitions
-        _active = consumer._active_partitions = cast(Set[TP], set(assigned))
+        _assigned = set(assigned)
         # remove recently revoked tps from set of paused tps.
-        consumer._paused_partitions.intersection_update(_active)
-        # remove paused tps from set of active partitions.
-        _active.difference_update(consumer._paused_partitions)
+        consumer._paused_partitions.intersection_update(_assigned)
+        # cache set of assigned partitions
+        _active = cast(Set[TP], consumer._set_active_tps(_assigned))
         # start callback chain of assigned callbacks.
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
@@ -111,7 +110,13 @@ class Consumer(base.Consumer):
         tps = self._active_partitions
         if tps is None:
             # need aiokafka._TopicPartition, not faust.TP
-            tps = self._active_partitions = self._consumer.assignment()
+            return self._set_active_tps(self._consumer.assignment())
+        return tps
+
+    def _set_active_tps(
+            self, tps: Set[_TopicPartition]) -> Set[_TopicPartition]:
+        tps = self._active_partitions = set(tps)  # copy!
+        tps.difference_update(self._paused_partitions)
         return tps
 
     def _create_worker_consumer(
