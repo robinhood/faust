@@ -72,9 +72,7 @@ class ConsumerT(ServiceT):
     @abc.abstractmethod
     @no_type_check
     async def getmany(
-            self,
-            *partitions: TP,
-            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+            self, timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         ...
 
     @abc.abstractmethod

@@ -26,6 +26,8 @@ from ..utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
+_TPTypes = Union[TP, _TopicPartition]
+
 
 def server_list(url: URL, default_port: int) -> str:
     # remove the scheme
@@ -51,14 +53,19 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         # the Kafka TopicPartition namedtuples to our description,
         # that way they are typed and decoupled from the actual client
         # implementation.
+        consumer = cast(Consumer, self.consumer)
+        if consumer._active_partitions is None:
+            consumer._active_partitions = set(assigned)
         await cast(Consumer, self.consumer).on_partitions_assigned(
             cast(Iterable[TP], assigned))
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
         # see comment in on_partitions_assigned
-        await cast(Consumer, self.consumer).on_partitions_revoked(
-            cast(Iterable[TP], revoked))
+        consumer = cast(Consumer, self.consumer)
+        _revoked = cast(Set[TP], set(revoked))
+        await consumer.pause_partitions(_revoked)
+        await consumer.on_partitions_revoked(_revoked)
 
 
 class Consumer(base.Consumer):
@@ -69,6 +76,7 @@ class Consumer(base.Consumer):
 
     _consumer: aiokafka.AIOKafkaConsumer
     _rebalance_listener: ConsumerRebalanceListener
+    _active_partitions: Set[_TopicPartition] = None
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -87,6 +95,13 @@ class Consumer(base.Consumer):
 
     async def on_restart(self) -> None:
         self.on_init()
+
+    def _get_active_partitions(self) -> Set[_TopicPartition]:
+        tps = self._active_partitions
+        if tps is None:
+            # need aiokafka._TopicPartition, not faust.TP
+            tps = self._active_partitions = self._consumer.assignment()
+        return tps
 
     def _create_worker_consumer(
             self,
@@ -148,12 +163,12 @@ class Consumer(base.Consumer):
 
     async def getmany(
             self,
-            *partitions: TP,
             timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
-        records = await self._consumer.getmany(
-            *partitions,
-            timeout_ms=timeout * 1000.0,
-            max_records=None,
+        _consumer = self._consumer
+
+        records = await _consumer._fetcher.fetched_records(
+            self._get_active_partitions(), timeout,
+            max_records=_consumer._max_poll_records,
         )
         create_message = Message  # localize
 
@@ -221,28 +236,30 @@ class Consumer(base.Consumer):
         })
 
     async def pause_topics(self, topics: Iterable[str]) -> None:
-        return
-        for tp in self.assignment():
-            if tp.topic in topics:
-                self._consumer._subscription.pause(partition=tp)
+        return await self.pause_partitions(self._tps_for_topic(topics))
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        return
-        for tp in tps:
-            #print('STATE: %r'
-            #        %(self._consumer._subscription.subscription.assignment.state_value(tp)))
-            self._consumer._subscription.pause(partition=tp)
+        self._get_active_partitions().difference_update(
+            self._want_their_TPs(tps))
 
-    async def resume_topics(self, topics: Iterable[str]) -> None:
-        return
+    def _tps_for_topic(self, topics: Iterable[str]) -> Iterable[TP]:
         for tp in self.assignment():
             if tp.topic in topics:
-                self._consumer._subscription.resume(partition=tp)
+                yield tp
+
+    def _want_their_TPs(self, tps: Iterable[_TPTypes]) -> Set[_TopicPartition]:
+        return {self._want_their_TP(tp) for tp in tps}
+
+    def _want_their_TP(self, tp: _TPTypes) -> _TopicPartition:
+        if not isinstance(tp, _TopicPartition):
+            return _TopicPartition(tp.topic, tp.partition)
+        return tp
+
+    async def resume_topics(self, topics: Iterable[str]) -> None:
+        return await self.resume_partitions(self._tps_for_topic(topics))
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        return
-        for tp in tps:
-            self._consumer._subscription.resume(partition=tp)
+        self._get_active_partitions().update(self._want_their_TPs(tps))
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
