@@ -487,7 +487,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _maybe_abort_ongoing_recovery(self) -> None:
         if self._ongoing_recovery is not None:
-            self.log.info('Aborting ongoing recovery')
+            self.log.info('Aborting ongoing recovery to start over')
             if not self._ongoing_recovery.done():
                 assert self._revivers is not None
                 # TableManager.stop() will now block until all revivers are
@@ -495,15 +495,14 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 # almost immediately upon receiving a stop()
                 await asyncio.wait([
                     reviver.stop() for reviver in self._revivers])
-                self.log.info('Waiting for ongoing recovery')
+                self.log.info('Waiting for ongoing recovery to finish')
                 await self.wait(self._ongoing_recovery)
-                self.log.info('Done with ongoing recovery')
+                self.log.info('Ongoing recovery halted: resuming new recovery')
             self._ongoing_recovery = None
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Iterable[TP]) -> None:
         await self._maybe_abort_ongoing_recovery()
-        self.log.info('Aborted any ongoing recovery!')
         await self._stop_standbys()
         for table in self.values():
             await table.on_partitions_revoked(revoked)
