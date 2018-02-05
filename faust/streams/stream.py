@@ -22,34 +22,41 @@ from ..types.streams import (
     GroupByKeyArg, JoinableT, Processor, StreamT, T, T_co, T_contra,
 )
 from ..types.topics import ChannelT
-from ..utils.aiolocals import Context, Local
 from ..utils.aiter import aenumerate, aiter
 from ..utils.futures import StampedeWrapper, maybe_async
 
 __all__ = ['Stream', 'current_event']
 
 
-class _StreamLocal(Local):
-    # This holds task-local variables related to streams.
+try:
+    from contextvars import ContextVar
 
-    if typing.TYPE_CHECKING:
-        current_event: weakref.ReferenceType[EventT]
-    #: Weak reference to the event currently being processed.
-    current_event = None
+    def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
+        ...
+except ImportError:
+    from aiocontextvars import ContextVar, Context
+
+    def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
+        # see module: aiocontextvars.inherit
+        # this is the backport of the contextvars module added in CPython 3.7.
+        # it provides "thread-locals" for async generators, and asyncio.Task
+        # will automatically call this stuff in 3.7, but not in 3.6 so we call
+        # this when starting to iterate over the stream (Stream.__aiter__).
+        task = asyncio.Task.current_task(loop=loop)
+        # note: in actual CPython it's task._context, the aiocontextvars
+        # backport is a backport of a previous version of the PEP: :pep:`560`
+        task.ctx = Context(Context.current())  # type: ignore
 
 
-#: Task-local storage (keeps track of e.g. current_event)
-_locals = cast(_StreamLocal, Local())
+if typing.TYPE_CHECKING:
+    _current_event: ContextVar[weakref.ReferenceType[EventT]]
+_current_event = ContextVar('current_event')
 
 
 def current_event() -> Optional[EventT]:
     """Return the event currently being processed, or None."""
-    try:
-        eventref = getattr(_locals, 'current_event', None)
-    except ValueError:  # has no context
-        return None
-    else:
-        return eventref() if eventref is not None else None
+    eventref = _current_event.get(None)
+    return eventref() if eventref is not None else None
 
 
 async def maybe_forward(value: Any, channel: ChannelT) -> Any:
@@ -65,7 +72,6 @@ class Stream(StreamT[T_co], Service):
 
     _processors: MutableSequence[Processor] = None
     _anext_started: bool = False
-    _context: Context = None
     _passive = False
 
     def __init__(self, channel: AsyncIterator[T_co] = None,
@@ -541,10 +547,10 @@ class Stream(StreamT[T_co], Service):
         on_stream_event_in = self._on_stream_event_in
 
         # localize global variables
-        threadlocals = _locals
         create_ref = weakref.ref
         _maybe_async = maybe_async
         event_cls = EventT
+        _current_event_contextvar = _current_event
 
         async def on_message() -> Any:
             # get message from channel
@@ -560,7 +566,7 @@ class Stream(StreamT[T_co], Service):
                 await on_stream_event_in(tp, offset, self, event)
 
                 # set task-local current_event
-                threadlocals.current_event = create_ref(event)
+                _current_event_contextvar.set(create_ref(event))
                 # set Stream._current_event
                 self.current_event = event
 
@@ -600,8 +606,6 @@ class Stream(StreamT[T_co], Service):
     async def on_stop(self) -> None:
         if self.current_event is not None:
             await self.current_event.ack()
-        if self._context is not None:
-            self._context.__exit__(None, None, None)
 
     def __iter__(self) -> Any:
         return self
@@ -610,8 +614,7 @@ class Stream(StreamT[T_co], Service):
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
     def __aiter__(self) -> AsyncIterator:
-        # start iterating over the stream
-        self._context = Context(locals=[_locals]).__enter__()
+        _inherit_context(loop=self.loop)
         return self
 
     async def __anext__(self) -> T:

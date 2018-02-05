@@ -125,6 +125,13 @@ if README.exists():
 else:
     long_description = 'See http://pypi.python.org/pypi/{}'.format(NAME)
 
+# -*- Install Requires -*-
+
+
+install_requires = reqs('default.txt')
+if sys.version_info < (3, 7):
+    install_requires += reqs('py36.txt')
+
 # -*- %%% -*-
 
 setup(
@@ -148,7 +155,7 @@ setup(
         'kafka',
     ],
     zip_safe=False,
-    install_requires=reqs('default.txt'),
+    install_requires=install_requires,
     tests_require=reqs('test.txt'),
     extras_require=extras_require(),
     classifiers=classifiers,
