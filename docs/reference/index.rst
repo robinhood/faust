@@ -149,7 +149,6 @@ Utils
 .. toctree::
     :maxdepth: 1
 
-    faust.utils.aiolocals
     faust.utils.aiter
     faust.utils.collections
     faust.utils.compat
