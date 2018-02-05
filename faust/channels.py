@@ -10,6 +10,7 @@ from types import TracebackType
 from typing import (
     Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
 )
+from weakref import WeakSet
 from mode import Seconds, get_logger, want_seconds
 from mode.utils.futures import ThrowableQueue, maybe_async, stampede
 from .streams import current_event
@@ -196,9 +197,12 @@ class Channel(ChannelT):
     value_type: ModelArg
     loop: asyncio.AbstractEventLoop = None
     is_iterator: bool
-    clone_shares_queue: bool = True
 
     _queue: ThrowableQueue = None
+    _root: 'Channel' = None
+    if typing.TYPE_CHECKING:
+        _subscribers: WeakSet['Channel']
+    _subscribers = None
 
     def __init__(self, app: AppT,
                  *,
@@ -207,6 +211,7 @@ class Channel(ChannelT):
                  is_iterator: bool = False,
                  queue: ThrowableQueue = None,
                  maxsize: int = None,
+                 root: ChannelT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
@@ -218,6 +223,8 @@ class Channel(ChannelT):
         if self.maxsize is None:
             self.maxsize = self.app.stream_buffer_maxsize
         self.deliver = self._compile_deliver()  # type: ignore
+        self._root = cast(Channel, root)
+        self._subscribers = WeakSet()
 
     @property
     def queue(self) -> ThrowableQueue:
@@ -233,10 +240,13 @@ class Channel(ChannelT):
         return self._queue
 
     def clone(self, *, is_iterator: bool = None) -> ChannelT:
-        return type(self)(
+        subchannel: Channel = type(self)(
             is_iterator=(is_iterator if is_iterator is not None
                          else self.is_iterator),
             **self._clone_args())
+        (self._root or self)._subscribers.add(subchannel)
+        subchannel.queue  # make sure queue is created early
+        return subchannel
 
     def _clone_args(self) -> Mapping:
         return {
@@ -244,8 +254,9 @@ class Channel(ChannelT):
             'loop': self.loop,
             'key_type': self.key_type,
             'value_type': self.value_type,
-            'queue': self.queue if self.clone_shares_queue else None,
             'maxsize': self.maxsize,
+            'root': self._root if self._root is not None else self,
+            'queue': None,
         }
 
     def stream(self, **kwargs: Any) -> StreamT:
@@ -363,10 +374,9 @@ class Channel(ChannelT):
         return Event(self.app, key, value, message)
 
     async def put(self, value: Any) -> None:
-        if not self.is_iterator and not self.clone_shares_queue:
-            raise RuntimeError(
-                f'Cannot put on this channel before aiter({self})')
-        await self.queue.put(value)
+        root = self._root if self._root is not None else self
+        for subscriber in root._subscribers:
+            await subscriber.queue.put(value)
 
     async def get(self, *, timeout: Seconds = None) -> Any:
         timeout_: float = want_seconds(timeout)
@@ -404,6 +414,10 @@ class Channel(ChannelT):
 
     def __str__(self) -> str:
         return f'{id(self):#x}'
+
+    @property
+    def subscriber_count(self) -> int:
+        return len(self._subscribers)
 
     @property
     def label(self) -> str:

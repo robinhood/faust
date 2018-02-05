@@ -32,7 +32,9 @@ def test_str(channel):
 def test_stream(channel):
     s = channel.stream()
     assert isinstance(s, StreamT)
-    assert s.channel.queue is channel.queue
+    assert s.channel.queue is not channel.queue
+    assert s.channel._root is channel
+    assert s.channel in channel._subscribers
 
 
 def test_get_topic_name(channel):
@@ -47,7 +49,6 @@ def test_clone(app):
     assert c.value_type is Point
     assert c.maxsize == 99
     assert c.loop == 33
-    assert c.clone_shares_queue
     assert not c.is_iterator
 
     c2 = c.clone()
@@ -56,7 +57,10 @@ def test_clone(app):
     assert c2.maxsize == 99
     assert c2.loop == 33
     assert not c2.is_iterator
-    assert c2.queue is c.queue
+    assert c2.queue is not c.queue
+    assert c2._root is c
+    assert c2 in c._subscribers
+    assert c.subscriber_count == 1
 
     c3 = c2.clone(is_iterator=True)
     assert c3.key_type is Point
@@ -64,20 +68,29 @@ def test_clone(app):
     assert c3.maxsize == 99
     assert c3.loop == 33
     assert c3.is_iterator
-    assert c3.queue is c.queue
+    assert c3.queue is not c.queue
+    assert c3._root is c
+    assert c2._root is c
+    assert c3 in c._subscribers
+    assert c2 in c._subscribers
+    assert c.subscriber_count == 2
 
 
 @pytest.mark.asyncio
 async def test_send_receive(app):
     channel1 = app.channel(maxsize=10)
     channel2 = app.channel(maxsize=1)
-    await channel2.put(b'xuzzy')
-    assert await times_out(channel2.put(b'bar'))  # maxsize=1
     with pytest.raises(RuntimeError):
         # must call aiter
         await channel1.__anext__()
     it1 = aiter(channel1)
-    assert it1.queue is channel1.queue
+    it2 = aiter(channel2)
+    await channel2.put(b'xuzzy')
+    assert await times_out(channel2.put(b'bar'))  # maxsize=1
+    assert it1.queue is not channel1.queue
+    assert it1._root is channel1
+    assert it1 in channel1._subscribers
+    assert channel1.subscriber_count == 1
     assert channel1.queue is not channel2.queue
     assert await channel_empty(channel1)
     await channel1.put(b'foo')
@@ -89,6 +102,15 @@ async def test_send_receive(app):
     for i in range(10):
         assert await anext(it1) == i
     assert await channel_empty(channel1)
-    it2 = aiter(channel2)
     assert await anext(it2) == b'xuzzy'
     assert await channel_empty(channel2)
+
+    it1_2 = aiter(channel1)
+    assert it1_2._root is channel1
+    assert it1_2 in channel1._subscribers
+    assert channel1.subscriber_count == 2
+
+    await channel1.put(b'moo')
+
+    assert await anext(it1) == b'moo'
+    assert await anext(it1_2) == b'moo'

@@ -80,6 +80,7 @@ class ChannelT(AsyncIterator):
             is_iterator: bool = False,
             queue: ThrowableQueue = None,
             maxsize: int = 1,
+            root: 'ChannelT' = None,
             loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
@@ -178,4 +179,9 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     def derive(self, **kwargs: Any) -> 'ChannelT':
+        ...
+
+    @property
+    @abc.abstractmethod
+    def subscriber_count(self) -> int:
         ...

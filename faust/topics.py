@@ -54,8 +54,6 @@ class Topic(Channel, TopicT):
         TypeError: if both `topics` and `pattern` is provided.
     """
 
-    clone_shares_queue = False
-
     _partitions: int = None
     _replicas: int = None
     _pattern: Pattern = None
@@ -79,6 +77,7 @@ class Topic(Channel, TopicT):
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
                  maxsize: int = 1,
+                 root: ChannelT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics
         super().__init__(
