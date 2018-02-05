@@ -333,7 +333,7 @@ independent async iterators from a single stream:
 
 .. sourcecode:: python
 
-    from faust.utils.aiter import aiter, anext
+    from mode.utils.aiter import aiter, anext
 
     @app.agent()
     async def process(stream):

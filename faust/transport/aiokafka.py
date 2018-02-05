@@ -16,12 +16,12 @@ from kafka.errors import (
     NotControllerError, TopicAlreadyExistsError as TopicExistsError, for_code,
 )
 from mode import Seconds, Service, want_seconds
+from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.futures import StampedeWrapper
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']

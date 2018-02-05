@@ -149,18 +149,12 @@ Utils
 .. toctree::
     :maxdepth: 1
 
-    faust.utils.aiter
-    faust.utils.collections
-    faust.utils.compat
     faust.utils.functional
-    faust.utils.futures
-    faust.utils.imports
     faust.utils.iso8601
     faust.utils.json
     faust.utils.objects
     faust.utils.platforms
     faust.utils.spinners
-    faust.utils.text
 
 Web
 ===

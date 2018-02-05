@@ -3,11 +3,11 @@ from datetime import datetime
 from typing import (
     Any, Callable, Dict, Iterable, Mapping, Optional, Tuple, Type, cast,
 )
+from mode.utils.text import pluralize
 from .base import FieldDescriptor, Model
 from ..types.models import Converter, FieldDescriptorT, ModelOptions, ModelT
 from ..utils import iso8601
 from ..utils.objects import annotations, guess_concrete_type
-from ..utils.text import pluralize
 
 __all__ = ['Record']
 

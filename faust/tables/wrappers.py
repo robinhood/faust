@@ -4,6 +4,7 @@ import typing
 from datetime import datetime
 from typing import Any, Callable, Iterator, Optional, cast
 from mode import Seconds
+from mode.utils.collections import FastUserDict
 from ..exceptions import ImproperlyConfigured
 from ..streams import current_event
 from ..types import EventT, FieldDescriptorT
@@ -11,7 +12,6 @@ from ..types.tables import (
     RecoverCallback, RelativeArg, RelativeHandler,
     TableT, WindowSetT, WindowWrapperT,
 )
-from ..utils.collections import FastUserDict
 
 if typing.TYPE_CHECKING:
     from .table import Table

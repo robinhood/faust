@@ -4,10 +4,10 @@ import typing
 from typing import Any, AsyncIterator, Awaitable, Union
 from mode import Seconds
 from mode.utils.compat import AsyncContextManager
+from mode.utils.futures import ThrowableQueue, stampede
 from .codecs import CodecArg
 from .core import K, V
 from .tuples import FutureMessage, Message, MessageSentCallback, RecordMetadata
-from ..utils.futures import ThrowableQueue, stampede
 
 if typing.TYPE_CHECKING:
     from .app import AppT

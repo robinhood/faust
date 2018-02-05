@@ -413,7 +413,7 @@ Subclassing Parameters
 :default: ``"faust.Stream"``
 
 The :class:`~faust.Stream` class to use for streams, or the fully-qualified
-path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
 
 Example using a class::
 
@@ -433,7 +433,7 @@ Example using the string path to a class::
 :default: ``"faust.Table"``
 
 The :class:`~faust.Table` class to use for tables, or the fully-qualified
-path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
 
 Example using a class::
 
@@ -453,7 +453,7 @@ Example using the string path to a class::
 :default: ``"faust.Set"``
 
 The :class:`~faust.Set` class to use for sets, or the fully-qualified
-path to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
 
 Example using a class::
 
@@ -474,7 +474,7 @@ Example using the string path to a class::
 
 The :class:`~faust.tables.TableManager` used for managing tables,
 or the fully-qualified path to one (supported by
-:func:`~faust.utils.imports.symbol_by_name`).
+:func:`~mode.utils.imports.symbol_by_name`).
 
 Example using a class::
 
@@ -497,7 +497,7 @@ Example using the string path to a class::
 
 The :class:`~faust.serializers.Registry` class used for
 serializing/deserializing messages; or the fully-qualified path
-to one (supported by :func:`~faust.utils.imports.symbol_by_name`).
+to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
 
 Example using a class::
 

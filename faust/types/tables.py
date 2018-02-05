@@ -7,6 +7,7 @@ from typing import (
     MutableMapping, Optional, Set, Type, Union,
 )
 from mode import Seconds, ServiceT
+from mode.utils.collections import ManagedUserSet
 from mode.utils.compat import Counter
 from yarl import URL
 from .channels import EventT
@@ -15,7 +16,6 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TP
 from .windows import WindowT
-from ..utils.collections import ManagedUserSet
 
 
 if typing.TYPE_CHECKING:

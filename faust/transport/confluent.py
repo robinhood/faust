@@ -12,13 +12,12 @@ import confluent_kafka
 from confluent_kafka import TopicPartition as _TopicPartition
 from mode import Seconds, Service, ServiceT, want_seconds
 from mode.threads import ServiceThread
-from mode.utils.futures import notify
+from mode.utils.futures import StampedeWrapper, notify
 from yarl import URL
 
 from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.futures import StampedeWrapper
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 

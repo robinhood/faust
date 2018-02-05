@@ -18,6 +18,9 @@ from mode import (
     SupervisorStrategyT,
 )
 from mode.proxy import ServiceProxy
+from mode.utils.aiter import aenumerate, aiter
+from mode.utils.futures import maybe_async
+from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
 from .models import ReqRepRequest, ReqRepResponse
@@ -33,10 +36,7 @@ from ..types.agents import (
     AgentTestWrapperT, AsyncIterableActorT, AwaitableActorT,
     ReplyToArg, SinkT, _T,
 )
-from ..utils.aiter import aenumerate, aiter
-from ..utils.futures import maybe_async
 from ..utils.objects import cached_property, canoname, qualname
-from ..utils.text import shorten_fqdn
 
 if typing.TYPE_CHECKING:
     from .app import App

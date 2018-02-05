@@ -13,12 +13,13 @@ from typing import (
 )
 import click
 from colorclass import Color, disable_all_colors, enable_all_colors
+from mode.utils import text
+from mode.utils.compat import isatty, want_bytes
+from mode.utils.imports import import_from_cwd, symbol_by_name
 from ._env import DATADIR, DEBUG, WORKDIR
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
-from ..utils import text
-from ..utils.compat import isatty, want_bytes
-from ..utils.imports import import_from_cwd, symbol_by_name
+from ..utils import termtable
 
 __all__ = [
     'AppCommand',
@@ -318,7 +319,7 @@ class Command(abc.ABC):
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
 
-    def tabulate(self, data: text.TableDataT,
+    def tabulate(self, data: termtable.TableDataT,
                  headers: Sequence[str] = None,
                  wrap_last_row: bool = True,
                  title: str = None,
@@ -348,11 +349,11 @@ class Command(abc.ABC):
             ]
         return table.table
 
-    def table(self, data: text.TableDataT,
+    def table(self, data: termtable.TableDataT,
               title: str = None,
-              **kwargs: Any) -> text.Table:
+              **kwargs: Any) -> termtable.Table:
         """Format table data as ANSI/ASCII table."""
-        return text.table(data, title=title, target=sys.stdout, **kwargs)
+        return termtable.table(data, title=title, target=sys.stdout, **kwargs)
 
     def colored(self, color: str, text: str) -> str:
         """Return colored text.
@@ -376,7 +377,7 @@ class Command(abc.ABC):
         head, fsep, tail = text.rpartition(sep)
         return fsep.join([head, self.bold(tail)])
 
-    def _table_wrap(self, table: text.Table, text: str) -> str:
+    def _table_wrap(self, table: termtable.Table, text: str) -> str:
         max_width = max(table.column_max_width(1), 10)
         return '\n'.join(wrap(text, max_width))
 

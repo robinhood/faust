@@ -7,10 +7,10 @@ from typing import (
 )
 import faust
 from mode import Seconds
+from mode.utils.futures import done_future
 from . import base
 from ..types import Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
-from ..utils.futures import done_future
 
 
 class RebalanceListener:

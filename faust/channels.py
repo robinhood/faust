@@ -11,6 +11,7 @@ from typing import (
     Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
 )
 from mode import Seconds, get_logger, want_seconds
+from mode.utils.futures import ThrowableQueue, maybe_async, stampede
 from .streams import current_event
 from .types import (
     AppT, CodecArg, FutureMessage, K, Message,
@@ -18,7 +19,6 @@ from .types import (
 )
 from .types.channels import ChannelT, EventT
 from .types.streams import StreamT
-from .utils.futures import ThrowableQueue, maybe_async, stampede
 
 if typing.TYPE_CHECKING:
     from .app import App

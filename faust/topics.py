@@ -9,7 +9,7 @@ from typing import (
     MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
 )
 from mode import Seconds, Service, get_logger
-from mode.utils.futures import notify
+from mode.utils.futures import ThrowableQueue, notify, stampede
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
@@ -18,7 +18,6 @@ from .types import (
 )
 from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
-from .utils.futures import ThrowableQueue, stampede
 
 if typing.TYPE_CHECKING:
     from .app import App

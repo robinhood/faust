@@ -1,5 +1,5 @@
 import asyncio
-from faust.utils.aiter import aiter, anext
+from mode.utils.aiter import aiter, anext
 import pytest
 from .helpers import channel_empty, message, put
 

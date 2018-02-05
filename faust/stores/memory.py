@@ -1,15 +1,15 @@
 """In-memory table storage."""
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, MutableMapping, Optional
+from mode.utils.collections import FastUserDict
 from . import base
 from ..types import EventT, TP
-from ..utils.collections import FastUserDict
 
 
 class Store(base.Store, FastUserDict):
     """Table storage using an in-memory dictionary."""
 
     def on_init(self) -> None:
-        self.data = {}
+        self.data: MutableMapping = {}
 
     def _clear(self) -> None:
         self.data.clear()

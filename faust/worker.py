@@ -50,14 +50,14 @@ from typing import Any, Dict, IO, Iterable, Mapping, Set, Tuple, Type, Union
 from kafka.structs import TopicPartition as _TopicPartition
 import mode
 from mode import ServiceT, get_logger
+from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import formatter
 
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT, TP, TopicT
-from .utils import text
-from .utils.imports import SymbolArg, symbol_by_name
 from .utils.objects import cached_property
 from .utils.spinners import Spinner
+from .utils.termtable import logtable
 from .web.site import Website as _Website
 
 try:
@@ -86,13 +86,13 @@ def format_log_arguments(arg: Any) -> Any:
         if (isinstance(first_k, str) and
                 isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
-            return '\n' + text.logtable(
+            return '\n' + logtable(
                 [(k, v) for k, v in arg.items()],
                 title='Subscription',
                 headers=['Topic', 'Descriptions'],
             )
         elif isinstance(first_v, TP_TYPES):
-            return '\n' + text.logtable(
+            return '\n' + logtable(
                 [(k.topic, k.partition, v) for k, v in arg.items()],
                 title='Topic Partition Map',
                 headers=['topic', 'partition', 'offset'],
@@ -103,7 +103,7 @@ def format_log_arguments(arg: Any) -> Any:
             for tp in arg:
                 topics[tp.topic].add(tp.partition)
 
-            return '\n' + text.logtable(
+            return '\n' + logtable(
                 [(k, repr(v)) for k, v in topics.items()],
                 title='Topic Partition Set',
                 headers=['topic', 'partitions'],

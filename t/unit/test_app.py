@@ -1,9 +1,9 @@
 from unittest.mock import ANY, Mock
+from mode.utils.compat import want_bytes
+from mode.utils.futures import done_future
 import faust
 from faust.serializers import codecs
 from faust.types.models import ModelT
-from faust.utils.compat import want_bytes
-from faust.utils.futures import done_future
 import pytest
 
 TEST_TOPIC = 'test'

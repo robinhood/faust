@@ -1,11 +1,11 @@
 """Registry of supported codecs (serializers, compressors, etc.)."""
 import sys
 from typing import Any, Optional, Tuple, Type, cast
+from mode.utils.compat import want_bytes, want_str
 from .codecs import CodecArg, dumps, loads
 from ..exceptions import KeyDecodeError, ValueDecodeError
 from ..types import K, ModelArg, ModelT, V
 from ..types.serializers import RegistryT
-from ..utils.compat import want_bytes, want_str
 from ..utils.objects import cached_property
 
 __all__ = ['Registry']

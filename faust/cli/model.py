@@ -5,10 +5,11 @@
 from datetime import datetime
 from typing import Any, Sequence, Type
 import click
+from mode.utils import text
 from .base import AppCommand
 from ..models import registry
 from ..types import FieldDescriptorT, ModelT
-from ..utils.text import TableDataT, didyoumean
+from ..utils.termtable import TableDataT
 
 __all__ = ['model']
 
@@ -48,7 +49,7 @@ class model(AppCommand):
                        *,
                        lookup: str = None) -> click.UsageError:
         lookup = lookup or name
-        alt = didyoumean(
+        alt = text.didyoumean(
             registry, lookup,
             fmt_none=f'Please run `{self.prog_name} models` for a list.')
         return click.UsageError(f'No model {name!r}. {alt}')

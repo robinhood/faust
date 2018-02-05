@@ -3,13 +3,14 @@ import sys
 from operator import itemgetter
 from typing import Any, Callable, IO, Iterable, List, cast
 from mode import Seconds
+from mode.utils import text
+from mode.utils.collections import ManagedUserDict
 from .base import Collection
 from .wrappers import WindowWrapper
 from .. import windows
 from ..types.tables import TableT, WindowWrapperT
 from ..types.windows import WindowT
-from ..utils import text
-from ..utils.collections import ManagedUserDict
+from ..utils import termtable
 
 __all__ = ['Table']
 
@@ -78,7 +79,7 @@ class Table(TableT, Collection, ManagedUserDict):
         data = list(sorted(data, key=sortkey)) if sort else list(data)
         if sort:
             data = list(sorted(data, key=sortkey))
-        return text.table(
+        return termtable.table(
             [header] + list(data),
             title=text.title(title.format(table=self)),
         ).table

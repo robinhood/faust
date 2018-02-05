@@ -1,8 +1,8 @@
 import faust
 from faust.types import StreamT
-from faust.utils.aiter import aiter, anext
-from faust.utils.futures import FlowControlQueue
 from mode import label
+from mode.utils.aiter import aiter, anext
+from mode.utils.futures import FlowControlQueue
 import pytest
 from .helpers import channel_empty, times_out
 

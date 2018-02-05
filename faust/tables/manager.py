@@ -5,6 +5,8 @@ from typing import (
     Any, AsyncIterable, Iterable, List, MutableMapping, Set, Tuple, cast,
 )
 from mode import Service
+from mode.utils.aiter import aenumerate, aiter
+from mode.utils.collections import FastUserDict
 from mode.utils.compat import Counter
 from mode.utils.times import Seconds
 from .table import Table
@@ -13,9 +15,7 @@ from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
 )
 from ..types.topics import ChannelT
-from ..utils import text
-from ..utils.aiter import aenumerate, aiter
-from ..utils.collections import FastUserDict
+from ..utils.termtable import logtable
 
 __all__ = [
     'ChangelogReader',
@@ -90,7 +90,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             tp: highwaters[tp] - 1
             for tp in tps
         })
-        table = text.logtable(
+        table = logtable(
             [(k.topic, k.partition, v) for k, v in self._highwaters.items()],
             title='Highwater',
             headers=['topic', 'partition', 'highwater'],
@@ -114,7 +114,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
-        table = text.logtable(
+        table = logtable(
             [(k.topic, k.partition, v) for k, v in self.offsets.items()],
             title='Reading Starts At',
             headers=['topic', 'partition', 'offset'],
@@ -283,7 +283,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app = app
-        self.data = {}
+        self.data: MutableMapping = {}
         self._channels = {}
         self._changelogs = {}
         self._table_offsets = Counter()
@@ -331,7 +331,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 self._table_offsets[tp] = max(curr_offset, persisted_offset)
 
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
-        table = text.logtable(
+        table = logtable(
             [(k.topic, k.partition, v) for k, v in reader.offsets.items()],
             title='Sync Offset',
             headers=['topic', 'partition', 'offset'],
@@ -341,7 +341,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if offset >= 0:
                 table_offset = self._table_offsets.get(tp, -1)
                 self._table_offsets[tp] = max(table_offset, offset)
-        table = text.logtable(
+        table = logtable(
             [(k.topic, k.partition, v)
              for k, v in self._table_offsets.items()],
             title='Table Offsets',

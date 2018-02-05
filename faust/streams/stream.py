@@ -10,6 +10,8 @@ from typing import (
 )
 
 from mode import Seconds, Service, want_seconds
+from mode.utils.aiter import aenumerate, aiter
+from mode.utils.futures import StampedeWrapper, maybe_async
 from mode.utils.types.trees import NodeT
 
 from . import joins
@@ -22,8 +24,6 @@ from ..types.streams import (
     GroupByKeyArg, JoinableT, Processor, StreamT, T, T_co, T_contra,
 )
 from ..types.topics import ChannelT
-from ..utils.aiter import aenumerate, aiter
-from ..utils.futures import StampedeWrapper, maybe_async
 
 __all__ = ['Stream', 'current_event']
 

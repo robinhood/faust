@@ -1,9 +1,9 @@
 aiohttp~=2.3.9
 aiokafka~=0.4.0
 click~=6.7
-jinja2~=2.9
-yarl~=1.0
-terminaltables~=3.1.0
 colorclass~=2.2
+jinja2~=2.9
+mode~=1.7
+terminaltables~=3.1.0
 venusian~=1.1
-mode~=1.5
+yarl~=1.0

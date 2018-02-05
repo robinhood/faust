@@ -5,10 +5,10 @@ from typing import (
     Any, Mapping, MutableSet, Optional, Pattern, Sequence, Set, Union,
 )
 from mode import Seconds, ServiceT
+from mode.utils.futures import ThrowableQueue
 from .channels import ChannelT
 from .codecs import CodecArg
 from .tuples import TP
-from ..utils.futures import ThrowableQueue
 
 if typing.TYPE_CHECKING:
     from .app import AppT

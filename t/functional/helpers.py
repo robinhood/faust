@@ -1,7 +1,7 @@
 import asyncio
 from time import time
 from faust.types.tuples import Message
-from faust.utils.aiter import anext
+from mode.utils.aiter import anext
 import pytest
 
 __all__ = ['channel_empty', 'times_out', 'is_empty', 'message', 'put']

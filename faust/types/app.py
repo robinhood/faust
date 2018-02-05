@@ -10,6 +10,8 @@ from typing import (
 
 from aiohttp.client import ClientSession
 from mode import Seconds, ServiceT, SupervisorStrategyT
+from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
+from mode.utils.imports import SymbolArg
 from mode.utils.types.trees import NodeT
 from yarl import URL
 
@@ -27,8 +29,6 @@ from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata
 from .windows import WindowT
 
-from ..utils.futures import FlowControlEvent, ThrowableQueue, stampede
-from ..utils.imports import SymbolArg
 from ..utils.objects import cached_property
 
 if typing.TYPE_CHECKING:

@@ -1,7 +1,7 @@
 """Web server driver registry."""
 from typing import Type
+from mode.utils.imports import FactoryMapping
 from ..base import Web
-from ...utils.imports import FactoryMapping
 
 __all__ = ['by_name', 'by_url']
 
