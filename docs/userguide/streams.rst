@@ -236,11 +236,6 @@ decreased, use ``await event.ack()``
 Note that the conditions in automatic acknowledgment still apply
 when manually acknowledging a message.
 
-Kafka Topics
-------------
-
-Every Faust worker will start a single Kafka consumer responsible for
-
 Combining streams
 =================
 
