@@ -23,6 +23,19 @@ class AccountMap(Record):
     accounts: Dict[str, Account]
 
 
+class FREFAccountList(Record):
+    accounts: 'List[Account]'
+
+
+class FREFAccountSet(Record):
+    accounts: 'Set[Account]'
+
+
+class FREFAccountMap(Record):
+    accounts: Dict[str, 'Account']
+    something: 'ClassVar[bool]' = True
+
+
 class User(Record):
     id: str
     username: str
@@ -183,6 +196,22 @@ def test_submodels():
         'c': a3,
     }
 
+
+def test_submodels_forward_reference():
+    a1 = Account(id='123', name='foo', active=True)
+    a2 = Account(id='456', name='bar', active=False)
+    a3 = Account(id='789', name='baz', active=True)
+
+    assert AccountList.loads(FREFAccountList(
+        accounts=[a1, a2, a3]).dumps()).accounts == [a1, a2, a3]
+    assert AccountSet.loads(FREFAccountSet(
+        accounts={a1, a2, a3}).dumps()).accounts == {a1, a2, a3}
+    assert AccountMap.loads(FREFAccountMap(
+        accounts={'a': a1, 'b': a2, 'c': a3}).dumps()).accounts == {
+        'a': a1,
+        'b': a2,
+        'c': a3,
+    }
 
 def test_derive():
     a1 = Account(id='123', name='foo', active=True)

@@ -1,5 +1,6 @@
 """Object utilities."""
 import sys
+import typing
 from contextlib import suppress
 from functools import total_ordering
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import (
     Iterable, List, Mapping, MutableMapping, MutableSequence,
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
+from typing import _Protocol, _eval_type, _type_check  # type: ignore
 from mode.utils.objects import cached_property
 
 try:
@@ -21,6 +23,10 @@ else:
     def _is_class_var(x: Any) -> bool:
         return type(x) is _ClassVar
 
+try:
+    from typing import ForwardRef  # type: ignore
+except ImportError:
+    from typing import _ForwardRef as ForwardRef  # type: ignore
 
 __all__ = [
     'FieldMapping',
@@ -30,6 +36,7 @@ __all__ = [
     'qualname',
     'canoname',
     'annotations',
+    'eval_type',
     'iter_mro_reversed',
     'guess_concrete_type',
     'cached_property',
@@ -130,7 +137,9 @@ def _detect_main_name() -> str:
 def annotations(cls: Type,
                 *,
                 stop: Type = object,
-                skip_classvar: bool = False) -> Tuple[
+                skip_classvar: bool = False,
+                globalns: Dict[str, Any] = None,
+                localns: Dict[str, Any] = None) -> Tuple[
                     FieldMapping, DefaultsMapping]:
     """Get class field definition in MRO order.
 
@@ -166,16 +175,64 @@ def annotations(cls: Type,
     for subcls in iter_mro_reversed(cls, stop=stop):
         defaults.update(subcls.__dict__)
         with suppress(AttributeError):
-            annotations = subcls.__annotations__
-            if skip_classvar:
-                fields.update({
-                    name: typ
-                    for name, typ in annotations.items()
-                    if not _is_class_var(typ)
-                })
-            else:
-                fields.update(annotations)
+            fields.update(_resolve_refs(
+                subcls.__annotations__,
+                globalns if globalns is not None else _get_globalns(subcls),
+                localns,
+                skip_classvar,
+            ))
     return fields, defaults
+
+
+def _resolve_refs(d: Dict[str, Any],
+                  globalns: Dict[str, Any] = None,
+                  localns: Dict[str, Any] = None,
+                  skip_classvar: bool = False) -> Iterable[Tuple[str, Type]]:
+    for k, v in d.items():
+        v = eval_type(v, globalns, localns)
+        if skip_classvar and _is_class_var(v):
+            pass
+        else:
+            yield k, v
+
+
+def eval_type(typ: Any,
+              globalns: Dict[str, Any] = None,
+              localns: Dict[str, Any] = None) -> Type:
+    """Convert (possible) string annotation to actual type.
+
+    Examples:
+        >>> eval_type('List[int]') == typing.List[int]
+    """
+    if isinstance(typ, str):
+        typ = ForwardRef(typ)
+    if isinstance(typ, ForwardRef):
+        # On 3.6/3.7 _eval_type crashes if str references ClassVar
+        typ = _ForwardRef_safe_eval(typ, globalns, localns)
+    return _eval_type(typ, globalns, localns)
+
+
+def _ForwardRef_safe_eval(ref: ForwardRef,
+                          globalns: Dict[str, Any] = None,
+                          localns: Dict[str, Any] = None) -> Type:
+    # On 3.6/3.7 ForwardRef._evaluate crashes if str references ClassVar
+    if not ref.__forward_evaluated__:
+        if globalns is None and localns is None:
+            globalns = localns = {}
+        elif globalns is None:
+            globalns = localns
+        elif localns is None:
+            localns = globalns
+        val = eval(ref.__forward_code__, globalns, localns)
+        if not _is_class_var(val):
+            val = _type_check(
+                val, 'Forward references must evaluate to types.')
+        ref.__forward_value__ = val
+    return ref.__forward_value__
+
+
+def _get_globalns(typ: Type) -> Dict[str, Any]:
+    return sys.modules[typ.__module__].__dict__
 
 
 def iter_mro_reversed(cls: Type, stop: Type) -> Iterable[Type]:
@@ -222,28 +279,34 @@ def guess_concrete_type(
         tuple_types: Tuple[Type, ...] = TUPLE_TYPES,
         dict_types: Tuple[Type, ...] = DICT_TYPES) -> Tuple[Type, Type]:
     """Try to find the real type of an abstract type."""
-    if (typ.__class__.__name__ == '_Union' and
-            hasattr(typ, '__args__') and
-            typ.__args__[1] is type(None)):  # noqa
+    args = getattr(typ, '__args__', ())
+    if typ.__class__.__name__ == '_GenericAlias':  # Py3.7
+        if typ.__origin__ is typing.Union:
+            for arg in args:
+                if arg is not type(None):  # noqa
+                    typ = arg
+                    break
+        else:
+            typ = typ.__origin__  # for List this is list, etc.
+    elif (typ.__class__.__name__ == '_Union' and  # Py3.6
+            args and args[1] is type(None)):  # noqa
         # Optional[x] actually returns Union[x, type(None)]
-        typ = typ.__args__[0]
+        typ = args[0]
     if not issubclass(typ, (str, bytes)):
         if issubclass(typ, tuple_types):
             # Tuple[x]
-            return tuple, _unary_type_arg(typ)
+            return tuple, _unary_type_arg(args)
         elif issubclass(typ, set_types):
             # Set[x]
-            return set, _unary_type_arg(typ)
+            return set, _unary_type_arg(args)
         elif issubclass(typ, list_types):
             # List[x]
-            return list, _unary_type_arg(typ)
+            return list, _unary_type_arg(args)
         elif issubclass(typ, dict_types):
             # Dict[_, x]
-            return dict, (
-                typ.__args__[1]
-                if typ.__args__ and len(typ.__args__) > 1 else Any)
-    raise TypeError('Not a generic type')
+            return dict, args[1] if args and len(args) > 1 else Any
+    raise TypeError(f'Not a generic type: {typ!r}')
 
 
-def _unary_type_arg(typ: Type) -> Type:
-    return typ.__args__[0] if typ.__args__ else Any
+def _unary_type_arg(args: List[Type]) -> Type:
+    return args[0] if args else Any
