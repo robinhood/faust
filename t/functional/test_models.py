@@ -347,3 +347,14 @@ def test_subclass_preserves_required_values():
     with pytest.raises(TypeError):
         Y(y=10)
     Y(10, 20)
+
+
+class test_too_many_arguments_raises_TypeError():
+    class X(Record):
+        x: int
+
+    class Y(X):
+        y: int
+
+    with pytest.raises(TypeError):
+        Y(10, 20, 30)

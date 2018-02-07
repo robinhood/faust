@@ -175,6 +175,13 @@ class Record(Model, abstract=True):
     def _init_fields(self, positional: Tuple, keywords: Dict,
                      *,
                      strict: bool = True) -> None:
+        n_args = len(positional)
+        n_args_spec = len(self._options.fieldpos)
+        if n_args > n_args_spec:
+            _argument = pluralize(n_args_spec, 'argument')
+            raise TypeError(
+                f'{type(self).__name__}() takes {n_args_spec} positional'
+                f' {_argument} but {n_args} were given')
         fields = self._to_fieldmap(positional, keywords)
         fields.pop('__faust', None)  # remove metadata
         fieldset = frozenset(fields)
