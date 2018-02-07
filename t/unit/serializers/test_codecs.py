@@ -1,12 +1,12 @@
 import base64
 from typing import Mapping
-from mode.utils.compat import want_str
 from faust.serializers.codecs import (
     Codec, binary as _binary, dumps, get_codec, json, loads,
 )
 from faust.utils import json as _json
 from hypothesis import given
 from hypothesis.strategies import binary, dictionaries, text
+from mode.utils.compat import want_str
 import pytest
 
 DATA = {'a': 1, 'b': 'string'}

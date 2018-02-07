@@ -213,6 +213,7 @@ def test_submodels_forward_reference():
         'c': a3,
     }
 
+
 def test_derive():
     a1 = Account(id='123', name='foo', active=True)
     b1 = Account(id='456', name='bar', active=False)
