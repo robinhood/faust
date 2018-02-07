@@ -332,3 +332,18 @@ def test_subclass_default_values():
     assert Z(x=None).z is None
     assert Z(x=None, y=101, z=303).y == 101
     assert Z(x=None, y=101, z=303).z == 303
+
+
+def test_subclass_preserves_required_values():
+
+    class X(Record):
+        x: int
+
+    class Y(X):
+        y: int
+
+    assert not Y._options.defaults
+    assert not Y._options.optionalset
+    with pytest.raises(TypeError):
+        Y(y=10)
+    Y(10, 20)

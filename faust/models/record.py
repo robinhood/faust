@@ -103,15 +103,16 @@ class Record(Model, abstract=True):
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
-        options.optionalset = frozenset(defaults)
         is_date = _is_date
 
         # extract all default values, but only for actual fields.
         options.defaults = {
             k: v.default if isinstance(v, FieldDescriptor) else v
             for k, v in defaults.items()
-            if k in fields
+            if k in fields and not (
+                isinstance(v, FieldDescriptor) and v.required)
         }
+        options.optionalset = frozenset(options.defaults)
 
         options.models = {}
         modelattrs = options.modelattrs = {}
