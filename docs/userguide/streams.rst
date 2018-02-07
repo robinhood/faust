@@ -171,7 +171,7 @@ forwarding messages received by the consumer to the streams:
   [Consumer] -> [TopicConductor] -> [Topic] -> [Stream]
 
 
-The AsyncFor is what triggers this, and the agent code above
+The :keyword:`async for` is what triggers this, and the agent code above
 is roughly equivalent to::
 
    async def custom_agent(app: App, topic: Topic):
