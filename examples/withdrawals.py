@@ -39,37 +39,25 @@ app = faust.App(
 withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
 
 
-#user_to_total = app.Table(
-#    'user_to_total', default=int,
-#)
+user_to_total = app.Table(
+    'user_to_total', default=int,
+).tumbling(3600).relative_to_stream()
 
-#country_to_total = app.Table(
-#    'country_to_total', default=int,
-#)
-
-count = [[0]]
-time_start = [[None]]
+country_to_total = app.Table(
+    'country_to_total', default=int,
+).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
 @app.agent(withdrawals_topic, concurrency=1)
 async def track_user_withdrawal(withdrawals):
-    counts = count[0]
-    time_starts = time_start[0]
     async for i, withdrawal in withdrawals.enumerate():
-        #print(f'WITHDRAWAL: {withdrawal}')
-        counts[0] += 1
-        if time_starts[0] is None:
-            time_starts[0] = withdrawals.loop.time()
-        if not counts[0] % 10000:
-            prev_time, time_starts[0] = time_starts[0], withdrawals.loop.time()
-            print(f'10k!!! {time_starts[0] - prev_time}')
-        #user_to_total[withdrawal.user] += withdrawal.amount
+        user_to_total[withdrawal.user] += withdrawal.amount
 
 
-#@app.agent(withdrawals_topic)
-#async def track_country_withdrawal(withdrawals):
-#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
-#        country_to_total[withdrawals.country] += withdrawal.amount
+@app.agent(withdrawals_topic)
+async def track_country_withdrawal(withdrawals):
+    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+        country_to_total[withdrawals.country] += withdrawal.amount
 
 
 @app.command(
