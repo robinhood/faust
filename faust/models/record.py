@@ -13,7 +13,7 @@ __all__ = ['Record']
 
 DATE_TYPES = (datetime,)
 
-INVALID_FIELD_TYPES = (dict, tuple, list, set, frozenset)
+INVALID_FIELD_TYPES = {dict, tuple, list, set, frozenset}
 
 INVALID_FIELD_ALT = {
     dict: 'Please use Mapping/MutableMapping/Dict from the typing module.',
@@ -120,7 +120,7 @@ class Record(Model, abstract=True):
             inv_type = exc.args[0]
             raise TypeError(
                 f'Invalid model field type: {inv_type.__name__}.' +
-                maybecat(INVALID_FIELD_ALT.get(inv_type, ''), prefix=' ') or '')
+                maybecat(INVALID_FIELD_ALT.get(inv_type), prefix=' ') or '')
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
