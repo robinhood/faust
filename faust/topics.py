@@ -102,6 +102,12 @@ class Topic(Channel, TopicT):
         self.config = config or {}
         self.decode = self._compile_decode()    # type: ignore
 
+    async def put(self, event: EventT) -> None:
+        if not self.is_iterator:
+            raise RuntimeError(
+                f'Cannot put on Topic channel before aiter({self})')
+        await self.queue.put(event)
+
     async def pause(self) -> None:
         await self.app.consumer.pause_topics(self.topics)
 
