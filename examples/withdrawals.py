@@ -48,7 +48,7 @@ country_to_total = app.Table(
 ).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
-@app.agent(withdrawals_topic, concurrency=1)
+@app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     async for i, withdrawal in withdrawals.enumerate():
         user_to_total[withdrawal.user] += withdrawal.amount
