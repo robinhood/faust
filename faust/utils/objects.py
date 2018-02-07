@@ -9,7 +9,7 @@ from typing import (
     Iterable, List, Mapping, MutableMapping, MutableSequence,
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
-from typing import _Protocol, _eval_type, _type_check  # type: ignore
+from typing import _eval_type, _type_check  # type: ignore
 from mode.utils.objects import cached_property
 
 try:
@@ -308,5 +308,5 @@ def guess_concrete_type(
     raise TypeError(f'Not a generic type: {typ!r}')
 
 
-def _unary_type_arg(args: List[Type]) -> Type:
+def _unary_type_arg(args: List[Type]) -> Any:
     return args[0] if args else Any
