@@ -360,5 +360,7 @@ class test_too_many_arguments_raises_TypeError():
     class Y(X):
         y: int
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError) as einfo:
         Y(10, 20, 30)
+    reason = str(einfo.value)
+    assert reason == 'Y() takes 2 positional arguments but 3 were given'
