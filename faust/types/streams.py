@@ -93,7 +93,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
     @abc.abstractmethod
     def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
-                 processors: Iterable[Processor] = None,
+                 processors: Iterable[Processor[T]] = None,
                  children: List[JoinableT] = None,
                  join_strategy: JoinT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
@@ -103,7 +103,7 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def add_processor(self, processor: Processor) -> None:
+    def add_processor(self, processor: Processor[T]) -> None:
         ...
 
     @abc.abstractmethod

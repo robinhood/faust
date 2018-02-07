@@ -77,7 +77,7 @@ class Stream(StreamT[T_co], Service):
     def __init__(self, channel: AsyncIterator[T_co] = None,
                  *,
                  app: AppT = None,
-                 processors: Iterable[Processor] = None,
+                 processors: Iterable[Processor[T]] = None,
                  children: List[JoinableT] = None,
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
@@ -150,7 +150,7 @@ class Stream(StreamT[T_co], Service):
     async def _send_to_outbox(self, value: T_contra) -> None:
         await self.outbox.put(value)
 
-    def add_processor(self, processor: Processor) -> None:
+    def add_processor(self, processor: Processor[T]) -> None:
         """Add processor callback executed whenever a new event is received.
 
         Processor functions can be async or non-async, must accept
