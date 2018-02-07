@@ -338,15 +338,18 @@ def test_subclass_preserves_required_values():
 
     class X(Record):
         x: int
+        z: int = None
 
     class Y(X):
         y: int
 
-    assert not Y._options.defaults
-    assert not Y._options.optionalset
+    assert Y._options.defaults == {'z': None}
+    assert Y._options.optionalset == {'z'}
     with pytest.raises(TypeError):
         Y(y=10)
-    Y(10, 20)
+    with pytest.raises(TypeError):
+        Y(y=10, z=10)
+    Y(x=10, y=20)
 
 
 class test_too_many_arguments_raises_TypeError():
