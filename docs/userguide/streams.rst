@@ -18,10 +18,22 @@ Basics
 A stream is an infinite async iterable, being passed messages consumed
 from a channel/topic:
 
-.. sourcecode:: pycon
+.. sourcecode:: python
 
-    s = app.stream(my_topic)
-    async for value in s:
+    @app.agent(my_topic)
+    async def process(stream):
+        async for value in s:
+            ...
+
+The above :ref:`agent <guide-agents>` is how you usually define stream
+processors in Faust, but you can also create stream objects manually
+at any point with the caveat that this can trigger a Kafka rebalance
+when doing so at runtime:
+
+.. sourcecode:: python
+
+    stream = app.stream(my_topic)  # or: my_topic.stream()
+    async for value in stream:
         ...
 
 The stream *needs to be iterated over* to be processed, it will not
