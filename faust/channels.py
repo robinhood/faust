@@ -165,7 +165,7 @@ class Event(EventT):
                 await self.app.consumer.ack(message)
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}: k={self.key!r} v={self.value!r}'
+        return f'<{type(self).__name__}: k={self.key!r} v={self.value!r}>'
 
     async def __aenter__(self) -> EventT:
         return self
