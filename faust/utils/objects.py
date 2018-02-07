@@ -33,6 +33,7 @@ __all__ = [
     'DefaultsMapping',
     'Unordered',
     'KeywordReduce',
+    'InvalidAnnotation',
     'qualname',
     'canoname',
     'annotations',
@@ -60,6 +61,10 @@ DICT_TYPES: Tuple[Type, ...] = (Dict, Mapping, MutableMapping)
 # XXX cast required for mypy bug
 # "expression has type Tuple[_SpecialForm]"
 TUPLE_TYPES: Tuple[Type, ...] = cast(Tuple[Type, ...], (Tuple,))
+
+
+class InvalidAnnotation(Exception):
+    """Raised by :func:`annotations` when encountering an invalid type."""
 
 
 @total_ordering
@@ -137,6 +142,7 @@ def _detect_main_name() -> str:
 def annotations(cls: Type,
                 *,
                 stop: Type = object,
+                invalid_types: Tuple[Type, ...] = (),
                 skip_classvar: bool = False,
                 globalns: Dict[str, Any] = None,
                 localns: Dict[str, Any] = None) -> Tuple[
@@ -146,6 +152,12 @@ def annotations(cls: Type,
     Arguments:
         cls: Class to get field information from.
         stop: Base class to stop at (default is ``object``).
+        invalid_types: Tuple of types that if encountered should raise
+          :exc:`InvalidAnnotation`.
+        globalns: Global namespace to use when evaluating forward
+            references (see :class:`typing.ForwardRef`).
+        localns: Local namespace to use when evaluating forward
+            references (see :class:`typing.ForwardRef`).
 
     Returns:
         Tuple[FieldMapping, DefaultsMapping]: Tuple with two dictionaries,
@@ -153,6 +165,10 @@ def annotations(cls: Type,
             the second containing a map of field names to their default
             value.  If a field is not in the second map, it means the field
             is required.
+
+    Raises:
+        InvalidAnnotation: if a list of invalid types are provided and an
+            invalid type is encountered.
 
     Examples:
         .. sourcecode:: text
@@ -179,6 +195,7 @@ def annotations(cls: Type,
                 subcls.__annotations__,
                 globalns if globalns is not None else _get_globalns(subcls),
                 localns,
+                invalid_types or (),
                 skip_classvar,
             ))
     return fields, defaults
@@ -187,9 +204,11 @@ def annotations(cls: Type,
 def _resolve_refs(d: Dict[str, Any],
                   globalns: Dict[str, Any] = None,
                   localns: Dict[str, Any] = None,
+                  invalid_types: Tuple[Type, ...] = (),
                   skip_classvar: bool = False) -> Iterable[Tuple[str, Type]]:
+    invalid_types = invalid_types or ()
     for k, v in d.items():
-        v = eval_type(v, globalns, localns)
+        v = eval_type(v, globalns, localns, invalid_types)
         if skip_classvar and _is_class_var(v):
             pass
         else:
@@ -198,7 +217,8 @@ def _resolve_refs(d: Dict[str, Any],
 
 def eval_type(typ: Any,
               globalns: Dict[str, Any] = None,
-              localns: Dict[str, Any] = None) -> Type:
+              localns: Dict[str, Any] = None,
+              invalid_types: Tuple[Type, ...] = None) -> Type:
     """Convert (possible) string annotation to actual type.
 
     Examples:
@@ -209,7 +229,10 @@ def eval_type(typ: Any,
     if isinstance(typ, ForwardRef):
         # On 3.6/3.7 _eval_type crashes if str references ClassVar
         typ = _ForwardRef_safe_eval(typ, globalns, localns)
-    return _eval_type(typ, globalns, localns)
+    typ = _eval_type(typ, globalns, localns)
+    if typ in invalid_types:
+        raise InvalidAnnotation(typ)
+    return typ
 
 
 def _ForwardRef_safe_eval(ref: ForwardRef,
