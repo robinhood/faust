@@ -82,7 +82,7 @@ as an :class:`asyncio.Task`, so a more practical example is:
     if __name__ == '__main__':
         app.main()
 
-You can also treat the stream as a stream of bytes values:
+You may also treat the stream as a stream of bytes values:
 
 .. sourcecode:: python
 
@@ -226,7 +226,7 @@ decreased, use ``await event.ack()``
     print(event.value)
     await event.ack()
 
- You can also use :keyword:`async event` on the event::
+ You can also use :keyword:`async for` on the event::
 
     async for event in stream.events():
         async with event:
