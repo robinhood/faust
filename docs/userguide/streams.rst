@@ -136,7 +136,110 @@ reduction after all processors are applied:
 Message Lifecycle
 =================
 
-NEED TO WRITE ACKS AND SUCH
+Kafka Topics
+------------
+
+Every Faust worker instance will start a single Kafka consumer
+responsible for fetching messages from all subscribed topics.
+
+Every message in the topic have an offset number (where the
+first message has an offset of zero), and we use a single offset
+to track the messages that consumers do not want to see again.
+
+The Kafka consumer commits the topic offsets every three
+seconds (by default, can also be configured using the
+:ref:`app-commit-interval` setting) in a background task.
+
+Since we only have one consumer and multiple agents can be subscribed
+to the same topic, we need a smart way to track when those events
+have processed so we can commit and advance the consumer group offset.
+
+We use reference counting for this, so when you define an agent that
+iterates over the topic as a stream::
+
+   @app.agent(topic)
+   async def process(stream):
+       async for value in stream:
+            print(value)
+
+The act of starting that stream iterator will add the topic to
+the TopicConductor service. This internal service is responsible for
+forwarding messages received by the consumer to the streams:
+
+.. code-block:: text
+
+  [Consumer] -> [TopicConductor] -> [Topic] -> [Stream]
+
+
+The AsyncFor is what triggers this, and the agent code above
+is roughly equivalent to::
+
+   async def custom_agent(app: App, topic: Topic):
+        topic_iterator = aiter(topic)
+        app.topics.add(topic)  # app.topics is the TopicConductor
+        stream = Stream(topic_iterator, app=app)
+        async for value in stream:
+            print(value)
+
+If two agents use streams subscribed to the same topic::
+
+   topic = app.topic('orders')
+
+    @app.agent(topic)
+    async def processA(stream):
+         async for value in stream:
+             print(f'A: {value}')
+
+    @app.agent(topic)
+     async def processB(stream):
+          async for value in stream:
+              print(f'B: {value}')
+
+The TopicConductor will forward every message received on the "orders"
+topic to both of the agents, increasing the reference count whenever
+it enters an agents stream.
+
+The reference count decreases when the event is :term:`acknowledged`,
+and when it reaches zero the consumer will consider that offset as "done" and
+can commit it.
+
+Acknowledgment
+~~~~~~~~~~~~~~
+
+The acknowledgment signifies that the event processing is complete and
+should not happen again.
+
+An event automatically acknowledged when:
+
+- The agent stream advances to a new event (``Stream.__anext__``)
+- An exception occurs in the agent during event processing.
+- The application shuts down, or a rebalance is required,
+  and the stream finished processing the event.
+
+What this means is that an event is acknowledged when your agent is
+finished handling it, but you can also manually control when it happens.
+
+To manually control when the event is acknowledged, and its reference count
+decreased, use ``await event.ack()``
+
+  async for event in stream.events():
+    print(event.value)
+    await event.ack()
+
+ You can also use :keyword:`async event` on the event::
+
+    async for event in stream.events():
+        async with event:
+            print(event.value)
+            # event acked when exiting this block
+
+Note that the conditions in automatic acknowledgment still apply
+when manually acknowledging a message.
+
+Kafka Topics
+------------
+
+Every Faust worker will start a single Kafka consumer responsible for
 
 Combining streams
 =================
