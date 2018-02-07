@@ -29,6 +29,7 @@ cover/
 .cache/
 .hypothesis/
 .mypy_cache/
+.pytest_cache/
 htmlcov/
 *-cache*
 .checkpoint
