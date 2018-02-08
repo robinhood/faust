@@ -317,13 +317,7 @@ class Consumer(base.Consumer):
                 self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', tp)
                 await self._seek_to_beginning(tp)
 
-    async def pause_topics(self, topics: Iterable[str]) -> None:
-        ...  # XXX needs implementation
-
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        ...  # XXX needs implementation
-
-    async def resume_topics(self, topics: Iterable[str]) -> None:
         ...  # XXX needs implementation
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:

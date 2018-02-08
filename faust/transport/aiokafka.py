@@ -256,26 +256,15 @@ class Consumer(base.Consumer):
             tp: self._new_offsetandmetadata(offset, meta),
         })
 
-    async def pause_topics(self, topics: Iterable[str]) -> None:
-        return await self.pause_partitions(self._tps_for_topic(topics))
-
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
         tpset = set(tps)
         self._get_active_partitions().difference_update(tpset)
         self._paused_partitions.update(tpset)
 
-    async def resume_topics(self, topics: Iterable[str]) -> None:
-        await self.resume_partitions(self._tps_for_topic(topics))
-
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
         tpset = set(tps)
         self._get_active_partitions().update(tps)
         self._paused_partitions.difference_update(tpset)
-
-    def _tps_for_topic(self, topics: Iterable[str]) -> Iterable[TP]:
-        for tp in self.assignment():
-            if tp.topic in topics:
-                yield tp
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)

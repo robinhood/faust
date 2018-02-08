@@ -96,15 +96,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def pause_topics(self, topics: Iterable[str]) -> None:
-        ...
-
-    @abc.abstractmethod
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def resume_topics(self, topics: Iterable[str]) -> None:
         ...
 
     @abc.abstractmethod

@@ -108,12 +108,6 @@ class Topic(Channel, TopicT):
                 f'Cannot put on Topic channel before aiter({self})')
         await self.queue.put(event)
 
-    async def pause(self) -> None:
-        await self.app.consumer.pause_topics(self.topics)
-
-    async def resume(self) -> None:
-        await self.app.consumer.resume_topics(self.topics)
-
     def _compile_decode(self) -> Callable[[Message], Awaitable[EventT]]:
         app = self.app
         key_type = self.key_type
