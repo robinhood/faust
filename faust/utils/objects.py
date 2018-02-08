@@ -142,7 +142,7 @@ def _detect_main_name() -> str:
 def annotations(cls: Type,
                 *,
                 stop: Type = object,
-                invalid_types: Set[Type] = None,
+                invalid_types: Set = None,
                 skip_classvar: bool = False,
                 globalns: Dict[str, Any] = None,
                 localns: Dict[str, Any] = None) -> Tuple[
@@ -204,7 +204,7 @@ def annotations(cls: Type,
 def _resolve_refs(d: Dict[str, Any],
                   globalns: Dict[str, Any] = None,
                   localns: Dict[str, Any] = None,
-                  invalid_types: Set[Type] = None,
+                  invalid_types: Set = None,
                   skip_classvar: bool = False) -> Iterable[Tuple[str, Type]]:
     invalid_types = invalid_types or set()
     for k, v in d.items():
@@ -218,7 +218,7 @@ def _resolve_refs(d: Dict[str, Any],
 def eval_type(typ: Any,
               globalns: Dict[str, Any] = None,
               localns: Dict[str, Any] = None,
-              invalid_types: Set[Type] = None) -> Type:
+              invalid_types: Set = None) -> Type:
     """Convert (possible) string annotation to actual type.
 
     Examples:
