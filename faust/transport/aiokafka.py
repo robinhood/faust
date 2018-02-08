@@ -182,14 +182,19 @@ class Consumer(base.Consumer):
             timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
 
+        active_partitions = self._get_active_partitions()
+
         records = await _consumer._fetcher.fetched_records(
-            self._get_active_partitions(), timeout,
+            active_partitions, timeout,
             max_records=_consumer._max_poll_records,
         )
         create_message = Message  # localize
 
         iterators = []
         for tp, messages in records.items():
+            if tp not in active_partitions:
+                self.log.dev(f'SKIP PAUSED PARTITION: {tp}')
+                continue
             iterators.append((
                 tp,
                 (create_message(
