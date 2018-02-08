@@ -39,6 +39,10 @@ def server_list(url: URL, default_port: int) -> str:
     )
 
 
+def _ensure_TP(tp: _TPTypes) -> TP:
+    return tp if isinstance(tp, TP) else TP(tp.topic, tp.partition)
+
+
 class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
     # kafka's ridiculous class based callback interface makes this hacky.
 
@@ -239,15 +243,15 @@ class Consumer(base.Consumer):
         read_offset = self._read_offset
         seek = self._consumer.seek
         for tp in self._consumer.assignment():
-            tp = cast(TP, tp)
+            ftp: TP = _ensure_TP(tp)
             checkpoint = await self._consumer.committed(tp)
             if checkpoint is not None:
-                read_offset[tp] = checkpoint
+                read_offset[ftp] = checkpoint
                 self.log.dev('PERFORM SEEK SOURCE TOPIC: %r -> %r',
-                             tp, checkpoint)
+                             ftp, checkpoint)
                 seek(tp, checkpoint)
             else:
-                self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', tp)
+                self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', ftp)
                 await self._seek_to_beginning(tp)
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
@@ -271,6 +275,7 @@ class Consumer(base.Consumer):
 
     async def _seek_to_beginning(self, *partitions: TP) -> None:
         self.log.dev('SEEK TO BEGINNING: %r', partitions)
+        self._read_offset.update((_ensure_TP(tp), None) for tp in partitions)
         await self._consumer.seek_to_beginning(*(
             self._new_topicpartition(tp.topic, tp.partition)
             for tp in partitions
@@ -278,7 +283,7 @@ class Consumer(base.Consumer):
 
     async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)
-        self._read_offset[partition] = offset
+        self._read_offset[_ensure_TP(partition)] = offset
         self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
