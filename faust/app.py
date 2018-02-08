@@ -28,7 +28,6 @@ from aiohttp.client import ClientSession
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.utils.aiter import aiter
-from mode.utils.compat import OrderedDict
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.types.trees import NodeT
@@ -37,7 +36,9 @@ from yarl import URL
 
 from . import __version__ as faust_version
 from . import transport
-from .agents import Agent, AgentFun, AgentT, ReplyConsumer, SinkT
+from .agents import (
+    Agent, AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
+)
 from .assignor import LeaderAssignor, PartitionAssignor
 from .channels import Channel, ChannelT
 from .cli._env import DATADIR
@@ -424,7 +425,7 @@ class App(AppT, ServiceProxy):
             self, replicas=self.num_standby_replicas)
         self.router = Router(self)
         self.table_route = self.router.router
-        self.agents = OrderedDict()
+        self.agents = AgentManager()
         self.sensors = SensorDelegate(self)
         self.store = URL(store)
         self._monitor = monitor
@@ -1081,6 +1082,7 @@ class App(AppT, ServiceProxy):
                 await self.consumer.wait_empty()
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
+            await self.agents.restart()
         except Exception as exc:
             await self.crash(exc)
 

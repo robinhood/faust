@@ -25,6 +25,7 @@ __all__ = [
     'AgentFun',
     'ActorT',
     'ActorRefT',
+    'AgentManagerT',
     'AgentT',
     'AgentTestWrapperT',
     'AsyncIterableActorT',
@@ -207,6 +208,10 @@ class AgentT(ServiceT):
     @channel_iterator.setter
     def channel_iterator(self, channel: AsyncIterator) -> None:
         ...
+
+
+class AgentManagerT(MutableMapping[str, AgentT]):
+    app: AppT
 
 
 class AgentTestWrapperT(AgentT, AsyncIterable):

@@ -4,8 +4,8 @@ import typing
 
 from pathlib import Path
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Iterable, List,
-    Mapping, MutableMapping, Pattern, Tuple, Type, Union,
+    Any, AsyncIterable, Awaitable, Callable, Iterable,
+    List, Mapping, Pattern, Tuple, Type, Union,
 )
 
 from aiohttp.client import ClientSession
@@ -15,7 +15,7 @@ from mode.utils.imports import SymbolArg
 from mode.utils.types.trees import NodeT
 from yarl import URL
 
-from .agents import AgentFun, AgentT, SinkT
+from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
@@ -109,7 +109,7 @@ class AppT(ServiceT):
     autodiscover: AutodiscoverArg
     stream_buffer_maxsize: int
 
-    agents: MutableMapping[str, AgentT]
+    agents: AgentManagerT
     sensors: SensorDelegateT
     serializers: RegistryT
     pages: List[Tuple[str, Type[Site]]]

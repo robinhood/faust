@@ -1,6 +1,6 @@
 """Abstract types for static typing."""
 from mode import ServiceT
-from .agents import AgentT
+from .agents import AgentManagerT, AgentT
 from .app import AppT
 from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
@@ -34,7 +34,7 @@ __all__ = [
     'ServiceT',
 
     # types.agents
-    'AgentT',
+    'AgentManagerT', 'AgentT',
 
     # types.app
     'AppT',
