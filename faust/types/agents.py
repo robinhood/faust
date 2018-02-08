@@ -213,6 +213,10 @@ class AgentT(ServiceT):
 class AgentManagerT(MutableMapping[str, AgentT]):
     app: AppT
 
+    @abc.abstractmethod
+    async def restart(self) -> None:
+        ...
+
 
 class AgentTestWrapperT(AgentT, AsyncIterable):
 
