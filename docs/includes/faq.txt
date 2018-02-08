@@ -122,3 +122,12 @@ Will you support Python 2?
 
 There are no plans to support Python 2, but you are welcome to contribute to
 the project (details in the question above is relevant also for Python 2).
+
+
+I get a maximum number of open files exceeded error by RocksDB when running a
+Faust app locally. How can I fix this?
+--------------------------
+
+You need to increase the limit for the maximum number of open files. The
+following post explains how to do so on OS X:
+https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
