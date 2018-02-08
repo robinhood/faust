@@ -58,11 +58,11 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         # remove recently revoked tps from set of paused tps.
         consumer._paused_partitions.intersection_update(_assigned)
         # cache set of assigned partitions
-        _active = cast(Set[TP], consumer._set_active_tps(_assigned))
+        cast(Set[TP], consumer._set_active_tps(_assigned))
         # start callback chain of assigned callbacks.
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
-        await consumer.on_partitions_assigned(set(_active))
+        await consumer.on_partitions_assigned(_assigned)
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
