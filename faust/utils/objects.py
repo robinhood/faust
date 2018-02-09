@@ -231,7 +231,7 @@ def eval_type(typ: Any,
         >>> eval_type('List[int]') == typing.List[int]
     """
     invalid_types = invalid_types or set()
-    alias_types = alias_types or set()
+    alias_types = alias_types or {}
     if isinstance(typ, str):
         typ = ForwardRef(typ)
     if isinstance(typ, ForwardRef):
