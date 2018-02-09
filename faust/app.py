@@ -76,6 +76,9 @@ __all__ = ['App']
 #: Broker URL, used as default for ``app.broker``.
 BROKER_URL = 'kafka://localhost:9092'
 
+#: Table storage URL, used as default for ``app.store``.
+STORE_URL = 'memory://'
+
 #: Table state directory path used as default for ``app.tabledir``.
 #: This path will be treated as relative to datadir, unless the provided
 #: poth is absolute.
@@ -126,6 +129,8 @@ APP_REPR = """
 <{name}({s.id}): {s.broker} {s.state} agents({agents}) topics({topics})>
 """.strip()
 
+# Venusian decorator scan categories.
+
 SCAN_CATEGORY_AGENT = 'faust.agent'
 SCAN_CATEGORY_COMMAND = 'faust.command'
 SCAN_CATEGORY_PAGE = 'faust.page'
@@ -148,6 +153,15 @@ SCAN_CATEGORIES: Iterable[str] = [
 SCAN_IGNORE: Iterable[str] = ['test_.*']
 
 E_NEED_ORIGIN = """
+`origin` argument to faust.App is mandatory when autodiscovery enabled.
+
+This parameter sets the canonical path to the project package,
+and describes how a user, or program can find it on the command-line when using
+the `faust -A project` option.  It's also used as the default package
+to scan when autodiscovery is enabled.
+
+If your app is defined in a module: ``project/app.py``, then the
+origin will be "project":
 
     # file: project/app.py
     import faust
@@ -160,6 +174,9 @@ E_NEED_ORIGIN = """
 
 
 class _AttachedHeapEntry(NamedTuple):
+    # Tuple used in heapq entry for app._pending_on_commit.
+    # These are used to send messages when an offset is committed
+    # (sending of the message is attached to an offset in a source topic).
     offset: int
     message: Unordered[FutureMessage]
 
@@ -167,14 +184,11 @@ class _AttachedHeapEntry(NamedTuple):
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
 
-    # The App/AppService split is here for the convenience of badly
-    # written programs.
-
     # The App() is created during module import and cannot subclass Service
     # directly as Service.__init__ creates the asyncio event loop, and
     # creating the event loop as a side effect of importing a module
     # is a dangerous practice (e.g., if you switch to uvloop after you can
-    # end up in a situation where some services use the old event loop).
+    # end up in a situation where some services use the old loop).
 
     # To solve this we use ServiceProxy to split into App + AppService,
     # in a way such that the AppService is started lazily when first needed.
@@ -251,8 +265,22 @@ class AppService(Service):
                 'Attempting to start app that has no agents')
 
     async def on_started(self) -> None:
+        # Wait for table recovery to complete.
         await self.wait(self.app.tables.recovery_completed.wait())
+
         # Add all asyncio.Tasks, like timers, etc.
+        await self.on_started_init_extra_tasks()
+
+        # Start user-provided services.
+        await self.on_started_init_extra_services()
+
+        # Call the app-is-fully-started callback used by Worker
+        # to print the "ready" message that signals to the user that
+        # the worker is ready to start processing.
+        if self.app.on_startup_finished:
+            await self.app.on_startup_finished()
+
+    async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:
             # pass app if decorated function takes argument
             target: Any
@@ -262,16 +290,7 @@ class AppService(Service):
                 target = cast(Callable[[], Awaitable], task)()
             self.add_future(target)
 
-        await self.on_started_init_extra_services()
-
-        # Call the app-is-fully-started callback used by Worker
-        # to print the "ready" message that signals to the user that
-        # the worker is ready to start processing.
-        if self.app.on_startup_finished:
-            await self.app.on_startup_finished()
-
     async def on_started_init_extra_services(self) -> None:
-        # Start user-provided services.
         if self._extra_service_instances is None:
             # instantiate the services added using the @app.service decorator.
             self._extra_service_instances = [
@@ -326,9 +345,6 @@ class App(AppT, ServiceProxy):
     # Default consumer instance.
     _consumer: ConsumerT = None
 
-    # Set when consumer is started.
-    _consumer_started: bool = False
-
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
@@ -362,7 +378,7 @@ class App(AppT, ServiceProxy):
             *,
             version: int = 1,
             broker: Union[str, URL] = BROKER_URL,
-            store: Union[str, URL] = 'memory://',
+            store: Union[str, URL] = STORE_URL,
             autodiscover: AutodiscoverArg = False,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
