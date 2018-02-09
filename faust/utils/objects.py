@@ -143,6 +143,7 @@ def annotations(cls: Type,
                 *,
                 stop: Type = object,
                 invalid_types: Set = None,
+                alias_types: Mapping = None,
                 skip_classvar: bool = False,
                 globalns: Dict[str, Any] = None,
                 localns: Dict[str, Any] = None) -> Tuple[
@@ -154,6 +155,7 @@ def annotations(cls: Type,
         stop: Base class to stop at (default is ``object``).
         invalid_types: Set of types that if encountered should raise
           :exc:`InvalidAnnotation` (does not test for subclasses).
+        alias_types: Mapping of original type to replacement type.
         globalns: Global namespace to use when evaluating forward
             references (see :class:`typing.ForwardRef`).
         localns: Local namespace to use when evaluating forward
@@ -196,6 +198,7 @@ def annotations(cls: Type,
                 globalns if globalns is not None else _get_globalns(subcls),
                 localns,
                 invalid_types or set(),
+                alias_types or {},
                 skip_classvar,
             ))
     return fields, defaults
@@ -205,10 +208,12 @@ def _resolve_refs(d: Dict[str, Any],
                   globalns: Dict[str, Any] = None,
                   localns: Dict[str, Any] = None,
                   invalid_types: Set = None,
+                  alias_types: Mapping = None,
                   skip_classvar: bool = False) -> Iterable[Tuple[str, Type]]:
     invalid_types = invalid_types or set()
+    alias_types = alias_types or {}
     for k, v in d.items():
-        v = eval_type(v, globalns, localns, invalid_types)
+        v = eval_type(v, globalns, localns, invalid_types, alias_types)
         if skip_classvar and _is_class_var(v):
             pass
         else:
@@ -218,13 +223,15 @@ def _resolve_refs(d: Dict[str, Any],
 def eval_type(typ: Any,
               globalns: Dict[str, Any] = None,
               localns: Dict[str, Any] = None,
-              invalid_types: Set = None) -> Type:
+              invalid_types: Set = None,
+              alias_types: Mapping = None) -> Type:
     """Convert (possible) string annotation to actual type.
 
     Examples:
         >>> eval_type('List[int]') == typing.List[int]
     """
     invalid_types = invalid_types or set()
+    alias_types = alias_types or set()
     if isinstance(typ, str):
         typ = ForwardRef(typ)
     if isinstance(typ, ForwardRef):
@@ -233,7 +240,7 @@ def eval_type(typ: Any,
     typ = _eval_type(typ, globalns, localns)
     if typ in invalid_types:
         raise InvalidAnnotation(typ)
-    return typ
+    return alias_types.get(typ, typ)
 
 
 def _ForwardRef_safe_eval(ref: ForwardRef,

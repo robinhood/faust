@@ -368,56 +368,44 @@ class test_too_many_arguments_raises_TypeError():
 
 def test_fields_with_way_too_much_of_a_concrete_type__dict():
 
-    with pytest.raises(TypeError) as einfo:
-        class X(Record, isodates=True):
-            foo: int
-            details: dict
-    assert 'dict. Please use Mapping/MutableMapping/Dict' in str(einfo.value)
+    class X(Record, isodates=True):
+        foo: int
+        details: dict
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__dict_optional():
 
-    with pytest.raises(TypeError) as einfo:
-        class X(Record, isodates=True):
-            username: str
-            metric_name: str
-            value: float
-            timestamp: datetime
-            details: dict = None
-    assert 'dict. Please use Mapping/MutableMapping/Dict' in str(einfo.value)
+    class X(Record, isodates=True):
+        username: str
+        metric_name: str
+        value: float
+        timestamp: datetime
+        details: dict = None
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__tuple():
 
-    with pytest.raises(TypeError) as einfo:
-        class X(Record, isodates=True):
-            foo: int
-            details: tuple
-    assert 'tuple. Please use Tuple from the typing module' in str(einfo.value)
+    class X(Record, isodates=True):
+        foo: int
+        details: tuple
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__list():
 
-    with pytest.raises(TypeError) as einfo:
-        class X(Record, isodates=True):
-            foo: int
-            details: list
-    assert 'list. Please use Sequence/MutableSequence/List' in str(einfo.value)
+    class X(Record, isodates=True):
+        foo: int
+        details: list
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__set():
 
-    with pytest.raises(TypeError) as einfo:
-        class X(Record, isodates=True):
-            foo: int
-            details: set
-    assert 'set. Please use Set/AbstractSet/FrozenSet' in str(einfo.value)
+    class X(Record, isodates=True):
+        foo: int
+        details: set
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__frozenset():
 
-    with pytest.raises(TypeError) as einfo:
-        class X(Record, isodates=True):
-            foo: int
-            details: frozenset
-    assert 'frozenset. Please use FrozenSet from the' in str(einfo.value)
+    class X(Record, isodates=True):
+        foo: int
+        details: frozenset

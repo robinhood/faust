@@ -1,7 +1,8 @@
 """Record - Dictionary Model."""
 from datetime import datetime
 from typing import (
-    Any, Callable, Dict, Iterable, Mapping, Optional, Tuple, Type, cast,
+    Any, Callable, Dict, FrozenSet, Iterable, List,
+    Mapping, Optional, Set, Tuple, Type, cast,
 )
 from mode.utils.text import maybecat, pluralize
 from .base import FieldDescriptor, Model
@@ -13,14 +14,12 @@ __all__ = ['Record']
 
 DATE_TYPES = (datetime,)
 
-INVALID_FIELD_TYPES = {dict, tuple, list, set, frozenset}
-
-INVALID_FIELD_ALT = {
-    dict: 'Please use Mapping/MutableMapping/Dict from the typing module.',
-    tuple: 'Please use Tuple from the typing module.',
-    list: 'Please use Sequence/MutableSequence/List from the typing module.',
-    set: 'Please use Set/AbstractSet/FrozenSet from the typing module.',
-    frozenset: 'Please use FrozenSet from the typing module.',
+ALIAS_FIELD_TYPES = {
+    dict: Dict,
+    tuple: Tuple,
+    list: List,
+    set: Set,
+    frozenset: FrozenSet,
 }
 
 # Models can refer to other models:
@@ -109,18 +108,12 @@ class Record(Model, abstract=True):
         # Find attributes and their types, and create indexes for these.
         # This only happens once when the class is created, so Faust
         # models are fast at runtime.
-        try:
-            fields, defaults = annotations(
-                cls,
-                stop=Record,
-                skip_classvar=True,
-                invalid_types=INVALID_FIELD_TYPES,
-            )
-        except InvalidAnnotation as exc:
-            inv_type = exc.args[0]
-            raise TypeError(
-                f'Invalid model field type: {inv_type.__name__}.' +
-                maybecat(INVALID_FIELD_ALT.get(inv_type), prefix=' ') or '')
+        fields, defaults = annotations(
+            cls,
+            stop=Record,
+            skip_classvar=True,
+            alias_types=ALIAS_FIELD_TYPES,
+        )
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
