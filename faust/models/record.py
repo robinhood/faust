@@ -4,11 +4,11 @@ from typing import (
     Any, Callable, Dict, FrozenSet, Iterable, List,
     Mapping, Optional, Set, Tuple, Type, cast,
 )
-from mode.utils.text import maybecat, pluralize
+from mode.utils.text import pluralize
 from .base import FieldDescriptor, Model
 from ..types.models import Converter, FieldDescriptorT, ModelOptions, ModelT
 from ..utils import iso8601
-from ..utils.objects import InvalidAnnotation, annotations, guess_concrete_type
+from ..utils.objects import annotations, guess_concrete_type
 
 __all__ = ['Record']
 
