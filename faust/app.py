@@ -1204,8 +1204,9 @@ class App(AppT, ServiceProxy):
         This is the mediator that moves messages fetched by the Consumer
         into the correct Topic instances.
 
-        It's also a set of registered topics, so you can check
-        if a topic is being consumed from by doing ``topic in app.topics``.
+        It's also a set of registered topics by string topic name, so you
+        can check if a topic is being consumed from by doing
+        ``topic in app.topics``.
         """
         return TopicConductor(app=self, loop=self.loop, beacon=self.beacon)
 
