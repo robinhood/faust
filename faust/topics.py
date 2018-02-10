@@ -393,7 +393,7 @@ class TopicConductor(ConductorT, Service):
                 # we increment the reference count for this message in bulk
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
-                message.incref_bulk(channels)
+                message.incref(len(channels))
                 if topic in self._acking_topics:
                     await consumer.track_message(message)
 

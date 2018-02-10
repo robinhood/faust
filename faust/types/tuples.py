@@ -1,7 +1,6 @@
 import asyncio
 import typing
 from typing import Any, Awaitable, Callable, Dict, NamedTuple, Sequence, Union
-from weakref import WeakSet
 from .codecs import CodecArg
 from .core import K, V
 
@@ -72,7 +71,6 @@ class Message:
         'serialized_value_size',
         'acked',
         'refcount',
-        'channels',
         'time_in',
         'time_out',
         'time_total',
@@ -108,11 +106,6 @@ class Message:
         self.refcount: int = 0
         self.tp = tp if tp is not None else TP(topic, partition)
 
-        if typing.TYPE_CHECKING:
-            # mypy supports this, but Python doesn't.
-            self.channels: WeakSet[ChannelT] = WeakSet()
-        else:
-            self.channels = WeakSet()
         #: Monotonic timestamp of when the consumer received this message.
         self.time_in: float = time_in
         #: Monotonic timestamp of when the consumer acknowledged this message.
@@ -130,13 +123,8 @@ class Message:
         #:   }
         self.stream_meta: Dict[int, Any] = {}
 
-    def incref(self, channel: ChannelT = None, n: int = 1) -> None:
-        self.channels.add(channel)
+    def incref(self, n: int = 1) -> None:
         self.refcount += n
-
-    def incref_bulk(self, channels: Sequence[ChannelT]) -> None:
-        self.channels.update(channels)
-        self.refcount += len(channels)
 
     def decref(self, n: int = 1) -> None:
         self.refcount = max(self.refcount - 1, 0)
