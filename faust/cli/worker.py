@@ -32,10 +32,11 @@ import platform
 import socket
 import typing
 from typing import Any
+import click
 from mode.utils.logging import level_name
 from yarl import URL
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
-from .base import AppCommand, option
+from .base import AppCommand, TCPPort, WritableFilePath, option
 from .. import __version__ as faust_version
 
 if typing.TYPE_CHECKING:
@@ -47,26 +48,42 @@ __all__ = ['worker']
 
 FAUST = 'ƒaµS†'
 
+LOGLEVELS = (
+    'CRIT',
+    'ERROR',
+    'WARN',
+    'INFO',
+    'DEBUG',
+)
+
+DEFAULT_LOGLEVEL = 'WARN'
+
 
 class worker(AppCommand):
     """Start worker instance."""
 
     options = [
-        option('--logfile', '-f', default=None,
+        option('--logfile', '-f',
+               default=None,
+               type=WritableFilePath(),
                help='Path to logfile (default is <stderr>).'),
-        option('--loglevel', '-l', default='WARN',
-               help='Logging level to use: CRIT|ERROR|WARN|INFO|DEBUG.'),
+        option('--loglevel', '-l',
+               default=DEFAULT_LOGLEVEL,
+               type=click.Choice(LOGLEVELS),
+               help='Logging level to use.'),
         option('--blocking-timeout',
                default=BLOCKING_TIMEOUT, type=float,
                help='Blocking detector timeout (requires --debug).'),
-        option('--web-port', '-p', default=WEB_PORT, type=int,
+        option('--web-port', '-p',
+               default=WEB_PORT,
+               type=TCPPort(),
                help='Port to run web server on.'),
         option('--web-bind', '-b', default=WEB_BIND, type=str),
         option('--web-host', '-h',
                default=socket.gethostname(), type=str,
                help='Canonical host name for the web server.'),
         option('--console-port',
-               default=50101, type=int,
+               default=50101, type=TCPPort(),
                help='Port to run aiomonitor console on when --debug.'),
     ]
 

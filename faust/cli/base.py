@@ -24,6 +24,9 @@ from ..utils import termtable
 __all__ = [
     'AppCommand',
     'Command',
+    'TCPPort',
+    'WritableDirectory',
+    'WritableFilePath',
     'argument',
     'cli',
     'find_app',
@@ -34,6 +37,55 @@ __all__ = [
 argument = click.argument
 option = click.option
 
+LOOP_CHOICES = ('aio', 'gevent', 'eventlet', 'uvloop')
+DEFAULT_LOOP = 'aio'
+
+
+class TCPPort(click.IntRange):
+    name = 'range[1-65535]'
+
+    def __init__(self) -> None:
+        super().__init__(1, 65535)
+
+
+class WritableDirectory(click.Path):
+
+    def __init__(self,
+                 exists: bool = False,
+                 file_okay: bool = False,
+                 dir_okay: bool = True,
+                 writable: bool = True,
+                 readable: bool = True,
+                 **kwargs: Any) -> None:
+        super().__init__(
+            exists=exists,
+            file_okay=file_okay,
+            dir_okay=dir_okay,
+            writable=writable,
+            readable=readable,
+            **kwargs)
+
+
+class WritableFilePath(click.Path):
+
+    def __init__(self,
+                 exists: bool = False,
+                 file_okay: bool = True,
+                 dir_okay: bool = False,
+                 writable: bool = True,
+                 readable: bool = True,
+                 allow_dash: bool = True,
+                 **kwargs: Any) -> None:
+        super().__init__(
+            exists=exists,
+            file_okay=file_okay,
+            dir_okay=dir_okay,
+            writable=writable,
+            readable=readable,
+            allow_dash=allow_dash,
+            **kwargs)
+
+
 builtin_options: Sequence[Callable] = [
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
@@ -43,14 +95,20 @@ builtin_options: Sequence[Callable] = [
            help='Enable debugging output, and the blocking detector.'),
     option('--color/--no-color', default=True,
            help='Enable colors in output.'),
-    option('--workdir', '-W', default=WORKDIR,
+    option('--workdir', '-W',
+           default=WORKDIR,
+           type=WritableDirectory(),
            help='Working directory to change to after start.'),
-    option('--datadir', default=DATADIR,
+    option('--datadir', '-D',
+           default=DATADIR,
+           type=WritableDirectory(),
            help='Directory to keep application state.'),
     option('--json/--no-json', default=False,
            help='Prefer data to be emitted in json format.'),
-    option('--loop', '-L', default='aio',
-           help='Event loop implementation to use: aio, gevent, uvloop.'),
+    option('--loop', '-L',
+           default=DEFAULT_LOOP,
+           type=click.Choice(LOOP_CHOICES),
+           help='Event loop implementation to use.'),
 ]
 
 
