@@ -6,14 +6,14 @@ from collections import defaultdict
 from functools import partial
 from typing import (
     Any, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Sequence, Set, Union, cast,
+    MutableMapping, Optional, Pattern, Sequence, Set, Tuple, Union, cast,
 )
 from mode import Seconds, Service, get_logger
 from mode.utils.futures import ThrowableQueue, notify, stampede
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, EventT, FutureMessage, K, Message,
+    AppT, CodecArg, ConsumerT, EventT, FutureMessage, K, Message,
     ModelArg, PendingMessage, RecordMetadata, TP, V,
 )
 from .types.topics import ChannelT, ConductorT, TopicT
@@ -375,37 +375,65 @@ class TopicConductor(ConductorT, Service):
         return await self.app.consumer.commit(topics)
 
     def _compile_message_handler(self) -> ConsumerCallback:
-        list_ = list
+        # This method localizes variables and attribute access
+        # for better performance.  This is part of the inner loop
+        # of a Faust worker, so tiny improvements here has big impact.
+
         # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
-        consumer = None
+        consumer: ConsumerT = None
+        consumer_id: int = None
+        on_message_in = self.app.sensors.on_message_in
+        unacked: Set[Message] = None
+        add_unacked: Callable[[Message], None] = None
+        acquire_flow_control: Callable = self.app.flow_control.acquire
+        len_: Callable[[Any], int] = len
+        acking_topics: Set[str] = self._acking_topics
 
         async def on_message(message: Message) -> None:
-            nonlocal consumer
+            nonlocal consumer, consumer_id, unacked, add_unacked
             if consumer is None:
                 consumer = self.app.consumer
+                consumer_id = consumer.id
+                unacked = consumer._unacked_messages
+                add_unacked = unacked.add
             # when a message is received we find all channels
             # that subscribe to this message
             topic = message.topic
-            channels = list_(get_channels_for_topic(topic))
-            await self.app.flow_control.acquire()
-            if channels:
+            channels = get_channels_for_topic(topic)
+            channels_n = len_(channels)
+            await acquire_flow_control()
+            if channels_n:
                 # we increment the reference count for this message in bulk
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
-                message.incref(len(channels))
-                if topic in self._acking_topics:
-                    await consumer.track_message(message)
+                message.incref(channels_n)
+                if topic in acking_topics and message not in unacked:
+                    # This inlines Consumer.track_message(message)
+                    add_unacked(message)
+                    await on_message_in(
+                        consumer_id, message.tp, message.offset, message)
 
-                first_channel = channels[0]
-                keyid = first_channel.key_type, first_channel.value_type
-                event = await first_channel.decode(message)
-
-                for channel in channels:
-                    if (channel.key_type, channel.value_type) == keyid:
-                        await channel.put(event)
+                event: EventT = None
+                event_keyid: Tuple[K, V] = None
+                # forward message to all channels subscribing to this topic
+                for chan in channels:
+                    keyid = chan.key_type, chan.value_type
+                    if event is None:
+                        # first channel deserializes the payload:
+                        event, event_keyid = await chan.decode(message), keyid
+                        await chan.put(event)
                     else:
-                        await channel.deliver(message)
+                        # subsequent channels may have a different key/value
+                        # type pair, meaning they all can deserialize the
+                        # message in different ways.
+
+                        # If it uses the same type pair, reuse the same event:
+                        if keyid == event_keyid:
+                            await chan.put(event)
+                        else:
+                            # otherwise deserialize again:
+                            await chan.deliver(message)
         return on_message
 
     def acks_enabled_for(self, topic: str) -> bool:
