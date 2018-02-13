@@ -88,11 +88,11 @@ Add a simple page returning a JSON structure by adding this to your app module:
     count = [0]
 
     @app.page('/count/')
-    async def get_count(web, request):
+    async def get_count(self, request):
         # update the counter
         count[0] + 1
         # and return it.
-        return web.json({
+        return self.json({
             'count': count[0],
         })
 

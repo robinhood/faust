@@ -44,16 +44,17 @@ else:
     class ModelArg: ...       # noqa
     class Request: ...        # noqa
     class Response: ...       # noqa
-    class Web: ...            # noqa
     class Site: ...           # noqa
     class View: ...           # noqa
     class WorkerT: ...        # noqa
+    class Web: ...            # noqa
 
 __all__ = [
     'TaskArg',
     'ViewGetHandler',
     'PageArg',
     'AutodiscoverArg',
+    'Web',
     'AppT',
 ]
 
@@ -62,7 +63,7 @@ TaskArg = Union[
     Callable[['AppT'], Awaitable],
     Callable[[], Awaitable],
 ]
-ViewGetHandler = Callable[[Web, Request], Awaitable[Response]]
+ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
 RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
 AutodiscoverArg = Union[

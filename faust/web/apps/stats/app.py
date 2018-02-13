@@ -3,7 +3,7 @@ from collections import defaultdict
 from typing import List, MutableMapping, Set
 from faust.types.topics import TP
 from faust.web import views
-from faust.web.base import Request, Response, Web
+from faust.web.base import Request, Response
 
 __all__ = ['Assignment', 'Stats', 'Site']
 
@@ -16,8 +16,8 @@ class Stats(views.View):
 
     package = 'faust.web.apps.stats'
 
-    async def get(self, web: Web, request: Request) -> Response:
-        return web.json({
+    async def get(self, request: Request) -> Response:
+        return self.json({
             f'Sensor{i}': s.asdict()
             for i, s in enumerate(self.app.sensors)
         })
@@ -35,9 +35,9 @@ class Assignment(views.View):
             tps[tp.topic].append(tp.partition)
         return dict(tps)
 
-    async def get(self, web: Web, request: Request) -> Response:
+    async def get(self, request: Request) -> Response:
         assignor = self.app.assignor
-        return web.json({
+        return self.json({
             'actives': self._topic_grouped(assignor.assigned_actives()),
             'standbys': self._topic_grouped(assignor.assigned_standbys()),
         })

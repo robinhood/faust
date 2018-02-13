@@ -844,7 +844,7 @@ class App(AppT, ServiceProxy):
                 if callable(handler):
                     name = handler.__name__
                     view = type(name, (View,), {
-                        'get': staticmethod(handler),
+                        'get': handler,
                         __doc__: handler.__doc__,
                         '__module__': handler.__module__,
                     })

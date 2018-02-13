@@ -59,12 +59,6 @@ class Web(Service):
     def route(self, pattern: str, handler: Callable) -> None:
         ...
 
-    def notfound(self, reason: str = 'Not Found', **kwargs: Any) -> Response:
-        return self.error(404, reason, **kwargs)
-
-    def error(self, status: int, reason: str, **kwargs: Any) -> Response:
-        return self.json({'error': reason, **kwargs}, status=status)
-
     @property
     def url(self) -> URL:
         return URL(f'http://localhost:{self.port}/')

@@ -4,7 +4,7 @@ from typing import Tuple
 from yarl import URL
 from .types.app import (
     AppT, Request, Response, RoutedViewGetHandler,
-    ViewGetHandler, Web,
+    ViewGetHandler, Web, View,
 )
 from .types.assignor import PartitionAssignorT
 from .types.core import K
@@ -13,7 +13,7 @@ from .types.tables import CollectionT
 
 
 class SameNode(Exception):
-    ...
+    """Exception raised by router when data is located on same node."""
 
 
 class Router(RouterT):
@@ -55,12 +55,13 @@ class Router(RouterT):
         def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
 
             @wraps(fun)
-            async def get(web: Web, request: Request) -> Response:
+            async def get(view: View, request: Request) -> Response:
                 key = request.query[shard_param]
                 try:
-                    return await self.route_req(table.name, key, web, request)
+                    return await self.route_req(
+                        table.name, key, view.web, request)
                 except SameNode:
-                    return await fun(web, request)
+                    return await fun(view, request)
             return get
 
         return _decorator
