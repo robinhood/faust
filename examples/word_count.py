@@ -49,8 +49,7 @@ async def get_count(web, request):
 async def sender():
     for word in WORDS:
         for _ in range(1000):
-            await count_words.send(key=word, value=Word(word=word))
-            #await shuffle_words.send(value=word)
+            await shuffle_words.send(value=word)
 
     await asyncio.sleep(5.0)
     print(word_counts.as_ansitable(

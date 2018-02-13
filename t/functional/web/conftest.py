@@ -1,7 +1,7 @@
 from unittest.mock import Mock
-import pytest
 from faust.router import SameNode
 from faust.web.site import Website
+import pytest
 
 BASE_PORT = 6066
 

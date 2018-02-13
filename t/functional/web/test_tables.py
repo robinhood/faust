@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.fixture()
 def table_foo(app):
     return app.Table('foo-table', help='First table.')
@@ -8,6 +9,7 @@ def table_foo(app):
 @pytest.fixture()
 def table_bar(app):
     return app.Table('bar-table', help='Second table.')
+
 
 @pytest.fixture()
 def tables(table_foo, table_bar):
