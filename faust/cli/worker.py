@@ -31,7 +31,7 @@ import os
 import platform
 import socket
 import typing
-from typing import Any, Iterable, Optional, no_type_check
+from typing import Any, Iterable, Optional
 import click
 from mode.utils.logging import level_name
 from yarl import URL
@@ -78,19 +78,16 @@ class worker(AppCommand):
 
     options = [
         option('--logfile', '-f',
-               default=None,
-               type=WritableFilePath,
+               default=None, type=WritableFilePath,
                help='Path to logfile (default is <stderr>).'),
         option('--loglevel', '-l',
-               default=DEFAULT_LOGLEVEL,
-               type=CaseInsensitiveChoice(LOGLEVELS),
+               default=DEFAULT_LOGLEVEL, type=CaseInsensitiveChoice(LOGLEVELS),
                help='Logging level to use.'),
         option('--blocking-timeout',
                default=BLOCKING_TIMEOUT, type=float,
                help='Blocking detector timeout (requires --debug).'),
         option('--web-port', '-p',
-               default=WEB_PORT,
-               type=TCPPort(),
+               default=WEB_PORT, type=TCPPort(),
                help='Port to run web server on.'),
         option('--web-bind', '-b', default=WEB_BIND, type=str),
         option('--web-host', '-h',
@@ -168,10 +165,9 @@ class worker(AppCommand):
         return self.colored('hiblue', f'{FAUST} v{faust_version}')
 
     def platform(self) -> str:
-        return '{py_imp} {py_v} ({system} {machine})'.format(
-            py=platform.python_implementation(),
-            system=platform.system(),
-            py_v=platform.python_version(),
+        return '{py_imp} {py_version} ({system} {machine})'.format(
             py_imp=platform.python_implementation(),
+            py_version=platform.python_version(),
+            system=platform.system(),
             machine=platform.machine(),
         )
