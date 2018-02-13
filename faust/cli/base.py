@@ -402,8 +402,8 @@ class Command(abc.ABC):
         if wrap_last_row:
             # slow, but not big data
             data = [
-                list(l[:-1]) + [self._table_wrap(table, l[-1])]
-                for l in data
+                list(item[:-1]) + [self._table_wrap(table, item[-1])]
+                for item in data
             ]
         return table.table
 
