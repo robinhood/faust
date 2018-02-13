@@ -43,6 +43,8 @@ DEFAULT_LOOP = 'aio'
 
 
 class TCPPort(click.IntRange):
+    """CLI option: TCP Port (integer in range 1 - 65535)."""
+
     name = 'range[1-65535]'
 
     def __init__(self) -> None:
@@ -397,7 +399,6 @@ class Command(abc.ABC):
         """Return colored text.
 
         Examples::
-
             >>> self.colored('blue', 'text_to_color')
             >>> self.colored('hiblue', text_to_color')
 

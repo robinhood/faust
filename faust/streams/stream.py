@@ -110,7 +110,7 @@ class Stream(StreamT[T_co], Service):
         self._on_message = self._create_message_handler()
 
     def get_active_stream(self) -> StreamT:
-        """Returns the currently active stream.
+        """Return the currently active stream.
 
         A stream can be derived using ``Stream.group_by`` etc,
         so if this stream was used to create another derived

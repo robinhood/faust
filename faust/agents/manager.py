@@ -1,9 +1,11 @@
+"""Agent manager."""
 from mode.utils.collections import FastUserDict
 from mode.utils.compat import OrderedDict
 from ..types import AgentManagerT, AppT
 
 
 class AgentManager(AgentManagerT, FastUserDict):
+    """Agent manager."""
 
     def __init__(self, app: AppT = None) -> None:
         self.app = app

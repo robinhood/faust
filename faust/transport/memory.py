@@ -1,3 +1,4 @@
+"""Experimental: In-memory transport."""
 import asyncio
 from collections import defaultdict, deque
 from time import time
@@ -14,12 +15,15 @@ from ..types.transports import ConsumerT, ProducerT
 
 
 class RebalanceListener:
+    """In-memory rebalance listener."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         ...
 
 
 class Consumer(base.Consumer):
+    """In-memory consumer."""
+
     RebalanceListener: ClassVar[Type] = RebalanceListener
 
     consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = ()
@@ -35,7 +39,6 @@ class Consumer(base.Consumer):
         ...
 
     async def subscribe(self, topics: Iterable[str]) -> None:
-        print('SUBSCRIBE: %r' % (topics,))
         await cast(Transport, self.transport).subscribe(topics)
 
     async def getmany(
@@ -109,6 +112,7 @@ class Consumer(base.Consumer):
 
 
 class Producer(base.Producer):
+    """In-memory producer."""
 
     async def create_topic(self, topic: str, partitions: int, replication: int,
                            *,
@@ -140,6 +144,8 @@ class Producer(base.Producer):
 
 
 class Transport(base.Transport):
+    """In-memory transport."""
+
     Consumer: ClassVar[Type[ConsumerT]] = Consumer
     Producer: ClassVar[Type[ProducerT]] = Producer
 

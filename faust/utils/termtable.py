@@ -1,3 +1,4 @@
+"""Using :pypi:`terminaltables` to draw ANSI tables."""
 import sys
 from typing import Any, IO, Sequence, Type
 from mode.utils import logging
@@ -41,6 +42,10 @@ def logtable(data: TableDataT,
              tty: bool = None,
              headers: Sequence[str] = None,
              **kwargs: Any) -> str:
+    """Prepare table for logging.
+
+    Will use ANSI escape codes if the log file is a tty.
+    """
     if tty is None:
         tty = logging.LOG_ISATTY
     if headers:

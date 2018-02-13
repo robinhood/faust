@@ -1,3 +1,4 @@
+"""Terminal progress bar spinners."""
 import atexit
 import random
 import sys
@@ -29,6 +30,8 @@ SPINNERS: Sequence[Sequence[str]] = [
 
 
 class Spinner:
+    """Progress bar spinner."""
+
     bell = '\b'
     frames: Sequence[str] = random.choice(SPINNERS)
     cursor_hide: str = '\x1b[?25l'

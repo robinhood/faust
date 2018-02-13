@@ -1,3 +1,4 @@
+"""Transport using aiokafka consumer and confluent-kafka producer."""
 from typing import ClassVar, Type
 from . import aiokafka
 from . import confluent
@@ -10,6 +11,7 @@ Producer = confluent.Producer
 
 
 class Transport(aiokafka.Transport):
+    """Transport using aiokafka consumer and confluent-kafka producer."""
 
     Consumer: ClassVar[Type[ConsumerT]] = Consumer
     Producer: ClassVar[Type[ProducerT]] = Producer

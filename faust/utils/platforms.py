@@ -1,9 +1,11 @@
+"""Platform/OS utilities."""
 import platform
 import subprocess
 from typing import Optional
 
 
 def max_open_files() -> Optional[int]:
+    """Return max number of open files, or :const:`None`."""
     try:
         from resource import RLIM_INFINITY, RLIMIT_NOFILE, getrlimit
     except ImportError:
