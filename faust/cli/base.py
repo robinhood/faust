@@ -51,16 +51,16 @@ class TCPPort(click.IntRange):
 
 WritableDirectory = click.Path(
     exists=False,      # create if needed,
-    file_okay=False,   #   must be directory,
-    dir_okay=True,     #     not file;
+    file_okay=False,   # must be directory,
+    dir_okay=True,     # not file;
     writable=True,     # and read/write access.
     readable=True,     #
 )
 
 WritableFilePath = click.Path(
     exists=False,       # create if needed,
-    file_okay=True,     #   must be file,
-    dir_okay=False,     #      not directory;
+    file_okay=True,     # must be file,
+    dir_okay=False,     # not directory;
     writable=True,      # and read/write access.
     readable=True,      #
 )
@@ -553,17 +553,41 @@ class AppCommand(Command):
         """Import string like "module.Model", or "Model" to model class."""
         try:
             return symbol_by_name(attr)
-        except ImportError:
+        except ImportError as original_exc:
             root, _, _ = self.app.origin.partition(':')
-            return symbol_by_name(f'{root}.{attr}')
+            try:
+                return symbol_by_name(f'{root}.models.{attr}')
+            except ImportError:
+                try:
+                    return symbol_by_name(f'{root}.{attr}')
+                except ImportError:
+                    raise original_exc from original_exc
 
     def to_topic(self, entity: str) -> Any:
         """Convert topic name given on command-line to ``app.topic()``."""
         if not entity:
             raise self.UsageError('Missing topic/@agent name')
         if entity.startswith('@'):
+            # actor prefix: e.g. `faust send @myactorname`
             return self.import_relative_to_app(entity[1:])
         return self.app.topic(entity)
 
     def abbreviate_fqdn(self, name: str, *, prefix: str = '') -> str:
+        """Abbreviate fully-qualified Python name, by removing origin.
+
+        ``app.origin`` is the package where the app is defined,
+        so if this is ``examples.simple`` it returns the truncated::
+
+            >>> app.origin
+            'examples.simple'
+            >>> abbr_fqdn(app.origin,
+            ...           'examples.simple.Withdrawal',
+            ...           prefix='[...]')
+            '[...]Withdrawal'
+
+        but if the package is not part of origin it provides the full path::
+
+            >>> abbr_fqdn(app.origin, 'examples.other.Foo', prefix='[...]')
+            'examples.other.foo'
+        """
         return text.abbr_fqdn(self.app.origin, name, prefix=prefix)
