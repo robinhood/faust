@@ -31,7 +31,7 @@ import os
 import platform
 import socket
 import typing
-from typing import Any
+from typing import Any, Iterable, Optional, no_type_check
 import click
 from mode.utils.logging import level_name
 from yarl import URL
@@ -59,17 +59,31 @@ LOGLEVELS = (
 DEFAULT_LOGLEVEL = 'WARN'
 
 
+class CaseInsensitiveChoice(click.Choice):
+
+    def __init__(self, choices: Iterable[Any]) -> None:
+        self.choices = [str(val).lower() for val in choices]
+
+    def convert(self,
+                value: str,
+                param: Optional[click.Parameter],
+                ctx: click.Context) -> Any:
+        if value.lower() in self.choices:
+            return value
+        return super().convert(value, param, ctx)
+
+
 class worker(AppCommand):
-    """Start worker instance."""
+    """Start ƒaust worker instance."""
 
     options = [
         option('--logfile', '-f',
                default=None,
-               type=WritableFilePath(),
+               type=WritableFilePath,
                help='Path to logfile (default is <stderr>).'),
         option('--loglevel', '-l',
                default=DEFAULT_LOGLEVEL,
-               type=click.Choice(LOGLEVELS),
+               type=CaseInsensitiveChoice(LOGLEVELS),
                help='Logging level to use.'),
         option('--blocking-timeout',
                default=BLOCKING_TIMEOUT, type=float,
@@ -84,7 +98,7 @@ class worker(AppCommand):
                help='Canonical host name for the web server.'),
         option('--console-port',
                default=50101, type=TCPPort(),
-               help='Port to run aiomonitor console on when --debug.'),
+               help='(when --debug:) Port to run debugger console on.'),
     ]
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

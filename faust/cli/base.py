@@ -48,43 +48,21 @@ class TCPPort(click.IntRange):
         super().__init__(1, 65535)
 
 
-class WritableDirectory(click.Path):
+WritableDirectory = click.Path(
+    exists=False,      # create if needed,
+    file_okay=False,   #   must be directory,
+    dir_okay=True,     #     not file;
+    writable=True,     # and read/write access.
+    readable=True,     #
+)
 
-    def __init__(self,
-                 exists: bool = False,
-                 file_okay: bool = False,
-                 dir_okay: bool = True,
-                 writable: bool = True,
-                 readable: bool = True,
-                 **kwargs: Any) -> None:
-        super().__init__(
-            exists=exists,
-            file_okay=file_okay,
-            dir_okay=dir_okay,
-            writable=writable,
-            readable=readable,
-            **kwargs)
-
-
-class WritableFilePath(click.Path):
-
-    def __init__(self,
-                 exists: bool = False,
-                 file_okay: bool = True,
-                 dir_okay: bool = False,
-                 writable: bool = True,
-                 readable: bool = True,
-                 allow_dash: bool = True,
-                 **kwargs: Any) -> None:
-        super().__init__(
-            exists=exists,
-            file_okay=file_okay,
-            dir_okay=dir_okay,
-            writable=writable,
-            readable=readable,
-            allow_dash=allow_dash,
-            **kwargs)
-
+WritableFilePath = click.Path(
+    exists=False,       # create if needed,
+    file_okay=True,     #   must be file,
+    dir_okay=False,     #      not directory;
+    writable=True,      # and read/write access.
+    readable=True,      #
+)
 
 builtin_options: Sequence[Callable] = [
     option('--app', '-A',
@@ -97,11 +75,11 @@ builtin_options: Sequence[Callable] = [
            help='Enable colors in output.'),
     option('--workdir', '-W',
            default=WORKDIR,
-           type=WritableDirectory(),
+           type=WritableDirectory,
            help='Working directory to change to after start.'),
     option('--datadir', '-D',
            default=DATADIR,
-           type=WritableDirectory(),
+           type=WritableDirectory,
            help='Directory to keep application state.'),
     option('--json/--no-json', default=False,
            help='Prefer data to be emitted in json format.'),
