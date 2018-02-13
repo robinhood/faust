@@ -17,6 +17,7 @@ from mode.utils import text
 from mode.utils.compat import isatty, want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 from ._env import DATADIR, DEBUG, WORKDIR
+from .. import __version__
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
 from ..utils import termtable
@@ -65,6 +66,7 @@ WritableFilePath = click.Path(
 )
 
 builtin_options: Sequence[Callable] = [
+    click.version_option(version=__version__),
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
     option('--quiet/--no-quiet', '-q', default=False,
