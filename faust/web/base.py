@@ -34,20 +34,36 @@ class Web(Service):
         self.bind = bind or WEB_BIND
         super().__init__(**kwargs)
 
-    def text(self, value: str, *, content_type: str = None) -> Any:
+    def text(self, value: str,
+             *,
+             content_type: str = None,
+             status: int = 200) -> Response:
         ...
 
-    def html(self, value: str) -> Any:
+    def html(self, value: str,
+             *,
+             status: int = 200) -> Response:
         ...
 
-    def json(self, value: Any) -> Any:
+    def json(self, value: Any,
+             *,
+             status: int = 200) -> Response:
         ...
 
-    def bytes(self, value: _bytes, *, content_type: str = None) -> Any:
+    def bytes(self, value: _bytes,
+              *,
+              content_type: str = None,
+              status: int = 200) -> Response:
         ...
 
     def route(self, pattern: str, handler: Callable) -> None:
         ...
+
+    def notfound(self, reason: str = 'Not Found', **kwargs: Any) -> Response:
+        return self.error(404, reason, **kwargs)
+
+    def error(self, status: int, reason: str, **kwargs: Any) -> Response:
+        return self.json({'error': reason, **kwargs}, status=status)
 
     @property
     def url(self) -> URL:

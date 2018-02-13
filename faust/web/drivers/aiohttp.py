@@ -62,19 +62,26 @@ class Web(base.Web):
         self._srv: Any = None
         self._handler: Any = None
 
-    def text(self, value: str, *, content_type: str = None) -> base.Response:
+    def text(self, value: str,
+             *,
+             content_type: str = None,
+             status: int = 200) -> base.Response:
         return cast(base.Response, Response(
             text=value,
             content_type=content_type,
+            status=status,
         ))
 
-    def html(self, value: str) -> base.Response:
-        return self.text(value, content_type='text/html')
+    def html(self, value: str, *, status: int = 200) -> base.Response:
+        return self.text(value, status=status, content_type='text/html')
 
-    def json(self, value: Any) -> Any:
-        return json_response(value)
+    def json(self, value: Any, *, status: int = 200) -> Any:
+        return json_response(value, status=status)
 
-    def bytes(self, value: _bytes, *, content_type: str = None) -> Any:
+    def bytes(self, value: _bytes,
+              *,
+              content_type: str = None,
+              status: int = 200) -> base.Response:
         return cast(base.Response, Response(
             body=value,
             content_type=content_type,

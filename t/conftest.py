@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 import pytest
 
@@ -22,6 +23,11 @@ def patching(monkeypatch, request):
             val = patching.setitem('path.to.dict', 'KEY')
     """
     return _patching(monkeypatch, request)
+
+
+@pytest.fixture()
+def loop():
+    return asyncio.get_event_loop()
 
 
 class _patching(object):
