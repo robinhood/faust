@@ -1,12 +1,12 @@
-setuptools>=30.3.0
-wheel>=0.29.0
-tox>=2.3.1
-sphinx2rst>=1.0
+-r flakes.txt
+asyncio-ipython-magic
 bumpversion>=0.5.1
-twine
 packaging
 pytest-sugar
-asyncio-ipython-magic
-vulture
+setuptools>=30.3.0
 sphinx-autobuild
--r flakes.txt
+sphinx2rst>=1.0
+tox>=2.3.1
+twine
+vulture
+wheel>=0.29.0
