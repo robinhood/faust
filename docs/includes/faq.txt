@@ -39,7 +39,7 @@ and that it executes before you import libraries.
 
 
 Using :pypi:`eventlet`
-~~~~~~~~~~~~~~~~~~----
+~~~~~~~~~~~~~~~~~~~~~~
 
 This approach works with any blocking Python library that can work with
 :pypi:`eventlet`.
@@ -126,7 +126,8 @@ the project (details in the question above is relevant also for Python 2).
 
 I get a maximum number of open files exceeded error by RocksDB when running a
 Faust app locally. How can I fix this?
---------------------------
+-----------------------------------------------------------------------------
+--------------------------------------
 
 You may need to increase the limit for the maximum number of open files. The
 following post explains how to do so on OS X:
