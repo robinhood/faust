@@ -5,11 +5,11 @@ import typing
 from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Iterable,
-    List, Mapping, Pattern, Tuple, Type, Union,
+    List, Mapping, Pattern, Set, Tuple, Type, Union,
 )
 
 from aiohttp.client import ClientSession
-from mode import Seconds, ServiceT, SupervisorStrategyT
+from mode import Seconds, ServiceT, Signal, SupervisorStrategyT
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import SymbolArg
 from mode.utils.types.trees import NodeT
@@ -26,7 +26,7 @@ from .streams import StreamT
 from .tables import SetT, TableManagerT, TableT
 from .topics import ChannelT, ConductorT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
-from .tuples import MessageSentCallback, RecordMetadata
+from .tuples import MessageSentCallback, RecordMetadata, TP
 from .windows import WindowT
 
 from ..utils.objects import cached_property
@@ -79,6 +79,9 @@ class AppT(ServiceT):
     See Also:
         :class:`faust.App`.
     """
+
+    on_partitions_assigned: Signal[Set[TP]] = Signal()
+    on_partitions_revoked: Signal[Set[TP]] = Signal()
 
     Stream: Type[StreamT]
     TableType: Type[TableT]

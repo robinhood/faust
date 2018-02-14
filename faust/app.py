@@ -474,7 +474,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.pages = []
         self.stream_buffer_maxsize = stream_buffer_maxsize
         self._extra_services = []
+        self._init_signals()
         ServiceProxy.__init__(self)
+
+    def _init_signals(self) -> None:
+        OPA = self.on_partitions_assigned.with_default_sender(self)
+        self.on_partitions_assigned = OPA
+        OPR = self.on_partitions_revoked.with_default_sender(self)
+        self.on_partitions_revoked = OPR
 
     async def on_stop(self) -> None:
         if self._client_session:
@@ -1077,7 +1084,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         return await self.topics.commit(topics)
 
-    async def on_partitions_assigned(self, assigned: _Set[TP]) -> None:
+    async def _on_partitions_assigned(self, assigned: _Set[TP]) -> None:
         """Handle new topic partition assignment.
 
         This is called during a rebalance after :meth:`on_partitions_revoked`.
@@ -1095,10 +1102,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self.log.info(f'Restarted fetcher')
             await self.topics.on_partitions_assigned(assigned)
             await self.tables.on_partitions_assigned(assigned)
+            await self.on_partitions_assigned.send(assigned)
         except Exception as exc:
             await self.crash(exc)
 
-    async def on_partitions_revoked(self, revoked: _Set[TP]) -> None:
+    async def _on_partitions_revoked(self, revoked: _Set[TP]) -> None:
         """Handle revocation of topic partitions.
 
         This is called during a rebalance and is followed by
@@ -1122,6 +1130,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
             if self._partitions_revoked_count > 1:
                 await self.agents.restart()
+            await self.on_partitions_revoked.send(revoked)
         except Exception as exc:
             await self.crash(exc)
 
@@ -1133,8 +1142,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
             callback=self.topics.on_message,
-            on_partitions_revoked=self.on_partitions_revoked,
-            on_partitions_assigned=self.on_partitions_assigned,
+            on_partitions_revoked=self._on_partitions_revoked,
+            on_partitions_assigned=self._on_partitions_assigned,
             beacon=self.beacon,
         )
 
