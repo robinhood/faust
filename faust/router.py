@@ -4,7 +4,7 @@ from typing import Tuple
 from yarl import URL
 from .types.app import (
     AppT, Request, Response, RoutedViewGetHandler,
-    ViewGetHandler, Web, View,
+    View, ViewGetHandler, Web,
 )
 from .types.assignor import PartitionAssignorT
 from .types.core import K
