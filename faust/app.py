@@ -27,6 +27,7 @@ from uuid import uuid4
 from aiohttp.client import ClientSession
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
+from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import SymbolArg, symbol_by_name
@@ -263,6 +264,10 @@ class AppService(Service):
             #     to make sure agents are registered correctly. [ask]
             raise ImproperlyConfigured(
                 'Attempting to start app that has no agents')
+        await self.app.on_first_start()
+
+    async def on_start(self) -> None:
+        await self.app.on_start()
 
     async def on_started(self) -> None:
         # Wait for table recovery to complete.
@@ -279,6 +284,8 @@ class AppService(Service):
         # the worker is ready to start processing.
         if self.app.on_startup_finished:
             await self.app.on_startup_finished()
+
+        await self.app.on_started()
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:
@@ -302,6 +309,15 @@ class AppService(Service):
                 # start the services now, or when the app is started.
                 await self.add_runtime_dependency(service)
 
+    async def on_stop(self) -> None:
+        await self.app.on_stop()
+
+    async def on_shutdown(self) -> None:
+        await self.app.on_shutdown()
+
+    async def on_restart(self) -> None:
+        await self.app.on_restart()
+
     @property
     def label(self) -> str:
         return self.app.label
@@ -311,7 +327,7 @@ class AppService(Service):
         return self.app.shortlabel
 
 
-class App(AppT, ServiceProxy):
+class App(AppT, ServiceProxy, ServiceCallbacks):
     """Faust Application.
 
     Arguments:
