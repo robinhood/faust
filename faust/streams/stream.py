@@ -5,7 +5,7 @@ import typing
 import weakref
 
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable, List,
+    Any, AsyncIterable, AsyncIterator, Callable, Iterable, List,
     Mapping, MutableSequence, Optional, Sequence, Set, Tuple, Union, cast,
 )
 
@@ -108,9 +108,6 @@ class Stream(StreamT[T_co], Service):
         self._on_stream_event_in = self.app.sensors.on_stream_event_in
         self._on_stream_event_out = self.app.sensors.on_stream_event_out
         self._on_message_out = self.app.sensors.on_message_out
-        self._on_message = self._create_message_handler()
-        self._anext_handler: Callable[[], Awaitable[T]]
-        self._anext_handler = self._create_anext_handler()
 
     def get_active_stream(self) -> StreamT:
         """Return the currently active stream.
@@ -541,49 +538,6 @@ class Stream(StreamT[T_co], Service):
     def _join(self, join_strategy: JoinT) -> StreamT:
         return self.clone(join_strategy=join_strategy)
 
-    def _create_message_handler(self) -> Callable[[], Awaitable[Any]]:
-        # get from channel
-        get_next_value = self.channel.__anext__
-        # Topic description -> processors
-        processors = self._processors
-        # Sensor: on_stream_event_in
-        on_stream_event_in = self._on_stream_event_in
-
-        # localize global variables
-        create_ref = weakref.ref
-        _maybe_async = maybe_async
-        event_cls = EventT
-        _current_event_contextvar = _current_event
-
-        async def on_message() -> Any:
-            # get message from channel
-            value: Any = await get_next_value()
-
-            if isinstance(value, event_cls):
-                event: EventT = value
-                message: Message = event.message
-                tp = message.tp
-                offset = message.offset
-
-                # call Sensors
-                await on_stream_event_in(tp, offset, self, event)
-
-                # set task-local current_event
-                _current_event_contextvar.set(create_ref(event))
-                # set Stream._current_event
-                self.current_event = event
-
-                # Stream yields Event.value
-                value = event.value
-            else:
-                self.current_event = None
-
-            # reduce using processors
-            for processor in processors:
-                value = await _maybe_async(processor(value))
-            return value
-        return on_message
-
     async def on_merge(self, value: T = None) -> Optional[T]:
         # TODO for joining streams
         # The join strategy.process method can return None
@@ -616,46 +570,73 @@ class Stream(StreamT[T_co], Service):
     def __next__(self) -> Any:
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
-    def __aiter__(self) -> AsyncIterator:
+    async def __aiter__(self) -> AsyncIterator:
         _inherit_context(loop=self.loop)
-        return self
-
-    def _create_anext_handler(self) -> Callable[[], Awaitable[T]]:
-
-        on_message = self._on_message
+        await self.maybe_start()
         on_merge = self.on_merge
         on_stream_event_out = self._on_stream_event_out
         on_message_out = self._on_message_out
 
-        async def __anext__() -> T:
+        # get from channel
+        get_next_value = self.channel.__anext__
+        # Topic description -> processors
+        processors = self._processors
+        # Sensor: on_stream_event_in
+        on_stream_event_in = self._on_stream_event_in
+
+        # localize global variables
+        create_ref = weakref.ref
+        _maybe_async = maybe_async
+        event_cls = EventT
+        _current_event_contextvar = _current_event
+
+        while not self.should_stop:
             # wait for next message
-            value: T = None
+            value: Any = None
             while value is None:  # we iterate until on_merge gives value.
-                if not self._anext_started:
-                    # setup stuff the first time we are iterated over.
-                    self._anext_started = True
-                    await self.maybe_start()
+                # decrement reference count for previous event processed.
+                _prev, self.current_event = self.current_event, None
+                if _prev is not None:
+                    # This inlines self.ack
+                    last_stream_to_ack = _prev.ack()
+                    prev_message = _prev.message
+                    ptp = prev_message.tp
+                    poffset = prev_message.offset
+                    await on_stream_event_out(ptp, poffset, self, _prev)
+                    if last_stream_to_ack:
+                        await on_message_out(ptp, poffset, prev_message)
+
+                # get message from channel
+                channel_value: Any = await get_next_value()
+
+                if isinstance(channel_value, event_cls):
+                    event: EventT = channel_value
+                    message: Message = event.message
+                    tp = message.tp
+                    offset = message.offset
+
+                    # call Sensors
+                    await on_stream_event_in(tp, offset, self, event)
+
+                    # set task-local current_event
+                    _current_event_contextvar.set(create_ref(event))
+                    # set Stream._current_event
+                    self.current_event = event
+
+                    # Stream yields Event.value
+                    value = event.value
                 else:
-                    # decrement reference count for previous event processed.
-                    _prev, self.current_event = self.current_event, None
-                    if _prev is not None:
-                        # This inlines self.ack
-                        last_stream_to_ack = _prev.ack()
-                        prev_message = _prev.message
-                        ptp = prev_message.tp
-                        poffset = prev_message.offset
-                        await on_stream_event_out(ptp, poffset, self, _prev)
-                        if last_stream_to_ack:
-                            await on_message_out(ptp, poffset, prev_message)
+                    value = channel_value
+                    self.current_event = None
 
-                value = await on_message()
+                # reduce using processors
+                for processor in processors:
+                    value = await _maybe_async(processor(value))
                 value = await on_merge(value)
-            return value
-
-        return __anext__
+            yield value
 
     async def __anext__(self) -> T:
-        return await self._anext_handler()
+        ...
 
     async def ack(self, event: EventT) -> bool:
         """Ack event.
@@ -668,7 +649,7 @@ class Stream(StreamT[T_co], Service):
         Arguments:
             event: Event to ack.
         """
-        # WARNING: This function is duplicated in _create_anext_handler
+        # WARNING: This function is duplicated in __aiter__
         last_stream_to_ack = event.ack()
         message = event.message
         tp = message.tp

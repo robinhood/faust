@@ -69,7 +69,7 @@ class JoinableT(abc.ABC):
         ...
 
 
-class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
+class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
 
     app: AppT = None
     channel: AsyncIterator[T_co] = None
@@ -186,10 +186,6 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
 
     @abc.abstractmethod
     def __aiter__(self) -> AsyncIterator[T_co]:
-        ...
-
-    @abc.abstractmethod
-    async def __anext__(self) -> T_co:
         ...
 
     @abc.abstractmethod
