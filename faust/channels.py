@@ -155,9 +155,9 @@ class Event(EventT):
         )
 
     async def ack(self) -> None:
-        if not self.acked:
+        message = self.message
+        if message.refcount:
             self.acked = True
-            message = self.message
             # decrement the reference count
             message.decref()
             # if no more references, ack message
