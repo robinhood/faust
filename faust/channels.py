@@ -84,7 +84,6 @@ class Event(EventT):
         self.key: K = key
         self.value: V = value
         self.message: Message = message
-        self.acked: bool = False
 
     async def send(self, channel: Union[str, ChannelT],
                    key: K = USE_EXISTING_KEY,
@@ -157,7 +156,6 @@ class Event(EventT):
     async def ack(self) -> None:
         message = self.message
         if message.refcount:
-            self.acked = True
             # decrement the reference count
             message.decref()
             # if no more references, ack message
