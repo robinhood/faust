@@ -4,7 +4,6 @@ import asyncio
 import typing
 
 from collections import defaultdict
-from itertools import count
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
     List, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
@@ -75,9 +74,6 @@ class Consumer(Service, ConsumerT):
 
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = None
 
-    #: This counter generates new consumer ids.
-    _consumer_ids: ClassVar[Iterator[int]] = count(0)
-
     app: AppT
 
     # Mapping of TP to list of acked offsets.
@@ -114,7 +110,6 @@ class Consumer(Service, ConsumerT):
                  commit_interval: float = None,
                  **kwargs: Any) -> None:
         assert callback is not None
-        self.id = next(self._consumer_ids)
         self.transport = transport
         self.app = self.transport.app
         self.callback = callback
@@ -168,16 +163,14 @@ class Consumer(Service, ConsumerT):
 
             # call sensors
             await self._on_message_in(
-                self.id, message.tp, message.offset, message)
+                message.tp, message.offset, message)
 
-    async def ack(self, message: Message) -> None:
+    def ack(self, message: Message) -> bool:
         if not message.acked:
             message.acked = True
             tp = message.tp
             offset = message.offset
             if self.app.topics.acks_enabled_for(message.topic):
-                await self.app.sensors.on_message_out(
-                    self.id, tp, offset, message)
                 committed = self._committed_offset[tp]
                 try:
                     if committed is None or offset > committed:
@@ -187,10 +180,12 @@ class Consumer(Service, ConsumerT):
                             acked_index.add(offset)
                             acked_for_tp = self._acked[tp]
                             acked_for_tp.append(offset)
+                            return True
                 finally:
                     notify(self._waiting_for_ack)
             else:
                 assert message not in self._unacked_messages
+        return False
 
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:

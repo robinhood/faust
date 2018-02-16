@@ -60,7 +60,7 @@ class EventT(AsyncContextManager):
         ...
 
     @abc.abstractmethod
-    async def ack(self) -> None:
+    def ack(self) -> bool:
         ...
 
 

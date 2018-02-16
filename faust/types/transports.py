@@ -80,7 +80,7 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def ack(self, message: Message) -> None:
+    def ack(self, message: Message) -> bool:
         ...
 
     @abc.abstractmethod

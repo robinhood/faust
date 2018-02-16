@@ -382,7 +382,6 @@ class TopicConductor(ConductorT, Service):
         # topic str -> list of TopicT
         get_channels_for_topic = self._topicmap.__getitem__
         consumer: ConsumerT = None
-        consumer_id: int = None
         on_message_in = self.app.sensors.on_message_in
         unacked: Set[Message] = None
         add_unacked: Callable[[Message], None] = None
@@ -391,10 +390,9 @@ class TopicConductor(ConductorT, Service):
         acking_topics: Set[str] = self._acking_topics
 
         async def on_message(message: Message) -> None:
-            nonlocal consumer, consumer_id, unacked, add_unacked
+            nonlocal consumer, unacked, add_unacked
             if consumer is None:
                 consumer = self.app.consumer
-                consumer_id = consumer.id
                 unacked = consumer._unacked_messages
                 add_unacked = unacked.add
             # when a message is received we find all channels
@@ -412,7 +410,7 @@ class TopicConductor(ConductorT, Service):
                     # This inlines Consumer.track_message(message)
                     add_unacked(message)
                     await on_message_in(
-                        consumer_id, message.tp, message.offset, message)
+                        message.tp, message.offset, message)
 
                 event: EventT = None
                 event_keyid: Tuple[K, V] = None

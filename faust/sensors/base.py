@@ -17,7 +17,6 @@ class Sensor(SensorT, Service):
 
     async def on_message_in(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message) -> None:
@@ -55,7 +54,6 @@ class Sensor(SensorT, Service):
 
     async def on_message_out(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message = None) -> None:
@@ -116,12 +114,11 @@ class SensorDelegate(SensorDelegateT):
 
     async def on_message_in(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message) -> None:
         for sensor in self._sensors:
-            await sensor.on_message_in(consumer_id, tp, offset, message)
+            await sensor.on_message_in(tp, offset, message)
 
     async def on_stream_event_in(
             self,
@@ -143,12 +140,11 @@ class SensorDelegate(SensorDelegateT):
 
     async def on_message_out(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message = None) -> None:
         for sensor in self._sensors:
-            await sensor.on_message_out(consumer_id, tp, offset, message)
+            await sensor.on_message_out(tp, offset, message)
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
         for sensor in self._sensors:

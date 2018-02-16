@@ -107,7 +107,10 @@ class Stream(StreamT[T_co], Service):
         # Generate message handler
         self._on_stream_event_in = self.app.sensors.on_stream_event_in
         self._on_stream_event_out = self.app.sensors.on_stream_event_out
+        self._on_message_out = self.app.sensors.on_message_out
         self._on_message = self._create_message_handler()
+        self._anext_handler: Callable[[], Awaitable[T]]
+        self._anext_handler = self._create_anext_handler()
 
     def get_active_stream(self) -> StreamT:
         """Return the currently active stream.
@@ -605,7 +608,7 @@ class Stream(StreamT[T_co], Service):
 
     async def on_stop(self) -> None:
         if self.current_event is not None:
-            await self.current_event.ack()
+            await self.ack(self.current_event)
 
     def __iter__(self) -> Any:
         return self
@@ -617,25 +620,44 @@ class Stream(StreamT[T_co], Service):
         _inherit_context(loop=self.loop)
         return self
 
+    def _create_anext_handler(self) -> Callable[[], Awaitable[T]]:
+
+        on_message = self._on_message
+        on_merge = self.on_merge
+        on_stream_event_out = self._on_stream_event_out
+        on_message_out = self._on_message_out
+
+        async def __anext__() -> T:
+            # wait for next message
+            value: T = None
+            while value is None:  # we iterate until on_merge gives value.
+                if not self._anext_started:
+                    # setup stuff the first time we are iterated over.
+                    self._anext_started = True
+                    await self.maybe_start()
+                else:
+                    # decrement reference count for previous event processed.
+                    _prev, self.current_event = self.current_event, None
+                    if _prev is not None:
+                        # This inlines self.ack
+                        last_stream_to_ack = _prev.ack()
+                        prev_message = _prev.message
+                        ptp = prev_message.tp
+                        poffset = prev_message.offset
+                        await on_stream_event_out(ptp, poffset, self, _prev)
+                        if last_stream_to_ack:
+                            await on_message_out(ptp, poffset, prev_message)
+
+                value = await on_message()
+                value = await on_merge(value)
+            return value
+
+        return __anext__
+
     async def __anext__(self) -> T:
-        # wait for next message
-        value: T = None
-        while value is None:  # we iterate until on_merge gives back a value
-            if not self._anext_started:
-                # setup stuff the first time we are iterated over.
-                self._anext_started = True
-                await self.maybe_start()
-            else:
-                # decrement reference count for previous event processed.
-                _prev, self.current_event = self.current_event, None
-                if _prev is not None:
-                    await self.ack(_prev)
+        return await self._anext_handler()
 
-            value = await self._on_message()
-            value = await self.on_merge(value)
-        return value
-
-    async def ack(self, event: EventT) -> None:
+    async def ack(self, event: EventT) -> bool:
         """Ack event.
 
         This will decrease the reference count of the event message by one,
@@ -646,9 +668,15 @@ class Stream(StreamT[T_co], Service):
         Arguments:
             event: Event to ack.
         """
-        await event.ack()
-        msg = event.message
-        await self._on_stream_event_out(msg.tp, msg.offset, self, event)
+        # WARNING: This function is duplicated in _create_anext_handler
+        last_stream_to_ack = event.ack()
+        message = event.message
+        tp = message.tp
+        offset = message.offset
+        await self._on_stream_event_out(tp, offset, self, event)
+        if last_stream_to_ack:
+            await self._on_message_out(tp, offset, message)
+        return last_stream_to_ack
 
     def __and__(self, other: Any) -> Any:
         return self.combine(self, other)

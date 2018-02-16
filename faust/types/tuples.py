@@ -7,9 +7,11 @@ from .core import K, V
 if typing.TYPE_CHECKING:
     from .app import AppT
     from .channels import ChannelT
+    from .transports import ConsumerT
 else:
-    class AppT: ...      # noqa
+    class AppT: ...       # noqa
     class ChannelT: ...   # noqa
+    class ConsumerT: ...  # noqa
 
 __all__ = [
     'FutureMessage', 'MessageSentCallback', 'TP',
@@ -123,11 +125,20 @@ class Message:
         #:   }
         self.stream_meta: Dict[int, Any] = {}
 
+    def ack(self, consumer: ConsumerT) -> bool:
+        if not self.acked:
+            # if no more references, mark offset as safe-to-commit in Consumer.
+            if not self.decref():
+                self.acked = True
+                return consumer.ack(self)
+        return False
+
     def incref(self, n: int = 1) -> None:
         self.refcount += n
 
-    def decref(self, n: int = 1) -> None:
-        self.refcount = max(self.refcount - 1, 0)
+    def decref(self, n: int = 1) -> int:
+        refcount = self.refcount = max(self.refcount - 1, 0)
+        return refcount
 
     @classmethod
     def from_message(cls, message: Any, tp: TP) -> 'Message':

@@ -54,11 +54,10 @@ class StatsdMonitor(Monitor):
 
     async def on_message_in(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message) -> None:
-        await super().on_message_in(consumer_id, tp, offset, message)
+        await super().on_message_in(tp, offset, message)
 
         self.client.incr('messages_received', rate=self.rate)
         self.client.incr('messages_active', rate=self.rate)
@@ -93,11 +92,10 @@ class StatsdMonitor(Monitor):
 
     async def on_message_out(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message = None) -> None:
-        await super().on_message_out(consumer_id, tp, offset, message)
+        await super().on_message_out(tp, offset, message)
         self.client.decr('messages_active', rate=self.rate)
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:

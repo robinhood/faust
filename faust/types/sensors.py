@@ -15,7 +15,6 @@ class SensorInterfaceT(abc.ABC):
     @abc.abstractmethod
     async def on_message_in(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message) -> None:
@@ -42,7 +41,6 @@ class SensorInterfaceT(abc.ABC):
     @abc.abstractmethod
     async def on_message_out(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message = None) -> None:

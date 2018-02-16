@@ -193,5 +193,5 @@ class StreamT(AsyncIterator[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    async def ack(self, event: EventT) -> None:
+    async def ack(self, event: EventT) -> bool:
         ...

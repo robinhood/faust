@@ -154,15 +154,8 @@ class Event(EventT):
             callback=callback,
         )
 
-    async def ack(self) -> None:
-        if not self.acked:
-            self.acked = True
-            message = self.message
-            # decrement the reference count
-            message.decref()
-            # if no more references, ack message
-            if not message.refcount:
-                await self.app.consumer.ack(message)
+    def ack(self) -> bool:
+        return self.message.ack(self.app.consumer)
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: k={self.key!r} v={self.value!r}>'
@@ -174,7 +167,7 @@ class Event(EventT):
                         _exc_type: Type[BaseException] = None,
                         _exc_val: BaseException = None,
                         _exc_tb: TracebackType = None) -> Optional[bool]:
-        await self.ack()
+        self.ack()
         return None
 
 

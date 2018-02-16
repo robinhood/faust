@@ -203,7 +203,6 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     async def on_message_in(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message) -> None:
@@ -249,7 +248,6 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     async def on_message_out(
             self,
-            consumer_id: int,
             tp: TP,
             offset: int,
             message: Message = None) -> None:

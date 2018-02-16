@@ -373,13 +373,17 @@ class Agent(AgentT, ServiceProxy):
         try:
             await coro
         except asyncio.CancelledError:
-            if aref.stream.current_event:
-                await aref.stream.current_event.ack()
+            stream = aref.stream
+            current_event = stream.current_event
+            if current_event:
+                await stream.ack(current_event)
             raise
         except Exception as exc:
             self.log.exception('Agent %r raised error: %r', aref, exc)
-            if aref.stream.current_event:
-                await aref.stream.current_event.ack()
+            stream = aref.stream
+            current_event = stream.current_event
+            if current_event:
+                await stream.ack(current_event)
             if self._on_error is not None:
                 await self._on_error(self, exc)
 
