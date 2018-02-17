@@ -237,9 +237,9 @@ class Stream(StreamT[T_co], Service):
                     break
 
         while not self.should_stop:
-            await self.wait(_buffer(), timeout=timeout)
-            yield list(buffer)
-            buffer.clear()
+            if not await self.wait_for_stopped(_buffer(), timeout=timeout):
+                yield list(buffer)
+                buffer.clear()
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
         """Clone stream into n new streams, receiving copies of values.

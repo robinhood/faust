@@ -51,12 +51,14 @@ class Consumer(base.Consumer):
             partitions = tuple(self.assignment())
 
         if not partitions:
-            await self.wait(transport._subscription_ready.wait())
+            if await self.wait_for_stopped(transport._subscription_ready):
+                return
 
         for tp in partitions:
             messages = transport._messages[tp.topic]
             if not messages:
-                await self.wait(transport._messages_ready.wait())
+                if await self.wait_for_stopped(transport._messages_ready):
+                    return
                 transport._messages_ready.clear()
 
             i = 0

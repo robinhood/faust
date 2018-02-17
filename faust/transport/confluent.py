@@ -402,14 +402,16 @@ class ProducerThread(RPCServiceThread):
                 flush_soon = self._flush_soon
                 if flush_soon is None:
                     flush_soon = self._flush_soon = _create_future()
+                stopped: bool = False
                 try:
-                    await self.wait(flush_soon, timeout=1.0)
+                    stopped = await self.wait_for_stopped(
+                        flush_soon, timeout=1.0)
                 finally:
                     self._flush_soon = None
-
-            _flush(timeout=100)
-            _poll(timeout=0)
-            await _sleep(0)
+                if not stopped:
+                    _flush(timeout=100)
+                    _poll(timeout=0)
+                    await _sleep(0)
 
 
 class ProducerProduceFuture(asyncio.Future):

@@ -271,21 +271,20 @@ class AppService(Service):
 
     async def on_started(self) -> None:
         # Wait for table recovery to complete.
-        await self.wait(self.app.tables.recovery_completed.wait())
+        if not await self.wait_for_stopped(self.app.tables.recovery_completed):
+            # Add all asyncio.Tasks, like timers, etc.
+            await self.on_started_init_extra_tasks()
 
-        # Add all asyncio.Tasks, like timers, etc.
-        await self.on_started_init_extra_tasks()
+            # Start user-provided services.
+            await self.on_started_init_extra_services()
 
-        # Start user-provided services.
-        await self.on_started_init_extra_services()
+            # Call the app-is-fully-started callback used by Worker
+            # to print the "ready" message that signals to the user that
+            # the worker is ready to start processing.
+            if self.app.on_startup_finished:
+                await self.app.on_startup_finished()
 
-        # Call the app-is-fully-started callback used by Worker
-        # to print the "ready" message that signals to the user that
-        # the worker is ready to start processing.
-        if self.app.on_startup_finished:
-            await self.app.on_startup_finished()
-
-        await self.app.on_started()
+            await self.app.on_started()
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:
