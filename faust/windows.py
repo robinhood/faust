@@ -7,14 +7,7 @@ from .types import WindowRange, WindowT
 __all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
 
 
-class Window(WindowT):
-    tz: timezone = timezone.utc
-
-    def now(self, tz: timezone = None) -> datetime:
-        return datetime.utcnow().replace(tzinfo=tz or self.tz)
-
-
-class HoppingWindow(Window):
+class HoppingWindow(WindowT):
     """Hopping window type.
 
     Fixed-size, overlapping windows.
@@ -37,9 +30,9 @@ class HoppingWindow(Window):
             for start in range(int(earliest), int(curr.end), int(self.step))
         ]
 
-    def stale(self, timestamp: float) -> bool:
+    def stale(self, timestamp: float, latest_timestamp: float) -> bool:
         return (
-            timestamp < self._stale_before(self.expires)
+            timestamp < self._stale_before(latest_timestamp, self.expires)
             if self.expires else False
         )
 
@@ -53,8 +46,8 @@ class HoppingWindow(Window):
         start = (timestamp // self.step) * self.step
         return WindowRange.from_start(start, self.size)
 
-    def _stale_before(self, expires: float) -> float:
-        return self._timestamp_window(self.now().timestamp() - expires).start
+    def _stale_before(self, latest_timestamp: float, expires: float) -> float:
+        return self._timestamp_window(latest_timestamp - expires).start
 
 
 class TumblingWindow(HoppingWindow):
@@ -68,7 +61,7 @@ class TumblingWindow(HoppingWindow):
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
-class SlidingWindow(Window):
+class SlidingWindow(WindowT):
     """Sliding window type.
 
     Fixed-size, overlapping windows that work on differences between
@@ -99,11 +92,11 @@ class SlidingWindow(Window):
         return [WindowRange(start=timestamp - self.before,
                             end=timestamp + self.after)]
 
-    def stale(self, timestamp: float) -> bool:
+    def stale(self, timestamp: float, latest_timestamp: float) -> bool:
         return (
-            timestamp < self._stale_before(self.expires)
+            timestamp < self._stale_before(self.expires, latest_timestamp)
             if self.expires else False
         )
 
-    def _stale_before(self, expires: float) -> float:
-        return self.now().timestamp() - expires
+    def _stale_before(self, expires: float, latest_timestamp: float) -> float:
+        return latest_timestamp - expires

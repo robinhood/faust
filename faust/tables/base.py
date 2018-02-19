@@ -36,6 +36,7 @@ class Collection(Service, CollectionT):
     _changelog_topic: TopicT
     _timestamp_keys: MutableMapping[float, MutableSet]
     _timestamps: List[float]
+    _latest_timestamp: float
     _recover_callbacks: MutableSet[RecoverCallback]
     _data: StoreT = None
 
@@ -92,6 +93,7 @@ class Collection(Service, CollectionT):
         # Table key expiration
         self._timestamp_keys = defaultdict(set)
         self._timestamps = []
+        self.latest_timestamp = 0
 
         self._recover_callbacks = set()
         if on_recover:
@@ -187,7 +189,7 @@ class Collection(Service, CollectionT):
             timestamps = self._timestamps
             window = self.window
             while not self.should_stop:
-                while timestamps and window.stale(timestamps[0]):
+                while timestamps and window.stale(timestamps[0], self.latest_timestamp):
                     timestamp = heappop(timestamps)
                     for key in self._timestamp_keys[timestamp]:
                         del self.data[key]
@@ -203,6 +205,7 @@ class Collection(Service, CollectionT):
             return
         _, window_range = key
         heappush(self._timestamps, window_range.end)
+        self.latest_timestamp = max(self.latest_timestamp, window_range.end)
         self._timestamp_keys[window_range.end].add(key)
 
     def _maybe_del_key_ttl(self, key: Any) -> None:
@@ -287,7 +290,7 @@ class Collection(Service, CollectionT):
 
     def _relative_now(self, event: EventT = None) -> float:
         # get current timestamp
-        return self.window.now().timestamp()
+        return self.latest_timestamp
 
     def _relative_event(self, event: EventT = None) -> float:
         # get event timestamp
