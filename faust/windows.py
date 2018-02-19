@@ -32,7 +32,7 @@ class HoppingWindow(WindowT):
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:
         return (
-            timestamp < self._stale_before(latest_timestamp, self.expires)
+            timestamp <= self._stale_before(latest_timestamp, self.expires)
             if self.expires else False
         )
 
@@ -94,7 +94,7 @@ class SlidingWindow(WindowT):
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:
         return (
-            timestamp < self._stale_before(self.expires, latest_timestamp)
+            timestamp <= self._stale_before(self.expires, latest_timestamp)
             if self.expires else False
         )
 
