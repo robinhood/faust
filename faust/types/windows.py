@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime, timezone
+from datetime import timezone
 from typing import List, NamedTuple
 from mode import Seconds
 

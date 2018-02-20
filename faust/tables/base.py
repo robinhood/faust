@@ -189,7 +189,8 @@ class Collection(Service, CollectionT):
             timestamps = self._timestamps
             window = self.window
             while not self.should_stop:
-                while timestamps and window.stale(timestamps[0], self._latest_timestamp):
+                while timestamps and window.stale(
+                        timestamps[0], self._latest_timestamp):
                     timestamp = heappop(timestamps)
                     for key in self._timestamp_keys[timestamp]:
                         del self.data[key]

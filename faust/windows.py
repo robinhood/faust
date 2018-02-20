@@ -1,5 +1,4 @@
 """Windowing strategies."""
-from datetime import datetime, timezone
 from typing import List
 from mode import Seconds, want_seconds
 from .types import WindowRange, WindowT
