@@ -18,15 +18,11 @@ class WindowT(abc.ABC):
     tz: timezone = None
 
     @abc.abstractmethod
-    def now(self, tz: timezone = None) -> datetime:
-        ...
-
-    @abc.abstractmethod
     def ranges(self, timestamp: float) -> List[WindowRange]:
         ...
 
     @abc.abstractmethod
-    def stale(self, timestamp: float) -> bool:
+    def stale(self, timestamp: float, latest_timestamp: float) -> bool:
         ...
 
     @abc.abstractmethod
