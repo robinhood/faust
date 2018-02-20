@@ -4,8 +4,6 @@ from sphinx.environment import NoUri
 
 APPATTRS = {
     'Stream': 'faust.Stream',
-    'TableType': 'faust.Table',
-    'SetType': 'faust.Set',
     'TableManager': 'faust.tables.TableManager',
     'Serializers': 'faust.serializers.Registry',
     'sensors': 'faust.sensors.SensorDelegate',

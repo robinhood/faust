@@ -152,8 +152,8 @@ def find_app(app: str,
 
 
 def prepare_app(app: AppT, name: str) -> AppT:
-    app.origin = name
-    if app.autodiscover:
+    app.conf.origin = name
+    if app.conf.autodiscover:
         app.discover()
     return app
 
@@ -471,7 +471,7 @@ class AppCommand(Command):
         self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is not None:
             # XXX How to find full argv[0] with click?
-            origin = self.app.origin
+            origin = self.app.conf.origin
             if sys.argv:
                 prog = Path(sys.argv[0]).absolute()
                 paths = []
@@ -494,8 +494,9 @@ class AppCommand(Command):
             if not appstr:
                 raise self.UsageError('Need to specify app using -A parameter')
             self.app = find_app(appstr)
-        self.key_serializer = key_serializer or self.app.key_serializer
-        self.value_serializer = value_serializer or self.app.value_serializer
+        self.key_serializer = key_serializer or self.app.conf.key_serializer
+        self.value_serializer = (
+            value_serializer or self.app.conf.value_serializer)
         self.args = args
         self.kwargs = kwargs
 
@@ -557,7 +558,7 @@ class AppCommand(Command):
         try:
             return symbol_by_name(attr)
         except ImportError as original_exc:
-            root, _, _ = self.app.origin.partition(':')
+            root, _, _ = self.app.conf.origin.partition(':')
             try:
                 return symbol_by_name(f'{root}.models.{attr}')
             except ImportError:
@@ -578,19 +579,20 @@ class AppCommand(Command):
     def abbreviate_fqdn(self, name: str, *, prefix: str = '') -> str:
         """Abbreviate fully-qualified Python name, by removing origin.
 
-        ``app.origin`` is the package where the app is defined,
+        ``app.conf.origin`` is the package where the app is defined,
         so if this is ``examples.simple`` it returns the truncated::
 
-            >>> app.origin
+            >>> app.conf.origin
             'examples.simple'
-            >>> abbr_fqdn(app.origin,
+            >>> abbr_fqdn(app.conf.origin,
             ...           'examples.simple.Withdrawal',
             ...           prefix='[...]')
             '[...]Withdrawal'
 
         but if the package is not part of origin it provides the full path::
 
-            >>> abbr_fqdn(app.origin, 'examples.other.Foo', prefix='[...]')
+            >>> abbr_fqdn(app.conf.origin,
+            ...           'examples.other.Foo', prefix='[...]')
             'examples.other.foo'
         """
-        return text.abbr_fqdn(self.app.origin, name, prefix=prefix)
+        return text.abbr_fqdn(self.app.conf.origin, name, prefix=prefix)

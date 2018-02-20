@@ -243,7 +243,7 @@ class Worker(mode.Worker):
             loglevel=loglevel,
             logfile=logfile,
             logformat=logformat,
-            loghandlers=app.loghandlers,
+            loghandlers=app.conf.loghandlers,
             stdout=stdout,
             stderr=stderr,
             blocking_timeout=blocking_timeout,
@@ -291,7 +291,7 @@ class Worker(mode.Worker):
     async def on_first_start(self) -> None:
         if self.workdir and Path.cwd().absolute() != self.workdir.absolute():
             os.chdir(Path(self.workdir).absolute())
-        if self.app.autodiscover:
+        if self.app.conf.autodiscover:
             self.app.discover()
         await super().on_first_start()  # <-- sets up logging
 

@@ -170,7 +170,7 @@ class Topic(Channel, TopicT):
     @partitions.setter
     def partitions(self, partitions: int) -> None:
         if partitions is None:
-            partitions = self.app.default_partitions
+            partitions = self.app.conf.default_partitions
         if partitions == 0:
             raise ValueError('Topic cannot have zero partitions')
         self._partitions = partitions
@@ -182,7 +182,7 @@ class Topic(Channel, TopicT):
     @replicas.setter
     def replicas(self, replicas: int) -> None:
         if replicas is None:
-            replicas = self.app.replication_factor
+            replicas = self.app.conf.replication_factor
         self._replicas = replicas
 
     def derive(self, **kwargs: Any) -> ChannelT:

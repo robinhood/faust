@@ -7,21 +7,17 @@ Everything starts here.
 import asyncio
 import importlib
 import inspect
-import logging
 import re
 import typing
 from collections import defaultdict
-from datetime import timedelta
 from functools import wraps
 from heapq import heappop, heappush
 from itertools import chain
-from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
     NamedTuple, Optional, Pattern, Set as _Set, Type, Union, cast,
 )
-from uuid import uuid4
 
 import venusian
 from aiohttp.client import ClientSession
@@ -30,18 +26,14 @@ from mode.proxy import ServiceProxy
 from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
-from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.types.trees import NodeT
-from yarl import URL
 
-from . import __version__ as faust_version
 from . import transport
 from .agents import (
     Agent, AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
 )
 from .assignor import LeaderAssignor, PartitionAssignor
 from .channels import Channel, ChannelT
-from .cli._env import DATADIR
 from .exceptions import ImproperlyConfigured
 from .router import Router
 from .sensors import Monitor, SensorDelegate
@@ -52,9 +44,9 @@ from .types import (
     CodecArg, FutureMessage, K, Message, MessageSentCallback,
     ModelArg, RecordMetadata, TP, TopicT, V,
 )
-from .types.app import AppT, AutodiscoverArg, PageArg, TaskArg, ViewGetHandler
+from .types.app import AppT, PageArg, TaskArg, ViewGetHandler
 from .types.assignor import LeaderAssignorT
-from .types.serializers import RegistryT
+from .types.settings import Settings
 from .types.streams import StreamT
 from .types.tables import SetT, TableManagerT, TableT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
@@ -73,60 +65,9 @@ else:
 
 __all__ = ['App']
 
-#: Broker URL, used as default for ``app.broker``.
-BROKER_URL = 'kafka://localhost:9092'
-
-#: Table storage URL, used as default for ``app.store``.
-STORE_URL = 'memory://'
-
-#: Table state directory path used as default for ``app.tabledir``.
-#: This path will be treated as relative to datadir, unless the provided
-#: poth is absolute.
-TABLEDIR = 'tables'
-
-#: Path to stream class, used as default for ``app.stream``.
-STREAM_TYPE = 'faust.Stream'
-
-#: Path to table manager class, used as default for ``app.tables``.
-TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
-
-#: Path to table class, used as default for ``app.Table``.
-TABLE_TYPE = 'faust.Table'
-
-#: Path to set class, used as default for ``app.Set``.
-SET_TYPE = 'faust.Set'
-
-#: Path to serializer registry class, used as the default for
-#: ``app.serializers``.
-REGISTRY_TYPE = 'faust.serializers.Registry'
-
-#: Path to worker class, providing the default for ``app.Worker``.
-WORKER_TYPE = 'faust.worker.Worker'
-
-#: Default Kafka Client ID.
-CLIENT_ID = f'faust-{faust_version}'
-
-#: How often we commit acknowledged messages.
-#: Used as the default value for the :attr:`App.commit_interval` argument.
-COMMIT_INTERVAL = 3.0
-
-#: How often we clean up expired items in windowed tables.
-#: Used as the default value for the :attr:`App.table_cleanup_interval`
-#: argument.
-TABLE_CLEANUP_INTERVAL = 30.0
-
-#: Prefix used for reply topics.
-REPLY_TOPIC_PREFIX = 'f-reply-'
-
-#: Default expiry time for replies, in seconds (float/timedelta).
-REPLY_EXPIRES = timedelta(days=1)
-
-#: Max number of messages channels/streams/topics can "prefetch".
-STREAM_BUFFER_MAXSIZE = 1000
-
 #: Format string for ``repr(app)``.
 APP_REPR = """
-<{name}({s.id}): {s.broker} {s.state} agents({agents}) topics({topics})>
+<{name}({c.id}): {c.broker} {s.state} agents({agents}) topics({topics})>
 """.strip()
 
 # Venusian decorator scan categories.
@@ -387,92 +328,27 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # first time we start.
     _partitions_revoked_count: int = 0
 
-    def __init__(
-            self, id: str,
-            *,
-            version: int = 1,
-            broker: Union[str, URL] = BROKER_URL,
-            store: Union[str, URL] = STORE_URL,
-            autodiscover: AutodiscoverArg = False,
-            origin: str = None,
-            canonical_url: Union[str, URL] = None,
-            client_id: str = CLIENT_ID,
-            datadir: Union[Path, str] = DATADIR,
-            tabledir: Union[Path, str] = TABLEDIR,
-            commit_interval: Seconds = COMMIT_INTERVAL,
-            table_cleanup_interval: Seconds = TABLE_CLEANUP_INTERVAL,
-            key_serializer: CodecArg = 'json',
-            value_serializer: CodecArg = 'json',
-            num_standby_replicas: int = 1,
-            replication_factor: int = 1,
-            default_partitions: int = 8,
-            reply_to: str = None,
-            create_reply_topic: bool = False,
-            reply_expires: Seconds = REPLY_EXPIRES,
-            Stream: SymbolArg[Type[StreamT]] = STREAM_TYPE,
-            Table: SymbolArg[Type[TableT]] = TABLE_TYPE,
-            TableManager: SymbolArg[Type[TableManagerT]] = TABLE_MANAGER_TYPE,
-            Set: SymbolArg[Type[SetT]] = SET_TYPE,
-            Serializers: SymbolArg[Type[RegistryT]] = REGISTRY_TYPE,
-            Worker: SymbolArg[Type[WorkerT]] = WORKER_TYPE,
-            monitor: Monitor = None,
-            on_startup_finished: Callable = None,
-            stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE,
-            loop: asyncio.AbstractEventLoop = None,
-            loghandlers: List[logging.StreamHandler] = None,
-            url: Union[str, URL] = None) -> None:
-        self.id = id
-        self.loop = loop
-        self.version = version if version is not None else 1
-        if not self.version:
-            raise ImproperlyConfigured(
-                'Version cannot be {self.version}, please start at 1')
-        if self.version > 1:
-            self.id = f'{self.id}-v{self.version}'
-        self.broker = URL(broker or url)
-        self.client_id = client_id
-        self.canonical_url = URL(canonical_url or '')
-        # datadir is a format string that can contain {appid}
-        self.datadir = Path(str(datadir).format(appid=self.id)).expanduser()
-        self.tabledir = self._datadir_path(Path(tabledir)).expanduser()
-        self.commit_interval = want_seconds(commit_interval)
-        self.table_cleanup_interval = want_seconds(table_cleanup_interval)
-        self.key_serializer = key_serializer
-        self.value_serializer = value_serializer
-        self.num_standby_replicas = num_standby_replicas
-        self.replication_factor = replication_factor
-        self.default_partitions = default_partitions
-        self.reply_to = reply_to or REPLY_TOPIC_PREFIX + str(uuid4())
-        self.create_reply_topic = create_reply_topic
-        self.reply_expires = want_seconds(reply_expires or REPLY_EXPIRES)
-        self.Stream = symbol_by_name(Stream)
-        self.TableType = symbol_by_name(Table)
-        self.SetType = symbol_by_name(Set)
-        self.TableManager = symbol_by_name(TableManager)
-        self.Serializers = symbol_by_name(Serializers)
-        self.serializers = self.Serializers(
-            key_serializer=self.key_serializer,
-            value_serializer=self.value_serializer,
-        )
-        self.loghandlers = loghandlers
-        self._worker_type = Worker
+    def __init__(self, id: str, *,
+                 monitor: Monitor = None,
+                 **options: Any) -> None:
+        self.conf = Settings(id, **options)
         self.assignor = PartitionAssignor(
-            self, replicas=self.num_standby_replicas)
+            self, replicas=self.conf.num_standby_replicas)
         self.router = Router(self)
         self.table_route = self.router.router
         self.agents = AgentManager()
         self.sensors = SensorDelegate(self)
-        self.store = URL(store)
         self._monitor = monitor
         self._tasks = []
         self._pending_on_commit = defaultdict(list)
-        self.on_startup_finished: Callable = on_startup_finished
-        self.origin = origin
-        self.autodiscover = autodiscover
+        self.on_startup_finished: Callable = None
         self.pages = []
-        self.stream_buffer_maxsize = stream_buffer_maxsize
         self._extra_services = []
         self._init_signals()
+        self.serializers = self.conf.Serializers(
+            key_serializer=self.conf.key_serializer,
+            value_serializer=self.conf.value_serializer,
+        )
         ServiceProxy.__init__(self)
 
     def _init_signals(self) -> None:
@@ -497,7 +373,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     module = importlib.import_module(name)
                 except ModuleNotFoundError:
                     raise ModuleNotFoundError(
-                        f'Unknown module {name} in App.autodiscover list')
+                        f'Unknown module {name} in App.conf.autodiscover list')
                 scanner.scan(
                     module,
                     categories=tuple(categories),
@@ -505,29 +381,27 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def _discovery_modules(self) -> List[str]:
         modules: List[str] = []
-        if self.autodiscover:
-            if isinstance(self.autodiscover, bool):
-                if self.origin is None:
+        autodiscover = self.conf.autodiscover
+        if autodiscover:
+            if isinstance(autodiscover, bool):
+                if self.conf.origin is None:
                     raise ImproperlyConfigured(E_NEED_ORIGIN)
-            elif callable(self.autodiscover):
+            elif callable(autodiscover):
                 modules.extend(
-                    cast(Callable[[], Iterator[str]], self.autodiscover)())
+                    cast(Callable[[], Iterator[str]], autodiscover)())
             else:
-                modules.extend(self.autodiscover)
-            modules.append(self.origin)
+                modules.extend(autodiscover)
+            modules.append(self.conf.origin)
         return modules
 
     def _new_scanner(
             self, *ignore: Pattern, **kwargs: Any) -> venusian.Scanner:
         return venusian.Scanner(ignore=[pat.search for pat in ignore])
 
-    def _datadir_path(self, path: Path) -> Path:
-        return path if path.is_absolute() else self.datadir / path
-
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
         from .cli.faust import cli
-        if self.autodiscover:
+        if self.conf.autodiscover:
             self.discover()
         cli(app=self)
 
@@ -779,7 +653,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             faust.Stream:
                 to iterate over events in the stream.
         """
-        return self.Stream(
+        return self.conf.Stream(
             app=self,
             channel=aiter(channel) if channel is not None else None,
             beacon=beacon or self.beacon,
@@ -811,7 +685,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> table['Elaine']
             2
         """
-        table = self.tables.add(self.TableType(
+        table = self.tables.add(self.conf.Table(
             self,
             name=name,
             default=default,
@@ -836,7 +710,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         Note:
             The set does *not have* the dict/Mapping interface.
         """
-        return self.tables.add(self.SetType(
+        return self.tables.add(self.conf.Set(
             self,
             name=name,
             beacon=self.beacon,
@@ -1146,7 +1020,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         )
 
     def _new_transport(self) -> TransportT:
-        return transport.by_url(self.broker)(self.broker, self, loop=self.loop)
+        return transport.by_url(self.conf.broker)(
+            self.conf.broker, self, loop=self.loop)
 
     def FlowControlQueue(
             self,
@@ -1163,16 +1038,17 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         )
 
     def Worker(self, **kwargs: Any) -> WorkerT:
-        return symbol_by_name(self._worker_type)(self, **kwargs)
+        return self.conf.Worker(self, **kwargs)
 
     def _create_directories(self) -> None:
-        self.datadir.mkdir(exist_ok=True)
-        self.tabledir.mkdir(exist_ok=True)
+        self.conf.datadir.mkdir(exist_ok=True)
+        self.conf.tabledir.mkdir(exist_ok=True)
 
     def __repr__(self) -> str:
         return APP_REPR.format(
             name=type(self).__name__,
             s=self,
+            c=self.conf,
             agents=self.agents,
             topics=len(self.topics),
         )
@@ -1218,7 +1094,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        return self.TableManager(app=self, loop=self.loop, beacon=self.beacon)
+        return self.conf.TableManager(
+            app=self,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
 
     @cached_property
     def topics(self) -> ConductorT:
@@ -1257,7 +1137,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @property
     def label(self) -> str:
-        return f'{self.shortlabel}: {self.id}@{self.broker}'
+        return f'{self.shortlabel}: {self.conf.id}@{self.conf.broker}'
 
     @property
     def shortlabel(self) -> str:

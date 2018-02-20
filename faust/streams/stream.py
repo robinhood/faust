@@ -87,7 +87,7 @@ class Stream(StreamT[T_co], Service):
         self.app = app
         self.channel = channel
         self.outbox = self.app.FlowControlQueue(
-            maxsize=self.app.stream_buffer_maxsize,
+            maxsize=self.app.conf.stream_buffer_maxsize,
             loop=self.loop,
             clear_on_resume=True,
         )
@@ -439,8 +439,8 @@ class Stream(StreamT[T_co], Service):
         if topic is not None:
             channel = topic
         else:
-            suffix = '-' + self.app.id + '-' + name + '-repartition'
-            p = self.app.default_partitions if partitions else partitions
+            suffix = '-' + self.app.conf.id + '-' + name + '-repartition'
+            p = partitions if partitions else self.app.conf.default_partitions
             channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
         topic_created = False

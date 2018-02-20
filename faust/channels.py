@@ -216,7 +216,7 @@ class Channel(ChannelT):
         self._queue = queue
         self.maxsize = maxsize
         if self.maxsize is None:
-            self.maxsize = self.app.stream_buffer_maxsize
+            self.maxsize = self.app.conf.stream_buffer_maxsize
         self.deliver = self._compile_deliver()  # type: ignore
         self._root = cast(Channel, root)
         self._subscribers = WeakSet()

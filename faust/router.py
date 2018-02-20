@@ -74,7 +74,7 @@ class Router(RouterT):
         app = self.app
         dest_url = app.router.key_store(table_name, key)
         dest_ident = (host, port) = self._urlident(dest_url)
-        if dest_ident == self._urlident(app.canonical_url):
+        if dest_ident == self._urlident(app.conf.canonical_url):
             raise SameNode()
         routed_url = request.url.with_host(host).with_port(int(port))
         async with app.client_session.get(routed_url) as response:

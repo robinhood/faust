@@ -55,9 +55,9 @@ messages in the topic and printed each one of them.
 
 .. note::
 
-    The ``App.id`` i.e. ``'hello-world'`` in the example above, should be
-    unique per Faust app in your kafka cluster (or whatever message broker
-    you use).
+    The :ref:`app-config-id`` i.e. ``'hello-world'`` in the example above,
+    should be unique per Faust app in your kafka cluster (or whatever message
+    broker you use).
 
 
 Starting Kafka

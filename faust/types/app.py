@@ -1,7 +1,6 @@
 import abc
 import asyncio
 import typing
-from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Iterable,
     List, Mapping, Pattern, Set, Tuple, Type, Union,
@@ -10,9 +9,7 @@ from typing import (
 from aiohttp.client import ClientSession
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
-from mode.utils.imports import SymbolArg
 from mode.utils.types.trees import NodeT
-from yarl import URL
 
 from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
@@ -37,6 +34,7 @@ if typing.TYPE_CHECKING:
     from ..web.views import Site, View
     from ..worker import Worker as WorkerT
     from .models import ModelArg
+    from .settings import Settings
 else:
     class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
@@ -47,12 +45,12 @@ else:
     class View: ...           # noqa
     class WorkerT: ...        # noqa
     class Web: ...            # noqa
+    class Settings: ...       # noqa
 
 __all__ = [
     'TaskArg',
     'ViewGetHandler',
     'PageArg',
-    'AutodiscoverArg',
     'Web',
     'AppT',
 ]
@@ -65,11 +63,6 @@ TaskArg = Union[
 ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
 RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
-AutodiscoverArg = Union[
-    bool,
-    Iterable[str],
-    Callable[[], Iterable[str]],
-]
 
 
 class AppT(ServiceT):
@@ -79,38 +72,14 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
+    conf: Settings = None
+
     on_partitions_assigned: Signal[Set[TP]] = Signal()
     on_partitions_revoked: Signal[Set[TP]] = Signal()
 
-    Stream: Type[StreamT]
-    TableType: Type[TableT]
-    TableManager: Type[TableManagerT]
-    SetType: Type[SetT]
-    Serializers: Type[RegistryT]
-
-    id: str
-    broker: URL
-    client_id: str
-    datadir: Path
-    tabledir: Path
     client_only: bool
-    commit_interval: float
-    table_cleanup_interval: float
-    key_serializer: CodecArg
-    value_serializer: CodecArg
-    num_standby_replicas: int
-    replication_factor: int
-    default_partitions: int  # noqa: E704
-    reply_to: str
-    create_reply_topic: float
-    reply_expires: float
-    store: URL
     assignor: PartitionAssignorT
     router: RouterT
-    canonical_url: URL
-    origin: str
-    autodiscover: AutodiscoverArg
-    stream_buffer_maxsize: int
 
     agents: AgentManagerT
     sensors: SensorDelegateT
@@ -118,43 +87,14 @@ class AppT(ServiceT):
     pages: List[Tuple[str, Type[Site]]]
 
     @abc.abstractmethod
-    def main(self) -> None:
-        ...
+    def __init__(self, id: str, *,
+                 monitor: Monitor,
+                 **options: Any) -> None:
+        self.on_startup_finished: Callable = None
 
     @abc.abstractmethod
-    def __init__(
-            self, id: str,
-            *,
-            broker: Union[str, URL] = 'aiokafka://localhost:9092',
-            store: Union[str, URL] = 'memory://',
-            autodiscover: AutodiscoverArg = False,
-            origin: str = None,
-            canonical_url: Union[str, URL] = None,
-            client_id: str = '',
-            datadir: Union[Path, str] = None,
-            tabledir: Union[Path, str] = None,
-            commit_interval: Seconds = 9999.0,
-            table_cleanup_interval: Seconds = 9999.0,
-            key_serializer: CodecArg = 'json',
-            value_serializer: CodecArg = 'json',
-            num_standby_replicas: int = 0,
-            replication_factor: int = 1,
-            default_partitions: int = 8,
-            reply_to: str = None,
-            create_reply_topic: bool = False,
-            reply_expires: Seconds = 9999.0,
-            Stream: SymbolArg[Type[StreamT]] = '',
-            Table: SymbolArg[Type[TableT]] = '',
-            TableManager: SymbolArg[Type[TableManagerT]] = '',
-            Set: SymbolArg[Type[SetT]] = '',
-            Serializers: SymbolArg[Type[RegistryT]] = '',
-            Worker: SymbolArg[Type[WorkerT]] = None,
-            monitor: Monitor = None,
-            on_startup_finished: Callable = None,
-            stream_buffer_maxsize: int = 1,
-            loop: asyncio.AbstractEventLoop = None,
-            url: str = None) -> None:
-        self.on_startup_finished: Callable = None
+    def main(self) -> None:
+        ...
 
     @abc.abstractmethod
     def discover(self,

@@ -289,11 +289,12 @@ class Agent(AgentT, ServiceProxy):
                          key_type: ModelArg = None,
                          value_type: ModelArg = None,
                          **kwargs: Any) -> ChannelT:
-        channel = f'{self.app.id}-{self.name}' if channel is None else channel
+        app = self.app
+        channel = f'{app.conf.id}-{self.name}' if channel is None else channel
         if isinstance(channel, ChannelT):
             return cast(ChannelT, channel)
         elif isinstance(channel, str):
-            return self.app.topic(
+            return app.topic(
                 channel,
                 internal=internal,
                 key_type=key_type,
@@ -449,7 +450,7 @@ class Agent(AgentT, ServiceProxy):
             value,
             key=key,
             partition=partition,
-            reply_to=reply_to or self.app.reply_to,
+            reply_to=reply_to or self.app.conf.reply_to,
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
         )
@@ -531,7 +532,7 @@ class Agent(AgentT, ServiceProxy):
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg = None) -> AsyncIterator[str]:
         # kvmap takes (key, value) pairs.
-        reply_to = self._get_strtopic(reply_to or self.app.reply_to)
+        reply_to = self._get_strtopic(reply_to or self.app.conf.reply_to)
 
         # BarrierState is the promise that keeps track of pending results.
         # It contains a list of individual ReplyPromises.
@@ -567,7 +568,7 @@ class Agent(AgentT, ServiceProxy):
             self,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg = None) -> List[Any]:
-        reply_to = self._get_strtopic(reply_to or self.app.reply_to)
+        reply_to = self._get_strtopic(reply_to or self.app.conf.reply_to)
         barrier = BarrierState(reply_to)
 
         # Map correlation_id -> index

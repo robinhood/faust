@@ -324,7 +324,7 @@ class Store(base.SerializedStore):
 
     @property
     def path(self) -> Path:
-        return self.app.tabledir
+        return self.app.conf.tabledir
 
     @property
     def basename(self) -> Path:

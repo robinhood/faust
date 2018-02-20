@@ -113,7 +113,7 @@ class worker(AppCommand):
                      web_bind: str,
                      web_host: str,
                      console_port: int) -> Any:
-        self.app.canonical_url = URL(f'http://{web_host}:{web_port}')
+        self.app.conf.canonical_url = URL(f'http://{web_host}:{web_port}')
         worker = self.app.Worker(
             debug=self.debug,
             quiet=self.quiet,
@@ -142,9 +142,9 @@ class worker(AppCommand):
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
         data = [
-            ('id', app.id),
-            ('transport', f'{app.broker} {transport_extra}'),
-            ('store', app.store),
+            ('id', app.conf.id),
+            ('transport', f'{app.conf.broker} {transport_extra}'),
+            ('store', app.conf.store),
             ('web', website.web.url),
             ('log', f'{logfile} ({loglevel})'),
             ('pid', f'{os.getpid()}'),
@@ -153,7 +153,7 @@ class worker(AppCommand):
             ('drivers', '{transport_v} {http_v}'.format(
                 transport_v=app.transport.driver_version,
                 http_v=website.web.driver_version)),
-            ('datadir', f'{str(app.datadir.absolute()):<40}'),
+            ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
         ]
         table = self.table(
             [(self.bold(x), y) for x, y in data],

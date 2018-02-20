@@ -28,7 +28,7 @@ class LeaderAssignor(Service, LeaderAssignorT):
 
     @cached_property
     def _leader_topic_name(self) -> str:
-        return f'{self.app.id}-__assignor-__leader'
+        return f'{self.app.conf.id}-__assignor-__leader'
 
     @cached_property
     def _leader_tp(self) -> TP:

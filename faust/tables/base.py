@@ -118,7 +118,7 @@ class Collection(Service, CollectionT):
                 self._data = self.StateStore(
                     url=None, app=app, loop=self.loop)
             else:
-                url = self._store or self.app.store
+                url = self._store or self.app.conf.store
                 self._data = stores.by_url(url)(
                     url, app,
                     table_name=self.name,
@@ -197,7 +197,7 @@ class Collection(Service, CollectionT):
                     for key in self._timestamp_keys[timestamp]:
                         del self.data[key]
                     del self._timestamp_keys[timestamp]
-                await self.sleep(self.app.table_cleanup_interval)
+                await self.sleep(self.app.conf.table_cleanup_interval)
 
     def _should_expire_keys(self) -> bool:
         window = self.window
@@ -219,7 +219,7 @@ class Collection(Service, CollectionT):
         ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
-        return f'{self.app.id}-{self.name}-changelog'
+        return f'{self.app.conf.id}-{self.name}-changelog'
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
