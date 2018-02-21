@@ -32,27 +32,29 @@ from . import transport
 from .agents import (
     Agent, AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
 )
-from .assignor import LeaderAssignor, PartitionAssignor
+from .assignor import LeaderAssignor
 from .channels import Channel, ChannelT
-from .exceptions import ImproperlyConfigured
-from .router import Router
+from .exceptions import ImproperlyConfigured, SameNode
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
 from .topics import ConductorT, Topic, TopicConductor
 
 from .types import (
-    CodecArg, FutureMessage, K, Message, MessageSentCallback,
-    ModelArg, RecordMetadata, TP, TopicT, V,
+    CodecArg, CollectionT, FutureMessage, K, Message, MessageSentCallback,
+    ModelArg, RecordMetadata, RegistryT, TP, TopicT, V,
 )
-from .types.app import AppT, PageArg, TaskArg, ViewGetHandler
-from .types.assignor import LeaderAssignorT
+from .types.app import (
+    AppT, PageArg, RoutedViewGetHandler, TaskArg, ViewGetHandler,
+)
+from .types.assignor import LeaderAssignorT, PartitionAssignorT
+from .types.router import RouterT
 from .types.settings import Settings
 from .types.streams import StreamT
 from .types.tables import SetT, TableManagerT, TableT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.objects import Unordered, cached_property
-from .web.views import Site, View
+from .web.views import Request, Response, Site, View
 
 if typing.TYPE_CHECKING:
     from .cli.base import AppCommand
@@ -266,6 +268,18 @@ class AppService(Service):
         return self.app.shortlabel
 
 
+class ConfWrapper:
+
+    def __init__(self, app, conf):
+        self.app = app
+        self.conf = conf
+
+    def __getattr__(self, key):
+        if self.app.finalized:
+            return getattr(self.conf, key)
+        raise Exception('APP NOT FINALIZED!!!!!!!')
+
+
 class App(AppT, ServiceProxy, ServiceCallbacks):
     """Faust Application.
 
@@ -303,6 +317,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
+    _assignor: PartitionAssignorT = None
+
     # Mapping used to attach messages to a source message such that
     # only when the source message is acked, only then do we publish
     # its attached messages.
@@ -331,11 +347,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def __init__(self, id: str, *,
                  monitor: Monitor = None,
                  **options: Any) -> None:
-        self.conf = Settings(id, **options)
-        self.assignor = PartitionAssignor(
-            self, replicas=self.conf.num_standby_replicas)
-        self.router = Router(self)
-        self.table_route = self.router.router
+        self.conf = ConfWrapper(self, Settings(id, **options))
         self.agents = AgentManager()
         self.sensors = SensorDelegate(self)
         self._monitor = monitor
@@ -345,17 +357,16 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.pages = []
         self._extra_services = []
         self._init_signals()
-        self.serializers = self.conf.Serializers(
-            key_serializer=self.conf.key_serializer,
-            value_serializer=self.conf.value_serializer,
-        )
         ServiceProxy.__init__(self)
 
     def _init_signals(self) -> None:
-        OPA = self.on_partitions_assigned.with_default_sender(self)
-        self.on_partitions_assigned = OPA
-        OPR = self.on_partitions_revoked.with_default_sender(self)
-        self.on_partitions_revoked = OPR
+        self.on_partitions_assigned = (
+            self.on_partitions_assigned.with_default_sender(self))
+        self.on_partitions_revoked = (
+            self.on_partitions_revoked.with_default_sender(self))
+
+    def finalize(self) -> None:
+        self.finalized = True
 
     async def on_stop(self) -> None:
         if self._client_session:
@@ -685,7 +696,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> table['Elaine']
             2
         """
-        table = self.tables.add(self.conf.Table(
+        if self.finalized:  # XXX
+            Table = self.conf.Table
+        else:
+            from .tables import Table
+        table = self.tables.add(Table(
             self,
             name=name,
             default=default,
@@ -758,6 +773,22 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 ...
             venusian.attach(site, on_discovered, category=SCAN_CATEGORY_PAGE)
             return site
+        return _decorator
+
+    def table_route(self, table: CollectionT,
+                    shard_param: str) -> RoutedViewGetHandler:
+        def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
+
+            @wraps(fun)
+            async def get(view: View, request: Request) -> Response:
+                key = request.query[shard_param]
+                try:
+                    return await self.router.route_req(
+                        table.name, key, view.web, request)
+                except SameNode:
+                    return await fun(view, request)
+            return get
+
         return _decorator
 
     def command(self,
@@ -1094,7 +1125,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        return self.conf.TableManager(
+        if self.finalized:  # XXX
+            TableManager = self.conf.TableManager
+        else:
+            from .tables import TableManager
+        return TableManager(
             app=self,
             loop=self.loop,
             beacon=self.beacon,
@@ -1152,3 +1187,19 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         if self._client_session is None:
             self._client_session = ClientSession()
         return self._client_session
+
+    @cached_property
+    def assignor(self) -> PartitionAssignorT:
+        return self.conf.PartitionAssignor(
+            self, replicas=self.conf.num_standby_replicas)
+
+    @cached_property
+    def router(self) -> RouterT:
+        return self.conf.Router(self)
+
+    @cached_property
+    def serializers(self) -> RegistryT:
+        return self.conf.Serializers(
+            key_serializer=self.conf.key_serializer,
+            value_serializer=self.conf.value_serializer,
+        )

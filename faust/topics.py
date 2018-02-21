@@ -57,7 +57,6 @@ class Topic(Channel, TopicT):
     """
 
     _partitions: int = None
-    _replicas: int = None
     _pattern: Pattern = None
 
     def __init__(self, app: AppT,
@@ -102,7 +101,11 @@ class Topic(Channel, TopicT):
         self.acks = acks
         self.internal = internal
         self.config = config or {}
-        self.decode = self._compile_decode()    # type: ignore
+
+    async def decode(self, message: Message) -> EventT:
+        # first call to decode compiles and caches it.
+        decode = self.decode = self._compile_decode()  # type: ignore
+        return await decode(message)
 
     async def put(self, event: EventT) -> None:
         if not self.is_iterator:
@@ -169,21 +172,9 @@ class Topic(Channel, TopicT):
 
     @partitions.setter
     def partitions(self, partitions: int) -> None:
-        if partitions is None:
-            partitions = self.app.conf.default_partitions
         if partitions == 0:
             raise ValueError('Topic cannot have zero partitions')
         self._partitions = partitions
-
-    @property
-    def replicas(self) -> int:
-        return self._replicas
-
-    @replicas.setter
-    def replicas(self, replicas: int) -> None:
-        if replicas is None:
-            replicas = self.app.conf.replication_factor
-        self._replicas = replicas
 
     def derive(self, **kwargs: Any) -> ChannelT:
         """Create new :class:`Topic` derived from this topic.
@@ -314,10 +305,16 @@ class Topic(Channel, TopicT):
     async def declare(self) -> None:
         producer = await self._get_producer()
         for topic in self.topics:
+            partitions = self.partitions
+            if partitions is None:
+                partitions = self.app.conf.default_partitions
+            replicas = self.replicas
+            if replicas is None:
+                replicas = self.app.conf.replication_factor
             await producer.create_topic(
                 topic=topic,
-                partitions=self.partitions,
-                replication=self.replicas,
+                partitions=partitions,
+                replication=replicas,
                 config=self.config,
                 compacting=self.compacting,
                 deleting=self.deleting,

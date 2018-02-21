@@ -27,3 +27,7 @@ class KeyDecodeError(DecodeError):
 
 class ValueDecodeError(DecodeError):
     """Error while decoding/deserialization message value."""
+
+
+class SameNode(FaustError):
+    """Exception raised by router when data is located on same node."""

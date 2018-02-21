@@ -80,15 +80,6 @@ class TopicT(ChannelT):
     def partitions(self, partitions: int) -> None:
         ...
 
-    @property
-    @abc.abstractmethod
-    def replicas(self) -> int:
-        ...
-
-    @replicas.setter
-    def replicas(self, replicas: int) -> None:
-        ...
-
     @abc.abstractmethod
     def derive(self, **kwargs: Any) -> ChannelT:
         ...

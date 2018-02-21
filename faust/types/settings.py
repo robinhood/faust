@@ -13,6 +13,8 @@ from .. import __version__ as faust_version
 from ..cli._env import DATADIR
 from ..exceptions import ImproperlyConfigured
 from ..types import CodecArg
+from ..types.assignor import PartitionAssignorT
+from ..types.router import RouterT
 from ..types.serializers import RegistryT
 from ..types.streams import StreamT
 from ..types.tables import SetT, TableManagerT, TableT
@@ -53,6 +55,13 @@ REGISTRY_TYPE = 'faust.serializers.Registry'
 
 #: Path to worker class, providing the default for ``app.conf.Worker``.
 WORKER_TYPE = 'faust.worker.Worker'
+
+#: Path to partition assignor class, providing the default for
+#: ``app.conf.PartitionAssignor``.
+PARTITION_ASSIGNOR_TYPE = 'faust.assignor:PartitionAssignor'
+
+#: Path to router class, providing the default for ``app.conf.Router``.
+ROUTER_TYPE = 'faust.router:Router'
 
 #: Default Kafka Client ID.
 CLIENT_ID = f'faust-{faust_version}'
@@ -115,6 +124,8 @@ class Settings(abc.ABC):
     _Set: Type[SetT] = None
     _Serializers: Type[RegistryT] = None
     _Worker: Type[WorkerT] = None
+    _PartitionAssignor: Type[PartitionAssignorT] = None
+    _Router: Type[RouterT] = None
 
     def __init__(
             self, id: str,
@@ -146,6 +157,8 @@ class Settings(abc.ABC):
             Set: SymbolArg[Type[SetT]] = None,
             Serializers: SymbolArg[Type[RegistryT]] = None,
             Worker: SymbolArg[Type[WorkerT]] = None,
+            PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
+            Router: SymbolArg[Type[RouterT]] = None,
             stream_buffer_maxsize: int = None,
             loop: asyncio.AbstractEventLoop = None,
             loghandlers: List[logging.StreamHandler] = None,
@@ -200,6 +213,11 @@ class Settings(abc.ABC):
             TableManager or self._TableManager or TABLE_MANAGER_TYPE)
         self.Serializers = Serializers or self._Serializers or REGISTRY_TYPE
         self.Worker = Worker or self._Worker or WORKER_TYPE
+        self.PartitionAssignor = (
+            PartitionAssignor or
+            self._PartitionAssignor or
+            PARTITION_ASSIGNOR_TYPE)
+        self.Router = Router or self._Router or ROUTER_TYPE
 
     def _datadir_path(self, path: Path) -> Path:
         return path if path.is_absolute() else self.datadir / path
@@ -336,3 +354,20 @@ class Settings(abc.ABC):
     @Worker.setter
     def Worker(self, Worker: SymbolArg[Type[WorkerT]]) -> None:
         self._Worker = symbol_by_name(Worker)
+
+    @property
+    def PartitionAssignor(self) -> Type[PartitionAssignorT]:
+        return self._PartitionAssignor
+
+    @PartitionAssignor.setter
+    def PartitionAssignor(
+            self, Assignor: SymbolArg[Type[PartitionAssignorT]]) -> None:
+        self._PartitionAssignor = symbol_by_name(Assignor)
+
+    @property
+    def Router(self) -> Type[RouterT]:
+        return self._Router
+
+    @Router.setter
+    def Router(self, Router: SymbolArg[Type[RouterT]]) -> None:
+        self._Router = symbol_by_name(Router)

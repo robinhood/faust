@@ -17,6 +17,10 @@ class RouterT(abc.ABC):
     app: AppT
 
     @abc.abstractmethod
+    def __init__(self, app: AppT) -> None:
+        ...
+
+    @abc.abstractmethod
     def key_store(self, table_name: str, key: K) -> str:
         ...
 

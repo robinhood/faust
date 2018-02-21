@@ -19,7 +19,7 @@ from .router import RouterT
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
-from .tables import SetT, TableManagerT, TableT
+from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import ChannelT, ConductorT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
@@ -73,17 +73,15 @@ class AppT(ServiceT):
     """
 
     conf: Settings = None
+    finalized: bool = False
 
     on_partitions_assigned: Signal[Set[TP]] = Signal()
     on_partitions_revoked: Signal[Set[TP]] = Signal()
 
     client_only: bool
-    assignor: PartitionAssignorT
-    router: RouterT
 
     agents: AgentManagerT
     sensors: SensorDelegateT
-    serializers: RegistryT
     pages: List[Tuple[str, Type[Site]]]
 
     @abc.abstractmethod
@@ -91,6 +89,10 @@ class AppT(ServiceT):
                  monitor: Monitor,
                  **options: Any) -> None:
         self.on_startup_finished: Callable = None
+
+    @abc.abstractmethod
+    def finalize(self) -> None:
+        ...
 
     @abc.abstractmethod
     def main(self) -> None:
@@ -184,6 +186,11 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def table_route(self, table: CollectionT,
+                    shard_param: str) -> RoutedViewGetHandler:
+        ...
+
+    @abc.abstractmethod
     def command(self,
                 *options: Any,
                 base: Type[AppCommand] = None,
@@ -273,4 +280,19 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def client_session(self) -> ClientSession:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def assignor(self) -> PartitionAssignorT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def router(self) -> RouterT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def serializers(self) -> RegistryT:
         ...

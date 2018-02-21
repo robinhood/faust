@@ -1,19 +1,12 @@
 """Route messages to Faust nodes by partitioning."""
-from functools import wraps
 from typing import Tuple
 from yarl import URL
-from .types.app import (
-    AppT, Request, Response, RoutedViewGetHandler,
-    View, ViewGetHandler, Web,
-)
+from .exceptions import SameNode
+from .types.app import AppT, Request, Response, Web
 from .types.assignor import PartitionAssignorT
 from .types.core import K
 from .types.router import HostToPartitionMap, RouterT
 from .types.tables import CollectionT
-
-
-class SameNode(Exception):
-    """Exception raised by router when data is located on same node."""
 
 
 class Router(RouterT):
@@ -49,22 +42,6 @@ class Router(RouterT):
 
     def _get_table(self, name: str) -> CollectionT:
         return self.app.tables[name]
-
-    def router(self, table: CollectionT,
-               shard_param: str) -> RoutedViewGetHandler:
-        def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
-
-            @wraps(fun)
-            async def get(view: View, request: Request) -> Response:
-                key = request.query[shard_param]
-                try:
-                    return await self.route_req(
-                        table.name, key, view.web, request)
-                except SameNode:
-                    return await fun(view, request)
-            return get
-
-        return _decorator
 
     async def route_req(self,
                         table_name: str,
