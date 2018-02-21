@@ -75,6 +75,7 @@ class AppT(ServiceT):
     finalized: bool = False
     configured: bool = False
 
+    on_configured: SyncSignal[Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()
     on_after_configured: SyncSignal = SyncSignal()
     on_partitions_assigned: Signal[Set[TP]] = Signal()

@@ -360,12 +360,37 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def _init_signals(self) -> None:
         self.on_before_configured = (
             self.on_before_configured.with_default_sender(self))
+        self.on_configured = self.on_configured.with_default_sender(self)
         self.on_after_configured = (
             self.on_after_configured.with_default_sender(self))
         self.on_partitions_assigned = (
             self.on_partitions_assigned.with_default_sender(self))
         self.on_partitions_revoked = (
             self.on_partitions_revoked.with_default_sender(self))
+
+    def config_from_object(self, obj: Any,
+                           *,
+                           silent: bool = False,
+                           force: bool = False) -> None:
+        """Read configuration from object.
+
+        Object is either an actual object or the name of a module to import.
+
+        Examples:
+            >>> app.config_from_object('myproj.faustconfig')
+
+            >>> from myproj import faustconfig
+            >>> app.config_from_object(faustconfig)
+
+        Arguments:
+            silent (bool): If true then import errors will be ignored.
+            force (bool): Force reading configuration immediately.
+                By default the configuration will be read only when required.
+        """
+        self._config_source = obj
+        if force or self.configured:
+            self._conf = None
+            self._configure(silent=silent)
 
     def finalize(self) -> None:
         self.finalized = True
@@ -1089,18 +1114,19 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             topics=len(self.topics),
         )
 
-    def _configure(self) -> None:
+    def _configure(self, *, silent: bool = False) -> None:
         self.on_before_configured.send()
-        self._conf = self._load_settings()
+        conf = self._load_settings(silent=silent)
+        self.on_configured.send(conf)
+        self._conf, self.configured = conf, True
         self.on_after_configured.send()
 
-    def _load_settings(self) -> Settings:
-        self.on_before_configured.send()
-        conf = {}
+    def _load_settings(self, *, silent: bool = False) -> Settings:
+        conf: Mapping[str, Any] = {}
         appid, defaults = self._default_options
         if self._config_source:
-            conf = self._load_settings_from_source(self._config_source)
-        self.configured = True
+            conf = self._load_settings_from_source(
+                self._config_source, silent=silent)
         return Settings(appid, **{**defaults, **conf})
 
     def _load_settings_from_source(self, source: Any,
