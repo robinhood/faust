@@ -95,6 +95,13 @@ class AppT(ServiceT):
         self.on_startup_finished: Callable = None
 
     @abc.abstractmethod
+    def config_from_object(self, obj: Any,
+                           *,
+                           silent: bool = False,
+                           force: bool = False) -> None:
+        ...
+
+    @abc.abstractmethod
     def finalize(self) -> None:
         ...
 
