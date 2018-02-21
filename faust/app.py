@@ -211,6 +211,7 @@ class AppService(Service):
         await self.app.on_first_start()
 
     async def on_start(self) -> None:
+        self.app.finalize()
         await self.app.on_start()
 
     async def on_started(self) -> None:
@@ -393,10 +394,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._configure(silent=silent)
 
     def finalize(self) -> None:
-        self.finalized = True
-        id = self.conf.id
-        if not id:
-            raise ImproperlyConfigured('App requires an id!')
+        if not self.finalized:
+            self.finalized = True
+            id = self.conf.id
+            if not id:
+                raise ImproperlyConfigured('App requires an id!')
 
     async def on_stop(self) -> None:
         if self._client_session:
@@ -442,6 +444,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
         from .cli.faust import cli
+        self.finalize()
         if self.conf.autodiscover:
             self.discover()
         cli(app=self)
@@ -1158,6 +1161,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @property
     def conf(self) -> Settings:
+        if not self.finalized:
+            raise ImproperlyConfigured(
+                'App configuration accessed before app.finalize()')
         if self._conf is None:
             self._configure()
         return self._conf
@@ -1281,6 +1287,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @cached_property
     def serializers(self) -> RegistryT:
+        self.finalize()  # easiest way to autofinalize for topic.send
         return self.conf.Serializers(
             key_serializer=self.conf.key_serializer,
             value_serializer=self.conf.value_serializer,

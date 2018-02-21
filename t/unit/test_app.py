@@ -21,6 +21,7 @@ class Value(faust.Record, serializer='json'):
 def app():
     instance = faust.App('testid')
     instance.producer = Mock(name='producer')
+    instance.finalize()
     return instance
 
 

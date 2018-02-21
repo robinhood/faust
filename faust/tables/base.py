@@ -41,6 +41,8 @@ class Collection(Service, CollectionT):
     _latest_timestamp: float
     _recover_callbacks: MutableSet[RecoverCallback]
     _data: StoreT = None
+    _changelog_compacting: bool = True
+    _changelog_deleting: bool = None
 
     @abc.abstractmethod
     def _has_key(self, key: Any) -> bool:
@@ -246,8 +248,14 @@ class Collection(Service, CollectionT):
 
     def _new_changelog_topic(self, *,
                              retention: Seconds = None,
-                             compacting: bool = True,
+                             compacting: bool = None,
                              deleting: bool = None) -> TopicT:
+        if compacting is None:
+            compacting = self._changelog_compacting
+        if deleting is None:
+            deleting = self._changelog_deleting
+        if retention is None and self.window:
+            retention = self.window.expires
         return self.app.topic(
             self._changelog_topic_name(),
             key_type=self.key_type,
@@ -344,7 +352,7 @@ class Collection(Service, CollectionT):
     @property
     def changelog_topic(self) -> TopicT:
         if self._changelog_topic is None:
-            self._changelog_topic = self._new_changelog_topic(compacting=True)
+            self._changelog_topic = self._new_changelog_topic()
         return self._changelog_topic
 
     @changelog_topic.setter

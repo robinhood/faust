@@ -3,7 +3,7 @@ import asyncio
 import typing
 from time import time
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable,
+    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Dict,
     Iterable, List, Mapping, MutableMapping, MutableSequence,
     Tuple, Type, Union, cast,
 )
@@ -220,6 +220,12 @@ class Agent(AgentT, ServiceProxy):
     This is the type of object returned by the ``@app.agent`` decorator.
     """
 
+    # channel is loaded lazily on .channel property access
+    # to make sure configuration is not accessed when agent created
+    # at module-scope.
+    _channel: ChannelT = None
+    _channel_arg: Union[str, ChannelT] = None
+    _channel_kwargs: Dict[str, Any] = None
     _channel_iterator: AsyncIterator = None
     _sinks: List[SinkT] = None
 
@@ -243,13 +249,12 @@ class Agent(AgentT, ServiceProxy):
         # is not set
         if key_type is not None:
             assert channel is None or isinstance(channel, str)
+        self._key_type = key_type
         if value_type is not None:
             assert channel is None or isinstance(channel, str)
-        self.channel = self._prepare_channel(
-            channel,
-            key_type=key_type,
-            value_type=value_type,
-            **kwargs)
+        self._value_type = value_type
+        self._channel_arg = channel
+        self._channel_kwargs = kwargs
         self.concurrency = concurrency
         self.help = help
         self._sinks = list(sink) if sink is not None else []
@@ -616,6 +621,21 @@ class Agent(AgentT, ServiceProxy):
 
     def _repr_info(self) -> str:
         return shorten_fqdn(self.name)
+
+    @property
+    def channel(self) -> ChannelT:
+        if self._channel is None:
+            self._channel = self._prepare_channel(
+                self._channel_arg,
+                key_type=self._key_type,
+                value_type=self._value_type,
+                **self._channel_kwargs,
+            )
+        return self._channel
+
+    @channel.setter
+    def channel(self, channel: ChannelT) -> None:
+       self._channel = channel
 
     @property
     def channel_iterator(self) -> AsyncIterator:

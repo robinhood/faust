@@ -208,6 +208,8 @@ class Settings(abc.ABC):
             self.reply_to = reply_to
         else:
             self.reply_to = f'{self.reply_to_prefix}{uuid4()}'
+        if reply_expires is not None:
+            self.reply_expires = reply_expires
 
         self.Stream = Stream or self._Stream or STREAM_TYPE
         self.Table = Table or self._Table or TABLE_TYPE
@@ -223,6 +225,11 @@ class Settings(abc.ABC):
         self.Router = Router or self._Router or ROUTER_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
 
+    def prepare_id(self, id: str) -> str:
+        if self.version > 1:
+            return self.id_format.format(id=id, self=self)
+        return id
+
     def _datadir_path(self, path: Path) -> Path:
         return path if path.is_absolute() else self.datadir / path
 
@@ -232,9 +239,7 @@ class Settings(abc.ABC):
 
     @id.setter
     def id(self, id: str) -> None:
-        if self.version > 1:
-            id = self.id_format.format(id=id, self=self)
-        self._id = id
+        self._id = self.prepare_id(id)
 
     @property
     def version(self) -> int:
@@ -244,7 +249,7 @@ class Settings(abc.ABC):
     def version(self, version: int) -> None:
         if not version:
             raise ImproperlyConfigured(
-                'Version cannot be {version}, please start at 1')
+                f'Version cannot be {version}, please start at 1')
         self._version = version
 
     @property

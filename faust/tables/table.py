@@ -23,11 +23,9 @@ class Table(TableT, Collection, ManagedUserDict):
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         self.window = window
-        self.changelog_topic = self._new_changelog_topic(
-            retention=window.expires,
-            compacting=True,
-            deleting=True,
-        )
+        self._changelog_compacting = True
+        self._changelog_deleting = True
+        self._changelog_topic = None  # will reset on next property access
         return WindowWrapper(self)
 
     def hopping(self, size: Seconds, step: Seconds,
