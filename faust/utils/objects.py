@@ -10,22 +10,27 @@ from typing import (
     MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
 )
 from typing import _eval_type, _type_check  # type: ignore
+
 from mode.utils.objects import cached_property
 
 try:
     from typing import _ClassVar  # type: ignore
 except ImportError:
+    # CPython 3.7
     from typing import _GenericAlias  # type: ignore
 
     def _is_class_var(x: Any) -> bool:  # noqa
         return isinstance(x, _GenericAlias) and x.__origin__ is ClassVar
 else:
+    # CPython 3.6
     def _is_class_var(x: Any) -> bool:
         return type(x) is _ClassVar
 
 try:
+    # CPython 3.7
     from typing import ForwardRef  # type: ignore
 except ImportError:
+    # CPython 3.6
     from typing import _ForwardRef as ForwardRef  # type: ignore
 
 __all__ = [
@@ -87,15 +92,39 @@ def _restore_from_keywords(typ: Type, kwargs: Dict) -> Any:
 
 
 class KeywordReduce:
-    """Mixin class for objects that can be pickled.
+    """Mixin class for objects that can be "pickled".
 
-    Traditionally Python's __reduce__ method operates on
-    positional arguments, this adds support for restoring
-    an object using keyword arguments.
+    "Pickled" means the object can be serialiazed using the Python binary
+    serializer -- the :mod:`pickle` module.
 
-    Your class needs to define a ``__reduce_keywords__`` method
-    that returns the keyword arguments used to reconstruct the object
-    as a mapping.
+    Python objects are made pickleable through defining the ``__reduce__``
+    method, that returns a tuple of:
+    ``(restore_function, function_starargs)``::
+
+        class X:
+
+            def __init__(self, arg1, kw1=None):
+                self.arg1 = arg1
+                self.kw1 = kw1
+
+            def __reduce__(self) -> Tuple[Callable, Tuple[Any, ...]]:
+                return type(self), (self.arg1, self.kw1)
+
+    This is *tedious* since this means you cannot accept ``**kwargs`` in the
+    constructur, so what we do is define a ``__reduce_keywords__``
+    argument that returns a dict instead::
+
+        class X:
+
+            def __init__(self, arg1, kw1=None):
+                self.arg1 = arg1
+                self.kw1 = kw1
+
+            def __reduce_keywords__(self) -> Mapping[str, Any]:
+                return {
+                    'arg1': self.arg1,
+                    'kw1': self.kw1,
+                }
     """
 
     def __reduce_keywords__(self) -> Mapping:

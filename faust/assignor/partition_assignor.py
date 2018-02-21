@@ -1,6 +1,7 @@
 """Partition assignor."""
 from collections import defaultdict
 from typing import Iterable, List, MutableMapping, Sequence, Set, cast
+
 from kafka.cluster import ClusterMetadata
 from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
@@ -12,6 +13,7 @@ from yarl import URL
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
+
 from ..types.app import AppT
 from ..types.assignor import (
     HostToPartitionMap, PartitionAssignorT, TopicToPartitionMap,

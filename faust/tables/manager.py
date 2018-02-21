@@ -4,12 +4,15 @@ from collections import defaultdict
 from typing import (
     Any, AsyncIterable, Iterable, List, MutableMapping, Set, Tuple, cast,
 )
+
 from mode import Service
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.collections import FastUserDict
 from mode.utils.compat import Counter
 from mode.utils.times import Seconds
+
 from .table import Table
+
 from ..types import AppT, EventT, TP
 from ..types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,

@@ -1,5 +1,6 @@
 """Abstract types for static typing."""
 from mode import ServiceT
+
 from .agents import AgentManagerT, AgentT
 from .app import AppT
 from .channels import ChannelT, EventT

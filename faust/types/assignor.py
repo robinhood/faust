@@ -4,7 +4,6 @@ from typing import List, MutableMapping, Set
 from mode import ServiceT
 from .topics import TP
 
-
 TopicToPartitionMap = MutableMapping[str, List[int]]
 HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
 

@@ -160,8 +160,10 @@ the extension with other Faust users.
 import pickle as _pickle
 from base64 import b64decode, b64encode
 from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
+
 from mode.utils.compat import want_bytes, want_str
 from mode.utils.imports import load_extension_classes
+
 from ..types.codecs import CodecArg, CodecT
 from ..utils import json as _json
 

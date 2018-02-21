@@ -11,11 +11,13 @@ from typing import (
     Any, Callable, ClassVar, Dict, List,
     Mapping, Sequence, Tuple, Type, no_type_check,
 )
+
 import click
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
 from mode.utils.compat import isatty, want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
+
 from ._env import DATADIR, DEBUG, WORKDIR
 from .. import __version__
 from ..types import AppT, CodecArg, ModelT

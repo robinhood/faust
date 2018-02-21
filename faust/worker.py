@@ -41,14 +41,13 @@ import logging
 import os
 import socket
 import sys
-
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, IO, Iterable, Mapping, Set, Tuple, Type, Union
 
-from kafka.structs import TopicPartition as _TopicPartition
 import mode
+from kafka.structs import TopicPartition as _TopicPartition
 from mode import ServiceT, get_logger
 from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import formatter

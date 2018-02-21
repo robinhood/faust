@@ -1,7 +1,6 @@
 import abc
 import asyncio
 import typing
-
 from pathlib import Path
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Iterable,

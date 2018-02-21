@@ -1,7 +1,6 @@
 """Agent implementation."""
 import asyncio
 import typing
-
 from time import time
 from typing import (
     Any, AsyncIterable, AsyncIterator, Awaitable, Callable,

@@ -1,6 +1,8 @@
 """Website served by the Faust web server."""
 from typing import Any, Sequence, Tuple, Type, Union
+
 from mode import Service
+
 from . import drivers
 from .apps import graph
 from .apps import router
@@ -8,6 +10,7 @@ from .apps import stats
 from .apps import tables
 from .base import Web
 from .views import Site
+
 from ..types import AppT
 
 __all__ = ['Website']

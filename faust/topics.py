@@ -8,8 +8,10 @@ from typing import (
     Any, Awaitable, Callable, Iterable, Iterator, Mapping,
     MutableMapping, Optional, Pattern, Sequence, Set, Tuple, Union, cast,
 )
+
 from mode import Seconds, Service, get_logger
 from mode.utils.futures import ThrowableQueue, notify, stampede
+
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (

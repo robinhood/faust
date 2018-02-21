@@ -6,10 +6,12 @@ from typing import (
     Any, Awaitable, Callable, ClassVar, Iterable, Mapping,
     MutableMapping, Optional, Set, Type, Union,
 )
+
 from mode import Seconds, ServiceT
 from mode.utils.collections import ManagedUserSet
 from mode.utils.compat import Counter
 from yarl import URL
+
 from .channels import EventT
 from .stores import StoreT
 from .streams import JoinableT

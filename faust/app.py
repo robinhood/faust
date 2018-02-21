@@ -10,7 +10,6 @@ import inspect
 import logging
 import re
 import typing
-
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
@@ -24,6 +23,7 @@ from typing import (
 )
 from uuid import uuid4
 
+import venusian
 from aiohttp.client import ClientSession
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
@@ -32,7 +32,6 @@ from mode.utils.aiter import aiter
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.types.trees import NodeT
-import venusian
 from yarl import URL
 
 from . import __version__ as faust_version

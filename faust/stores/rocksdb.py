@@ -9,9 +9,12 @@ from typing import (
     Any, Callable, DefaultDict, Iterable, Iterator, Mapping,
     MutableMapping, NamedTuple, Optional, Set, Tuple, Union, cast,
 )
+
 from mode.utils.collections import LRUCache
 from yarl import URL
+
 from . import base
+
 from ..exceptions import ImproperlyConfigured
 from ..streams import current_event
 from ..types import AppT, CollectionT, EventT, TP

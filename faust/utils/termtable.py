@@ -1,6 +1,7 @@
 """Using :pypi:`terminaltables` to draw ANSI tables."""
 import sys
 from typing import Any, IO, Sequence, Type
+
 from mode.utils import logging
 from mode.utils.compat import isatty
 from terminaltables import AsciiTable, SingleTable

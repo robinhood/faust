@@ -5,8 +5,10 @@ from typing import (
     AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar, Iterable,
     Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, no_type_check,
 )
+
 from mode import Seconds, ServiceT
 from yarl import URL
+
 from .tuples import Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:

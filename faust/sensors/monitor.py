@@ -3,9 +3,11 @@ import asyncio
 import statistics
 from time import monotonic
 from typing import Any, List, Mapping, MutableMapping, Set, cast
+
 from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy
 from mode.utils.compat import Counter
+
 from .base import Sensor
 from ..types import CollectionT, EventT, Message, StreamT, TP
 from ..types.transports import ConsumerT, ProducerT

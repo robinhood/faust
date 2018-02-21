@@ -4,7 +4,9 @@
 """
 from operator import attrgetter
 from typing import Sequence, Type
+
 import click
+
 from .base import AppCommand
 from ..models import registry
 from ..types import ModelT

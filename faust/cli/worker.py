@@ -32,9 +32,11 @@ import platform
 import socket
 import typing
 from typing import Any, Iterable, Optional
+
 import click
 from mode.utils.logging import level_name
 from yarl import URL
+
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, TCPPort, WritableFilePath, option
 from .. import __version__ as faust_version

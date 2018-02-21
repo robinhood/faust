@@ -1,6 +1,8 @@
 import abc
 from typing import Any, Iterable
+
 from mode import ServiceT
+
 from .channels import EventT
 from .streams import StreamT
 from .tables import CollectionT

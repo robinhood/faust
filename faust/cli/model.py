@@ -4,8 +4,10 @@
 """
 from datetime import datetime
 from typing import Any, Sequence, Type
+
 import click
 from mode.utils import text
+
 from .base import AppCommand
 from ..models import registry
 from ..types import FieldDescriptorT, ModelT

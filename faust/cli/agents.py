@@ -4,7 +4,9 @@
 """
 from operator import attrgetter
 from typing import Optional, Sequence
+
 import click
+
 from .base import AppCommand
 from ..types import AgentT
 

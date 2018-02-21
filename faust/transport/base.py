@@ -2,7 +2,6 @@
 import abc
 import asyncio
 import typing
-
 from collections import defaultdict
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,

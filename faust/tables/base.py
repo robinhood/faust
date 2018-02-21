@@ -6,8 +6,10 @@ from typing import (
     Any, Callable, Iterable, Iterator, List, Mapping,
     MutableMapping, MutableSet, Optional, Set, Union, cast, no_type_check,
 )
+
 from mode import Seconds, Service
 from yarl import URL
+
 from .. import stores
 from ..channels import Event
 from ..streams import current_event

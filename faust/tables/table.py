@@ -2,10 +2,13 @@
 import sys
 from operator import itemgetter
 from typing import Any, Callable, IO, Iterable, List, cast
+
 from mode import Seconds
 from mode.utils import text
 from mode.utils.collections import ManagedUserDict
+
 from .base import Collection
+
 from .wrappers import WindowWrapper
 from .. import windows
 from ..types.tables import TableT, WindowWrapperT

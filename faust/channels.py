@@ -11,8 +11,10 @@ from typing import (
     Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
 )
 from weakref import WeakSet
+
 from mode import Seconds, get_logger, want_seconds
 from mode.utils.futures import ThrowableQueue, maybe_async, stampede
+
 from .streams import current_event
 from .types import (
     AppT, CodecArg, FutureMessage, K, Message,
