@@ -7,7 +7,7 @@ from typing import (
 )
 
 from aiohttp.client import ClientSession
-from mode import Seconds, ServiceT, Signal, SupervisorStrategyT
+from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.types.trees import NodeT
 
@@ -72,9 +72,11 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
-    conf: Settings = None
     finalized: bool = False
+    configured: bool = False
 
+    on_before_configured: SyncSignal = SyncSignal()
+    on_after_configured: SyncSignal = SyncSignal()
     on_partitions_assigned: Signal[Set[TP]] = Signal()
     on_partitions_revoked: Signal[Set[TP]] = Signal()
 
@@ -87,6 +89,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def __init__(self, id: str, *,
                  monitor: Monitor,
+                 config_source: Any = None,
                  **options: Any) -> None:
         self.on_startup_finished: Callable = None
 
@@ -236,6 +239,14 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def Worker(self, **kwargs: Any) -> WorkerT:
+        ...
+
+    @property
+    def conf(self) -> Settings:
+        ...
+
+    @conf.setter
+    def conf(self, settings: Settings) -> None:
         ...
 
     @property

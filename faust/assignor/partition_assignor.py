@@ -52,7 +52,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _tps_url: MutableMapping[TP, str]
 
     def __init__(self, app: AppT, replicas: int = 0) -> None:
-        super().__init__()
+        AbstractPartitionAssignor.__init__(self)
         self.app = app
         self._table_manager = self.app.tables
         self._assignment = ClientAssignment(actives={}, standbys={})

@@ -4,11 +4,13 @@ import logging
 import typing
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable, Iterable, List, Type, Union
+from typing import Any, Callable, Iterable, List, Type, Union
 from uuid import uuid4
+
 from mode import Seconds, want_seconds
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
+
 from .. import __version__ as faust_version
 from ..cli._env import DATADIR
 from ..exceptions import ImproperlyConfigured
@@ -163,7 +165,8 @@ class Settings(abc.ABC):
             loop: asyncio.AbstractEventLoop = None,
             loghandlers: List[logging.StreamHandler] = None,
             # XXX backward compat (remove fpr Faust 1.0)
-            url: Union[str, URL] = None) -> None:
+            url: Union[str, URL] = None,
+            **kwargs: Any) -> None:
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
         self.loop = loop if loop is not None else self.loop
@@ -218,6 +221,7 @@ class Settings(abc.ABC):
             self._PartitionAssignor or
             PARTITION_ASSIGNOR_TYPE)
         self.Router = Router or self._Router or ROUTER_TYPE
+        self.__dict__.update(kwargs)  # arbitrary configuration
 
     def _datadir_path(self, path: Path) -> Path:
         return path if path.is_absolute() else self.datadir / path

@@ -25,7 +25,9 @@ from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
+from mode.utils.collections import force_mapping
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
+from mode.utils.imports import import_from_cwd, symbol_by_name
 from mode.utils.types.trees import NodeT
 
 from . import transport
@@ -268,18 +270,6 @@ class AppService(Service):
         return self.app.shortlabel
 
 
-class ConfWrapper:
-
-    def __init__(self, app, conf):
-        self.app = app
-        self.conf = conf
-
-    def __getattr__(self, key):
-        if self.app.finalized:
-            return getattr(self.conf, key)
-        raise Exception('APP NOT FINALIZED!!!!!!!')
-
-
 class App(AppT, ServiceProxy, ServiceCallbacks):
     """Faust Application.
 
@@ -307,6 +297,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     #: Set this to True if app should only start the services required to
     #: operate as an RPC client (producer and reply consumer).
     client_only = False
+
+    #: Source of configuration: ``app.conf`` (when configured)
+    _conf: Settings = None
+
+    #: Original configuration source object.
+    _config_source: Any = None
 
     # Default producer instance.
     _producer: ProducerT = None
@@ -346,8 +342,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def __init__(self, id: str, *,
                  monitor: Monitor = None,
+                 config_source: Any = None,
                  **options: Any) -> None:
-        self.conf = ConfWrapper(self, Settings(id, **options))
+        self._default_options = (id, options)
         self.agents = AgentManager()
         self.sensors = SensorDelegate(self)
         self._monitor = monitor
@@ -357,9 +354,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.pages = []
         self._extra_services = []
         self._init_signals()
+        self._config_source = config_source
         ServiceProxy.__init__(self)
 
     def _init_signals(self) -> None:
+        self.on_before_configured = (
+            self.on_before_configured.with_default_sender(self))
+        self.on_after_configured = (
+            self.on_after_configured.with_default_sender(self))
         self.on_partitions_assigned = (
             self.on_partitions_assigned.with_default_sender(self))
         self.on_partitions_revoked = (
@@ -367,6 +369,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def finalize(self) -> None:
         self.finalized = True
+        id = self.conf.id
+        if not id:
+            raise ImproperlyConfigured('App requires an id!')
 
     async def on_stop(self) -> None:
         if self._client_session:
@@ -697,10 +702,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             2
         """
         if self.finalized:  # XXX
-            Table = self.conf.Table
+            table_type = self.conf.Table
         else:
-            from .tables import Table
-        table = self.tables.add(Table(
+            from .tables import Table as table_type  # type: ignore
+        table = self.tables.add(table_type(
             self,
             name=name,
             default=default,
@@ -1084,6 +1089,57 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             topics=len(self.topics),
         )
 
+    def _configure(self) -> None:
+        self.on_before_configured.send()
+        self._conf = self._load_settings()
+        self.on_after_configured.send()
+
+    def _load_settings(self) -> Settings:
+        self.on_before_configured.send()
+        conf = {}
+        appid, defaults = self._default_options
+        if self._config_source:
+            conf = self._load_settings_from_source(self._config_source)
+        self.configured = True
+        return Settings(appid, **{**defaults, **conf})
+
+    def _load_settings_from_source(self, source: Any,
+                                   *,
+                                   silent: bool = False) -> Mapping:
+        if isinstance(source, str):
+            try:
+                source = self._smart_import(source, imp=import_from_cwd)
+            except (AttributeError, ImportError):
+                if not silent:
+                    raise
+                return {}
+        return force_mapping(source)
+
+    def _smart_import(self, path: str, imp: Any = None) -> Any:
+        imp = importlib.import_module if imp is None else imp
+        if ':' in path:
+            # Path includes attribute so can just jump
+            # here (e.g., ``os.path:abspath``).
+            return symbol_by_name(path, imp=imp)
+
+        # Not sure if path is just a module name or if it includes an
+        # attribute name (e.g., ``os.path``, vs, ``os.path.abspath``).
+        try:
+            return imp(path)
+        except ImportError:
+            # Not a module name, so try module + attribute.
+            return symbol_by_name(path, imp=imp)
+
+    @property
+    def conf(self) -> Settings:
+        if self._conf is None:
+            self._configure()
+        return self._conf
+
+    @conf.setter
+    def conf(self, settings: Settings) -> None:
+        self._conf = settings
+
     @property
     def producer(self) -> ProducerT:
         if self._producer is None:
@@ -1128,7 +1184,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         if self.finalized:  # XXX
             TableManager = self.conf.TableManager
         else:
-            from .tables import TableManager
+            from .tables import TableManager  # type: ignore
         return TableManager(
             app=self,
             loop=self.loop,

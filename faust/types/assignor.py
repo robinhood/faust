@@ -20,6 +20,10 @@ class PartitionAssignorT(abc.ABC):
     app: AppT
 
     @abc.abstractmethod
+    def __init__(self, app: AppT, replicas: int = 0) -> None:
+        ...
+
+    @abc.abstractmethod
     def assigned_standbys(self) -> Set[TP]:
         ...
 
