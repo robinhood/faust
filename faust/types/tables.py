@@ -42,7 +42,6 @@ __all__ = [
     'CollectionTps',
 ]
 
-
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 ChangelogEventCallback = Callable[[EventT], Awaitable[None]]

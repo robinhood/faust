@@ -1,9 +1,9 @@
 """Types for module :mod:`faust.router`."""
 import abc
 import typing
+
 from .assignor import HostToPartitionMap
 from .core import K
-
 
 if typing.TYPE_CHECKING:
     from .app import AppT

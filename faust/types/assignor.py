@@ -1,17 +1,25 @@
 import abc
 import typing
 from typing import List, MutableMapping, Set
+
 from mode import ServiceT
+
 from .topics import TP
-
-TopicToPartitionMap = MutableMapping[str, List[int]]
-HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
-
 
 if typing.TYPE_CHECKING:
     from .app import AppT
 else:
     class AppT: ...      # noqa
+
+__all__ = [
+    'TopicToPartitionMap',
+    'HostToPartitionMap',
+    'PartitionAssignorT',
+    'LeaderAssignorT',
+]
+
+TopicToPartitionMap = MutableMapping[str, List[int]]
+HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
 
 
 class PartitionAssignorT(abc.ABC):

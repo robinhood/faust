@@ -50,11 +50,11 @@ else:
 __all__ = [
     'TaskArg',
     'ViewGetHandler',
+    'RoutedViewGetHandler',
     'PageArg',
     'Web',
     'AppT',
 ]
-
 
 TaskArg = Union[
     Callable[['AppT'], Awaitable],

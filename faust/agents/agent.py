@@ -635,7 +635,7 @@ class Agent(AgentT, ServiceProxy):
 
     @channel.setter
     def channel(self, channel: ChannelT) -> None:
-       self._channel = channel
+        self._channel = channel
 
     @property
     def channel_iterator(self) -> AsyncIterator:
