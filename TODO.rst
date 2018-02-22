@@ -69,6 +69,25 @@ See ``faust/joins.py``
 
 API already exposed in faust.streams.Stream, but not implemented.
 
+Buffering Ack Optimization
+==========================
+
+TODO
+
+Ack buffer using start_offset-end_offset.
+
+Django support builtin
+======================
+
+Automatically call `django.setup()` and friends in examples/django/faustapp/app.py
+when the ``DJANGO_SETTINGS_MODULE`` environment variable is set.
+
+Agent per partition
+===================
+
+Start one agent per partition.
+Must also be able to introspect what partitions an agent is active for.
+
 Tables
 ======
 
