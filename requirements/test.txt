@@ -1,5 +1,6 @@
 hypothesis>=3.31
 pytest-aiofiles>=0.2.0
+pytest-aiohttp>=0.3.0
 pytest-asyncio>=0.8
 pytest-base-url>=1.4.1
 pytest-forked
