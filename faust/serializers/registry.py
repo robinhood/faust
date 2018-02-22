@@ -49,18 +49,8 @@ class Registry(RegistryT):
             return key
         serializer = serializer or self.key_serializer
         try:
-            if isinstance(key, ModelT):
-                k = key
-            else:
-                if typ is None:
-                    typ = bytes
-                if typ is str:
-                    k = want_str(self._loads(serializer, key))
-                elif typ is bytes:
-                    k = want_bytes(self._loads(serializer, key))
-                else:
-                    k = cast(ModelT, typ).from_data(self._loads(serializer, key))
-            return cast(K, k)
+            payload = self._loads(serializer, key)
+            return cast(K, self._prepare_payload(typ, payload))
         except MemoryError:
             raise
         except Exception as exc:
@@ -104,24 +94,24 @@ class Registry(RegistryT):
             return None
         serializer = self._serializer(typ, serializer, self.value_serializer)
         try:
-            if isinstance(value, ModelT):
-                v = value
-            else:
-                if typ is None:
-                    typ = bytes
-                if typ is str:
-                    v = want_str(self._loads(serializer, value))
-                elif typ is bytes:
-                    v = want_bytes(self._loads(serializer, value))
-                else:
-                    model = cast(ModelT, typ)
-                    v = model.from_data(self._loads(serializer, value))
-            return cast(V, v)
+            payload = self._loads(serializer, value)
+            return cast(V, self._prepare_payload(typ, payload))
         except MemoryError:
             raise
         except Exception as exc:
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from exc
+
+    def _prepare_payload(self, typ: Optional[ModelArg], value: Any) -> Any:
+        if typ is None:  # (autodetect)
+            return self.Model._maybe_reconstruct(value)
+        elif typ is str:
+            return want_str(value)
+        elif typ is bytes:
+            return want_bytes(value)
+        else:
+            # type set to Model
+            return cast(ModelT, typ).from_data(value)
 
     def dumps_key(self,
                   typ: Optional[ModelArg],
