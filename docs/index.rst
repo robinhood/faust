@@ -2,11 +2,19 @@
  Faust - Python Stream Processing
 =======================================================================
 
+.. code-block:: python
+
+    # Python Streams ٩(◕‿◕)۶
+    # Forever scalable event processing & in-memory
+    # durable K/V store; as a library w/ asyncio & static typing.
+    import faust
+
 .. topic:: \
 
     *“I am not omniscient, but I know a lot.”*
 
     -- Goethe, *Faust: First part*
+
 
 **Faust** is a Python library for *event processing* and *streaming applications*
 that are decentralized and fault-tolerant.
