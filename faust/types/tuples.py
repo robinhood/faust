@@ -130,7 +130,6 @@ class Message:
         if not self.acked:
             # if no more references, mark offset as safe-to-commit in Consumer.
             if not self.decref():
-                self.acked = True
                 return consumer.ack(self)
         return False
 

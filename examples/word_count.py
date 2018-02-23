@@ -9,7 +9,7 @@ app = faust.App(
     'word-counts',
     broker='kafka://localhost:9092',
     store='rocksdb://',
-    version=2,
+    version=1,
     default_partitions=8,
 )
 
@@ -41,7 +41,7 @@ async def count_words(words):
 async def get_count(web, request):
     word = request.GET['word']
     return web.json({
-        word.word: word_counts[word.word],
+        word: word_counts[word],
     })
 
 

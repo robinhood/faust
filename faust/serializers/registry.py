@@ -49,33 +49,13 @@ class Registry(RegistryT):
             return key
         serializer = serializer or self.key_serializer
         try:
-            if isinstance(key, ModelT):
-                k = self._loads_model(cast(Type[ModelT], typ), serializer, key)
-            else:
-                # assume bytes if no type set.
-                k = self.Model._maybe_reconstruct(
-                    self._loads(serializer, key))
-                if typ is not None:
-                    if typ is str:
-                        k = want_str(k)
-                    elif typ is bytes:
-                        k = want_bytes(k)
-                    elif not isinstance(k, ModelT):
-                        k = typ(k)
-            return cast(K, k)
+            payload = self._loads(serializer, key)
+            return cast(K, self._prepare_payload(typ, payload))
         except MemoryError:
             raise
         except Exception as exc:
             raise KeyDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from exc
-
-    def _loads_model(
-            self,
-            typ: Type[ModelT],
-            default_serializer: CodecArg,
-            data: bytes) -> Any:
-        return self.Model.from_data(self._loads(
-            typ._options.serializer or default_serializer, data))
 
     def _loads(self, serializer: CodecArg, data: bytes) -> Any:
         return loads(serializer, data)
@@ -114,26 +94,24 @@ class Registry(RegistryT):
             return None
         serializer = self._serializer(typ, serializer, self.value_serializer)
         try:
-            if isinstance(value, ModelT):
-                return self._loads_model(
-                    cast(Type[ModelT], typ), serializer, value)
-            else:
-                # assume bytes if no type set.
-                typ = bytes if typ is None else typ
-                v = self.Model._maybe_reconstruct(
-                    self._loads(serializer, value))
-                if typ is str:
-                    return want_str(v)
-                elif typ is bytes:
-                    return want_bytes(v)
-                elif not isinstance(v, ModelT):
-                    return typ(**v)
-                return v
+            payload = self._loads(serializer, value)
+            return cast(V, self._prepare_payload(typ, payload))
         except MemoryError:
             raise
         except Exception as exc:
             raise ValueDecodeError(
                 str(exc)).with_traceback(sys.exc_info()[2]) from exc
+
+    def _prepare_payload(self, typ: Optional[ModelArg], value: Any) -> Any:
+        if typ is None:  # (autodetect)
+            return self.Model._maybe_reconstruct(value)
+        elif typ is str:
+            return want_str(value)
+        elif typ is bytes:
+            return want_bytes(value)
+        else:
+            # type set to Model
+            return cast(ModelT, typ).from_data(value)
 
     def dumps_key(self,
                   typ: Optional[ModelArg],
