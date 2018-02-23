@@ -1133,9 +1133,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             await self.crash(exc)
 
     def _new_producer(self, beacon: NodeT = None) -> ProducerT:
-        return self.transport.create_producer(
-            beacon=beacon or self.beacon,
-        )
+        return self.transport.create_producer(beacon=beacon or self.beacon)
 
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
