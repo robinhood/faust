@@ -152,7 +152,7 @@ def find_app(app: str,
 
 
 def prepare_app(app: AppT, name: str) -> AppT:
-    app.conf.origin = name
+    app.finalize()
     if app.conf.autodiscover:
         app.discover()
     return app

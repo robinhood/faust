@@ -88,7 +88,6 @@ class AgentT(ServiceT):
 
     name: str
     app: AppT
-    channel: ChannelT
     concurrency: int
     help: str
     supervisor_strategy: Type[SupervisorStrategyT]
@@ -200,6 +199,15 @@ class AgentT(ServiceT):
     def clone(self, *,
               cls: Type['AgentT'] = None,
               **kwargs: Any) -> 'AgentT':
+        ...
+
+    @property
+    @abc.abstractmethod
+    def channel(self) -> ChannelT:
+        ...
+
+    @channel.setter
+    def channel(self, channel: ChannelT) -> None:
         ...
 
     @property

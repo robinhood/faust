@@ -3,7 +3,7 @@ import asyncio
 import typing
 from typing import (
     Any, AsyncIterable, Awaitable, Callable, Iterable,
-    List, Mapping, Pattern, Set, Tuple, Type, Union,
+    List, Mapping, MutableSequence, Pattern, Set, Tuple, Type, Union,
 )
 
 from aiohttp.client import ClientSession
@@ -15,6 +15,7 @@ from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
+from .fixups import FixupT
 from .router import RouterT
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
@@ -80,12 +81,15 @@ class AppT(ServiceT):
     on_after_configured: SyncSignal = SyncSignal()
     on_partitions_assigned: Signal[Set[TP]] = Signal()
     on_partitions_revoked: Signal[Set[TP]] = Signal()
+    on_worker_init: SyncSignal = SyncSignal()
 
     client_only: bool
 
     agents: AgentManagerT
     sensors: SensorDelegateT
     pages: List[Tuple[str, Type[Site]]]
+
+    fixups: MutableSequence[FixupT]
 
     @abc.abstractmethod
     def __init__(self, id: str, *,
@@ -107,6 +111,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def main(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def worker_init(self) -> None:
         ...
 
     @abc.abstractmethod

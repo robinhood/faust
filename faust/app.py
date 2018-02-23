@@ -37,6 +37,7 @@ from .agents import (
 from .assignor import LeaderAssignor
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured, SameNode
+from .fixups import FixupT, fixups
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
 from .topics import ConductorT, Topic, TopicConductor
@@ -354,8 +355,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.on_startup_finished: Callable = None
         self.pages = []
         self._extra_services = []
-        self._init_signals()
         self._config_source = config_source
+
+        self._init_signals()
+        self.fixups = self._init_fixups()
         ServiceProxy.__init__(self)
 
     def _init_signals(self) -> None:
@@ -368,6 +371,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self.on_partitions_assigned.with_default_sender(self))
         self.on_partitions_revoked = (
             self.on_partitions_revoked.with_default_sender(self))
+        self.on_worker_init = self.on_worker_init.with_default_sender(self)
+
+    def _init_fixups(self) -> MutableSequence[FixupT]:
+        return list(fixups(self))
 
     def config_from_object(self, obj: Any,
                            *,
@@ -404,11 +411,19 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         if self._client_session:
             self._client_session.close()
 
+    def worker_init(self) -> None:
+        for fixup in self.fixups:
+            fixup.on_worker_init()
+        self.on_worker_init.send()
+
     def discover(self,
                  *extra_modules: str,
                  categories: Iterable[str] = SCAN_CATEGORIES,
                  ignore: Iterable[str] = SCAN_IGNORE) -> None:
-        modules = set(self._discovery_modules()) | set(extra_modules)
+        modules = set(self._discovery_modules())
+        modules |= set(extra_modules)
+        for fixup in self.fixups:
+            modules |= set(fixup.autodiscover_modules())
         if modules:
             scanner = self._new_scanner(*[re.compile(pat) for pat in ignore])
             for name in modules:
@@ -445,6 +460,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """Execute the :program:`faust` umbrella command using this app."""
         from .cli.faust import cli
         self.finalize()
+        self.worker_init()
         if self.conf.autodiscover:
             self.discover()
         cli(app=self)

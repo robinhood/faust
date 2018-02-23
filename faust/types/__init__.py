@@ -6,6 +6,7 @@ from .app import AppT
 from .channels import ChannelT, EventT
 from .codecs import CodecArg, CodecT
 from .core import K, V
+from .fixups import FixupT
 from .joins import JoinT
 from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT
 from .sensors import SensorT
@@ -45,6 +46,9 @@ __all__ = [
 
     # types.core
     'K', 'V',
+
+    # types.fixups
+    'FixupT',
 
     # types.joins
     'JoinT',
