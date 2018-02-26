@@ -254,6 +254,7 @@ instance of the application.
 
 :type: ``Union[str, pathlib.Path]``
 :default: ``{appid}-data``
+:environment: :envvar:`FAUST_DATADIR`, :envvar:`F_DATADIR`
 
 The directory in which this instance stores local table data, etc.
 
