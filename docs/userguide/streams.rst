@@ -178,7 +178,7 @@ The act of starting that stream iterator will add the topic to
 the TopicConductor service. This internal service is responsible for
 forwarding messages received by the consumer to the streams:
 
-.. code-block:: text
+.. sourcecode:: text
 
   [Consumer] -> [TopicConductor] -> [Topic] -> [Stream]
 

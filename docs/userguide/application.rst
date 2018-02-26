@@ -997,6 +997,179 @@ You can also add services at runtime in application subclasses:
             super().__init__(*args, **kwargs)
             self.some_service = self.service(SomeService())
 
+Application Signals
+===================
+
+You may have experience signals in other frameworks such as `Django`_
+and `Celery`_.
+
+The main difference between signals in Faust is that they accept
+positional arguments, and that they also come with asynchronous versions
+for use with :mod:`asyncio`.
+
+Signals are an implementation of the `Observer`_  design pattern.
+
+.. _`Django`: http://djangoproject.com
+.. _`Celery`: http://celeryproject.org
+.. _`Observer`: https://en.wikipedia.org/wiki/Observer_pattern
+
+.. signal:: App.on_partitions_revoked
+
+``App.on_partitions_revoked``
+-----------------------------
+
+:sender: :class:`faust.App`
+:arguments: :class:`Set[TP] <faust.types.tuples.TP>`
+
+The ``on_partitions_revoked`` signal is an asynchronous signal called after every
+Kafka rebalance and provides a single argument which is the set of
+newly revoked partitions.
+
+Add a callback to be called when partitions are revoked:
+
+.. sourcecode:: python
+
+    from typing import Set
+    from faust.types import AppT, TP
+
+    @app.on_partitions_revoked.connect
+    async def on_partitions_assigned(app: AppT,
+                                     revoked: Set[TP], **kwargs) -> None:
+        print(f'Partitions are being revoked: {revoked}')
+
+Using ``app`` as an instance when connecting here means we will only be called
+for that particular app instance.  If you want to be called for all app instances
+then you must connect to the signal of the class (``App``):
+
+.. sourcecode:: python
+
+    @faust.App.on_partitions_revoked.connect
+    async def on_partitions_revoked(app: AppT,
+                                     revoked: Set[TP], **kwargs) -> None:
+        ...
+
+
+.. admonition:: Signal handlers must always accept ``**kwargs``.
+
+    Signal handler must always accept ``**kwargs`` so that they
+    are backwards compatible when new arguments are added.
+
+    Similarly new arguments must be added as keyword arguments
+    to be backwards compatible.
+
+.. signal:: App.on_partitions_assigned
+
+``App.on_partitions_assigned``
+------------------------------
+
+:sender: :class:`faust.App`
+:arguments: :class:`Set[TP] <faust.types.tuples.TP>`
+
+The ``on_partitions_assigned`` signal is an asynchronous signal called after every
+Kafka rebalance and provides a single argument which is the set of
+assigned partitions.
+
+Add a callback to be called when partitions are assigned:
+
+.. sourcecode:: python
+
+    from typing import Set
+    from faust.types import AppT, TP
+
+    @app.on_partitions_assigned.connect
+    async def on_partitions_assigned(app: AppT,
+                                     assigned: Set[TP], **kwargs) -> None:
+        print(f'Partitions are being assigned: {assigned}')
+
+
+.. signal:: App.on_configured
+
+``App.on_configured``
+---------------------
+
+:sender: :class:`faust.App`
+:arguments: :class:`faust.Settings`
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called as the app reads configuration, just before the application
+configuration is set, but after the configuration is read.
+
+Takes arguments: ``(app, conf)``, where conf is the :class:`faust.Settings`
+object being built and is the instance that ``app.conf`` will be set to
+after this signal returns.
+
+Use the ``on_configured`` signal to configure your app:
+
+.. sourcecode:: python
+
+    import os
+    import faust
+
+    app = faust.App('myapp')
+
+    @app.on_configured.connect
+    def configure(app, conf, **kwargs):
+        conf.broker_url = os.environ.get('FAUST_BROKER')
+        conf.store_url = os.environ.get('STORE_URL')
+
+.. signal:: App.on_before_configured
+
+``App.on_before_configured``
+----------------------------
+
+:sender: :class:`faust.App`
+:arguments: *none*
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called before the app reads configuration, and before the
+:signal:`App.on_configured` signal is dispatched.
+
+Takes only sender as argument, which is the app being configured:
+
+.. sourcecode:: python
+
+    @app.on_before_configured
+    def before_configuration(app, **kwargs):
+        print(f'App {app} is being configured')
+
+.. signal:: App.on_after_configured
+
+``App.on_after_configured``
+---------------------------
+
+:sender: :class:`faust.App`
+:arguments: *none*
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called after app is fully configured and ready for use.
+
+Takes only sender as argument, which is the app that was configured:
+
+.. sourcecode:: python
+
+    @app.on_after_configured
+    def after_configuration(app, **kwargs):
+        print(f'App {app} has been configured.')
+
+.. signal:: App.on_worker_init
+
+``App.on_worker_init``
+----------------------
+
+:sender: :class:`faust.App`
+:arguments: *none*
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called by the :program:`faust worker` program (or when using `app.main()`)
+to apply worker specific customizations.
+
+Takes only sender as argument, which is the app a worker is being started for:
+
+.. sourcecode:: python
+
+    @app.on_worker_init
+    def on_worker_init(app, **kwargs):
+        print(f'Working starting for app {app}')
 
 Miscellaneous
 =============

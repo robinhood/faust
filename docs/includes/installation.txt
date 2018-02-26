@@ -18,7 +18,7 @@ You can specify these in your requirements or on the :command:`pip`
 command-line by using brackets. Separate multiple bundles using the comma:
 
 
-.. code-block:: console
+.. sourcecode:: console
 
     $ pip install "faust[rocksdb]"
 

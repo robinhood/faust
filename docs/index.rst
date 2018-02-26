@@ -2,7 +2,7 @@
  Faust - Python Stream Processing
 =======================================================================
 
-.. code-block:: python
+.. sourcecode:: python
 
     # Python Streams ٩(◕‿◕)۶
     # Forever scalable event processing & in-memory
