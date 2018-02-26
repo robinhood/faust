@@ -30,6 +30,7 @@ Agents
 
     faust.agents
     faust.agents.agent
+    faust.agents.manager
     faust.agents.models
     faust.agents.replies
 
@@ -104,6 +105,7 @@ Transports
     faust.transport
     faust.transport.aiokafka
     faust.transport.base
+    faust.transport.ckafka
     faust.transport.memory
 
 Assignor
@@ -155,6 +157,7 @@ Utils
     faust.utils.objects
     faust.utils.platforms
     faust.utils.spinners
+    faust.utils.termtable
 
 Web
 ===

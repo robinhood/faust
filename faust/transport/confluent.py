@@ -8,16 +8,34 @@ from typing import (
     cast,
 )
 
-import confluent_kafka
-from confluent_kafka import TopicPartition as _TopicPartition
 from mode import Seconds, Service, ServiceT, want_seconds
 from mode.threads import ServiceThread
 from mode.utils.futures import StampedeWrapper, notify
 from yarl import URL
 
 from . import base
+
+from ..exceptions import ImproperlyConfigured
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
+
+try:
+    import confluent_kafka
+    from confluent_kafka import TopicPartition as _TopicPartition
+    from confluent_kafka import KafkaException
+except ImportError:
+    confluent_kafka = None
+    class _TopicPartition: ...            # noqa
+    class KafkaException(Exception): ...  # noqa
+
+if typing.TYPE_CHECKING:
+    from confluent_kafka import Consumer as _Consumer
+    from confluent_kafka import Producer as _Producer
+    from confluent_kafka import Message as _Message
+else:
+    class _Consumer: ...  # noqa
+    class _Producer: ...  # noqa
+    class _Message: ...   # noqa
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -85,7 +103,7 @@ class ConsumerThread(RPCServiceThread):
     consumer: 'Consumer' = None
     transport: 'Transport' = None
     app: AppT = None
-    _consumer: confluent_kafka.Consumer = None
+    _consumer: _Consumer = None
     _fetch_requests: asyncio.Queue = None
     wait_for_shutdown = True
 
@@ -118,7 +136,7 @@ class ConsumerThread(RPCServiceThread):
     def _create_worker_consumer(
             self,
             app: AppT,
-            transport: 'Transport') -> confluent_kafka.Consumer:
+            transport: 'Transport') -> _Consumer:
         self._assignor = self.app.assignor
         return confluent_kafka.Consumer({
             'bootstrap.servers': server_list(
@@ -137,7 +155,7 @@ class ConsumerThread(RPCServiceThread):
     def _create_client_consumer(
             self,
             app: AppT,
-            transport: 'Transport') -> confluent_kafka.Consumer:
+            transport: 'Transport') -> _Consumer:
         return confluent_kafka.Consumer({
             'bootstrap.servers': server_list(
                 transport.url, transport.default_port),
@@ -157,13 +175,13 @@ class ConsumerThread(RPCServiceThread):
         )
 
     def _on_assign(self,
-                   consumer: confluent_kafka.Consumer,
+                   consumer: _Consumer,
                    partitions: List[_TopicPartition]) -> None:
         self.consumer._assignments.put_nowait(AssignmentRequest(
             AssignmentType.ASSIGNED, cast(Set[TP], set(partitions))))
 
     def _on_revoke(self,
-                   consumer: confluent_kafka.Consumer,
+                   consumer: _Consumer,
                    partitions: List[_TopicPartition]) -> None:
         self.consumer._assignments.put_nowait(AssignmentRequest(
             AssignmentType.REVOKED, cast(Set[TP], set(partitions))))
@@ -192,7 +210,7 @@ class Consumer(base.Consumer):
     wait_for_shutdown = True
 
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = (
-        confluent_kafka.KafkaException,
+        KafkaException,
     )
 
     if typing.TYPE_CHECKING:
@@ -355,7 +373,7 @@ class ProducerThread(RPCServiceThread):
         method_queue: asyncio.Queue[EnqueuedMethod]
     method_queue = None
 
-    _producer: confluent_kafka.Producer = None
+    _producer: _Producer = None
     _flush_soon: asyncio.Future = None
 
     def __init__(self, producer: ProducerT, **kwargs: Any) -> None:
@@ -418,7 +436,7 @@ class ProducerProduceFuture(asyncio.Future):
 
     def set_from_on_delivery(self,
                              err: Optional[BaseException],
-                             msg: confluent_kafka.Message) -> None:
+                             msg: _Message) -> None:
         if err:
             # XXX Not sure what err' is here, hopefully it's an exception
             # object and not a string [ask].
@@ -427,8 +445,7 @@ class ProducerProduceFuture(asyncio.Future):
             metadata: RecordMetadata = self.message_to_metadata(msg)
             self.set_result(metadata)
 
-    def message_to_metadata(
-            self, message: confluent_kafka.Message) -> RecordMetadata:
+    def message_to_metadata(self, message: _Message) -> RecordMetadata:
         topic, partition = tp = TP(message.topic(), message.partition())
         return RecordMetadata(topic, partition, tp, message.offset())
 
@@ -508,14 +525,22 @@ class Transport(base.Transport):
     Producer: ClassVar[Type[ProducerT]] = Producer
 
     default_port = 9092
-    version = '-'.join(map(str, confluent_kafka.version()))
-    libversion = '-'.join(map(str, confluent_kafka.libversion()))
-    driver_version = f'confluent_kafka={version} librdkafka={libversion}'
+    if confluent_kafka is not None:
+        version = '-'.join(map(str, confluent_kafka.version()))
+        libversion = '-'.join(map(str, confluent_kafka.libversion()))
+        driver_version = f'confluent_kafka={version} librdkafka={libversion}'
+    else:
+        version = 'N/A'
+        libversion = 'N/A'
+        driver_version = 'N/A'
 
     _topic_waiters: MutableMapping[str, StampedeWrapper]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        if confluent_kafka is None:
+            raise ImproperlyConfigured(
+                '`pip install confluent-kafka` is required for this transport')
         self._topic_waiters = {}
 
     def _topic_config(self,

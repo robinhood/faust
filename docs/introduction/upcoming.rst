@@ -4,7 +4,6 @@
 
 .. contents::
     :local:
-    :depth 1:
 
 Some features are planned, but not available in the first version.
 

@@ -16,4 +16,5 @@
     cheatsheet
     design
     installation
+    upcoming
     resources
