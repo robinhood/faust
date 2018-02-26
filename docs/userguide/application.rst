@@ -92,7 +92,7 @@ so tables can exceed the size of available memory.
 Required Parameters
 -------------------
 
-.. _app-config-id:
+.. setting:: id
 
 ``id``
 ~~~~~~
@@ -113,7 +113,7 @@ This parameter is required.
 Common Parameters
 -----------------
 
-.. _app-config-broker:
+.. setting:: broker
 
 ``broker``
 ~~~~~~~~~~
@@ -138,7 +138,7 @@ the semi-comma:
 
     aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
-.. _app-config-store:
+.. setting:: store
 
 ``store``
 ~~~~~~~~~
@@ -154,7 +154,7 @@ not use the ``memory://`` store in production.
 In production, a persistent table store, such as ``rocksdb://`` is
 preferred.
 
-.. _app-config-autodiscover:
+.. setting:: autodiscover
 
 ``autodiscover``
 ~~~~~~~~~~~~~~~~
@@ -218,33 +218,36 @@ The value for this argument can be:
 .. admonition:: Django
 
     If you're using Django you can use this to scan for
-    agents/pages/commands in all packages defined in ``INSTALLED_APPS``::
+    agents/pages/commands in all packages defined in ``INSTALLED_APPS``.
 
-        from django.conf import settings
+    Faust will automatically detect that you are using Django and do the
+    right thing if you do::
 
-        app = App(..., autodiscover=lambda: settings.INSTALLED_APPS)
+        app = App(..., autodiscover=True)
 
-    If you're using a recent version of Django, where apps can
-    be defined in app configs, use the following
-    instead::
+    It will find agents and other decorators in all the reusable Django apps,
+    if you want to manually control what packages are traversed then provide
+    a list::
 
-        from django.apps import apps
-
-        app = App(...,
-                  autodiscover=(config.name
-                                for config in apps.get_app_configs())
-
-    We use :keyword:`lambda` in the first example, and a generator
-    expression in the latter example. This way you can safely import the
-    module containing this app, without forcing the Django settings machinery
-    to be initialized (i.e. settings imported).
+        app = App(..., autodiscover=['package1', 'package2'])
 
 .. tip::
 
     For manual control over autodiscovery, you can also call the
     :meth:`@discover` method, manually.
 
-.. _app-config-datadir:
+.. setting:: version
+
+``version``
+~~~~~~~~~~~
+
+:type: ``int``
+:default: 1
+
+Version of the app (starts at 1) that if changed will create a new isolated
+instance of the application.
+
+.. setting:: datadir
 
 ``datadir``
 ~~~~~~~~~~~
@@ -263,7 +266,7 @@ The directory in which this instance stores local table data, etc.
 Serialization Parameters
 ------------------------
 
-.. _app-config-key_serializer:
+.. setting:: key_serializer
 
 ``key_serializer``
 ~~~~~~~~~~~~~~~~~~
@@ -282,7 +285,7 @@ This can be the name of a serializer/codec, or an actual
     - The :ref:`codecs` section in the model guide -- for more information
       about codecs.
 
-.. _app-config-value_serializer:
+.. setting:: value_serializer
 
 ``value_serializer``
 ~~~~~~~~~~~~~~~~~~~~
@@ -304,7 +307,7 @@ This can be string, the name of a serializer/codec, or an actual
 Advanced Broker Options
 -----------------------
 
-.. _app-config-client_id:
+.. setting:: client_id
 
 ``client_id``
 ~~~~~~~~~~~~~
@@ -317,7 +320,7 @@ You shouldn't have to set this manually.
 The client id is used to identify the software used, and is not usually
 configured by the user.
 
-.. _app-config-commit_interval:
+.. setting:: commit_interval
 
 ``commit_interval``
 ~~~~~~~~~~~~~~~~~~~
@@ -327,7 +330,7 @@ configured by the user.
 
 How often we commit messages that have been fully processed (:term:`acked`).
 
-.. _app-config-default_partitions:
+.. setting:: default_partitions
 
 ``default_partitions``
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -346,7 +349,7 @@ Default number of partitions for new topics.
 Advanced Table Options
 ----------------------
 
-.. _app-config-table_cleanup_interval:
+.. setting:: table_cleanup_interval
 
 ``table_cleanup_interval``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -356,7 +359,7 @@ Advanced Table Options
 
 How often we cleanup tables to remove expired entries.
 
-.. _app-config-num_standby_replicas:
+.. setting:: num_standby_replicas
 
 ``num_standby_replicas``
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -366,7 +369,7 @@ How often we cleanup tables to remove expired entries.
 
 The number of standby replicas for each table.
 
-.. _app-config-replication_factor:
+.. setting:: replication_factor
 
 ``replication_factor``
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -385,7 +388,7 @@ by the application.
 Web Parameters
 --------------
 
-.. _app-config-canonical_url:
+.. setting:: canonical_url
 
 ``canonical_url``
 ~~~~~~~~~~~~~~~~~
@@ -403,7 +406,7 @@ by passing it as a keyword argument to :class:`App`.
 Agent RPC Parameters
 --------------------
 
-.. _app-config-reply_to:
+.. setting:: reply_to
 
 ``reply_to``
 ~~~~~~~~~~~~
@@ -414,7 +417,7 @@ Agent RPC Parameters
 The name of the reply topic used by this instance.  If not set one will be
 automatically generated when the app is created.
 
-.. _app-config-reply_topic:
+.. setting:: create_reply_topic
 
 ``create_reply_topic``
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -424,7 +427,7 @@ automatically generated when the app is created.
 
 Set this to :const:`True` if you plan on using the RPC with agents.
 
-.. _app-config-reply_expires:
+.. Setting:: reply_expires
 
 ``reply_expires``
 ~~~~~~~~~~~~~~~~~
@@ -438,7 +441,7 @@ will stay in the instances local reply topic before being removed.
 Subclassing Parameters
 ----------------------
 
-.. _app-config-Stream:
+.. setting:: Stream
 
 ``Stream``
 ~~~~~~~~~~
@@ -461,7 +464,7 @@ Example using the string path to a class::
     app = App(..., Stream='myproj.streams.Stream')
 
 
-.. _app-config-Table:
+.. setting:: Table
 
 ``Table``
 ~~~~~~~~~
@@ -483,7 +486,7 @@ Example using the string path to a class::
 
     app = App(..., Table='myproj.tables.Table')
 
-.. _app-config-Set:
+.. setting:: Set
 
 ``Set``
 ~~~~~~~
@@ -505,7 +508,7 @@ Example using the string path to a class::
 
     app = App(..., Set='myproj.tables.Set')
 
-.. _app-config-TableManager:
+.. setting:: TableManager
 
 ``TableManager``
 ~~~~~~~~~~~~~~~~
@@ -530,7 +533,7 @@ Example using the string path to a class::
 
     app = App(..., TableManager='myproj.tables.TableManager')
 
-.. _app-config-Serializers:
+.. setting:: Serializers
 
 ``Serializers``
 ~~~~~~~~~~~~~~~
@@ -743,8 +746,8 @@ used by each agent:
     └──────────┴───────────────────────────────────────┴────────────────┘
 
 The agent reads from the "stream-example-examples.agent.myagent" topic, whose
-name is generated from the :ref:`application id <app-config-id>`, the
-application version, and the fully qualified path of the
+name is generated from the application :setting:`id` setting, the
+application :setting:`version` setting, and the fully qualified path of the
 agent (``examples.agent.myagent``).
 
 **Start a worker to consume from the topic:**
