@@ -19,7 +19,7 @@ from mode.utils.compat import isatty, want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
 from ._env import DATADIR, DEBUG, WORKDIR
-from .. import __version__
+
 from ..types import AppT, CodecArg, ModelT
 from ..utils import json
 from ..utils import termtable
@@ -42,6 +42,18 @@ option = click.option
 
 LOOP_CHOICES = ('aio', 'gevent', 'eventlet', 'uvloop')
 DEFAULT_LOOP = 'aio'
+
+# XXX For some reason mypy gives strange errors if we import
+# this here: probably mypy bug.
+#   python -m mypy faust
+#   faust/cli/base.pyfaust/__init__.py:117:
+#     error: Module 'faust.agents' has no attribute 'Agent'
+#   faust/__init__.py:119:
+#     error: Module 'faust.channels' has no attribute 'ChannelT'
+#    faust/__init__.py:119:
+#       error: Module 'faust.channels' has no attribute 'EventT'
+#   make: *** [typecheck] Error 1
+faust_version = symbol_by_name('faust:__version__')
 
 
 class TCPPort(click.IntRange):
@@ -70,7 +82,7 @@ WritableFilePath = click.Path(
 )
 
 builtin_options: Sequence[Callable] = [
-    click.version_option(version=__version__),
+    click.version_option(version=faust_version),
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
     option('--quiet/--no-quiet', '-q', default=False,
