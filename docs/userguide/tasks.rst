@@ -163,8 +163,8 @@ We define our table, and an agent reading from the stream to populate the table:
     app = faust.App(
         'word-counts',
         broker='kafka://localhost:9092',
-        default_partitions=8,
         store='rocksdb://',
+        topic_partitions=8,
     )
 
     posts_topic = app.topic('posts', value_type=str)

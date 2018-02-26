@@ -440,7 +440,7 @@ class Stream(StreamT[T_co], Service):
             channel = topic
         else:
             suffix = '-' + self.app.conf.id + '-' + name + '-repartition'
-            p = partitions if partitions else self.app.conf.default_partitions
+            p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
         topic_created = False

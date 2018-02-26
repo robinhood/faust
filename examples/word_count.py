@@ -10,7 +10,7 @@ app = faust.App(
     broker='kafka://localhost:9092',
     store='rocksdb://',
     version=1,
-    default_partitions=8,
+    topic_partitions=8,
 )
 
 posts_topic = app.topic('posts', value_type=str)

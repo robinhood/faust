@@ -349,10 +349,10 @@ The default replication factor for topics created by the application.
     Generally this should be the same as the configured
     replication factor for your Kafka cluster.
 
-.. setting:: default_partitions
+.. setting:: topic_partitions
 
-``default_partitions``
-~~~~~~~~~~~~~~~~~~~~~~
+``topic_partitions``
+~~~~~~~~~~~~~~~~~~~~
 
 :type: ``int``
 :default: ``8``
@@ -381,7 +381,7 @@ How often we cleanup tables to remove expired entries.
 .. setting:: table_standby_replicas
 
 ``table_standby_replicas``
-~~~~~~~~~~~~~~~~~~~~~~~~--
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 :type: ``int``
 :default: ``1``

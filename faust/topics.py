@@ -307,7 +307,7 @@ class Topic(Channel, TopicT):
         for topic in self.topics:
             partitions = self.partitions
             if partitions is None:
-                partitions = self.app.conf.default_partitions
+                partitions = self.app.conf.topic_partitions
             replicas = self.replicas
             if replicas is None:
                 replicas = self.app.conf.topic_replication_factor

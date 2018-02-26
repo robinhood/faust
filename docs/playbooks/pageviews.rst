@@ -26,10 +26,10 @@ Let's create the module :file:`page_views.py`:
     app = faust.App(
         'page_views',
         broker='kafka://localhost:9092',
-        default_partitions=4,
+        topic_partitions=4,
     )
 
-The ``default_partitions`` parameter defines the maximum number
+The :setting:`topic_partitions` setting defines the maximum number
 of workers we can distribute the workload to (also sometimes referred as
 the "sharding factor"). In this example, we set this to 4, but in a
 production app, we ideally use a higher number.
