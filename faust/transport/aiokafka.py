@@ -130,7 +130,7 @@ class Consumer(base.Consumer):
         self._assignor = self.app.assignor
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
-            client_id=app.conf.client_id,
+            client_id=app.conf.broker_client_id,
             group_id=app.conf.id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
@@ -145,7 +145,7 @@ class Consumer(base.Consumer):
             transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
-            client_id=app.conf.client_id,
+            client_id=app.conf.broker_client_id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             enable_auto_commit=True,
@@ -311,7 +311,7 @@ class Producer(base.Producer):
             loop=self.loop,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
-            client_id=transport.app.conf.client_id,
+            client_id=transport.app.conf.broker_client_id,
         )
 
     async def on_restart(self) -> None:

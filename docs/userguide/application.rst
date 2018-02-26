@@ -308,10 +308,10 @@ This can be string, the name of a serializer/codec, or an actual
 Advanced Broker Options
 -----------------------
 
-.. setting:: client_id
+.. setting:: broker_client_id
 
-``client_id``
-~~~~~~~~~~~~~
+``broker_client_id``
+~~~~~~~~~~~~~~~~~~~~
 
 :type: ``str``
 :default: ``faust-VERSION``

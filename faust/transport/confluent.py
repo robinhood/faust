@@ -142,7 +142,7 @@ class ConsumerThread(RPCServiceThread):
             'bootstrap.servers': server_list(
                 transport.url, transport.default_port),
             'group.id': app.conf.id,
-            'client.id': app.conf.client_id,
+            'client.id': app.conf.broker_client_id,
             'default.topic.config': {
                 'auto.offset.reset': 'earliest',
             },
@@ -159,7 +159,7 @@ class ConsumerThread(RPCServiceThread):
         return confluent_kafka.Consumer({
             'bootstrap.servers': server_list(
                 transport.url, transport.default_port),
-            'client.id': self.app.conf.client_id,
+            'client.id': self.app.conf.broker_client_id,
             'enable.auto.commit': True,
             'default.topic.config': {
                 'auto.offset.reset': 'earliest',
@@ -385,7 +385,7 @@ class ProducerThread(RPCServiceThread):
         self._producer = confluent_kafka.Producer({
             'bootstrap.servers': server_list(
                 self.transport.url, self.transport.default_port),
-            'client.id': self.transport.app.conf.client_id,
+            'client.id': self.transport.app.conf.broker_client_id,
             'max.in.flight.requests.per.connection': 1,
         })
 

@@ -279,7 +279,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         id (str): Application ID.
 
         broker (str): Broker URL. Default is ``"aiokafka://localhost:9092"``.
-        client_id (str):  Client id used for producer/consumer.
+        broker_client_id (str):  Client id used for producer/consumer.
         commit_interval (Seconds): How often we commit messages that
             have been fully processed.  Default ``30.0``.
         key_serializer (CodecArg): Default serializer for Topics

@@ -43,7 +43,7 @@ class test_settings:
                                  autodiscover=True,
                                  origin='faust',
                                  canonical_url='http://example.com/',
-                                 client_id='client id',
+                                 broker_client_id='client id',
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
                                  commit_interval=30.3,
@@ -65,7 +65,7 @@ class test_settings:
             autodiscover=autodiscover,
             origin=origin,
             canonical_url=canonical_url,
-            client_id=client_id,
+            broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
             commit_interval=commit_interval,
@@ -85,7 +85,7 @@ class test_settings:
         assert app.conf.store == URL(str(store))
         assert app.conf.autodiscover == autodiscover
         assert app.conf.canonical_url == URL(str(canonical_url))
-        assert app.conf.client_id == client_id
+        assert app.conf.broker_client_id == broker_client_id
         assert app.conf.datadir == Path(str(datadir))
         if Path(tabledir).is_absolute():
             assert app.conf.tabledir == Path(str(tabledir))

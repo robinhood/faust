@@ -66,7 +66,7 @@ PARTITION_ASSIGNOR_TYPE = 'faust.assignor:PartitionAssignor'
 ROUTER_TYPE = 'faust.router:Router'
 
 #: Default Kafka Client ID.
-CLIENT_ID = f'faust-{faust_version}'
+BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit acknowledged messages.
 #: Used as the default value for the :attr:`App.conf.commit_interval` argument.
@@ -95,18 +95,18 @@ AutodiscoverArg = Union[
 
 class Settings(abc.ABC):
     autodiscover: AutodiscoverArg = False
-    client_id: str = CLIENT_ID
+    broker_client_id: str = BROKER_CLIENT_ID
+    id_format: str = '{id}-v{self.version}'
     origin: str = None
     key_serializer: CodecArg = 'json'
     value_serializer: CodecArg = 'json'
-    table_standby_replicas: int = 1
-    topic_replication_factor: int = 1
-    topic_partitions: int = 8  # noqa: E704
-    id_format: str = '{id}-v{self.version}'
     reply_to: str = None
     reply_to_prefix: str = REPLY_TOPIC_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
+    table_standby_replicas: int = 1
+    topic_replication_factor: int = 1
+    topic_partitions: int = 8  # noqa: E704
     loghandlers: List[logging.StreamHandler] = None
     loop: asyncio.AbstractEventLoop = None
 
@@ -134,11 +134,11 @@ class Settings(abc.ABC):
             *,
             version: int = None,
             broker: Union[str, URL] = None,
+            broker_client_id: str = None,
             store: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
-            client_id: str = None,
             datadir: Union[Path, str] = None,
             tabledir: Union[Path, str] = None,
             commit_interval: Seconds = None,
@@ -176,7 +176,8 @@ class Settings(abc.ABC):
         self.store = store or self._store or STORE_URL
         if autodiscover is not None:
             self.autodiscover = autodiscover
-        self.client_id = client_id if client_id is not None else self.client_id
+        if broker_client_id is not None:
+            self.broker_client_id = broker_client_id
         self.canonical_url = canonical_url or self._canonical_url or ''
         # datadir is a format string that can contain {appid}
         self.datadir = datadir or self._datadir or DATADIR
