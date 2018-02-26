@@ -302,7 +302,7 @@ class Consumer(base.Consumer):
     async def _commit_all(self) -> None:
         await super().commit()
 
-    async def _perform_seek(self) -> None:
+    async def perform_seek(self) -> None:
         read_offset = self._read_offset
         seek = self._consumer.seek
         for tp in self._consumer.assignment():

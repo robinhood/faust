@@ -239,6 +239,9 @@ class Consumer(base.Consumer):
         await self._consumer.stop()
         cast(Transport, self.transport)._topic_waiters.clear()
 
+    async def perform_seek(self) -> None:
+        await self.transition_with(base.CONSUMER_SEEKING, self._perform_seek())
+
     async def _perform_seek(self) -> None:
         read_offset = self._read_offset
         seek = self._consumer.seek
@@ -253,6 +256,7 @@ class Consumer(base.Consumer):
             else:
                 self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', ftp)
                 await self._seek_to_beginning(tp)
+        self._read_offset.update(self._committed_offset)
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)

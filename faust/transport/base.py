@@ -127,10 +127,6 @@ class Consumer(Service, ConsumerT):
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
-    async def _perform_seek(self) -> None:
-        ...
-
-    @abc.abstractmethod
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         ...
 
@@ -138,16 +134,12 @@ class Consumer(Service, ConsumerT):
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         ...
 
+    def _is_changelog_tp(self, tp: TP) -> bool:
+        return tp.topic in self.app.tables.changelog_topics
+
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         await self._on_partitions_assigned(assigned)
-        await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
-        # All internal queues/buffers have now been cleared,
-        # so the registered read offsets may now be out of date.
-        # We have to refetch all messages that we had in the buffers
-        # and did not committ, to do so we reset read offsets to the
-        # committed offsets.
-        self._read_offset.update(self._committed_offset)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
