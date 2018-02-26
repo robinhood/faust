@@ -124,7 +124,6 @@ class Consumer(Service, ConsumerT):
         self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
-        self._partitions_lock = asyncio.Lock(loop=self.loop)
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -326,8 +325,7 @@ class Consumer(Service, ConsumerT):
         try:
             while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
-                with await self._partitions_lock:
-                    ait = cast(AsyncIterator, getmany(timeout=5.0))
+                ait = cast(AsyncIterator, getmany(timeout=5.0))
                 async for tp, message in ait:
                     offset = message.offset
                     r_offset = get_read_offset(tp)
