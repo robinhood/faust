@@ -360,10 +360,10 @@ Advanced Table Options
 
 How often we cleanup tables to remove expired entries.
 
-.. setting:: num_standby_replicas
+.. setting:: table_standby_replicas
 
-``num_standby_replicas``
-~~~~~~~~~~~~~~~~~~~~~~~~
+``table_standby_replicas``
+~~~~~~~~~~~~~~~~~~~~~~~~--
 
 :type: ``int``
 :default: ``1``
@@ -427,6 +427,9 @@ automatically generated when the app is created.
 :default: :const:`False`
 
 Set this to :const:`True` if you plan on using the RPC with agents.
+
+This will create the internal topic used for RPC replies on that instance
+at startup.
 
 .. Setting:: reply_expires
 

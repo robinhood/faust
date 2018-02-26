@@ -99,7 +99,7 @@ class Settings(abc.ABC):
     origin: str = None
     key_serializer: CodecArg = 'json'
     value_serializer: CodecArg = 'json'
-    num_standby_replicas: int = 1
+    table_standby_replicas: int = 1
     replication_factor: int = 1
     default_partitions: int = 8  # noqa: E704
     id_format: str = '{id}-v{self.version}'
@@ -145,7 +145,7 @@ class Settings(abc.ABC):
             table_cleanup_interval: Seconds = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            num_standby_replicas: int = None,
+            table_standby_replicas: int = None,
             replication_factor: int = None,
             default_partitions: int = None,
             id_format: str = None,
@@ -189,8 +189,8 @@ class Settings(abc.ABC):
             self.key_serializer = key_serializer
         if value_serializer is not None:
             self.value_serializer = value_serializer
-        if num_standby_replicas is not None:
-            self.num_standby_replicas = num_standby_replicas
+        if table_standby_replicas is not None:
+            self.table_standby_replicas = table_standby_replicas
         if replication_factor is not None:
             self.replication_factor = replication_factor
         if default_partitions is not None:

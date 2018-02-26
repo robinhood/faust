@@ -18,13 +18,24 @@ APPATTRS = {
 }
 
 APPDIRECT = {
-    'id', 'url', 'client_id', 'client_only', 'commit_interval',
-    'table_cleanup_interval', 'key_serializer', 'value_serializer',
-    'num_standby_replicas', 'replication_factor', 'default_partitions',
-    'reply_to', 'store', 'agents', 'main',
-    'topic', 'agent', 'task', 'timer', 'stream', 'Table', 'Set',
-    'start_client', 'maybe_start_client', 'send', 'maybe_start_producer',
-    'discover', 'service', 'page', 'command',
+    'client_only',
+    'agents',
+    'main',
+    'topic',
+    'agent',
+    'task',
+    'timer',
+    'stream',
+    'Table',
+    'Set',
+    'start_client',
+    'maybe_start_client',
+    'send',
+    'maybe_start_producer',
+    'discover',
+    'service',
+    'page',
+    'command',
 }
 
 APPATTRS.update({x: 'faust.App.{0}'.format(x) for x in APPDIRECT})

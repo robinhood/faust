@@ -50,7 +50,7 @@ class test_settings:
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
                                  value_serializer='str',
-                                 num_standby_replicas=48,
+                                 table_standby_replicas=48,
                                  replication_factor=16,
                                  reply_to='reply_to',
                                  reply_create_topic=True,
@@ -72,7 +72,7 @@ class test_settings:
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
-            num_standby_replicas=num_standby_replicas,
+            table_standby_replicas=table_standby_replicas,
             replication_factor=replication_factor,
             reply_to=reply_to,
             reply_create_topic=reply_create_topic,
@@ -96,7 +96,7 @@ class test_settings:
         assert app.conf.table_cleanup_interval == table_cleanup_interval
         assert app.conf.key_serializer == key_serializer
         assert app.conf.value_serializer == value_serializer
-        assert app.conf.num_standby_replicas == num_standby_replicas
+        assert app.conf.table_standby_replicas == table_standby_replicas
         assert app.conf.replication_factor == replication_factor
         assert app.conf.reply_to == reply_to
         assert app.conf.reply_expires == reply_expires

@@ -286,7 +286,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             that don't have one set.  Default: :const:`None`.
         value_serializer (CodecArg): Default serializer for event types
             that don't have one set.  Default: ``"json"``.
-        num_standby_replicas (int): The number of standby replicas for each
+        table_standby_replicas (int): The number of standby replicas for each
             table.  Default: ``1``.
         replication_factor (int): The replication factor for changelog topics
             and repartition topics created by the application.  Default:
@@ -1293,7 +1293,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @cached_property
     def assignor(self) -> PartitionAssignorT:
         return self.conf.PartitionAssignor(
-            self, replicas=self.conf.num_standby_replicas)
+            self, replicas=self.conf.table_standby_replicas)
 
     @cached_property
     def router(self) -> RouterT:
