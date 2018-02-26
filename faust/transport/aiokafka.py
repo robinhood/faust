@@ -187,6 +187,9 @@ class Consumer(base.Consumer):
         _consumer = self._consumer
         active_partitions = self._get_active_partitions()
 
+        from copy import deepcopy
+        prev_actives = deepcopy(active_partitions)
+
         records = {}
         if active_partitions:
             # Fetch records only if active partitions to avoid the risk of
@@ -204,7 +207,8 @@ class Consumer(base.Consumer):
         iterators = []
         for tp, messages in records.items():
             if tp not in active_partitions:
-                self.log.error(f'SKIP PAUSED PARTITION: {tp}')
+                self.log.error(f'SKIP PAUSED PARTITION: {tp} '
+                               f'{active_partitions} {prev_actives}')
                 continue
             iterators.append((
                 tp,
@@ -272,14 +276,16 @@ class Consumer(base.Consumer):
         })
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        tpset = set(tps)
-        self._get_active_partitions().difference_update(tpset)
-        self._paused_partitions.update(tpset)
+        with await self._partitions_lock:
+            tpset = set(tps)
+            self._get_active_partitions().difference_update(tpset)
+            self._paused_partitions.update(tpset)
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        tpset = set(tps)
-        self._get_active_partitions().update(tps)
-        self._paused_partitions.difference_update(tpset)
+        with await self._partitions_lock:
+            tpset = set(tps)
+            self._get_active_partitions().update(tps)
+            self._paused_partitions.difference_update(tpset)
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
