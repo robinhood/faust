@@ -105,7 +105,7 @@ class Settings(abc.ABC):
     id_format: str = '{id}-v{self.version}'
     reply_to: str = None
     reply_to_prefix: str = REPLY_TOPIC_PREFIX
-    create_reply_topic: bool = False
+    reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
     loghandlers: List[logging.StreamHandler] = None
     loop: asyncio.AbstractEventLoop = None
@@ -151,7 +151,7 @@ class Settings(abc.ABC):
             id_format: str = None,
             reply_to: str = None,
             reply_to_prefix: str = None,
-            create_reply_topic: bool = None,
+            reply_create_topic: bool = None,
             reply_expires: Seconds = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -195,8 +195,8 @@ class Settings(abc.ABC):
             self.replication_factor = replication_factor
         if default_partitions is not None:
             self.default_partitions = default_partitions
-        if create_reply_topic is not None:
-            self.create_reply_topic = create_reply_topic
+        if reply_create_topic is not None:
+            self.reply_create_topic = reply_create_topic
         if loghandlers is not None:
             self.loghandlers = loghandlers
         if stream_buffer_maxsize is not None:

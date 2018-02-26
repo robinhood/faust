@@ -121,7 +121,7 @@ class ReplyConsumer(Service):
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
-        if self.app.conf.create_reply_topic:
+        if self.app.conf.reply_create_topic:
             await self._start_fetcher(self.app.conf.reply_to)
 
     async def add(self, correlation_id: str, promise: ReplyPromise) -> None:

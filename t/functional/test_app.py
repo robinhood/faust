@@ -53,7 +53,7 @@ class test_settings:
                                  num_standby_replicas=48,
                                  replication_factor=16,
                                  reply_to='reply_to',
-                                 create_reply_topic=True,
+                                 reply_create_topic=True,
                                  reply_expires=90.9,
                                  stream_buffer_maxsize=101,
                                  **kwargs) -> App:
@@ -75,7 +75,7 @@ class test_settings:
             num_standby_replicas=num_standby_replicas,
             replication_factor=replication_factor,
             reply_to=reply_to,
-            create_reply_topic=create_reply_topic,
+            reply_create_topic=reply_create_topic,
             reply_expires=reply_expires,
             stream_buffer_maxsize=stream_buffer_maxsize,
         )

@@ -4,7 +4,7 @@ import faust
 from faust import StreamT
 
 
-app = faust.App('RPC99', create_reply_topic=True)
+app = faust.App('RPC99', reply_create_topic=True)
 pow_topic = app.topic('RPC__pow')
 mul_topic = app.topic('RPC__mul')
 

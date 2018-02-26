@@ -418,9 +418,9 @@ Agent RPC Parameters
 The name of the reply topic used by this instance.  If not set one will be
 automatically generated when the app is created.
 
-.. setting:: create_reply_topic
+.. setting:: reply_create_topic
 
-``create_reply_topic``
+``reply_create_topic``
 ~~~~~~~~~~~~~~~~~~~~~~
 
 :type: ``bool``
