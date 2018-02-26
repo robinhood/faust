@@ -185,19 +185,26 @@ class Consumer(base.Consumer):
             self,
             timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
-
         active_partitions = self._get_active_partitions()
 
-        records = await _consumer._fetcher.fetched_records(
-            active_partitions, timeout,
-            max_records=_consumer._max_poll_records,
-        )
+        records = {}
+        if active_partitions:
+            # Fetch records only if active partitions to avoid the risk of
+            # fetching all partitions in the beginning when none of the
+            # partitions is paused/resumed.
+            records = await _consumer._fetcher.fetched_records(
+                active_partitions, timeout,
+                max_records=_consumer._max_poll_records,
+            )
+        else:
+            # We should still release to the event loop
+            await self.sleep(0)
         create_message = Message  # localize
 
         iterators = []
         for tp, messages in records.items():
             if tp not in active_partitions:
-                self.log.dev(f'SKIP PAUSED PARTITION: {tp}')
+                self.log.error(f'SKIP PAUSED PARTITION: {tp}')
                 continue
             iterators.append((
                 tp,
