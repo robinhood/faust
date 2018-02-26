@@ -567,7 +567,7 @@ Methods
 -------
 
 General
-^^^^^^^
+~~~~~~~
 
 .. class:: Stream
     :noindex:
@@ -581,7 +581,7 @@ General
 
 
 Joins
-^^^^^
+~~~~~
 
 .. class:: Stream
     :noindex:
@@ -599,7 +599,7 @@ Joins
         :noindex:
 
 Iteration tools
-^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~
 
 .. class:: Stream
     :noindex:
@@ -628,7 +628,7 @@ Iteration tools
         :noindex:
 
 Processing
-^^^^^^^^^^
+~~~~~~~~~~
 
 .. class:: Stream
     :noindex:
@@ -637,7 +637,7 @@ Processing
         :noindex:
 
 Topics
-^^^^^^
+~~~~~~
 
 .. class:: Stream
     :noindex:
