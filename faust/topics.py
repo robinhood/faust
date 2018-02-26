@@ -310,7 +310,7 @@ class Topic(Channel, TopicT):
                 partitions = self.app.conf.default_partitions
             replicas = self.replicas
             if replicas is None:
-                replicas = self.app.conf.replication_factor
+                replicas = self.app.conf.topic_replication_factor
             await producer.create_topic(
                 topic=topic,
                 partitions=partitions,

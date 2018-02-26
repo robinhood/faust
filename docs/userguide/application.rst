@@ -331,6 +331,24 @@ configured by the user.
 
 How often we commit messages that have been fully processed (:term:`acked`).
 
+Topic Options
+=============
+
+.. setting:: topic_replication_factor
+
+``topic_replication_factor``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:type: ``int``
+:default: ``1``
+
+The default replication factor for topics created by the application.
+
+.. note::
+
+    Generally this should be the same as the configured
+    replication factor for your Kafka cluster.
+
 .. setting:: default_partitions
 
 ``default_partitions``
@@ -369,22 +387,6 @@ How often we cleanup tables to remove expired entries.
 :default: ``1``
 
 The number of standby replicas for each table.
-
-.. setting:: replication_factor
-
-``replication_factor``
-~~~~~~~~~~~~~~~~~~~~~~
-
-:type: ``int``
-:default: ``1``
-
-The replication factor for changelog topics and repartition topics created
-by the application.
-
-.. note::
-
-    This would generally be configured to the replication factor for your
-    Kafka cluster.
 
 Web Parameters
 --------------

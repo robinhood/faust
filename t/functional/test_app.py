@@ -51,7 +51,7 @@ class test_settings:
                                  key_serializer='str',
                                  value_serializer='str',
                                  table_standby_replicas=48,
-                                 replication_factor=16,
+                                 topic_replication_factor=16,
                                  reply_to='reply_to',
                                  reply_create_topic=True,
                                  reply_expires=90.9,
@@ -73,7 +73,7 @@ class test_settings:
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             table_standby_replicas=table_standby_replicas,
-            replication_factor=replication_factor,
+            topic_replication_factor=topic_replication_factor,
             reply_to=reply_to,
             reply_create_topic=reply_create_topic,
             reply_expires=reply_expires,
@@ -97,7 +97,7 @@ class test_settings:
         assert app.conf.key_serializer == key_serializer
         assert app.conf.value_serializer == value_serializer
         assert app.conf.table_standby_replicas == table_standby_replicas
-        assert app.conf.replication_factor == replication_factor
+        assert app.conf.topic_replication_factor == topic_replication_factor
         assert app.conf.reply_to == reply_to
         assert app.conf.reply_expires == reply_expires
         assert app.conf.stream_buffer_maxsize == stream_buffer_maxsize

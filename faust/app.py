@@ -286,12 +286,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             that don't have one set.  Default: :const:`None`.
         value_serializer (CodecArg): Default serializer for event types
             that don't have one set.  Default: ``"json"``.
+        topic_replication_factor (int): The default replication factor for
+            topics created by the application.  efault:
+            ``1``. Generally, this would be the same as the configured
+            replication factor for your Kafka cluster.
         table_standby_replicas (int): The number of standby replicas for each
             table.  Default: ``1``.
-        replication_factor (int): The replication factor for changelog topics
-            and repartition topics created by the application.  Default:
-            ``1``. Generally, this would be the same as the configured
-            replication factor for your kafka cluster.
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
     """

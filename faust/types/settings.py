@@ -100,7 +100,7 @@ class Settings(abc.ABC):
     key_serializer: CodecArg = 'json'
     value_serializer: CodecArg = 'json'
     table_standby_replicas: int = 1
-    replication_factor: int = 1
+    topic_replication_factor: int = 1
     default_partitions: int = 8  # noqa: E704
     id_format: str = '{id}-v{self.version}'
     reply_to: str = None
@@ -146,7 +146,7 @@ class Settings(abc.ABC):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             table_standby_replicas: int = None,
-            replication_factor: int = None,
+            topic_replication_factor: int = None,
             default_partitions: int = None,
             id_format: str = None,
             reply_to: str = None,
@@ -191,8 +191,8 @@ class Settings(abc.ABC):
             self.value_serializer = value_serializer
         if table_standby_replicas is not None:
             self.table_standby_replicas = table_standby_replicas
-        if replication_factor is not None:
-            self.replication_factor = replication_factor
+        if topic_replication_factor is not None:
+            self.topic_replication_factor = topic_replication_factor
         if default_partitions is not None:
             self.default_partitions = default_partitions
         if reply_create_topic is not None:
