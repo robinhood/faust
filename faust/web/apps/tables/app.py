@@ -1,6 +1,6 @@
 """HTTP endpoint showing partition routing destinations."""
 from typing import Any, Mapping, Tuple
-from faust import Record
+from faust.models import Record
 from faust.router import SameNode
 from faust.types import K, TableT
 from faust.web import views

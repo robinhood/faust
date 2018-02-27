@@ -103,5 +103,5 @@ class Site:
             web.route(prefix + pattern, view(self.app, web).dispatch)
 
     def on_discovered(
-            self, scanner: venusian.Scanner, name: str, obj: Site) -> None:
+            self, scanner: venusian.Scanner, name: str, obj: 'Site') -> None:
         ...

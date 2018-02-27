@@ -1,6 +1,6 @@
 """HTTP endpoint showing partition routing destinations."""
-from faust.web import views
-from faust.web.base import Request, Response
+from .. import views
+from .. import Request, Response
 
 __all__ = ['TablesMetadata', 'TableMetadata', 'KeyMetadata']
 

@@ -6,12 +6,18 @@ from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Deque, Iterable,
     Mapping, MutableMapping, Optional, Set, Tuple, Type, cast,
 )
-import faust
+
 from mode import Seconds
 from mode.utils.futures import done_future
+from mode.utils.imports import symbol_by_name
+
 from . import base
+
 from ..types import Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
+
+# XXX mypy borks on `import faust`
+faust_version = symbol_by_name('faust:__version__')
 
 
 class RebalanceListener:
@@ -152,7 +158,7 @@ class Transport(base.Transport):
     Producer: ClassVar[Type[ProducerT]] = Producer
 
     default_port = 9092
-    driver_version = f'memory-{faust.__version__}'
+    driver_version = f'memory-{faust_version}'
 
     _subscription: Set[str]
     _messages: MutableMapping[str, Deque[Message]]
