@@ -15,7 +15,7 @@ from .. import __version__ as faust_version
 from ..cli._env import DATADIR
 from ..exceptions import ImproperlyConfigured
 from ..types import CodecArg
-from ..types.assignor import PartitionAssignorT
+from ..types.assignor import LeaderAssignorT, PartitionAssignorT
 from ..types.router import RouterT
 from ..types.serializers import RegistryT
 from ..types.streams import StreamT
@@ -61,6 +61,10 @@ WORKER_TYPE = 'faust.worker.Worker'
 #: Path to partition assignor class, providing the default for
 #: ``app.conf.PartitionAssignor``.
 PARTITION_ASSIGNOR_TYPE = 'faust.assignor:PartitionAssignor'
+
+#: Path to leader assignor class, providing the default for
+#: ``app.conf.LeaderAssignor``.
+LEADER_ASSIGNOR_TYPE = 'faust.assignor:LeaderAssignor'
 
 #: Path to router class, providing the default for ``app.conf.Router``.
 ROUTER_TYPE = 'faust.router:Router'
@@ -136,6 +140,7 @@ class Settings(abc.ABC):
     _Serializers: Type[RegistryT] = None
     _Worker: Type[WorkerT] = None
     _PartitionAssignor: Type[PartitionAssignorT] = None
+    _LeaderAssignor: Type[LeaderAssignorT] = None
     _Router: Type[RouterT] = None
 
     @classmethod
@@ -178,6 +183,7 @@ class Settings(abc.ABC):
             Serializers: SymbolArg[Type[RegistryT]] = None,
             Worker: SymbolArg[Type[WorkerT]] = None,
             PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
+            LeaderAssignor: SymbolArg[Type[LeaderAssignorT]] = None,
             Router: SymbolArg[Type[RouterT]] = None,
             # XXX backward compat (remove fpr Faust 1.0)
             url: Union[str, URL] = None,
@@ -238,6 +244,10 @@ class Settings(abc.ABC):
             PartitionAssignor or
             self._PartitionAssignor or
             PARTITION_ASSIGNOR_TYPE)
+        self.LeaderAssignor = (
+            LeaderAssignor or
+            self._LeaderAssignor or
+            LEADER_ASSIGNOR_TYPE)
         self.Router = Router or self._Router or ROUTER_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
 
@@ -394,6 +404,15 @@ class Settings(abc.ABC):
     def PartitionAssignor(
             self, Assignor: SymbolArg[Type[PartitionAssignorT]]) -> None:
         self._PartitionAssignor = symbol_by_name(Assignor)
+
+    @property
+    def LeaderAssignor(self) -> Type[LeaderAssignorT]:
+        return self._LeaderAssignor
+
+    @LeaderAssignor.setter
+    def LeaderAssignor(
+            self, Assignor: SymbolArg[Type[LeaderAssignorT]]) -> None:
+        self._LeaderAssignor = symbol_by_name(Assignor)
 
     @property
     def Router(self) -> Type[RouterT]:

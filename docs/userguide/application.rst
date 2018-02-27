@@ -697,6 +697,31 @@ Example using the string path to a class::
 
     app = App(..., Worker='myproj.assignor.PartitionAssignor')
 
+.. setting:: LeaderAssignor
+
+``LeaderAssignor``
+~~~~~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[LeaderAssignorT]]``
+:default: ``"faust.assignor.LeaderAssignor"``
+
+The :class:`~faust.assignor.LeaderAssignor` class used for assigning
+a master Faust instance for the app; or the fully-qualified path
+to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.assignor import LeaderAssignor
+
+    class MyLeaderAssignor(LeaderAssignor):
+        ...
+
+    app = App(..., LeaderAssignor=LeaderAssignor)
+
+Example using the string path to a class::
+
+    app = App(..., Worker='myproj.assignor.LeaderAssignor')
+
 .. setting:: Router
 
 ``Router``

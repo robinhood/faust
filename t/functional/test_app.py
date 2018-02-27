@@ -3,7 +3,7 @@ from pathlib import Path
 import faust
 import pytest
 from faust import App
-from faust.assignor.partition_assignor import PartitionAssignor
+from faust.assignor import LeaderAssignor, PartitionAssignor
 from faust.exceptions import ImproperlyConfigured
 from faust.router import Router
 from faust.serializers import Registry
@@ -53,6 +53,7 @@ class test_settings:
         assert conf.Serializers is Registry
         assert conf.Worker is faust.Worker
         assert conf.PartitionAssignor is PartitionAssignor
+        assert conf.LeaderAssignor is LeaderAssignor
         assert conf.Router is Router
 
     def test_reply_prefix_unique(self):

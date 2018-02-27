@@ -35,7 +35,6 @@ from . import transport
 from .agents import (
     Agent, AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
 )
-from .assignor import LeaderAssignor
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured, SameNode
 from .fixups import FixupT, fixups
@@ -1290,10 +1289,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def _reply_consumer(self) -> ReplyConsumer:
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
 
-    @cached_property
-    def _leader_assignor(self) -> LeaderAssignorT:
-        return LeaderAssignor(self, loop=self.loop, beacon=self.beacon)
-
     @property
     def label(self) -> str:
         return f'{self.shortlabel}: {self.conf.id}@{self.conf.broker}'
@@ -1316,6 +1311,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def assignor(self) -> PartitionAssignorT:
         return self.conf.PartitionAssignor(
             self, replicas=self.conf.table_standby_replicas)
+
+    @cached_property
+    def _leader_assignor(self) -> LeaderAssignorT:
+        return self.conf.LeaderAssignor(
+            self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def router(self) -> RouterT:
