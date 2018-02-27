@@ -773,7 +773,6 @@ Example using the string path to a class::
 
     app = App(..., TopicConductor='myproj.conductors.TopicConductor')
 
-
 .. setting:: Topic
 
 ``Topic``
@@ -798,6 +797,32 @@ Example using a class::
 Example using the string path to a class::
 
     app = faust.App(..., Topic='myproj.topics.Topic')
+
+.. setting:: HttpClient
+
+``HttpClient``
+~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[HttpClientT]]``
+:default: ``"aiohttp.client:ClientSession"``
+
+The :class:`aiohttp.client.ClientSession` class used as a HTTP client; or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+    from aiohttp.client import ClientSession
+
+    class HttpClient(ClientSession):
+        ...
+
+    app = faust.App(..., HttpClient=HttpClient)
+
+Example using the string path to a class::
+
+    app = faust.App(..., HttpClient='myproj.http.HttpClient')
 
 Actions
 =======

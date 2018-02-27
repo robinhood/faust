@@ -10,6 +10,7 @@ from faust.serializers import Registry
 from faust.tables import TableManager
 from faust.topics import TopicConductor
 from faust.types import settings
+from faust.types.app import HttpClientT
 from yarl import URL
 
 
@@ -59,6 +60,7 @@ class test_settings:
         assert conf.Router is Router
         assert conf.TopicConductor is TopicConductor
         assert conf.Topic is faust.Topic
+        assert conf.HttpClient is HttpClientT
 
     def test_reply_prefix_unique(self):
         app1 = self.App()

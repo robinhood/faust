@@ -45,7 +45,7 @@ from .types import (
     ModelArg, RecordMetadata, RegistryT, TP, TopicT, V,
 )
 from .types.app import (
-    AppT, HttpClient, PageArg, RoutedViewGetHandler, TaskArg, ViewGetHandler,
+    AppT, HttpClientT, PageArg, RoutedViewGetHandler, TaskArg, ViewGetHandler,
 )
 from .types.assignor import LeaderAssignorT, PartitionAssignorT
 from .types.router import RouterT
@@ -338,7 +338,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # with the app here.
     _tasks: MutableSequence[TaskArg]
 
-    _http_client: HttpClient = None
+    _http_client: HttpClientT = None
 
     _extra_services: List[ServiceT] = None
 
@@ -1302,9 +1302,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         return FlowControlEvent(loop=self.loop)
 
     @property
-    def http_client(self) -> HttpClient:
+    def http_client(self) -> HttpClientT:
         if self._http_client is None:
-            self._http_client = HttpClient()
+            self._http_client = self.conf.HttpClient()
         return self._http_client
 
     @cached_property

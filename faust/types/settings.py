@@ -16,6 +16,7 @@ from ..cli._env import DATADIR
 from ..exceptions import ImproperlyConfigured
 from ..types import CodecArg
 from ..types.agents import AgentT
+from ..types.app import HttpClientT
 from ..types.assignor import LeaderAssignorT, PartitionAssignorT
 from ..types.router import RouterT
 from ..types.serializers import RegistryT
@@ -30,68 +31,69 @@ else:
 
 __all__ = ['AutodiscoverArg', 'Settings']
 
-#: Broker URL, used as default for ``app.conf.broker``.
+#: Broker URL, used as default for :setting:`broker`.
 BROKER_URL = 'kafka://localhost:9092'
 
-#: Table storage URL, used as default for ``app.conf.store``.
+#: Table storage URL, used as default for :setting:`store`.
 STORE_URL = 'memory://'
 
-#: Table state directory path used as default for ``app.conf.tabledir``.
+#: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
 #: poth is absolute.
 TABLEDIR = 'tables'
 
-#: Path to agent class, used as default for ``app.conf.Agent``.
+#: Path to agent class, used as default for :setting:`Agent`.
 AGENT_TYPE = 'faust.Agent'
 
-#: Path to stream class, used as default for ``app.conf.Stream``.
+#: Path to stream class, used as default for :setting:`Stream`.
 STREAM_TYPE = 'faust.Stream'
 
-#: Path to table manager class, used as default for ``app.conf.TableManager``.
+#: Path to table manager class, used as default for :setting:`TableManager`.
 TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
 
-#: Path to table class, used as default for ``app.conf.Table``.
+#: Path to table class, used as default for :setting:`Table`.
 TABLE_TYPE = 'faust.Table'
 
-#: Path to set class, used as default for ``app.conf.Set``.
+#: Path to set class, used as default for :setting:`Set`.
 SET_TYPE = 'faust.Set'
 
 #: Path to serializer registry class, used as the default for
-#: ``app.conf.Serializers``.
+#: :setting:`Serializers`.
 REGISTRY_TYPE = 'faust.serializers.Registry'
 
-#: Path to worker class, providing the default for ``app.conf.Worker``.
+#: Path to worker class, providing the default for :setting:`Worker`.
 WORKER_TYPE = 'faust.worker.Worker'
 
 #: Path to partition assignor class, providing the default for
-#: ``app.conf.PartitionAssignor``.
+#: :setting:`PartitionAssignor`.
 PARTITION_ASSIGNOR_TYPE = 'faust.assignor:PartitionAssignor'
 
 #: Path to leader assignor class, providing the default for
-#: ``app.conf.LeaderAssignor``.
+#: :setting:`LeaderAssignor`.
 LEADER_ASSIGNOR_TYPE = 'faust.assignor:LeaderAssignor'
 
-#: Path to router class, providing the default for ``app.conf.Router``.
+#: Path to router class, providing the default for :setting:`Router`.
 ROUTER_TYPE = 'faust.router:Router'
 
-#: Path to topic class, providing the default for ``app.conf.Topic``.
+#: Path to topic conductor class, providing the default
+#: for :setting:`TopicConductor`.
+CONDUCTOR_TYPE = 'faust.topics:TopicConductor'
+
+#: Path to topic class, providing the default for :setting:`Topic`.
 TOPIC_TYPE = 'faust:Topic'
 
-#: Path to topic conductor class, providing the default for
-#: ``app.conf.TopicConductor``.
-CONDUCTOR_TYPE = 'faust.topics:TopicConductor'
+#: Path to HTTP client class, providing the default for :setting:`HttpClient`.
+HTTP_CLIENT_TYPE = 'aiohttp.client:ClientSession'
 
 #: Default Kafka Client ID.
 BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit acknowledged messages.
-#: Used as the default value for the :attr:`App.conf.broker_commit_interval`
-#: argument.
+#: Used as the default value for :setting:`broker_commit_interval`.
 BROKER_COMMIT_INTERVAL = 3.0
 
 #: How often we clean up expired items in windowed tables.
-#: Used as the default value for the :attr:`App.conf.table_cleanup_interval`
-#: argument.
+#: Used as the default value for :setting:`table_cleanup_interval`.
 TABLE_CLEANUP_INTERVAL = 30.0
 
 #: Prefix used for reply topics.
@@ -157,6 +159,7 @@ class Settings(abc.ABC):
     _Router: Type[RouterT] = None
     _TopicConductor: Type[ConductorT] = None
     _Topic: Type[TopicT] = None
+    _HttpClient: Type[HttpClientT] = None
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -203,6 +206,7 @@ class Settings(abc.ABC):
             Router: SymbolArg[Type[RouterT]] = None,
             TopicConductor: SymbolArg[Type[ConductorT]] = None,
             Topic: SymbolArg[Type[TopicT]] = None,
+            HttpClient: SymbolArg[Type[HttpClientT]] = None,
             # XXX backward compat (remove fpr Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
@@ -273,6 +277,7 @@ class Settings(abc.ABC):
             self._TopicConductor or
             CONDUCTOR_TYPE)
         self.Topic = Topic or self._Topic or TOPIC_TYPE
+        self.HttpClient = HttpClient or self._HttpClient or HTTP_CLIENT_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
 
     def prepare_id(self, id: str) -> str:
@@ -459,7 +464,7 @@ class Settings(abc.ABC):
         return self._TopicConductor
 
     @TopicConductor.setter
-    def TopicConductor(self, Conductor: Type[ConductorT]) -> None:
+    def TopicConductor(self, Conductor: SymbolArg[Type[ConductorT]]) -> None:
         self._TopicConductor = symbol_by_name(Conductor)
 
     @property
@@ -467,5 +472,13 @@ class Settings(abc.ABC):
         return self._Topic
 
     @Topic.setter
-    def Topic(self, Topic: Type[TopicT]) -> None:
+    def Topic(self, Topic: SymbolArg[Type[TopicT]]) -> None:
         self._Topic = symbol_by_name(Topic)
+
+    @property
+    def HttpClient(self) -> Type[HttpClientT]:
+        return self._HttpClient
+
+    @HttpClient.setter
+    def HttpClient(self, HttpClient: SymbolArg[Type[HttpClientT]]) -> None:
+        self._HttpClient = symbol_by_name(HttpClient)
