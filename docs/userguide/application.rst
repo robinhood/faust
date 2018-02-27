@@ -241,7 +241,7 @@ The value for this argument can be:
 ``version``
 ~~~~~~~~~~~
 
-:type: ``int``
+:type: :class:`int`
 :default: 1
 
 Version of the app (starts at 1) that if changed will create a new isolated
@@ -314,19 +314,19 @@ Advanced Broker Options
 ~~~~~~~~~~~~~~~~~~~~
 
 :type: ``str``
-:default: ``faust-VERSION``
+:default: ``faust-{VERSION}``
 
 You shouldn't have to set this manually.
 
 The client id is used to identify the software used, and is not usually
 configured by the user.
 
-.. setting:: commit_interval
+.. setting:: broker_commit_interval
 
-``commit_interval``
-~~~~~~~~~~~~~~~~~~~
+``broker_commit_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:type: `float`, :class:`~datetime.timedelta`
+:type: :class:`float`, :class:`~datetime.timedelta`
 :default: ``3.0``
 
 How often we commit messages that have been fully processed (:term:`acked`).
@@ -339,7 +339,7 @@ Topic Options
 ``topic_replication_factor``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:type: ``int``
+:type: :class:`int`
 :default: ``1``
 
 The default replication factor for topics created by the application.
@@ -354,7 +354,7 @@ The default replication factor for topics created by the application.
 ``topic_partitions``
 ~~~~~~~~~~~~~~~~~~~~
 
-:type: ``int``
+:type: :class:`int`
 :default: ``8``
 
 Default number of partitions for new topics.
@@ -373,7 +373,7 @@ Advanced Table Options
 ``table_cleanup_interval``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:type: `float`, :class:`~datetime.timedelta`
+:type: :class:`float`, :class:`~datetime.timedelta`
 :default: ``30.0``
 
 How often we cleanup tables to remove expired entries.
@@ -383,7 +383,7 @@ How often we cleanup tables to remove expired entries.
 ``table_standby_replicas``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:type: ``int``
+:type: :class:`int`
 :default: ``1``
 
 The number of standby replicas for each table.

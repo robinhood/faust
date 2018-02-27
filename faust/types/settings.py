@@ -69,8 +69,9 @@ ROUTER_TYPE = 'faust.router:Router'
 BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit acknowledged messages.
-#: Used as the default value for the :attr:`App.conf.commit_interval` argument.
-COMMIT_INTERVAL = 3.0
+#: Used as the default value for the :attr:`App.conf.broker_commit_interval`
+#: argument.
+BROKER_COMMIT_INTERVAL = 3.0
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for the :attr:`App.conf.table_cleanup_interval`
@@ -117,8 +118,8 @@ class Settings(abc.ABC):
     _canonical_url: URL = None
     _datadir: Path = None
     _tabledir: Path = None
-    _commit_interval: float = None
-    _table_cleanup_interval: float = None
+    _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
+    _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = None
     _Stream: Type[StreamT] = None
     _Table: Type[TableT] = None
@@ -135,16 +136,16 @@ class Settings(abc.ABC):
             version: int = None,
             broker: Union[str, URL] = None,
             broker_client_id: str = None,
+            broker_commit_interval: Seconds = None,
             store: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
             datadir: Union[Path, str] = None,
             tabledir: Union[Path, str] = None,
-            commit_interval: Seconds = None,
-            table_cleanup_interval: Seconds = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
+            table_cleanup_interval: Seconds = None,
             table_standby_replicas: int = None,
             topic_replication_factor: int = None,
             topic_partitions: int = None,
@@ -182,7 +183,8 @@ class Settings(abc.ABC):
         # datadir is a format string that can contain {appid}
         self.datadir = datadir or self._datadir or DATADIR
         self.tabledir = tabledir or self._tabledir or TABLEDIR
-        self.commit_interval = commit_interval or self._commit_interval
+        self.broker_commit_interval = (
+            broker_commit_interval or self._broker_commit_interval)
         self.table_cleanup_interval = (
             table_cleanup_interval or self._table_cleanup_interval)
 
@@ -294,12 +296,12 @@ class Settings(abc.ABC):
         self._tabledir = self._datadir_path(Path(tabledir)).expanduser()
 
     @property
-    def commit_interval(self) -> float:
-        return self._commit_interval
+    def broker_commit_interval(self) -> float:
+        return self._broker_commit_interval
 
-    @commit_interval.setter
-    def commit_interval(self, value: Seconds) -> None:
-        self._commit_interval = want_seconds(value)
+    @broker_commit_interval.setter
+    def broker_commit_interval(self, value: Seconds) -> None:
+        self._broker_commit_interval = want_seconds(value)
 
     @property
     def table_cleanup_interval(self) -> float:

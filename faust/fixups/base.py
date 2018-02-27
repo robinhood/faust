@@ -8,7 +8,6 @@ class Fixup(FixupT):
 
     def __init__(self, app: AppT) -> None:
         self.app = app
-        self.on_app_init()
 
     def on_app_init(self) -> None:
         ...

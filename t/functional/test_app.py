@@ -46,7 +46,7 @@ class test_settings:
                                  broker_client_id='client id',
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
-                                 commit_interval=30.3,
+                                 broker_commit_interval=30.3,
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
                                  value_serializer='str',
@@ -68,7 +68,7 @@ class test_settings:
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
-            commit_interval=commit_interval,
+            broker_commit_interval=broker_commit_interval,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -92,7 +92,7 @@ class test_settings:
         else:
             assert app.conf.tabledir.relative_to(
                 app.conf.datadir) == Path(tabledir)
-        assert app.conf.commit_interval == commit_interval
+        assert app.conf.broker_commit_interval == broker_commit_interval
         assert app.conf.table_cleanup_interval == table_cleanup_interval
         assert app.conf.key_serializer == key_serializer
         assert app.conf.value_serializer == value_serializer

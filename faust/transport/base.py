@@ -116,7 +116,7 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
-            commit_interval or self.app.conf.commit_interval)
+            commit_interval or self.app.conf.broker_commit_interval)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)

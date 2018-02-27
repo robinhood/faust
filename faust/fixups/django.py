@@ -37,6 +37,7 @@ class Fixup(base.Fixup):
             except ImportError:
                 warnings.warn(WARN_NOT_INSTALLED)
             else:
+                self.on_app_init()
                 return True
         return False
 
