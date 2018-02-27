@@ -14,9 +14,13 @@ from yarl import URL
 
 class test_settings:
 
-    def test_defaults(self):
-        app = App('myid')
+    def App(self, id='myid', **kwargs):
+        app = App(id, **kwargs)
         app.finalize()
+        return app
+
+    def test_defaults(self):
+        app = self.App()
         conf = app.conf
         assert conf.broker == URL(settings.BROKER_URL)
         assert conf.store == URL(settings.STORE_URL)
@@ -52,10 +56,8 @@ class test_settings:
         assert conf.Router is Router
 
     def test_reply_prefix_unique(self):
-        app1 = App('myid1')
-        app1.finalize()
-        app2 = App('myid1')
-        app2.finalize()
+        app1 = self.App()
+        app2 = self.App()
         assert app1.conf.reply_to != app2.conf.reply_to
 
     def test_app_config(self):
@@ -102,7 +104,7 @@ class test_settings:
                                  reply_expires=90.9,
                                  stream_buffer_maxsize=101,
                                  **kwargs) -> App:
-        app = App(
+        app = self.App(
             id,
             version=version,
             broker=broker,
@@ -124,7 +126,6 @@ class test_settings:
             reply_expires=reply_expires,
             stream_buffer_maxsize=stream_buffer_maxsize,
         )
-        app.finalize()
         assert app.conf.id == app.conf.prepare_id(id)
         assert app.conf.broker == URL(str(broker))
         assert app.conf.store == URL(str(store))
@@ -149,11 +150,40 @@ class test_settings:
         return app
 
     def test_id_no_version(self):
-        app = App('id', version=1)
-        app.finalize()
-        assert app.conf.id == 'id'
+        assert self.App('id', version=1).conf.id == 'id'
 
     def test_version_cannot_be_zero(self):
         app = App('id', version=0)
         with pytest.raises(ImproperlyConfigured):
             app.finalize()
+
+    def test_compat_client_id(self):
+        with pytest.warns(FutureWarning):
+            assert self.App(client_id='foo').conf.broker_client_id == 'foo'
+
+    def test_compat_commit_interval(self):
+        with pytest.warns(FutureWarning):
+            assert self.App(
+                commit_interval=313.3).conf.broker_commit_interval == 313.3
+
+    def test_compat_create_reply_topic(self):
+        with pytest.warns(FutureWarning):
+            assert self.App(create_reply_topic=True).conf.reply_create_topic
+        with pytest.warns(FutureWarning):
+            assert not self.App(
+                create_reply_topic=False).conf.reply_create_topic
+
+    def test_compat_num_standby_replicas(self):
+        with pytest.warns(FutureWarning):
+            assert self.App(
+                num_standby_replicas=34).conf.table_standby_replicas == 34
+
+    def test_compat_default_partitions(self):
+        with pytest.warns(FutureWarning):
+            assert self.App(
+                default_partitions=35).conf.topic_partitions == 35
+
+    def test_compat_replication_factor(self):
+        with pytest.warns(FutureWarning):
+            assert self.App(
+                replication_factor=36).conf.topic_replication_factor == 36

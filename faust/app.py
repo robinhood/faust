@@ -9,6 +9,7 @@ import importlib
 import inspect
 import re
 import typing
+import warnings
 from collections import defaultdict
 from functools import wraps
 from heapq import heappop, heappush
@@ -116,6 +117,12 @@ origin will be "project":
         id='myid',
         origin='project',
     )
+"""
+
+W_OPTION_DEPRECATED = """\
+Argument {old!r} is deprecated and scheduled for removal in Faust 1.0.
+
+Please use {new!r} instead.
 """
 
 
@@ -1139,12 +1146,35 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.on_after_configured.send()
 
     def _load_settings(self, *, silent: bool = False) -> Settings:
-        conf: Mapping[str, Any] = {}
+        changes: Mapping[str, Any] = {}
         appid, defaults = self._default_options
         if self._config_source:
-            conf = self._load_settings_from_source(
+            changes = self._load_settings_from_source(
                 self._config_source, silent=silent)
-        return Settings(appid, **{**defaults, **conf})
+        conf = {**defaults, **changes}
+        return Settings(appid, **self._prepare_compat_settings(conf))
+
+    def _prepare_compat_settings(self, options: Mapping) -> Mapping:
+        COMPAT_OPTIONS = {
+            'client_id': 'broker_client_id',
+            'commit_interval': 'broker_commit_interval',
+            'create_reply_topic': 'reply_create_topic',
+            'num_standby_replicas': 'table_standby_replicas',
+            'default_partitions': 'topic_partitions',
+            'replication_factor': 'topic_replication_factor',
+        }
+        for old, new in COMPAT_OPTIONS.items():
+            try:
+                val, options[new] = options.get(new), options[old]
+            except KeyError:
+                pass
+            else:
+                if val is not None:
+                    raise ImproperlyConfigured(
+                        f'Cannot use both compat option {old!r} and {new!r}')
+                warnings.warn(FutureWarning(
+                    W_OPTION_DEPRECATED.format(old=old, new=new)))
+        return options
 
     def _load_settings_from_source(self, source: Any,
                                    *,
