@@ -1,6 +1,7 @@
 """Website served by the Faust web server."""
 from typing import Any, Sequence, Tuple, Type, Union
 
+import venusian
 from mode import Service
 
 from . import drivers
@@ -44,3 +45,7 @@ class Website(Service):
         for prefix, page in pages:
             page(app).enable(self.web, prefix=prefix)
         self.add_dependency(self.web)
+
+    def on_discovered(
+            self, scanner: venusian.Scanner, name: str, obj: Site) -> None:
+        ...

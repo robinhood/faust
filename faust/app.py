@@ -78,20 +78,20 @@ APP_REPR = """
 
 # Venusian decorator scan categories.
 
-SCAN_CATEGORY_AGENT = 'faust.agent'
-SCAN_CATEGORY_COMMAND = 'faust.command'
-SCAN_CATEGORY_PAGE = 'faust.page'
-SCAN_CATEGORY_SERVICE = 'faust.service'
-SCAN_CATEGORY_TASK = 'faust.task'
+SCAN_AGENT = 'faust.agent'
+SCAN_COMMAND = 'faust.command'
+SCAN_PAGE = 'faust.page'
+SCAN_SERVICE = 'faust.service'
+SCAN_TASK = 'faust.task'
 
 #: Default decorator categories for :pypi`venusian` to scan for when
 #: autodiscovering.
 SCAN_CATEGORIES: Iterable[str] = [
-    SCAN_CATEGORY_AGENT,
-    SCAN_CATEGORY_COMMAND,
-    SCAN_CATEGORY_PAGE,
-    SCAN_CATEGORY_SERVICE,
-    SCAN_CATEGORY_TASK,
+    SCAN_AGENT,
+    SCAN_COMMAND,
+    SCAN_PAGE,
+    SCAN_SERVICE,
+    SCAN_TASK,
 ]
 
 #: List of regular expressions for :pypi:`venusian` that acts as a filter
@@ -573,14 +573,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 on_error=self._on_agent_error,
                 help=fun.__doc__,
                 **kwargs)
-
             self.agents[agent.name] = agent
-
-            def on_discovered(scanner: venusian.Scanner,
-                              name: str,
-                              obj: AgentT) -> None:
-                ...
-            venusian.attach(agent, on_discovered, category=SCAN_CATEGORY_AGENT)
+            venusian.attach(agent, agent.on_discovered, category=SCAN_AGENT)
             return agent
         return _inner
     actor = agent  # XXX Compatibility alias: REMOVE FOR 1.0
@@ -636,13 +630,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> async def on_startup():
             ...     print('STARTING UP')
         """
-        def on_discovered(scanner: venusian.Scanner,
-                          name: str,
-                          obj: TaskArg) -> None:
-            ...
-        venusian.attach(fun, on_discovered, category=SCAN_CATEGORY_TASK)
+        venusian.attach(fun, self._on_task_discovered, category=SCAN_TASK)
         self._tasks.append(fun)
         return fun
+
+    def _on_task_discovered(
+            self, scanner: venusian.Scanner, name: str, obj: TaskArg) -> None:
+        ...
 
     def timer(self, interval: Seconds,
               on_leader: bool = False) -> Callable:
@@ -695,13 +689,15 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 class Foo(Service):
                     ...
         """
-        def on_discovered(scanner: venusian.Scanner,
-                          name: str,
-                          obj: Type[ServiceT]) -> None:
-            ...
-        venusian.attach(cls, on_discovered, category=SCAN_CATEGORY_SERVICE)
+        venusian.attach(
+            cls, self._on_service_discovered, category=SCAN_SERVICE)
         self._extra_services.append(cls)
         return cls
+
+    def _on_service_discovered(
+            self, scanner: venusian.Scanner,
+            name: str, obj: Type[ServiceT]) -> None:
+        ...
 
     def is_leader(self) -> bool:
         return self._leader_assignor.is_leader()
@@ -822,12 +818,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 '__module__': fun.__module__,
             })
             self.pages.append(('', site))
-
-            def on_discovered(scanner: venusian.Scanner,
-                              name: str,
-                              obj: Site) -> None:
-                ...
-            venusian.attach(site, on_discovered, category=SCAN_CATEGORY_PAGE)
+            venusian.attach(site, site.on_discovered, category=SCAN_PAGE)
             return site
         return _decorator
 
@@ -877,7 +868,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                               name: str,
                               obj: AppCommand) -> None:
                 ...
-            venusian.attach(cmd, on_discovered, category=SCAN_CATEGORY_COMMAND)
+            venusian.attach(cmd, on_discovered, category=SCAN_COMMAND)
             return cmd
         return _inner
 
@@ -1154,7 +1145,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         conf = {**defaults, **changes}
         return Settings(appid, **self._prepare_compat_settings(conf))
 
-    def _prepare_compat_settings(self, options: Mapping) -> Mapping:
+    def _prepare_compat_settings(self, options: MutableMapping) -> Mapping:
         COMPAT_OPTIONS = {
             'client_id': 'broker_client_id',
             'commit_interval': 'broker_commit_interval',
@@ -1164,8 +1155,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             'replication_factor': 'topic_replication_factor',
         }
         for old, new in COMPAT_OPTIONS.items():
+            val = options.get(new)
             try:
-                val, options[new] = options.get(new), options[old]
+                options[new] = options[old]
             except KeyError:
                 pass
             else:

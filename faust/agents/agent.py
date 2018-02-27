@@ -9,6 +9,7 @@ from typing import (
 )
 from uuid import uuid4
 
+import venusian
 from mode import (
     CrashingSupervisor,
     OneForOneSupervisor,
@@ -261,6 +262,12 @@ class Agent(AgentT, ServiceProxy):
         self._on_error: AgentErrorHandler = on_error
         self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
         ServiceProxy.__init__(self)
+
+    def on_discovered(self,
+                      scanner: venusian.Scanner,
+                      name: str,
+                      obj: AgentT) -> None:
+        ...
 
     def info(self) -> Mapping:
         return {

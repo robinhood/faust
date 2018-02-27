@@ -37,19 +37,16 @@ class Fixup(base.Fixup):
             except ImportError:
                 warnings.warn(WARN_NOT_INSTALLED)
             else:
-                self.on_app_init()
                 return True
         return False
-
-    def on_app_init(self) -> None:
-        import django
-        django.setup()
 
     def autodiscover_modules(self) -> Iterable[str]:
         return [config.name for config in self.apps.get_app_configs()]
 
     def on_worker_init(self) -> None:
+        import django
         from django.core.checks import run_checks
+        django.setup()
         if self.settings.DEBUG:
             warnings.warn(WARN_DEBUG_ENABLED)
         run_checks()
