@@ -475,6 +475,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                               for table in self.values()]
             if callback_coros:
                 await asyncio.wait(callback_coros)
+            await self.app.consumer.perform_seek()
             await self.app.consumer.resume_partitions({
                 tp for tp in assigned
                 if not self._is_changelog_tp(tp)
