@@ -260,10 +260,9 @@ class Consumer(base.Consumer):
         tps = self._consumer.assignment()
         committed_offsets = dict(filter(
             lambda x: x[1] is not None,
-            zip(tps, await asyncio.gather(*[self._consumer.committed(tp)
-                                           for tp in tps]))
+            zip(tps, await self.wait(
+                asyncio.gather(*[self._consumer.committed(tp) for tp in tps])))
         ))
-        self.log.warn(f'Committed offsets: {committed_offsets}')
         read_offset.update(committed_offsets)
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
