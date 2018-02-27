@@ -57,6 +57,12 @@ globals().update(conf.build_config(
     ],
 ))
 
+
+def configcheck_project_settings():
+    from faust import Settings
+    return Settings.setting_names()
+
+
 html_theme = 'alabaster'
 html_sidebars = {
     '**': [

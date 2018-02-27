@@ -332,7 +332,7 @@ configured by the user.
 How often we commit messages that have been fully processed (:term:`acked`).
 
 Topic Options
-=============
+-------------
 
 .. setting:: topic_replication_factor
 
