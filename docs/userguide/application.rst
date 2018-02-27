@@ -824,6 +824,33 @@ Example using the string path to a class::
 
     app = faust.App(..., HttpClient='myproj.http.HttpClient')
 
+.. setting:: Monitor
+
+``Monitor``
+~~~~~~~~~~~
+
+:type: ``Union[str, Type[SensorT]]``
+:default: ``"faust.sensors:Monitor"``
+
+The :class:`~faust.sensors.Monitor` class as the main sensor
+gathering statistics for the application; or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+    from faust.sensors import Monitor
+
+    class MyMonitor(Monitor):
+        ...
+
+    app = faust.App(..., Monitor=MyMonitor)
+
+Example using the string path to a class::
+
+    app = faust.App(..., Monitor='myproj.monitors.Monitor')
+
 Actions
 =======
 

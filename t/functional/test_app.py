@@ -6,6 +6,7 @@ from faust import App
 from faust.assignor import LeaderAssignor, PartitionAssignor
 from faust.exceptions import ImproperlyConfigured
 from faust.router import Router
+from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
 from faust.topics import TopicConductor
@@ -61,6 +62,7 @@ class test_settings:
         assert conf.TopicConductor is TopicConductor
         assert conf.Topic is faust.Topic
         assert conf.HttpClient is HttpClientT
+        assert conf.Monitor is Monitor
 
     def test_reply_prefix_unique(self):
         app1 = self.App()

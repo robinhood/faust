@@ -19,6 +19,7 @@ from ..types.agents import AgentT
 from ..types.app import HttpClientT
 from ..types.assignor import LeaderAssignorT, PartitionAssignorT
 from ..types.router import RouterT
+from ..types.sensors import SensorT
 from ..types.serializers import RegistryT
 from ..types.streams import StreamT
 from ..types.tables import SetT, TableManagerT, TableT
@@ -84,6 +85,9 @@ TOPIC_TYPE = 'faust:Topic'
 
 #: Path to HTTP client class, providing the default for :setting:`HttpClient`.
 HTTP_CLIENT_TYPE = 'aiohttp.client:ClientSession'
+
+#: Path to Monitor sensor class, providing the default for :setting:`Monitor`.
+MONITOR_TYPE = 'faust.sensors:Monitor'
 
 #: Default Kafka Client ID.
 BROKER_CLIENT_ID = f'faust-{faust_version}'
@@ -160,6 +164,7 @@ class Settings(abc.ABC):
     _TopicConductor: Type[ConductorT] = None
     _Topic: Type[TopicT] = None
     _HttpClient: Type[HttpClientT] = None
+    _Monitor: Type[SensorT] = None
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -207,6 +212,7 @@ class Settings(abc.ABC):
             TopicConductor: SymbolArg[Type[ConductorT]] = None,
             Topic: SymbolArg[Type[TopicT]] = None,
             HttpClient: SymbolArg[Type[HttpClientT]] = None,
+            Monitor: SymbolArg[Type[SensorT]] = None,
             # XXX backward compat (remove fpr Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
@@ -278,6 +284,7 @@ class Settings(abc.ABC):
             CONDUCTOR_TYPE)
         self.Topic = Topic or self._Topic or TOPIC_TYPE
         self.HttpClient = HttpClient or self._HttpClient or HTTP_CLIENT_TYPE
+        self.Monitor = Monitor or self._Monitor or MONITOR_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
 
     def prepare_id(self, id: str) -> str:
@@ -482,3 +489,11 @@ class Settings(abc.ABC):
     @HttpClient.setter
     def HttpClient(self, HttpClient: SymbolArg[Type[HttpClientT]]) -> None:
         self._HttpClient = symbol_by_name(HttpClient)
+
+    @property
+    def Monitor(self) -> Type[SensorT]:
+        return self._Monitor
+
+    @Monitor.setter
+    def Monitor(self, Monitor: SymbolArg[Type[SensorT]]) -> None:
+        self._Monitor = symbol_by_name(Monitor)
