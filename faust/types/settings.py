@@ -15,11 +15,13 @@ from .. import __version__ as faust_version
 from ..cli._env import DATADIR
 from ..exceptions import ImproperlyConfigured
 from ..types import CodecArg
+from ..types.agents import AgentT
 from ..types.assignor import LeaderAssignorT, PartitionAssignorT
 from ..types.router import RouterT
 from ..types.serializers import RegistryT
 from ..types.streams import StreamT
 from ..types.tables import SetT, TableManagerT, TableT
+from ..types.topics import ConductorT
 
 if typing.TYPE_CHECKING:
     from .worker import Worker as WorkerT
@@ -33,11 +35,14 @@ BROKER_URL = 'kafka://localhost:9092'
 
 #: Table storage URL, used as default for ``app.conf.store``.
 STORE_URL = 'memory://'
-1
+
 #: Table state directory path used as default for ``app.conf.tabledir``.
 #: This path will be treated as relative to datadir, unless the provided
 #: poth is absolute.
 TABLEDIR = 'tables'
+
+#: Path to agent class, used as default for ``app.conf.Agent``.
+AGENT_TYPE = 'faust.Agent'
 
 #: Path to stream class, used as default for ``app.conf.Stream``.
 STREAM_TYPE = 'faust.Stream'
@@ -68,6 +73,10 @@ LEADER_ASSIGNOR_TYPE = 'faust.assignor:LeaderAssignor'
 
 #: Path to router class, providing the default for ``app.conf.Router``.
 ROUTER_TYPE = 'faust.router:Router'
+
+#: Path to topic conductor class, providiung the default for
+#: ``app.conf.TopicConductor``.
+CONDUCTOR_TYPE = 'faust.topics:TopicConductor'
 
 #: Default Kafka Client ID.
 BROKER_CLIENT_ID = f'faust-{faust_version}'
@@ -133,6 +142,7 @@ class Settings(abc.ABC):
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
+    _Agent: Type[AgentT] = None
     _Stream: Type[StreamT] = None
     _Table: Type[TableT] = None
     _TableManager: Type[TableManagerT] = None
@@ -142,6 +152,7 @@ class Settings(abc.ABC):
     _PartitionAssignor: Type[PartitionAssignorT] = None
     _LeaderAssignor: Type[LeaderAssignorT] = None
     _Router: Type[RouterT] = None
+    _TopicConductor: Type[ConductorT] = None
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -176,6 +187,7 @@ class Settings(abc.ABC):
             reply_create_topic: bool = None,
             reply_expires: Seconds = None,
             stream_buffer_maxsize: int = None,
+            Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             TableManager: SymbolArg[Type[TableManagerT]] = None,
@@ -185,6 +197,7 @@ class Settings(abc.ABC):
             PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
             LeaderAssignor: SymbolArg[Type[LeaderAssignorT]] = None,
             Router: SymbolArg[Type[RouterT]] = None,
+            TopicConductor: SymbolArg[Type[ConductorT]] = None,
             # XXX backward compat (remove fpr Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
@@ -233,6 +246,7 @@ class Settings(abc.ABC):
         if reply_expires is not None:
             self.reply_expires = reply_expires
 
+        self.Agent = Agent or self._Agent or AGENT_TYPE
         self.Stream = Stream or self._Stream or STREAM_TYPE
         self.Table = Table or self._Table or TABLE_TYPE
         self.Set = Set or self._Set or SET_TYPE
@@ -249,6 +263,10 @@ class Settings(abc.ABC):
             self._LeaderAssignor or
             LEADER_ASSIGNOR_TYPE)
         self.Router = Router or self._Router or ROUTER_TYPE
+        self.TopicConductor = (
+            TopicConductor or
+            self._TopicConductor or
+            CONDUCTOR_TYPE)
         self.__dict__.update(kwargs)  # arbitrary configuration
 
     def prepare_id(self, id: str) -> str:
@@ -349,6 +367,14 @@ class Settings(abc.ABC):
         self._reply_expires = want_seconds(reply_expires)
 
     @property
+    def Agent(self) -> Type[AgentT]:
+        return self._Agent
+
+    @Agent.setter
+    def Agent(self, Agent: SymbolArg[Type[AgentT]]) -> None:
+        self._Agent = symbol_by_name(Agent)
+
+    @property
     def Stream(self) -> Type[StreamT]:
         return self._Stream
 
@@ -421,3 +447,11 @@ class Settings(abc.ABC):
     @Router.setter
     def Router(self, Router: SymbolArg[Type[RouterT]]) -> None:
         self._Router = symbol_by_name(Router)
+
+    @property
+    def TopicConductor(self) -> Type[ConductorT]:
+        return self._TopicConductor
+
+    @TopicConductor.setter
+    def TopicConductor(self, Conductor: Type[ConductorT]) -> None:
+        self._TopicConductor = symbol_by_name(Conductor)

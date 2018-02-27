@@ -8,6 +8,7 @@ from faust.exceptions import ImproperlyConfigured
 from faust.router import Router
 from faust.serializers import Registry
 from faust.tables import TableManager
+from faust.topics import TopicConductor
 from faust.types import settings
 from yarl import URL
 
@@ -46,6 +47,7 @@ class test_settings:
         assert conf.version == 1
         assert conf.canonical_url is None
 
+        assert conf.Agent is faust.Agent
         assert conf.Stream is faust.Stream
         assert conf.Table is faust.Table
         assert conf.TableManager is TableManager
@@ -55,6 +57,7 @@ class test_settings:
         assert conf.PartitionAssignor is PartitionAssignor
         assert conf.LeaderAssignor is LeaderAssignor
         assert conf.Router is Router
+        assert conf.TopicConductor is TopicConductor
 
     def test_reply_prefix_unique(self):
         app1 = self.App()

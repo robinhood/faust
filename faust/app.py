@@ -33,14 +33,14 @@ from mode.utils.types.trees import NodeT
 
 from . import transport
 from .agents import (
-    Agent, AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
+    AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
 )
 from .channels import Channel, ChannelT
 from .exceptions import ImproperlyConfigured, SameNode
 from .fixups import FixupT, fixups
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
-from .topics import ConductorT, Topic, TopicConductor
+from .topics import ConductorT, Topic
 
 from .types import (
     CodecArg, CollectionT, FutureMessage, K, Message, MessageSentCallback,
@@ -561,6 +561,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     print(f'Received: {number!r}')
         """
         def _inner(fun: AgentFun) -> AgentT:
+            Agent = (self.conf.Agent if self.finalized
+                     else symbol_by_name('faust:Agent'))
             agent = Agent(
                 fun,
                 name=name,
@@ -747,11 +749,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> table['Elaine']
             2
         """
-        if self.finalized:  # XXX
-            table_type = self.conf.Table
-        else:
-            from .tables import Table as table_type  # type: ignore
-        table = self.tables.add(table_type(
+        Table = (self.conf.Table if self.finalized
+                 else symbol_by_name('faust:Table'))
+        table = self.tables.add(Table(
             self,
             name=name,
             default=default,
@@ -1248,10 +1248,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        if self.finalized:  # XXX
-            TableManager = self.conf.TableManager
-        else:
-            from .tables import TableManager  # type: ignore
+        TableManager = (self.conf.TableManager if self.finalized
+                        else symbol_by_name('faust.tables:TableManager'))
         return TableManager(
             app=self,
             loop=self.loop,
@@ -1269,7 +1267,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         can check if a topic is being consumed from by doing
         ``topic in app.topics``.
         """
-        return TopicConductor(app=self, loop=self.loop, beacon=self.beacon)
+        return self.conf.TopicConductor(
+            app=self, loop=self.loop, beacon=self.beacon)
 
     @property
     def monitor(self) -> Monitor:
