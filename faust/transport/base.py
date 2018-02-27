@@ -326,6 +326,9 @@ class Consumer(Service, ConsumerT):
             while not (consumer_should_stop() or fetcher_should_stop()):
                 set_flag(flag_consumer_fetching)
                 ait = cast(AsyncIterator, getmany(timeout=5.0))
+                # Sleeping because sometimes getmany is just called in a loop
+                # instead of ever releasing to the event loop
+                await self.sleep(0)
                 async for tp, message in ait:
                     offset = message.offset
                     r_offset = get_read_offset(tp)

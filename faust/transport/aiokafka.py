@@ -190,10 +190,7 @@ class Consumer(base.Consumer):
         _consumer = self._consumer
         active_partitions = self._get_active_partitions()
 
-        from copy import deepcopy
-        prev_actives = deepcopy(active_partitions)
-
-        records = {}
+        records: Mapping[TP, Iterable[Message]] = {}
         async with self._partitions_lock:
             if active_partitions:
                 # Fetch records only if active partitions to avoid the risk of
@@ -212,7 +209,7 @@ class Consumer(base.Consumer):
         for tp, messages in records.items():
             if tp not in active_partitions:
                 self.log.error(f'SKIP PAUSED PARTITION: {tp} '
-                               f'{active_partitions} {prev_actives}')
+                               f'ACTIVES: {active_partitions}')
                 continue
             iterators.append((
                 tp,
@@ -282,6 +279,7 @@ class Consumer(base.Consumer):
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to pause partitions')
         async with self._partitions_lock:
+            self.log.info(f'Acquired lock to pause partitions')
             tpset = set(tps)
             self._get_active_partitions().difference_update(tpset)
             self._paused_partitions.update(tpset)
@@ -290,6 +288,7 @@ class Consumer(base.Consumer):
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to resume partitions')
         async with self._partitions_lock:
+            self.log.info(f'Acquired lock ro resume partitions')
             tpset = set(tps)
             self._get_active_partitions().update(tps)
             self._paused_partitions.difference_update(tpset)
