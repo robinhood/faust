@@ -160,7 +160,7 @@ to track the messages that consumers do not want to see again.
 
 The Kafka consumer commits the topic offsets every three
 seconds (by default, can also be configured using the
-:ref:`app-commit-interval` setting) in a background task.
+:setting:`broker_commit_interval` setting) in a background task.
 
 Since we only have one consumer and multiple agents can be subscribed
 to the same topic, we need a smart way to track when those events
