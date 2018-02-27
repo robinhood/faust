@@ -264,6 +264,7 @@ class Consumer(base.Consumer):
         offsets = zip(tps, wait_res.result)
         committed_offsets = dict(filter(lambda x: x[1] is not None, offsets))
         read_offset.update(committed_offsets)
+        self._committed_offset.update(committed_offsets)
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
