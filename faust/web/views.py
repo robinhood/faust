@@ -1,6 +1,7 @@
 """Class-based views."""
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
 import jinja2
+import venusian
 from .base import Request, Response, Web
 from ..types import AppT
 from ..utils.objects import cached_property
@@ -100,3 +101,7 @@ class Site:
     def enable(self, web: Web, *, prefix: str = '') -> None:
         for pattern, view in self.views.items():
             web.route(prefix + pattern, view(self.app, web).dispatch)
+
+    def on_discovered(
+            self, scanner: venusian.Scanner, name: str, obj: Site) -> None:
+        ...
