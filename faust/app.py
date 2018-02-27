@@ -21,7 +21,6 @@ from typing import (
 )
 
 import venusian
-from aiohttp.client import ClientSession
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.services import ServiceCallbacks
@@ -46,7 +45,7 @@ from .types import (
     ModelArg, RecordMetadata, RegistryT, TP, TopicT, V,
 )
 from .types.app import (
-    AppT, PageArg, RoutedViewGetHandler, TaskArg, ViewGetHandler,
+    AppT, HttpClient, PageArg, RoutedViewGetHandler, TaskArg, ViewGetHandler,
 )
 from .types.assignor import LeaderAssignorT, PartitionAssignorT
 from .types.router import RouterT
@@ -339,7 +338,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # with the app here.
     _tasks: MutableSequence[TaskArg]
 
-    _http_client: Optional[ClientSession] = None
+    _http_client: HttpClient = None
 
     _extra_services: List[ServiceT] = None
 
@@ -1303,9 +1302,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         return FlowControlEvent(loop=self.loop)
 
     @property
-    def http_client(self) -> ClientSession:
+    def http_client(self) -> HttpClient:
         if self._http_client is None:
-            self._http_client = ClientSession()
+            self._http_client = HttpClient()
         return self._http_client
 
     @cached_property

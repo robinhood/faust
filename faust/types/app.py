@@ -53,6 +53,7 @@ __all__ = [
     'ViewGetHandler',
     'RoutedViewGetHandler',
     'PageArg',
+    'HttpClient',
     'Web',
     'AppT',
 ]
@@ -64,6 +65,7 @@ TaskArg = Union[
 ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
 RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
+HttpClient = ClientSession
 
 
 class AppT(ServiceT):
@@ -306,7 +308,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def http_client(self) -> ClientSession:
+    def http_client(self) -> HttpClient:
         ...
 
     @property
