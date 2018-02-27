@@ -21,7 +21,7 @@ from ..types.router import RouterT
 from ..types.serializers import RegistryT
 from ..types.streams import StreamT
 from ..types.tables import SetT, TableManagerT, TableT
-from ..types.topics import ConductorT
+from ..types.topics import ConductorT, TopicT
 
 if typing.TYPE_CHECKING:
     from .worker import Worker as WorkerT
@@ -74,7 +74,10 @@ LEADER_ASSIGNOR_TYPE = 'faust.assignor:LeaderAssignor'
 #: Path to router class, providing the default for ``app.conf.Router``.
 ROUTER_TYPE = 'faust.router:Router'
 
-#: Path to topic conductor class, providiung the default for
+#: Path to topic class, providing the default for ``app.conf.Topic``.
+TOPIC_TYPE = 'faust:Topic'
+
+#: Path to topic conductor class, providing the default for
 #: ``app.conf.TopicConductor``.
 CONDUCTOR_TYPE = 'faust.topics:TopicConductor'
 
@@ -153,6 +156,7 @@ class Settings(abc.ABC):
     _LeaderAssignor: Type[LeaderAssignorT] = None
     _Router: Type[RouterT] = None
     _TopicConductor: Type[ConductorT] = None
+    _Topic: Type[TopicT] = None
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -198,6 +202,7 @@ class Settings(abc.ABC):
             LeaderAssignor: SymbolArg[Type[LeaderAssignorT]] = None,
             Router: SymbolArg[Type[RouterT]] = None,
             TopicConductor: SymbolArg[Type[ConductorT]] = None,
+            Topic: SymbolArg[Type[TopicT]] = None,
             # XXX backward compat (remove fpr Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
@@ -267,6 +272,7 @@ class Settings(abc.ABC):
             TopicConductor or
             self._TopicConductor or
             CONDUCTOR_TYPE)
+        self.Topic = Topic or self._Topic or TOPIC_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
 
     def prepare_id(self, id: str) -> str:
@@ -455,3 +461,11 @@ class Settings(abc.ABC):
     @TopicConductor.setter
     def TopicConductor(self, Conductor: Type[ConductorT]) -> None:
         self._TopicConductor = symbol_by_name(Conductor)
+
+    @property
+    def Topic(self) -> Type[TopicT]:
+        return self._Topic
+
+    @Topic.setter
+    def Topic(self, Topic: Type[TopicT]) -> None:
+        self._Topic = symbol_by_name(Topic)

@@ -40,7 +40,6 @@ from .exceptions import ImproperlyConfigured, SameNode
 from .fixups import FixupT, fixups
 from .sensors import Monitor, SensorDelegate
 from .streams import current_event
-from .topics import ConductorT, Topic
 
 from .types import (
     CodecArg, CollectionT, FutureMessage, K, Message, MessageSentCallback,
@@ -54,6 +53,7 @@ from .types.router import RouterT
 from .types.settings import Settings
 from .types.streams import StreamT
 from .types.tables import SetT, TableManagerT, TableT
+from .types.topics import ConductorT
 from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
 from .types.windows import WindowT
 from .utils.objects import Unordered, cached_property
@@ -493,6 +493,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         See Also:
             :class:`faust.topics.Topic`
         """
+        Topic = (self.conf.Topic if self.finalized
+                 else symbol_by_name('faust:Topic'))
         return Topic(
             self,
             topics=topics,

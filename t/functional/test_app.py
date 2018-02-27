@@ -58,6 +58,7 @@ class test_settings:
         assert conf.LeaderAssignor is LeaderAssignor
         assert conf.Router is Router
         assert conf.TopicConductor is TopicConductor
+        assert conf.Topic is faust.Topic
 
     def test_reply_prefix_unique(self):
         app1 = self.App()

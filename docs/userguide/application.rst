@@ -773,6 +773,32 @@ Example using the string path to a class::
 
     app = App(..., TopicConductor='myproj.conductors.TopicConductor')
 
+
+.. setting:: Topic
+
+``Topic``
+~~~~~~~~~
+
+:type: ``Union[str, Type[TopicT]]``
+:default: ``"faust.Topic"``
+
+The :class:`~faust.Topic` class used for defining new topics; or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+
+    class MyTopic(faust.Topic):
+        ...
+
+    app = faust.App(..., Topic=MyTopic)
+
+Example using the string path to a class::
+
+    app = faust.App(..., Topic='myproj.topics.Topic')
+
 Actions
 =======
 
