@@ -256,19 +256,15 @@ class Consumer(base.Consumer):
 
     async def _perform_seek(self) -> None:
         read_offset = self._read_offset
-        seek = self._consumer.seek
-        for tp in self._consumer.assignment():
-            ftp: TP = _ensure_TP(tp)
-            checkpoint = await self._consumer.committed(tp)
-            if checkpoint is not None:
-                read_offset[ftp] = checkpoint
-                self.log.dev('PERFORM SEEK SOURCE TOPIC: %r -> %r',
-                             ftp, checkpoint)
-                seek(tp, checkpoint)
-            else:
-                self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', ftp)
-                await self._seek_to_beginning(tp)
-        self._read_offset.update(self._committed_offset)
+        self._consumer.seek_to_committed()
+        tps = self._consumer.assignment()
+        committed_offsets = dict(filter(
+            lambda x: x[1] is not None,
+            zip(tps, await asyncio.gather(*[self._consumer.committed(tp)
+                                           for tp in tps]))
+        ))
+        self.log.warn(f'Committed offsets: {committed_offsets}')
+        read_offset.update(committed_offsets)
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
