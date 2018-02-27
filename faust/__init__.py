@@ -168,7 +168,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.streams.stream': ['Stream', 'StreamT', 'current_event'],
     'faust.tables.set': ['Set'],
     'faust.tables.table': ['Table'],
-    'faust.topics': ['Topic', 'TopicT',],
+    'faust.topics': ['Topic', 'TopicT'],
     'faust.types.settings': ['Settings'],
     'faust.windows': [
         'HoppingWindow',

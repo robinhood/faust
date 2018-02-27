@@ -1,17 +1,62 @@
 from pathlib import Path
 
+import faust
 import pytest
 from faust import App
+from faust.assignor.partition_assignor import PartitionAssignor
 from faust.exceptions import ImproperlyConfigured
+from faust.router import Router
+from faust.serializers import Registry
+from faust.tables import TableManager
+from faust.types import settings
 from yarl import URL
 
 
 class test_settings:
 
-    def test_not_finalized(self):
+    def test_defaults(self):
         app = App('myid')
-        with pytest.raises(ImproperlyConfigured):
-            app.conf.id
+        app.finalize()
+        conf = app.conf
+        assert conf.broker == URL(settings.BROKER_URL)
+        assert conf.store == URL(settings.STORE_URL)
+        assert conf.datadir == conf.prepare_datadir(settings.DATADIR)
+        assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
+        assert conf.broker_client_id == settings.BROKER_CLIENT_ID
+        assert conf.broker_commit_interval == settings.BROKER_COMMIT_INTERVAL
+        assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
+        assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
+        assert conf.reply_expires == settings.REPLY_EXPIRES
+        assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
+
+        assert not conf.autodiscover
+        assert conf.origin is None
+        assert conf.key_serializer == 'json'
+        assert conf.value_serializer == 'json'
+        assert conf.reply_to is not None
+        assert not conf.reply_create_topic
+        assert conf.table_standby_replicas == 1
+        assert conf.topic_replication_factor == 1
+        assert conf.topic_partitions == 8
+        assert conf.loghandlers is None
+        assert conf.version == 1
+        assert conf.canonical_url is None
+
+        assert conf.Stream is faust.Stream
+        assert conf.Table is faust.Table
+        assert conf.TableManager is TableManager
+        assert conf.Set is faust.Set
+        assert conf.Serializers is Registry
+        assert conf.Worker is faust.Worker
+        assert conf.PartitionAssignor is PartitionAssignor
+        assert conf.Router is Router
+
+    def test_reply_prefix_unique(self):
+        app1 = App('myid1')
+        app1.finalize()
+        app2 = App('myid1')
+        app2.finalize()
+        assert app1.conf.reply_to != app2.conf.reply_to
 
     def test_app_config(self):
         self.assert_config_equivalent()

@@ -1,10 +1,10 @@
 import abc
-import asyncio
+import inspect
 import logging
 import typing
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, List, Type, Union
+from typing import Any, Callable, Iterable, List, Set, Type, Union
 from uuid import uuid4
 
 from mode import Seconds, want_seconds
@@ -33,7 +33,7 @@ BROKER_URL = 'kafka://localhost:9092'
 
 #: Table storage URL, used as default for ``app.conf.store``.
 STORE_URL = 'memory://'
-
+1
 #: Table state directory path used as default for ``app.conf.tabledir``.
 #: This path will be treated as relative to datadir, unless the provided
 #: poth is absolute.
@@ -79,13 +79,22 @@ BROKER_COMMIT_INTERVAL = 3.0
 TABLE_CLEANUP_INTERVAL = 30.0
 
 #: Prefix used for reply topics.
-REPLY_TOPIC_PREFIX = 'f-reply-'
+REPLY_TO_PREFIX = 'f-reply-'
 
 #: Default expiry time for replies, in seconds (float).
 REPLY_EXPIRES = want_seconds(timedelta(days=1))
 
 #: Max number of messages channels/streams/topics can "prefetch".
 STREAM_BUFFER_MAXSIZE = 1000
+
+#: Set of settings added for backwards compatibility
+SETTINGS_COMPAT: Set[str] = {'url'}
+
+#: Set of :func:`inspect.signature` parameter types to ignore
+#: when building the list of supported seting names.
+SETTINGS_SKIP: Set[inspect._ParameterKind] = {
+    inspect.Parameter.VAR_KEYWORD,
+}
 
 AutodiscoverArg = Union[
     bool,
@@ -102,14 +111,13 @@ class Settings(abc.ABC):
     key_serializer: CodecArg = 'json'
     value_serializer: CodecArg = 'json'
     reply_to: str = None
-    reply_to_prefix: str = REPLY_TOPIC_PREFIX
+    reply_to_prefix: str = REPLY_TO_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
     loghandlers: List[logging.StreamHandler] = None
-    loop: asyncio.AbstractEventLoop = None
 
     _id: str = None
     _version: int = 1
@@ -120,7 +128,7 @@ class Settings(abc.ABC):
     _tabledir: Path = None
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
-    _reply_expires: float = None
+    _reply_expires: float = REPLY_EXPIRES
     _Stream: Type[StreamT] = None
     _Table: Type[TableT] = None
     _TableManager: Type[TableManagerT] = None
@@ -129,6 +137,13 @@ class Settings(abc.ABC):
     _Worker: Type[WorkerT] = None
     _PartitionAssignor: Type[PartitionAssignorT] = None
     _Router: Type[RouterT] = None
+
+    @classmethod
+    def setting_names(cls) -> Set[str]:
+        return {
+            k for k, v in inspect.signature(cls).parameters.items()
+            if v.kind not in SETTINGS_SKIP
+        } - SETTINGS_COMPAT
 
     def __init__(
             self, id: str,
@@ -145,6 +160,7 @@ class Settings(abc.ABC):
             tabledir: Union[Path, str] = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
+            loghandlers: List[logging.StreamHandler] = None,
             table_cleanup_interval: Seconds = None,
             table_standby_replicas: int = None,
             topic_replication_factor: int = None,
@@ -154,6 +170,7 @@ class Settings(abc.ABC):
             reply_to_prefix: str = None,
             reply_create_topic: bool = None,
             reply_expires: Seconds = None,
+            stream_buffer_maxsize: int = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             TableManager: SymbolArg[Type[TableManagerT]] = None,
@@ -162,15 +179,11 @@ class Settings(abc.ABC):
             Worker: SymbolArg[Type[WorkerT]] = None,
             PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
             Router: SymbolArg[Type[RouterT]] = None,
-            stream_buffer_maxsize: int = None,
-            loop: asyncio.AbstractEventLoop = None,
-            loghandlers: List[logging.StreamHandler] = None,
             # XXX backward compat (remove fpr Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
-        self.loop = loop if loop is not None else self.loop
         self.origin = origin if origin is not None else self.origin
         self.id = id
         self.broker = broker or self._broker or BROKER_URL
@@ -233,6 +246,12 @@ class Settings(abc.ABC):
             return self.id_format.format(id=id, self=self)
         return id
 
+    def prepare_datadir(self, datadir: Union[str, Path]) -> Path:
+        return Path(str(datadir).format(appid=self.id)).expanduser()
+
+    def prepare_tabledir(self, tabledir: Union[str, Path]) -> Path:
+        return self._datadir_path(Path(tabledir)).expanduser()
+
     def _datadir_path(self, path: Path) -> Path:
         return path if path.is_absolute() else self.datadir / path
 
@@ -277,7 +296,7 @@ class Settings(abc.ABC):
 
     @canonical_url.setter
     def canonical_url(self, canonical_url: Union[URL, str]) -> None:
-        self._canonical_url = URL(canonical_url)
+        self._canonical_url = URL(canonical_url) if canonical_url else None
 
     @property
     def datadir(self) -> Path:
@@ -285,7 +304,7 @@ class Settings(abc.ABC):
 
     @datadir.setter
     def datadir(self, datadir: Union[Path, str]) -> None:
-        self._datadir = Path(str(datadir).format(appid=self.id)).expanduser()
+        self._datadir = self.prepare_datadir(datadir)
 
     @property
     def tabledir(self) -> Path:
@@ -293,7 +312,7 @@ class Settings(abc.ABC):
 
     @tabledir.setter
     def tabledir(self, tabledir: Union[Path, str]) -> None:
-        self._tabledir = self._datadir_path(Path(tabledir)).expanduser()
+        self._tabledir = self.prepare_tabledir(tabledir)
 
     @property
     def broker_commit_interval(self) -> float:
