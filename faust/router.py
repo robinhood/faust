@@ -54,7 +54,7 @@ class Router(RouterT):
         if dest_ident == self._urlident(app.conf.canonical_url):
             raise SameNode()
         routed_url = request.url.with_host(host).with_port(int(port))
-        async with app.client_session.get(routed_url) as response:
+        async with app.http_client.get(routed_url) as response:
             return web.text(await response.text(),
                             content_type=response.content_type)
 

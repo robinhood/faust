@@ -339,7 +339,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # with the app here.
     _tasks: MutableSequence[TaskArg]
 
-    _client_session: Optional[ClientSession] = None
+    _http_client: Optional[ClientSession] = None
 
     _extra_services: List[ServiceT] = None
 
@@ -414,8 +414,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 raise ImproperlyConfigured('App requires an id!')
 
     async def on_stop(self) -> None:
-        if self._client_session:
-            self._client_session.close()
+        if self._http_client:
+            self._http_client.close()
 
     def worker_init(self) -> None:
         for fixup in self.fixups:
@@ -1303,10 +1303,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         return FlowControlEvent(loop=self.loop)
 
     @property
-    def client_session(self) -> ClientSession:
-        if self._client_session is None:
-            self._client_session = ClientSession()
-        return self._client_session
+    def http_client(self) -> ClientSession:
+        if self._http_client is None:
+            self._http_client = ClientSession()
+        return self._http_client
 
     @cached_property
     def assignor(self) -> PartitionAssignorT:

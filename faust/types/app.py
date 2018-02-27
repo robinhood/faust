@@ -306,7 +306,7 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def client_session(self) -> ClientSession:
+    def http_client(self) -> ClientSession:
         ...
 
     @property
