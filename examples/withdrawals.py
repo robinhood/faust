@@ -57,7 +57,7 @@ async def track_user_withdrawal(withdrawals):
 @app.agent(withdrawals_topic)
 async def track_country_withdrawal(withdrawals):
     async for withdrawal in withdrawals.group_by(Withdrawal.country):
-        country_to_total[withdrawals.country] += withdrawal.amount
+        country_to_total[withdrawal.country] += withdrawal.amount
 
 
 @app.command(

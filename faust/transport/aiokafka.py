@@ -1,4 +1,5 @@
 """Message transport using :pypi:`aiokafka`."""
+import asyncio
 from itertools import cycle
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable,
@@ -90,6 +91,7 @@ class Consumer(base.Consumer):
     _rebalance_listener: ConsumerRebalanceListener
     _active_partitions: Set[_TopicPartition] = None
     _paused_partitions: Set[_TopicPartition] = None
+    _partitions_lock: asyncio.Lock = None
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -106,6 +108,7 @@ class Consumer(base.Consumer):
         else:
             self._consumer = self._create_worker_consumer(app, transport)
         self._paused_partitions = set()
+        self._partitions_lock = asyncio.Lock(loop=self.loop)
 
     async def on_restart(self) -> None:
         self.on_init()
@@ -185,19 +188,28 @@ class Consumer(base.Consumer):
             self,
             timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
-
         active_partitions = self._get_active_partitions()
 
-        records = await _consumer._fetcher.fetched_records(
-            active_partitions, timeout,
-            max_records=_consumer._max_poll_records,
-        )
+        records: Mapping[TP, Iterable[Message]] = {}
+        async with self._partitions_lock:
+            if active_partitions:
+                # Fetch records only if active partitions to avoid the risk of
+                # fetching all partitions in the beginning when none of the
+                # partitions is paused/resumed.
+                records = await _consumer._fetcher.fetched_records(
+                    active_partitions, timeout,
+                    max_records=_consumer._max_poll_records,
+                )
+            else:
+                # We should still release to the event loop
+                await self.sleep(0)
         create_message = Message  # localize
 
         iterators = []
         for tp, messages in records.items():
             if tp not in active_partitions:
-                self.log.dev(f'SKIP PAUSED PARTITION: {tp}')
+                self.log.error(f'SKIP PAUSED PARTITION: {tp} '
+                               f'ACTIVES: {active_partitions}')
                 continue
             iterators.append((
                 tp,
@@ -239,20 +251,20 @@ class Consumer(base.Consumer):
         await self._consumer.stop()
         cast(Transport, self.transport)._topic_waiters.clear()
 
+    async def perform_seek(self) -> None:
+        await self.transition_with(base.CONSUMER_SEEKING, self._perform_seek())
+
     async def _perform_seek(self) -> None:
         read_offset = self._read_offset
-        seek = self._consumer.seek
-        for tp in self._consumer.assignment():
-            ftp: TP = _ensure_TP(tp)
-            checkpoint = await self._consumer.committed(tp)
-            if checkpoint is not None:
-                read_offset[ftp] = checkpoint
-                self.log.dev('PERFORM SEEK SOURCE TOPIC: %r -> %r',
-                             ftp, checkpoint)
-                seek(tp, checkpoint)
-            else:
-                self.log.dev('PERFORM SEEK AT BEGINNING TOPIC: %r', ftp)
-                await self._seek_to_beginning(tp)
+        self._consumer.seek_to_committed()
+        tps = self._consumer.assignment()
+        wait_res = await self.wait(
+                asyncio.gather(*[self._consumer.committed(tp)
+                                 for tp in tps]))
+        offsets = zip(tps, wait_res.result)
+        committed_offsets = dict(filter(lambda x: x[1] is not None, offsets))
+        read_offset.update(committed_offsets)
+        self._committed_offset.update(committed_offsets)
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
@@ -261,14 +273,22 @@ class Consumer(base.Consumer):
         })
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        tpset = set(tps)
-        self._get_active_partitions().difference_update(tpset)
-        self._paused_partitions.update(tpset)
+        self.log.info(f'Waiting for lock to pause partitions')
+        async with self._partitions_lock:
+            self.log.info(f'Acquired lock to pause partitions')
+            tpset = set(tps)
+            self._get_active_partitions().difference_update(tpset)
+            self._paused_partitions.update(tpset)
+        self.log.info(f'Released pause partitions lock')
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        tpset = set(tps)
-        self._get_active_partitions().update(tps)
-        self._paused_partitions.difference_update(tpset)
+        self.log.info(f'Waiting for lock to resume partitions')
+        async with self._partitions_lock:
+            self.log.info(f'Acquired lock ro resume partitions')
+            tpset = set(tps)
+            self._get_active_partitions().update(tps)
+            self._paused_partitions.difference_update(tpset)
+        self.log.info(f'Released resume partitions lock')
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)

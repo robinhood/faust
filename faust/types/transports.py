@@ -82,6 +82,10 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def perform_seek(self) -> None:
+        ...
+
+    @abc.abstractmethod
     def ack(self, message: Message) -> bool:
         ...
 

@@ -72,7 +72,7 @@ class Consumer(base.Consumer):
             self, topic: str, partition: int) -> TP:
         return TP(topic, partition)
 
-    async def _perform_seek(self) -> None:
+    async def perform_seek(self) -> None:
         ...
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
