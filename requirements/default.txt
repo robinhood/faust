@@ -1,4 +1,4 @@
-aiohttp~=2.3.9
+aiohttp~=3.0
 aiokafka~=0.4.0
 click~=6.7
 colorclass~=2.2
