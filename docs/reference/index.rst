@@ -17,7 +17,9 @@ Faust
     faust.exceptions
     faust.app
     faust.channels
+    faust.joins
     faust.router
+    faust.streams
     faust.topics
     faust.windows
     faust.worker
@@ -73,15 +75,6 @@ Stores
     faust.stores.base
     faust.stores.memory
     faust.stores.rocksdb
-
-Streams
-=======
-
-.. toctree::
-    :maxdepth: 1
-
-    faust.streams.joins
-    faust.streams.stream
 
 Tables
 ======

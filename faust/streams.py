@@ -14,17 +14,19 @@ from mode.utils.futures import StampedeWrapper, maybe_async
 from mode.utils.types.trees import NodeT
 
 from . import joins
-
-from ..exceptions import ImproperlyConfigured
-from ..types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
-from ..types.joins import JoinT
-from ..types.models import FieldDescriptorT
-from ..types.streams import (
+from .exceptions import ImproperlyConfigured
+from .types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
+from .types.joins import JoinT
+from .types.models import FieldDescriptorT
+from .types.streams import (
     GroupByKeyArg, JoinableT, Processor, StreamT, T, T_co, T_contra,
 )
-from ..types.topics import ChannelT
+from .types.topics import ChannelT
 
-__all__ = ['Stream', 'current_event']
+__all__ = [
+    'Stream',
+    'current_event',
+]
 
 
 try:

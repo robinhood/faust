@@ -1274,7 +1274,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @property
     def monitor(self) -> Monitor:
         if self._monitor is None:
-            self._monitor = cast(Monitor, self.app.conf.Monitor(
+            self._monitor = cast(Monitor, self.conf.Monitor(
                 loop=self.loop, beacon=self.beacon))
         return self._monitor
 

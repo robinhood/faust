@@ -11,9 +11,9 @@ from mode import Seconds, Service
 from yarl import URL
 
 from .. import stores
+from .. import joins
 from ..channels import Event
 from ..streams import current_event
-from ..streams import joins
 from ..types import (
     AppT, EventT, FieldDescriptorT, FutureMessage, JoinT,
     RecordMetadata, TP, TopicT,

@@ -13,7 +13,7 @@
 #  faust/app.py            - Faust Application
 #  faust/channels.py       - Channels for communication.
 #  faust/topics.py         - A topic is a named channel (e.g. a Kafka topic)
-#  faust/streams/stream.py - The stream iterates over events in a channel.
+#  faust/streams.py        - The stream iterates over events in a channel.
 #  faust/tables.py         - Data is stored in tables.
 #  faust/agents.py         - Agents use all of the above.
 # --- ~~~~~ ~ ~  ~           ~             ~   ~                   ~
@@ -120,7 +120,7 @@ if typing.TYPE_CHECKING:
     from .models import Model, ModelOptions, Record             # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
     from .serializers import Codec                              # noqa: E402
-    from .streams.stream import Stream, StreamT, current_event  # noqa: E402
+    from .streams import Stream, StreamT, current_event         # noqa: E402
     from .tables.set import Set                                 # noqa: E402
     from .tables.table import Table                             # noqa: E402
     from .topics import Topic, TopicT                           # noqa: E402
@@ -165,7 +165,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.models': ['ModelOptions', 'Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.serializers': ['Codec'],
-    'faust.streams.stream': ['Stream', 'StreamT', 'current_event'],
+    'faust.streams': ['Stream', 'StreamT', 'current_event'],
     'faust.tables.set': ['Set'],
     'faust.tables.table': ['Table'],
     'faust.topics': ['Topic', 'TopicT'],
