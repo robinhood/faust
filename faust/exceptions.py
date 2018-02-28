@@ -26,7 +26,7 @@ class KeyDecodeError(DecodeError):
 
 
 class ValueDecodeError(DecodeError):
-    """Error while decoding/deserialization message value."""
+    """Error while decoding/deserializing message value."""
 
 
 class SameNode(FaustError):
