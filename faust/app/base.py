@@ -6,7 +6,6 @@ Everything starts here.
 """
 import asyncio
 import importlib
-import inspect
 import re
 import typing
 import warnings
@@ -655,31 +654,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
         if options is None and base is None and kwargs is None:
             raise TypeError('Use parens in @app.command(), not @app.command.')
-        if base is None:
+        _base: Type[AppCommand] = base
+        if _base is None:
             from .cli import base as cli_base
-            base = cli_base.AppCommand
+            _base = cli_base.AppCommand
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
-            target: Any = fun
-            if not inspect.signature(fun).parameters:
-                # if it does not take self argument, use staticmethod
-                target = staticmethod(fun)
-
-            cmd = type(fun.__name__, (base,), {
-                'run': target,
-                '__doc__': fun.__doc__,
-                '__name__': fun.__name__,
-                '__qualname__': fun.__qualname__,
-                '__module__': fun.__module__,
-                '__wrapped__': fun,
-                'options': options,
-                **kwargs})
-
-            def on_discovered(scanner: venusian.Scanner,
-                              name: str,
-                              obj: AppCommand) -> None:
-                ...
-            venusian.attach(cmd, on_discovered, category=SCAN_COMMAND)
+            cmd = _base.from_handler(*options, **kwargs)(fun)
+            venusian.attach(cmd, cmd.on_discovered, category=SCAN_COMMAND)
             return cmd
         return _inner
 
