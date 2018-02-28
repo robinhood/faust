@@ -74,7 +74,7 @@ PARTITION_ASSIGNOR_TYPE = 'faust.assignor:PartitionAssignor'
 LEADER_ASSIGNOR_TYPE = 'faust.assignor:LeaderAssignor'
 
 #: Path to router class, providing the default for :setting:`Router`.
-ROUTER_TYPE = 'faust.router:Router'
+ROUTER_TYPE = 'faust.app.router:Router'
 
 #: Path to topic conductor class, providing the default
 #: for :setting:`TopicConductor`.

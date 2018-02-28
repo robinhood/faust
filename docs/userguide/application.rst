@@ -728,7 +728,7 @@ Example using the string path to a class::
 ~~~~~~~~~~
 
 :type: ``Union[str, Type[RouterT]]``
-:default: ``"faust.router.Router"``
+:default: ``"faust.app.router.Router"``
 
 The :class:`~faust.router.Router` class used for routing requests
 to a worker instance having the partition for a specific key (e.g. table key);

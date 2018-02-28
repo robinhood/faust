@@ -129,7 +129,7 @@ class Site:
             view: Type[View] = None
             if inspect.isclass(fun):
                 view = cast(Type[View], fun)
-                if not issubclass(fun, View):
+                if not issubclass(view, View):
                     raise TypeError(
                         'When decorating class, it must be subclass of View')
             if view is None:

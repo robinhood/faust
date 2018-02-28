@@ -1,11 +1,11 @@
 =====================================================
- ``faust.router``
+ ``faust.app.router``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.router
+.. currentmodule:: faust.app.router
 
-.. automodule:: faust.router
+.. automodule:: faust.app.router
     :members:
     :undoc-members:

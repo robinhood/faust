@@ -18,11 +18,20 @@ Faust
     faust.app
     faust.channels
     faust.joins
-    faust.router
     faust.streams
     faust.topics
     faust.windows
     faust.worker
+
+App
+===
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.app
+    faust.app.base
+    faust.app.router
 
 Agents
 ======
