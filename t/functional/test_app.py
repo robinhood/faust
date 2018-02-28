@@ -5,7 +5,7 @@ import pytest
 from faust import App
 from faust.assignor import LeaderAssignor, PartitionAssignor
 from faust.exceptions import ImproperlyConfigured
-from faust.router import Router
+from faust.app.router import Router
 from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
