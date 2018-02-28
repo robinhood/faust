@@ -424,8 +424,8 @@ class TopicConductor(ConductorT, Service):
                 # forward message to all channels subscribing to this topic
 
                 # keep track of the number of channels we delivered to,
-                # so that if a DecodeError we will throw that on all
-                # remaining channels.  This is necessary for acking.
+                # so that if a DecodeError is raised we can propagate
+                # that errors to the remaining channels.
                 delivered: Set[TopicT] = set()
                 try:
                     for chan in channels:

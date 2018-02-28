@@ -258,9 +258,9 @@ class Consumer(base.Consumer):
         read_offset = self._read_offset
         self._consumer.seek_to_committed()
         tps = self._consumer.assignment()
-        wait_res = await self.wait(
-                asyncio.gather(*[self._consumer.committed(tp)
-                                 for tp in tps]))
+        wait_res = await self.wait(asyncio.gather(*[
+            self._consumer.committed(tp) for tp in tps
+        ]))
         offsets = zip(tps, wait_res.result)
         committed_offsets = dict(filter(lambda x: x[1] is not None, offsets))
         read_offset.update(committed_offsets)
