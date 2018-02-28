@@ -76,7 +76,7 @@ def test_stream(app):
 
 
 def test_new_producer(app):
-    app._producer = None
+    del(app.producer)
     app._transport = Mock(name='transport')
     assert app._new_producer() is app._transport.create_producer.return_value
     app._transport.create_producer.assert_called_with(beacon=ANY)
