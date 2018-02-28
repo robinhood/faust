@@ -9,13 +9,11 @@ import importlib
 import re
 import typing
 import warnings
-from collections import defaultdict
 from functools import wraps
-from heapq import heappop, heappush
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    NamedTuple, Optional, Pattern, Set as _Set, Type, Union, cast,
+    Optional, Pattern, Set as _Set, Type, Union, cast,
 )
 
 import venusian
@@ -28,6 +26,7 @@ from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import import_from_cwd, symbol_by_name
 from mode.utils.types.trees import NodeT
 
+from ._attached import Attachments
 from .service import AppService
 
 from .. import transport
@@ -38,12 +37,8 @@ from ..channels import Channel, ChannelT
 from ..exceptions import ImproperlyConfigured, SameNode
 from ..fixups import FixupT, fixups
 from ..sensors import Monitor, SensorDelegate
-from ..streams import current_event
 
-from ..types import (
-    CodecArg, CollectionT, FutureMessage, K, Message, MessageSentCallback,
-    ModelArg, RecordMetadata, RegistryT, TP, TopicT, V,
-)
+from ..types import CodecArg, CollectionT, K, ModelArg, RegistryT, TopicT, V
 from ..types.app import AppT, TaskArg
 from ..types.assignor import LeaderAssignorT, PartitionAssignorT
 from ..types.router import RouterT
@@ -52,11 +47,12 @@ from ..types.streams import StreamT
 from ..types.tables import SetT, TableManagerT, TableT
 from ..types.topics import ConductorT
 from ..types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
+from ..types.tuples import MessageSentCallback, RecordMetadata, TP
 from ..types.web import (
     HttpClientT, PageArg, RoutedViewGetHandler, ViewGetHandler,
 )
 from ..types.windows import WindowT
-from ..utils.objects import Unordered, cached_property
+from ..utils.objects import cached_property
 from ..web.views import Request, Response, Site, View
 
 if typing.TYPE_CHECKING:
@@ -125,41 +121,26 @@ Please use {new!r} instead.
 """
 
 
-class _AttachedHeapEntry(NamedTuple):
-    # Tuple used in heapq entry for app._pending_on_commit.
-    # These are used to send messages when an offset is committed
-    # (sending of the message is attached to an offset in a source topic).
-    offset: int
-    message: Unordered[FutureMessage]
-
-
 class App(AppT, ServiceProxy, ServiceCallbacks):
     """Faust Application.
 
     Arguments:
         id (str): Application ID.
 
-        broker (str): Broker URL. Default is ``"aiokafka://localhost:9092"``.
-        broker_client_id (str):  Client id used for producer/consumer.
-        broker_commit_interval (Seconds): How often we commit messages that
-            have been fully processed.  Default ``30.0``.
-        key_serializer (CodecArg): Default serializer for Topics
-            that don't have one set.  Default: :const:`None`.
-        value_serializer (CodecArg): Default serializer for event types
-            that don't have one set.  Default: ``"json"``.
-        topic_replication_factor (int): The default replication factor for
-            topics created by the application.  efault:
-            ``1``. Generally, this would be the same as the configured
-            replication factor for your Kafka cluster.
-        table_standby_replicas (int): The number of standby replicas for each
-            table.  Default: ``1``.
+    Keyword Arguments:
         loop (asyncio.AbstractEventLoop):
             Provide specific asyncio event loop instance.
+
+    See Also:
+        :ref:`application-configuration` -- for supported keyword arguments.
+
     """
 
     #: Set this to True if app should only start the services required to
     #: operate as an RPC client (producer and reply consumer).
     client_only = False
+
+    _attachments: Attachments = None
 
     #: Source of configuration: ``app.conf`` (when configured)
     _conf: Settings = None
@@ -174,15 +155,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     _transport: Optional[TransportT] = None
 
     _assignor: PartitionAssignorT = None
-
-    # Mapping used to attach messages to a source message such that
-    # only when the source message is acked, only then do we publish
-    # its attached messages.
-    #
-    # The mapping maintains one list for each TopicPartition,
-    # where the lists are used as heap queues containing tuples
-    # of ``(source_message_offset, FutureMessage)``.
-    _pending_on_commit: MutableMapping[TP, List[_AttachedHeapEntry]]
 
     # Monitor is created on demand: use `.monitor` property.
     _monitor: Monitor = None
@@ -207,9 +179,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self._default_options = (id, options)
         self.agents = AgentManager()
         self.sensors = SensorDelegate(self)
+        self._attachments = Attachments(self)
         self._monitor = monitor
         self._tasks = []
-        self._pending_on_commit = defaultdict(list)
         self.on_startup_finished: Callable = None
         self.pages = []
         self._extra_services = []
@@ -679,39 +651,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         if not self._service.started:
             await self.start_client()
 
-    async def _maybe_attach(
-            self,
-            channel: Union[ChannelT, str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
-        # XXX The concept of attaching should be deprecated when we
-        # have Kafka transaction support (:kip:`KIP-98`).
-        # This is why the interface related to attaching is private.
-
-        # attach message to current event if there is one.
-        if not force:
-            event = current_event()
-            if event is not None:
-                return cast(Event, event)._attach(
-                    channel, key, value,
-                    partition=partition,
-                    key_serializer=key_serializer,
-                    value_serializer=value_serializer,
-                    callback=callback,
-                )
-        return await self.send(
-            channel, key, value,
-            partition=partition,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-            callback=callback,
-        )
-
     async def send(
             self,
             channel: Union[ChannelT, str],
@@ -748,67 +687,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             key, value, partition,
             key_serializer, value_serializer, callback,
         )
-
-    def _send_attached(
-            self,
-            message: Message,
-            channel: Union[str, ChannelT],
-            key: K,
-            value: V,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        # This attaches message to be published when source message' is
-        # acknowledged.  To be replaced by transactions in :kip:`KIP-98`.
-
-        # get heap queue for this TopicPartition
-        # items in this list are ``(source_offset, Unordered[FutureMessage])``
-        # tuples.
-        buf = self._pending_on_commit[message.tp]
-        chan = self.topic(channel) if isinstance(channel, str) else channel
-        fut = chan.as_future_message(
-            key, value, partition,
-            key_serializer, value_serializer, callback)
-        # Note: Since FutureMessage have members that are unhashable
-        # we wrap it in an Unordered object to stop heappush from crashing.
-        # Unordered simply orders by random order, which is fine
-        # since offsets are always unique.
-        heappush(buf, _AttachedHeapEntry(message.offset, Unordered(fut)))
-        return fut
-
-    async def _commit_attached(self, tp: TP, offset: int) -> None:
-        # publish pending messages attached to this TP+offset
-
-        # make shallow copy to allow concurrent modifications (append)
-        attached = list(self._get_attached(tp, offset))
-        if attached:
-            await asyncio.wait(
-                [await fut.message.channel.publish_message(fut, wait=False)
-                 for fut in attached],
-                return_when=asyncio.ALL_COMPLETED,
-                loop=self.loop,
-            )
-
-    def _get_attached(self,
-                      tp: TP, commit_offset: int) -> Iterator[FutureMessage]:
-        # Return attached messages for TopicPartition within committed offset.
-        attached = self._pending_on_commit.get(tp)
-        while attached:
-            # get the entry with the smallest offset in this TP
-            entry = heappop(attached)
-
-            # if the entry offset is smaller or equal to the offset
-            # being committed
-            if entry[0] <= commit_offset:
-                # we use it by extracting the FutureMessage
-                # from _AttachedHeapEntry, where entry.message is
-                # Unordered[FutureMessage].
-                yield entry.message.value
-            else:
-                # else we put it back and exit (this was the smallest offset).
-                heappush(attached, entry)
-                break
 
     @stampede
     async def maybe_start_producer(self) -> ProducerT:

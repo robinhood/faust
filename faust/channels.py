@@ -134,7 +134,7 @@ class Event(EventT):
                     value_serializer: CodecArg = None,
                     callback: MessageSentCallback = None,
                     force: bool = False) -> Awaitable[RecordMetadata]:
-        return await cast(App, self.app)._maybe_attach(
+        return await cast(App, self.app)._attachments.maybe_put(
             channel, key, value, partition,
             key_serializer, value_serializer, callback,
             force=force)
@@ -148,7 +148,7 @@ class Event(EventT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        return cast(App, self.app)._send_attached(
+        return cast(App, self.app)._attachments.put(
             self.message, channel, key, value,
             partition=partition,
             key_serializer=key_serializer,

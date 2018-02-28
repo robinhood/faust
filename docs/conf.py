@@ -37,17 +37,16 @@ globals().update(conf.build_config(
     # path_additions=[Path.cwd().parent / 'testproj']
     apicheck_ignore_modules=[
         'faust.__main__',
+        'faust.app._attached',
         'faust.assignor',
         'faust.cli',
         'faust.cli._env',
         'faust.models',
         'faust.serializers',
-        'faust.streams',
         'faust.transport.confluent',
         'faust.types',
         'faust.utils',
         r'faust.utils.kafka.*',
-        'faust.utils.types',
         'faust.web',
         r'faust.web.apps.*',
         'faust.web.apps.stats.app',
