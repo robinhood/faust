@@ -23,7 +23,7 @@ from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
-from mode.utils.imports import import_from_cwd, symbol_by_name
+from mode.utils.imports import import_from_cwd, smart_import, symbol_by_name
 from mode.utils.types.trees import NodeT
 
 from ._attached import Attachments
@@ -844,27 +844,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                                    silent: bool = False) -> Mapping:
         if isinstance(source, str):
             try:
-                source = self._smart_import(source, imp=import_from_cwd)
+                source = smart_import(source, imp=import_from_cwd)
             except (AttributeError, ImportError):
                 if not silent:
                     raise
                 return {}
         return force_mapping(source)
-
-    def _smart_import(self, path: str, imp: Any = None) -> Any:
-        imp = importlib.import_module if imp is None else imp
-        if ':' in path:
-            # Path includes attribute so can just jump
-            # here (e.g., ``os.path:abspath``).
-            return symbol_by_name(path, imp=imp)
-
-        # Not sure if path is just a module name or if it includes an
-        # attribute name (e.g., ``os.path``, vs, ``os.path.abspath``).
-        try:
-            return imp(path)
-        except ImportError:
-            # Not a module name, so try module + attribute.
-            return symbol_by_name(path, imp=imp)
 
     @property
     def conf(self) -> Settings:
