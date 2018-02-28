@@ -13,7 +13,6 @@ import warnings
 from collections import defaultdict
 from functools import wraps
 from heapq import heappop, heappush
-from itertools import chain
 from typing import (
     Any, AsyncIterable, Awaitable, Callable,
     Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
@@ -21,7 +20,7 @@ from typing import (
 )
 
 import venusian
-from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
+from mode import Seconds, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
@@ -30,38 +29,41 @@ from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import import_from_cwd, symbol_by_name
 from mode.utils.types.trees import NodeT
 
-from . import transport
-from .agents import (
+from .service import AppService
+
+from .. import transport
+from ..agents import (
     AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
 )
-from .channels import Channel, ChannelT
-from .exceptions import ImproperlyConfigured, SameNode
-from .fixups import FixupT, fixups
-from .sensors import Monitor, SensorDelegate
-from .streams import current_event
+from ..channels import Channel, ChannelT
+from ..exceptions import ImproperlyConfigured, SameNode
+from ..fixups import FixupT, fixups
+from ..sensors import Monitor, SensorDelegate
+from ..streams import current_event
 
-from .types import (
+from ..types import (
     CodecArg, CollectionT, FutureMessage, K, Message, MessageSentCallback,
     ModelArg, RecordMetadata, RegistryT, TP, TopicT, V,
 )
-from .types.app import (
-    AppT, HttpClientT, PageArg, RoutedViewGetHandler, TaskArg, ViewGetHandler,
+from ..types.app import AppT, TaskArg
+from ..types.assignor import LeaderAssignorT, PartitionAssignorT
+from ..types.router import RouterT
+from ..types.settings import Settings
+from ..types.streams import StreamT
+from ..types.tables import SetT, TableManagerT, TableT
+from ..types.topics import ConductorT
+from ..types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
+from ..types.web import (
+    HttpClientT, PageArg, RoutedViewGetHandler, ViewGetHandler,
 )
-from .types.assignor import LeaderAssignorT, PartitionAssignorT
-from .types.router import RouterT
-from .types.settings import Settings
-from .types.streams import StreamT
-from .types.tables import SetT, TableManagerT, TableT
-from .types.topics import ConductorT
-from .types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
-from .types.windows import WindowT
-from .utils.objects import Unordered, cached_property
-from .web.views import Request, Response, Site, View
+from ..types.windows import WindowT
+from ..utils.objects import Unordered, cached_property
+from ..web.views import Request, Response, Site, View
 
 if typing.TYPE_CHECKING:
-    from .cli.base import AppCommand
-    from .channels import Event
-    from .worker import Worker as WorkerT
+    from ..cli.base import AppCommand
+    from ..channels import Event
+    from ..worker import Worker as WorkerT
 else:
     class AppCommand: ...  # noqa
     class Event: ...       # noqa
@@ -132,151 +134,6 @@ class _AttachedHeapEntry(NamedTuple):
     message: Unordered[FutureMessage]
 
 
-class AppService(Service):
-    """Service responsible for starting/stopping an application."""
-
-    # The App() is created during module import and cannot subclass Service
-    # directly as Service.__init__ creates the asyncio event loop, and
-    # creating the event loop as a side effect of importing a module
-    # is a dangerous practice (e.g., if you switch to uvloop after you can
-    # end up in a situation where some services use the old loop).
-
-    # To solve this we use ServiceProxy to split into App + AppService,
-    # in a way such that the AppService is started lazily when first needed.
-
-    _extra_service_instances: List[ServiceT] = None
-
-    def __init__(self, app: 'App', **kwargs: Any) -> None:
-        self.app: App = app
-        super().__init__(loop=self.app.loop, **kwargs)
-
-    def on_init_dependencies(self) -> Iterable[ServiceT]:
-        # Client-Only: Boots up enough services to be able to
-        # produce to topics and receive replies from topics.
-        # XXX If we switch to socket RPC using routers we can remove this.
-        if self.app.client_only:
-            return self._components_client()
-        # Server: Starts everything.
-        return self._components_server()
-
-    def _components_client(self) -> Iterable[ServiceT]:
-        # Returns the components started when running in Client-Only mode.
-        return cast(Iterable[ServiceT], chain(
-            [self.app.producer],
-            [self.app.consumer],
-            [self.app._reply_consumer],
-            [self.app.topics],
-            [self.app._fetcher],
-        ))
-
-    def _components_server(self) -> Iterable[ServiceT]:
-        # Returns the components started when running normally (Server mode).
-        # Note: has side effects: adds the monitor to the app's list of
-        # sensors.
-
-        # Add the main Monitor sensor.
-        # The beacon is also reattached in case the monitor
-        # was created by the user.
-        self.app.monitor.beacon.reattach(self.beacon)
-        self.app.monitor.loop = self.loop
-        self.app.sensors.add(self.app.monitor)
-
-        # Then return the list of "subservices",
-        # those that'll be started when the app starts,
-        # stopped when the app stops,
-        # etc...
-        return cast(Iterable[ServiceT], chain(
-            # Sensors (Sensor): always start first and stop last.
-            self.app.sensors,
-            # Producer (transport.Producer): always stop after Consumer.
-            [self.app.producer],
-            # Consumer (transport.Consumer): always stop after TopicConductor
-            [self.app.consumer],
-            # Leader Assignor (assignor.LeaderAssignor)
-            [self.app._leader_assignor],
-            # Reply Consumer (ReplyConsumer)
-            [self.app._reply_consumer],
-            # Agents (app.agents)
-            self.app.agents.values(),
-            # Topic Manager (app.TopicConductor))
-            [self.app.topics],
-            # Table Manager (app.TableManager)
-            [self.app.tables],
-            # Fetcher (transport.Fetcher)
-            [self.app._fetcher],
-        ))
-
-    async def on_first_start(self) -> None:
-        self.app._create_directories()
-        if not self.app.agents:
-            # XXX I can imagine use cases where an app is useful
-            #     without agents, but use this as more of an assertion
-            #     to make sure agents are registered correctly. [ask]
-            raise ImproperlyConfigured(
-                'Attempting to start app that has no agents')
-        await self.app.on_first_start()
-
-    async def on_start(self) -> None:
-        self.app.finalize()
-        await self.app.on_start()
-
-    async def on_started(self) -> None:
-        # Wait for table recovery to complete.
-        if not await self.wait_for_stopped(self.app.tables.recovery_completed):
-            # Add all asyncio.Tasks, like timers, etc.
-            await self.on_started_init_extra_tasks()
-
-            # Start user-provided services.
-            await self.on_started_init_extra_services()
-
-            # Call the app-is-fully-started callback used by Worker
-            # to print the "ready" message that signals to the user that
-            # the worker is ready to start processing.
-            if self.app.on_startup_finished:
-                await self.app.on_startup_finished()
-
-            await self.app.on_started()
-
-    async def on_started_init_extra_tasks(self) -> None:
-        for task in self.app._tasks:
-            # pass app if decorated function takes argument
-            target: Any
-            if inspect.signature(task).parameters:
-                target = cast(Callable[[AppT], Awaitable], task)(self.app)
-            else:
-                target = cast(Callable[[], Awaitable], task)()
-            self.add_future(target)
-
-    async def on_started_init_extra_services(self) -> None:
-        if self._extra_service_instances is None:
-            # instantiate the services added using the @app.service decorator.
-            self._extra_service_instances = [
-                s(loop=self.loop,
-                  beacon=self.beacon) if inspect.isclass(s) else s
-                for s in self.app._extra_services
-            ]
-            for service in self._extra_service_instances:
-                # start the services now, or when the app is started.
-                await self.add_runtime_dependency(service)
-
-    async def on_stop(self) -> None:
-        await self.app.on_stop()
-
-    async def on_shutdown(self) -> None:
-        await self.app.on_shutdown()
-
-    async def on_restart(self) -> None:
-        await self.app.on_restart()
-
-    @property
-    def label(self) -> str:
-        return self.app.label
-
-    @property
-    def shortlabel(self) -> str:
-        return self.app.shortlabel
-
-
 class App(AppT, ServiceProxy, ServiceCallbacks):
     """Faust Application.
 
@@ -310,9 +167,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     #: Original configuration source object.
     _config_source: Any = None
-
-    # Default producer instance.
-    _producer: ProducerT = None
 
     # Default consumer instance.
     _consumer: ConsumerT = None
@@ -463,7 +317,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
-        from .cli.faust import cli
+        from ..cli.faust import cli
         self.finalize()
         self.worker_init()
         if self.conf.autodiscover:
@@ -583,26 +437,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     async def _on_agent_error(
             self, agent: AgentT, exc: BaseException) -> None:
-        # XXX If an agent raises in the middle of processing an event
-        # what do we do with acking it?  Currently the source message will be
-        # acked and not processed again, simply because it violates
-        # ""exactly-once" semantics".
-        #
-        # - What about retries?
-        # It'd be safe to retry processing the event if the agent
-        # processing is idempotent, but we don't enforce idempotency
-        # in stream processors so it's not something we can enable by default.
-        #
-        # The retry would also have to stop processing of the topic
-        # so that order is maintained: the next offset in the topic can only
-        # be processed after the event is retried.
-        #
-        # - How about crashing?
-        # Crashing the instance to require human intervention is certainly
-        # a choice, but far from ideal considering how common mistakes
-        # in code or unhandled exceptions are.  It may be better to log
-        # the error and have ops replay and reprocess the stream on
-        # notification.
+        # See agent-errors in docs/userguide/agents.rst
         if self._consumer:
             try:
                 await self._consumer.on_task_error(exc)
@@ -777,7 +612,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         Note:
             The set does *not have* the dict/Mapping interface.
         """
-        return self.tables.add(self.conf.Set(
+        Set = self.conf.Set if self.finalized else symbol_by_name('faust:Set')
+        return self.tables.add(Set(
             self,
             name=name,
             beacon=self.beacon,
@@ -791,32 +627,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
 
         def _decorator(fun: PageArg) -> Type[Site]:
-            view: Type[View] = None
-            name: str
-            if inspect.isclass(fun):
-                typ = cast(Type[View], fun)
-                if issubclass(typ, View):
-                    name = fun.__name__
-                    view = typ
-                else:
-                    raise TypeError(
-                        'Class argument to @page must be subclass of View')
-            if view is None:
-                handler = cast(ViewGetHandler, fun)
-                if callable(handler):
-                    name = handler.__name__
-                    view = type(name, (View,), {
-                        'get': handler,
-                        __doc__: handler.__doc__,
-                        '__module__': handler.__module__,
-                    })
-                else:
-                    raise TypeError(f'Not view, nor callable: {fun!r}')
-
-            site: Type[Site] = type('Site', (Site,), {
-                'views': {path: view},
-                '__module__': fun.__module__,
-            })
+            site = Site.from_handler(path, base=base)(fun)
             self.pages.append(('', site))
             venusian.attach(site, site.on_discovered, category=SCAN_PAGE)
             return site
@@ -1084,8 +895,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         except Exception as exc:
             await self.crash(exc)
 
-    def _new_producer(self, beacon: NodeT = None) -> ProducerT:
-        return self.transport.create_producer(beacon=beacon or self.beacon)
+    def _new_producer(self) -> ProducerT:
+        return self.transport.create_producer(beacon=self.beacon)
 
     def _new_consumer(self) -> ConsumerT:
         return self.transport.create_consumer(
@@ -1208,15 +1019,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def conf(self, settings: Settings) -> None:
         self._conf = settings
 
-    @property
+    @cached_property
     def producer(self) -> ProducerT:
-        if self._producer is None:
-            self._producer = self._new_producer()
-        return self._producer
-
-    @producer.setter
-    def producer(self, producer: ProducerT) -> None:
-        self._producer = producer
+        return self._new_producer()
 
     @property
     def consumer(self) -> ConsumerT:

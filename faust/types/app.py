@@ -6,7 +6,6 @@ from typing import (
     List, Mapping, MutableSequence, Pattern, Set, Tuple, Type, Union,
 )
 
-from aiohttp.client import ClientSession
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.types.trees import NodeT
@@ -24,6 +23,7 @@ from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import ChannelT, ConductorT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
+from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View
 from .windows import WindowT
 
 from ..utils.objects import cached_property
@@ -31,8 +31,6 @@ from ..utils.objects import cached_property
 if typing.TYPE_CHECKING:
     from ..cli.base import AppCommand
     from ..sensors.monitor import Monitor
-    from ..web.base import Request, Response, Web
-    from ..web.views import Site, View
     from ..worker import Worker as WorkerT
     from .models import ModelArg
     from .settings import Settings
@@ -40,21 +38,11 @@ else:
     class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
-    class Request: ...        # noqa
-    class Response: ...       # noqa
-    class Site: ...           # noqa
-    class View: ...           # noqa
     class WorkerT: ...        # noqa
-    class Web: ...            # noqa
     class Settings: ...       # noqa
 
 __all__ = [
     'TaskArg',
-    'ViewGetHandler',
-    'RoutedViewGetHandler',
-    'PageArg',
-    'HttpClientT',
-    'Web',
     'AppT',
 ]
 
@@ -62,10 +50,6 @@ TaskArg = Union[
     Callable[['AppT'], Awaitable],
     Callable[[], Awaitable],
 ]
-ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
-RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
-PageArg = Union[Type[View], ViewGetHandler]
-HttpClientT = ClientSession
 
 
 class AppT(ServiceT):

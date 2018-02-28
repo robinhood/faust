@@ -1,9 +1,11 @@
 """Class-based views."""
+import inspect
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
 import jinja2
 import venusian
 from .base import Request, Response, Web
 from ..types import AppT
+from ..types.web import PageArg, ViewGetHandler
 from ..utils.objects import cached_property
 
 __all__ = ['View', 'Site']
@@ -16,6 +18,16 @@ class View:
 
     package: str = None
     methods: Mapping[str, Callable[[Request], Awaitable]]
+
+    @classmethod
+    def from_handler(cls, fun: ViewGetHandler) -> Type['View']:
+        if not callable(fun):
+            raise TypeError(f'View handler must be callable, not {fun!r}')
+        return type(fun.__name__, (cls,), {
+            'get': fun,
+            '__doc__': fun.__doc__,
+            '__module__': fun.__module__,
+        })
 
     def __init__(self, app: AppT, web: Web) -> None:
         self.app = app
@@ -105,3 +117,26 @@ class Site:
     def on_discovered(
             self, scanner: venusian.Scanner, name: str, obj: 'Site') -> None:
         ...
+
+    @classmethod
+    def from_handler(
+            cls, path: str,
+            *,
+            base: Type[View] = None) -> Callable[[PageArg], Type['Site']]:
+        base = base if base is not None else View
+
+        def _decorator(fun: PageArg) -> Type[Site]:
+            view: Type[View] = None
+            if inspect.isclass(fun):
+                view = cast(Type[View], fun)
+                if not issubclass(fun, View):
+                    raise TypeError(
+                        'When decorating class, it must be subclass of View')
+            if view is None:
+                view = base.from_handler(cast(ViewGetHandler, fun))
+
+            return type('Site', (cls,), {
+                'views': {path: view},
+                '__module__': fun.__module__,
+            })
+        return _decorator

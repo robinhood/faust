@@ -497,6 +497,8 @@ Another Agent
                 print(f'AGENT A RECEIVED: {event!r}')
 
 
+.. _agent-errors:
+
 When agents raise an error
 --------------------------
 
