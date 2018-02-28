@@ -1,19 +1,26 @@
 import asyncio
+import typing
 from collections import defaultdict
 from heapq import heappop, heappush
 from typing import (
-    Awaitable, Iterator, List, MutableMapping, NamedTuple, Union, cast,
+    Awaitable, Callable, Iterator, List,
+    MutableMapping, NamedTuple, Union, cast,
 )
 from ..streams import current_event
 from ..types import AppT, ChannelT, CodecArg, K, RecordMetadata, TP, V
 from ..types.tuples import FutureMessage, Message, MessageSentCallback
 from ..utils.objects import Unordered
 
+if typing.TYPE_CHECKING:
+    from ..channels import Event
+else:
+    class Event: ...       # noqa
+
 __all__ = ['Attachment', 'Attachments']
 
 
 class Attachment(NamedTuple):
-    # Tuple used in heapq entry for app._pending_on_commit.
+    # Tuple used in heapq entry for Attachments._pending
     # These are used to send messages when an offset is committed
     # (sending of the message is attached to an offset in a source topic).
     offset: int
@@ -34,7 +41,7 @@ class Attachments:
 
     def __init__(self, app: AppT) -> None:
         self.app = app
-        self._pending_on_commit = defaultdict(list)
+        self._pending = defaultdict(list)
 
     async def maybe_put(
             self,
@@ -51,11 +58,11 @@ class Attachments:
         # This is why the interface related to attaching is private.
 
         # attach message to current event if there is one.
-        send = self.app.send
+        send: Callable = self.app.send
         if not force:
             event = current_event()
             if event is not None:
-                send = cast(event, event)._attach
+                send = cast(Event, event)._attach
         return await send(
             channel, key, value,
             partition=partition,
@@ -102,13 +109,13 @@ class Attachments:
                 [await fut.message.channel.publish_message(fut, wait=False)
                  for fut in attached],
                 return_when=asyncio.ALL_COMPLETED,
-                loop=self.loop,
+                loop=self.app.loop,
             )
 
     def _attachments_for(
             self, tp: TP, commit_offset: int) -> Iterator[FutureMessage]:
         # Return attached messages for TopicPartition within committed offset.
-        attached = self._pending_on_commit.get(tp)
+        attached = self._pending.get(tp)
         while attached:
             # get the entry with the smallest offset in this TP
             entry = heappop(attached)
