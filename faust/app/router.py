@@ -1,13 +1,13 @@
 """Route messages to Faust nodes by partitioning."""
 from typing import Tuple
 from yarl import URL
-from .exceptions import SameNode
-from .types.app import AppT
-from .types.assignor import PartitionAssignorT
-from .types.core import K
-from .types.router import HostToPartitionMap, RouterT
-from .types.tables import CollectionT
-from .types.web import Request, Response, Web
+from ..exceptions import SameNode
+from ..types.app import AppT
+from ..types.assignor import PartitionAssignorT
+from ..types.core import K
+from ..types.router import HostToPartitionMap, RouterT
+from ..types.tables import CollectionT
+from ..types.web import Request, Response, Web
 
 
 class Router(RouterT):
