@@ -126,10 +126,10 @@ class Message:
         #:   }
         self.stream_meta: Dict[int, Any] = {}
 
-    def ack(self, consumer: ConsumerT) -> bool:
+    def ack(self, consumer: ConsumerT, n: int = 1) -> bool:
         if not self.acked:
             # if no more references, mark offset as safe-to-commit in Consumer.
-            if not self.decref():
+            if not self.decref(n):
                 return consumer.ack(self)
         return False
 
@@ -137,7 +137,7 @@ class Message:
         self.refcount += n
 
     def decref(self, n: int = 1) -> int:
-        refcount = self.refcount = max(self.refcount - 1, 0)
+        refcount = self.refcount = max(self.refcount - n, 0)
         return refcount
 
     @classmethod
