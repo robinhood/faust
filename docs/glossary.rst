@@ -25,7 +25,7 @@ Glossary
 
     message
         The unit of data published or received from the
-        |message| :term:`transport`.  A |message| has a key and a value.
+        message :term:`transport.  A |message| has a key and a value.
 
     publisher
         A process sending messages, or a process publishing data to a topic.
