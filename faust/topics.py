@@ -120,16 +120,20 @@ class Topic(Channel, TopicT):
         key_serializer = self.key_serializer
         value_serializer = self.value_serializer
 
-        async def decode(message: Message) -> Any:
+        async def decode(message: Message, *, propagate: bool = False) -> Any:
             try:
                 k = loads_key(key_type, message.key, serializer=key_serializer)
             except KeyDecodeError as exc:
+                if propagate:
+                    raise
                 await self.on_key_decode_error(exc, message)
             else:
                 try:
                     v = loads_value(
                         value_type, message.value, serializer=value_serializer)
                 except ValueDecodeError as exc:
+                    if propagate:
+                        raise
                     await self.on_value_decode_error(exc, message)
                 else:
                     return create_event(k, v, message)
@@ -416,24 +420,46 @@ class TopicConductor(ConductorT, Service):
 
                 event: EventT = None
                 event_keyid: Tuple[K, V] = None
-                # forward message to all channels subscribing to this topic
-                for chan in channels:
-                    keyid = chan.key_type, chan.value_type
-                    if event is None:
-                        # first channel deserializes the payload:
-                        event, event_keyid = await chan.decode(message), keyid
-                        await chan.put(event)
-                    else:
-                        # subsequent channels may have a different key/value
-                        # type pair, meaning they all can deserialize the
-                        # message in different ways.
 
-                        # If it uses the same type pair, reuse the same event:
-                        if keyid == event_keyid:
+                # forward message to all channels subscribing to this topic
+
+                # keep track of the number of channels we delivered to,
+                # so that if a DecodeError we will throw that on all
+                # remaining channels.  This is necessary for acking.
+                delivered: Set[TopicT] = set()
+                try:
+                    for chan in channels:
+                        keyid = chan.key_type, chan.value_type
+                        if event is None:
+                            # first channel deserializes the payload:
+                            event = await chan.decode(message, propagate=True)
+                            event_keyid = keyid
                             await chan.put(event)
                         else:
-                            # otherwise deserialize again:
-                            await chan.deliver(message)
+                            # subsequent channels may have a different
+                            # key/value type pair, meaning they all can
+                            # deserialize the message in different ways
+
+                            # Reuse the event if it uses the same keypair:
+                            if keyid == event_keyid:
+                                await chan.put(event)
+                            else:
+                                # otherwise deserialize again:
+                                await chan.deliver(message)
+                        delivered.add(chan)
+                except KeyDecodeError as exc:
+                    remaining = channels - delivered
+                    message.ack(self.app.consumer, n=len(remaining))
+                    for channel in remaining:
+                        await channel.on_key_decode_error(exc, message)
+                        delivered.add(channel)
+                except ValueDecodeError as exc:
+                    remaining = channels - delivered
+                    message.ack(self.app.consumer, n=len(remaining))
+                    for channel in remaining:
+                        await channel.on_value_decode_error(exc, message)
+                        delivered.add(channel)
+
         return on_message
 
     def acks_enabled_for(self, topic: str) -> bool:

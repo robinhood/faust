@@ -346,7 +346,9 @@ class Channel(ChannelT):
     def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
         return value
 
-    async def decode(self, message: Message) -> EventT:
+    async def decode(self, message: Message,
+                     *,
+                     propagate: bool = False) -> EventT:
         return self._create_event(message.key, message.value, message)
 
     async def deliver(self, message: Message) -> None:
@@ -384,11 +386,16 @@ class Channel(ChannelT):
 
     async def on_key_decode_error(
             self, exc: Exception, message: Message) -> None:
+        await self.on_decode_error(exc, message)
         await self.throw(exc)
 
     async def on_value_decode_error(
             self, exc: Exception, message: Message) -> None:
+        await self.on_decode_error(exc, message)
         await self.throw(exc)
+
+    async def on_decode_error(self, exc: Exception, message: Message) -> None:
+        ...
 
     def derive(self, **kwargs: Any) -> ChannelT:
         return self

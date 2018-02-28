@@ -148,7 +148,9 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def decode(self, message: Message) -> EventT:
+    async def decode(self, message: Message,
+                     *,
+                     propagate: bool = False) -> EventT:
         ...
 
     @abc.abstractmethod
@@ -165,6 +167,20 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     def empty(self) -> bool:
+        ...
+
+    @abc.abstractmethod
+    async def on_key_decode_error(
+            self, exc: Exception, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_value_decode_error(
+            self, exc: Exception, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_decode_error(self, exc: Exception, message: Message) -> None:
         ...
 
     @abc.abstractmethod
