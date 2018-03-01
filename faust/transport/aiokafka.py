@@ -289,7 +289,7 @@ class Consumer(base.Consumer):
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to resume partitions')
         async with self._partitions_lock:
-            self.log.info(f'Acquired lock ro resume partitions')
+            self.log.info(f'Acquired lock to resume partitions')
             tpset = set(tps)
             self._get_active_partitions().update(tps)
             self._paused_partitions.difference_update(tpset)
