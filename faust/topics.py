@@ -102,7 +102,9 @@ class Topic(Channel, TopicT):
         self.internal = internal
         self.config = config or {}
 
-    async def decode(self, message: Message) -> EventT:
+    async def decode(self, message: Message,
+                     *,
+                     propagate: bool = False) -> EventT:
         # first call to decode compiles and caches it.
         decode = self.decode = self._compile_decode()  # type: ignore
         return await decode(message)
