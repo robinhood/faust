@@ -121,7 +121,6 @@ class Consumer(Service, ConsumerT):
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
         self._committed_offset = defaultdict(lambda: None)
-        self._commit_mutex = asyncio.Lock(loop=self.loop)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         super().__init__(loop=self.transport.loop, **kwargs)
@@ -213,41 +212,45 @@ class Consumer(Service, ConsumerT):
             await self.commit()
             await self.sleep(self.commit_interval)
 
-    @Service.transitions_to(CONSUMER_COMMITTING)
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
 
         Arguments:
             topics: Set containing topics and/or TopicPartitions to commit.
         """
-        did_commit = False
-
         # Only one coroutine allowed to commit at a time,
         # and other coroutines should wait for the original commit to finish
         # then do nothing.
         if self._commit_fut is not None:
+            # something is already committing so wait for that future.
             try:
                 await self._commit_fut
             except asyncio.CancelledError:
-                self._commit_fut = None
-            return False
-        else:
-            self._commit_fut = asyncio.Future(loop=self.loop)
+                # if future is cancelled we have to start new commit
+                pass
+            else:
+                # original commit finished, return False as we did not commit
+                return False
 
+        self._commit_fut = asyncio.Future(loop=self.loop)
         try:
-            # Only one coroutine can commit at a time.
-            async with self._commit_mutex:
-                sensor_state = await self.app.sensors.on_commit_initiated(
-                    self)
-
-                # Go over the ack list in each topic/partition
-                commit_tps = list(self._filter_tps_with_pending_acks(topics))
-                did_commit = await self._commit_tps(commit_tps)
-
-                await self.app.sensors.on_commit_completed(self, sensor_state)
+            return await self.force_commit(topics)
         finally:
+            # set commit_fut to None so that next call will commit.
             fut, self._commit_fut = self._commit_fut, None
+            # notify followers that the commit is done.
             fut.set_result(None)
+
+    @Service.transitions_to(CONSUMER_COMMITTING)
+    async def force_commit(self, topics: TPorTopicSet = None) -> bool:
+        # Only one coroutine can commit at a time.
+        sensor_state = await self.app.sensors.on_commit_initiated(self)
+
+        # Go over the ack list in each topic/partition
+        commit_tps = list(self._filter_tps_with_pending_acks(topics))
+        did_commit = await self._commit_tps(commit_tps)
+
+        await self.app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
 
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:
