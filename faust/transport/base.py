@@ -221,7 +221,10 @@ class Consumer(Service, ConsumerT):
         # and other coroutines should wait for the original commit to finish
         # then do nothing.
         if self._commit_fut is not None:
-            await self._commit_fut
+            try:
+                await self._commit_fut
+            except asyncio.CancelledError:
+                self._commit_fut = None
             return False
         else:
             self._commit_fut = asyncio.Future(loop=self.loop)
