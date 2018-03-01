@@ -8,7 +8,7 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
-from aiokafka.errors import ConsumerStoppedError, CommitFailedError
+from aiokafka.errors import ConsumerStoppedError, KafkaError
 from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
@@ -273,7 +273,7 @@ class Consumer(base.Consumer):
                 tp: self._new_offsetandmetadata(offset, meta),
             })
             return True
-        except CommitFailedError as e:
+        except KafkaError as e:
             self.log.exception(f'Committing raised exception: %r', e)
             return False
 
