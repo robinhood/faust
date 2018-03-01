@@ -180,7 +180,12 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
+        wait_count = 0
         while not self.should_stop and self._unacked_messages:
+            wait_count += 1
+            if not wait_count % 100_000:
+                messages = list(self._unacked_messages)
+                self.log.warn(f'Waiting for {messages} {wait_count}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
