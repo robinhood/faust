@@ -1123,7 +1123,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             if assignment:
                 self.flow_control.suspend()
                 await self.consumer.pause_partitions(assignment)
+                self.log.info(f'Waiting empty')
                 await self.consumer.wait_empty()
+                self.log.info(f'Waited empty')
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
             if self._partitions_revoked_count > 1:
