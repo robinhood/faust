@@ -628,7 +628,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             raise TypeError('Use parens in @app.command(), not @app.command.')
         _base: Type[AppCommand] = base
         if _base is None:
-            from .cli import base as cli_base
+            from ..cli import base as cli_base
             _base = cli_base.AppCommand
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
