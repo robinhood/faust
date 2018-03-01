@@ -8,7 +8,7 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
-from aiokafka.errors import ConsumerStoppedError
+from aiokafka.errors import ConsumerStoppedError, CommitFailedError
 from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
@@ -266,11 +266,16 @@ class Consumer(base.Consumer):
         read_offset.update(committed_offsets)
         self._committed_offset.update(committed_offsets)
 
-    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
+    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
-        await self._consumer.commit({
-            tp: self._new_offsetandmetadata(offset, meta),
-        })
+        try:
+            await self._consumer.commit({
+                tp: self._new_offsetandmetadata(offset, meta),
+            })
+            return True
+        except CommitFailedError as e:
+            self.log.exception(f'Committing raised exception: %r', e)
+            return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to pause partitions')

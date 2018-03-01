@@ -127,7 +127,7 @@ class Consumer(Service, ConsumerT):
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
-    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
+    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
         ...
 
     @abc.abstractmethod
