@@ -4,8 +4,8 @@ import asyncio
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
-    List, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
+    Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator, List,
+    MutableMapping, MutableSet, Optional, Set, Tuple, Type, Union, cast,
 )
 from weakref import WeakSet
 
@@ -96,10 +96,7 @@ class Consumer(Service, ConsumerT):
     #: will wait for the original request to finish, and do nothing.
     _commit_fut: asyncio.Future = None
 
-    if typing.TYPE_CHECKING:
-        # This works in mypy, but not in CPython
-        _unacked_messages: WeakSet[Message]
-    _unacked_messages = None
+    _unacked_messages: MutableSet[Message] = None
 
     def __init__(self, transport: TransportT,
                  *,

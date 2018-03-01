@@ -1,8 +1,7 @@
 """Agent replies: waiting for replies, sending them, etc."""
 import asyncio
-import typing
 from collections import defaultdict
-from typing import Any, AsyncIterator, MutableMapping, NamedTuple, Set
+from typing import Any, AsyncIterator, MutableMapping, MutableSet, NamedTuple
 from weakref import WeakSet
 
 from mode import Service
@@ -62,7 +61,7 @@ class BarrierState(ReplyPromise):
     _results: asyncio.Queue
 
     #: Set of pending replies that this barrier is composed of.
-    pending: Set[ReplyPromise]
+    pending: MutableSet[ReplyPromise]
 
     def __init__(self, reply_to: str, **kwargs: Any) -> None:
         super().__init__(reply_to=reply_to, correlation_id=None, **kwargs)
@@ -109,9 +108,7 @@ class BarrierState(ReplyPromise):
 class ReplyConsumer(Service):
     """Consumer responsible for redelegation of replies received."""
 
-    if typing.TYPE_CHECKING:
-        _waiting: MutableMapping[str, WeakSet[ReplyPromise]]
-    _waiting = None
+    _waiting: MutableMapping[str, MutableSet[ReplyPromise]]
     _fetchers: MutableMapping[str, asyncio.Future]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:

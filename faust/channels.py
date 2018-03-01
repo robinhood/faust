@@ -8,7 +8,8 @@ import asyncio
 import typing
 from types import TracebackType
 from typing import (
-    Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
+    Any, Awaitable, Callable, Mapping,
+    MutableSet, Optional, Type, Union, cast,
 )
 from weakref import WeakSet
 
@@ -195,9 +196,7 @@ class Channel(ChannelT):
 
     _queue: ThrowableQueue = None
     _root: 'Channel' = None
-    if typing.TYPE_CHECKING:
-        _subscribers: WeakSet['Channel']
-    _subscribers = None
+    _subscribers: MutableSet['Channel'] = None
 
     def __init__(self, app: AppT,
                  *,
