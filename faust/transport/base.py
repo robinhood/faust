@@ -127,7 +127,7 @@ class Consumer(Service, ConsumerT):
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
-    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
+    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
         ...
 
     @abc.abstractmethod
@@ -180,7 +180,12 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
+        wait_count = 0
         while not self.should_stop and self._unacked_messages:
+            wait_count += 1
+            if not wait_count % 100_000:
+                messages = list(self._unacked_messages)
+                self.log.warn(f'Waiting for {messages} {wait_count}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             await self.commit()
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
@@ -221,7 +226,10 @@ class Consumer(Service, ConsumerT):
         # and other coroutines should wait for the original commit to finish
         # then do nothing.
         if self._commit_fut is not None:
-            await self._commit_fut
+            try:
+                await self._commit_fut
+            except asyncio.CancelledError:
+                self._commit_fut = None
             return False
         else:
             self._commit_fut = asyncio.Future(loop=self.loop)

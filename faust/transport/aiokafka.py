@@ -8,7 +8,7 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
-from aiokafka.errors import ConsumerStoppedError
+from aiokafka.errors import ConsumerStoppedError, KafkaError
 from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
@@ -266,11 +266,16 @@ class Consumer(base.Consumer):
         read_offset.update(committed_offsets)
         self._committed_offset.update(committed_offsets)
 
-    async def _commit(self, tp: TP, offset: int, meta: str) -> None:
+    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
-        await self._consumer.commit({
-            tp: self._new_offsetandmetadata(offset, meta),
-        })
+        try:
+            await self._consumer.commit({
+                tp: self._new_offsetandmetadata(offset, meta),
+            })
+            return True
+        except KafkaError as e:
+            self.log.exception(f'Committing raised exception: %r', e)
+            return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to pause partitions')
@@ -284,7 +289,7 @@ class Consumer(base.Consumer):
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to resume partitions')
         async with self._partitions_lock:
-            self.log.info(f'Acquired lock ro resume partitions')
+            self.log.info(f'Acquired lock to resume partitions')
             tpset = set(tps)
             self._get_active_partitions().update(tps)
             self._paused_partitions.difference_update(tpset)
