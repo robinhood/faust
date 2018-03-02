@@ -185,8 +185,8 @@ class Consumer(Service, ConsumerT):
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
             if not wait_count % 100_000:
-                remaining = len(self._unacked_messages)
-                self.log.warn(f'Waiting for {remaining} {wait_count}')
+                remaining = [(m.refcount, m) for m in self._unacked_messages]
+                self.log.warn(f'Waiting for {remaining}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             gc.collect()
             await self.commit()
