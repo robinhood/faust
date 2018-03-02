@@ -28,7 +28,10 @@ class ServerThread(ServiceThread):
         # use", etc. back to the parent.  This future is set to an exception
         # if that happens, and it awaiting it here will reraise the error
         # in the parent thread.
-        await self._port_open
+        try:
+            await self._port_open
+        finally:
+            self._port_open = None
 
     async def on_start(self) -> None:
         await self.web.start_server(self.loop)
