@@ -1096,9 +1096,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             # Wait for TopicConductor to finish any new subscriptions
             await self.topics.wait_for_subscriptions()
             await self.consumer.pause_partitions(assigned)
+            await self.topics.on_partitions_assigned(assigned)
             await self._fetcher.restart()
             self.log.info(f'Restarted fetcher')
-            await self.topics.on_partitions_assigned(assigned)
             await self.tables.on_partitions_assigned(assigned)
             await self.on_partitions_assigned.send(assigned)
         except Exception as exc:
@@ -1116,7 +1116,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         try:
             self._partitions_revoked_count += 1
             self.log.dev('ON PARTITIONS REVOKED')
-            await self.topics.on_partitions_revoked(revoked)
             await self.tables.on_partitions_revoked(revoked)
             await self._fetcher.stop()
             assignment = self.consumer.assignment()
@@ -1129,6 +1128,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
             if self._partitions_revoked_count > 1:
+                await self.topics.on_partitions_revoked(revoked)
                 await self.agents.restart()
             await self.on_partitions_revoked.send(revoked)
         except Exception as exc:

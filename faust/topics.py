@@ -502,10 +502,15 @@ class TopicConductor(ConductorT, Service):
         return self._topicmap
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        ...
+        self._update_topicmap()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        ...
+        self.clear()
+
+    def clear(self) -> None:
+        self._topics.clear()
+        self._topicmap.clear()
+        self._acking_topics.clear()
 
     def __contains__(self, value: Any) -> bool:
         return value in self._topics
