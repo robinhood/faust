@@ -527,7 +527,6 @@ class TopicConductor(ConductorT, Service):
     def add(self, topic: Any) -> None:
         if topic not in self._topics:
             self._topics.add(topic)
-            self.beacon.add(topic)  # connect to beacon
             self._flag_changes()
 
     def discard(self, topic: Any) -> None:
