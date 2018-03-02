@@ -1,6 +1,7 @@
 """Base message transport implementation."""
 import abc
 import asyncio
+import gc
 import typing
 from collections import defaultdict
 from typing import (
@@ -185,7 +186,7 @@ class Consumer(Service, ConsumerT):
             wait_count += 1
             if not wait_count % 100_000:
                 remaining = len(self._unacked_messages)
-                self.log.warn(f'Waiting for {remaning} {wait_count}')
+                self.log.warn(f'Waiting for {remaining} {wait_count}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             gc.collect()
             await self.commit()
