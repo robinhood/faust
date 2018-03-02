@@ -6,7 +6,7 @@ import typing
 from collections import defaultdict
 from typing import (
     Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
-    List, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
+    List, Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
 )
 from weakref import WeakSet
 
@@ -127,7 +127,7 @@ class Consumer(Service, ConsumerT):
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
-    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
+    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
         ...
 
     @abc.abstractmethod
@@ -259,27 +259,27 @@ class Consumer(Service, ConsumerT):
 
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:
         did_commit = False
-        if tps:
-            coros = [self._commit_tp(tp) for tp in tps]
-            done, _ = await asyncio.wait(coros, loop=self.loop)
-            did_commit = any(fut.result() for fut in done)
+        commit_offsets = {}
+        for tp in tps:
+            offset = self._new_offset(tp)
+            if offset is not None and self._should_commit(tp, offset):
+                commit_offsets[tp] = offset
+        if commit_offsets:
+            await self._handle_attached(commit_offsets)
+            did_commit = True
+            await self._commit_offsets(commit_offsets)
         return did_commit
 
-    async def _commit_tp(self, tp: TP) -> bool:
-        did_commit = False
-        # Find the latest offset we can commit in this tp
-        offset = self._new_offset(tp)
-        # check if we can commit to this offset
-        if offset is not None and self._should_commit(tp, offset):
-            # if so, first send all messages attached to the new
-            # offset
-            await cast(App, self.app)._commit_attached(tp, offset)
-            # then, update the committed_offset and perform
-            # the commit.
-            self._committed_offset[tp] = offset
-            did_commit = True
-            await self._commit(tp, offset, meta='')
-        return did_commit
+    async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
+        coros = [cast(App, self.app)._commit_attached(tp, offset)
+                 for tp, offset in commit_offsets.items()]
+        await asyncio.wait(coros, loop=self.loop)
+
+    async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> None:
+        await self._commit({
+            tp: (offset, '')
+            for tp, offset in commit_offsets.items()
+        })
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
