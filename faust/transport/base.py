@@ -179,26 +179,29 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
+        """Wait for all messages that started processing to be acked."""
         wait_count = 0
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
             if not wait_count % 100_000:
-                messages = list(self._unacked_messages)
-                self.log.warn(f'Waiting for {messages} {wait_count}')
+                remaining = len(self._unacked_messages)
+                self.log.warn(f'Waiting for {remaning} {wait_count}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
+            gc.collect()
             await self.commit()
-            # This isn't clean code but ensures that we check for all messages
-            # having been acked.
-            while 1:
-                self._waiting_for_ack = asyncio.Future(loop=self.loop)
-                try:
-                    asyncio.wait_for(self._waiting_for_ack, loop=self.loop,
-                                     timeout=1)
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    if not self._unacked_messages:
-                        break
-                else:
-                    break
+            if not self._unacked_messages:
+                break
+
+            # arm future so that `ack()` can wake us up
+            self._waiting_for_ack = asyncio.Future(loop=self.loop)
+            try:
+                # wait for `ack()` to wake us up
+                asyncio.wait_for(
+                    self._waiting_for_ack, loop=self.loop, timeout=1)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+            finally:
+                self._waiting_for_ack = None
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
         await self.commit()
 
