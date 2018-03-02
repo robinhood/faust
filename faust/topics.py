@@ -502,10 +502,10 @@ class TopicConductor(ConductorT, Service):
         return self._topicmap
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        await self._update_topicmap()
+        ...
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self.clear()
+        ...
 
     def clear(self) -> None:
         self._topics.clear()
