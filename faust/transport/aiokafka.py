@@ -8,7 +8,10 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
-from aiokafka.errors import ConsumerStoppedError, KafkaError
+from aiokafka.errors import (
+    ConsumerStoppedError, CommitFailedError,
+    IllegalStateError,
+)
 from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
@@ -285,9 +288,12 @@ class Consumer(base.Consumer):
                 for tp, (offset, _) in offsets.items()
             })
             return True
-        except KafkaError as e:
+        except CommitFailedError as e:
             self.log.exception(f'Committing raised exception: %r', e)
             return False
+        except IllegalStateError as e:
+            self.log.exception(f'Committing raised exception: %r', e)
+            raise
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to pause partitions')
