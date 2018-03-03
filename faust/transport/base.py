@@ -276,8 +276,9 @@ class Consumer(Service, ConsumerT):
         await asyncio.wait(coros, loop=self.loop)
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> None:
+        meta = ''
         await self._commit({
-            tp: (offset, '')
+            tp: (offset, meta)
             for tp, offset in commit_offsets.items()
         })
 
