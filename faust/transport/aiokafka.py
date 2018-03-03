@@ -24,6 +24,7 @@ from . import base
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
+from ..utils.termtable import logtable
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -266,11 +267,22 @@ class Consumer(base.Consumer):
         read_offset.update(committed_offsets)
         self._committed_offset.update(committed_offsets)
 
-    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
-        self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
+    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
+        table = logtable(
+            [(str(tp), str(offset), meta) for tp, (offset, meta) in
+             offsets.items()],
+            title='Commit Offsets',
+            headers=['TP', 'Offset', 'Metadata'],
+        )
+        self.log.dev('COMMITTING OFFSETS:\n%s', table)
         try:
             await self._consumer.commit({
-                tp: self._new_offsetandmetadata(offset, meta),
+                tp: self._new_offsetandmetadata(offset, meta)
+                for tp, (offset, meta) in offsets.items()
+            })
+            self._committed_offset.update({
+                tp: offset
+                for tp, (offset, _) in offsets.items()
             })
             return True
         except KafkaError as e:
