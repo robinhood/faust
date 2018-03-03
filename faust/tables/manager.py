@@ -503,8 +503,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 await asyncio.wait([
                     reviver.stop() for reviver in self._revivers])
                 self.log.info('Waiting for ongoing recovery to finish')
-                if await self.wait_for_stopped(self._ongoing_recovery):
-                    return
+                await self.wait_for_stopped(self._ongoing_recovery)
                 self.log.info('Ongoing recovery halted: resuming new recovery')
             self._ongoing_recovery = None
 
