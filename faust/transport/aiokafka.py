@@ -280,6 +280,10 @@ class Consumer(base.Consumer):
                 tp: self._new_offsetandmetadata(offset, meta)
                 for tp, (offset, meta) in offsets.items()
             })
+            self._committed_offset.update({
+                tp: offset
+                for tp, (offset, _) in offsets.items()
+            })
             return True
         except KafkaError as e:
             self.log.exception(f'Committing raised exception: %r', e)
