@@ -288,12 +288,14 @@ class Consumer(base.Consumer):
                 for tp, (offset, _) in offsets.items()
             })
             return True
-        except CommitFailedError as e:
-            self.log.exception(f'Committing raised exception: %r', e)
+        except CommitFailedError as exc:
+            self.log.exception(f'Committing raised exception: %r', exc)
             return False
-        except IllegalStateError as e:
-            self.log.exception(f'Committing raised exception: %r', e)
-            raise
+        except IllegalStateError as exc:
+            self.log.exception(f'Got exception: {exc}\n'
+                               f'Current assignment: {self.assignment()}')
+            await self.crash(exc)
+            return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
         self.log.info(f'Waiting for lock to pause partitions')
