@@ -1,6 +1,5 @@
 """Class-based views."""
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
-import jinja2
 from .base import Request, Response, Web
 from ..types import AppT
 from ..utils.objects import cached_property
@@ -80,13 +79,6 @@ class View:
 
     def error(self, status: int, reason: str, **kwargs: Any) -> Response:
         return self.json({'error': reason, **kwargs}, status=status)
-
-    @cached_property
-    def env(self) -> jinja2.Environment:
-        return jinja2.Environment(
-            loader=jinja2.PackageLoader(self.package),
-            autoescape=True,
-        )
 
 
 class Site:
