@@ -60,10 +60,6 @@ class View:
     async def delete(self, request: Request) -> Any:
         ...
 
-    def render(self, template_name: str, **context: Any) -> str:
-        template = self.env.get_template(template_name)
-        return template.render(**context)
-
     def text(self, value: str,
              *,
              content_type: str = None,
