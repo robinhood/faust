@@ -4,8 +4,8 @@ from typing import Awaitable, Callable, Type, Union
 from aiohttp.client import ClientSession
 
 if typing.TYPE_CHECKING:
-    from ..web.base import Request, Response, Web
-    from ..web.views import Site, View
+    from faust.web.base import Request, Response, Web
+    from faust.web.views import Site, View
 else:
     class Request: ...        # noqa
     class Response: ...       # noqa

@@ -10,6 +10,8 @@ from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.types.trees import NodeT
 
+from fast.utils.objects import cached_property
+
 from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
@@ -26,12 +28,10 @@ from .tuples import MessageSentCallback, RecordMetadata, TP
 from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View
 from .windows import WindowT
 
-from ..utils.objects import cached_property
-
 if typing.TYPE_CHECKING:
-    from ..cli.base import AppCommand
-    from ..sensors.monitor import Monitor
-    from ..worker import Worker as WorkerT
+    from faust.cli.base import AppCommand
+    from faust.sensors.monitor import Monitor
+    from faust.worker import Worker as WorkerT
     from .models import ModelArg
     from .settings import Settings
 else:

@@ -1,5 +1,5 @@
 from typing import Iterable
-from ..types.fixups import AppT, FixupT
+from faust.types.fixups import AppT, FixupT
 
 __all__ = ['Fixup']
 

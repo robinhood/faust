@@ -41,9 +41,8 @@
 import asyncio
 import random
 from typing import Any
-
+from faust.types import CodecArg, K, V
 from .base import AppCommand, argument, option
-from ..types import CodecArg, K, V
 
 __all__ = ['send']
 

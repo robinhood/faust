@@ -23,23 +23,23 @@ from mode.utils.futures import maybe_async
 from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
-from .models import ReqRepRequest, ReqRepResponse
-from .replies import BarrierState, ReplyPromise
-
-from ..exceptions import ImproperlyConfigured
-from ..types import (
+from faust.exceptions import ImproperlyConfigured
+from faust.types import (
     AppT, ChannelT, CodecArg, EventT, K, Message, MessageSentCallback,
     ModelArg, RecordMetadata, StreamT, TopicT, V,
 )
-from ..types.agents import (
+from faust.types.agents import (
     ActorRefT, ActorT, AgentErrorHandler, AgentFun, AgentT,
     AgentTestWrapperT, AsyncIterableActorT, AwaitableActorT,
     ReplyToArg, SinkT, _T,
 )
-from ..utils.objects import cached_property, canoname, qualname
+from faust.utils.objects import cached_property, canoname, qualname
+
+from .models import ReqRepRequest, ReqRepResponse
+from .replies import BarrierState, ReplyPromise
 
 if typing.TYPE_CHECKING:
-    from .app import App
+    from faust.app import App
 else:
     class App: ...   # noqa
 

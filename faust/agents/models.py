@@ -1,6 +1,6 @@
 """Models used by agents internally."""
-from ..models import Record
-from ..types import K, ModelT
+from faust.models import Record
+from faust.types import K, ModelT
 
 __all__ = ['ReqRepRequest', 'ReqRepResponse']
 

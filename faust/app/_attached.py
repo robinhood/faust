@@ -6,13 +6,14 @@ from typing import (
     Awaitable, Callable, Iterator, List,
     MutableMapping, NamedTuple, Union, cast,
 )
-from ..streams import current_event
-from ..types import AppT, ChannelT, CodecArg, K, RecordMetadata, TP, V
-from ..types.tuples import FutureMessage, Message, MessageSentCallback
-from ..utils.objects import Unordered
+
+from faust.streams import current_event
+from faust.types import AppT, ChannelT, CodecArg, K, RecordMetadata, TP, V
+from faust.types.tuples import FutureMessage, Message, MessageSentCallback
+from faust.utils.objects import Unordered
 
 if typing.TYPE_CHECKING:
-    from ..channels import Event
+    from faust.channels import Event
 else:
     class Event: ...       # noqa
 

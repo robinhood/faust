@@ -10,16 +10,16 @@ from kafka.coordinator.protocol import (
 from mode import get_logger
 from yarl import URL
 
+from faust.types.app import AppT
+from faust.types.assignor import (
+    HostToPartitionMap, PartitionAssignorT, TopicToPartitionMap,
+)
+from faust.types.tables import TableManagerT
+from faust.types.topics import TP
+
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
-
-from ..types.app import AppT
-from ..types.assignor import (
-    HostToPartitionMap, PartitionAssignorT, TopicToPartitionMap,
-)
-from ..types.tables import TableManagerT
-from ..types.topics import TP
 
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]

@@ -7,11 +7,13 @@ from typing import (
 
 from mode.utils.text import pluralize
 
-from .base import FieldDescriptor, Model
+from faust.types.models import (
+    Converter, FieldDescriptorT, ModelOptions, ModelT,
+)
+from faust.utils import iso8601
+from faust.utils.objects import annotations, guess_concrete_type
 
-from ..types.models import Converter, FieldDescriptorT, ModelOptions, ModelT
-from ..utils import iso8601
-from ..utils.objects import annotations, guess_concrete_type
+from .base import FieldDescriptor, Model
 
 __all__ = ['Record']
 

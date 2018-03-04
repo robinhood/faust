@@ -3,12 +3,9 @@ import asyncio
 from collections import defaultdict
 from typing import Any, AsyncIterator, MutableMapping, MutableSet, NamedTuple
 from weakref import WeakSet
-
 from mode import Service
-
+from faust.types import AppT, ChannelT, TopicT
 from .models import ReqRepResponse
-
-from ..types import AppT, ChannelT, TopicT
 
 __all__ = ['ReplyPromise', 'BarrierState', 'ReplyConsumer']
 

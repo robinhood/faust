@@ -20,11 +20,11 @@ from mode.utils import text
 from mode.utils.compat import isatty, want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
-from ._env import DATADIR, DEBUG, WORKDIR
+from faust.types import AppT, CodecArg, ModelT
+from faust.utils import json
+from faust.utils import termtable
 
-from ..types import AppT, CodecArg, ModelT
-from ..utils import json
-from ..utils import termtable
+from ._env import DATADIR, DEBUG, WORKDIR
 
 __all__ = [
     'AppCommand',

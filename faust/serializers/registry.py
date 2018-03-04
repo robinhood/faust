@@ -4,11 +4,12 @@ from typing import Any, Optional, Tuple, Type, cast
 
 from mode.utils.compat import want_bytes, want_str
 
+from faust.exceptions import KeyDecodeError, ValueDecodeError
+from faust.types import K, ModelArg, ModelT, V
+from faust.types.serializers import RegistryT
+from faust.utils.objects import cached_property
+
 from .codecs import CodecArg, dumps, loads
-from ..exceptions import KeyDecodeError, ValueDecodeError
-from ..types import K, ModelArg, ModelT, V
-from ..types.serializers import RegistryT
-from ..utils.objects import cached_property
 
 __all__ = ['Registry']
 

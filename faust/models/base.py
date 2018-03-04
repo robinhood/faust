@@ -34,9 +34,9 @@ from typing import (
     Any, ClassVar, Iterable, Mapping, MutableMapping, Optional, Type,
 )
 
-from ..serializers.codecs import CodecArg, dumps, loads
-from ..types.models import FieldDescriptorT, ModelOptions, ModelT
-from ..utils.objects import canoname
+from faust.serializers.codecs import CodecArg, dumps, loads
+from faust.types.models import FieldDescriptorT, ModelOptions, ModelT
+from faust.utils.objects import canoname
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']
 

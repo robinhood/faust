@@ -37,9 +37,10 @@ import click
 from mode.utils.logging import level_name
 from yarl import URL
 
+from faust import __version__ as faust_version
+
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, TCPPort, WritableFilePath, option
-from .. import __version__ as faust_version
 
 if typing.TYPE_CHECKING:
     from ..worker import Worker

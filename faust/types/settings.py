@@ -11,19 +11,20 @@ from mode import Seconds, want_seconds
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
 
-from .. import __version__ as faust_version
-from ..cli._env import DATADIR
-from ..exceptions import ImproperlyConfigured
-from ..types import CodecArg
-from ..types.agents import AgentT
-from ..types.app import HttpClientT
-from ..types.assignor import LeaderAssignorT, PartitionAssignorT
-from ..types.router import RouterT
-from ..types.sensors import SensorT
-from ..types.serializers import RegistryT
-from ..types.streams import StreamT
-from ..types.tables import SetT, TableManagerT, TableT
-from ..types.topics import ConductorT, TopicT
+from faust import __version__ as faust_version
+from faust.cli._env import DATADIR
+from faust.exceptions import ImproperlyConfigured
+
+from .agents import AgentT
+from .app import HttpClientT
+from .assignor import LeaderAssignorT, PartitionAssignorT
+from .codecs import CodecArg
+from .router import RouterT
+from .sensors import SensorT
+from .serializers import RegistryT
+from .streams import StreamT
+from .tables import SetT, TableManagerT, TableT
+from .topics import ConductorT, TopicT
 
 if typing.TYPE_CHECKING:
     from .worker import Worker as WorkerT

@@ -4,11 +4,9 @@
 """
 from operator import attrgetter
 from typing import Optional, Sequence
-
 import click
-
+from faust.types import AgentT
 from .base import AppCommand
-from ..types import AgentT
 
 
 class agents(AppCommand):

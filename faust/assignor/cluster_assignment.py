@@ -3,7 +3,7 @@ from typing import Any, List, MutableMapping, Sequence, Set
 from .client_assignment import (
     ClientAssignment, ClientMetadata, CopartitionedAssignment,
 )
-from ..models import Record
+from faust.models import Record
 
 CopartMapping = MutableMapping[str, CopartitionedAssignment]
 

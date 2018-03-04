@@ -3,8 +3,8 @@ import typing
 from itertools import chain
 from typing import Any, Awaitable, Callable, Iterable, List, cast
 from mode import Service, ServiceT
-from ..exceptions import ImproperlyConfigured
-from ..types import AppT
+from faust.exceptions import ImproperlyConfigured
+from faust.types import AppT
 
 if typing.TYPE_CHECKING:
     from .base import App

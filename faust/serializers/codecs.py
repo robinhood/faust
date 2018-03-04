@@ -164,8 +164,8 @@ from typing import Any, Dict, MutableMapping, Optional, Tuple, cast
 from mode.utils.compat import want_bytes, want_str
 from mode.utils.imports import load_extension_classes
 
-from ..types.codecs import CodecArg, CodecT
-from ..utils import json as _json
+from faust.types.codecs import CodecArg, CodecT
+from faust.utils import json as _json
 
 __all__ = [
     'Codec', 'CodecArg', 'register', 'get_codec', 'dumps', 'loads',

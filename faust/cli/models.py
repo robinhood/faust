@@ -4,12 +4,10 @@
 """
 from operator import attrgetter
 from typing import Sequence, Type
-
 import click
-
+from faust.models import registry
+from faust.types import ModelT
 from .base import AppCommand
-from ..models import registry
-from ..types import ModelT
 
 __all__ = ['models']
 

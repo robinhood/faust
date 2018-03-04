@@ -8,10 +8,11 @@ from typing import Any, Sequence, Type
 import click
 from mode.utils import text
 
+from faust.models import registry
+from faust.types import FieldDescriptorT, ModelT
+from faust.utils.termtable import TableDataT
+
 from .base import AppCommand
-from ..models import registry
-from ..types import FieldDescriptorT, ModelT
-from ..utils.termtable import TableDataT
 
 __all__ = ['model']
 
