@@ -1,9 +1,11 @@
 """Base-interface for sensors."""
 from typing import Any, Iterator, Set
+
 from mode import Service
-from ..types import AppT, CollectionT, EventT, Message, StreamT, TP
-from ..types.sensors import SensorDelegateT, SensorT
-from ..types.transports import ConsumerT, ProducerT
+
+from faust.types import AppT, CollectionT, EventT, Message, StreamT, TP
+from faust.types.sensors import SensorDelegateT, SensorT
+from faust.types.transports import ConsumerT, ProducerT
 
 __all__ = ['Sensor', 'SensorDelegate']
 

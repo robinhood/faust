@@ -2,8 +2,8 @@
 from typing import Any, Callable, MutableMapping
 from mode import Service
 from yarl import URL
-from ..cli._env import WEB_BIND, WEB_PORT
-from ..types import AppT
+from faust.cli._env import WEB_BIND, WEB_PORT
+from faust.types import AppT
 
 __all__ = ['Request', 'Response', 'Web']
 

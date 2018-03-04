@@ -1,12 +1,14 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
 from typing import Any, Callable, cast
+
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
 from mode.threads import ServiceThread
 from mode.utils.futures import notify
-from .. import base
-from ...types import AppT
+
+from faust.types import AppT
+from faust.web import base
 
 __all__ = ['Web']
 

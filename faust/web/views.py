@@ -1,8 +1,7 @@
 """Class-based views."""
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
+from faust.types import AppT
 from .base import Request, Response, Web
-from ..types import AppT
-from ..utils.objects import cached_property
 
 __all__ = ['View', 'Site']
 
