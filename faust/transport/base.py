@@ -266,13 +266,13 @@ class Consumer(Service, ConsumerT):
             if offset is not None and self._should_commit(tp, offset):
                 commit_offsets[tp] = offset
         if commit_offsets:
-            sent_attached = False
+            handled_attached = False
             try:
                 await self._handle_attached(commit_offsets)
-                sent_attached = True
+                handled_attached = True
             except ProducerSendError as exc:
                 await self.crash(exc)
-            if sent_attached:
+            if handled_attached:
                 did_commit = await self._commit_offsets(commit_offsets)
         return did_commit
 
