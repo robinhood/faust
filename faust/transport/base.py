@@ -14,6 +14,7 @@ from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
+from ..exceptions import AttachedSendError
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import (
     ConsumerCallback, ConsumerT,
@@ -265,19 +266,23 @@ class Consumer(Service, ConsumerT):
             if offset is not None and self._should_commit(tp, offset):
                 commit_offsets[tp] = offset
         if commit_offsets:
-            await self._handle_attached(commit_offsets)
-            did_commit = True
-            await self._commit_offsets(commit_offsets)
+            sent_attached = False
+            try:
+                await self._handle_attached(commit_offsets)
+                sent_attached = True
+            except AttachedSendError as exc:
+                await self.crash(exc)
+            if sent_attached:
+                did_commit = await self._commit_offsets(commit_offsets)
         return did_commit
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
-        coros = [cast(App, self.app)._commit_attached(tp, offset)
-                 for tp, offset in commit_offsets.items()]
-        await asyncio.wait(coros, loop=self.loop)
+        for tp, offset in commit_offsets.items():
+            await cast(App, self.app)._commit_attached(tp, offset)
 
-    async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> None:
+    async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''
-        await self._commit({
+        return await self._commit({
             tp: (offset, meta)
             for tp, offset in commit_offsets.items()
         })

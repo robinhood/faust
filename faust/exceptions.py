@@ -27,3 +27,7 @@ class KeyDecodeError(DecodeError):
 
 class ValueDecodeError(DecodeError):
     """Error while decoding/deserializing message value."""
+
+
+class AttachedSendError(FaustError):
+    """Error while sending attached messages prior to commit"""
