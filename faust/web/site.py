@@ -3,6 +3,8 @@ from typing import Any, Sequence, Tuple, Type, Union
 
 from mode import Service
 
+from faust.types import AppT
+
 from . import drivers
 from .apps import graph
 from .apps import router
@@ -11,7 +13,6 @@ from .apps import tables
 from .base import Web
 from .views import Site
 
-from ..types import AppT
 
 __all__ = ['Website']
 

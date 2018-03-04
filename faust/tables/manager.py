@@ -193,7 +193,12 @@ class ChangelogReader(Service, ChangelogReaderT):
 
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
-        self.log.info('Reading %s records...', self._remaining_total())
+        remaining = self._remaining_total()
+        # We don't want to log when there are zero records,
+        # but we still slurp the stream so that we subscribe
+        # to the changelog topic etc.
+        if remaining:
+            self.log.info('Reading %s records...', remaining)
         self.diag.set_flag(CHANGELOG_READING)
         try:
             await self._slurp_stream()

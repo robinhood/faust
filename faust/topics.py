@@ -5,9 +5,10 @@ import typing
 from collections import defaultdict
 from functools import partial
 from typing import (
-    Any, Awaitable, Callable, Iterable, Iterator, Mapping,
-    MutableMapping, Optional, Pattern, Sequence, Set, Tuple, Union, cast,
+    Any, Awaitable, Callable, Iterable, Iterator, Mapping, MutableMapping,
+    MutableSet, Optional, Pattern, Sequence, Set, Tuple, Union, cast,
 )
+from weakref import WeakSet
 
 from mode import Seconds, Service, get_logger
 from mode.utils.futures import ThrowableQueue, notify, stampede
@@ -349,11 +350,11 @@ class TopicConductor(ConductorT, Service):
     logger = logger
 
     #: Fast index to see if Topic is registered.
-    _topics: Set[TopicT]
+    _topics: MutableSet[TopicT]
 
     #: Map str topic to set of channeos that should get a copy
     #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, Set[TopicT]]
+    _topicmap: MutableMapping[str, MutableSet[TopicT]]
 
     #: Whenever a change is made, i.e. a Topic is added/removed, we notify
     #: the background task responsible for resubscribing.
@@ -366,8 +367,8 @@ class TopicConductor(ConductorT, Service):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self._topics = set()
-        self._topicmap = defaultdict(set)
+        self._topics = WeakSet()
+        self._topicmap = defaultdict(WeakSet)
         self._acking_topics = set()
         self._subscription_changed = None
         self._subscription_done = None
@@ -505,6 +506,11 @@ class TopicConductor(ConductorT, Service):
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
+    def clear(self) -> None:
+        self._topics.clear()
+        self._topicmap.clear()
+        self._acking_topics.clear()
+
     def __contains__(self, value: Any) -> bool:
         return value in self._topics
 
@@ -520,7 +526,6 @@ class TopicConductor(ConductorT, Service):
     def add(self, topic: Any) -> None:
         if topic not in self._topics:
             self._topics.add(topic)
-            self.beacon.add(topic)  # connect to beacon
             self._flag_changes()
 
     def discard(self, topic: Any) -> None:
