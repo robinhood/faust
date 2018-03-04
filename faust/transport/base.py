@@ -14,7 +14,7 @@ from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
-from ..exceptions import AttachedSendError
+from ..exceptions import ProducerSendError
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import (
     ConsumerCallback, ConsumerT,
@@ -270,7 +270,7 @@ class Consumer(Service, ConsumerT):
             try:
                 await self._handle_attached(commit_offsets)
                 sent_attached = True
-            except AttachedSendError as exc:
+            except ProducerSendError as exc:
                 await self.crash(exc)
             if sent_attached:
                 did_commit = await self._commit_offsets(commit_offsets)

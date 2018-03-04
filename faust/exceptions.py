@@ -29,5 +29,5 @@ class ValueDecodeError(DecodeError):
     """Error while decoding/deserializing message value."""
 
 
-class AttachedSendError(FaustError):
+class ProducerSendError(FaustError):
     """Error while sending attached messages prior to commit"""

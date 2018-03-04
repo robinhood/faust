@@ -21,7 +21,7 @@ from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
 from . import base
-from ..exceptions import AttachedSendError
+from ..exceptions import ProducerSendError
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
@@ -395,7 +395,7 @@ class Producer(base.Producer):
             return cast(Awaitable[RecordMetadata], await self._producer.send(
                 topic, value, key=key, partition=partition))
         except KafkaError as exc:
-            raise AttachedSendError(f'Error while sending: {exc}')
+            raise ProducerSendError(f'Error while sending: {exc}')
 
     async def send_and_wait(
             self,
