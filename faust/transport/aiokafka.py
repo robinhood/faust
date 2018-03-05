@@ -404,7 +404,7 @@ class Producer(base.Producer):
             return cast(Awaitable[RecordMetadata], await self._producer.send(
                 topic, value, key=key, partition=partition))
         except KafkaError as exc:
-            raise ProducerSendError(f'Error while sending: {exc}') from exc
+            raise ProducerSendError(f'Error while sending: {exc!r}') from exc
 
     async def send_and_wait(
             self,
