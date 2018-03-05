@@ -66,9 +66,7 @@ class model(AppCommand):
         return [
             field.field,
             self._type(field.type),
-            self.colored(
-                'autoblack',
-                '*' if field.required else repr(field.default)),
+            self.dark('*' if field.required else repr(field.default)),
         ]
 
     def _type(self, typ: Any) -> str:
@@ -77,7 +75,7 @@ class model(AppCommand):
     def model_to_row(self, model: Type[ModelT]) -> Sequence[str]:
         return [
             self.bold_tail(self._name(model)),
-            self.colored('autoblack', self._help(model)),
+            self.dark(self._help(model)),
         ]
 
     def _name(self, model: Type[ModelT]) -> str:

@@ -19,10 +19,6 @@ class FixupT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def on_app_init(self) -> None:
-        ...
-
-    @abc.abstractmethod
     def enabled(self) -> bool:
         ...
 

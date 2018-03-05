@@ -10,21 +10,21 @@ from typing import (
 from mode import Seconds, Service
 from yarl import URL
 
-from .. import stores
-from .. import joins
-from ..channels import Event
-from ..streams import current_event
-from ..types import (
+from faust import stores
+from faust import joins
+from faust.channels import Event
+from faust.streams import current_event
+from faust.types import (
     AppT, EventT, FieldDescriptorT, FutureMessage, JoinT,
     RecordMetadata, TP, TopicT,
 )
-from ..types.models import ModelArg, ModelT
-from ..types.stores import StoreT
-from ..types.streams import JoinableT, StreamT
-from ..types.tables import (
+from faust.types.models import ModelArg, ModelT
+from faust.types.stores import StoreT
+from faust.types.streams import JoinableT, StreamT
+from faust.types.tables import (
     ChangelogEventCallback, CollectionT, RecoverCallback, RelativeHandler,
 )
-from ..types.windows import WindowRange, WindowT
+from faust.types.windows import WindowRange, WindowT
 
 __all__ = ['Collection']
 

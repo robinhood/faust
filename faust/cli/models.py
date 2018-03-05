@@ -40,7 +40,7 @@ class models(AppCommand):
     def model_to_row(self, model: Type[ModelT]) -> Sequence[str]:
         return [
             self.bold_tail(self._name(model)),
-            self.colored('autoblack', self._help(model)),
+            self.dark(self._help(model)),
         ]
 
     def _name(self, model: Type[ModelT]) -> str:

@@ -10,7 +10,7 @@ from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.types.trees import NodeT
 
-from fast.utils.objects import cached_property
+from faust.utils.objects import cached_property
 
 from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT

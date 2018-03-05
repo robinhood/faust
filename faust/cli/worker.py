@@ -165,7 +165,7 @@ class worker(AppCommand):
         return table.table
 
     def faust_ident(self) -> str:
-        return self.colored('hiblue', f'{FAUST} v{faust_version}')
+        return self.color('hiblue', f'{FAUST} v{faust_version}')
 
     def platform(self) -> str:
         return '{py_imp} {py_version} ({system} {machine})'.format(

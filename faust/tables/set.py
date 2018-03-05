@@ -1,7 +1,7 @@
 """Set stored as table with True values."""
 from typing import Any
+from faust.types.tables import SetT
 from .base import Collection
-from ..types.tables import SetT
 
 __all__ = ['Set']
 

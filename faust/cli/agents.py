@@ -39,7 +39,7 @@ class agents(AppCommand):
         return [
             self.bold_tail(self._name(agent)),
             self._topic(agent),
-            self.colored('autoblack', self._help(agent)),
+            self.dark(self._help(agent)),
         ]
 
     def _name(self, agent: AgentT) -> str:

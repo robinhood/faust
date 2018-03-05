@@ -13,11 +13,11 @@ from mode.threads import ServiceThread
 from mode.utils.futures import StampedeWrapper, notify
 from yarl import URL
 
-from . import base
+from faust.exceptions import ImproperlyConfigured
+from faust.types import AppT, Message, RecordMetadata, TP
+from faust.types.transports import ConsumerT, ProducerT
 
-from ..exceptions import ImproperlyConfigured
-from ..types import AppT, Message, RecordMetadata, TP
-from ..types.transports import ConsumerT, ProducerT
+from . import base
 
 try:
     import confluent_kafka

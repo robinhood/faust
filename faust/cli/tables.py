@@ -14,7 +14,7 @@ class tables(AppCommand):
 
     async def run(self) -> None:
         self.say(self.tabulate([
-            (self.bold(t.name),
-             self.colored('autoblack', t.help or DEFAULT_TABLE_HELP))
-            for t in self.app.tables.values()
+            (self.bold(table.name),
+             self.dark(table.help or DEFAULT_TABLE_HELP))
+            for table in self.app.tables.values()
         ], title=self.title, headers=['name', 'help']))

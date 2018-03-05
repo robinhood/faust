@@ -20,10 +20,11 @@ from mode import Seconds, Service, want_seconds
 from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
+from faust.types import AppT, Message, RecordMetadata, TP
+from faust.types.transports import ConsumerT, ProducerT
+from faust.utils.kafka.protocol.admin import CreateTopicsRequest
+
 from . import base
-from ..types import AppT, Message, RecordMetadata, TP
-from ..types.transports import ConsumerT, ProducerT
-from ..utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 

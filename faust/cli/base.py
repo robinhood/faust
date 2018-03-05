@@ -422,7 +422,7 @@ class Command(abc.ABC):
             return self.dumps(data)
         if headers:
             data = [headers] + list(data)
-        title = self.bold(self.colored(title_color, title))
+        title = self.bold(self.color(title_color, title))
         table = self.table(data, title=title, **kwargs)
         if wrap_last_row:
             # slow, but not big data
@@ -438,21 +438,25 @@ class Command(abc.ABC):
         """Format table data as ANSI/ASCII table."""
         return termtable.table(data, title=title, target=sys.stdout, **kwargs)
 
-    def colored(self, color: str, text: str) -> str:
-        """Return colored text.
+    def color(self, name: str, text: str) -> str:
+        """Return text having a certain color by name.
 
         Examples::
-            >>> self.colored('blue', 'text_to_color')
-            >>> self.colored('hiblue', text_to_color')
+            >>> self.color('blue', 'text_to_color')
+            >>> self.color('hiblue', text_to_color')
 
         See Also:
             :pypi:`colorclass`: for a list of available colors.
         """
         return Color(f'{{{color}}}{text}{{/{color}}}')
 
+    def dark(self, text: str) -> str:
+        """Return cursor text."""
+        return self.color('autobloack', text)
+
     def bold(self, text: str) -> str:
         """Return text in bold."""
-        return self.colored('b', text)
+        return self.color('b', text)
 
     def bold_tail(self, text: str, *, sep: str = '.') -> str:
         """Put bold emphasis on the last part of a foo.bar.baz string."""

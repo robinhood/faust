@@ -7,10 +7,10 @@ from typing import Any, Callable, Iterator, Optional, cast
 from mode import Seconds
 from mode.utils.collections import FastUserDict
 
-from ..exceptions import ImproperlyConfigured
-from ..streams import current_event
-from ..types import EventT, FieldDescriptorT
-from ..types.tables import (
+from faust.exceptions import ImproperlyConfigured
+from faust.streams import current_event
+from faust.types import EventT, FieldDescriptorT
+from faust.types.tables import (
     RecoverCallback, RelativeArg, RelativeHandler,
     TableT, WindowSetT, WindowWrapperT,
 )

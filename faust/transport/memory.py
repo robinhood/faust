@@ -11,10 +11,10 @@ from mode import Seconds
 from mode.utils.futures import done_future
 from mode.utils.imports import symbol_by_name
 
-from . import base
+from faust.types import Message, RecordMetadata, TP
+from faust.types.transports import ConsumerT, ProducerT
 
-from ..types import Message, RecordMetadata, TP
-from ..types.transports import ConsumerT, ProducerT
+from . import base
 
 # XXX mypy borks on `import faust`
 faust_version = symbol_by_name('faust:__version__')

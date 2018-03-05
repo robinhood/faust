@@ -14,16 +14,16 @@ from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
-from ..types import AppT, Message, RecordMetadata, TP
-from ..types.transports import (
+from faust.types import AppT, Message, RecordMetadata, TP
+from faust.types.transports import (
     ConsumerCallback, ConsumerT,
     PartitionsAssignedCallback, PartitionsRevokedCallback,
     ProducerT, TPorTopicSet, TransportT,
 )
-from ..utils.functional import consecutive_numbers
+from faust.utils.functional import consecutive_numbers
 
 if typing.TYPE_CHECKING:
-    from ..app import App
+    from faust.app import App
 else:
     class App: ...  # noqa
 

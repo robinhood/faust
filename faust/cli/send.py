@@ -41,7 +41,7 @@
 import asyncio
 import random
 from typing import Any
-from faust.types import CodecArg, K, V
+from faust.types import CodecArg, K, RecordMetadata, V
 from .base import AppCommand, argument, option
 
 __all__ = ['send']
@@ -102,15 +102,14 @@ class send(AppCommand):
         topic = self.to_topic(entity)
         for i in range(repeat):
             self.carp(f'k={key!r} v={value!r} -> {topic!r}...')
-            fut = await topic.send(
+            meta: RecordMetadata = await (await topic.send(
                 key=key,
                 value=value,
                 partition=partition,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
-            )
-            res = await fut
-            self.say(self.dumps(res._asdict()))
+            ))
+            self.say(self.dumps(meta._asdict()))
             if i and max_latency:
                 await asyncio.sleep(
                     random.uniform(min_latency, max_latency))

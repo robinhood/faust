@@ -9,9 +9,6 @@ class Fixup(FixupT):
     def __init__(self, app: AppT) -> None:
         self.app = app
 
-    def on_app_init(self) -> None:
-        ...
-
     def enabled(self) -> bool:
         return False
 

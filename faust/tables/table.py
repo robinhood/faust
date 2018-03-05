@@ -7,13 +7,13 @@ from mode import Seconds
 from mode.utils import text
 from mode.utils.collections import ManagedUserDict
 
-from .base import Collection
+from faust import windows
+from faust.types.tables import TableT, WindowWrapperT
+from faust.types.windows import WindowT
+from faust.utils import termtable
 
+from .base import Collection
 from .wrappers import WindowWrapper
-from .. import windows
-from ..types.tables import TableT, WindowWrapperT
-from ..types.windows import WindowT
-from ..utils import termtable
 
 __all__ = ['Table']
 

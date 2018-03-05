@@ -11,14 +11,14 @@ from mode.utils.collections import FastUserDict
 from mode.utils.compat import Counter
 from mode.utils.times import Seconds
 
-from .table import Table
-
-from ..types import AppT, EventT, TP
-from ..types.tables import (
+from faust.types import AppT, EventT, TP
+from faust.types.tables import (
     ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
 )
-from ..types.topics import ChannelT
-from ..utils.termtable import logtable
+from faust.types.topics import ChannelT
+from faust.utils.termtable import logtable
+
+from .table import Table
 
 __all__ = [
     'ChangelogReader',
