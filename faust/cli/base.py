@@ -448,7 +448,7 @@ class Command(abc.ABC):
         See Also:
             :pypi:`colorclass`: for a list of available colors.
         """
-        return Color(f'{{{color}}}{text}{{/{color}}}')
+        return Color(f'{{{name}}}{text}{{/{name}}}')
 
     def dark(self, text: str) -> str:
         """Return cursor text."""
