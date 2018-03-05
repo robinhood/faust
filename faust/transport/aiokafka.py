@@ -9,8 +9,7 @@ from typing import (
 import aiokafka
 import aiokafka.abc
 from aiokafka.errors import (
-    ConsumerStoppedError, CommitFailedError,
-    IllegalStateError,
+    CommitFailedError, ConsumerStoppedError, IllegalStateError, KafkaError,
 )
 from aiokafka.structs import (
     OffsetAndMetadata,
