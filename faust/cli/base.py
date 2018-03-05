@@ -91,7 +91,7 @@ builtin_options: Sequence[Callable] = [
            help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
            help='Enable debugging output, and the blocking detector.'),
-    option('--color/--no-color', default=True,
+    option('--no_color/--color', default=False,
            help='Enable colors in output.'),
     option('--workdir', '-W',
            default=WORKDIR,
@@ -242,7 +242,7 @@ def cli(ctx: click.Context,
         workdir: str,
         datadir: str,
         json: bool,
-        color: bool,
+        no_color: bool,
         loop: str) -> None:
     """Faust command-line interface."""
     ctx.obj = {
@@ -252,7 +252,7 @@ def cli(ctx: click.Context,
         'workdir': workdir,
         'datadir': datadir,
         'json': json,
-        'color': color,
+        'no_color': no_color,
         'loop': loop,
     }
     if workdir:
@@ -265,7 +265,7 @@ def cli(ctx: click.Context,
         # WARNING: Note that the faust.app module *MUST not* have
         # been imported before setting the envvar.
         os.environ['F_DATADIR'] = datadir
-    if color and not isatty(sys.stdout):
+    if not no_color and not isatty(sys.stdout):
         enable_all_colors()
     else:
         disable_all_colors()
@@ -297,7 +297,7 @@ class Command(abc.ABC):
     workdir: str
     datadir: str
     json: bool
-    color: bool
+    no_color: bool
 
     builtin_options: List = builtin_options
     options: List = None
@@ -378,7 +378,7 @@ class Command(abc.ABC):
         self.workdir = self.ctx.obj['workdir']
         self.datadir = self.ctx.obj['datadir']
         self.json = self.ctx.obj['json']
-        self.color = self.ctx.obj['color']
+        self.no_color = self.ctx.obj['no_color']
         self.args = args
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
