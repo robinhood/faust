@@ -8,7 +8,10 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
-from aiokafka.errors import ConsumerStoppedError, KafkaError
+from aiokafka.errors import (
+    ConsumerStoppedError, CommitFailedError,
+    IllegalStateError,
+)
 from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
@@ -21,9 +24,11 @@ from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
 from . import base
+from ..exceptions import ProducerSendError
 from ..types import AppT, Message, RecordMetadata, TP
 from ..types.transports import ConsumerT, ProducerT
 from ..utils.kafka.protocol.admin import CreateTopicsRequest
+from ..utils.termtable import logtable
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -266,15 +271,31 @@ class Consumer(base.Consumer):
         read_offset.update(committed_offsets)
         self._committed_offset.update(committed_offsets)
 
-    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
-        self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
+    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
+        table = logtable(
+            [(str(tp), str(offset), meta) for tp, (offset, meta) in
+             offsets.items()],
+            title='Commit Offsets',
+            headers=['TP', 'Offset', 'Metadata'],
+        )
+        self.log.dev('COMMITTING OFFSETS:\n%s', table)
         try:
             await self._consumer.commit({
-                tp: self._new_offsetandmetadata(offset, meta),
+                tp: self._new_offsetandmetadata(offset, meta)
+                for tp, (offset, meta) in offsets.items()
+            })
+            self._committed_offset.update({
+                tp: offset
+                for tp, (offset, _) in offsets.items()
             })
             return True
-        except KafkaError as e:
-            self.log.exception(f'Committing raised exception: %r', e)
+        except CommitFailedError as exc:
+            self.log.exception(f'Committing raised exception: %r', exc)
+            return False
+        except IllegalStateError as exc:
+            self.log.exception(f'Got exception: {exc}\n'
+                               f'Current assignment: {self.assignment()}')
+            await self.crash(exc)
             return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
@@ -378,8 +399,11 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> Awaitable[RecordMetadata]:
-        return cast(Awaitable[RecordMetadata], await self._producer.send(
-            topic, value, key=key, partition=partition))
+        try:
+            return cast(Awaitable[RecordMetadata], await self._producer.send(
+                topic, value, key=key, partition=partition))
+        except KafkaError as exc:
+            raise ProducerSendError(f'Error while sending: {exc}')
 
     async def send_and_wait(
             self,
@@ -387,8 +411,8 @@ class Producer(base.Producer):
             key: Optional[bytes],
             value: Optional[bytes],
             partition: Optional[int]) -> RecordMetadata:
-        return cast(RecordMetadata, await self._producer.send_and_wait(
-            topic, value, key=key, partition=partition))
+        fut = await self.send(topic, key=key, value=value, partition=partition)
+        return await fut
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         partition = self._producer._partition(
