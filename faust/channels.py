@@ -25,7 +25,7 @@ from .types.channels import ChannelT, EventT
 from .types.streams import StreamT
 
 if typing.TYPE_CHECKING:
-    from .app import App
+    from .app.base import App
 else:
     class App: ...  # noqa
 

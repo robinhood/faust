@@ -28,4 +28,7 @@ __all__ = [
 ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
 RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
-HttpClientT = ClientSession
+
+
+class HttpClientT(ClientSession):
+    ...

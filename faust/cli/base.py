@@ -307,27 +307,6 @@ class Command(abc.ABC):
     prog_name: str = None
 
     @classmethod
-    def from_handler(cls,
-                     *options: Any,
-                     **kwargs: Any) -> Callable[[Callable], Type['Command']]:
-        def _inner(fun: Callable[..., Awaitable[Any]]) -> Type['Command']:
-            target: Any = fun
-            if not inspect.signature(fun).parameters:
-                # if it does not take self argument, use staticmethod
-                target = staticmethod(fun)
-
-            return type(fun.__name__, (cls,), {
-                'run': target,
-                '__doc__': fun.__doc__,
-                '__name__': fun.__name__,
-                '__qualname__': fun.__qualname__,
-                '__module__': fun.__module__,
-                '__wrapped__': fun,
-                'options': options,
-                **kwargs})
-        return _inner
-
-    @classmethod
     def as_click_command(cls) -> Callable:
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
@@ -505,6 +484,28 @@ class AppCommand(Command):
     #: The :term:`codec` used to serialize values.
     #: Taken from instance parameters or :attr:`@value_serializer`.
     value_serialier: CodecArg
+
+    @classmethod
+    def from_handler(
+            cls,
+            *options: Any,
+            **kwargs: Any) -> Callable[[Callable], Type['AppCommand']]:
+        def _inner(fun: Callable[..., Awaitable[Any]]) -> Type['AppCommand']:
+            target: Any = fun
+            if not inspect.signature(fun).parameters:
+                # if it does not take self argument, use staticmethod
+                target = staticmethod(fun)
+
+            return type(fun.__name__, (cls,), {
+                'run': target,
+                '__doc__': fun.__doc__,
+                '__name__': fun.__name__,
+                '__qualname__': fun.__qualname__,
+                '__module__': fun.__module__,
+                '__wrapped__': fun,
+                'options': options,
+                **kwargs})
+        return _inner
 
     def __init__(self, ctx: click.Context,
                  *args: Any,

@@ -39,7 +39,7 @@ from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
 
 if typing.TYPE_CHECKING:
-    from faust.app import App
+    from faust.app.base import App
 else:
     class App: ...   # noqa
 

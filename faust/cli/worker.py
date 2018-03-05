@@ -34,10 +34,9 @@ import typing
 from typing import Any, Iterable, Optional
 
 import click
+from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
 from yarl import URL
-
-from faust import __version__ as faust_version
 
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, TCPPort, WritableFilePath, option
@@ -50,6 +49,9 @@ else:
 __all__ = ['worker']
 
 FAUST = 'ƒaµS†'
+
+# XXX mypy borks if we do `from faust import __version`.
+faust_version: str = symbol_by_name('faust:__version__')
 
 LOGLEVELS = (
     'CRIT',

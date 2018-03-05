@@ -11,12 +11,10 @@ from mode import Seconds, want_seconds
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
 
-from faust import __version__ as faust_version
 from faust.cli._env import DATADIR
 from faust.exceptions import ImproperlyConfigured
 
 from .agents import AgentT
-from .app import HttpClientT
 from .assignor import LeaderAssignorT, PartitionAssignorT
 from .codecs import CodecArg
 from .router import RouterT
@@ -25,13 +23,17 @@ from .serializers import RegistryT
 from .streams import StreamT
 from .tables import SetT, TableManagerT, TableT
 from .topics import ConductorT, TopicT
+from .web import HttpClientT
 
 if typing.TYPE_CHECKING:
     from .worker import Worker as WorkerT
 else:
-    class WorkerT: ...     # noqa
+    class WorkerT: ...      # noqa
 
 __all__ = ['AutodiscoverArg', 'Settings']
+
+# XXX mypy borks if we do `from faust import __version__`
+faust_version: str = symbol_by_name('faust:__version__')
 
 #: Broker URL, used as default for :setting:`broker`.
 BROKER_URL = 'kafka://localhost:9092'

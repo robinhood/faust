@@ -26,7 +26,7 @@ try:
             self.ident = ident
             super().__init__(*args, **kwargs)  # type: ignore
 
-    @typing.no_type_check  #type: ignore
+    @typing.no_type_check  # type: ignore
     class _UsingKwargsInNew(_InitSubclassCheck, ident=909):
         ...
 except TypeError:
