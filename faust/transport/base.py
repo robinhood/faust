@@ -267,7 +267,6 @@ class Consumer(Service, ConsumerT):
         if commit_offsets:
             try:
                 await self._handle_attached(commit_offsets)
-                handled_attached = True
             except ProducerSendError as exc:
                 await self.crash(exc)
             else:
