@@ -313,9 +313,10 @@ class Consumer(base.Consumer):
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return cast(TP, _TopicPartition(topic, partition))
 
-    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
-        await self._consumer_thread.enqueue_method(
-            self._consumer_thread._commit, tp, offset, meta)
+    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
+        for tp, (offset, meta) in offsets.items():
+            await self._consumer_thread.enqueue_method(
+                self._consumer_thread._commit, tp, offset, meta)
         return True
 
     async def _commit_all(self) -> None:

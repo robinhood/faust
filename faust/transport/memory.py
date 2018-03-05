@@ -81,7 +81,7 @@ class Consumer(base.Consumer):
     async def perform_seek(self) -> None:
         ...
 
-    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
+    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
         ...
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:

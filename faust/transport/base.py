@@ -5,8 +5,10 @@ import gc
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator, List,
-    MutableMapping, MutableSet, Optional, Set, Tuple, Type, Union, cast,
+    Any, AsyncIterator, Awaitable, ClassVar,
+    Iterable, Iterator, List, Mapping,
+    MutableMapping, MutableSet, Optional,
+    Set, Tuple, Type, Union, cast,
 )
 from weakref import WeakSet
 
@@ -14,6 +16,7 @@ from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
+from faust.exceptions import ProducerSendError
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import (
     ConsumerCallback, ConsumerT,
@@ -124,7 +127,7 @@ class Consumer(Service, ConsumerT):
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
-    async def _commit(self, tp: TP, offset: int, meta: str) -> bool:
+    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
         ...
 
     @abc.abstractmethod
@@ -182,8 +185,8 @@ class Consumer(Service, ConsumerT):
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
             if not wait_count % 100_000:
-                remaining = len(self._unacked_messages)
-                self.log.warn(f'Waiting for {remaining} {wait_count}')
+                remaining = [(m.refcount, m) for m in self._unacked_messages]
+                self.log.warn(f'Waiting for {remaining}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             gc.collect()
             await self.commit()
@@ -256,27 +259,36 @@ class Consumer(Service, ConsumerT):
 
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:
         did_commit = False
-        if tps:
-            coros = [self._commit_tp(tp) for tp in tps]
-            done, _ = await asyncio.wait(coros, loop=self.loop)
-            did_commit = any(fut.result() for fut in done)
+        commit_offsets = {}
+        for tp in tps:
+            # Find the latest offset we can commit in this tp
+            offset = self._new_offset(tp)
+            # check if we can commit to this offset
+            if offset is not None and self._should_commit(tp, offset):
+                commit_offsets[tp] = offset
+        if commit_offsets:
+            handled_attached = False
+            try:
+                # send all messages attached to the new offset
+                await self._handle_attached(commit_offsets)
+                handled_attached = True
+            except ProducerSendError as exc:
+                await self.crash(exc)
+            if handled_attached:
+                # then, update the committed_offset and perform the commit.
+                did_commit = await self._commit_offsets(commit_offsets)
         return did_commit
 
-    async def _commit_tp(self, tp: TP) -> bool:
-        did_commit = False
-        # Find the latest offset we can commit in this tp
-        offset = self._new_offset(tp)
-        # check if we can commit to this offset
-        if offset is not None and self._should_commit(tp, offset):
-            # if so, first send all messages attached to the new
-            # offset
+    async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
+        for tp, offset in commit_offsets.items():
             await cast(App, self.app)._attachments.commit(tp, offset)
-            # then, update the committed_offset and perform
-            # the commit.
-            self._committed_offset[tp] = offset
-            did_commit = True
-            await self._commit(tp, offset, meta='')
-        return did_commit
+
+    async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
+        meta = ''
+        return await self._commit({
+            tp: (offset, meta)
+            for tp, offset in commit_offsets.items()
+        })
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
