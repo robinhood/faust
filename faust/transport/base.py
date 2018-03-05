@@ -259,22 +259,20 @@ class Consumer(Service, ConsumerT):
         return did_commit
 
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:
-        did_commit = False
         commit_offsets = {}
         for tp in tps:
             offset = self._new_offset(tp)
             if offset is not None and self._should_commit(tp, offset):
                 commit_offsets[tp] = offset
         if commit_offsets:
-            handled_attached = False
             try:
                 await self._handle_attached(commit_offsets)
                 handled_attached = True
             except ProducerSendError as exc:
                 await self.crash(exc)
-            if handled_attached:
-                did_commit = await self._commit_offsets(commit_offsets)
-        return did_commit
+            else:
+                return await self._commit_offsets(commit_offsets)
+        return False
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
         for tp, offset in commit_offsets.items():
