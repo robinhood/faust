@@ -17,7 +17,7 @@ ModelArg = Union[Type['ModelT'], Type[bytes], Type[str]]
 
 # Workaround for https://bugs.python.org/issue29581
 try:
-    @typing.no_type_check
+    @typing.no_type_check  # type: ignore
     class _InitSubclassCheck(metaclass=abc.ABCMeta):
 
         def __init_subclass__(self, *args: Any,
@@ -26,7 +26,7 @@ try:
             self.ident = ident
             super().__init__(*args, **kwargs)  # type: ignore
 
-    @typing.no_type_check
+    @typing.no_type_check  #type: ignore
     class _UsingKwargsInNew(_InitSubclassCheck, ident=909):
         ...
 except TypeError:
