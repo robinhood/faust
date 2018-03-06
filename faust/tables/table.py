@@ -75,8 +75,7 @@ class Table(TableT, Collection, ManagedUserDict):
                      target: IO = sys.stdout,
                      title: str = '{table.name}') -> str:
         header = [text.title(key), text.title(value)]
-        data = cast(
-            Iterable[List[str]], dict(self).items())
+        data = cast(Iterable[List[str]], dict(self).items())
         data = list(sorted(data, key=sortkey)) if sort else list(data)
         if sort:
             data = list(sorted(data, key=sortkey))

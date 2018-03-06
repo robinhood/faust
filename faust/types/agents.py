@@ -2,8 +2,20 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Generic,
-    Iterable, List, Mapping, MutableMapping, Tuple, Type, TypeVar, Union,
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
     no_type_check,
 )
 
@@ -61,10 +73,7 @@ class ActorT(ServiceT, Generic[_T]):
     index: int = None
 
     @abc.abstractmethod
-    def __init__(self,
-                 agent: 'AgentT',
-                 stream: StreamT,
-                 it: _T,
+    def __init__(self, agent: 'AgentT', stream: StreamT, it: _T,
                  **kwargs: Any) -> None:
         ...
 
@@ -93,7 +102,8 @@ class AgentT(ServiceT):
     supervisor_strategy: Type[SupervisorStrategyT]
 
     @abc.abstractmethod
-    def __init__(self, fun: AgentFun,
+    def __init__(self,
+                 fun: AgentFun,
                  *,
                  name: str = None,
                  app: AppT = None,
@@ -113,7 +123,8 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def test_context(self, channel: ChannelT = None,
+    def test_context(self,
+                     channel: ChannelT = None,
                      supervisor_strategy: SupervisorStrategyT = None,
                      **kwargs: Any) -> 'AgentTestWrapperT':
         ...
@@ -127,45 +138,41 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def cast(
-            self,
-            value: V = None,
-            *,
-            key: K = None,
-            partition: int = None) -> None:
+    async def cast(self,
+                   value: V = None,
+                   *,
+                   key: K = None,
+                   partition: int = None) -> None:
         ...
 
     @abc.abstractmethod
-    async def ask(
-            self,
-            value: V = None,
-            *,
-            key: K = None,
-            partition: int = None,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> Any:
+    async def ask(self,
+                  value: V = None,
+                  *,
+                  key: K = None,
+                  partition: int = None,
+                  reply_to: ReplyToArg = None,
+                  correlation_id: str = None) -> Any:
         ...
 
     @abc.abstractmethod
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> Awaitable[RecordMetadata]:
+    async def send(self,
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   *,
+                   reply_to: ReplyToArg = None,
+                   correlation_id: str = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
     @no_type_check  # XXX mypy bugs out on this
-    async def map(
-            self,
-            values: Union[AsyncIterable, Iterable],
-            key: K = None,
-            reply_to: ReplyToArg = None) -> AsyncIterator:
+    async def map(self,
+                  values: Union[AsyncIterable, Iterable],
+                  key: K = None,
+                  reply_to: ReplyToArg = None) -> AsyncIterator:
         ...
 
     @abc.abstractmethod
@@ -177,11 +184,10 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def join(
-            self,
-            values: Union[AsyncIterable[V], Iterable[V]],
-            key: K = None,
-            reply_to: ReplyToArg = None) -> List[Any]:
+    async def join(self,
+                   values: Union[AsyncIterable[V], Iterable[V]],
+                   key: K = None,
+                   reply_to: ReplyToArg = None) -> List[Any]:
         ...
 
     @abc.abstractmethod
@@ -196,9 +202,7 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def clone(self, *,
-              cls: Type['AgentT'] = None,
-              **kwargs: Any) -> 'AgentT':
+    def clone(self, *, cls: Type['AgentT'] = None, **kwargs: Any) -> 'AgentT':
         ...
 
     @property
@@ -237,27 +241,29 @@ class AgentTestWrapperT(AgentT, AsyncIterable):
     processed_offset: int = 0
 
     @abc.abstractmethod
-    def __init__(self, *args: Any,
+    def __init__(self,
+                 *args: Any,
                  original_channel: ChannelT = None,
                  **kwargs: Any) -> None:
         ...
 
     @abc.abstractmethod
-    async def put(
-            self,
-            value: V = None,
-            key: K = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None,
-            wait: bool = True) -> EventT:
+    async def put(self,
+                  value: V = None,
+                  key: K = None,
+                  partition: int = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None,
+                  *,
+                  reply_to: ReplyToArg = None,
+                  correlation_id: str = None,
+                  wait: bool = True) -> EventT:
         ...
 
     @abc.abstractmethod
-    def to_message(self, key: K, value: V,
+    def to_message(self,
+                   key: K,
+                   value: V,
                    *,
                    partition: int = 0,
                    offset: int = 0,

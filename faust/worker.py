@@ -82,8 +82,7 @@ logger = get_logger(__name__)
 def format_log_arguments(arg: Any) -> Any:
     if arg and isinstance(arg, Mapping):
         first_k, first_v = next(iter(arg.items()))
-        if (isinstance(first_k, str) and
-                isinstance(first_v, set) and
+        if (isinstance(first_k, str) and isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
             return '\n' + logtable(
                 [(k, v) for k, v in arg.items()],
@@ -210,25 +209,26 @@ class Worker(mode.Worker):
     #: Set by signal to avoid printing an OK status.
     absolutely_no_smiley: bool = False
 
-    def __init__(
-            self, app: AppT, *services: ServiceT,
-            sensors: Iterable[SensorT] = None,
-            debug: bool = DEBUG,
-            quiet: bool = False,
-            loglevel: Union[str, int] = None,
-            logfile: Union[str, IO] = None,
-            logformat: str = None,
-            stdout: IO = sys.stdout,
-            stderr: IO = sys.stderr,
-            blocking_timeout: float = BLOCKING_TIMEOUT,
-            workdir: Union[Path, str] = None,
-            Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
-            web_port: int = None,
-            web_bind: str = None,
-            web_host: str = None,
-            console_port: int = 50101,
-            loop: asyncio.AbstractEventLoop = None,
-            **kwargs: Any) -> None:
+    def __init__(self,
+                 app: AppT,
+                 *services: ServiceT,
+                 sensors: Iterable[SensorT] = None,
+                 debug: bool = DEBUG,
+                 quiet: bool = False,
+                 loglevel: Union[str, int] = None,
+                 logfile: Union[str, IO] = None,
+                 logformat: str = None,
+                 stdout: IO = sys.stdout,
+                 stderr: IO = sys.stderr,
+                 blocking_timeout: float = BLOCKING_TIMEOUT,
+                 workdir: Union[Path, str] = None,
+                 Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
+                 web_port: int = None,
+                 web_bind: str = None,
+                 web_host: str = None,
+                 console_port: int = 50101,
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
         self.app = app
         self.sensors = set(sensors or [])
         self.workdir = Path(workdir or Path.cwd())
@@ -306,9 +306,7 @@ class Worker(mode.Worker):
         else:
             self._say('starting^', end='')
 
-    def on_setup_root_logger(self,
-                             logger: logging.Logger,
-                             level: int) -> None:
+    def on_setup_root_logger(self, logger: logging.Logger, level: int) -> None:
         # This is used to set up the terminal progress spinner
         # so that it spins for every log message emitted.
         if level and level < logging.WARN:
@@ -316,8 +314,7 @@ class Worker(mode.Worker):
 
         if self.spinner:
             logger.handlers[0].setLevel(level)
-            logger.addHandler(
-                SpinnerHandler(self, level=logging.DEBUG))
+            logger.addHandler(SpinnerHandler(self, level=logging.DEBUG))
             logger.setLevel(logging.DEBUG)
 
     @cached_property

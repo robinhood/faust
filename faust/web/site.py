@@ -13,7 +13,6 @@ from .apps import tables
 from .base import Web
 from .views import Site
 
-
 __all__ = ['Website']
 
 DEFAULT_DRIVER = 'aiohttp://'
@@ -31,7 +30,8 @@ class Website(Service):
         ('/table', tables.Site),
     ]
 
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  port: int = None,
                  bind: str = None,

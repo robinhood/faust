@@ -26,8 +26,12 @@ from .transports import (
     TransportT,
 )
 from .tuples import (
-    FutureMessage, Message, MessageSentCallback, PendingMessage,
-    RecordMetadata, TP,
+    FutureMessage,
+    Message,
+    MessageSentCallback,
+    PendingMessage,
+    RecordMetadata,
+    TP,
 )
 from .windows import WindowRange, WindowT
 
@@ -36,16 +40,19 @@ __all__ = [
     'ServiceT',
 
     # types.agents
-    'AgentManagerT', 'AgentT',
+    'AgentManagerT',
+    'AgentT',
 
     # types.app
     'AppT',
 
     # types.codecs
-    'CodecArg', 'CodecT',
+    'CodecArg',
+    'CodecT',
 
     # types.core
-    'K', 'V',
+    'K',
+    'V',
 
     # types.fixups
     'FixupT',
@@ -54,7 +61,10 @@ __all__ = [
     'JoinT',
 
     # types.models
-    'FieldDescriptorT', 'ModelArg', 'ModelOptions', 'ModelT',
+    'FieldDescriptorT',
+    'ModelArg',
+    'ModelOptions',
+    'ModelT',
 
     # types.sensors
     'SensorT',
@@ -66,21 +76,35 @@ __all__ = [
     'StoreT',
 
     # types.streams
-    'JoinableT', 'Processor', 'StreamT',
+    'JoinableT',
+    'Processor',
+    'StreamT',
 
     # types.tables
-    'CollectionT', 'SetT', 'TableT',
+    'CollectionT',
+    'SetT',
+    'TableT',
 
     # types.topics
-    'ChannelT', 'EventT', 'TopicT',
+    'ChannelT',
+    'EventT',
+    'TopicT',
 
     # types.transports
-    'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
+    'ConsumerCallback',
+    'ConsumerT',
+    'ProducerT',
+    'TransportT',
 
     # types.tuples
-    'FutureMessage', 'Message', 'MessageSentCallback', 'PendingMessage',
-    'RecordMetadata', 'TP',
+    'FutureMessage',
+    'Message',
+    'MessageSentCallback',
+    'PendingMessage',
+    'RecordMetadata',
+    'TP',
 
     # types.windows
-    'WindowRange', 'WindowT',
+    'WindowRange',
+    'WindowT',
 ]

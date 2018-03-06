@@ -11,9 +11,22 @@ import typing
 import warnings
 from functools import wraps
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable,
-    Iterable, Iterator, List, Mapping, MutableMapping, MutableSequence,
-    Optional, Pattern, Set as _Set, Type, Union, cast,
+    Any,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Pattern,
+    Set as _Set,
+    Type,
+    Union,
+    cast,
 )
 
 import venusian
@@ -26,39 +39,54 @@ from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
 from mode.utils.imports import import_from_cwd, smart_import, symbol_by_name
 from mode.utils.types.trees import NodeT
 
+from faust import transport
+from faust.agents import (
+    AgentFun,
+    AgentManager,
+    AgentT,
+    ReplyConsumer,
+    SinkT,
+)
+from faust.channels import Channel, ChannelT
+from faust.exceptions import ImproperlyConfigured, SameNode
+from faust.fixups import FixupT, fixups
+from faust.sensors import Monitor, SensorDelegate
+from faust.utils.objects import cached_property
+from faust.web.views import Request, Response, Site, View
+
+from faust.types.app import AppT, TaskArg
+from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
+from faust.types.codecs import CodecArg
+from faust.types.core import K, V
+from faust.types.models import ModelArg
+from faust.types.router import RouterT
+from faust.types.serializers import RegistryT
+from faust.types.settings import Settings
+from faust.types.streams import StreamT
+from faust.types.tables import CollectionT, SetT, TableManagerT, TableT
+from faust.types.topics import ConductorT, TopicT
+from faust.types.transports import (
+    ConsumerT,
+    ProducerT,
+    TPorTopicSet,
+    TransportT,
+)
+from faust.types.tuples import MessageSentCallback, RecordMetadata, TP
+from faust.types.web import (
+    HttpClientT,
+    PageArg,
+    RoutedViewGetHandler,
+    ViewGetHandler,
+)
+from faust.types.windows import WindowT
+
 from ._attached import Attachments
 from .service import AppService
 
-from .. import transport
-from ..agents import (
-    AgentFun, AgentManager, AgentT, ReplyConsumer, SinkT,
-)
-from ..channels import Channel, ChannelT
-from ..exceptions import ImproperlyConfigured, SameNode
-from ..fixups import FixupT, fixups
-from ..sensors import Monitor, SensorDelegate
-
-from ..types import CodecArg, CollectionT, K, ModelArg, RegistryT, TopicT, V
-from ..types.app import AppT, TaskArg
-from ..types.assignor import LeaderAssignorT, PartitionAssignorT
-from ..types.router import RouterT
-from ..types.settings import Settings
-from ..types.streams import StreamT
-from ..types.tables import SetT, TableManagerT, TableT
-from ..types.topics import ConductorT
-from ..types.transports import ConsumerT, ProducerT, TPorTopicSet, TransportT
-from ..types.tuples import MessageSentCallback, RecordMetadata, TP
-from ..types.web import (
-    HttpClientT, PageArg, RoutedViewGetHandler, ViewGetHandler,
-)
-from ..types.windows import WindowT
-from ..utils.objects import cached_property
-from ..web.views import Request, Response, Site, View
-
 if typing.TYPE_CHECKING:
-    from ..cli.base import AppCommand
-    from ..channels import Event
-    from ..worker import Worker as WorkerT
+    from faust.cli.base import AppCommand
+    from faust.channels import Event
+    from faust.worker import Worker as WorkerT
 else:
     class AppCommand: ...  # noqa
     class Event: ...       # noqa
@@ -172,7 +200,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # first time we start.
     _partitions_revoked_count: int = 0
 
-    def __init__(self, id: str, *,
+    def __init__(self,
+                 id: str,
+                 *,
                  monitor: Monitor = None,
                  config_source: Any = None,
                  **options: Any) -> None:
@@ -206,7 +236,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def _init_fixups(self) -> MutableSequence[FixupT]:
         return list(fixups(self))
 
-    def config_from_object(self, obj: Any,
+    def config_from_object(self,
+                           obj: Any,
                            *,
                            silent: bool = False,
                            force: bool = False) -> None:
@@ -282,20 +313,21 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             modules.append(self.conf.origin)
         return modules
 
-    def _new_scanner(
-            self, *ignore: Pattern, **kwargs: Any) -> venusian.Scanner:
+    def _new_scanner(self, *ignore: Pattern,
+                     **kwargs: Any) -> venusian.Scanner:
         return venusian.Scanner(ignore=[pat.search for pat in ignore])
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
-        from ..cli.faust import cli
+        from faust.cli.faust import cli
         self.finalize()
         self.worker_init()
         if self.conf.autodiscover:
             self.discover()
         cli(app=self)
 
-    def topic(self, *topics: str,
+    def topic(self,
+              *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: ModelArg = None,
               value_type: ModelArg = None,
@@ -317,8 +349,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         See Also:
             :class:`faust.topics.Topic`
         """
-        Topic = (self.conf.Topic if self.finalized
-                 else symbol_by_name('faust:Topic'))
+        Topic = (self.conf.Topic
+                 if self.finalized else symbol_by_name('faust:Topic'))
         return Topic(
             self,
             topics=topics,
@@ -337,7 +369,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             config=config,
         )
 
-    def channel(self, *,
+    def channel(self,
+                *,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
                 maxsize: int = 1,
@@ -386,9 +419,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 async for number in stream:
                     print(f'Received: {number!r}')
         """
+
         def _inner(fun: AgentFun) -> AgentT:
-            Agent = (self.conf.Agent if self.finalized
-                     else symbol_by_name('faust:Agent'))
+            Agent = (self.conf.Agent
+                     if self.finalized else symbol_by_name('faust:Agent'))
             agent = Agent(
                 fun,
                 name=name,
@@ -403,11 +437,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self.agents[agent.name] = agent
             venusian.attach(agent, agent.on_discovered, category=SCAN_AGENT)
             return agent
+
         return _inner
+
     actor = agent  # XXX Compatibility alias: REMOVE FOR 1.0
 
-    async def _on_agent_error(
-            self, agent: AgentT, exc: BaseException) -> None:
+    async def _on_agent_error(self, agent: AgentT, exc: BaseException) -> None:
         # See agent-errors in docs/userguide/agents.rst
         if self._consumer:
             try:
@@ -442,12 +477,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self._tasks.append(fun)
         return fun
 
-    def _on_task_discovered(
-            self, scanner: venusian.Scanner, name: str, obj: TaskArg) -> None:
+    def _on_task_discovered(self, scanner: venusian.Scanner, name: str,
+                            obj: TaskArg) -> None:
         ...
 
-    def timer(self, interval: Seconds,
-              on_leader: bool = False) -> Callable:
+    def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
         """Define an async def function to be run at periodic intervals.
 
         Like :meth:`task`, but executes periodically until the worker
@@ -482,7 +516,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     should_run = not on_leader or self.is_leader()
                     if should_run:
                         await fun(*args)  # type: ignore
+
             return around_timer
+
         return _inner
 
     def service(self, cls: Type[ServiceT]) -> Type[ServiceT]:
@@ -502,15 +538,15 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self._extra_services.append(cls)
         return cls
 
-    def _on_service_discovered(
-            self, scanner: venusian.Scanner,
-            name: str, obj: Type[ServiceT]) -> None:
+    def _on_service_discovered(self, scanner: venusian.Scanner, name: str,
+                               obj: Type[ServiceT]) -> None:
         ...
 
     def is_leader(self) -> bool:
         return self._leader_assignor.is_leader()
 
-    def stream(self, channel: Union[AsyncIterable, Iterable],
+    def stream(self,
+               channel: Union[AsyncIterable, Iterable],
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         """Create new stream from channel/topic/iterable/async iterable.
@@ -530,7 +566,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             beacon=beacon or self.beacon,
             **kwargs)
 
-    def Table(self, name: str,
+    def Table(self,
+              name: str,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
@@ -556,19 +593,21 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> table['Elaine']
             2
         """
-        Table = (self.conf.Table if self.finalized
-                 else symbol_by_name('faust:Table'))
-        table = self.tables.add(Table(
-            self,
-            name=name,
-            default=default,
-            beacon=self.beacon,
-            partitions=partitions,
-            help=help,
-            **kwargs))
+        Table = (self.conf.Table
+                 if self.finalized else symbol_by_name('faust:Table'))
+        table = self.tables.add(
+            Table(
+                self,
+                name=name,
+                default=default,
+                beacon=self.beacon,
+                partitions=partitions,
+                help=help,
+                **kwargs))
         return table.using_window(window) if window else table
 
-    def Set(self, name: str,
+    def Set(self,
+            name: str,
             *,
             window: WindowT = None,
             partitions: int = None,
@@ -584,38 +623,37 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             The set does *not have* the dict/Mapping interface.
         """
         Set = self.conf.Set if self.finalized else symbol_by_name('faust:Set')
-        return self.tables.add(Set(
-            self,
-            name=name,
-            beacon=self.beacon,
-            partitions=partitions,
-            window=window,
-            help=help,
-            **kwargs))
+        return self.tables.add(
+            Set(self,
+                name=name,
+                beacon=self.beacon,
+                partitions=partitions,
+                window=window,
+                help=help,
+                **kwargs))
 
-    def page(self, path: str,
-             *,
+    def page(self, path: str, *,
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
-
         def _decorator(fun: PageArg) -> Type[Site]:
             site = Site.from_handler(path, base=base)(fun)
             self.pages.append(('', site))
             venusian.attach(site, site.on_discovered, category=SCAN_PAGE)
             return site
+
         return _decorator
 
     def table_route(self, table: CollectionT,
                     shard_param: str) -> RoutedViewGetHandler:
         def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
-
             @wraps(fun)
             async def get(view: View, request: Request) -> Response:
                 key = request.query[shard_param]
                 try:
-                    return await self.router.route_req(
-                        table.name, key, view.web, request)
+                    return await self.router.route_req(table.name, key,
+                                                       view.web, request)
                 except SameNode:
                     return await fun(view, request)
+
             return get
 
         return _decorator
@@ -628,13 +666,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             raise TypeError('Use parens in @app.command(), not @app.command.')
         _base: Type[AppCommand] = base
         if _base is None:
-            from ..cli import base as cli_base
+            from faust.cli import base as cli_base
             _base = cli_base.AppCommand
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
             cmd = _base.from_handler(*options, **kwargs)(fun)
             venusian.attach(cmd, cmd.on_discovered, category=SCAN_COMMAND)
             return cmd
+
         return _inner
 
     async def start_client(self) -> None:
@@ -684,8 +723,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         if isinstance(channel, str):
             channel = self.topic(channel)
         return await channel.send(
-            key, value, partition,
-            key_serializer, value_serializer, callback,
+            key,
+            value,
+            partition,
+            key_serializer,
+            value_serializer,
+            callback,
         )
 
     @stampede
@@ -835,12 +878,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 if val is not None:
                     raise ImproperlyConfigured(
                         f'Cannot use both compat option {old!r} and {new!r}')
-                warnings.warn(FutureWarning(
-                    W_OPTION_DEPRECATED.format(old=old, new=new)))
+                warnings.warn(
+                    FutureWarning(
+                        W_OPTION_DEPRECATED.format(old=old, new=new)))
         return options
 
-    def _load_settings_from_source(self, source: Any,
-                                   *,
+    def _load_settings_from_source(self, source: Any, *,
                                    silent: bool = False) -> Mapping:
         if isinstance(source, str):
             try:
@@ -899,8 +942,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        TableManager = (self.conf.TableManager if self.finalized
-                        else symbol_by_name('faust.tables:TableManager'))
+        TableManager = (self.conf.TableManager if self.finalized else
+                        symbol_by_name('faust.tables:TableManager'))
         return TableManager(
             app=self,
             loop=self.loop,
@@ -924,8 +967,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @property
     def monitor(self) -> Monitor:
         if self._monitor is None:
-            self._monitor = cast(Monitor, self.conf.Monitor(
-                loop=self.loop, beacon=self.beacon))
+            self._monitor = cast(Monitor,
+                                 self.conf.Monitor(
+                                     loop=self.loop, beacon=self.beacon))
         return self._monitor
 
     @monitor.setter

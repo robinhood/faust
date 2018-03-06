@@ -2,8 +2,19 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable,
-    List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    no_type_check,
 )
 
 from mode import Seconds, ServiceT
@@ -36,12 +47,8 @@ T_contra = TypeVar('T_contra', contravariant=True)
 
 Processor = Callable[[T], Union[T, Awaitable[T]]]
 
-
 #: Type of the `key` argument to `Stream.group_by()`
-GroupByKeyArg = Union[
-    FieldDescriptorT,
-    Callable[[T], K],
-]
+GroupByKeyArg = Union[FieldDescriptorT, Callable[[T], K]]
 
 
 class JoinableT(abc.ABC):
@@ -93,7 +100,8 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     link: 'StreamT' = None
 
     @abc.abstractmethod
-    def __init__(self, channel: AsyncIterator[T_co] = None,
+    def __init__(self,
+                 channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor[T]] = None,
                  children: List[JoinableT] = None,
@@ -137,8 +145,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def enumerate(
-            self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
+    def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         ...
 
     @abc.abstractmethod
@@ -150,20 +157,21 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def group_by(self, key: GroupByKeyArg,
+    def group_by(self,
+                 key: GroupByKeyArg,
                  *,
                  name: str = None,
                  topic: TopicT = None) -> 'StreamT':
         ...
 
     @abc.abstractmethod
-    def derive_topic(
-            self, name: str,
-            *,
-            key_type: ModelArg = None,
-            value_type: ModelArg = None,
-            prefix: str = '',
-            suffix: str = '') -> TopicT:
+    def derive_topic(self,
+                     name: str,
+                     *,
+                     key_type: ModelArg = None,
+                     value_type: ModelArg = None,
+                     prefix: str = '',
+                     suffix: str = '') -> TopicT:
         ...
 
     @abc.abstractmethod

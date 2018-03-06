@@ -2,8 +2,19 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Iterable,
-    List, Mapping, MutableSequence, Pattern, Set, Tuple, Type, Union,
+    Any,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    MutableSequence,
+    Pattern,
+    Set,
+    Tuple,
+    Type,
+    Union,
 )
 
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
@@ -46,10 +57,7 @@ __all__ = [
     'AppT',
 ]
 
-TaskArg = Union[
-    Callable[['AppT'], Awaitable],
-    Callable[[], Awaitable],
-]
+TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
 
 
 class AppT(ServiceT):
@@ -78,14 +86,17 @@ class AppT(ServiceT):
     fixups: MutableSequence[FixupT]
 
     @abc.abstractmethod
-    def __init__(self, id: str, *,
+    def __init__(self,
+                 id: str,
+                 *,
                  monitor: Monitor,
                  config_source: Any = None,
                  **options: Any) -> None:
         self.on_startup_finished: Callable = None
 
     @abc.abstractmethod
-    def config_from_object(self, obj: Any,
+    def config_from_object(self,
+                           obj: Any,
                            *,
                            silent: bool = False,
                            force: bool = False) -> None:
@@ -111,7 +122,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def topic(self, *topics: str,
+    def topic(self,
+              *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: ModelArg = None,
               value_type: ModelArg = None,
@@ -128,7 +140,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def channel(self, *,
+    def channel(self,
+                *,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
                 maxsize: int = 1,
@@ -151,8 +164,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def timer(self, interval: Seconds,
-              on_leader: bool = False) -> Callable:
+    def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
         ...
 
     @abc.abstractmethod
@@ -160,13 +172,15 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def stream(self, channel: AsyncIterable,
+    def stream(self,
+               channel: AsyncIterable,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         ...
 
     @abc.abstractmethod
-    def Table(self, name: str,
+    def Table(self,
+              name: str,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
@@ -176,7 +190,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def Set(self, name: str,
+    def Set(self,
+            name: str,
             *,
             window: WindowT = None,
             partitions: int = None,
@@ -185,8 +200,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def page(self, path: str,
-             *,
+    def page(self, path: str, *,
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
         ...
 
@@ -212,7 +226,8 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def send(
-            self, channel: Union[ChannelT, str],
+            self,
+            channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,

@@ -4,8 +4,20 @@ import reprlib
 import typing
 import weakref
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Callable, Iterable, List,
-    Mapping, MutableSequence, Optional, Sequence, Set, Tuple, Union, cast,
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    MutableSequence,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+    cast,
 )
 
 from mode import Seconds, Service, want_seconds
@@ -19,7 +31,13 @@ from .types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
 from .types.joins import JoinT
 from .types.models import FieldDescriptorT
 from .types.streams import (
-    GroupByKeyArg, JoinableT, Processor, StreamT, T, T_co, T_contra,
+    GroupByKeyArg,
+    JoinableT,
+    Processor,
+    StreamT,
+    T,
+    T_co,
+    T_contra,
 )
 from .types.topics import ChannelT
 
@@ -27,7 +45,6 @@ __all__ = [
     'Stream',
     'current_event',
 ]
-
 
 try:
     from contextvars import ContextVar
@@ -75,7 +92,8 @@ class Stream(StreamT[T_co], Service):
     _anext_started: bool = False
     _passive = False
 
-    def __init__(self, channel: AsyncIterator[T_co] = None,
+    def __init__(self,
+                 channel: AsyncIterator[T_co] = None,
                  *,
                  app: AppT = None,
                  processors: Iterable[Processor[T]] = None,
@@ -264,20 +282,17 @@ class Stream(StreamT[T_co], Service):
                     a, b = stream.tee(2)
                     await asyncio.gather(processor1(a), processor2(b))
         """
-        streams = [
-            self.clone(on_start=self.maybe_start)
-            for _ in range(n)
-        ]
+        streams = [self.clone(on_start=self.maybe_start) for _ in range(n)]
 
         async def forward(value: T) -> T:
             for stream in streams:
                 await stream.send(value)
             return value
+
         self.add_processor(forward)
         return tuple(streams)
 
-    def enumerate(self,
-                  start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
+    def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         """Enumerate values received on this stream.
 
         Unlike Python's built-in ``enumerate``, this works with
@@ -360,8 +375,7 @@ class Stream(StreamT[T_co], Service):
         Unlike :meth:`through`, we don't consume from these channels.
         """
         _channels = [
-            self.derive_topic(c) if isinstance(c, str) else c
-            for c in channels
+            self.derive_topic(c) if isinstance(c, str) else c for c in channels
         ]
 
         async def echoing(value: T) -> T:
@@ -371,10 +385,12 @@ class Stream(StreamT[T_co], Service):
                 return_when=asyncio.ALL_COMPLETED,
             )
             return value
+
         self.add_processor(echoing)
         return self
 
-    def group_by(self, key: GroupByKeyArg,
+    def group_by(self,
+                 key: GroupByKeyArg,
                  *,
                  name: str = None,
                  topic: TopicT = None,
@@ -470,6 +486,7 @@ class Stream(StreamT[T_co], Service):
                 topic_created = True
             await event.forward(channel, key=new_key)
             return value
+
         self.add_processor(repartition)
         self._enable_passive(cast(ChannelT, channel_it))
         return grouped
@@ -479,7 +496,8 @@ class Stream(StreamT[T_co], Service):
             return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
         return await maybe_async(cast(Callable, key)(value))
 
-    def derive_topic(self, name: str,
+    def derive_topic(self,
+                     name: str,
                      *,
                      key_type: ModelArg = None,
                      value_type: ModelArg = None,
@@ -517,9 +535,7 @@ class Stream(StreamT[T_co], Service):
         # The resulting stream's `on_merge` callback can be used to
         # process values from all the combined streams, and e.g.
         # joins uses this to consolidate multiple values into one.
-        self.link = stream = self.clone(
-            children=self.children + list(nodes),
-        )
+        self.link = stream = self.clone(children=self.children + list(nodes))
         for node in stream.children:
             node.outbox = stream.outbox
         return stream

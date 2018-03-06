@@ -42,8 +42,7 @@ class version_info_t(NamedTuple):
 
 # bumpversion can only search for {current_version}
 # so we have to parse the version here.
-_temp = re.match(
-    r'(\d+)\.(\d+).(\d+)(.+)?', __version__).groups()
+_temp = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__).groups()
 VERSION = version_info = version_info_t(
     int(_temp[0]), int(_temp[1]), int(_temp[2]), _temp[3] or '', '')
 del(_temp)
@@ -92,18 +91,14 @@ def _extract_arg_from_argv(
     return None
 
 
-_datadir = (
-    _extract_arg_from_argv(longopts=('--datadir',)) or
-    os.environ.get('FAUST_DATADIR') or
-    os.environ.get('F_DATADIR')
-)
+_datadir = (_extract_arg_from_argv(longopts=('--datadir',)) or
+            os.environ.get('FAUST_DATADIR') or
+            os.environ.get('F_DATADIR'))
 if _datadir:
     os.environ['FAUST_DATADIR'] = _datadir
-_loop = (
-    _extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',)) or
-    os.environ.get('FAUST_LOOP') or
-    os.environ.get('F_LOOP')
-)
+_loop = (_extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',)) or
+         os.environ.get('FAUST_LOOP') or
+         os.environ.get('F_LOOP'))
 if _loop:
     os.environ['FAUST_LOOP'] = _loop
     import mode.loop
@@ -126,33 +121,42 @@ if typing.TYPE_CHECKING:
     from .topics import Topic, TopicT                           # noqa: E402
     from .types.settings import Settings                        # noqa: E402
     from .windows import (                                      # noqa: E402
-        HoppingWindow, TumblingWindow, SlidingWindow,
+        HoppingWindow,
+        TumblingWindow,
+        SlidingWindow,
     )
     from .worker import Worker                                # noqa: E402
 
 __all__ = [
     'Agent',
     'App',
-    'AppCommand', 'Command',
+    'AppCommand',
+    'Command',
     'Channel',
     'ChannelT',
     'Event',
     'EventT',
-    'Model', 'ModelOptions', 'Record',
+    'Model',
+    'ModelOptions',
+    'Record',
     'Monitor',
     'Sensor',
     'Codec',
-    'Service', 'ServiceT',
-    'Stream', 'StreamT', 'current_event',
+    'Service',
+    'ServiceT',
+    'Stream',
+    'StreamT',
+    'current_event',
     'Set',
     'Table',
     'Topic',
     'TopicT',
     'Settings',
-    'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
+    'HoppingWindow',
+    'TumblingWindow',
+    'SlidingWindow',
     'Worker',
 ]
-
 
 # Lazy loading.
 # - See werkzeug/__init__.py for the rationale behind this.
@@ -161,11 +165,19 @@ from types import ModuleType  # noqa
 all_by_module: Mapping[str, Sequence[str]] = {
     'faust.agents': ['Agent'],
     'faust.app': ['App'],
-    'faust.channels': ['Channel', 'ChannelT', 'Event', 'EventT'],
+    'faust.channels': [
+        'Channel',
+        'ChannelT',
+        'Event',
+        'EventT'],
     'faust.models': ['ModelOptions', 'Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.serializers': ['Codec'],
-    'faust.streams': ['Stream', 'StreamT', 'current_event'],
+    'faust.streams': [
+        'Stream',
+        'StreamT',
+        'current_event',
+    ],
     'faust.tables.set': ['Set'],
     'faust.tables.table': ['Table'],
     'faust.topics': ['Topic', 'TopicT'],
@@ -187,24 +199,35 @@ for module, items in all_by_module.items():
 
 class _module(ModuleType):
     """Customized Python module."""
+    standard_package_vars = [
+        '__file__',
+        '__path__',
+        '__doc__',
+        '__all__',
+        '__docformat__',
+        '__name__',
+        '__path__',
+        'VERSION',
+        'version_info_t',
+        'version_info',
+        '__package__',
+        '__version__',
+        '__author__',
+        '__contact__',
+        '__homepage__',
+        '__docformat__',
+    ]
 
     def __getattr__(self, name: str) -> Any:
         if name in object_origins:
-            module = __import__(
-                object_origins[name], None, None, [name])
+            module = __import__(object_origins[name], None, None, [name])
             for extra_name in all_by_module[module.__name__]:
                 setattr(self, extra_name, getattr(module, extra_name))
             return getattr(module, name)
         return ModuleType.__getattribute__(self, name)
 
     def __dir__(self) -> Sequence[str]:
-        result = list(new_module.__all__)
-        result.extend(('__file__', '__path__', '__doc__', '__all__',
-                       '__docformat__', '__name__', '__path__',
-                       'VERSION', 'version_info_t', 'version_info',
-                       '__package__', '__version__', '__author__',
-                       '__contact__', '__homepage__', '__docformat__'))
-        return result
+        return sorted(list(new_module.__all__) + self.standard_package_vars)
 
 
 # keep a reference to this module so that it's not garbage collected

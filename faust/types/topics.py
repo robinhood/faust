@@ -2,7 +2,14 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, Mapping, MutableSet, Optional, Pattern, Sequence, Set, Union,
+    Any,
+    Mapping,
+    MutableSet,
+    Optional,
+    Pattern,
+    Sequence,
+    Set,
+    Union,
 )
 
 from mode import Seconds, ServiceT
@@ -39,7 +46,8 @@ class TopicT(ChannelT):
     internal: bool
 
     @abc.abstractmethod
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,

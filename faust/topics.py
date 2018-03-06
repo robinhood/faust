@@ -5,8 +5,21 @@ import typing
 from collections import defaultdict
 from functools import partial
 from typing import (
-    Any, Awaitable, Callable, Iterable, Iterator, Mapping, MutableMapping,
-    MutableSet, Optional, Pattern, Sequence, Set, Tuple, Union, cast,
+    Any,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    MutableSet,
+    Optional,
+    Pattern,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+    cast,
 )
 from weakref import WeakSet
 
@@ -16,8 +29,18 @@ from mode.utils.futures import ThrowableQueue, notify, stampede
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
-    AppT, CodecArg, ConsumerT, EventT, FutureMessage, K, Message,
-    ModelArg, PendingMessage, RecordMetadata, TP, V,
+    AppT,
+    CodecArg,
+    ConsumerT,
+    EventT,
+    FutureMessage,
+    K,
+    Message,
+    ModelArg,
+    PendingMessage,
+    RecordMetadata,
+    TP,
+    V,
 )
 from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
@@ -27,10 +50,7 @@ if typing.TYPE_CHECKING:
 else:
     class App: ...  # noqa
 
-__all__ = [
-    'Topic',
-    'TopicConductor',
-]
+__all__ = ['Topic', 'TopicConductor']
 
 logger = get_logger(__name__)
 
@@ -60,7 +80,8 @@ class Topic(Channel, TopicT):
     _partitions: int = None
     _pattern: Pattern = None
 
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
@@ -103,8 +124,7 @@ class Topic(Channel, TopicT):
         self.internal = internal
         self.config = config or {}
 
-    async def decode(self, message: Message,
-                     *,
+    async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
         # first call to decode compiles and caches it.
         decode = self.decode = self._compile_decode()  # type: ignore
@@ -143,23 +163,25 @@ class Topic(Channel, TopicT):
                     await self.on_value_decode_error(exc, message)
                 else:
                     return create_event(k, v, message)
+
         return decode
 
     def _clone_args(self) -> Mapping:
-        return {**super()._clone_args(), **{
-            'topics': self.topics,
-            'pattern': self.pattern,
-            'partitions': self.partitions,
-            'retention': self.retention,
-            'compacting': self.compacting,
-            'deleting': self.deleting,
-            'replicas': self.replicas,
-            'internal': self.internal,
-            'key_serializer': self.key_serializer,
-            'value_serializer': self.value_serializer,
-            'acks': self.acks,
-            'config': self.config,
-        }}
+        return {
+            **super()._clone_args(),
+            **{
+                'topics': self.topics,
+                'pattern': self.pattern,
+                'partitions': self.partitions,
+                'retention': self.retention,
+                'compacting': self.compacting,
+                'deleting': self.deleting,
+                'replicas': self.replicas,
+                'internal': self.internal,
+                'key_serializer': self.key_serializer,
+                'value_serializer': self.value_serializer,
+                'acks': self.acks,
+                'config': self.config}}
 
     @property
     def pattern(self) -> Optional[Pattern]:
@@ -250,9 +272,8 @@ class Topic(Channel, TopicT):
     async def _get_producer(self) -> ProducerT:
         return await self.app.maybe_start_producer()
 
-    async def publish_message(
-            self, fut: FutureMessage,
-            wait: bool = True) -> Awaitable[RecordMetadata]:
+    async def publish_message(self, fut: FutureMessage,
+                              wait: bool = True) -> Awaitable[RecordMetadata]:
         app = self.app
         message: PendingMessage = fut.message
         if isinstance(message.channel, str):
@@ -267,7 +288,8 @@ class Topic(Channel, TopicT):
         assert topic is not None
         producer = await self._get_producer()
         state = await app.sensors.on_send_initiated(
-            producer, topic,
+            producer,
+            topic,
             keysize=len(key) if key else 0,
             valsize=len(value) if value else 0)
         if wait:
@@ -282,27 +304,25 @@ class Topic(Channel, TopicT):
                 cast(Callable, partial(self._on_published, message=fut)))
             return fut2
 
-    def _on_published(
-            self, fut: asyncio.Future, message: FutureMessage) -> None:
+    def _on_published(self, fut: asyncio.Future,
+                      message: FutureMessage) -> None:
         res: RecordMetadata = fut.result()
         message.set_result(res)
         if message.message.callback:
             message.message.callback(message)
 
-    def prepare_key(self,
-                    key: K,
-                    key_serializer: CodecArg) -> Any:
+    def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
         if key is not None:
             return self.app.serializers.dumps_key(
-                self.key_type, key,
+                self.key_type,
+                key,
                 serializer=key_serializer or self.key_serializer)
         return None
 
-    def prepare_value(self,
-                      value: V,
-                      value_serializer: CodecArg) -> Any:
+    def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
         return self.app.serializers.dumps_value(
-            self.value_type, value,
+            self.value_type,
+            value,
             serializer=value_serializer or self.value_serializer)
 
     @stampede
@@ -415,8 +435,7 @@ class TopicConductor(ConductorT, Service):
                 if topic in acking_topics and message not in unacked:
                     # This inlines Consumer.track_message(message)
                     add_unacked(message)
-                    await on_message_in(
-                        message.tp, message.offset, message)
+                    await on_message_in(message.tp, message.offset, message)
 
                 event: EventT = None
                 event_keyid: Tuple[K, V] = None

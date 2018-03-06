@@ -1,7 +1,7 @@
 import inspect
 import typing
 from itertools import chain
-from typing import Any, Awaitable, Callable, Iterable, List, cast
+from typing import Any, Awaitable, Callable, Iterable, List, Type, Union, cast
 from mode import Service, ServiceT
 from faust.exceptions import ImproperlyConfigured
 from faust.types import AppT
@@ -41,12 +41,12 @@ class AppService(Service):
 
     def _components_client(self) -> Iterable[ServiceT]:
         # Returns the components started when running in Client-Only mode.
-        return cast(Iterable[ServiceT], chain(
-            [self.app.producer],
-            [self.app.consumer],
-            [self.app._reply_consumer],
-            [self.app.topics],
-            [self.app._fetcher],
+        return cast(Iterable[ServiceT], (
+            self.app.producer,
+            self.app.consumer,
+            self.app._reply_consumer,
+            self.app.topics,
+            self.app._fetcher,
         ))
 
     def _components_server(self) -> Iterable[ServiceT]:
@@ -65,26 +65,29 @@ class AppService(Service):
         # those that'll be started when the app starts,
         # stopped when the app stops,
         # etc...
-        return cast(Iterable[ServiceT], chain(
-            # Sensors (Sensor): always start first and stop last.
-            self.app.sensors,
-            # Producer (transport.Producer): always stop after Consumer.
-            [self.app.producer],
-            # Consumer (transport.Consumer): always stop after TopicConductor
-            [self.app.consumer],
-            # Leader Assignor (assignor.LeaderAssignor)
-            [self.app._leader_assignor],
-            # Reply Consumer (ReplyConsumer)
-            [self.app._reply_consumer],
-            # Agents (app.agents)
-            self.app.agents.values(),
-            # Topic Manager (app.TopicConductor))
-            [self.app.topics],
-            # Table Manager (app.TableManager)
-            [self.app.tables],
-            # Fetcher (transport.Fetcher)
-            [self.app._fetcher],
-        ))
+        return cast(
+            Iterable[ServiceT],
+            chain(
+                # Sensors (Sensor): always start first and stop last.
+                self.app.sensors,
+                # Producer: always stop after Consumer.
+                [self.app.producer],
+                # Consumer: always stop after TopicConductor
+                [self.app.consumer],
+                # Leader Assignor (assignor.LeaderAssignor)
+                [self.app._leader_assignor],
+                # Reply Consumer (ReplyConsumer)
+                [self.app._reply_consumer],
+                # Agents (app.agents)
+                self.app.agents.values(),
+                # Topic Manager (app.TopicConductor))
+                [self.app.topics],
+                # Table Manager (app.TableManager)
+                [self.app.tables],
+                # Fetcher (transport.Fetcher)
+                [self.app._fetcher],
+            ),
+        )
 
     async def on_first_start(self) -> None:
         self.app._create_directories()
@@ -131,13 +134,17 @@ class AppService(Service):
         if self._extra_service_instances is None:
             # instantiate the services added using the @app.service decorator.
             self._extra_service_instances = [
-                s(loop=self.loop,
-                  beacon=self.beacon) if inspect.isclass(s) else s
-                for s in self.app._extra_services
+                self._prepare_subservice(s) for s in self.app._extra_services
             ]
             for service in self._extra_service_instances:
                 # start the services now, or when the app is started.
                 await self.add_runtime_dependency(service)
+
+    def _prepare_subservice(
+            self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:
+        if inspect.isclass(service):
+            return service(loop=self.loop, beacon=self.beacon)
+        return service
 
     async def on_stop(self) -> None:
         await self.app.on_stop()

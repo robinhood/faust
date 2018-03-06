@@ -5,6 +5,8 @@ from faust.types import AppT, TP, TopicT
 from faust.types.assignor import LeaderAssignorT
 from faust.utils.objects import cached_property
 
+__all__ = ['LeaderAssignor']
+
 
 class LeaderAssignor(Service, LeaderAssignorT):
     """Leader assignor, ensures election of a leader."""

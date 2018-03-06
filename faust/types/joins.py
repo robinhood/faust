@@ -13,8 +13,7 @@ class JoinT(abc.ABC):
     stream: JoinableT
 
     @abc.abstractmethod
-    def __init__(self, *,
-                 stream: JoinableT,
+    def __init__(self, *, stream: JoinableT,
                  fields: Tuple[FieldDescriptorT, ...]) -> None:
         ...
 

@@ -9,8 +9,17 @@ from pathlib import Path
 from textwrap import wrap
 from types import ModuleType
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Dict, List,
-    Mapping, Sequence, Tuple, Type, no_type_check,
+    Any,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    Type,
+    no_type_check,
 )
 
 import click
@@ -37,7 +46,6 @@ __all__ = [
     'find_app',
     'option',
 ]
-
 
 argument = click.argument
 option = click.option
@@ -176,10 +184,12 @@ def prepare_app(app: AppT, name: str) -> AppT:
 # decorators in the same decorator.
 def _apply_options(options: Sequence[Callable]) -> Callable:
     """Add list of ``click.option`` values to click command function."""
+
     def _inner(fun: Callable) -> Callable:
         for opt in options:
             fun = opt(fun)
         return fun
+
     return _inner
 
 
@@ -219,7 +229,9 @@ class _Group(click.Group):
                         raise click.UsageError('Missing argument for --app')
 
     @no_type_check  # mypy bugs out on this
-    def make_context(self, info_name: str, args: str,
+    def make_context(self,
+                     info_name: str,
+                     args: str,
                      app: AppT = None,
                      parent: click.Context = None,
                      **extra: Any) -> click.Context:
@@ -235,15 +247,8 @@ class _Group(click.Group):
 @click.group(cls=_Group)
 @_apply_options(builtin_options)
 @click.pass_context
-def cli(ctx: click.Context,
-        app: str,
-        quiet: bool,
-        debug: bool,
-        workdir: str,
-        datadir: str,
-        json: bool,
-        no_color: bool,
-        loop: str) -> None:
+def cli(ctx: click.Context, app: str, quiet: bool, debug: bool, workdir: str,
+        datadir: str, json: bool, no_color: bool, loop: str) -> None:
     """Faust command-line interface."""
     ctx.obj = {
         'app': app,
@@ -317,6 +322,7 @@ class Command(abc.ABC):
         def _inner(*args: Any, **kwargs: Any) -> Callable:
             cmd = cls(*args, **kwargs)  # type: ignore
             return cmd()
+
         return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
 
@@ -362,9 +368,7 @@ class Command(abc.ABC):
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
 
-    def on_discovered(self,
-                      scanner: venusian.Scanner,
-                      name: str,
+    def on_discovered(self, scanner: venusian.Scanner, name: str,
                       obj: 'Command') -> None:
         ...
 
@@ -381,7 +385,8 @@ class Command(abc.ABC):
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
 
-    def tabulate(self, data: termtable.TableDataT,
+    def tabulate(self,
+                 data: termtable.TableDataT,
                  headers: Sequence[str] = None,
                  wrap_last_row: bool = True,
                  title: str = None,
@@ -411,7 +416,8 @@ class Command(abc.ABC):
             ]
         return table.table
 
-    def table(self, data: termtable.TableDataT,
+    def table(self,
+              data: termtable.TableDataT,
               title: str = None,
               **kwargs: Any) -> termtable.Table:
         """Format table data as ANSI/ASCII table."""
@@ -496,7 +502,7 @@ class AppCommand(Command):
                 # if it does not take self argument, use staticmethod
                 target = staticmethod(fun)
 
-            return type(fun.__name__, (cls,), {
+            fields = {
                 'run': target,
                 '__doc__': fun.__doc__,
                 '__name__': fun.__name__,
@@ -504,10 +510,13 @@ class AppCommand(Command):
                 '__module__': fun.__module__,
                 '__wrapped__': fun,
                 'options': options,
-                **kwargs})
+            }
+            return type(fun.__name__, (cls,), {**fields, **kwargs})
+
         return _inner
 
-    def __init__(self, ctx: click.Context,
+    def __init__(self,
+                 ctx: click.Context,
                  *args: Any,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
@@ -541,8 +550,8 @@ class AppCommand(Command):
                 raise self.UsageError('Need to specify app using -A parameter')
             self.app = find_app(appstr)
         self.key_serializer = key_serializer or self.app.conf.key_serializer
-        self.value_serializer = (
-            value_serializer or self.app.conf.value_serializer)
+        self.value_serializer = (value_serializer or
+                                 self.app.conf.value_serializer)
         self.args = args
         self.kwargs = kwargs
 

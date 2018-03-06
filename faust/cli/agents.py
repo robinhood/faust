@@ -17,16 +17,20 @@ class agents(AppCommand):
     sortkey = attrgetter('name')
 
     options = [
-        click.option('--local/--no-local',
-                     help='Include agents using a local channel'),
+        click.option(
+            '--local/--no-local', help='Include agents using a local channel'),
     ]
 
     async def run(self, local: bool) -> None:
-        self.say(self.tabulate(
-            [self.agent_to_row(agent) for agent in self.agents(local=local)],
-            headers=self.headers,
-            title=self.title,
-        ))
+        self.say(
+            self.tabulate(
+                [
+                    self.agent_to_row(agent)
+                    for agent in self.agents(local=local)
+                ],
+                headers=self.headers,
+                title=self.title,
+            ))
 
     def agents(self, *, local: bool = False) -> Sequence[AgentT]:
         return [

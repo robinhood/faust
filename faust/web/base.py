@@ -24,7 +24,8 @@ class Web(Service):
 
     driver_version: str
 
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  port: int = None,
                  bind: str = None,
@@ -34,23 +35,18 @@ class Web(Service):
         self.bind = bind or WEB_BIND
         super().__init__(**kwargs)
 
-    def text(self, value: str,
-             *,
-             content_type: str = None,
+    def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> Response:
         ...
 
-    def html(self, value: str,
-             *,
-             status: int = 200) -> Response:
+    def html(self, value: str, *, status: int = 200) -> Response:
         ...
 
-    def json(self, value: Any,
-             *,
-             status: int = 200) -> Response:
+    def json(self, value: Any, *, status: int = 200) -> Response:
         ...
 
-    def bytes(self, value: _bytes,
+    def bytes(self,
+              value: _bytes,
               *,
               content_type: str = None,
               status: int = 200) -> Response:

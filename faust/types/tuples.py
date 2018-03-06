@@ -15,8 +15,12 @@ else:
     class ConsumerT: ...  # noqa
 
 __all__ = [
-    'FutureMessage', 'MessageSentCallback', 'TP',
-    'PendingMessage', 'RecordMetadata', 'Message',
+    'FutureMessage',
+    'Message',
+    'MessageSentCallback',
+    'PendingMessage',
+    'RecordMetadata',
+    'TP',
 ]
 
 MessageSentCallback = Callable[['FutureMessage'], Union[None, Awaitable[None]]]
@@ -82,9 +86,15 @@ class Message:
         '__weakref__',
     )
 
-    def __init__(self, topic: str, partition: int, offset: int,
-                 timestamp: float, timestamp_type: str,
-                 key: bytes, value: bytes, checksum: bytes,
+    def __init__(self,
+                 topic: str,
+                 partition: int,
+                 offset: int,
+                 timestamp: float,
+                 timestamp_type: str,
+                 key: bytes,
+                 value: bytes,
+                 checksum: bytes,
                  serialized_key_size: int = None,
                  serialized_value_size: int = None,
                  tp: TP = None,

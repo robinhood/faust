@@ -177,7 +177,8 @@ class Settings(abc.ABC):
         } - SETTINGS_COMPAT
 
     def __init__(
-            self, id: str,
+            self,
+            id: str,
             *,
             version: int = None,
             broker: Union[str, URL] = None,

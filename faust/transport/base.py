@@ -5,10 +5,22 @@ import gc
 import typing
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar,
-    Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Optional,
-    Set, Tuple, Type, Union, cast,
+    Any,
+    AsyncIterator,
+    Awaitable,
+    ClassVar,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSet,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
 )
 from weakref import WeakSet
 
@@ -19,9 +31,13 @@ from yarl import URL
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import (
-    ConsumerCallback, ConsumerT,
-    PartitionsAssignedCallback, PartitionsRevokedCallback,
-    ProducerT, TPorTopicSet, TransportT,
+    ConsumerCallback,
+    ConsumerT,
+    PartitionsAssignedCallback,
+    PartitionsRevokedCallback,
+    ProducerT,
+    TPorTopicSet,
+    TransportT,
 )
 from faust.utils.functional import consecutive_numbers
 
@@ -102,7 +118,8 @@ class Consumer(Service, ConsumerT):
 
     _unacked_messages: MutableSet[Message] = None
 
-    def __init__(self, transport: TransportT,
+    def __init__(self,
+                 transport: TransportT,
                  *,
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
@@ -153,8 +170,7 @@ class Consumer(Service, ConsumerT):
             self._unacked_messages.add(message)
 
             # call sensors
-            await self._on_message_in(
-                message.tp, message.offset, message)
+            await self._on_message_in(message.tp, message.offset, message)
 
     def ack(self, message: Message) -> bool:
         if not message.acked:
@@ -288,10 +304,8 @@ class Consumer(Service, ConsumerT):
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
-        return (
-            tp for tp in self._acked
-            if topics is None or tp in topics or tp.topic in topics
-        )
+        return (tp for tp in self._acked
+                if topics is None or tp in topics or tp.topic in topics)
 
     def _should_commit(self, tp: TP, offset: int) -> bool:
         committed = self._committed_offset[tp]
@@ -403,20 +417,14 @@ class Producer(Service, ProducerT):
         self.transport = transport
         super().__init__(loop=self.transport.loop, **kwargs)
 
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
         raise NotImplementedError()
 
-    async def send_and_wait(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
@@ -437,7 +445,9 @@ class Transport(TransportT):
 
     driver_version: str
 
-    def __init__(self, url: Union[str, URL], app: AppT,
+    def __init__(self,
+                 url: Union[str, URL],
+                 app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = URL(url)
         self.app = app

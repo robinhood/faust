@@ -24,16 +24,16 @@ class models(AppCommand):
     ]
 
     async def run(self, *, builtins: bool) -> None:
-        self.say(self.tabulate(
-            [self.model_to_row(model) for model in self.models(builtins)],
-            headers=self.headers,
-            title=self.title,
-        ))
+        self.say(
+            self.tabulate(
+                [self.model_to_row(model) for model in self.models(builtins)],
+                headers=self.headers,
+                title=self.title,
+            ))
 
     def models(self, builtins: bool) -> Sequence[Type[ModelT]]:
         return [
-            model
-            for model in sorted(registry.values(), key=self.sortkey)
+            model for model in sorted(registry.values(), key=self.sortkey)
             if not model._options.namespace.startswith('@') or builtins
         ]
 

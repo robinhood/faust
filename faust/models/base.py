@@ -31,7 +31,13 @@ import abc
 import inspect
 from operator import attrgetter
 from typing import (
-    Any, ClassVar, Iterable, Mapping, MutableMapping, Optional, Type,
+    Any,
+    ClassVar,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Type,
 )
 
 from faust.serializers.codecs import CodecArg, dumps, loads
@@ -146,10 +152,7 @@ class Model(ModelT):
         return model.from_data(data) if model else data
 
     @classmethod
-    def loads(
-            cls, s: bytes,
-            *,
-            default_serializer: CodecArg = None) -> ModelT:
+    def loads(cls, s: bytes, *, default_serializer: CodecArg = None) -> ModelT:
         """Deserialize model object from bytes.
 
         Arguments:
@@ -231,11 +234,10 @@ class Model(ModelT):
 
     @classmethod
     @abc.abstractmethod
-    def _contribute_field_descriptors(
-            cls,
-            target: Type,
-            options: ModelOptions,
-            parent: FieldDescriptorT = None) -> None:
+    def _contribute_field_descriptors(cls,
+                                      target: Type,
+                                      options: ModelOptions,
+                                      parent: FieldDescriptorT = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -264,12 +266,9 @@ class Model(ModelT):
 
 
 def _is_concrete_model(typ: Type = None) -> bool:
-    return (
-        inspect.isclass(typ) and
-        issubclass(typ, ModelT) and
-        typ is not ModelT and
-        not getattr(typ, '__is_abstract__', False)
-    )
+    return (inspect.isclass(typ) and issubclass(typ, ModelT) and
+            typ is not ModelT and
+            not getattr(typ, '__is_abstract__', False))
 
 
 class FieldDescriptor(FieldDescriptorT):

@@ -41,26 +41,25 @@ class model(AppCommand):
                 model = registry[lookup]
             except KeyError:
                 raise self._unknown_model(name, lookup=lookup)
-        self.say(self.tabulate(
-            self.model_fields(model),
-            headers=[self.bold(h) for h in self.headers],
-            title=self._name(model),
-            wrap_last_row=False,
-        ))
+        self.say(
+            self.tabulate(
+                self.model_fields(model),
+                headers=[self.bold(h) for h in self.headers],
+                title=self._name(model),
+                wrap_last_row=False,
+            ))
 
-    def _unknown_model(self, name: str,
-                       *,
+    def _unknown_model(self, name: str, *,
                        lookup: str = None) -> click.UsageError:
         lookup = lookup or name
         alt = text.didyoumean(
-            registry, lookup,
+            registry,
+            lookup,
             fmt_none=f'Please run `{self.prog_name} models` for a list.')
         return click.UsageError(f'No model {name!r}. {alt}')
 
     def model_fields(self, model: Type[ModelT]) -> TableDataT:
-        return [
-            self.field(getattr(model, k)) for k in model._options.fields
-        ]
+        return [self.field(getattr(model, k)) for k in model._options.fields]
 
     def field(self, field: FieldDescriptorT) -> Sequence[str]:
         return [

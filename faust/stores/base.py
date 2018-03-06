@@ -2,19 +2,38 @@
 import abc
 from collections import ItemsView, KeysView, ValuesView
 from typing import (
-    Any, Callable, Iterable, Iterator, Optional, Set, Tuple, Union,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Optional,
+    Set,
+    Tuple,
+    Union,
 )
 
 from mode import Service
 from yarl import URL
 
-from ..types import AppT, CodecArg, CollectionT, EventT, ModelArg, StoreT, TP
+from faust.types import (
+    AppT,
+    CodecArg,
+    CollectionT,
+    EventT,
+    ModelArg,
+    StoreT,
+    TP,
+)
+
+__all__ = ['Store', 'SerializedStore']
 
 
 class Store(StoreT, Service):
     """Base class for table storage drivers."""
 
-    def __init__(self, url: Union[str, URL], app: AppT,
+    def __init__(self,
+                 url: Union[str, URL],
+                 app: AppT,
                  *,
                  table_name: str = '',
                  key_type: ModelArg = None,
@@ -40,12 +59,12 @@ class Store(StoreT, Service):
     async def need_active_standby_for(self, tp: TP) -> bool:
         return True
 
-    async def on_partitions_assigned(
-            self, table: CollectionT, assigned: Set[TP]) -> None:
+    async def on_partitions_assigned(self, table: CollectionT,
+                                     assigned: Set[TP]) -> None:
         ...
 
-    async def on_partitions_revoked(
-            self, table: CollectionT, revoked: Set[TP]) -> None:
+    async def on_partitions_revoked(self, table: CollectionT,
+                                    revoked: Set[TP]) -> None:
         ...
 
     def _encode_key(self, key: Any) -> bytes:

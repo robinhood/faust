@@ -2,21 +2,37 @@
 import asyncio
 from itertools import cycle
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar, Iterable,
-    Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
+    Any,
+    AsyncIterator,
+    Awaitable,
+    ClassVar,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
 )
 
 import aiokafka
 import aiokafka.abc
 from aiokafka.errors import (
-    CommitFailedError, ConsumerStoppedError, IllegalStateError, KafkaError,
+    CommitFailedError,
+    ConsumerStoppedError,
+    IllegalStateError,
+    KafkaError,
 )
 from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
 from kafka.errors import (
-    NotControllerError, TopicAlreadyExistsError as TopicExistsError, for_code,
+    NotControllerError,
+    TopicAlreadyExistsError as TopicExistsError,
+    for_code,
 )
 from mode import Seconds, Service, want_seconds
 from mode.utils.futures import StampedeWrapper
@@ -39,10 +55,8 @@ def server_list(url: URL, default_port: int) -> str:
     # remove the scheme
     servers = str(url).split('://', 1)[1]
     # add default ports
-    return ';'.join(
-        host if ':' in host else f'{host}:{default_port}'
-        for host in servers.split(';')
-    )
+    return ';'.join(host if ':' in host else f'{host}:{default_port}'
+                    for host in servers.split(';'))
 
 
 def _ensure_TP(tp: _TPTypes) -> TP:
@@ -125,8 +139,8 @@ class Consumer(base.Consumer):
             return self._set_active_tps(self._consumer.assignment())
         return tps
 
-    def _set_active_tps(
-            self, tps: Set[_TopicPartition]) -> Set[_TopicPartition]:
+    def _set_active_tps(self,
+                        tps: Set[_TopicPartition]) -> Set[_TopicPartition]:
         tps = self._active_partitions = set(tps)  # copy!
         tps.difference_update(self._paused_partitions)
         return tps
@@ -160,7 +174,10 @@ class Consumer(base.Consumer):
             auto_offset_reset='earliest',
         )
 
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -169,7 +186,11 @@ class Consumer(base.Consumer):
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
         await cast(Transport, self.transport)._create_topic(
-            self, self._consumer._client, topic, partitions, replication,
+            self,
+            self._consumer._client,
+            topic,
+            partitions,
+            replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=int(want_seconds(retention) * 1000.0),
@@ -189,9 +210,8 @@ class Consumer(base.Consumer):
             listener=self._rebalance_listener,
         )
 
-    async def getmany(
-            self,
-            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+    async def getmany(self,
+                      timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
         active_partitions = self._get_active_partitions()
 
@@ -202,7 +222,8 @@ class Consumer(base.Consumer):
                 # fetching all partitions in the beginning when none of the
                 # partitions is paused/resumed.
                 records = await _consumer._fetcher.fetched_records(
-                    active_partitions, timeout,
+                    active_partitions,
+                    timeout,
                     max_records=_consumer._max_poll_records,
                 )
             else:
@@ -263,9 +284,8 @@ class Consumer(base.Consumer):
         read_offset = self._read_offset
         self._consumer.seek_to_committed()
         tps = self._consumer.assignment()
-        wait_res = await self.wait(asyncio.gather(*[
-            self._consumer.committed(tp) for tp in tps
-        ]))
+        wait_res = await self.wait(
+            asyncio.gather(*[self._consumer.committed(tp) for tp in tps]))
         offsets = zip(tps, wait_res.result)
         committed_offsets = dict(filter(lambda x: x[1] is not None, offsets))
         read_offset.update(committed_offsets)
@@ -273,8 +293,8 @@ class Consumer(base.Consumer):
 
     async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
         table = logtable(
-            [(str(tp), str(offset), meta) for tp, (offset, meta) in
-             offsets.items()],
+            [(str(tp), str(offset), meta)
+             for tp, (offset, meta) in offsets.items()],
             title='Commit Offsets',
             headers=['TP', 'Offset', 'Metadata'],
         )
@@ -363,7 +383,10 @@ class Producer(base.Producer):
     async def on_restart(self) -> None:
         self.on_init()
 
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -371,12 +394,14 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        _retention = (
-            int(want_seconds(retention) * 1000.0)
-            if retention else None
-        )
+        _retention = (int(want_seconds(retention) * 1000.0)
+                      if retention else None)
         await cast(Transport, self.transport)._create_topic(
-            self, self._producer.client, topic, partitions, replication,
+            self,
+            self._producer.client,
+            topic,
+            partitions,
+            replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=_retention,
@@ -393,24 +418,18 @@ class Producer(base.Producer):
         cast(Transport, self.transport)._topic_waiters.clear()
         await self._producer.stop()
 
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
         try:
             return cast(Awaitable[RecordMetadata], await self._producer.send(
                 topic, value, key=key, partition=partition))
         except KafkaError as exc:
             raise ProducerSendError(f'Error while sending: {exc!r}') from exc
 
-    async def send_and_wait(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int]) -> RecordMetadata:
         fut = await self.send(topic, key=key, value=value, partition=partition)
         return await fut
 
@@ -470,7 +489,11 @@ class Transport(base.Transport):
         except KeyError:
             wrap = self._topic_waiters[topic] = StampedeWrapper(
                 self._really_create_topic,
-                owner, client, topic, partitions, replication,
+                owner,
+                client,
+                topic,
+                partitions,
+                replication,
                 loop=self.loop, **kwargs)
         try:
             await wrap()

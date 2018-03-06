@@ -5,14 +5,17 @@ from typing import Iterable, List, MutableMapping, Sequence, Set, cast
 from kafka.cluster import ClusterMetadata
 from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
 from kafka.coordinator.protocol import (
-    ConsumerProtocolMemberAssignment, ConsumerProtocolMemberMetadata,
+    ConsumerProtocolMemberAssignment,
+    ConsumerProtocolMemberMetadata,
 )
 from mode import get_logger
 from yarl import URL
 
 from faust.types.app import AppT
 from faust.types.assignor import (
-    HostToPartitionMap, PartitionAssignorT, TopicToPartitionMap,
+    HostToPartitionMap,
+    PartitionAssignorT,
+    TopicToPartitionMap,
 )
 from faust.types.tables import TableManagerT
 from faust.types.topics import TP
@@ -20,6 +23,16 @@ from faust.types.topics import TP
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment
 from .copartitioned_assignor import CopartitionedAssignor
+
+__all__ = [
+    'MemberAssignmentMapping',
+    'MemberMetadataMapping',
+    'MemberSubscriptionMapping',
+    'ClientMetadataMapping',
+    'ClientAssignmentMapping',
+    'CopartitionedGroups',
+    'PartitionAssignor',
+]
 
 MemberAssignmentMapping = MutableMapping[str, ConsumerProtocolMemberAssignment]
 MemberMetadataMapping = MutableMapping[str, ConsumerProtocolMemberMetadata]
@@ -73,8 +86,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._tps_url = {
             TP(topic, partition): url
             for url, tps in self._changelog_distribution.items()
-            for topic, partitions in tps.items()
-            for partition in partitions
+            for topic, partitions in tps.items() for partition in partitions
         }
 
     @property
@@ -98,14 +110,14 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._standby_tps = self._assignment.standby_tps
         self.changelog_distribution = metadata.changelog_distribution
         a = sorted(assignment.assignment)
-        b = sorted(self._assignment.kafka_protocol_assignment(
-            self._table_manager))
+        b = sorted(
+            self._assignment.kafka_protocol_assignment(self._table_manager))
         assert a == b, f'{a!r} != {b!r}'
         assert metadata.url == str(self._url)
 
     def metadata(self, topics: Set[str]) -> ConsumerProtocolMemberMetadata:
-        return ConsumerProtocolMemberMetadata(
-            self.version, list(topics), self._metadata.dumps())
+        return ConsumerProtocolMemberMetadata(self.version, list(topics),
+                                              self._metadata.dumps())
 
     @classmethod
     def _group_co_subscribed(cls, topics: Set[str],
@@ -215,8 +227,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
-                sorted(assignment.kafka_protocol_assignment(
-                    self._table_manager)),
+                sorted(
+                    assignment.kafka_protocol_assignment(self._table_manager)),
                 ClientMetadata(
                     assignment=assignment,
                     url=self._member_urls[client],
@@ -231,17 +243,15 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                          topics: Set[str]) -> TopicToPartitionMap:
         return {
             topic: partitions
-            for topic, partitions in assignment.items()
-            if topic in topics
+            for topic, partitions in assignment.items() if topic in topics
         }
 
     def _get_changelog_distribution(
-            self,
-            assignments: ClientAssignmentMapping) -> HostToPartitionMap:
+            self, assignments: ClientAssignmentMapping) -> HostToPartitionMap:
         topics = self._table_manager.changelog_topics
         return {
-            self._member_urls[client]:
-                self._topics_filtered(assignment.actives, topics)
+            self._member_urls[client]: self._topics_filtered(
+                assignment.actives, topics)
             for client, assignment in assignments.items()
         }
 

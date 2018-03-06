@@ -5,6 +5,8 @@ from typing import Iterable, Iterator, MutableMapping, Optional, Sequence, Set
 from mode.utils.compat import Counter
 from .client_assignment import CopartitionedAssignment
 
+__all__ = ['CopartitionedAssignor']
+
 
 class CopartitionedAssignor:
     """Copartitioned Assignor.

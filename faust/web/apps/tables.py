@@ -1,10 +1,9 @@
 """HTTP endpoint showing partition routing destinations."""
 from typing import Any, Mapping, Tuple
+from faust import web
 from faust.app.router import SameNode
 from faust.models import Record
 from faust.types import K, TableT
-from faust.web import views
-from faust.web.base import Request, Response
 
 __all__ = ['TableView', 'TableList', 'TableDetail', 'TableKeyDetail']
 
@@ -14,16 +13,13 @@ class TableInfo(Record, serializer='json'):
     help: str
 
 
-class TableView(views.View):
+class TableView(web.View):
     """Base class for table related views."""
-
-    # package with templates
-    package = 'faust.web.apps.tables'
 
     def table_json(self, table: TableT, **kwargs: Any) -> Mapping:
         return TableInfo(table.name, table.help).asdict()
 
-    def get_table(self, name: str) -> Tuple[TableT, Response]:
+    def get_table(self, name: str) -> Tuple[TableT, web.Response]:
         try:
             return self.app.tables[name], None
         except KeyError:
@@ -31,7 +27,7 @@ class TableView(views.View):
 
     def get_table_value(self,
                         table: TableT,
-                        key: K) -> Tuple[Any, Response]:
+                        key: K) -> Tuple[Any, web.Response]:
         try:
             return table[key], None
         except KeyError:
@@ -42,17 +38,15 @@ class TableView(views.View):
 class TableList(TableView):
     """List available table names."""
 
-    async def get(self, request: Request) -> Response:
-        return self.json([
-            self.table_json(table)
-            for table in self.app.tables.values()
-        ])
+    async def get(self, request: web.Request) -> web.Response:
+        return self.json(
+            [self.table_json(table) for table in self.app.tables.values()])
 
 
 class TableDetail(TableView):
     """Get details for table by name."""
 
-    async def get(self, request: Request) -> Response:
+    async def get(self, request: web.Request) -> web.Response:
         # FIXME request.match_info is an attribute of aiohttp.Request
         name = request.match_info['name']
         table, error = self.get_table(name)
@@ -65,12 +59,12 @@ class TableKeyDetail(TableView):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    async def get(self, request: Request) -> Response:
+    async def get(self, request: web.Request) -> web.Response:
         name = request.match_info['name']
         key = request.match_info['key']
+        router = self.app.router
         try:
-            return await self.app.router.route_req(
-                name, key, self.web, request)
+            return await router.route_req(name, key, self.web, request)
         except SameNode:
             table, error = self.get_table(name)
             if error:
@@ -81,7 +75,7 @@ class TableKeyDetail(TableView):
             return self.json(value)
 
 
-class Site(views.Site):
+class Site(web.Site):
     """Router views."""
 
     views = {

@@ -4,6 +4,7 @@ import typing
 
 from .assignor import HostToPartitionMap
 from .core import K
+from . import web
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -30,4 +31,9 @@ class RouterT(abc.ABC):
 
     @abc.abstractmethod
     def tables_metadata(self) -> HostToPartitionMap:
+        ...
+
+    @abc.abstractmethod
+    async def route_req(self, table_name: str, key: K, web: web.Web,
+                        request: web.Request) -> web.Response:
         ...

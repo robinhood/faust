@@ -42,7 +42,7 @@ from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, TCPPort, WritableFilePath, option
 
 if typing.TYPE_CHECKING:
-    from ..worker import Worker
+    from faust.worker import Worker
 else:
     class Worker: ...   # noqa
 
@@ -69,9 +69,7 @@ class CaseInsensitiveChoice(click.Choice):
     def __init__(self, choices: Iterable[Any]) -> None:
         self.choices = [str(val).lower() for val in choices]
 
-    def convert(self,
-                value: str,
-                param: Optional[click.Parameter],
+    def convert(self, value: str, param: Optional[click.Parameter],
                 ctx: click.Context) -> Any:
         if value.lower() in self.choices:
             return value
@@ -108,14 +106,9 @@ class worker(AppCommand):
             *self.args + args,
             **{**self.kwargs, **kwargs})
 
-    def start_worker(self,
-                     logfile: str,
-                     loglevel: str,
-                     blocking_timeout: float,
-                     web_port: int,
-                     web_bind: str,
-                     web_host: str,
-                     console_port: int) -> Any:
+    def start_worker(self, logfile: str, loglevel: str,
+                     blocking_timeout: float, web_port: int, web_bind: str,
+                     web_host: str, console_port: int) -> Any:
         self.app.conf.canonical_url = URL(f'http://{web_host}:{web_port}')
         worker = self.app.Worker(
             debug=self.debug,

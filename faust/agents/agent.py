@@ -3,9 +3,21 @@ import asyncio
 import typing
 from time import time
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Dict,
-    Iterable, List, Mapping, MutableMapping, MutableSequence,
-    Tuple, Type, Union, cast,
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    Tuple,
+    Type,
+    Union,
+    cast,
 )
 from uuid import uuid4
 
@@ -24,16 +36,35 @@ from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
 from faust.exceptions import ImproperlyConfigured
+from faust.utils.objects import cached_property, canoname, qualname
+
 from faust.types import (
-    AppT, ChannelT, CodecArg, EventT, K, Message, MessageSentCallback,
-    ModelArg, RecordMetadata, StreamT, TopicT, V,
+    AppT,
+    ChannelT,
+    CodecArg,
+    EventT,
+    K,
+    Message,
+    MessageSentCallback,
+    ModelArg,
+    RecordMetadata,
+    StreamT,
+    TopicT,
+    V,
 )
 from faust.types.agents import (
-    ActorRefT, ActorT, AgentErrorHandler, AgentFun, AgentT,
-    AgentTestWrapperT, AsyncIterableActorT, AwaitableActorT,
-    ReplyToArg, SinkT, _T,
+    ActorRefT,
+    ActorT,
+    AgentErrorHandler,
+    AgentFun,
+    AgentT,
+    AgentTestWrapperT,
+    AsyncIterableActorT,
+    AwaitableActorT,
+    ReplyToArg,
+    SinkT,
+    _T,
 )
-from faust.utils.objects import cached_property, canoname, qualname
 
 from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
@@ -185,9 +216,11 @@ class AgentService(Service):
 
     async def on_start(self) -> None:
         self.supervisor = self.agent.supervisor_strategy(
-            max_restarts=100.0, over=1.0,
+            max_restarts=100.0,
+            over=1.0,
             replacement=self._replace_actor,
-            loop=self.loop, beacon=self.beacon,
+            loop=self.loop,
+            beacon=self.beacon,
         )
         for i in range(self.agent.concurrency):
             res = await self._start_one(i)
@@ -230,7 +263,8 @@ class Agent(AgentT, ServiceProxy):
     _channel_iterator: AsyncIterator = None
     _sinks: List[SinkT] = None
 
-    def __init__(self, fun: AgentFun,
+    def __init__(self,
+                 fun: AgentFun,
                  *,
                  name: str = None,
                  app: AppT = None,
@@ -263,9 +297,7 @@ class Agent(AgentT, ServiceProxy):
         self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
         ServiceProxy.__init__(self)
 
-    def on_discovered(self,
-                      scanner: venusian.Scanner,
-                      name: str,
+    def on_discovered(self, scanner: venusian.Scanner, name: str,
                       obj: AgentT) -> None:
         ...
 
@@ -285,7 +317,8 @@ class Agent(AgentT, ServiceProxy):
     def clone(self, *, cls: Type[AgentT] = None, **kwargs: Any) -> AgentT:
         return (cls or type(self))(**{**self.info(), **kwargs})
 
-    def test_context(self, channel: ChannelT = None,
+    def test_context(self,
+                     channel: ChannelT = None,
                      supervisor_strategy: SupervisorStrategyT = None,
                      **kwargs: Any) -> AgentTestWrapperT:
         return self.clone(
@@ -337,12 +370,17 @@ class Agent(AgentT, ServiceProxy):
 
     def actor_from_stream(self, stream: StreamT) -> ActorRefT:
         res = self.fun(stream)
-        typ = cast(Type[Actor], (
-            AwaitableActor if isinstance(res, Awaitable)
-            else AsyncIterableActor
-        ))
-        return typ(self, stream, res, stream.concurrency_index,
-                   loop=self.loop, beacon=self.beacon)
+        typ = cast(Type[Actor],
+                   (AwaitableActor
+                    if isinstance(res, Awaitable) else AsyncIterableActor))
+        return typ(
+            self,
+            stream,
+            res,
+            stream.concurrency_index,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
 
     def add_sink(self, sink: SinkT) -> None:
         if sink not in self._sinks:
@@ -364,8 +402,8 @@ class Agent(AgentT, ServiceProxy):
         # that will consume it.
         return await self._prepare_actor(self(index=index), beacon)
 
-    async def _prepare_actor(
-            self, aref: ActorRefT, beacon: NodeT) -> ActorRefT:
+    async def _prepare_actor(self, aref: ActorRefT,
+                             beacon: NodeT) -> ActorRefT:
         coro: Any
         if isinstance(aref, Awaitable):
             # agent does not yield
@@ -442,22 +480,20 @@ class Agent(AgentT, ServiceProxy):
             ),
         )
 
-    async def cast(
-            self,
-            value: V = None,
-            *,
-            key: K = None,
-            partition: int = None) -> None:
+    async def cast(self,
+                   value: V = None,
+                   *,
+                   key: K = None,
+                   partition: int = None) -> None:
         await self.send(key, value, partition=partition)
 
-    async def ask(
-            self,
-            value: V = None,
-            *,
-            key: K = None,
-            partition: int = None,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> Any:
+    async def ask(self,
+                  value: V = None,
+                  *,
+                  key: K = None,
+                  partition: int = None,
+                  reply_to: ReplyToArg = None,
+                  correlation_id: str = None) -> Any:
         p = await self.ask_nowait(
             value,
             key=key,
@@ -471,25 +507,23 @@ class Agent(AgentT, ServiceProxy):
         await app.maybe_start_client()
         return await p
 
-    async def ask_nowait(
-            self,
-            value: V = None,
-            *,
-            key: K = None,
-            partition: int = None,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None,
-            force: bool = False) -> ReplyPromise:
+    async def ask_nowait(self,
+                         value: V = None,
+                         *,
+                         key: K = None,
+                         partition: int = None,
+                         reply_to: ReplyToArg = None,
+                         correlation_id: str = None,
+                         force: bool = False) -> ReplyPromise:
         req = self._create_req(key, value, reply_to, correlation_id)
         await self.channel.send(key, req, partition, force=force)
         return ReplyPromise(req.reply_to, req.correlation_id)
 
-    def _create_req(
-            self,
-            key: K = None,
-            value: V = None,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None) -> ReqRepRequest:
+    def _create_req(self,
+                    key: K = None,
+                    value: V = None,
+                    reply_to: ReplyToArg = None,
+                    correlation_id: str = None) -> ReqRepRequest:
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
         return ReqRepRequest(
@@ -498,29 +532,31 @@ class Agent(AgentT, ServiceProxy):
             correlation_id=correlation_id,
         )
 
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            *,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
+    async def send(self,
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
+                   *,
+                   reply_to: ReplyToArg = None,
+                   correlation_id: str = None,
+                   force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to topic used by agent."""
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
         return await self.channel.send(
-            key, value, partition,
-            key_serializer, value_serializer,
+            key,
+            value,
+            partition,
+            key_serializer,
+            value_serializer,
             force=force,
         )
 
-    def _get_strtopic(
-            self, topic: Union[str, ChannelT, TopicT, AgentT]) -> str:
+    def _get_strtopic(self,
+                      topic: Union[str, ChannelT, TopicT, AgentT]) -> str:
         if isinstance(topic, AgentT):
             return self._get_strtopic(cast(AgentT, topic).channel)
         if isinstance(topic, TopicT):
@@ -529,11 +565,10 @@ class Agent(AgentT, ServiceProxy):
             raise ValueError('Channels are unnamed topics')
         return cast(str, topic)
 
-    async def map(
-            self,
-            values: Union[AsyncIterable, Iterable],
-            key: K = None,
-            reply_to: ReplyToArg = None) -> AsyncIterator:
+    async def map(self,
+                  values: Union[AsyncIterable, Iterable],
+                  key: K = None,
+                  reply_to: ReplyToArg = None) -> AsyncIterator:
         # Map takes only values, but can provide one key that is used for all.
         async for value in self.kvmap(
                 ((key, v) async for v in aiter(values)), reply_to):
@@ -566,11 +601,10 @@ class Agent(AgentT, ServiceProxy):
         async for _, value in barrier.iterate():
             yield value
 
-    async def join(
-            self,
-            values: Union[AsyncIterable[V], Iterable[V]],
-            key: K = None,
-            reply_to: ReplyToArg = None) -> List[Any]:
+    async def join(self,
+                   values: Union[AsyncIterable[V], Iterable[V]],
+                   key: K = None,
+                   reply_to: ReplyToArg = None) -> List[Any]:
         return await self.kvjoin(
             ((key, value) async for value in aiter(values)),
             reply_to=reply_to,
@@ -602,8 +636,7 @@ class Agent(AgentT, ServiceProxy):
         return values
 
     async def _barrier_send(
-            self,
-            barrier: BarrierState,
+            self, barrier: BarrierState,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
             reply_to: ReplyToArg) -> AsyncIterator[str]:
         # map: send many tasks to agents
@@ -669,7 +702,8 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):
 
     _stream: StreamT = None
 
-    def __init__(self, *args: Any,
+    def __init__(self,
+                 *args: Any,
                  original_channel: ChannelT = None,
                  **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -694,24 +728,21 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):
             self.processed_offset += 1
             self.new_value_processed.notify_all()
 
-    async def put(
-            self,
-            value: V = None,
-            key: K = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            *,
-            reply_to: ReplyToArg = None,
-            correlation_id: str = None,
-            wait: bool = True) -> EventT:
+    async def put(self,
+                  value: V = None,
+                  key: K = None,
+                  partition: int = None,
+                  key_serializer: CodecArg = None,
+                  value_serializer: CodecArg = None,
+                  *,
+                  reply_to: ReplyToArg = None,
+                  correlation_id: str = None,
+                  wait: bool = True) -> EventT:
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
         channel = cast(ChannelT, self.stream().channel)
         message = self.to_message(
-            key, value,
-            partition=partition,
-            offset=self.sent_offset)
+            key, value, partition=partition, offset=self.sent_offset)
         event: EventT = await channel.decode(message)
         await channel.put(event)
         self.sent_offset += 1
@@ -720,7 +751,9 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):
                 await self.new_value_processed.wait()
         return event
 
-    def to_message(self, key: K, value: V,
+    def to_message(self,
+                   key: K,
+                   value: V,
                    *,
                    partition: int = 0,
                    offset: int = 0,

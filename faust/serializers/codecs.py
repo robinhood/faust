@@ -168,7 +168,12 @@ from faust.types.codecs import CodecArg, CodecT
 from faust.utils import json as _json
 
 __all__ = [
-    'Codec', 'CodecArg', 'register', 'get_codec', 'dumps', 'loads',
+    'Codec',
+    'CodecArg',
+    'register',
+    'get_codec',
+    'dumps',
+    'loads',
 ]
 
 
@@ -187,8 +192,7 @@ class Codec(CodecT):
     #: preserve keyword arguments in copies.
     kwargs: Dict
 
-    def __init__(self,
-                 children: Tuple[CodecT, ...] = None,
+    def __init__(self, children: Tuple[CodecT, ...] = None,
                  **kwargs: Any) -> None:
         self.children = children or ()
         self.nodes = (self,) + self.children  # type: ignore
@@ -228,12 +232,10 @@ class Codec(CodecT):
         return NotImplemented
 
     def __repr__(self) -> str:
-        return ' | '.join(
-            '{0}({1})'.format(
-                type(n).__name__,
-                ', '.join(map(repr, cast(Codec, n).kwargs.values())))
-            for n in self.nodes
-        )
+        return ' | '.join('{0}({1})'.format(
+            type(n).__name__, ', '.join(
+                map(repr,
+                    cast(Codec, n).kwargs.values()))) for n in self.nodes)
 
 
 class json(Codec):

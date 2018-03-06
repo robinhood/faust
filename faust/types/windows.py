@@ -4,6 +4,8 @@ from typing import List, NamedTuple
 
 from mode import Seconds
 
+__all__ = ['WindowRange', 'WindowT']
+
 
 class WindowRange(NamedTuple):
     start: float = None

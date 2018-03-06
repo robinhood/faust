@@ -4,8 +4,12 @@ from .set import Set, SetT
 from .table import Table, TableT
 
 __all__ = [
-    'Collection', 'CollectionT',
-    'TableManager', 'TableManagerT',
-    'Set', 'SetT',
-    'Table', 'TableT',
+    'Collection',
+    'CollectionT',
+    'TableManager',
+    'TableManagerT',
+    'Set',
+    'SetT',
+    'Table',
+    'TableT',
 ]

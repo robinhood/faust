@@ -11,13 +11,14 @@ from .base import Request, Response, Web
 
 __all__ = ['View', 'Site']
 
+CommandDecorator = Callable[[PageArg], Type['Site']]
+
 _bytes = bytes   # need alias for method named `bytes`
 
 
 class View:
     """View (HTTP endpoint)."""
 
-    package: str = None
     methods: Mapping[str, Callable[[Request], Awaitable]]
 
     @classmethod
@@ -42,8 +43,8 @@ class View:
         }
 
     async def dispatch(self, request: Any) -> None:
-        return await self.methods[request.method.lower()](
-            cast(Request, request))
+        method = request.method.lower()
+        return await self.methods[method](cast(Request, request))
 
     async def get(self, request: Request) -> Any:
         ...
@@ -60,23 +61,18 @@ class View:
     async def delete(self, request: Request) -> Any:
         ...
 
-    def text(self, value: str,
-             *,
-             content_type: str = None,
+    def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> Response:
         return self.web.text(value, content_type=content_type, status=status)
 
-    def html(self, value: str,
-             *,
-             status: int = 200) -> Response:
+    def html(self, value: str, *, status: int = 200) -> Response:
         return self.web.html(value, status=status)
 
-    def json(self, value: Any,
-             *,
-             status: int = 200) -> Response:
+    def json(self, value: Any, *, status: int = 200) -> Response:
         return self.web.json(value, status=status)
 
-    def bytes(self, value: _bytes,
+    def bytes(self,
+              value: _bytes,
               *,
               content_type: str = None,
               status: int = 200) -> Response:
@@ -104,15 +100,13 @@ class Site:
         for pattern, view in self.views.items():
             web.route(prefix + pattern, view(self.app, web).dispatch)
 
-    def on_discovered(
-            self, scanner: venusian.Scanner, name: str, obj: 'Site') -> None:
+    def on_discovered(self, scanner: venusian.Scanner, name: str,
+                      obj: 'Site') -> None:
         ...
 
     @classmethod
-    def from_handler(
-            cls, path: str,
-            *,
-            base: Type[View] = None) -> Callable[[PageArg], Type['Site']]:
+    def from_handler(cls, path: str, *,
+                     base: Type[View] = None) -> CommandDecorator:
         base = base if base is not None else View
 
         def _decorator(fun: PageArg) -> Type[Site]:
@@ -126,7 +120,10 @@ class Site:
                 view = base.from_handler(cast(ViewGetHandler, fun))
 
             return type('Site', (cls,), {
-                'views': {path: view},
+                'views': {
+                    path: view,
+                },
                 '__module__': fun.__module__,
             })
+
         return _decorator

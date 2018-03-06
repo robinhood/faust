@@ -2,7 +2,14 @@
 import asyncio
 from collections import defaultdict
 from typing import (
-    Any, AsyncIterable, Iterable, List, MutableMapping, Set, Tuple, cast,
+    Any,
+    AsyncIterable,
+    Iterable,
+    List,
+    MutableMapping,
+    Set,
+    Tuple,
+    cast,
 )
 
 from mode import Service
@@ -13,7 +20,10 @@ from mode.utils.times import Seconds
 
 from faust.types import AppT, EventT, TP
 from faust.types.tables import (
-    ChangelogReaderT, CollectionT, CollectionTps, TableManagerT,
+    ChangelogReaderT,
+    CollectionT,
+    CollectionTps,
+    TableManagerT,
 )
 from faust.types.topics import ChannelT
 from faust.utils.termtable import logtable
@@ -40,10 +50,7 @@ TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 async def _local_tps(table: CollectionT, tps: Iterable[TP]) -> Set[TP]:
     # RocksDB: Find partitions that we have database files for,
     # since only one process can have them open at a time.
-    return {
-        tp for tp in tps
-        if not await table.need_active_standby_for(tp)
-    }
+    return {tp for tp in tps if not await table.need_active_standby_for(tp)}
 
 
 class ChangelogReader(Service, ChangelogReaderT):
@@ -55,7 +62,8 @@ class ChangelogReader(Service, ChangelogReaderT):
     _highwaters: Counter[TP] = None
     _stop_event: asyncio.Event = None
 
-    def __init__(self, table: CollectionT,
+    def __init__(self,
+                 table: CollectionT,
                  channel: ChannelT,
                  app: AppT,
                  tps: Set[TP],
@@ -205,10 +213,9 @@ class ChangelogReader(Service, ChangelogReaderT):
         finally:
             self.diag.unset_flag(CHANGELOG_READING)
             self._done_reading()
-            await self.app.consumer.pause_partitions({
-                tp for tp in self.tps
-                if tp in self.app.consumer.assignment()
-            })
+            assignment = self.app.consumer.assignment()
+            await self.app.consumer.pause_partitions(
+                {tp for tp in self.tps if tp in assignment})
 
     async def _slurp_stream(self) -> None:
         buf: List[EventT] = []
@@ -319,8 +326,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _update_channels(self) -> None:
         for table in self.values():
             if table not in self._channels:
-                self._channels[table] = cast(ChannelT, aiter(
-                    table.changelog_topic))
+                it = aiter(table.changelog_topic)
+                self._channels[table] = cast(ChannelT, it)
         self._changelogs.update({
             table.changelog_topic.get_topic_name(): table
             for table in self.values()
@@ -330,8 +337,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
-    def _sync_persisted_offsets(
-            self, table: CollectionT, tps: Set[TP]) -> None:
+    def _sync_persisted_offsets(self, table: CollectionT,
+                                tps: Set[TP]) -> None:
         for tp in tps:
             persisted_offset = table.persisted_offset(tp)
             if persisted_offset is not None:
@@ -373,8 +380,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         return table_tps
 
     @Service.transitions_to(TABLEMAN_START_STANDBYS)
-    async def _start_standbys(self,
-                              tps: Set[TP]) -> None:
+    async def _start_standbys(self, tps: Set[TP]) -> None:
         self.log.info('Attempting to start standbys')
         assert not self._standbys
         table_standby_tps = self._group_table_tps(tps)
@@ -388,7 +394,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
             })
             channel = self._channels[table]
             standby = StandbyReader(
-                table, channel, self.app, table_tps, tp_offsets,
+                table,
+                channel,
+                self.app,
+                table_tps,
+                tp_offsets,
                 loop=self.loop,
                 beacon=self.beacon,
             )
@@ -421,8 +431,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _recover_changelogs(self, tps: Set[TP]) -> bool:
         self.log.info('Restoring state from changelog topics...')
         table_revivers = self._revivers = [
-            self._create_reviver(table, tps)
-            for table in self.values()
+            self._create_reviver(table, tps) for table in self.values()
         ]
         for reviver in table_revivers:
             await reviver.start()
@@ -442,8 +451,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.log.info('Stopped restoring')
         return all(reviver.recovered() for reviver in table_revivers)
 
-    def _create_reviver(
-            self, table: CollectionT, tps: Set[TP]) -> ChangelogReaderT:
+    def _create_reviver(self, table: CollectionT,
+                        tps: Set[TP]) -> ChangelogReaderT:
         table = cast(Table, table)
         offsets = self._table_offsets
         table_tps = {tp for tp in tps
@@ -455,7 +464,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
         })
         channel = self._channels[table]
         return ChangelogReader(
-            table, channel, self.app, table_tps, tp_offsets,
+            table,
+            channel,
+            self.app,
+            table_tps,
+            tp_offsets,
             loop=self.loop,
             beacon=self.beacon,
         )
@@ -476,8 +489,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
         if did_recover and not self._stopped.is_set():
             self.log.info('Restore complete!')
             # This needs to happen if all goes well
-            callback_coros = [table.call_recover_callbacks()
-                              for table in self.values()]
+            callback_coros = [
+                table.call_recover_callbacks() for table in self.values()
+            ]
             if callback_coros:
                 await asyncio.wait(callback_coros)
             await self.app.consumer.perform_seek()
@@ -500,8 +514,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 # stopped. This is expected. Ideally the revivers should stop
                 # almost immediately upon receiving a stop()
                 if self._revivers:
-                    await asyncio.wait([
-                        reviver.stop() for reviver in self._revivers])
+                    await asyncio.wait(
+                        [reviver.stop() for reviver in self._revivers])
                 self.log.info('Waiting for ongoing recovery to finish')
                 try:
                     await self.wait_for_stopped(self._ongoing_recovery)

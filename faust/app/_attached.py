@@ -44,16 +44,15 @@ class Attachments:
         self.app = app
         self._pending = defaultdict(list)
 
-    async def maybe_put(
-            self,
-            channel: Union[ChannelT, str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
+    async def maybe_put(self,
+                        channel: Union[ChannelT, str],
+                        key: K = None,
+                        value: V = None,
+                        partition: int = None,
+                        key_serializer: CodecArg = None,
+                        value_serializer: CodecArg = None,
+                        callback: MessageSentCallback = None,
+                        force: bool = False) -> Awaitable[RecordMetadata]:
         # XXX The concept of attaching should be deprecated when we
         # have Kafka transaction support (:kip:`KIP-98`).
         # This is why the interface related to attaching is private.
@@ -65,15 +64,16 @@ class Attachments:
             if event is not None:
                 send = cast(Event, event)._attach
         return await send(
-            channel, key, value,
+            channel,
+            key,
+            value,
             partition=partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
         )
 
-    def put(
-            self,
+    def put(self,
             message: Message,
             channel: Union[str, ChannelT],
             key: K,
@@ -90,9 +90,8 @@ class Attachments:
         # tuples.
         buf = self._pending[message.tp]
         chan = self.app.topic(channel) if isinstance(channel, str) else channel
-        fut = chan.as_future_message(
-            key, value, partition,
-            key_serializer, value_serializer, callback)
+        fut = chan.as_future_message(key, value, partition, key_serializer,
+                                     value_serializer, callback)
         # Note: Since FutureMessage have members that are unhashable
         # we wrap it in an Unordered object to stop heappush from crashing.
         # Unordered simply orders by random order, which is fine
@@ -107,14 +106,16 @@ class Attachments:
         attached = list(self._attachments_for(tp, offset))
         if attached:
             await asyncio.wait(
-                [await fut.message.channel.publish_message(fut, wait=False)
-                 for fut in attached],
+                [
+                    await fut.message.channel.publish_message(fut, wait=False)
+                    for fut in attached
+                ],
                 return_when=asyncio.ALL_COMPLETED,
                 loop=self.app.loop,
             )
 
-    def _attachments_for(
-            self, tp: TP, commit_offset: int) -> Iterator[FutureMessage]:
+    def _attachments_for(self, tp: TP,
+                         commit_offset: int) -> Iterator[FutureMessage]:
         # Return attached messages for TopicPartition within committed offset.
         attached = self._pending.get(tp)
         while attached:

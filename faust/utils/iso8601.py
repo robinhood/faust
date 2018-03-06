@@ -55,9 +55,12 @@ def parse(datestring: str) -> datetime:
         raise ValueError('unable to parse date string %r' % datestring)
     groups = cast(Mapping[str, str], m.groupdict())
     return datetime(
-        int(groups['year']), int(groups['month']),
-        int(groups['day']), int(groups['hour'] or 0),
-        int(groups['minute'] or 0), int(groups['second'] or 0),
+        int(groups['year']),
+        int(groups['month']),
+        int(groups['day']),
+        int(groups['hour'] or 0),
+        int(groups['minute'] or 0),
+        int(groups['second'] or 0),
         int(groups['microsecond'] or 0),
         parse_tz(groups['timezone']) if groups['timezone'] else None,
     )
