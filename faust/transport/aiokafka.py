@@ -357,6 +357,7 @@ class Producer(base.Producer):
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             client_id=transport.app.client_id,
+            acks='all',
         )
 
     async def on_restart(self) -> None:
