@@ -89,7 +89,9 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     current_event: EventT = None
     concurrency_index: int = None
 
-    children: List[JoinableT] = None
+    # List of combined streams/tables after ret = (s1 & s2) combined them.
+    # AFter this ret.combined == [s1, s2]
+    combined: List[JoinableT] = None
 
     # group_by, through, etc. sets this, and it means the
     # active stream (the one the agent would be reading from) can be found
@@ -106,7 +108,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
                  channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor[T]] = None,
-                 children: List[JoinableT] = None,
+                 combined: List[JoinableT] = None,
                  join_strategy: JoinT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...

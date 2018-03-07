@@ -108,7 +108,7 @@ class Stream(StreamT[T_co], Service):
                  *,
                  app: AppT = None,
                  processors: Iterable[Processor[T]] = None,
-                 children: List[JoinableT] = None,
+                 combined: List[JoinableT] = None,
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
                  beacon: NodeT = None,
@@ -124,7 +124,7 @@ class Stream(StreamT[T_co], Service):
             clear_on_resume=True,
         )
         self.join_strategy = join_strategy
-        self.children = children if children is not None else []
+        self.combined = combined if combined is not None else []
         self.concurrency_index = concurrency_index
         self._prev = prev
 
@@ -220,7 +220,7 @@ class Stream(StreamT[T_co], Service):
             'processors': self._processors,
             'on_start': self._on_start,
             'loop': self.loop,
-            'children': self.children,
+            'combined': self.combined,
             'beacon': self.beacon,
             'concurrency_index': self.concurrency_index,
             'prev': self._prev,
@@ -564,10 +564,10 @@ class Stream(StreamT[T_co], Service):
         # process values from all the combined streams, and e.g.
         # joins uses this to consolidate multiple values into one.
         self._next = stream = self.clone(
-            children=self.children + list(nodes),
+            combined=self.combined + list(nodes),
             prev=self,
         )
-        for node in stream.children:
+        for node in stream.combined:
             node.outbox = stream.outbox
         return stream
 
@@ -614,8 +614,8 @@ class Stream(StreamT[T_co], Service):
             await Service.stop(s)
 
     async def on_stop(self) -> None:
-        for combined in self.children:
-            await cast(Service, combined).stop()
+        for table_or_stream in self.combined:
+            await cast(Service, table_or_stream).stop()
         if self.current_event is not None:
             self.current_event = None
             await self.ack(self.current_event)
@@ -722,8 +722,8 @@ class Stream(StreamT[T_co], Service):
         return self.clone()
 
     def _repr_info(self) -> str:
-        if self.children:
-            return reprlib.repr(self.children)
+        if self.combined:
+            return reprlib.repr(self.combined)
         return reprlib.repr(self.channel)
 
     def _repr_channel(self) -> str:
