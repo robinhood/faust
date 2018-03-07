@@ -19,8 +19,9 @@ from typing import (
 
 from mode import Seconds, ServiceT
 
-from .channels import ChannelT, EventT
+from .channels import ChannelT
 from .core import K
+from .events import EventT
 from .models import FieldDescriptorT, ModelArg
 from .topics import TopicT
 

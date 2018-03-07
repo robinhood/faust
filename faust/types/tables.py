@@ -21,7 +21,7 @@ from mode.utils.collections import ManagedUserSet
 from mode.utils.compat import Counter
 from yarl import URL
 
-from .channels import EventT
+from .events import EventT
 from .stores import StoreT
 from .streams import JoinableT
 from .topics import TopicT

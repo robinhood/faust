@@ -111,7 +111,8 @@ if typing.TYPE_CHECKING:
     from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
-    from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
+    from .channels import Channel, ChannelT                     # noqa: E402
+    from .events import Event, EventT                           # noqa: E402
     from .models import Model, ModelOptions, Record             # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
     from .serializers import Codec                              # noqa: E402
@@ -165,11 +166,8 @@ from types import ModuleType  # noqa
 all_by_module: Mapping[str, Sequence[str]] = {
     'faust.agents': ['Agent'],
     'faust.app': ['App'],
-    'faust.channels': [
-        'Channel',
-        'ChannelT',
-        'Event',
-        'EventT'],
+    'faust.channels': ['Channel', 'ChannelT'],
+    'faust.events': ['Event', 'EventT'],
     'faust.models': ['ModelOptions', 'Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.serializers': ['Codec'],

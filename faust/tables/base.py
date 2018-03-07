@@ -23,7 +23,7 @@ from yarl import URL
 
 from faust import stores
 from faust import joins
-from faust.channels import Event
+from faust.events import Event
 from faust.streams import current_event
 from faust.types import (
     AppT,

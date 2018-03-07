@@ -85,7 +85,7 @@ from .service import AppService
 
 if typing.TYPE_CHECKING:
     from faust.cli.base import AppCommand
-    from faust.channels import Event
+    from faust.events import Event
     from faust.worker import Worker as WorkerT
 else:
     class AppCommand: ...  # noqa

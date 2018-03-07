@@ -3,9 +3,10 @@ from mode import ServiceT
 
 from .agents import AgentManagerT, AgentT
 from .app import AppT
-from .channels import ChannelT, EventT
+from .channels import ChannelT
 from .codecs import CodecArg, CodecT
 from .core import K, V
+from .events import EventT
 from .fixups import FixupT
 from .joins import JoinT
 from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT

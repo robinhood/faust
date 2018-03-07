@@ -1,7 +1,7 @@
 import abc
 from typing import MutableMapping, Optional, Tuple, Type
 
-from .channels import EventT
+from .events import EventT
 from .models import FieldDescriptorT, ModelT
 from .streams import JoinableT
 

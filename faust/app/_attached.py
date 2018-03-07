@@ -13,7 +13,7 @@ from faust.types.tuples import FutureMessage, Message, MessageSentCallback
 from faust.utils.objects import Unordered
 
 if typing.TYPE_CHECKING:
-    from faust.channels import Event
+    from faust.events import Event
 else:
     class Event: ...       # noqa
 

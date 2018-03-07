@@ -13,8 +13,8 @@ from typing import (
 from mode import ServiceT
 from yarl import URL
 
-from .channels import EventT
 from .codecs import CodecArg
+from .events import EventT
 from .tuples import TP
 
 if typing.TYPE_CHECKING:

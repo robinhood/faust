@@ -3,7 +3,7 @@ from typing import Any, Iterable
 
 from mode import ServiceT
 
-from .channels import EventT
+from .events import EventT
 from .streams import StreamT
 from .tables import CollectionT
 from .transports import ConsumerT, ProducerT

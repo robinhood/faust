@@ -21,9 +21,9 @@ from typing import (
 
 from mode import ServiceT, SupervisorStrategyT
 
-from .channels import EventT
 from .codecs import CodecArg
 from .core import K, V
+from .events import EventT
 from .models import ModelArg
 from .streams import StreamT
 from .topics import ChannelT
