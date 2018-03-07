@@ -78,6 +78,14 @@ class JoinableT(abc.ABC):
     def __and__(self, other: Any) -> Any:
         ...
 
+    @abc.abstractmethod
+    def contribute_to_stream(self, active: 'StreamT') -> None:
+        ...
+
+    @abc.abstractmethod
+    async def remove_from_stream(self, stream: 'StreamT') -> None:
+        ...
+
 
 class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
 

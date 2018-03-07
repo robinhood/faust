@@ -269,6 +269,17 @@ class Collection(Service, CollectionT):
         # TODO
         raise NotImplementedError('TODO')
 
+    def contribute_to_stream(self, active: StreamT) -> None:
+        # TODO  See Stream.contribute_to_stream()
+        # Should probably connect to Table changelog.
+        ...
+
+    async def remove_from_stream(self, stream: StreamT) -> None:
+        # TODO See Stream.remove_from_stream()
+        # Should stop any services started to support joining this table
+        # with one or more streams.
+        ...
+
     def _new_changelog_topic(self,
                              *,
                              retention: Seconds = None,

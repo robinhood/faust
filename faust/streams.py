@@ -568,8 +568,14 @@ class Stream(StreamT[T_co], Service):
             prev=self,
         )
         for node in stream.combined:
-            node.outbox = stream.outbox
+            node.contribute_to_stream(stream)
         return stream
+
+    def contribute_to_stream(self, active: StreamT) -> None:
+        self.outbox = active.outbox
+
+    async def remove_from_stream(self, stream: StreamT) -> None:
+        await self.stop()
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -615,7 +621,7 @@ class Stream(StreamT[T_co], Service):
 
     async def on_stop(self) -> None:
         for table_or_stream in self.combined:
-            await cast(Service, table_or_stream).stop()
+            await table_or_stream.remove_from_stream(self)
         if self.current_event is not None:
             self.current_event = None
             await self.ack(self.current_event)
