@@ -166,32 +166,8 @@ Sensors
 
 - ``group_by()`` latency
 
-HTTP interface
---------------
-
-.. sourcecode:: text
-
-    GET localhost:6666/stats/
-    Returns: general stats events processed/s, total events, commit()
-    latency etc.,
-
-    GET localhost:6666/stats/topic/mytopic/
-    Stats related to topic by name.
-
-    GET localhost:6666/stats/task/mytask/
-    Stats related to task by name.
-
-    GET localhost:6666/stats/table/mytable/
-    Stats related to table by table name.
-
-HTTP Graphs
------------
-
-Show graphs in realtime:  Wow factor+++ :-)
-
 Documentation
 =============
-
 
 - Topic
 
