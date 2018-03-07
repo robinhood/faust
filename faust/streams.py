@@ -9,9 +9,11 @@ from typing import (
     AsyncIterator,
     Callable,
     Iterable,
+    Iterator,
     List,
     Mapping,
     MutableSequence,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -85,6 +87,15 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
     return value
 
 
+class _LinkedListDirection(NamedTuple):
+    attr: str
+    getter: Callable[[StreamT], StreamT]
+
+
+_LinkedListDirectionFwd = _LinkedListDirection('_next', lambda n: n._next)
+_LinkedListDirectionBwd = _LinkedListDirection('_prev', lambda n: n._prev)
+
+
 class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
 
@@ -102,6 +113,7 @@ class Stream(StreamT[T_co], Service):
                  join_strategy: JoinT = None,
                  beacon: NodeT = None,
                  concurrency_index: int = None,
+                 prev: StreamT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -114,6 +126,7 @@ class Stream(StreamT[T_co], Service):
         self.join_strategy = join_strategy
         self.children = children if children is not None else []
         self.concurrency_index = concurrency_index
+        self._prev = prev
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
@@ -148,23 +161,35 @@ class Stream(StreamT[T_co], Service):
 
         Notes:
             The chain of streams that leads to the active stream
-            is decided by the :attr:`link` attribute, and getting
+            is decided by the :attr:`_next` attribute, and getting
             the active stream is just traversing this linked-list::
 
                 >>> def get_active_stream(self):
                 ...     node = self
-                ...     while node.link:
-                ...         node = node.link
+                ...     while node._next:
+                ...         node = node._next
         """
-        node = self
+        return list(self._iter_ll_forwards())[-1]
+
+    def get_root_stream(self) -> StreamT:
+        return list(self._iter_ll_backwards())[-1]
+
+    def _iter_ll_forwards(self) -> Iterator[StreamT]:
+        return self._iter_ll(_LinkedListDirectionFwd)
+
+    def _iter_ll_backwards(self) -> Iterator[StreamT]:
+        return self._iter_ll(_LinkedListDirectionBwd)
+
+    def _iter_ll(self, dir_: _LinkedListDirection) -> Iterator[StreamT]:
+        node: StreamT = self
         seen: Set[StreamT] = set()
-        while node.link:
+        while node:
             if node in seen:
                 raise RuntimeError(
-                    'Loop in Stream.link linked-list. Call support!')
+                    'Loop in Stream.{dir_.attr}: Call support!')
             seen.add(node)
-            node = node.link
-        return node
+            yield node
+            node = dir_.getter(node)
 
     async def _send_to_outbox(self, value: T_contra) -> None:
         await self.outbox.put(value)
@@ -198,6 +223,7 @@ class Stream(StreamT[T_co], Service):
             'children': self.children,
             'beacon': self.beacon,
             'concurrency_index': self.concurrency_index,
+            'prev': self._prev,
         }
 
     def clone(self, **kwargs: Any) -> Any:
@@ -205,7 +231,7 @@ class Stream(StreamT[T_co], Service):
 
         Notes:
             If the cloned stream is supposed to "supercede" this stream,
-            you should set `stream.link = cloned_stream` so that
+            you should set `stream._next = cloned_stream` so that
             :meth:`get_active_stream` returns the cloned stream.
         """
         return self.__class__(**{**self.info(), **kwargs})
@@ -333,12 +359,13 @@ class Stream(StreamT[T_co], Service):
 
         channel_created = False
         channel_it = aiter(channelchannel)
-        if self.link is not None:
+        if self._next is not None:
             raise ImproperlyConfigured(
                 'Stream is already using group_by/through')
-        self.link = through = self.clone(
+        self._next = through = self.clone(
             channel=channel_it,
             on_start=self.maybe_start,
+            prev=self,
         )
 
         declare = StampedeWrapper(channelchannel.maybe_declare)
@@ -465,11 +492,12 @@ class Stream(StreamT[T_co], Service):
         format_key = self._format_key
 
         channel_it = aiter(channel)
-        if self.link is not None:
+        if self._next is not None:
             raise ImproperlyConfigured('Stream already uses group_by/through')
-        self.link = grouped = self.clone(
+        self._next = grouped = self.clone(
             channel=channel_it,
             on_start=self.maybe_start,
+            prev=self,
         )
         declare = StampedeWrapper(channel.maybe_declare)
 
@@ -535,7 +563,10 @@ class Stream(StreamT[T_co], Service):
         # The resulting stream's `on_merge` callback can be used to
         # process values from all the combined streams, and e.g.
         # joins uses this to consolidate multiple values into one.
-        self.link = stream = self.clone(children=self.children + list(nodes))
+        self._next = stream = self.clone(
+            children=self.children + list(nodes),
+            prev=self,
+        )
         for node in stream.children:
             node.outbox = stream.outbox
         return stream
@@ -577,8 +608,16 @@ class Stream(StreamT[T_co], Service):
         if self._on_start:
             await self._on_start()
 
+    async def stop(self) -> None:
+        # Stop all related streams (created by .through/.group_by/etc.)
+        for s in cast(Stream, self.get_root_stream())._iter_ll_forwards():
+            await Service.stop(s)
+
     async def on_stop(self) -> None:
+        for combined in self.children:
+            await cast(Service, combined).stop()
         if self.current_event is not None:
+            self.current_event = None
             await self.ack(self.current_event)
 
     def __iter__(self) -> Any:
