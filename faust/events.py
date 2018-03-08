@@ -46,7 +46,7 @@ class Event(EventT):
           a value in the stream::
 
               stream = channel.stream()
-              async for value in stream:
+              async for event in stream.events():
                   event = stream.current_event
                   message = event.message
                   topic = event.message.topic
@@ -62,6 +62,34 @@ class Event(EventT):
 
               async for key, value in stream.items():
                   ...
+
+            ``stream.current_event`` can also be accessed but you must take
+            extreme care you are using the correct stream object. Methods
+            such as ``.group_by(key)`` and ``.through(topic)`` returns cloned
+            stream objects, so in the example::
+
+                @app.agent(topic)
+                async def process(stream):
+                    async for value in stream.through(other_topic):
+                        event = stream.current_event
+
+            will not work *because the stream being iterated over and the
+            `stream` argument passed to the agent are now different objects.
+
+            To safely access the current event having just a stream object
+            you should use::
+
+                current_event = stream.get_active_stream().current_event
+
+            But even easier would be to use the context var that will always
+            point to the current event in the current :class:`asyncio.Task`::
+
+                from faust import current_event
+
+                @app.agent(topic)
+                async def process(stream):
+                    async for value in stream:
+                        event = current_event()
     """
 
     def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
