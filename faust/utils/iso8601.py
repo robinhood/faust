@@ -77,4 +77,4 @@ def _apply_tz_prefix(prefix: str, hours: int, minutes: int) -> tzinfo:
     if prefix == '-':
         hours = -hours
         minutes = -minutes
-    return timezone(timedelta(minutes + hours * 60))
+    return timezone(timedelta(minutes=(minutes + (hours * 60))))
