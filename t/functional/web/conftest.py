@@ -1,5 +1,5 @@
 from unittest.mock import Mock
-from faust.router import SameNode
+from faust.exceptions import SameNode
 from faust.web.site import Website
 import pytest
 
