@@ -758,6 +758,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         been revoked.
         """
         try:
+            await self.consumer.verify_subscription(assigned)
             self.flow_control.resume()
             # Wait for TopicConductor to finish any new subscriptions
             await self.topics.wait_for_subscriptions()

@@ -16,8 +16,11 @@ class LeaderAssignor(Service, LeaderAssignorT):
         self.app = app
 
     async def on_start(self) -> None:
-        await self._leader_topic.maybe_declare()
-        self.app.topics.add(self._leader_topic)
+        leader_topic = self._leader_topic
+        await leader_topic.maybe_declare()
+        self.app.topics.add(leader_topic)
+        self.app.consumer.randomly_assigned_topics.add(
+            leader_topic.get_topic_name())
 
     @cached_property
     def _leader_topic(self) -> TopicT:

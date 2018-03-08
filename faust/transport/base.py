@@ -156,6 +156,7 @@ class Consumer(Service, ConsumerT):
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         self._time_start = monotonic()
+        self.randomly_assigned_topics = set()
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -176,6 +177,9 @@ class Consumer(Service, ConsumerT):
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self._on_partitions_revoked(revoked)
+
+    async def verify_subscription(self, assigned: Set[TP]) -> None:
+        ...
 
     async def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful

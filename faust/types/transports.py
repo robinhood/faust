@@ -56,6 +56,7 @@ class ConsumerT(ServiceT):
     id: int
     transport: 'TransportT'
     commit_interval: float
+    randomly_assigned_topics: Set[str]
 
     @abc.abstractmethod
     def __init__(self,
@@ -85,6 +86,10 @@ class ConsumerT(ServiceT):
 
     @abc.abstractmethod
     async def subscribe(self, topics: Iterable[str]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def verify_subscription(self, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
