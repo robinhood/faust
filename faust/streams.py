@@ -366,7 +366,11 @@ class Stream(StreamT[T_co], Service):
             channel=channel_it,
             on_start=self.maybe_start,
             prev=self,
+            # move processors to active stream
+            processors=list(self._processors),
         )
+        # delete moved processors from self
+        self._processors.clear()
 
         declare = StampedeWrapper(channelchannel.maybe_declare)
 
@@ -498,7 +502,11 @@ class Stream(StreamT[T_co], Service):
             channel=channel_it,
             on_start=self.maybe_start,
             prev=self,
+            # move processors to the active stream
+            processors=list(self._processors),
         )
+        # delete moved processors from self
+        self._processors.clear()
         declare = StampedeWrapper(channel.maybe_declare)
 
         async def repartition(value: T) -> T:
@@ -566,7 +574,11 @@ class Stream(StreamT[T_co], Service):
         self._next = stream = self.clone(
             combined=self.combined + list(nodes),
             prev=self,
+            # move processors to active stream
+            processors=list(self._processors),
         )
+        # delete moved processors from self
+        self._processors.clear()
         for node in stream.combined:
             node.contribute_to_stream(stream)
         return stream
