@@ -422,6 +422,8 @@ class Agent(AgentT, ServiceProxy):
         # This executes the agent task itself, and does exception handling.
         try:
             await coro
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
             self.log.exception('Agent %r raised error: %r', aref, exc)
             if self._on_error is not None:
