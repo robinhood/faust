@@ -29,7 +29,7 @@ from mode.utils.types.trees import NodeT
 
 from . import joins
 from .exceptions import ImproperlyConfigured
-from .types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
+from .types import AppT, EventT, K, Message, ModelArg, ModelT, TP, TopicT
 from .types.joins import JoinT
 from .types.models import FieldDescriptorT
 from .types.streams import (
@@ -622,9 +622,6 @@ class Stream(StreamT[T_co], Service):
     async def on_stop(self) -> None:
         for table_or_stream in self.combined:
             await table_or_stream.remove_from_stream(self)
-        if self.current_event is not None:
-            self.current_event = None
-            await self.ack(self.current_event)
 
     def __iter__(self) -> Any:
         return self
@@ -655,25 +652,17 @@ class Stream(StreamT[T_co], Service):
         while not self.should_stop:
             # wait for next message
             value: Any = None
+            event: EventT = None
+            message: Message = None
+            tp: TP = None
+            offset: int = None
             while value is None:  # we iterate until on_merge gives value.
-                # decrement reference count for previous event processed.
-                _prev, self.current_event = self.current_event, None
-                if _prev is not None:
-                    # This inlines self.ack
-                    last_stream_to_ack = _prev.ack()
-                    prev_message = _prev.message
-                    ptp = prev_message.tp
-                    poffset = prev_message.offset
-                    await on_stream_event_out(ptp, poffset, self, _prev)
-                    if last_stream_to_ack:
-                        await on_message_out(ptp, poffset, prev_message)
-
                 # get message from channel
                 channel_value: Any = await get_next_value()
 
                 if isinstance(channel_value, event_cls):
-                    event: EventT = channel_value
-                    message: Message = event.message
+                    event = channel_value
+                    message = event.message
                     tp = message.tp
                     offset = message.offset
 
@@ -695,7 +684,16 @@ class Stream(StreamT[T_co], Service):
                 for processor in processors:
                     value = await _maybe_async(processor(value))
                 value = await on_merge(value)
-            yield value
+            try:
+                yield value
+            finally:
+                self.current_event = None
+                if event is not None:
+                    # This inlines self.ack
+                    last_stream_to_ack = event.ack()
+                    await on_stream_event_out(tp, offset, self, event)
+                    if last_stream_to_ack:
+                        await on_message_out(tp, offset, message)
 
     async def __anext__(self) -> T:
         ...
