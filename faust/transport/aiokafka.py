@@ -1,6 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
 from itertools import cycle
+from time import monotonic
 from typing import (
     Any,
     AsyncIterator,
@@ -226,6 +227,12 @@ class Consumer(base.Consumer):
                     timeout,
                     max_records=_consumer._max_poll_records,
                 )
+                if records and self._last_batch is None:
+                    # set last_batch received timestamp if not already set.
+                    # the commit livelock monitor uses this to check
+                    # how long between receiving a message to we commit it
+                    # (we reset _last_batch to None in .commit())
+                    self._last_batch = monotonic()
             else:
                 # We should still release to the event loop
                 await self.sleep(0)
@@ -323,6 +330,7 @@ class Consumer(base.Consumer):
                 tp: offset
                 for tp, (offset, _) in offsets.items()
             })
+            self._last_batch = None
             return True
         except CommitFailedError as exc:
             self.log.exception(f'Committing raised exception: %r', exc)
@@ -364,6 +372,9 @@ class Consumer(base.Consumer):
 
     async def seek(self, partition: TP, offset: int) -> None:
         self.log.dev('SEEK %r -> %r', partition, offset)
+        # reset livelock detection
+        self._last_batch = None
+        # set new read offset so we will reread messages
         self._read_offset[_ensure_TP(partition)] = offset
         self._consumer.seek(partition, offset)
 
