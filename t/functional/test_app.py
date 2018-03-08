@@ -31,6 +31,8 @@ class test_settings:
         assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_commit_interval == settings.BROKER_COMMIT_INTERVAL
+        assert (conf.broker_commit_livelock_soft_timeout ==
+                settings.BROKER_LIVELOCK_SOFT)
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
@@ -103,6 +105,7 @@ class test_settings:
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
                                  broker_commit_interval=30.3,
+                                 broker_commit_livelock_soft_timeout=60.6,
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
                                  value_serializer='str',
@@ -113,6 +116,7 @@ class test_settings:
                                  reply_expires=90.9,
                                  stream_buffer_maxsize=101,
                                  **kwargs) -> App:
+        livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
             id,
             version=version,
@@ -125,6 +129,7 @@ class test_settings:
             datadir=datadir,
             tabledir=tabledir,
             broker_commit_interval=broker_commit_interval,
+            broker_commit_livelock_soft_timeout=livelock_soft_timeout,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -148,6 +153,8 @@ class test_settings:
             assert app.conf.tabledir.relative_to(
                 app.conf.datadir) == Path(tabledir)
         assert app.conf.broker_commit_interval == broker_commit_interval
+        assert (app.conf.broker_commit_livelock_soft_timeout ==
+                broker_commit_livelock_soft_timeout)
         assert app.conf.table_cleanup_interval == table_cleanup_interval
         assert app.conf.key_serializer == key_serializer
         assert app.conf.value_serializer == value_serializer

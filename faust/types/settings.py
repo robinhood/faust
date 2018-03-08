@@ -87,7 +87,7 @@ CONDUCTOR_TYPE = 'faust.topics:TopicConductor'
 TOPIC_TYPE = 'faust:Topic'
 
 #: Path to HTTP client class, providing the default for :setting:`HttpClient`.
-HTTP_CLIENT_TYPE = 'aiohttp.client:ClientSession'
+HTTP_CLIENT_TYPE = 'faust.types.web.HttpClientT'
 
 #: Path to Monitor sensor class, providing the default for :setting:`Monitor`.
 MONITOR_TYPE = 'faust.sensors:Monitor'
@@ -98,6 +98,10 @@ BROKER_CLIENT_ID = f'faust-{faust_version}'
 #: How often we commit acknowledged messages.
 #: Used as the default value for :setting:`broker_commit_interval`.
 BROKER_COMMIT_INTERVAL = 3.0
+
+#: How long time it takes before we warn that the commit offset has
+#: not advanced.
+BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=1))
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
@@ -152,6 +156,7 @@ class Settings(abc.ABC):
     _datadir: Path = None
     _tabledir: Path = None
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
+    _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
     _Agent: Type[AgentT] = None
@@ -184,6 +189,7 @@ class Settings(abc.ABC):
             broker: Union[str, URL] = None,
             broker_client_id: str = None,
             broker_commit_interval: Seconds = None,
+            broker_commit_livelock_soft_timeout: Seconds = None,
             store: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
@@ -236,6 +242,9 @@ class Settings(abc.ABC):
         self.tabledir = tabledir or self._tabledir or TABLEDIR
         self.broker_commit_interval = (
             broker_commit_interval or self._broker_commit_interval)
+        self.broker_commit_livelock_soft_timeout = (
+            broker_commit_livelock_soft_timeout or
+            self._broker_commit_livelock_soft_timeout)
         self.table_cleanup_interval = (
             table_cleanup_interval or self._table_cleanup_interval)
 
@@ -371,6 +380,14 @@ class Settings(abc.ABC):
     @broker_commit_interval.setter
     def broker_commit_interval(self, value: Seconds) -> None:
         self._broker_commit_interval = want_seconds(value)
+
+    @property
+    def broker_commit_livelock_soft_timeout(self) -> float:
+        return self._broker_commit_livelock_soft_timeout
+
+    @broker_commit_livelock_soft_timeout.setter
+    def broker_commit_livelock_soft_timeout(self, value: Seconds) -> None:
+        self._broker_commit_livelock_soft_timeout = want_seconds(value)
 
     @property
     def table_cleanup_interval(self) -> float:

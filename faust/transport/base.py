@@ -4,6 +4,7 @@ import asyncio
 import gc
 import typing
 from collections import defaultdict
+from time import monotonic
 from typing import (
     Any,
     AsyncIterator,
@@ -116,7 +117,16 @@ class Consumer(Service, ConsumerT):
     #: will wait for the original request to finish, and do nothing.
     _commit_fut: asyncio.Future = None
 
+    #: Set of unacked messages: that is messages that we started processing
+    #: and that we MUST attempt to complete processing of, before
+    #: shutting down or resuming a rebalance.
     _unacked_messages: MutableSet[Message] = None
+
+    #: Time of last commit (a monotonic timestamp).
+    _last_commit: float = None
+
+    #: Time of when the consumer was started.
+    _time_start: float = None
 
     def __init__(self,
                  transport: TransportT,
@@ -125,6 +135,7 @@ class Consumer(Service, ConsumerT):
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
                  commit_interval: float = None,
+                 commit_livelock_soft_timeout: float = None,
                  **kwargs: Any) -> None:
         assert callback is not None
         self.transport = transport
@@ -135,12 +146,16 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
             commit_interval or self.app.conf.broker_commit_interval)
+        self.commit_livelock_soft_timeout = (
+            commit_livelock_soft_timeout or
+            self.app.conf.broker_commit_livelock_soft_timeout)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
         self._committed_offset = defaultdict(lambda: None)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
+        self._time_start = monotonic()
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -232,6 +247,22 @@ class Consumer(Service, ConsumerT):
             await self.commit()
             await self.sleep(self.commit_interval)
 
+    @Service.task
+    async def _commit_livelock_detector(self) -> None:
+        # XXX Should take into account the time of last records recieved.
+        soft_timeout = self.commit_livelock_soft_timeout
+        interval: float = self.commit_interval * 2.5
+        await self.sleep(interval)
+        while not self.should_stop:
+            if self._seconds_since_last_commit() > soft_timeout:
+                self.log.warn('Possible livelock: COMMIT OFFSET NOT ADVANCING')
+            await self.sleep(interval)
+
+    def _seconds_since_last_commit(self) -> float:
+        if self._last_commit is None:
+            return monotonic() - self._time_start
+        return monotonic() - self._last_commit
+
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
 
@@ -297,10 +328,17 @@ class Consumer(Service, ConsumerT):
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''
-        return await self._commit({
+        did_commit = await self._commit({
             tp: (offset, meta)
             for tp, offset in commit_offsets.items()
         })
+        if did_commit:
+            self._on_commit_completed()
+            return True
+        return False
+
+    def _on_commit_completed(self) -> None:
+        self._last_commit = self.loop.time()
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
