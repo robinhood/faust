@@ -357,7 +357,6 @@ class Stream(StreamT[T_co], Service):
         else:
             channelchannel = channel
 
-        channel_created = False
         channel_it = aiter(channelchannel)
         if self._next is not None:
             raise ImproperlyConfigured(
@@ -372,26 +371,24 @@ class Stream(StreamT[T_co], Service):
         # delete moved processors from self
         self._processors.clear()
 
-        declare = StampedeWrapper(channelchannel.maybe_declare)
-
         async def forward(value: T) -> T:
-            nonlocal channel_created
-            if not channel_created:
-                await declare()
-                channel_created = True
             event = self.current_event
             return await maybe_forward(event, channelchannel)
 
         self.add_processor(forward)
-        self._enable_passive(cast(ChannelT, channel_it))
+        self._enable_passive(cast(ChannelT, channel_it), declare=True)
         return through
 
-    def _enable_passive(self, channel: ChannelT) -> None:
+    def _enable_passive(self, channel: ChannelT, *,
+                        declare: bool = False) -> None:
         if not self._passive:
             self._passive = True
-            self.add_future(self._passive_drainer(channel))
+            self.add_future(self._passive_drainer(channel, declare))
 
-    async def _passive_drainer(self, channel: ChannelT) -> None:
+    async def _passive_drainer(self, channel: ChannelT,
+                               declare: bool = False) -> None:
+        if declare:
+            await channel.maybe_declare()
         try:
             async for item in self:  # noqa
                 ...
@@ -492,7 +489,6 @@ class Stream(StreamT[T_co], Service):
             p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
-        topic_created = False
         format_key = self._format_key
 
         channel_it = aiter(channel)
@@ -507,7 +503,6 @@ class Stream(StreamT[T_co], Service):
         )
         # delete moved processors from self
         self._processors.clear()
-        declare = StampedeWrapper(channel.maybe_declare)
 
         async def repartition(value: T) -> T:
             event = self.current_event
@@ -515,16 +510,11 @@ class Stream(StreamT[T_co], Service):
                 raise RuntimeError(
                     'Cannot repartition stream with non-topic channel')
             new_key = await format_key(key, value)
-
-            nonlocal topic_created
-            if not topic_created:
-                await declare()
-                topic_created = True
             await event.forward(channel, key=new_key)
             return value
 
         self.add_processor(repartition)
-        self._enable_passive(cast(ChannelT, channel_it))
+        self._enable_passive(cast(ChannelT, channel_it), declare=True)
         return grouped
 
     async def _format_key(self, key: GroupByKeyArg, value: T_contra) -> str:
