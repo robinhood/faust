@@ -195,11 +195,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     _extra_services: List[ServiceT] = None
 
-    # we set this the first time on_partition_is_called
-    # so that we only restart agents on rebalance, not the
-    # first time we start.
-    _partitions_revoked_count: int = 0
-
     def __init__(self,
                  id: str,
                  *,
@@ -781,7 +776,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         have been reassigned to a different node.
         """
         try:
-            self._partitions_revoked_count += 1
             self.log.dev('ON PARTITIONS REVOKED')
             await self.topics.on_partitions_revoked(revoked)
             await self.tables.on_partitions_revoked(revoked)
@@ -793,8 +787,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 await self.consumer.wait_empty()
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
-            if self._partitions_revoked_count > 1:
-                await self.agents.restart()
             await self.on_partitions_revoked.send(revoked)
         except Exception as exc:
             await self.crash(exc)
