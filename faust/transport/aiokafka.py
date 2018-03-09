@@ -1,7 +1,6 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
 from itertools import cycle
-from time import monotonic
 from typing import (
     Any,
     AsyncIterator,

@@ -24,7 +24,7 @@ from typing import (
 
 from mode import Seconds, Service, want_seconds
 from mode.utils.aiter import aenumerate, aiter
-from mode.utils.futures import StampedeWrapper, maybe_async
+from mode.utils.futures import maybe_async
 from mode.utils.types.trees import NodeT
 
 from . import joins
