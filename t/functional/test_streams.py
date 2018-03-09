@@ -5,11 +5,24 @@ from .helpers import channel_empty, message, put
 
 
 def new_stream(app, *args, **kwargs):
+    app = _prepare_app(app)
+    return _new_stream(app, app.channel(loop=app.loop, maxsize=1000), **kwargs)
+
+
+def new_topic_stream(app, *args, name: str = 'test', **kwargs):
+    app = _prepare_app(app)
+    return _new_stream(app, app.topic(name, loop=app.loop), **kwargs)
+
+
+def _new_stream(app, channel, *args, **kwargs):
+    return channel.stream(*args, loop=app.loop, **kwargs)
+
+
+def _prepare_app(app):
     loop = asyncio.get_event_loop()
     app.loop = loop
-    channel = app.channel(loop=loop, maxsize=1000)
-    stream = channel.stream(*args, loop=loop, **kwargs)
-    return stream
+    return app
+
 
 
 @pytest.mark.asyncio
@@ -178,3 +191,22 @@ class test_chained_streams:
         await leader.stop()
         for node in all_nodes:
             assert node._stopped.is_set()
+
+
+async def _start_stop_stream(stream):
+    await stream.start()
+    assert stream._prev._passive
+    it = stream.__aiter__()
+    assert stream.app.topics
+
+    await stream.stop()
+    assert not stream._prev._passive
+
+
+@pytest.mark.asyncio
+async def test_start_and_stop_Stream(app):
+    s = new_topic_stream(app).group_by(lambda k: k, name='foo-bar')
+    await _start_stop_stream(s)
+    print(list(app.topics._topics))
+    assert not app.topics._topics
+    await app.producer.stop()

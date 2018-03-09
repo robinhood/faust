@@ -268,6 +268,9 @@ class Channel(ChannelT):
     async def on_decode_error(self, exc: Exception, message: Message) -> None:
         ...
 
+    def on_stop_iteration(self) -> None:
+        ...
+
     def derive(self, **kwargs: Any) -> ChannelT:
         return self
 

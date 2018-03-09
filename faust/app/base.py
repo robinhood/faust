@@ -335,7 +335,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
               replicas: int = None,
               acks: bool = True,
               internal: bool = False,
-              config: Mapping[str, Any] = None) -> TopicT:
+              config: Mapping[str, Any] = None,
+              loop: asyncio.AbstractEventLoop = None) -> TopicT:
         """Create topic description.
 
         Topics are named channels (for example a Kafka topic),
@@ -362,6 +363,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             acks=acks,
             internal=internal,
             config=config,
+            loop=loop,
         )
 
     def channel(self,

@@ -136,7 +136,8 @@ class AppT(ServiceT):
               replicas: int = None,
               acks: bool = True,
               internal: bool = False,
-              config: Mapping[str, Any] = None) -> TopicT:
+              config: Mapping[str, Any] = None,
+              loop: asyncio.AbstractEventLoop = None) -> TopicT:
         ...
 
     @abc.abstractmethod

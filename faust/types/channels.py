@@ -178,6 +178,10 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
+    def on_stop_iteration(self) -> None:
+        ...
+
+    @abc.abstractmethod
     def __aiter__(self) -> 'ChannelT':
         ...
 

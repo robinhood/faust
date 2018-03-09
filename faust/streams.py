@@ -102,6 +102,7 @@ class Stream(StreamT[T_co], Service):
     _processors: MutableSequence[Processor] = None
     _anext_started: bool = False
     _passive = False
+    _passive_started: asyncio.Event
 
     def __init__(self,
                  channel: AsyncIterator[T_co] = None,
@@ -123,6 +124,7 @@ class Stream(StreamT[T_co], Service):
             loop=self.loop,
             clear_on_resume=True,
         )
+        self._passive_started = asyncio.Event(loop=self.loop)
         self.join_strategy = join_strategy
         self.combined = combined if combined is not None else []
         self.concurrency_index = concurrency_index
@@ -395,6 +397,7 @@ class Stream(StreamT[T_co], Service):
         try:
             if declare:
                 await channel.maybe_declare()
+            self._passive_started.set()
             try:
                 async for item in self:  # noqa
                     ...
@@ -403,7 +406,16 @@ class Stream(StreamT[T_co], Service):
                 # e.g. in through/group_by/etc.
                 await channel.throw(exc)
         finally:
+            self._channel_stop_iteration(channel)
             self._passive = False
+
+    def _channel_stop_iteration(self, channel: Any) -> None:
+        try:
+            on_stop_iteration = channel.on_stop_iteration
+        except AttributeError:
+            pass
+        else:
+            on_stop_iteration()
 
     def echo(self, *channels: Union[str, ChannelT]) -> StreamT:
         """Forward values to one or more channels.
@@ -608,6 +620,8 @@ class Stream(StreamT[T_co], Service):
     async def on_start(self) -> None:
         if self._on_start:
             await self._on_start()
+        if self._passive:
+            await self._passive_started.wait()
 
     async def stop(self) -> None:
         # Stop all related streams (created by .through/.group_by/etc.)
@@ -615,6 +629,8 @@ class Stream(StreamT[T_co], Service):
             await Service.stop(s)
 
     async def on_stop(self) -> None:
+        self._passive = False
+        self._passive_started.clear()
         for table_or_stream in self.combined:
             await table_or_stream.remove_from_stream(self)
 
@@ -632,7 +648,8 @@ class Stream(StreamT[T_co], Service):
         on_message_out = self._on_message_out
 
         # get from channel
-        get_next_value = self.channel.__anext__
+        channel = self.channel
+        get_next_value = channel.__anext__
         # Topic description -> processors
         processors = self._processors
         # Sensor: on_stream_event_in
@@ -644,51 +661,54 @@ class Stream(StreamT[T_co], Service):
         event_cls = EventT
         _current_event_contextvar = _current_event
 
-        while not self.should_stop:
-            # wait for next message
-            value: Any = None
-            event: EventT = None
-            message: Message = None
-            tp: TP = None
-            offset: int = None
-            while value is None:  # we iterate until on_merge gives value.
-                # get message from channel
-                channel_value: Any = await get_next_value()
+        try:
+            while not self.should_stop:
+                # wait for next message
+                value: Any = None
+                event: EventT = None
+                message: Message = None
+                tp: TP = None
+                offset: int = None
+                while value is None:  # we iterate until on_merge gives value.
+                    # get message from channel
+                    channel_value: Any = await get_next_value()
 
-                if isinstance(channel_value, event_cls):
-                    event = channel_value
-                    message = event.message
-                    tp = message.tp
-                    offset = message.offset
+                    if isinstance(channel_value, event_cls):
+                        event = channel_value
+                        message = event.message
+                        tp = message.tp
+                        offset = message.offset
 
-                    # call Sensors
-                    await on_stream_event_in(tp, offset, self, event)
+                        # call Sensors
+                        await on_stream_event_in(tp, offset, self, event)
 
-                    # set task-local current_event
-                    _current_event_contextvar.set(create_ref(event))
-                    # set Stream._current_event
-                    self.current_event = event
+                        # set task-local current_event
+                        _current_event_contextvar.set(create_ref(event))
+                        # set Stream._current_event
+                        self.current_event = event
 
-                    # Stream yields Event.value
-                    value = event.value
-                else:
-                    value = channel_value
+                        # Stream yields Event.value
+                        value = event.value
+                    else:
+                        value = channel_value
+                        self.current_event = None
+
+                    # reduce using processors
+                    for processor in processors:
+                        value = await _maybe_async(processor(value))
+                    value = await on_merge(value)
+                try:
+                    yield value
+                finally:
                     self.current_event = None
-
-                # reduce using processors
-                for processor in processors:
-                    value = await _maybe_async(processor(value))
-                value = await on_merge(value)
-            try:
-                yield value
-            finally:
-                self.current_event = None
-                if event is not None:
-                    # This inlines self.ack
-                    last_stream_to_ack = event.ack()
-                    await on_stream_event_out(tp, offset, self, event)
-                    if last_stream_to_ack:
-                        await on_message_out(tp, offset, message)
+                    if event is not None:
+                        # This inlines self.ack
+                        last_stream_to_ack = event.ack()
+                        await on_stream_event_out(tp, offset, self, event)
+                        if last_stream_to_ack:
+                            await on_message_out(tp, offset, message)
+        finally:
+            self._channel_stop_iteration(channel)
 
     async def __anext__(self) -> T:
         ...
