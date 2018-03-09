@@ -394,7 +394,6 @@ class Stream(StreamT[T_co], Service):
                                declare: bool = False) -> None:
         try:
             if declare:
-                print('MAYBE DECLARE: %r' % (channel,))
                 await channel.maybe_declare()
             try:
                 async for item in self:  # noqa
