@@ -50,7 +50,9 @@ class TableDetail(TableView):
         # FIXME request.match_info is an attribute of aiohttp.Request
         name = request.match_info['name']
         table, error = self.get_table(name)
-        return error if error else self.json(self.table_json(table))
+        if error is not None:
+            return error
+        return self.json(self.table_json(table))
 
 
 class TableKeyDetail(TableView):
@@ -67,10 +69,10 @@ class TableKeyDetail(TableView):
             return await router.route_req(name, key, self.web, request)
         except SameNode:
             table, error = self.get_table(name)
-            if error:
+            if error is not None:
                 return error
             value, error = self.get_table_value(table, key)
-            if error:
+            if error is not None:
                 return error
             return self.json(value)
 
