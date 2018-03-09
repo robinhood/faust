@@ -4,6 +4,7 @@ import re
 import typing
 from collections import defaultdict
 from functools import partial
+from time import monotonic
 from typing import (
     Any,
     Awaitable,
@@ -436,6 +437,13 @@ class TopicConductor(ConductorT, Service):
                     # This inlines Consumer.track_message(message)
                     add_unacked(message)
                     await on_message_in(message.tp, message.offset, message)
+                    # XXX ugh this should be in the consumer somehow
+                    if consumer._last_batch is None:
+                        # set last_batch received timestamp if not already set.
+                        # the commit livelock monitor uses this to check
+                        # how long between receiving a message to we commit it
+                        # (we reset _last_batch to None in .commit())
+                        consumer._last_batch = monotonic()
 
                 event: EventT = None
                 event_keyid: Tuple[K, V] = None

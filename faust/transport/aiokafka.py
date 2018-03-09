@@ -87,6 +87,7 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         # start callback chain of assigned callbacks.
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
+        consumer._last_batch = None
         await consumer.on_partitions_assigned(_assigned)
 
     async def on_partitions_revoked(
@@ -227,12 +228,6 @@ class Consumer(base.Consumer):
                     timeout,
                     max_records=_consumer._max_poll_records,
                 )
-                if records and self._last_batch is None:
-                    # set last_batch received timestamp if not already set.
-                    # the commit livelock monitor uses this to check
-                    # how long between receiving a message to we commit it
-                    # (we reset _last_batch to None in .commit())
-                    self._last_batch = monotonic()
             else:
                 # We should still release to the event loop
                 await self.sleep(0)
@@ -439,10 +434,12 @@ class Producer(base.Producer):
 
     async def on_start(self) -> None:
         self.beacon.add(self._producer)
+        self._last_batch = None
         await self._producer.start()
 
     async def on_stop(self) -> None:
         cast(Transport, self.transport)._topic_waiters.clear()
+        self._last_batch = None
         await self._producer.stop()
 
     async def send(self, topic: str, key: Optional[bytes],
