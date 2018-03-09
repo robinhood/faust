@@ -384,21 +384,22 @@ class Stream(StreamT[T_co], Service):
         if not self._passive:
             self._passive = True
             self.add_future(self._passive_drainer(channel, declare))
-        else:
-            if declare:
-                self.add_future(channel.maybe_declare())
 
     async def _passive_drainer(self, channel: ChannelT,
                                declare: bool = False) -> None:
-        if declare:
-            await channel.maybe_declare()
         try:
-            async for item in self:  # noqa
-                ...
-        except BaseException as exc:
-            # forward the exception to the final destination channel,
-            # e.g. in through/group_by/etc.
-            await channel.throw(exc)
+            if declare:
+                print('MAYBE DECLARE: %r' % (channel,))
+                await channel.maybe_declare()
+            try:
+                async for item in self:  # noqa
+                    ...
+            except BaseException as exc:
+                # forward the exception to the final destination channel,
+                # e.g. in through/group_by/etc.
+                await channel.throw(exc)
+        finally:
+            self._passive = False
 
     def echo(self, *channels: Union[str, ChannelT]) -> StreamT:
         """Forward values to one or more channels.
