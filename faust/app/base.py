@@ -833,6 +833,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def _create_directories(self) -> None:
         self.conf.datadir.mkdir(exist_ok=True)
+        self.conf.appdir.mkdir(exist_ok=True)
         self.conf.tabledir.mkdir(exist_ok=True)
 
     def __repr__(self) -> str:

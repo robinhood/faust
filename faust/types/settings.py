@@ -149,6 +149,7 @@ class Settings(abc.ABC):
     loghandlers: List[logging.StreamHandler] = None
 
     _id: str = None
+    _name: str = None
     _version: int = 1
     _broker: URL = None
     _store: URL = None
@@ -237,7 +238,7 @@ class Settings(abc.ABC):
         if broker_client_id is not None:
             self.broker_client_id = broker_client_id
         self.canonical_url = canonical_url or self._canonical_url or ''
-        # datadir is a format string that can contain {appid}
+        # datadir is a format string that can contain e.g. {conf.id}
         self.datadir = datadir or self._datadir or DATADIR
         self.tabledir = tabledir or self._tabledir or TABLEDIR
         self.broker_commit_interval = (
@@ -306,21 +307,30 @@ class Settings(abc.ABC):
         return id
 
     def prepare_datadir(self, datadir: Union[str, Path]) -> Path:
-        return Path(str(datadir).format(appid=self.id)).expanduser()
+        return self._Path(str(datadir).format(conf=self))
 
     def prepare_tabledir(self, tabledir: Union[str, Path]) -> Path:
-        return self._datadir_path(Path(tabledir)).expanduser()
+        return self._appdir_path(self._Path(tabledir))
 
-    def _datadir_path(self, path: Path) -> Path:
-        return path if path.is_absolute() else self.datadir / path
+    def _Path(self, *parts: Union[str, Path]) -> Path:
+        return Path(*parts).expanduser()
+
+    def _appdir_path(self, path: Path) -> Path:
+        return path if path.is_absolute() else self.appdir / path
+
+    @property
+    def name(self) -> str:
+        # name is a read-only property
+        return self._name
 
     @property
     def id(self) -> str:
         return self._id
 
     @id.setter
-    def id(self, id: str) -> None:
-        self._id = self.prepare_id(id)
+    def id(self, name: str) -> None:
+        self._name = name
+        self._id = self.prepare_id(name)  # id is name+version
 
     @property
     def version(self) -> int:
@@ -364,6 +374,10 @@ class Settings(abc.ABC):
     @datadir.setter
     def datadir(self, datadir: Union[Path, str]) -> None:
         self._datadir = self.prepare_datadir(datadir)
+
+    @property
+    def appdir(self) -> Path:
+        return self.datadir / f'v{self.version}'
 
     @property
     def tabledir(self) -> Path:

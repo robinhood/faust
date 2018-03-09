@@ -33,7 +33,7 @@ DEBUG: bool = bool(_getenv('DEBUG', False))
 WORKDIR: str = _getenv('WORKDIR', None)
 
 #: Directory to keep the application state (tables, checkpoints, etc).
-DATADIR: str = _getenv('DATADIR', '{appid}-data')
+DATADIR: str = _getenv('DATADIR', '{conf.name}-data')
 
 #: Blocking detection timeout
 BLOCKING_TIMEOUT: float = float(_getenv('BLOCKING_TIMEOUT', '10.0'))

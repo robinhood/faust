@@ -150,6 +150,7 @@ class worker(AppCommand):
                 transport_v=app.transport.driver_version,
                 http_v=website.web.driver_version)),
             ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
+            ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
         ]
         table = self.table(
             [(self.bold(x), y) for x, y in data],
