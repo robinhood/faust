@@ -122,8 +122,11 @@ class Consumer(Service, ConsumerT):
     #: shutting down or resuming a rebalance.
     _unacked_messages: MutableSet[Message] = None
 
-    #: Time of last commit (a monotonic timestamp).
-    _last_commit: float = None
+    #: Time of last record batch received.
+    #: Set only when not set, and reset by commit() so actually
+    #: tracks how long it ago it was since we received a record that
+    #: was never committed.
+    _last_batch: float = None
 
     #: Time of when the consumer was started.
     _time_start: float = None
@@ -258,14 +261,12 @@ class Consumer(Service, ConsumerT):
         interval: float = self.commit_interval * 2.5
         await self.sleep(interval)
         while not self.should_stop:
-            if self._seconds_since_last_commit() > soft_timeout:
-                self.log.warn('Possible livelock: COMMIT OFFSET NOT ADVANCING')
+            if self._last_batch is not None:
+                s_since_batch = monotonic() - self._last_batch
+                if s_since_batch > soft_timeout:
+                    self.log.warn(
+                        'Possible livelock: COMMIT OFFSET NOT ADVANCING')
             await self.sleep(interval)
-
-    def _seconds_since_last_commit(self) -> float:
-        if self._last_commit is None:
-            return monotonic() - self._time_start
-        return monotonic() - self._last_commit
 
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
@@ -332,17 +333,10 @@ class Consumer(Service, ConsumerT):
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''
-        did_commit = await self._commit({
+        return await self._commit({
             tp: (offset, meta)
             for tp, offset in commit_offsets.items()
         })
-        if did_commit:
-            self._on_commit_completed()
-            return True
-        return False
-
-    def _on_commit_completed(self) -> None:
-        self._last_commit = self.loop.time()
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
