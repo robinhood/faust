@@ -219,6 +219,7 @@ class ChangelogReader(Service, ChangelogReaderT):
 
     async def _slurp_stream(self) -> None:
         buf: List[EventT] = []
+        can_log_done = True
         try:
             async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
@@ -228,9 +229,13 @@ class ChangelogReader(Service, ChangelogReaderT):
                     buf.clear()
                 if self._should_stop_reading():
                     break
-                if not i % 10_000:
-                    self.log.info('Still waiting for %s records...',
-                                  self._remaining_total())
+                remaining = self._remaining_total()
+                if remaining and not i % 10_000:
+                    can_log_done = True
+                    self.log.info('Waiting for %s records...', remaining)
+                elif not remaining and can_log_done:
+                    can_log_done = False
+                    self.log.info('All up to date')
         except StopAsyncIteration:
             self.log.info('Got stop iteration')
             pass
