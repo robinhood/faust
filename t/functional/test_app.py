@@ -91,7 +91,7 @@ class test_settings:
             datadir='/etc/faust',
             tabledir='moo',
         )
-        assert app.conf.tabledir == app.conf.datadir / Path('moo')
+        assert app.conf.tabledir == app.conf.appdir / Path('moo')
 
     def assert_config_equivalent(self,
                                  id='id',
@@ -151,7 +151,7 @@ class test_settings:
             assert app.conf.tabledir == Path(str(tabledir))
         else:
             assert app.conf.tabledir.relative_to(
-                app.conf.datadir) == Path(tabledir)
+                app.conf.appdir) == Path(tabledir)
         assert app.conf.broker_commit_interval == broker_commit_interval
         assert (app.conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)
