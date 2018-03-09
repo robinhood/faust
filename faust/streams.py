@@ -384,6 +384,9 @@ class Stream(StreamT[T_co], Service):
         if not self._passive:
             self._passive = True
             self.add_future(self._passive_drainer(channel, declare))
+        else:
+            if declare:
+                self.add_future(channel.maybe_declare())
 
     async def _passive_drainer(self, channel: ChannelT,
                                declare: bool = False) -> None:
