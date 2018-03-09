@@ -30,7 +30,7 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'f-simple3',
+    'faust-withdrawals',
     broker='kafka://127.0.0.1:9092',
     store='rocksdb://',
     origin='withdrawals.simple',
