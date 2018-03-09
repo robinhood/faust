@@ -283,9 +283,12 @@ class Channel(ChannelT):
         await self.queue.throw(exc)
 
     def __repr__(self) -> str:
-        return f'<{self.label}>'
+        return f'<{self.label}@{self._repr_id()}>'
 
     def __str__(self) -> str:
+        return '<ANON>'
+
+    def _repr_id(self) -> str:
         return f'{id(self):#x}'
 
     @property
@@ -294,4 +297,5 @@ class Channel(ChannelT):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {self}'
+        sym = '(*)' if self.is_iterator else ''
+        return f'{sym}{type(self).__name__}: {self}'
