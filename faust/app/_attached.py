@@ -62,7 +62,15 @@ class Attachments:
         if not force:
             event = current_event()
             if event is not None:
-                send = cast(Event, event)._attach
+                return cast(Event, event)._attach(
+                    channel,
+                    key,
+                    value,
+                    partition=partition,
+                    key_serializer=key_serializer,
+                    value_serializer=value_serializer,
+                    callback=callback,
+                )
         return await send(
             channel,
             key,
