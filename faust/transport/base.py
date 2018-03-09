@@ -246,6 +246,7 @@ class Consumer(Service, ConsumerT):
 
     async def on_stop(self) -> None:
         await self.wait_empty()
+        self._last_batch = None
 
     @Service.task
     async def _commit_handler(self) -> None:
