@@ -204,7 +204,11 @@ class ChangelogReader(Service, ChangelogReaderT):
         # We don't want to log when there are zero records,
         # but we still slurp the stream so that we subscribe
         # to the changelog topic etc.
-        self.log.info('Reading %s records...', self._remaining_total())
+        if self._remaining_total():
+            self.log.info('Reading %s records...', self._remaining_total())
+        # log statement above, or the sleep below ...
+        # fixes weird aiokafka 100% CPU deadlock [ask].
+        await self.sleep(0.1)
         self.diag.set_flag(CHANGELOG_READING)
         try:
             await self._slurp_stream()
