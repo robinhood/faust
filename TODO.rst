@@ -8,48 +8,6 @@
 - "Attaching" should be deprecated and transactions should be used to
   send messages as we commit.
 
-HTTP Table view
-===============
-
-Forward request to node with key
-
-https://cwiki.apache.org/confluence/display/KAFKA/KIP-67%3A+Queryable+state+for+Kafka+Streams
-
-User must explicitly mark tables as public for table to be exposed in HTTP
-interface:
-
-.. sourcecode:: python
-
-    user_to_amount = app.Table('user_to_amount', public=True)
-
-HTTP API
---------
-
-* List of key/value pairs in the table (with pagination)
-
-    .. sourcecode:: text
-
-        GET localhost:6666/api/table/user_to_amount/?page=
-
-        200 {"results": {"key", "value"}}
-
-* -List available tables-
-
-    .. sourcecode:: text
-
-        GET localhost:6666/api/table/
-
-        200 {"results": ["user_to_amount"]}
-
-* -Get value by key-:
-
-    .. sourcecode:: text
-
-        GET localhost:6666/api/table/user_to_amount/key/
-
-        200 {"key": "value"}
-
-
 HTTP User interface
 -------------------
 
@@ -75,12 +33,6 @@ Buffering Ack Optimization
 TODO
 
 Ack buffer using start_offset-end_offset.
-
-Django support builtin
-======================
-
-Automatically call `django.setup()` and friends in examples/django/faustapp/app.py
-when the ``DJANGO_SETTINGS_MODULE`` environment variable is set.
 
 Agent per partition
 ===================
