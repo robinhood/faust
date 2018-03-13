@@ -421,6 +421,17 @@ configured by the user.
 
 How often we commit messages that have been fully processed (:term:`acked`).
 
+.. setting:: broker_commit_livelock_soft_timeout
+
+``broker_commit_livelock_soft_timeout``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:type: class:`float`, :class:`~datetime.timedelta`
+:default: ``300.0`` (five minutes).
+
+How long time it takes before we warn that the Kafka commit offset has
+not advanced (only when processing messages).
+
 Advanced Table Options
 ----------------------
 
@@ -530,6 +541,28 @@ The prefix used when generating reply topic names.
 Subclassing Parameters
 ----------------------
 
+.. setting:: Agent
+
+``Agent``
+~~~~~~~~~
+
+:type: ``Union[str, Type]``
+:default: ``"faust.Agent"``
+
+The :class:`~faust.Agent` class to use for agents, or the fully-qualified
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MyAgent(faust.Agent):
+        ...
+
+    app = App(..., Agent=MyAgent)
+
+Example using the string path to a class::
+
+    app = App(..., Agent='myproj.agents.Agent')
+
 .. setting:: Stream
 
 ``Stream``
@@ -551,7 +584,6 @@ Example using a class::
 Example using the string path to a class::
 
     app = App(..., Stream='myproj.streams.Stream')
-
 
 .. setting:: Table
 
