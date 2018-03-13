@@ -117,7 +117,9 @@ Installation
 You can install Faust either via the Python Package Index (PyPI)
 or from source.
 
-To install using `pip`::
+To install using `pip`:
+
+.. sourcecode:: console
 
     $ pip install -U faust
 
@@ -129,7 +131,6 @@ to install Faust and the dependencies for a given feature.
 
 You can specify these in your requirements or on the ``pip``
 command-line by using brackets. Separate multiple bundles using the comma:
-
 
 .. sourcecode:: console
 
@@ -199,7 +200,9 @@ Downloading and installing from source
 Download the latest version of Faust from
 http://pypi.python.org/pypi/faust
 
-You can install it by doing::
+You can install it by doing:
+
+.. sourcecode:: console
 
     $ tar xvfz faust-0.0.0.tar.gz
     $ cd faust-0.0.0

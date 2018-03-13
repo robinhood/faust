@@ -352,6 +352,8 @@ JSON Output using ``--json``:
 ``faust worker`` - Start Faust worker instance.
 -----------------------------------------------
 
+A "worker" starts a single instance of a Faust application.
+
 **Options:**
 
 .. cmdoption:: --logfile, -f
@@ -381,7 +383,7 @@ JSON Output using ``--json``:
 
 **Examples:**
 
-.. sourcecode:: python
+.. sourcecode:: console
 
     $ python examples/word_count.py worker
     ┌ƒaµS† v1.0.0──────────────────────────────────────────┐
@@ -401,7 +403,7 @@ JSON Output using ``--json``:
 
 To get more logging use `-l info` (or further `-l debug`):
 
-.. sourcecode:: python
+.. sourcecode:: console
 
     $ python examples/word_count.py worker -l info
     ┌ƒaµS† v1.0.0──────────────────────────────────────────┐

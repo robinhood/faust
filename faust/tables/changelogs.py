@@ -80,7 +80,8 @@ class ChangelogReader(Service, ChangelogReaderT):
             for tp in tps
         })
         table = logtable(
-            [(k.topic, k.partition, v) for k, v in self._highwaters.items()],
+            [[k.topic, str(k.partition), str(v)]
+             for k, v in self._highwaters.items()],
             title='Highwater',
             headers=['topic', 'partition', 'highwater'],
         )

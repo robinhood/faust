@@ -1535,6 +1535,196 @@ Takes only sender as argument, which is the app a worker is being started for:
     def on_worker_init(app, **kwargs):
         print(f'Working starting for app {app}')
 
+.. _app-starting:
+
+Starting the App
+================
+
+You can start a worker instance for your app from the command-line, or you can
+start it inline in your Python process.  To accomodate the many ways you may
+want to embed a Faust application, starting the app have several possible entrypoints:
+
+
+*App entrypoints*:
+
+1) :program:`faust worker`
+
+    The :program:`faust worker` program starts a worker instance for an app
+    from the command-line.
+
+    You may turn any self-contained module into the faust program by adding
+    this to the end of the file::
+
+        if __name__ == '__main__':
+            app.main()
+
+    For packages you can add a ``__main__.py`` module or setuptools
+    entrypoints to ``setup.py``.
+
+    If you have the module name where an app is defined, you can start a worker
+    for it with the :option:`faust -A` option:
+
+    .. sourcecode:: console
+
+        $ faust -A myproj worker -l info
+
+    The above will import the app from the ``myproj`` module using
+    ``from myproj import app``. If you need to specify a different attribute
+    you can use a fully qualified path:
+
+    .. sourcecode:: console
+
+        $ faust -A myproj:faust_app worker -l info
+
+2) -> :class:`faust.cli.worker.worker` (CLI interface)
+
+    This is the :program:`faust worker` program defined as a Python
+    :pypi:`click` command.
+
+    It is responsible for:
+
+    - Parsing the command-line arguments supported by :program:`faust worker`.
+    - Printing the banner box (you will not get that with entrypoint 3 or 4).
+    - Starting the :class:`faust.Worker` (see next step).
+
+3) -> :class:`faust.Worker`
+
+    This is used for starting a worker from Python when you also want to
+    install process signal handlers, etc.  It supports the same options
+    as on the :program:`faust worker` command-line, but now they are passed
+    in as keyword arguments to :class:`faust.Worker`.
+
+    The Faust worker is a subclass of :class:`mode.Worker`, which makes
+    sense given that Faust is built out of many different :pypi:`mode`
+    services starting in a particular order.
+
+    The :class:`faust.Worker` entrypoint is responsible for:
+
+    - Changing the directory when the ``workdir`` argument is set.
+
+    - Setting the process title (when :pypi:`setproctitle` is
+      installed), for more helpful entry in ``ps`` listings.
+
+    - Setting up :mod:`logging`: handlers, formatters and level.
+
+    - If :option:`--debug <faust --debug>` is enabled:
+
+      - Starting the :pypi:`aiomonitor` debugging backdoor.
+
+      - Starting the blocking detector.
+
+    - Setting up :sig:`TERM` and :sig:`INT` signal handlers.
+
+    - Setting up the :sig:`USR1` cry handler that logs a traceback.
+
+    - Starting the web server.
+
+    - Autodiscovery (see :setting:`autodiscovery`).
+
+    - Starting the :class:`faust.App` (see next step).
+
+    - Properly shut down of the event loop on exit.
+
+    To start a worker,
+
+    1) from synchronous code, use ``Worker.execute_from_commandline``:
+
+        .. sourcecode:: pycon
+
+            >>> worker = Worker(app)
+            >>> worker.execute_from_commandline()
+
+    2) or from an :keyword:`async def` function call ``await worker.start()``:
+
+        .. warning::
+
+            You will be responsible for gracefully shutting down the event
+            loop.
+
+        .. sourcecode:: python
+
+            async def start_worker(worker: Worker) -> None:
+                await worker.start()
+
+            def manage_loop():
+                loop = asyncio.get_event_loop()
+                worker = Worker(app, loop=loop)
+                try:
+                    loop.run_until_complete(start_worker(worker)
+                finally:
+                    worker.stop_and_shutdown_loop()
+
+    .. admonition:: Multiple apps
+
+        If you want your worker to start multiple apps, you would have
+        to pass them in with the ``*services`` starargs::
+
+            worker = Worker(app1, app2, app3, app4)
+
+        This way the extra apps will be started together with the main app,
+        and the main app of the worker (``worker.app``) will end up being
+        the first positional argument (``app1``).
+
+        Note that the web server will only concern itself with the
+        main app, so if you want web access to the other apps you have to
+        include web servers for them (also passed in as ``*services``
+        starargs).
+
+4) -> :class:`faust.App`
+
+    The "worker" only concerns itself with the terminal, process
+    signal handlers, logging, debugging mechanisms, etc., the rest
+    is up to the app.
+
+    You can call ``await app.start()`` directly to get a side-effect free
+    instance that can be embedded in any environment. It won't even emit logs
+    to the console unless you have configured :mod:`logging` manually,
+    and it won't set up any :sig:`TERM`/:sig:`INT` signal handlers, which
+    means :keyword:`finally` blocks won't execute at shutdown.
+
+    Start app directly:
+
+    .. sourcecode:: python
+
+        async def start_app(app):
+            await app.start()
+
+    .. admonition:: Web server
+
+        Starting the app will not start the webserver, as this is part of the
+        workers responsibility.
+
+    This will block until the worker shuts down, so if you want to
+    start other parts of your program, you can start this in the background:
+
+    .. sourcecode:: python
+
+        def start_in_loop(app):
+            loop = asyncio.get_event_loop()
+            loop.ensure_future(app.start())
+
+    If your program is written as a set of :pypi:`Mode` services, you can
+    simply add the app as a depdendency to your service:
+
+    .. sourcecode:: python
+
+        class MyService(mode.Service):
+
+            def on_init_dependencies(self):
+                return [faust_app]
+
+Client-Only Mode
+================
+
+The app can also be started in "client-only" mode, which means the app
+can be used for sending agent RPC requests and retrieving replies, but not
+start a full Faust worker:
+
+.. sourcecode:: python
+
+    await app.start_client()
+
+
 Miscellaneous
 =============
 

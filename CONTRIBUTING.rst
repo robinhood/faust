@@ -25,7 +25,49 @@ the person merging the changes so don't worry too much.
 
 .. _community-code-of-conduct:
 
-.. include:: includes/code-of-conduct.txt
+Code of Conduct
+===============
+
+Everyone interacting in the project's codebases, issue trackers, chat rooms,
+and mailing lists is expected to follow the Faust Code of Conduct.
+
+As contributors and maintainers of these projects, and in the interest of fostering
+an open and welcoming community, we pledge to respect all people who contribute
+through reporting issues, posting feature requests, updating documentation,
+submitting pull requests or patches, and other activities.
+
+We are committed to making participation in these projects a harassment-free
+experience for everyone, regardless of level of experience, gender,
+gender identity and expression, sexual orientation, disability,
+personal appearance, body size, race, ethnicity, age,
+religion, or nationality.
+
+Examples of unacceptable behavior by participants include:
+
+* The use of sexualized language or imagery
+* Personal attacks
+* Trolling or insulting/derogatory comments
+* Public or private harassment
+* Publishing other's private information, such as physical
+  or electronic addresses, without explicit permission
+* Other unethical or unprofessional conduct.
+
+Project maintainers have the right and responsibility to remove, edit, or reject
+comments, commits, code, wiki edits, issues, and other contributions that are
+not aligned to this Code of Conduct. By adopting this Code of Conduct,
+project maintainers commit themselves to fairly and consistently applying
+these principles to every aspect of managing this project. Project maintainers
+who do not follow or enforce the Code of Conduct may be permanently removed from
+the project team.
+
+This code of conduct applies both within project spaces and in public spaces
+when an individual is representing the project or its community.
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported by opening an issue or contacting one or more of the project maintainers.
+
+This Code of Conduct is adapted from the Contributor Covenant,
+version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _reporting-bugs:
 
@@ -77,7 +119,7 @@ If you'd like to submit the information encrypted our PGP key is::
 Other bugs
 ----------
 
-Bugs can always be described to the :ref:`mailing-list`, but the best
+Bugs can always be described to the `mailing-list`_, but the best
 way to report an issue and to ensure a timely response is to use the
 issue tracker.
 
@@ -91,7 +133,7 @@ and participate in the discussion.
 2) **Determine if your bug is really a bug**.
 
 You shouldn't file a bug if you're requesting support. For that you can use
-the :ref:`mailing-list`, or :ref:`slack-channel`.
+the `mailing-list`_, or `slack-channel`_.
 
 3) **Make sure your bug hasn't already been reported**.
 
@@ -123,10 +165,10 @@ spelling or other errors on the website/docs/code.
        get more diagnostic data. Some ideas:
 
        * Collect tracing data using `strace`_(Linux),
-         :command:`dtruss` (macOS), and :command:`ktrace` (BSD),
+         ``dtruss`` (macOS), and ``ktrace`` (BSD),
          `ltrace`_, and `lsof`_.
 
-    D) Include the output from the :command:`faust report` command:
+    D) Include the output from the ``faust report`` command:
 
         .. sourcecode:: console
 
@@ -158,11 +200,11 @@ Issue Trackers
 Bugs for a package in the Faust ecosystem should be reported to the relevant
 issue tracker.
 
-* :pypi:`Faust` - https://github.com/fauststream/faust/issues
-* :pypi:`Mode` - https://github.com/fauststream/mode/issues
+* ``Faust`` - https://github.com/fauststream/faust/issues
+* ``Mode`` - https://github.com/fauststream/mode/issues
 
 If you're unsure of the origin of the bug you can ask the
-:ref:`mailing-list`, or just use the Faust issue tracker.
+`mailing-list`_, or just use the Faust issue tracker.
 
 Contributors guide to the code base
 ===================================
@@ -170,7 +212,7 @@ Contributors guide to the code base
 There's a separate section for internal details,
 including details about the code base and a style guide.
 
-Read :ref:`developers-guide` for more!
+Read ``developers-guide`` for more!
 
 .. _versions:
 
@@ -348,7 +390,7 @@ Running the test suite
 
 To run the Faust test suite you need to install a few dependencies.
 A complete list of the dependencies needed are located in
-:file:`requirements/test.txt`.
+``requirements/test.txt``.
 
 Both the stable and the development version have testing related
 dependencies, so install these:
@@ -359,7 +401,7 @@ dependencies, so install these:
     $ pip install -U -r requirements/default.txt
 
 After installing the dependencies required, you can now execute
-the test suite by calling :pypi:`py.test <pytest`:
+the test suite by calling ``py.test <pytest``:
 
 .. sourcecode:: console
 
@@ -368,7 +410,7 @@ the test suite by calling :pypi:`py.test <pytest`:
 This will run the unit tests, functional tests and doc example tests,
 but not integration tests or stress tests.
 
-Some useful options to :command:`py.test` are:
+Some useful options to ``py.test`` are:
 
 * ``-x``
 
@@ -411,7 +453,7 @@ the steps outlined here: http://bit.ly/koJoso
 Running the tests on all supported Python versions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There's a :pypi:`tox` configuration file in the top directory of the
+There's a ``tox`` configuration file in the top directory of the
 distribution.
 
 To run the tests for all supported Python versions simply execute:
@@ -430,7 +472,7 @@ Building the documentation
 --------------------------
 
 To build the documentation you need to install the dependencies
-listed in :file:`requirements/docs.txt`:
+listed in ``requirements/docs.txt``:
 
 .. sourcecode:: console
 
@@ -446,7 +488,7 @@ build the docs by running:
     $ make html
 
 Make sure there are no errors or warnings in the build output.
-After building succeeds the documentation is available at :file:`_build/html`.
+After building succeeds the documentation is available at ``_build/html``.
 
 .. _contributing-verify:
 
@@ -454,7 +496,7 @@ Verifying your contribution
 ---------------------------
 
 To use these tools you need to install a few dependencies. These dependencies
-can be found in :file:`requirements/dist.txt`.
+can be found in ``requirements/dist.txt``.
 
 Installing the dependencies:
 
@@ -465,7 +507,7 @@ Installing the dependencies:
 pyflakes & PEP-8
 ~~~~~~~~~~~~~~~~
 
-To ensure that your changes conform to :pep:`8` and to run pyflakes
+To ensure that your changes conform to ``8`` and to run pyflakes
 execute:
 
 .. sourcecode:: console
@@ -493,8 +535,8 @@ reference please execute:
 If files are missing you can add them by copying an existing reference file.
 
 If the module is internal it should be part of the internal reference
-located in :file:`docs/internals/reference/`. If the module is public
-it should be located in :file:`docs/reference/`.
+located in ``docs/internals/reference/``. If the module is public
+it should be located in ``docs/reference/``.
 
 For example if reference is missing for the module ``faust.worker.awesome``
 and this module is considered part of the public API, use the following steps:
@@ -547,7 +589,7 @@ configuration reference, please execute:
     $ make configcheck
 
 If settings are missing from there an error is produced, and you can proceed
-by documenting the settings in :file:`docs/userguide/application.rst`.
+by documenting the settings in ``docs/userguide/application.rst``.
 
 .. _coding-style:
 
@@ -558,15 +600,15 @@ You should probably be able to pick up the coding style
 from surrounding code, but it is a good idea to be aware of the
 following conventions.
 
-* We use static types and the :pypi:`mypy` type checker to verify them.
+* We use static types and the ``mypy`` type checker to verify them.
 
   Python code must import these static types when using them, so to
   keep static types lightweight we define interfaces for
   classes in ``faust/types/``.
 
-  For example for the :class:`fauts.App` class, there is a corresponding
-  :class:`faust.types.app.AppT`; for :class:`faust.Channel` there is a
-  :class:`faust.types.channels.ChannelT` and similarly for most other classes
+  For example for the ``fauts.App`` class, there is a corresponding
+  ``faust.types.app.AppT``; for ``faust.Channel`` there is a
+  ``faust.types.channels.ChannelT`` and similarly for most other classes
   in the library.
 
   We suffer some duplication because of this, but it keeps static typing imports
@@ -580,12 +622,12 @@ following conventions.
     else:
         class App: ...  # noqa
 
-* All Python code must follow the :pep:`8` guidelines.
+* All Python code must follow the ``8`` guidelines.
 
-:pypi:`pep8` is a utility you can use to verify that your code
+``pep8`` is a utility you can use to verify that your code
 is following the conventions.
 
-* Docstrings must follow the :pep:`257` conventions, and use the following
+* Docstrings must follow the ``257`` conventions, and use the following
   style.
 
     Do this:
@@ -618,7 +660,7 @@ is following the conventions.
 
 * Lines shouldn't exceed 78 columns.
 
-  You can enforce this in :command:`vim` by setting the ``textwidth`` option:
+  You can enforce this in ``vim`` by setting the ``textwidth`` option:
 
   .. sourcecode:: vim
 
@@ -672,7 +714,7 @@ that require third-party libraries must be added.
 1) Add a new requirements file in `requirements/extras`
 
     For the RocksDB store this is
-    :file:`requirements/extras/rocksdb.txt`, and the file looks like this:
+    ``requirements/extras/rocksdb.txt``, and the file looks like this:
 
     .. sourcecode:: text
 
@@ -691,7 +733,7 @@ that require third-party libraries must be added.
 2) Modify ``setup.py``
 
     After the requirements file is added you need to add it as an option
-    to :file:`setup.py` in the ``EXTENSIONS`` section::
+    to ``setup.py`` in the ``EXTENSIONS`` section::
 
         EXTENSIONS = {
             'debug',
@@ -701,13 +743,13 @@ that require third-party libraries must be added.
         }
 
 
-3) Document the new feature in :file:`docs/includes/installation.txt`
+3) Document the new feature in ``docs/includes/installation.txt``
 
     You must add your feature to the list in the bundles section
-    of :file:`docs/includes/installation.txt`.
+    of ``docs/includes/installation.txt``.
 
     After you've made changes to this file you need to render
-    the distro :file:`README` file:
+    the distro ``README`` file:
 
     .. sourcecode:: console
 
@@ -725,7 +767,7 @@ regarding the official git repositories, PyPI packages
 Read the Docs pages.
 
 If the issue isn't an emergency then it's better
-to :ref:`report an issue <reporting-bugs>`.
+to `report an issue`_.
 
 
 Committers
@@ -759,7 +801,7 @@ Packages
 :git: https://github.com/fauststream/faust
 :CI: http://travis-ci.org/#!/robinhood/faust
 :Windows-CI: https://ci.appveyor.com/project/ask/faust
-:PyPI: :pypi:`faust`
+:PyPI: ``faust``
 :docs: http://docs.fauststream.com
 
 ``Mode``
@@ -768,7 +810,7 @@ Packages
 :git: https://github.com/fauststream/mode
 :CI: http://travis-ci.org/#!/fauststream/mode
 :Windows-CI: https://ci.appveyor.com/project/ask/mode
-:PyPI: :pypi:`Mode`
+:PyPI: ``Mode``
 :docs: http://mode.readthedocs.io/
 
 .. _release-procedure:
@@ -781,11 +823,11 @@ Updating the version number
 
 The version number must be updated two places:
 
-    * :file:`faust/__init__.py`
-    * :file:`docs/include/introduction.txt`
+    * ``faust/__init__.py``
+    * ``docs/include/introduction.txt``
 
 After you have changed these files you must render
-the :file:`README` files. There's a script to convert sphinx syntax
+the ``README`` files. There's a script to convert sphinx syntax
 to generic reStructured Text syntax, and the make target `readme`
 does this for you:
 
@@ -830,3 +872,10 @@ following:
     the ``1.0`` branch for the 1.0 series.
 
 * Also add the previous version under the "versions" tab.
+
+.. _`mailing-list`: https://groups.google.com/group/faust-users
+
+.. _`slack-channel`: http://docs.fauststream.com/en/latest/getting-started/resources.html#slack-channel
+
+.. _`report an issue`: http://docs.fauststream.com/en/latest/contributing.html#reporting-bugs
+

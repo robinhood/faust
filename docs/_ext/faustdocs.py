@@ -149,3 +149,8 @@ def setup(app):
         'missing-reference',
         maybe_resolve_abbreviations,
     )
+    app.add_crossref_type(
+        directivename='sig',
+        rolename='sig',
+        indextemplate='pair: %s; sig',
+    )
