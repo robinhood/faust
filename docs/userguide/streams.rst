@@ -575,27 +575,9 @@ General
     .. automethod:: get_active_stream
         :noindex:
 
+    .. automethod:: get_root_stream
+
     .. automethod:: add_processor
-        :noindex:
-
-
-
-Joins
-~~~~~
-
-.. class:: Stream
-    :noindex:
-
-    .. automethod:: join
-        :noindex:
-
-    .. automethod:: left_join
-        :noindex:
-
-    .. automethod:: inner_join
-        :noindex:
-
-    .. automethod:: outer_join
         :noindex:
 
 Iteration tools
@@ -661,7 +643,8 @@ Attributes
 
     .. autoattribute:: concurrency_index
 
-    .. autoattribute:: children
+    .. autoattribute:: combined
 
-    .. autoattribute:: link
+    .. autoattribute:: _prev
 
+    .. autoattribute:: _next
