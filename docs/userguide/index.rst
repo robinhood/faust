@@ -21,3 +21,4 @@
     sensors
     testing
     vskafka
+    vscelery

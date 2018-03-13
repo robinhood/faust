@@ -576,6 +576,7 @@ General
         :noindex:
 
     .. automethod:: get_root_stream
+        :noindex:
 
     .. automethod:: add_processor
         :noindex:
