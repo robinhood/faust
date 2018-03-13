@@ -1,0 +1,2 @@
+d /var/run/faust 0755 faust faust -
+d /var/log/faust 0755 faust faust -

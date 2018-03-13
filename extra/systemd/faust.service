@@ -1,0 +1,16 @@
+[Unit]
+Description=Faust Service
+After=network.target
+
+[Service]
+Type=simple
+User=faust
+Group=faust
+EnvironmentFile=-/etc/conf.d/faust
+WorkingDirectory=/opt/faust
+ExecStart=/bin/sh -c '${FAUST_BIN} worker \
+	-A $FAUST_APP --logfile=${FAUST_LOG_FILE} \
+	--loglevel="${FAUST_LOG_LEVEL}" $FAUST_OPTS'
+
+[Install]
+WantedBy=multi-user.target
