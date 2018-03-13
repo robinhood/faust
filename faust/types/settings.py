@@ -101,7 +101,7 @@ BROKER_COMMIT_INTERVAL = 3.0
 
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
-BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=1))
+BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
