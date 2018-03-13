@@ -16,7 +16,7 @@ from mode.utils.times import Seconds
 
 from faust.types import AppT, ChannelT, EventT, TP
 from faust.types.tables import ChangelogReaderT, CollectionT
-from faust.utils.termtables import logtable
+from faust.utils.termtable import logtable
 
 __all__ = ['ChangelogReader', 'StandbyReader', 'local_tps']
 
