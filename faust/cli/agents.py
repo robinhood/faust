@@ -1,7 +1,4 @@
-"""Program ``faust agents`` used to list agents.
-
-.. program:: faust agents
-"""
+"""Program ``faust agents`` used to list agents."""
 from operator import attrgetter
 from typing import Optional, Sequence
 import click

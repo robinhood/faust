@@ -1,32 +1,4 @@
-"""Program ``faust worker`` used to start application from console.
-
-.. program:: faust worker
-
-.. cmdoption:: --logfile, -f
-
-    Path to logfile (default is <stderr>).
-
-.. cmdoption:: --loglevel, -l
-
-    Logging level to use: ``CRIT|ERROR|WARN|INFO|DEBUG``.
-
-.. cmdoption:: --blocking-timeout
-
-    Blocking detector timeout (requires --debug).
-
-.. cmdoption:: --web-host, -h
-
-    Canonical host name for the web server.
-
-.. cmdoption:: --web-port, -p
-
-    Port to run web server on.
-
-.. cmdoption:: --console-port
-
-    When :option:`faust --debug` is enabled this specifies the port
-    to run the :pypi:`aiomonitor` console on (default is 50101).
-"""
+"""Program ``faust worker`` used to start application from console."""
 import os
 import platform
 import socket

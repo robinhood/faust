@@ -8,7 +8,7 @@ from faust.types import K, TableT
 __all__ = ['TableView', 'TableList', 'TableDetail', 'TableKeyDetail']
 
 
-class TableInfo(Record, serializer='json'):
+class TableInfo(Record, serializer='json', namespace='@TableInfo'):
     name: str
     help: str
 

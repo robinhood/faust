@@ -1,7 +1,4 @@
-"""Program ``faust models`` used to list models available.
-
-.. program:: faust models
-"""
+"""Program ``faust models`` used to list models available."""
 from operator import attrgetter
 from typing import Sequence, Type
 import click

@@ -4,6 +4,14 @@
  Command-line Interface
 ========================
 
+.. contents::
+    :local:
+    :depth: 2
+
+.. module:: faust
+
+.. currentmodule:: faust
+
 .. program:: faust
 
 Program: ``faust``
@@ -12,6 +20,8 @@ Program: ``faust``
 The :program:`faust` umbrella command hosts all command-line functionality
 for Faust. Projects may add custom commands using the ``@app.command``
 decorator (see :ref:`tasks-cli-commands`).
+
+**Options:**
 
 .. cmdoption:: -A, --app
 
@@ -58,6 +68,8 @@ decorator (see :ref:`tasks-cli-commands`).
     For a project organized in modules (a package) you can add a
     ``package/__main__.py`` module:
 
+    .. sourcecode:: python
+
         # package/__main__.py
         from package.app import app
         app.main()
@@ -80,8 +92,8 @@ decorator (see :ref:`tasks-cli-commands`).
 
         $ faust -A examples.word_count:app
 
-Command: ``faust --version`` - Show version information and exit.
------------------------------------------------------------------
+``faust --version`` - Show version information and exit.
+--------------------------------------------------------
 
 Example:
 
@@ -90,8 +102,8 @@ Example:
     $ python examples/word_count.py --version
     word_count.py, version Faust 0.9.39
 
-Command: ``faust --help`` - Show help and exit.
------------------------------------------------
+``faust --help`` - Show help and exit.
+--------------------------------------
 
 Example:
 
@@ -128,8 +140,8 @@ Example:
 
 .. program:: faust agents
 
-Command: ``faust agents`` - List agents defined in this application.
---------------------------------------------------------------------
+``faust agents`` - List agents defined in this application.
+-----------------------------------------------------------
 
 Example:
 
@@ -157,8 +169,8 @@ JSON Output using ``--json``:
 
 .. program:: faust models
 
-Command: ``faust models`` - List defined serialization models.
---------------------------------------------------------------
+``faust models`` - List defined serialization models.
+-----------------------------------------------------
 
 Example:
 
@@ -180,8 +192,8 @@ JSON Output using ``--json``:
 
 .. program:: faust model
 
-Command: ``faust model <name>`` - List model fields by model name.
-------------------------------------------------------------------
+``faust model <name>`` - List model fields by model name.
+---------------------------------------------------------
 
 Example:
 
@@ -203,10 +215,11 @@ JSON Output using ``--json``:
 
 .. program:: faust reset
 
-Command: ``faust reset`` - Delete local table state.
-----------------------------------------------------
+``faust reset`` - Delete local table state.
+-------------------------------------------
 
 .. warning::
+
     This command will result in the destruction of the following files:
 
         1) The local database directories/files backing tables
@@ -229,8 +242,48 @@ Example:
 
 .. program:: faust send
 
-Command: ``faust send <topic/agent> <message_value>`` - Send message.
----------------------------------------------------------------------
+``faust send <topic/agent> <message_value>`` - Send message.
+------------------------------------------------------------
+
+**Options:**
+
+.. cmdoption:: --key-type, -K
+
+    Name of model to serialize key into.
+
+.. cmdoption:: --key-serializer
+
+    Override default serializer for key.
+
+.. cmdoption:: --value-type, -V
+
+    Name of model to serialize value into.
+
+.. cmdoption:: --value-serializer
+
+    Override default serializer for value.
+
+.. cmdoption:: --key, -k
+
+    String value for key (use json if model).
+
+.. cmdoption:: --partition
+
+    Specific partition to send to.
+
+.. cmdoption:: --repeat, -r
+
+    Send message n times.
+
+.. cmdoption:: --min-latency
+
+    Minimum delay between sending.
+
+.. cmdoption:: --max-latency
+
+    Maximum delay between sending.
+
+**Examples:**
 
 Send to agent by name using ``@`` prefix:
 
@@ -273,8 +326,8 @@ To get help:
 
 .. program:: faust tables
 
-Command: ``faust tables`` - List Tables (distributed K/V stores).
------------------------------------------------------------------
+``faust tables`` - List Tables (distributed K/V stores).
+--------------------------------------------------------
 
 Example:
 
@@ -296,8 +349,10 @@ JSON Output using ``--json``:
 
 .. program:: faust worker
 
-Command: ``faust worker`` - Start Faust worker instance.
---------------------------------------------------------
+``faust worker`` - Start Faust worker instance.
+-----------------------------------------------
+
+**Options:**
 
 .. cmdoption:: --logfile, -f
 
@@ -324,7 +379,7 @@ Command: ``faust worker`` - Start Faust worker instance.
     When :option:`faust --debug` is enabled this specifies the port
     to run the :pypi:`aiomonitor` console on (default is 50101).
 
-Example:
+**Examples:**
 
 .. sourcecode:: python
 

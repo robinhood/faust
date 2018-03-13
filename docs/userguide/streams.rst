@@ -221,7 +221,7 @@ Acknowledgment
 The acknowledgment signifies that the event processing is complete and
 should not happen again.
 
-An event automatically acknowledged when:
+An event is automatically acknowledged when:
 
 - The agent stream advances to a new event (``Stream.__anext__``)
 - An exception occurs in the agent during event processing.

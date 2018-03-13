@@ -1,7 +1,4 @@
-"""Program ``faust model`` used to list details about a model.
-
-.. program:: faust model
-"""
+"""Program ``faust model`` used to list details about a model."""
 from datetime import datetime
 from typing import Any, Sequence, Type
 

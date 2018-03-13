@@ -1,4 +1,4 @@
-"""Command line programs using :pypi:`click`."""
+"""Command-line programs using :pypi:`click`."""
 import abc
 import asyncio
 import inspect
@@ -92,7 +92,7 @@ WritableFilePath = click.Path(
 )
 
 builtin_options: Sequence[Callable] = [
-    click.version_option(version=faust_version),
+    click.version_option(version=f'Faust {faust_version}'),
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
     option('--quiet/--no-quiet', '-q', default=False,
@@ -174,6 +174,8 @@ def find_app(app: str,
 
 
 def prepare_app(app: AppT, name: str) -> AppT:
+    if app.conf.origin is None:
+        app.conf.origin = name
     app.finalize()
     if app.conf.autodiscover:
         app.discover()
@@ -403,7 +405,7 @@ class Command(abc.ABC):
             this returns json instead.
         """
         if self.json:
-            return self.dumps(data)
+            return self.dumps([dict(zip(headers, row)) for row in data])
         if headers:
             data = [headers] + list(data)
         title = self.bold(self.color(title_color, title))
@@ -437,7 +439,7 @@ class Command(abc.ABC):
 
     def dark(self, text: str) -> str:
         """Return cursor text."""
-        return self.color('autobloack', text)
+        return self.color('autoblack', text)
 
     def bold(self, text: str) -> str:
         """Return text in bold."""

@@ -2,19 +2,18 @@
  Faust - Python Stream Processing
 =======================================================================
 
-.. sourcecode:: python
-
-    # Python Streams ٩(◕‿◕)۶
-    # Forever scalable event processing & in-memory
-    # durable K/V store; as a library w/ asyncio & static typing.
-    import faust
-
 .. topic:: \
 
     *“I am not omniscient, but I know a lot.”*
 
     -- Goethe, *Faust: First part*
 
+.. sourcecode:: python
+
+    # Python Streams ٩(◕‿◕)۶
+    # Forever scalable event processing & in-memory
+    # durable K/V store; as a library w/ asyncio & static typing.
+    import faust
 
 **Faust** is a Python library for *event processing* and *streaming applications*
 that are decentralized and fault-tolerant.
@@ -28,6 +27,8 @@ so instead of a DSL like ``stream().groupBy(x).filterNot(y).etc.``, you
 use Python asynchronous generators that reuse your existing Python code:
 
 .. sourcecode:: python
+
+    app = faust.App('myapp', broker='kafka://localhost')
 
     @app.agent()
     async def process(stream):
@@ -50,13 +51,14 @@ web app architectures that are easy to deploy and scale.
 **or go directly to the** :ref:`quickstart` **tutorial**
     to see Faust in action by programming a streaming application.
 
+**then explore the** :ref:`User Guide <guide>`
+    for in-depth information organized by topic.
+
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org
 .. _`Storm`: http://storm.apache.org
 .. _`Samza`: http://samza.apache.org
 .. _`Apache Flink`: http://flink.apache.org
-
-
 
 Contents
 ========
@@ -93,4 +95,8 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+.. figure:: images/drawing.png
+    :align: left
+    :scale: 60%
 

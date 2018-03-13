@@ -1,43 +1,4 @@
-"""Program ``faust send`` used to send events to agents and topics.
-
-.. program:: faust send
-
-.. cmdoption:: --key-type, -K
-
-    Name of model to serialize key into.
-
-.. cmdoption:: --key-serializer
-
-    Override default serializer for key.
-
-.. cmdoption:: --value-type, -V
-
-    Name of model to serialize value into.
-
-.. cmdoption:: --value-serializer
-
-    Override default serializer for value.
-
-.. cmdoption:: --key, -k
-
-    String value for key (use json if model).
-
-.. cmdoption:: --partition
-
-    Specific partition to send to.
-
-.. cmdoption:: --repeat, -r
-
-    Send message n times.
-
-.. cmdoption:: --min-latency
-
-    Minimum delay between sending.
-
-.. cmdoption:: --max-latency
-
-    Maximum delay between sending.
-"""
+"""Program ``faust send`` used to send events to agents and topics."""
 import asyncio
 import random
 from typing import Any

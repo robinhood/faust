@@ -4,6 +4,12 @@
   Tables and Windowing
 ============================================================
 
+.. topic:: \
+
+    *“A man sees in the world what he carries in his heart.”*
+
+    -- Goethe, *Faust: First part*
+
 .. contents::
     :local:
     :depth: 2

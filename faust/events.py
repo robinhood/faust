@@ -37,13 +37,19 @@ class Event(EventT):
                 ...
 
         - If you only have a Stream object, you can also access underlying
-          events by using ``Stream.events``::
+          events by using ``Stream.events``.
 
-            async for event in channel.stream.events():
-                ...
+            For example:
+
+            .. sourcecode:: python
+
+                async for event in channel.stream.events():
+                    ...
 
           Also commonly used for finding the "current event" related to
-          a value in the stream::
+          a value in the stream:
+
+          .. sourcecode:: python
 
               stream = channel.stream()
               async for event in stream.events():
@@ -58,15 +64,21 @@ class Event(EventT):
                 the value was received on, or its offset.
 
           Note that if you want access to both key and value, you should use
-          ``stream.items()`` instead::
+          ``stream.items()`` instead.
 
-              async for key, value in stream.items():
-                  ...
+            For example:
+
+            .. sourcecode:: python
+
+                async for key, value in stream.items():
+                    ...
 
             ``stream.current_event`` can also be accessed but you must take
             extreme care you are using the correct stream object. Methods
             such as ``.group_by(key)`` and ``.through(topic)`` returns cloned
-            stream objects, so in the example::
+            stream objects, so in the example:
+
+            .. sourcecode:: python
 
                 @app.agent(topic)
                 async def process(stream):
@@ -74,7 +86,7 @@ class Event(EventT):
                         event = stream.current_event
 
             will not work *because the stream being iterated over and the
-            `stream` argument passed to the agent are now different objects.
+            ``stream`` argument passed to the agent are now different objects*.
 
             To safely access the current event having just a stream object
             you should use::
@@ -82,7 +94,9 @@ class Event(EventT):
                 current_event = stream.get_active_stream().current_event
 
             But even easier would be to use the context var that will always
-            point to the current event in the current :class:`asyncio.Task`::
+            point to the current event in the current :class:`asyncio.Task`:
+
+            .. sourcecode:: python
 
                 from faust import current_event
 

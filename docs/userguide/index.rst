@@ -17,6 +17,7 @@
     models
     tables
     tasks
+    cli
     deployment
     sensors
     testing

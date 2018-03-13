@@ -1,3 +1,9 @@
+.. _guide-vscelery:
+
+================
+ Faust x Celery
+================
+
 Faust is a stream processor, so what does it have in common with Celery?
 
 If you've used tools such as Celery in the past, you can think of Faust as being able
@@ -11,5 +17,3 @@ not a queue at all, instead it's a log structure, so you can go forwards
 and backwards in time to retrieve the history of messages sent. Kafka has
 "replayability", in that if something goes wrong, you could actually stop the
 world and rewind.
-
-Now, Faust i

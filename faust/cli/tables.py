@@ -1,7 +1,4 @@
-"""Program ``faust tables`` used to list tables.
-
-.. program:: faust tables
-"""
+"""Program ``faust tables`` used to list tables."""
 from .base import AppCommand
 
 DEFAULT_TABLE_HELP = 'Missing description: use Table(.., help="str")'
