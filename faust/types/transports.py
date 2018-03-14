@@ -2,8 +2,21 @@ import abc
 import asyncio
 import typing
 from typing import (
-    AbstractSet, Any, AsyncIterator, Awaitable, Callable, ClassVar, Iterable,
-    Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, no_type_check,
+    AbstractSet,
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    no_type_check,
 )
 
 from mode import Seconds, ServiceT
@@ -26,7 +39,6 @@ __all__ = [
     'TransportT',
 ]
 
-
 #: Callback called by :class:`faust.transport.base.Consumer` whenever
 #: a message is received.
 ConsumerCallback = Callable[[Message], Awaitable]
@@ -44,9 +56,11 @@ class ConsumerT(ServiceT):
     id: int
     transport: 'TransportT'
     commit_interval: float
+    randomly_assigned_topics: Set[str]
 
     @abc.abstractmethod
-    def __init__(self, transport: 'TransportT',
+    def __init__(self,
+                 transport: 'TransportT',
                  *,
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
@@ -57,7 +71,10 @@ class ConsumerT(ServiceT):
         self._on_partitions_assigned: PartitionsAssignedCallback
 
     @abc.abstractmethod
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -72,9 +89,13 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def verify_subscription(self, assigned: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
     @no_type_check
-    async def getmany(
-            self, timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+    async def getmany(self,
+                      timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         ...
 
     @abc.abstractmethod
@@ -148,25 +169,22 @@ class ProducerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    async def send_and_wait(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int]) -> RecordMetadata:
         ...
 
     @abc.abstractmethod
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -192,7 +210,9 @@ class TransportT(abc.ABC):
     driver_version: str
 
     @abc.abstractmethod
-    def __init__(self, url: Union[str, URL], app: AppT,
+    def __init__(self,
+                 url: Union[str, URL],
+                 app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

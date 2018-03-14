@@ -7,12 +7,16 @@ from typing import Any, Callable, Iterator, Optional, cast
 from mode import Seconds
 from mode.utils.collections import FastUserDict
 
-from ..exceptions import ImproperlyConfigured
-from ..streams import current_event
-from ..types import EventT, FieldDescriptorT
-from ..types.tables import (
-    RecoverCallback, RelativeArg, RelativeHandler,
-    TableT, WindowSetT, WindowWrapperT,
+from faust.exceptions import ImproperlyConfigured
+from faust.streams import current_event
+from faust.types import EventT, FieldDescriptorT
+from faust.types.tables import (
+    RecoverCallback,
+    RelativeArg,
+    RelativeHandler,
+    TableT,
+    WindowSetT,
+    WindowWrapperT,
 )
 
 if typing.TYPE_CHECKING:
@@ -59,11 +63,13 @@ class WindowSet(WindowSetT, FastUserDict):
         self.event = event
         self.data = table  # provides underlying mapping in FastUserDict
 
-    def apply(self, op: Callable[[Any, Any], Any], value: Any,
+    def apply(self,
+              op: Callable[[Any, Any], Any],
+              value: Any,
               event: EventT = None) -> WindowSetT:
+        table = cast(Table, self.table)
         timestamp = self.wrapper.get_timestamp(event or self.event)
-        cast(Table, self.table)._apply_window_op(
-            op, self.key, value, timestamp)
+        table._apply_window_op(op, self.key, value, timestamp)
         return self
 
     def value(self, event: EventT = None) -> Any:
@@ -74,13 +80,12 @@ class WindowSet(WindowSetT, FastUserDict):
         return cast(Table, self.table)._windowed_now(self.key)
 
     def current(self, event: EventT = None) -> Any:
-        table = cast(Table, self.table)
-        return table._windowed_timestamp(
-            self.key, table._relative_event(event))
+        t = cast(Table, self.table)
+        return t._windowed_timestamp(self.key, t._relative_event(event))
 
     def delta(self, d: Seconds, event: EventT = None) -> Any:
-        return cast(Table, self.table)._windowed_delta(
-            self.key, d, event or self.event)
+        table = cast(Table, self.table)
+        return table._windowed_delta(self.key, d, event or self.event)
 
     def __getitem__(self, w: Any) -> Any:
         # wrapper[key][event] returns WindowSet with event already set.
@@ -149,8 +154,7 @@ class WindowWrapper(WindowWrapperT):
     the values can be further reduced to the wanted time period.
     """
 
-    def __init__(self, table: TableT,
-                 *,
+    def __init__(self, table: TableT, *,
                  relative_to: RelativeArg = None) -> None:
         self.table = table
         self._get_relative_timestamp = self._relative_handler(relative_to)
@@ -198,8 +202,8 @@ class WindowWrapper(WindowWrapperT):
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if not isinstance(value, WindowSetT):
-            cast(Table, self.table)._set_windowed(
-                key, value, self.get_timestamp())
+            table = cast(Table, self.table)
+            table._set_windowed(key, value, self.get_timestamp())
 
     def __delitem__(self, key: Any) -> None:
         cast(Table, self.table)._del_windowed(key, self.get_timestamp())

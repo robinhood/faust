@@ -1,7 +1,7 @@
 import abc
 from typing import MutableMapping, Optional, Tuple, Type
 
-from .channels import EventT
+from .events import EventT
 from .models import FieldDescriptorT, ModelT
 from .streams import JoinableT
 
@@ -13,8 +13,7 @@ class JoinT(abc.ABC):
     stream: JoinableT
 
     @abc.abstractmethod
-    def __init__(self, *,
-                 stream: JoinableT,
+    def __init__(self, *, stream: JoinableT,
                  fields: Tuple[FieldDescriptorT, ...]) -> None:
         ...
 

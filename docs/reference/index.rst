@@ -17,10 +17,23 @@ Faust
     faust.exceptions
     faust.app
     faust.channels
-    faust.router
+    faust.events
+    faust.joins
+    faust.streams
     faust.topics
     faust.windows
     faust.worker
+
+App
+===
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.app
+    faust.app.base
+    faust.app.router
+    faust.app.service
 
 Agents
 ======
@@ -33,6 +46,16 @@ Agents
     faust.agents.manager
     faust.agents.models
     faust.agents.replies
+
+Fixups
+======
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.fixups
+    faust.fixups.base
+    faust.fixups.django
 
 Models
 ======
@@ -74,15 +97,6 @@ Stores
     faust.stores.memory
     faust.stores.rocksdb
 
-Streams
-=======
-
-.. toctree::
-    :maxdepth: 1
-
-    faust.streams.joins
-    faust.streams.stream
-
 Tables
 ======
 
@@ -91,6 +105,7 @@ Tables
 
     faust.tables
     faust.tables.base
+    faust.tables.changelogs
     faust.tables.manager
     faust.tables.set
     faust.tables.table
@@ -132,18 +147,22 @@ Types
     faust.types.channels
     faust.types.codecs
     faust.types.core
+    faust.types.events
+    faust.types.fixups
     faust.types.joins
     faust.types.models
     faust.types.router
     faust.types.sensors
     faust.types.serializers
+    faust.types.settings
     faust.types.stores
     faust.types.streams
     faust.types.tables
     faust.types.topics
-    faust.types.windows
     faust.types.transports
     faust.types.tuples
+    faust.types.web
+    faust.types.windows
 
 Utils
 =====

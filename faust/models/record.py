@@ -1,17 +1,32 @@
 """Record - Dictionary Model."""
 from datetime import datetime
 from typing import (
-    Any, Callable, Dict, FrozenSet, Iterable, List,
-    Mapping, Optional, Set, Tuple, Type, cast,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    cast,
 )
 
 from mode.utils.text import pluralize
 
-from .base import FieldDescriptor, Model
+from faust.types.models import (
+    Converter,
+    FieldDescriptorT,
+    ModelOptions,
+    ModelT,
+)
+from faust.utils import iso8601
+from faust.utils.objects import annotations, guess_concrete_type
 
-from ..types.models import Converter, FieldDescriptorT, ModelOptions, ModelT
-from ..utils import iso8601
-from ..utils.objects import annotations, guess_concrete_type
+from .base import FieldDescriptor, Model
 
 __all__ = ['Record']
 
@@ -57,9 +72,7 @@ def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
         return False, None
 
 
-def _is_date(cls: Type,
-             *,
-             types: Tuple[Type, ...] = DATE_TYPES) -> bool:
+def _is_date(cls: Type, *, types: Tuple[Type, ...] = DATE_TYPES) -> bool:
     try:
         # Check for List[int], Mapping[int, int], etc.
         _, cls = guess_concrete_type(cls)
@@ -161,20 +174,19 @@ class Record(Model, abstract=True):
         return iso8601.parse(data)
 
     @classmethod
-    def _contribute_field_descriptors(
-            cls,
-            target: Type,
-            options: ModelOptions,
-            parent: FieldDescriptorT = None) -> None:
+    def _contribute_field_descriptors(cls,
+                                      target: Type,
+                                      options: ModelOptions,
+                                      parent: FieldDescriptorT = None) -> None:
         fields = options.fields
         defaults = options.defaults
         for field, typ in fields.items():
             try:
-                default, required = defaults[field], False
+                default, needed = defaults[field], False
             except KeyError:
-                default, required = None, True
-            setattr(target, field, FieldDescriptor(
-                field, typ, cls, required, default, parent))
+                default, needed = None, True
+            setattr(target, field,
+                    FieldDescriptor(field, typ, cls, needed, default, parent))
 
     @classmethod
     def from_data(cls, data: Mapping) -> 'Record':
@@ -182,14 +194,14 @@ class Record(Model, abstract=True):
         self_cls = cls._maybe_namespace(data)
         return (self_cls or cls)(**data, __strict__=False)
 
-    def __init__(self,
-                 *args: Any,
-                 __strict__: bool = True,
+    def __init__(self, *args: Any, __strict__: bool = True,
                  **kwargs: Any) -> None:
         # Set fields from keyword arguments.
         self._init_fields(args, kwargs, strict=__strict__)
 
-    def _init_fields(self, positional: Tuple, keywords: Dict,
+    def _init_fields(self,
+                     positional: Tuple,
+                     keywords: Dict,
                      *,
                      strict: bool = True) -> None:
         n_args = len(positional)
@@ -209,8 +221,7 @@ class Record(Model, abstract=True):
         missing = options.fieldset - fieldset - options.optionalset
         if missing:
             raise TypeError('{} missing required {}: {}'.format(
-                type(self).__name__,
-                pluralize(len(missing), 'argument'),
+                type(self).__name__, pluralize(len(missing), 'argument'),
                 ', '.join(sorted(missing))))
 
         if strict:
@@ -231,7 +242,8 @@ class Record(Model, abstract=True):
         # Reconstruct non-builtin types
         fields.update({
             k: self._reconstruct_type(typ, get_field(k), callback)
-            for k, (typ, callback) in self._options.converse.items()})
+            for k, (typ, callback) in self._options.converse.items()
+        })
 
         # Fast: This sets attributes from kwargs.
         self.__dict__.update(fields)
@@ -256,9 +268,8 @@ class Record(Model, abstract=True):
             return typ.from_data(data)
         return data
 
-    def _reconstruct_type(
-            self, typ: Type, data: Any,
-            callback: Callable[[Type, Any], Any]) -> Any:
+    def _reconstruct_type(self, typ: Type, data: Any,
+                          callback: Callable[[Type, Any], Any]) -> Any:
         if data is not None:
             try:
                 # Get generic type (if any)
@@ -303,8 +314,8 @@ class Record(Model, abstract=True):
                 if modelattrs[key] is list:
                     value = [v.to_representation() for v in value]
                 elif modelattrs[key] is dict:
-                    value = {k: v.to_representation()
-                             for k, v in value.items()}
+                    value = {
+                        k: v.to_representation() for k, v in value.items()}
                 elif isinstance(value, ModelT):
                     value = value.to_representation()
             yield key, value
@@ -317,7 +328,8 @@ class Record(Model, abstract=True):
         attrs, defaults = self.__dict__, self._options.defaults.items()
         fields = {
             **attrs,
-            **{k: v for k, v in defaults if k not in attrs},
+            **{k: v
+               for k, v in defaults if k not in attrs},
         }
         return _kvrepr(fields)
 
@@ -339,8 +351,6 @@ class Record(Model, abstract=True):
         return object.__hash__(self)
 
 
-def _kvrepr(d: Mapping[str, Any],
-            *,
-            sep: str = ', ') -> str:
+def _kvrepr(d: Mapping[str, Any], *, sep: str = ', ') -> str:
     """Represent dict as `k='v'` pairs separated by comma."""
     return sep.join(f'{k}={v!r}' for k, v in d.items())

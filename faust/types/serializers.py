@@ -28,21 +28,19 @@ class RegistryT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def loads_key(
-            self,
-            typ: Optional[ModelArg],
-            key: bytes,
-            *,
-            serializer: CodecArg = None) -> K:
+    def loads_key(self,
+                  typ: Optional[ModelArg],
+                  key: bytes,
+                  *,
+                  serializer: CodecArg = None) -> K:
         ...
 
     @abc.abstractmethod
-    def loads_value(
-            self,
-            typ: Optional[ModelArg],
-            value: bytes,
-            *,
-            serializer: CodecArg = None) -> Any:
+    def loads_value(self,
+                    typ: Optional[ModelArg],
+                    value: bytes,
+                    *,
+                    serializer: CodecArg = None) -> Any:
         ...
 
     @abc.abstractmethod

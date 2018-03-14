@@ -6,7 +6,7 @@ from .models import Event, ReferralUserDevice, StockJournalUpdate
 app = faust.App(
     'referrals-device-check',
     broker='kafka://localhost:9092',
-    default_partitions=4,
+    topic_partitions=4,
     autodiscover=True,
     origin='examples.referrals',
 )

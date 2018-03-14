@@ -1,75 +1,63 @@
 import abc
 import asyncio
 import typing
-from pathlib import Path
 from typing import (
-    Any, AsyncIterable, Awaitable, Callable, Iterable,
-    List, Mapping, Pattern, Set, Tuple, Type, Union,
+    Any,
+    AsyncIterable,
+    Awaitable,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    MutableSequence,
+    Pattern,
+    Set,
+    Tuple,
+    Type,
+    Union,
 )
 
-from aiohttp.client import ClientSession
-from mode import Seconds, ServiceT, Signal, SupervisorStrategyT
+from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
 from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
-from mode.utils.imports import SymbolArg
 from mode.utils.types.trees import NodeT
-from yarl import URL
+
+from faust.utils.objects import cached_property
 
 from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
 from .core import K, V
+from .fixups import FixupT
 from .router import RouterT
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
-from .tables import SetT, TableManagerT, TableT
+from .tables import CollectionT, SetT, TableManagerT, TableT
 from .topics import ChannelT, ConductorT, TopicT
 from .transports import ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
+from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View
 from .windows import WindowT
 
-from ..utils.objects import cached_property
-
 if typing.TYPE_CHECKING:
-    from ..cli.base import AppCommand
-    from ..sensors.monitor import Monitor
-    from ..web.base import Request, Response, Web
-    from ..web.views import Site, View
-    from ..worker import Worker as WorkerT
+    from faust.cli.base import AppCommand
+    from faust.sensors.monitor import Monitor
+    from faust.worker import Worker as WorkerT
     from .models import ModelArg
+    from .settings import Settings
 else:
     class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
-    class Request: ...        # noqa
-    class Response: ...       # noqa
-    class Site: ...           # noqa
-    class View: ...           # noqa
     class WorkerT: ...        # noqa
-    class Web: ...            # noqa
+    class Settings: ...       # noqa
 
 __all__ = [
     'TaskArg',
-    'ViewGetHandler',
-    'PageArg',
-    'AutodiscoverArg',
-    'Web',
     'AppT',
 ]
 
-
-TaskArg = Union[
-    Callable[['AppT'], Awaitable],
-    Callable[[], Awaitable],
-]
-ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
-RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
-PageArg = Union[Type[View], ViewGetHandler]
-AutodiscoverArg = Union[
-    bool,
-    Iterable[str],
-    Callable[[], Iterable[str]],
-]
+TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
 
 
 class AppT(ServiceT):
@@ -79,82 +67,52 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
+    finalized: bool = False
+    configured: bool = False
+
+    on_configured: SyncSignal[Settings] = SyncSignal()
+    on_before_configured: SyncSignal = SyncSignal()
+    on_after_configured: SyncSignal = SyncSignal()
     on_partitions_assigned: Signal[Set[TP]] = Signal()
     on_partitions_revoked: Signal[Set[TP]] = Signal()
+    on_worker_init: SyncSignal = SyncSignal()
 
-    Stream: Type[StreamT]
-    TableType: Type[TableT]
-    TableManager: Type[TableManagerT]
-    SetType: Type[SetT]
-    Serializers: Type[RegistryT]
-
-    id: str
-    broker: URL
-    client_id: str
-    datadir: Path
-    tabledir: Path
     client_only: bool
-    commit_interval: float
-    table_cleanup_interval: float
-    key_serializer: CodecArg
-    value_serializer: CodecArg
-    num_standby_replicas: int
-    replication_factor: int
-    default_partitions: int  # noqa: E704
-    reply_to: str
-    create_reply_topic: float
-    reply_expires: float
-    store: URL
-    assignor: PartitionAssignorT
-    router: RouterT
-    canonical_url: URL
-    origin: str
-    autodiscover: AutodiscoverArg
-    stream_buffer_maxsize: int
 
     agents: AgentManagerT
     sensors: SensorDelegateT
-    serializers: RegistryT
     pages: List[Tuple[str, Type[Site]]]
+
+    fixups: MutableSequence[FixupT]
+
+    @abc.abstractmethod
+    def __init__(self,
+                 id: str,
+                 *,
+                 monitor: Monitor,
+                 config_source: Any = None,
+                 **options: Any) -> None:
+        self.on_startup_finished: Callable = None
+
+    @abc.abstractmethod
+    def config_from_object(self,
+                           obj: Any,
+                           *,
+                           silent: bool = False,
+                           force: bool = False) -> None:
+        ...
+
+    @abc.abstractmethod
+    def finalize(self) -> None:
+        ...
 
     @abc.abstractmethod
     def main(self) -> None:
         ...
 
     @abc.abstractmethod
-    def __init__(
-            self, id: str,
-            *,
-            broker: Union[str, URL] = 'aiokafka://localhost:9092',
-            store: Union[str, URL] = 'memory://',
-            autodiscover: AutodiscoverArg = False,
-            origin: str = None,
-            canonical_url: Union[str, URL] = None,
-            client_id: str = '',
-            datadir: Union[Path, str] = None,
-            tabledir: Union[Path, str] = None,
-            commit_interval: Seconds = 9999.0,
-            table_cleanup_interval: Seconds = 9999.0,
-            key_serializer: CodecArg = 'json',
-            value_serializer: CodecArg = 'json',
-            num_standby_replicas: int = 0,
-            replication_factor: int = 1,
-            default_partitions: int = 8,
-            reply_to: str = None,
-            create_reply_topic: bool = False,
-            reply_expires: Seconds = 9999.0,
-            Stream: SymbolArg[Type[StreamT]] = '',
-            Table: SymbolArg[Type[TableT]] = '',
-            TableManager: SymbolArg[Type[TableManagerT]] = '',
-            Set: SymbolArg[Type[SetT]] = '',
-            Serializers: SymbolArg[Type[RegistryT]] = '',
-            Worker: SymbolArg[Type[WorkerT]] = None,
-            monitor: Monitor = None,
-            on_startup_finished: Callable = None,
-            stream_buffer_maxsize: int = 1,
-            loop: asyncio.AbstractEventLoop = None,
-            url: str = None) -> None:
-        self.on_startup_finished: Callable = None
+    def worker_init(self) -> None:
+        ...
 
     @abc.abstractmethod
     def discover(self,
@@ -164,7 +122,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def topic(self, *topics: str,
+    def topic(self,
+              *topics: str,
               pattern: Union[str, Pattern] = None,
               key_type: ModelArg = None,
               value_type: ModelArg = None,
@@ -177,11 +136,13 @@ class AppT(ServiceT):
               replicas: int = None,
               acks: bool = True,
               internal: bool = False,
-              config: Mapping[str, Any] = None) -> TopicT:
+              config: Mapping[str, Any] = None,
+              loop: asyncio.AbstractEventLoop = None) -> TopicT:
         ...
 
     @abc.abstractmethod
-    def channel(self, *,
+    def channel(self,
+                *,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
                 maxsize: int = 1,
@@ -204,8 +165,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def timer(self, interval: Seconds,
-              on_leader: bool = False) -> Callable:
+    def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
         ...
 
     @abc.abstractmethod
@@ -213,13 +173,15 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def stream(self, channel: AsyncIterable,
+    def stream(self,
+               channel: AsyncIterable,
                beacon: NodeT = None,
                **kwargs: Any) -> StreamT:
         ...
 
     @abc.abstractmethod
-    def Table(self, name: str,
+    def Table(self,
+              name: str,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
@@ -229,7 +191,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def Set(self, name: str,
+    def Set(self,
+            name: str,
             *,
             window: WindowT = None,
             partitions: int = None,
@@ -238,9 +201,13 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def page(self, path: str,
-             *,
+    def page(self, path: str, *,
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
+        ...
+
+    @abc.abstractmethod
+    def table_route(self, table: CollectionT,
+                    shard_param: str) -> RoutedViewGetHandler:
         ...
 
     @abc.abstractmethod
@@ -260,7 +227,8 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     async def send(
-            self, channel: Union[ChannelT, str],
+            self,
+            channel: Union[ChannelT, str],
             key: K = None,
             value: V = None,
             partition: int = None,
@@ -289,6 +257,14 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def Worker(self, **kwargs: Any) -> WorkerT:
+        ...
+
+    @property
+    def conf(self) -> Settings:
+        ...
+
+    @conf.setter
+    def conf(self, settings: Settings) -> None:
         ...
 
     @property
@@ -332,5 +308,20 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def client_session(self) -> ClientSession:
+    def http_client(self) -> HttpClientT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def assignor(self) -> PartitionAssignorT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def router(self) -> RouterT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def serializers(self) -> RegistryT:
         ...

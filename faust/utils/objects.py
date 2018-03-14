@@ -5,9 +5,24 @@ from contextlib import suppress
 from functools import total_ordering
 from pathlib import Path
 from typing import (
-    AbstractSet, Any, ClassVar, Dict, FrozenSet, Generic,
-    Iterable, List, Mapping, MutableMapping, MutableSequence,
-    MutableSet, Sequence, Set, Tuple, Type, TypeVar, cast,
+    AbstractSet,
+    Any,
+    ClassVar,
+    Dict,
+    FrozenSet,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+    MutableSet,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
 )
 from typing import _eval_type, _type_check  # type: ignore
 
@@ -222,14 +237,15 @@ def annotations(cls: Type,
     for subcls in iter_mro_reversed(cls, stop=stop):
         defaults.update(subcls.__dict__)
         with suppress(AttributeError):
-            fields.update(_resolve_refs(
+            class_fields = _resolve_refs(
                 subcls.__annotations__,
                 globalns if globalns is not None else _get_globalns(subcls),
                 localns,
                 invalid_types or set(),
                 alias_types or {},
                 skip_classvar,
-            ))
+            )
+            fields.update(class_fields)
     return fields, defaults
 
 
@@ -285,8 +301,8 @@ def _ForwardRef_safe_eval(ref: ForwardRef,
             localns = globalns
         val = eval(ref.__forward_code__, globalns, localns)
         if not _is_class_var(val):
-            val = _type_check(
-                val, 'Forward references must evaluate to types.')
+            val = _type_check(val,
+                              'Forward references must evaluate to types.')
         ref.__forward_value__ = val
     return ref.__forward_value__
 
@@ -348,8 +364,8 @@ def guess_concrete_type(
                     break
         else:
             typ = typ.__origin__  # for List this is list, etc.
-    elif (typ.__class__.__name__ == '_Union' and  # Py3.6
-            args and args[1] is type(None)):  # noqa
+    elif (typ.__class__.__name__ == '_Union' and args and  # Py3.6
+          args[1] is type(None)):  # noqa
         # Optional[x] actually returns Union[x, type(None)]
         typ = args[0]
     if not issubclass(typ, (str, bytes)):

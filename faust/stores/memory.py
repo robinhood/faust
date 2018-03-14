@@ -1,8 +1,8 @@
 """In-memory table storage."""
 from typing import Any, Callable, Iterable, MutableMapping, Optional
 from mode.utils.collections import FastUserDict
+from faust.types import EventT, TP
 from . import base
-from ..types import EventT, TP
 
 
 class Store(base.Store, FastUserDict):
@@ -20,10 +20,8 @@ class Store(base.Store, FastUserDict):
         # default store does not do serialization, so we need
         # to convert these raw json serialized keys to proper structures
         # (E.g. regenerate tuples in WindowedKeys etc).
-        self.data.update((
-            (to_key(event.key), to_value(event.value))
-            for event in batch
-        ))
+        self.data.update(
+            ((to_key(event.key), to_value(event.value)) for event in batch))
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         return None

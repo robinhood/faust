@@ -4,6 +4,12 @@
  Application
 =======================================
 
+.. topic:: \
+
+    *“I am not omniscient, but I know a lot.”*
+
+    -- Goethe, *Faust: First part*
+
 .. module:: faust
 
 .. currentmodule:: faust
@@ -92,7 +98,7 @@ so tables can exceed the size of available memory.
 Required Parameters
 -------------------
 
-.. _app-config-id:
+.. setting:: id
 
 ``id``
 ~~~~~~
@@ -113,7 +119,7 @@ This parameter is required.
 Common Parameters
 -----------------
 
-.. _app-config-broker:
+.. setting:: broker
 
 ``broker``
 ~~~~~~~~~~
@@ -123,13 +129,9 @@ Common Parameters
 
 Faust needs the URL of a "transport" to send and receive messages.
 
-Currently, the only supported production transport is the ``ckafka://``
-transport using :pypi:`aiokafka` for consuming and :pypi:`confluent-kafka` for
-producing.
-
-
-The ``aiokafka://`` transport is only suitable for development, as it may not
-recover from broker failure.  Use ``ckafka://`` in production.
+Currently, the only supported production transport is ``kafka://``.
+This uses the :pypi:`aiokafka` client under the hood, for consuming and
+producing messages.
 
 You can specify multiple hosts at the same time by separating them using
 the semi-comma:
@@ -138,7 +140,7 @@ the semi-comma:
 
     aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
-.. _app-config-store:
+.. setting:: store
 
 ``store``
 ~~~~~~~~~
@@ -154,7 +156,7 @@ not use the ``memory://`` store in production.
 In production, a persistent table store, such as ``rocksdb://`` is
 preferred.
 
-.. _app-config-autodiscover:
+.. setting:: autodiscover
 
 ``autodiscover``
 ~~~~~~~~~~~~~~~~
@@ -163,18 +165,31 @@ preferred.
 
 Enable autodiscovery of agent, task, timer, page and command decorators.
 
+Faust has an API to add different :mod:`asyncio` services and other user
+extensions, such as "Agents", HTTP web views, command-line commands, and
+timers to your Faust workers.  These can be defined in any module, so to
+discover them at startup, the worker needs to traverse packages looking
+for them.
+
 .. warning::
 
-    The autodiscovery functionality uses :pypi:`Venusian` to
+    The autodiscovery functionality uses the :pypi:`Venusian` library to
     scan wanted packages for ``@app.agent``, ``@app.page``,
     ``@app.command``, ``@app.task`` and ``@app.timer`` decorators,
     but to do so, it's required to traverse the package path and import
     every module in it.
 
     Importing random modules like this can be dangerous so make sure you
-    follow Python programming best practices, and for example do not start
-    threads; perform network I/O; do monkey-patching; or similar,
-    as a side effect of importing a module.
+    follow Python programming best practices. Do not start
+    threads; perform network I/O; do test monkey-patching for mocks or similar,
+    as a side effect of importing a module.  If you encounter a case such as
+    this then please find a way to perform your action in a lazy manner.
+
+.. warning::
+
+    If the above warning is something you cannot fix, or if it's out of your
+    control, then please set ``autodiscover=False`` and make sure the worker
+    imports all modules where your decorators are defined.
 
 The value for this argument can be:
 
@@ -183,7 +198,7 @@ The value for this argument can be:
     scan the package name described in the ``origin`` attribute.
 
     The ``origin`` attribute is automatically set when you start
-    a worker using the :program:`faust` command line program, e.g.:
+    a worker using the :program:`faust` command line program, for example::
 
     .. sourcecode:: console
 
@@ -215,44 +230,74 @@ The value for this argument can be:
 
         app = App(..., autodiscover=get_all_packages_to_scan)
 
+False)
+
+    If everything you need is in a self-contained module, or you import the
+    stuff you need manually, just set ``autodiscover`` to False and don't
+    worry about it :-)
+
 .. admonition:: Django
 
+    When using :pypi:`Django` and the :envvar:`DJANGO_SETTINGS_MODULE`
+    environment variable is set, the Faust app will scan all packages found
+    in the ``INSTALLED_APPS`` setting.
+
     If you're using Django you can use this to scan for
-    agents/pages/commands in all packages defined in ``INSTALLED_APPS``::
+    agents/pages/commands in all packages defined in ``INSTALLED_APPS``.
 
-        from django.conf import settings
+    Faust will automatically detect that you're using Django and do the
+    right thing if you do::
 
-        app = App(..., autodiscover=lambda: settings.INSTALLED_APPS)
+        app = App(..., autodiscover=True)
 
-    If you're using a recent version of Django, where apps can
-    be defined in app configs, use the following
-    instead::
+    It will find agents and other decorators in all of the reusable Django
+    apps. If you want to manually control what packages are traversed, then provide
+    a list::
 
-        from django.apps import apps
+        app = App(..., autodiscover=['package1', 'package2'])
 
-        app = App(...,
-                  autodiscover=(config.name
-                                for config in apps.get_app_configs())
+    or if you want exactly :const:`None` packages to be traversed, then
+    provide a False:
 
-    We use :keyword:`lambda` in the first example, and a generator
-    expression in the latter example. This way you can safely import the
-    module containing this app, without forcing the Django settings machinery
-    to be initialized (i.e. settings imported).
+        app = App(.., autodiscover=False)
+
+    which is the default, so you can simply omit the argument.
 
 .. tip::
 
     For manual control over autodiscovery, you can also call the
-    :meth:`@discover` method, manually.
+    :meth:`@discover` method manually.
 
-.. _app-config-datadir:
+.. setting:: version
+
+``version``
+~~~~~~~~~~~
+
+:type: :class:`int`
+:default: 1
+
+Version of the app, that when changed will create a new isolated
+instance of the application. The first version is 1, the second version is 2,
+and so on.
+
+.. admonition:: Source topics will not be affected by a version change.
+
+    Faust applications will use two kinds of topics: source topics, and
+    internally managed topics. The source topics are declared by the producer,
+    and we do not have the opportunity to modify any configuration settings,
+    like number of partitions for a source topic; we may only consume from
+    them. To mark a topic as internal, use: ``app.topic(..., internal=True)``.
+
+.. setting:: datadir
 
 ``datadir``
 ~~~~~~~~~~~
 
 :type: ``Union[str, pathlib.Path]``
-:default: ``{appid}-data``
+:default: ``"{appid}-data"``
+:environment: :envvar:`FAUST_DATADIR`, :envvar:`F_DATADIR`
 
-The directory in which this instance stores local table data, etc.
+The directory in which this instance stores the data used by local tables, etc.
 
 .. seealso::
 
@@ -260,10 +305,64 @@ The directory in which this instance stores local table data, etc.
       option, from the command-line, so there's usually no reason to provide
       a default value when creating the app.
 
+.. setting:: tabledir
+
+``tabledir``
+~~~~~~~~~~~~
+
+:type: ``Union[str, pathlib.Path]``
+:default: ``"tables"``
+
+The directory in which this instance stores local table data.
+Usually you will want to configure the :setting:`datadir` setting, but if you
+want to store tables separately you can configure this one.
+
+If the path provided is relative (it has no leading slash), then the path will
+be considered to be relative to the :setting:`datadir` setting.
+
+.. setting:: id_format
+
+``id_format``
+~~~~~~~~~~~~~
+
+:type: :class:`str`
+:default: ``"{id}-v{self.version}"``
+
+The format string used to generate the final :setting:`id` value by combining
+it with the :setting:`version` parameter.
+
+.. setting:: loghandlers
+
+``loghandlers``
+~~~~~~~~~~~~~~~
+
+:type: ``List[logging.LogHandler]``
+:default: :const:`None`
+
+Specify a list of custom log handlers to use in worker instances.
+
+.. setting:: origin
+
+``origin``
+~~~~~~~~~~
+
+:type: :class:`str`
+:default: :const:`None`
+
+The reverse path used to find the app, for example if the app is located in::
+
+    from myproj.app import app
+
+Then the ``origin`` should be ``"myproj.app"``.
+
+The :program:`faust worker` program will try to automatically set the origin,
+but if you are having problems with autogenerated names then you can set
+origin manually.
+
 Serialization Parameters
 ------------------------
 
-.. _app-config-key_serializer:
+.. setting:: key_serializer
 
 ``key_serializer``
 ~~~~~~~~~~~~~~~~~~
@@ -282,7 +381,7 @@ This can be the name of a serializer/codec, or an actual
     - The :ref:`codecs` section in the model guide -- for more information
       about codecs.
 
-.. _app-config-value_serializer:
+.. setting:: value_serializer
 
 ``value_serializer``
 ~~~~~~~~~~~~~~~~~~~~
@@ -301,38 +400,31 @@ This can be string, the name of a serializer/codec, or an actual
     - The :ref:`codecs` section in the model guide -- for more information
       about codecs.
 
-Advanced Broker Options
------------------------
 
-.. _app-config-client_id:
+Topic Options
+-------------
 
-``client_id``
-~~~~~~~~~~~~~
+.. setting:: topic_replication_factor
 
-:type: ``str``
-:default: ``faust-VERSION``
+``topic_replication_factor``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You shouldn't have to set this manually.
+:type: :class:`int`
+:default: ``1``
 
-The client id is used to identify the software used, and is not usually
-configured by the user.
+The default replication factor for topics created by the application.
 
-.. _app-config-commit_interval:
+.. note::
 
-``commit_interval``
-~~~~~~~~~~~~~~~~~~~
+    Generally this should be the same as the configured
+    replication factor for your Kafka cluster.
 
-:type: `float`, :class:`~datetime.timedelta`
-:default: ``3.0``
+.. setting:: topic_partitions
 
-How often we commit messages that have been fully processed (:term:`acked`).
+``topic_partitions``
+~~~~~~~~~~~~~~~~~~~~
 
-.. _app-config-default_partitions:
-
-``default_partitions``
-~~~~~~~~~~~~~~~~~~~~~~
-
-:type: ``int``
+:type: :class:`int`
 :default: ``8``
 
 Default number of partitions for new topics.
@@ -343,49 +435,88 @@ Default number of partitions for new topics.
     workload of the application (also sometimes referred as the sharding
     factor of the application).
 
+
+Advanced Broker Options
+-----------------------
+
+.. setting:: broker_client_id
+
+``broker_client_id``
+~~~~~~~~~~~~~~~~~~~~
+
+:type: ``str``
+:default: ``faust-{VERSION}``
+
+You shouldn't have to set this manually.
+
+The client id is used to identify the software used, and is not usually
+configured by the user.
+
+.. setting:: broker_commit_interval
+
+``broker_commit_interval``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:type: :class:`float`, :class:`~datetime.timedelta`
+:default: ``3.0``
+
+How often we commit messages that have been fully processed (:term:`acked`).
+
+.. setting:: broker_commit_livelock_soft_timeout
+
+``broker_commit_livelock_soft_timeout``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:type: class:`float`, :class:`~datetime.timedelta`
+:default: ``300.0`` (five minutes).
+
+How long time it takes before we warn that the Kafka commit offset has
+not advanced (only when processing messages).
+
 Advanced Table Options
 ----------------------
 
-.. _app-config-table_cleanup_interval:
+.. setting:: table_cleanup_interval
 
 ``table_cleanup_interval``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:type: `float`, :class:`~datetime.timedelta`
+:type: :class:`float`, :class:`~datetime.timedelta`
 :default: ``30.0``
 
 How often we cleanup tables to remove expired entries.
 
-.. _app-config-num_standby_replicas:
+.. setting:: table_standby_replicas
 
-``num_standby_replicas``
-~~~~~~~~~~~~~~~~~~~~~~~~
+``table_standby_replicas``
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:type: ``int``
+:type: :class:`int`
 :default: ``1``
 
 The number of standby replicas for each table.
 
-.. _app-config-replication_factor:
+Advanced Stream Parameters
+--------------------------
 
-``replication_factor``
-~~~~~~~~~~~~~~~~~~~~~~
+.. setting:: stream_buffer_maxsize
 
-:type: ``int``
-:default: ``1``
+``stream_buffer_maxsize``
+~~~~~~~~~~~~~~~~~~~~~~~~~
+:type: :class:`int`
+:default: 1000
 
-The replication factor for changelog topics and repartition topics created
-by the application.
+This setting control backpressure to streams and agents reading from streams.
 
-.. note::
+If set to 1000 (default) this means that an agent can only keep at most
+1000 unprocessed items in the stream buffer.
 
-    This would generally be configured to the replication factor for your
-    Kafka cluster.
+Essentially this will a limit the number of messages a stream can "prefetch".
 
-Web Parameters
---------------
+Advanced Web Parameters
+-----------------------
 
-.. _app-config-canonical_url:
+.. setting:: canonical_url
 
 ``canonical_url``
 ~~~~~~~~~~~~~~~~~
@@ -403,7 +534,7 @@ by passing it as a keyword argument to :class:`App`.
 Agent RPC Parameters
 --------------------
 
-.. _app-config-reply_to:
+.. setting:: reply_to
 
 ``reply_to``
 ~~~~~~~~~~~~
@@ -414,9 +545,9 @@ Agent RPC Parameters
 The name of the reply topic used by this instance.  If not set one will be
 automatically generated when the app is created.
 
-.. _app-config-reply_topic:
+.. setting:: reply_create_topic
 
-``create_reply_topic``
+``reply_create_topic``
 ~~~~~~~~~~~~~~~~~~~~~~
 
 :type: ``bool``
@@ -424,7 +555,10 @@ automatically generated when the app is created.
 
 Set this to :const:`True` if you plan on using the RPC with agents.
 
-.. _app-config-reply_expires:
+This will create the internal topic used for RPC replies on that instance
+at startup.
+
+.. Setting:: reply_expires
 
 ``reply_expires``
 ~~~~~~~~~~~~~~~~~
@@ -435,10 +569,42 @@ Set this to :const:`True` if you plan on using the RPC with agents.
 The expiry time (in seconds float, or timedelta), for how long replies
 will stay in the instances local reply topic before being removed.
 
+.. setting:: reply_to_prefix
+
+``reply_to_prefix``
+~~~~~~~~~~~~~~~~~~~
+
+:type: ``str``
+:default: ``"f-reply-"``
+
+The prefix used when generating reply topic names.
+
 Subclassing Parameters
 ----------------------
 
-.. _app-config-Stream:
+.. setting:: Agent
+
+``Agent``
+~~~~~~~~~
+
+:type: ``Union[str, Type]``
+:default: ``"faust.Agent"``
+
+The :class:`~faust.Agent` class to use for agents, or the fully-qualified
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MyAgent(faust.Agent):
+        ...
+
+    app = App(..., Agent=MyAgent)
+
+Example using the string path to a class::
+
+    app = App(..., Agent='myproj.agents.Agent')
+
+.. setting:: Stream
 
 ``Stream``
 ~~~~~~~~~~
@@ -460,8 +626,7 @@ Example using the string path to a class::
 
     app = App(..., Stream='myproj.streams.Stream')
 
-
-.. _app-config-Table:
+.. setting:: Table
 
 ``Table``
 ~~~~~~~~~
@@ -483,7 +648,7 @@ Example using the string path to a class::
 
     app = App(..., Table='myproj.tables.Table')
 
-.. _app-config-Set:
+.. setting:: Set
 
 ``Set``
 ~~~~~~~
@@ -505,7 +670,7 @@ Example using the string path to a class::
 
     app = App(..., Set='myproj.tables.Set')
 
-.. _app-config-TableManager:
+.. setting:: TableManager
 
 ``TableManager``
 ~~~~~~~~~~~~~~~~
@@ -530,7 +695,7 @@ Example using the string path to a class::
 
     app = App(..., TableManager='myproj.tables.TableManager')
 
-.. _app-config-Serializers:
+.. setting:: Serializers
 
 ``Serializers``
 ~~~~~~~~~~~~~~~
@@ -555,6 +720,209 @@ Example using the string path to a class::
 
     app = App(..., Serializers='myproj.serializers.Registry')
 
+.. setting:: Worker
+
+``Worker``
+~~~~~~~~~~
+
+:type: ``Union[str, Type[WorkerT]]``
+:default: ``"faust.Worker"``
+
+The :class:`~faust.Worker` class used for starting a worker
+for this app; or the fully-qualified path
+to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+
+    class MyWorker(faust.Worker):
+        ...
+
+    app = faust.App(..., Worker=Worker)
+
+Example using the string path to a class::
+
+    app = faust.App(..., Worker='myproj.workers.Worker')
+
+.. setting:: PartitionAssignor
+
+``PartitionAssignor``
+~~~~~~~~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[PartitionAssignorT]]``
+:default: ``"faust.assignor.PartitionAssignor"``
+
+The :class:`~faust.assignor.PartitionAssignor` class used for assigning
+topic partitions to worker instances; or the fully-qualified path
+to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.assignor import PartitionAssignor
+
+    class MyPartitionAssignor(PartitionAssignor):
+        ...
+
+    app = App(..., PartitionAssignor=PartitionAssignor)
+
+Example using the string path to a class::
+
+    app = App(..., Worker='myproj.assignor.PartitionAssignor')
+
+.. setting:: LeaderAssignor
+
+``LeaderAssignor``
+~~~~~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[LeaderAssignorT]]``
+:default: ``"faust.assignor.LeaderAssignor"``
+
+The :class:`~faust.assignor.LeaderAssignor` class used for assigning
+a master Faust instance for the app; or the fully-qualified path
+to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.assignor import LeaderAssignor
+
+    class MyLeaderAssignor(LeaderAssignor):
+        ...
+
+    app = App(..., LeaderAssignor=LeaderAssignor)
+
+Example using the string path to a class::
+
+    app = App(..., Worker='myproj.assignor.LeaderAssignor')
+
+.. setting:: Router
+
+``Router``
+~~~~~~~~~~
+
+:type: ``Union[str, Type[RouterT]]``
+:default: ``"faust.app.router.Router"``
+
+The :class:`~faust.router.Router` class used for routing requests
+to a worker instance having the partition for a specific key (e.g. table key);
+or the fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.router import Router
+
+    class MyRouter(Router):
+        ...
+
+    app = App(..., Router=Router)
+
+Example using the string path to a class::
+
+    app = App(..., Router='myproj.routers.Router')
+
+.. setting:: TopicConductor
+
+``TopicConductor``
+~~~~~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[ConductorT]]``
+:default: ``"faust.topics:TopicConductor"``
+
+The :class:`~faust.topics.TopicConductor` class used for routing events
+from the Kafka consumer to streams reading from topics; or the fully-qualified
+path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    from faust.topics import TopicConductor
+
+    class MyTopicConductor(TopicConductor):
+        ...
+
+    app = App(..., TopicConductor=TopicConductor)
+
+Example using the string path to a class::
+
+    app = App(..., TopicConductor='myproj.conductors.TopicConductor')
+
+.. setting:: Topic
+
+``Topic``
+~~~~~~~~~
+
+:type: ``Union[str, Type[TopicT]]``
+:default: ``"faust.Topic"``
+
+The :class:`~faust.Topic` class used for defining new topics; or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+
+    class MyTopic(faust.Topic):
+        ...
+
+    app = faust.App(..., Topic=MyTopic)
+
+Example using the string path to a class::
+
+    app = faust.App(..., Topic='myproj.topics.Topic')
+
+.. setting:: HttpClient
+
+``HttpClient``
+~~~~~~~~~~~~~~
+
+:type: ``Union[str, Type[HttpClientT]]``
+:default: ``"aiohttp.client:ClientSession"``
+
+The :class:`aiohttp.client.ClientSession` class used as a HTTP client; or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+    from aiohttp.client import ClientSession
+
+    class HttpClient(ClientSession):
+        ...
+
+    app = faust.App(..., HttpClient=HttpClient)
+
+Example using the string path to a class::
+
+    app = faust.App(..., HttpClient='myproj.http.HttpClient')
+
+.. setting:: Monitor
+
+``Monitor``
+~~~~~~~~~~~
+
+:type: ``Union[str, Type[SensorT]]``
+:default: ``"faust.sensors:Monitor"``
+
+The :class:`~faust.sensors.Monitor` class as the main sensor
+gathering statistics for the application; or the
+fully-qualified path to one (supported by
+:func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    import faust
+    from faust.sensors import Monitor
+
+    class MyMonitor(Monitor):
+        ...
+
+    app = faust.App(..., Monitor=MyMonitor)
+
+Example using the string path to a class::
+
+    app = faust.App(..., Monitor='myproj.monitors.Monitor')
 
 Actions
 =======
@@ -743,8 +1111,8 @@ used by each agent:
     └──────────┴───────────────────────────────────────┴────────────────┘
 
 The agent reads from the "stream-example-examples.agent.myagent" topic, whose
-name is generated from the :ref:`application id <app-config-id>`, the
-application version, and the fully qualified path of the
+name is generated from the application :setting:`id` setting, the
+application :setting:`version` setting, and the fully qualified path of the
 agent (``examples.agent.myagent``).
 
 **Start a worker to consume from the topic:**
@@ -855,6 +1223,8 @@ Then visit your view in the browser by going to http://localhost:6066/path/to/vi
 
     - The :ref:`tasks-web-views` section in the :ref:`guide-tasks` guide -- to
       learn more about defining views.
+
+.. _application-main:
 
 ``app.main()`` -- Start the :program:`faust` command-line program.
 ------------------------------------------------------------------
@@ -996,6 +1366,369 @@ You can also add services at runtime in application subclasses:
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.some_service = self.service(SomeService())
+
+Application Signals
+===================
+
+You may have experience signals in other frameworks such as `Django`_
+and `Celery`_.
+
+The main difference between signals in Faust is that they accept
+positional arguments, and that they also come with asynchronous versions
+for use with :mod:`asyncio`.
+
+Signals are an implementation of the `Observer`_  design pattern.
+
+.. _`Django`: http://djangoproject.com
+.. _`Celery`: http://celeryproject.org
+.. _`Observer`: https://en.wikipedia.org/wiki/Observer_pattern
+
+.. signal:: App.on_partitions_revoked
+
+``App.on_partitions_revoked``
+-----------------------------
+
+:sender: :class:`faust.App`
+:arguments: :class:`Set[TP] <faust.types.tuples.TP>`
+
+The ``on_partitions_revoked`` signal is an asynchronous signal called after every
+Kafka rebalance and provides a single argument which is the set of
+newly revoked partitions.
+
+Add a callback to be called when partitions are revoked:
+
+.. sourcecode:: python
+
+    from typing import Set
+    from faust.types import AppT, TP
+
+    @app.on_partitions_revoked.connect
+    async def on_partitions_assigned(app: AppT,
+                                     revoked: Set[TP], **kwargs) -> None:
+        print(f'Partitions are being revoked: {revoked}')
+
+Using ``app`` as an instance when connecting here means we will only be called
+for that particular app instance.  If you want to be called for all app instances
+then you must connect to the signal of the class (``App``):
+
+.. sourcecode:: python
+
+    @faust.App.on_partitions_revoked.connect
+    async def on_partitions_revoked(app: AppT,
+                                     revoked: Set[TP], **kwargs) -> None:
+        ...
+
+
+.. admonition:: Signal handlers must always accept ``**kwargs``.
+
+    Signal handler must always accept ``**kwargs`` so that they
+    are backwards compatible when new arguments are added.
+
+    Similarly new arguments must be added as keyword arguments
+    to be backwards compatible.
+
+.. signal:: App.on_partitions_assigned
+
+``App.on_partitions_assigned``
+------------------------------
+
+:sender: :class:`faust.App`
+:arguments: :class:`Set[TP] <faust.types.tuples.TP>`
+
+The ``on_partitions_assigned`` signal is an asynchronous signal called after every
+Kafka rebalance and provides a single argument which is the set of
+assigned partitions.
+
+Add a callback to be called when partitions are assigned:
+
+.. sourcecode:: python
+
+    from typing import Set
+    from faust.types import AppT, TP
+
+    @app.on_partitions_assigned.connect
+    async def on_partitions_assigned(app: AppT,
+                                     assigned: Set[TP], **kwargs) -> None:
+        print(f'Partitions are being assigned: {assigned}')
+
+
+.. signal:: App.on_configured
+
+``App.on_configured``
+---------------------
+
+:sender: :class:`faust.App`
+:arguments: :class:`faust.Settings`
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called as the app reads configuration, just before the application
+configuration is set, but after the configuration is read.
+
+Takes arguments: ``(app, conf)``, where conf is the :class:`faust.Settings`
+object being built and is the instance that ``app.conf`` will be set to
+after this signal returns.
+
+Use the ``on_configured`` signal to configure your app:
+
+.. sourcecode:: python
+
+    import os
+    import faust
+
+    app = faust.App('myapp')
+
+    @app.on_configured.connect
+    def configure(app, conf, **kwargs):
+        conf.broker_url = os.environ.get('FAUST_BROKER')
+        conf.store_url = os.environ.get('STORE_URL')
+
+.. signal:: App.on_before_configured
+
+``App.on_before_configured``
+----------------------------
+
+:sender: :class:`faust.App`
+:arguments: *none*
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called before the app reads configuration, and before the
+:signal:`App.on_configured` signal is dispatched.
+
+Takes only sender as argument, which is the app being configured:
+
+.. sourcecode:: python
+
+    @app.on_before_configured
+    def before_configuration(app, **kwargs):
+        print(f'App {app} is being configured')
+
+.. signal:: App.on_after_configured
+
+``App.on_after_configured``
+---------------------------
+
+:sender: :class:`faust.App`
+:arguments: *none*
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called after app is fully configured and ready for use.
+
+Takes only sender as argument, which is the app that was configured:
+
+.. sourcecode:: python
+
+    @app.on_after_configured
+    def after_configuration(app, **kwargs):
+        print(f'App {app} has been configured.')
+
+.. signal:: App.on_worker_init
+
+``App.on_worker_init``
+----------------------
+
+:sender: :class:`faust.App`
+:arguments: *none*
+:synchronous: This is a synchronous signal (do not use :keyword:`async def`).
+
+Called by the :program:`faust worker` program (or when using `app.main()`)
+to apply worker specific customizations.
+
+Takes only sender as argument, which is the app a worker is being started for:
+
+.. sourcecode:: python
+
+    @app.on_worker_init
+    def on_worker_init(app, **kwargs):
+        print(f'Working starting for app {app}')
+
+.. _app-starting:
+
+Starting the App
+================
+
+You can start a worker instance for your app from the command-line, or you can
+start it inline in your Python process.  To accomodate the many ways you may
+want to embed a Faust application, starting the app have several possible entrypoints:
+
+
+*App entrypoints*:
+
+1) :program:`faust worker`
+
+    The :program:`faust worker` program starts a worker instance for an app
+    from the command-line.
+
+    You may turn any self-contained module into the faust program by adding
+    this to the end of the file::
+
+        if __name__ == '__main__':
+            app.main()
+
+    For packages you can add a ``__main__.py`` module or setuptools
+    entrypoints to ``setup.py``.
+
+    If you have the module name where an app is defined, you can start a worker
+    for it with the :option:`faust -A` option:
+
+    .. sourcecode:: console
+
+        $ faust -A myproj worker -l info
+
+    The above will import the app from the ``myproj`` module using
+    ``from myproj import app``. If you need to specify a different attribute
+    you can use a fully qualified path:
+
+    .. sourcecode:: console
+
+        $ faust -A myproj:faust_app worker -l info
+
+2) -> :class:`faust.cli.worker.worker` (CLI interface)
+
+    This is the :program:`faust worker` program defined as a Python
+    :pypi:`click` command.
+
+    It is responsible for:
+
+    - Parsing the command-line arguments supported by :program:`faust worker`.
+    - Printing the banner box (you will not get that with entrypoint 3 or 4).
+    - Starting the :class:`faust.Worker` (see next step).
+
+3) -> :class:`faust.Worker`
+
+    This is used for starting a worker from Python when you also want to
+    install process signal handlers, etc.  It supports the same options
+    as on the :program:`faust worker` command-line, but now they are passed
+    in as keyword arguments to :class:`faust.Worker`.
+
+    The Faust worker is a subclass of :class:`mode.Worker`, which makes
+    sense given that Faust is built out of many different :pypi:`mode`
+    services starting in a particular order.
+
+    The :class:`faust.Worker` entrypoint is responsible for:
+
+    - Changing the directory when the ``workdir`` argument is set.
+
+    - Setting the process title (when :pypi:`setproctitle` is
+      installed), for more helpful entry in ``ps`` listings.
+
+    - Setting up :mod:`logging`: handlers, formatters and level.
+
+    - If :option:`--debug <faust --debug>` is enabled:
+
+      - Starting the :pypi:`aiomonitor` debugging backdoor.
+
+      - Starting the blocking detector.
+
+    - Setting up :sig:`TERM` and :sig:`INT` signal handlers.
+
+    - Setting up the :sig:`USR1` cry handler that logs a traceback.
+
+    - Starting the web server.
+
+    - Autodiscovery (see :setting:`autodiscovery`).
+
+    - Starting the :class:`faust.App` (see next step).
+
+    - Properly shut down of the event loop on exit.
+
+    To start a worker,
+
+    1) from synchronous code, use ``Worker.execute_from_commandline``:
+
+        .. sourcecode:: pycon
+
+            >>> worker = Worker(app)
+            >>> worker.execute_from_commandline()
+
+    2) or from an :keyword:`async def` function call ``await worker.start()``:
+
+        .. warning::
+
+            You will be responsible for gracefully shutting down the event
+            loop.
+
+        .. sourcecode:: python
+
+            async def start_worker(worker: Worker) -> None:
+                await worker.start()
+
+            def manage_loop():
+                loop = asyncio.get_event_loop()
+                worker = Worker(app, loop=loop)
+                try:
+                    loop.run_until_complete(start_worker(worker)
+                finally:
+                    worker.stop_and_shutdown_loop()
+
+    .. admonition:: Multiple apps
+
+        If you want your worker to start multiple apps, you would have
+        to pass them in with the ``*services`` starargs::
+
+            worker = Worker(app1, app2, app3, app4)
+
+        This way the extra apps will be started together with the main app,
+        and the main app of the worker (``worker.app``) will end up being
+        the first positional argument (``app1``).
+
+        Note that the web server will only concern itself with the
+        main app, so if you want web access to the other apps you have to
+        include web servers for them (also passed in as ``*services``
+        starargs).
+
+4) -> :class:`faust.App`
+
+    The "worker" only concerns itself with the terminal, process
+    signal handlers, logging, debugging mechanisms, etc., the rest
+    is up to the app.
+
+    You can call ``await app.start()`` directly to get a side-effect free
+    instance that can be embedded in any environment. It won't even emit logs
+    to the console unless you have configured :mod:`logging` manually,
+    and it won't set up any :sig:`TERM`/:sig:`INT` signal handlers, which
+    means :keyword:`finally` blocks won't execute at shutdown.
+
+    Start app directly:
+
+    .. sourcecode:: python
+
+        async def start_app(app):
+            await app.start()
+
+    .. admonition:: Web server
+
+        Starting the app will not start the webserver, as this is part of the
+        workers responsibility.
+
+    This will block until the worker shuts down, so if you want to
+    start other parts of your program, you can start this in the background:
+
+    .. sourcecode:: python
+
+        def start_in_loop(app):
+            loop = asyncio.get_event_loop()
+            loop.ensure_future(app.start())
+
+    If your program is written as a set of :pypi:`Mode` services, you can
+    simply add the app as a depdendency to your service:
+
+    .. sourcecode:: python
+
+        class MyService(mode.Service):
+
+            def on_init_dependencies(self):
+                return [faust_app]
+
+Client-Only Mode
+================
+
+The app can also be started in "client-only" mode, which means the app
+can be used for sending agent RPC requests and retrieving replies, but not
+start a full Faust worker:
+
+.. sourcecode:: python
+
+    await app.start_client()
 
 
 Miscellaneous

@@ -26,15 +26,17 @@ except ImportError:
     _JSON_DEFAULT_KWARGS = {}
 
 __all__ = [
-    'JSONEncoder', 'dumps', 'loads', 'str_to_decimal',
+    'JSONEncoder',
+    'dumps',
+    'loads',
+    'str_to_decimal',
 ]
 
 #: Max length for string to be converted to decimal.
 DECIMAL_MAXLEN = 1000
 
 
-def str_to_decimal(s: str,
-                   maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
+def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
     """Convert string to :class:`~decimal.Decimal`.
 
     Args:
@@ -66,7 +68,8 @@ class JSONEncoder(json.JSONEncoder):
     information.
     """
 
-    def default(self, o: Any,
+    def default(self,
+                o: Any,
                 *,
                 sequences: Tuple[type, ...] = (set,),
                 dates: Tuple[type, ...] = (datetime.date, datetime.time),
@@ -91,8 +94,8 @@ class JSONEncoder(json.JSONEncoder):
                 return to_json()
 
 
-def dumps(obj: Any,
-          cls: Type[JSONEncoder] = JSONEncoder, **kwargs: Any) -> str:
+def dumps(obj: Any, cls: Type[JSONEncoder] = JSONEncoder,
+          **kwargs: Any) -> str:
     """Serialize to json.  See :func:`json.dumps`."""
     return json.dumps(obj, cls=cls, **dict(_JSON_DEFAULT_KWARGS, **kwargs))
 

@@ -4,4 +4,6 @@ import pytest
 
 @pytest.fixture
 def app():
-    return faust.App('funtest', store='memory://')
+    app = faust.App('funtest', store='memory://')
+    app.finalize()
+    return app

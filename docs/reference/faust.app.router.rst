@@ -1,11 +1,11 @@
 =====================================================
- ``faust.streams.joins``
+ ``faust.app.router``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.streams.joins
+.. currentmodule:: faust.app.router
 
-.. automodule:: faust.streams.joins
+.. automodule:: faust.app.router
     :members:
     :undoc-members:

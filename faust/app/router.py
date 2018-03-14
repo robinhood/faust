@@ -1,19 +1,13 @@
 """Route messages to Faust nodes by partitioning."""
-from functools import wraps
 from typing import Tuple
 from yarl import URL
-from .types.app import (
-    AppT, Request, Response, RoutedViewGetHandler,
-    View, ViewGetHandler, Web,
-)
-from .types.assignor import PartitionAssignorT
-from .types.core import K
-from .types.router import HostToPartitionMap, RouterT
-from .types.tables import CollectionT
-
-
-class SameNode(Exception):
-    """Exception raised by router when data is located on same node."""
+from faust.exceptions import SameNode
+from faust.types.app import AppT
+from faust.types.assignor import PartitionAssignorT
+from faust.types.core import K
+from faust.types.router import HostToPartitionMap, RouterT
+from faust.types.tables import CollectionT
+from faust.types.web import Request, Response, Web
 
 
 class Router(RouterT):
@@ -50,36 +44,17 @@ class Router(RouterT):
     def _get_table(self, name: str) -> CollectionT:
         return self.app.tables[name]
 
-    def router(self, table: CollectionT,
-               shard_param: str) -> RoutedViewGetHandler:
-        def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
-
-            @wraps(fun)
-            async def get(view: View, request: Request) -> Response:
-                key = request.query[shard_param]
-                try:
-                    return await self.route_req(
-                        table.name, key, view.web, request)
-                except SameNode:
-                    return await fun(view, request)
-            return get
-
-        return _decorator
-
-    async def route_req(self,
-                        table_name: str,
-                        key: K,
-                        web: Web,
+    async def route_req(self, table_name: str, key: K, web: Web,
                         request: Request) -> Response:
         app = self.app
         dest_url = app.router.key_store(table_name, key)
         dest_ident = (host, port) = self._urlident(dest_url)
-        if dest_ident == self._urlident(app.canonical_url):
+        if dest_ident == self._urlident(app.conf.canonical_url):
             raise SameNode()
         routed_url = request.url.with_host(host).with_port(int(port))
-        async with app.client_session.get(routed_url) as response:
-            return web.text(await response.text(),
-                            content_type=response.content_type)
+        async with app.http_client.get(routed_url) as response:
+            return web.text(
+                await response.text(), content_type=response.content_type)
 
     def _urlident(self, url: URL) -> Tuple[str, int]:
         return (

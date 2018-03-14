@@ -6,171 +6,38 @@ and send things to it.
 """
 import asyncio
 import typing
-from types import TracebackType
-from typing import (
-    Any, Awaitable, Callable, Mapping, Optional, Type, Union, cast,
-)
+from typing import Any, Awaitable, Callable, Mapping, MutableSet, cast
 from weakref import WeakSet
 
 from mode import Seconds, get_logger, want_seconds
 from mode.utils.futures import ThrowableQueue, maybe_async, stampede
 
+from .events import Event
 from .streams import current_event
 from .types import (
-    AppT, CodecArg, FutureMessage, K, Message,
-    MessageSentCallback, ModelArg, PendingMessage, RecordMetadata, V,
+    AppT,
+    ChannelT,
+    CodecArg,
+    EventT,
+    FutureMessage,
+    K,
+    Message,
+    MessageSentCallback,
+    ModelArg,
+    PendingMessage,
+    RecordMetadata,
+    StreamT,
+    V,
 )
-from .types.channels import ChannelT, EventT
-from .types.streams import StreamT
 
 if typing.TYPE_CHECKING:
-    from .app import App
+    from .app.base import App
 else:
     class App: ...  # noqa
 
-__all__ = ['Event', 'Channel']
+__all__ = ['Channel']
+
 logger = get_logger(__name__)
-
-USE_EXISTING_KEY = object()
-USE_EXISTING_VALUE = object()
-
-
-class Event(EventT):
-    """An event received on a channel.
-
-    Notes:
-        - Events are delivered to channels/topics::
-
-            async for event in channel:
-                ...
-
-        - Streams iterate over channels and yields values::
-
-            async for value in channel.stream()  # value is event.value
-                ...
-
-        - If you only have a Stream object, you can also access underlying
-          events by using ``Stream.events``::
-
-            async for event in channel.stream.events():
-                ...
-
-          Also commonly used for finding the "current event" related to
-          a value in the stream::
-
-              stream = channel.stream()
-              async for value in stream:
-                  event = stream.current_event
-                  message = event.message
-                  topic = event.message.topic
-
-          You can retrieve the current event in a stream to:
-
-              - Get access to the serialized key+value.
-              - Get access to message properties like, what topic+partition
-                the value was received on, or its offset.
-
-          Note that if you want access to both key and value, you should use
-          ``stream.items()`` instead::
-
-              async for key, value in stream.items():
-                  ...
-    """
-
-    def __init__(self,
-                 app: AppT,
-                 key: K,
-                 value: V,
-                 message: Message) -> None:
-        self.app: AppT = app
-        self.key: K = key
-        self.value: V = value
-        self.message: Message = message
-        self.acked: bool = False
-
-    async def send(self, channel: Union[str, ChannelT],
-                   key: K = USE_EXISTING_KEY,
-                   value: V = USE_EXISTING_VALUE,
-                   partition: int = None,
-                   key_serializer: CodecArg = None,
-                   value_serializer: CodecArg = None,
-                   callback: MessageSentCallback = None,
-                   force: bool = False) -> Awaitable[RecordMetadata]:
-        """Send object to channel."""
-        if key is USE_EXISTING_KEY:
-            key = self.key
-        if value is USE_EXISTING_VALUE:
-            value = self.value
-        return await self._send(
-            channel, key, value, partition,
-            key_serializer, value_serializer, callback,
-            force=force,
-        )
-
-    async def forward(self, channel: Union[str, ChannelT],
-                      key: K = USE_EXISTING_KEY,
-                      value: V = USE_EXISTING_VALUE,
-                      partition: int = None,
-                      key_serializer: CodecArg = None,
-                      value_serializer: CodecArg = None,
-                      callback: MessageSentCallback = None,
-                      force: bool = False) -> Awaitable[RecordMetadata]:
-        """Forward original message (will not be reserialized)."""
-        if key is USE_EXISTING_KEY:
-            key = self.message.key
-        if value is USE_EXISTING_VALUE:
-            value = self.message.value
-        return await self._send(
-            channel, key, value, partition,
-            key_serializer, value_serializer, callback,
-            force=force,
-        )
-
-    async def _send(self, channel: Union[str, ChannelT],
-                    key: K = None,
-                    value: V = None,
-                    partition: int = None,
-                    key_serializer: CodecArg = None,
-                    value_serializer: CodecArg = None,
-                    callback: MessageSentCallback = None,
-                    force: bool = False) -> Awaitable[RecordMetadata]:
-        return await cast(App, self.app)._maybe_attach(
-            channel, key, value, partition,
-            key_serializer, value_serializer, callback,
-            force=force)
-
-    def _attach(
-            self,
-            channel: Union[ChannelT, str],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        return cast(App, self.app)._send_attached(
-            self.message, channel, key, value,
-            partition=partition,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-            callback=callback,
-        )
-
-    def ack(self) -> bool:
-        return self.message.ack(self.app.consumer)
-
-    def __repr__(self) -> str:
-        return f'<{type(self).__name__}: k={self.key!r} v={self.value!r}>'
-
-    async def __aenter__(self) -> EventT:
-        return self
-
-    async def __aexit__(self,
-                        _exc_type: Type[BaseException] = None,
-                        _exc_val: BaseException = None,
-                        _exc_tb: TracebackType = None) -> Optional[bool]:
-        self.ack()
-        return None
 
 
 class Channel(ChannelT):
@@ -195,11 +62,10 @@ class Channel(ChannelT):
 
     _queue: ThrowableQueue = None
     _root: 'Channel' = None
-    if typing.TYPE_CHECKING:
-        _subscribers: WeakSet['Channel']
-    _subscribers = None
+    _subscribers: MutableSet['Channel'] = None
 
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
@@ -216,7 +82,7 @@ class Channel(ChannelT):
         self._queue = queue
         self.maxsize = maxsize
         if self.maxsize is None:
-            self.maxsize = self.app.stream_buffer_maxsize
+            self.maxsize = self.app.conf.stream_buffer_maxsize
         self.deliver = self._compile_deliver()  # type: ignore
         self._root = cast(Channel, root)
         self._subscribers = WeakSet()
@@ -236,8 +102,8 @@ class Channel(ChannelT):
 
     def clone(self, *, is_iterator: bool = None) -> ChannelT:
         subchannel: Channel = type(self)(
-            is_iterator=(is_iterator if is_iterator is not None
-                         else self.is_iterator),
+            is_iterator=(is_iterator
+                         if is_iterator is not None else self.is_iterator),
             **self._clone_args())
         (self._root or self)._subscribers.add(subchannel)
         subchannel.queue  # make sure queue is created early
@@ -261,28 +127,30 @@ class Channel(ChannelT):
     def get_topic_name(self) -> str:
         raise NotImplementedError('Channels are unnamed topics')
 
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
+    async def send(self,
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
+                   force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to channel."""
         if not force:
             event = current_event()
             if event is not None:
                 return cast(Event, event)._attach(
-                    self, key, value,
+                    self,
+                    key,
+                    value,
                     partition=partition,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
                 )
         return await self._send_now(
-            key, value,
+            key,
+            value,
             partition=partition,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -297,15 +165,17 @@ class Channel(ChannelT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
-        return FutureMessage(PendingMessage(
-            self,
-            self.prepare_key(key, key_serializer),
-            self.prepare_value(value, value_serializer),
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
-            partition=partition,
-            callback=callback,
-        ))
+        return FutureMessage(
+            PendingMessage(
+                self,
+                self.prepare_key(key, key_serializer),
+                self.prepare_value(value, value_serializer),
+                key_serializer=key_serializer,
+                value_serializer=value_serializer,
+                partition=partition,
+                callback=callback,
+            ),
+        )
 
     async def _send_now(
             self,
@@ -315,19 +185,20 @@ class Channel(ChannelT):
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
-        return await self.publish_message(self.as_future_message(
-            key, value, partition, key_serializer, value_serializer, callback))
+        return await self.publish_message(
+            self.as_future_message(key, value, partition, key_serializer,
+                                   value_serializer, callback))
 
-    async def publish_message(
-            self, fut: FutureMessage,
-            wait: bool = True) -> Awaitable[RecordMetadata]:
+    async def publish_message(self, fut: FutureMessage,
+                              wait: bool = True) -> Awaitable[RecordMetadata]:
         event = self._create_event(fut.message.key, fut.message.value)
         await self.put(event)
-        return await self._finalize_message(
-            fut, RecordMetadata(None, None, None, None))
+        return await self._finalize_message(fut,
+                                            RecordMetadata(
+                                                None, None, None, None))
 
-    async def _finalize_message(
-            self, fut: FutureMessage, result: RecordMetadata) -> FutureMessage:
+    async def _finalize_message(self, fut: FutureMessage,
+                                result: RecordMetadata) -> FutureMessage:
         fut.set_result(result)
         if fut.message.callback:
             await maybe_async(fut.message.callback(fut))
@@ -346,8 +217,7 @@ class Channel(ChannelT):
     def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
         return value
 
-    async def decode(self, message: Message,
-                     *,
+    async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
         return self._create_event(message.key, message.value, message)
 
@@ -364,6 +234,7 @@ class Channel(ChannelT):
                 put = self.queue.put
             event = await self.decode(message)
             await put(event)
+
         return deliver
 
     def _create_event(self, key: K, value: V,
@@ -384,17 +255,20 @@ class Channel(ChannelT):
     def empty(self) -> bool:
         return self.queue.empty()
 
-    async def on_key_decode_error(
-            self, exc: Exception, message: Message) -> None:
+    async def on_key_decode_error(self, exc: Exception,
+                                  message: Message) -> None:
         await self.on_decode_error(exc, message)
         await self.throw(exc)
 
-    async def on_value_decode_error(
-            self, exc: Exception, message: Message) -> None:
+    async def on_value_decode_error(self, exc: Exception,
+                                    message: Message) -> None:
         await self.on_decode_error(exc, message)
         await self.throw(exc)
 
     async def on_decode_error(self, exc: Exception, message: Message) -> None:
+        ...
+
+    def on_stop_iteration(self) -> None:
         ...
 
     def derive(self, **kwargs: Any) -> ChannelT:
@@ -412,9 +286,12 @@ class Channel(ChannelT):
         await self.queue.throw(exc)
 
     def __repr__(self) -> str:
-        return f'<{self.label}>'
+        return f'<{self.label}@{self._repr_id()}>'
 
     def __str__(self) -> str:
+        return '<ANON>'
+
+    def _repr_id(self) -> str:
         return f'{id(self):#x}'
 
     @property
@@ -423,4 +300,5 @@ class Channel(ChannelT):
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}: {self}'
+        sym = '(*)' if self.is_iterator else ''
+        return f'{sym}{type(self).__name__}: {self}'

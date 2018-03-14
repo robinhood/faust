@@ -6,19 +6,30 @@ from collections import defaultdict
 from contextlib import suppress
 from pathlib import Path
 from typing import (
-    Any, Callable, DefaultDict, Iterable, Iterator, Mapping,
-    MutableMapping, NamedTuple, Optional, Set, Tuple, Union, cast,
+    Any,
+    Callable,
+    DefaultDict,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
 )
 
 from mode.utils.collections import LRUCache
 from yarl import URL
 
-from . import base
+from faust.exceptions import ImproperlyConfigured
+from faust.streams import current_event
+from faust.types import AppT, CollectionT, EventT, TP
+from faust.utils import platforms
 
-from ..exceptions import ImproperlyConfigured
-from ..streams import current_event
-from ..types import AppT, CollectionT, EventT, TP
-from ..utils import platforms
+from . import base
 
 _max_open_files = platforms.max_open_files()
 if _max_open_files is not None:
@@ -122,7 +133,9 @@ class Store(base.SerializedStore):
     _dbs: MutableMapping[int, DB] = None
     _key_index: LRUCache[bytes, int]
 
-    def __init__(self, url: Union[str, URL], app: AppT,
+    def __init__(self,
+                 url: Union[str, URL],
+                 app: AppT,
                  *,
                  key_index_size: int = 10_000,
                  options: Mapping = None,
@@ -158,7 +171,8 @@ class Store(base.SerializedStore):
         else:
             return True
 
-    def apply_changelog_batch(self, batch: Iterable[EventT],
+    def apply_changelog_batch(self,
+                              batch: Iterable[EventT],
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
         batches: DefaultDict[int, rocksdb.WriteBatch]
@@ -221,8 +235,8 @@ class Store(base.SerializedStore):
         for db in self._dbs_for_key(key):
             db.delete(key)
 
-    async def on_partitions_revoked(
-            self, table: CollectionT, revoked: Set[TP]) -> None:
+    async def on_partitions_revoked(self, table: CollectionT,
+                                    revoked: Set[TP]) -> None:
         for tp in revoked:
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
@@ -232,8 +246,8 @@ class Store(base.SerializedStore):
         gc.collect()  # XXX RocksDB has no .close() method :X
         self._key_index.clear()
 
-    async def on_partitions_assigned(
-            self, table: CollectionT, assigned: Set[TP]) -> None:
+    async def on_partitions_assigned(self, table: CollectionT,
+                                     assigned: Set[TP]) -> None:
         self._key_index.clear()
         standby_tps = self.app.assignor.assigned_standbys()
         my_topics = table.changelog_topic.topics
@@ -306,8 +320,7 @@ class Store(base.SerializedStore):
             yield from self._visible_items(db)
 
     def _clear(self) -> None:
-        # XXX
-        raise NotImplementedError('TODO')
+        raise NotImplementedError('TODO')  # XXX cannot reset tables
 
     def reset_state(self) -> None:
         self._dbs.clear()
@@ -324,7 +337,7 @@ class Store(base.SerializedStore):
 
     @property
     def path(self) -> Path:
-        return self.app.tabledir
+        return self.app.conf.tabledir
 
     @property
     def basename(self) -> Path:

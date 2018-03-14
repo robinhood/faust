@@ -1,9 +1,17 @@
 """Class-based views."""
+import inspect
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
+
+import venusian
+
 from faust.types import AppT
+from faust.types.web import PageArg, ViewGetHandler
+
 from .base import Request, Response, Web
 
 __all__ = ['View', 'Site']
+
+CommandDecorator = Callable[[PageArg], Type['Site']]
 
 _bytes = bytes   # need alias for method named `bytes`
 
@@ -11,8 +19,17 @@ _bytes = bytes   # need alias for method named `bytes`
 class View:
     """View (HTTP endpoint)."""
 
-    package: str = None
     methods: Mapping[str, Callable[[Request], Awaitable]]
+
+    @classmethod
+    def from_handler(cls, fun: ViewGetHandler) -> Type['View']:
+        if not callable(fun):
+            raise TypeError(f'View handler must be callable, not {fun!r}')
+        return type(fun.__name__, (cls,), {
+            'get': fun,
+            '__doc__': fun.__doc__,
+            '__module__': fun.__module__,
+        })
 
     def __init__(self, app: AppT, web: Web) -> None:
         self.app = app
@@ -26,8 +43,8 @@ class View:
         }
 
     async def dispatch(self, request: Any) -> None:
-        return await self.methods[request.method.lower()](
-            cast(Request, request))
+        method = request.method.lower()
+        return await self.methods[method](cast(Request, request))
 
     async def get(self, request: Request) -> Any:
         ...
@@ -44,23 +61,18 @@ class View:
     async def delete(self, request: Request) -> Any:
         ...
 
-    def text(self, value: str,
-             *,
-             content_type: str = None,
+    def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> Response:
         return self.web.text(value, content_type=content_type, status=status)
 
-    def html(self, value: str,
-             *,
-             status: int = 200) -> Response:
+    def html(self, value: str, *, status: int = 200) -> Response:
         return self.web.html(value, status=status)
 
-    def json(self, value: Any,
-             *,
-             status: int = 200) -> Response:
+    def json(self, value: Any, *, status: int = 200) -> Response:
         return self.web.json(value, status=status)
 
-    def bytes(self, value: _bytes,
+    def bytes(self,
+              value: _bytes,
               *,
               content_type: str = None,
               status: int = 200) -> Response:
@@ -87,3 +99,31 @@ class Site:
     def enable(self, web: Web, *, prefix: str = '') -> None:
         for pattern, view in self.views.items():
             web.route(prefix + pattern, view(self.app, web).dispatch)
+
+    def on_discovered(self, scanner: venusian.Scanner, name: str,
+                      obj: 'Site') -> None:
+        ...
+
+    @classmethod
+    def from_handler(cls, path: str, *,
+                     base: Type[View] = None) -> CommandDecorator:
+        base = base if base is not None else View
+
+        def _decorator(fun: PageArg) -> Type[Site]:
+            view: Type[View] = None
+            if inspect.isclass(fun):
+                view = cast(Type[View], fun)
+                if not issubclass(view, View):
+                    raise TypeError(
+                        'When decorating class, it must be subclass of View')
+            if view is None:
+                view = base.from_handler(cast(ViewGetHandler, fun))
+
+            return type('Site', (cls,), {
+                'views': {
+                    path: view,
+                },
+                '__module__': fun.__module__,
+            })
+
+        return _decorator

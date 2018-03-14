@@ -1,15 +1,11 @@
 """Agent replies: waiting for replies, sending them, etc."""
 import asyncio
-import typing
 from collections import defaultdict
-from typing import Any, AsyncIterator, MutableMapping, NamedTuple, Set
+from typing import Any, AsyncIterator, MutableMapping, MutableSet, NamedTuple
 from weakref import WeakSet
-
 from mode import Service
-
+from faust.types import AppT, ChannelT, TopicT
 from .models import ReqRepResponse
-
-from ..types import AppT, ChannelT, TopicT
 
 __all__ = ['ReplyPromise', 'BarrierState', 'ReplyConsumer']
 
@@ -62,7 +58,7 @@ class BarrierState(ReplyPromise):
     _results: asyncio.Queue
 
     #: Set of pending replies that this barrier is composed of.
-    pending: Set[ReplyPromise]
+    pending: MutableSet[ReplyPromise]
 
     def __init__(self, reply_to: str, **kwargs: Any) -> None:
         super().__init__(reply_to=reply_to, correlation_id=None, **kwargs)
@@ -109,9 +105,7 @@ class BarrierState(ReplyPromise):
 class ReplyConsumer(Service):
     """Consumer responsible for redelegation of replies received."""
 
-    if typing.TYPE_CHECKING:
-        _waiting: MutableMapping[str, WeakSet[ReplyPromise]]
-    _waiting = None
+    _waiting: MutableMapping[str, MutableSet[ReplyPromise]]
     _fetchers: MutableMapping[str, asyncio.Future]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
@@ -121,8 +115,8 @@ class ReplyConsumer(Service):
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
-        if self.app.create_reply_topic:
-            await self._start_fetcher(self.app.reply_to)
+        if self.app.conf.reply_create_topic:
+            await self._start_fetcher(self.app.conf.reply_to)
 
     async def add(self, correlation_id: str, promise: ReplyPromise) -> None:
         reply_topic = promise.reply_to
@@ -153,6 +147,6 @@ class ReplyConsumer(Service):
             partitions=1,
             replicas=0,
             deleting=True,
-            retention=self.app.reply_expires,
+            retention=self.app.conf.reply_expires,
             value_type=ReqRepResponse,
         )

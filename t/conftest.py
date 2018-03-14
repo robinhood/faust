@@ -10,7 +10,7 @@ def patching(monkeypatch, request):
     """Monkeypath.setattr shortcut.
 
     Example:
-        .. code-block:: python
+        .. sourcecode:: python
 
         def test_foo(patching):
             # execv value here will be mock.MagicMock by default.

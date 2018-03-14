@@ -4,6 +4,12 @@
  Streams
 =================================================
 
+.. topic:: \
+
+    *“Everything transitory is but an image.”*
+
+    -- Goethe, *Faust: First part*
+
 .. contents::
     :local:
     :depth: 2
@@ -160,7 +166,7 @@ to track the messages that consumers do not want to see again.
 
 The Kafka consumer commits the topic offsets every three
 seconds (by default, can also be configured using the
-:ref:`app-commit-interval` setting) in a background task.
+:setting:`broker_commit_interval` setting) in a background task.
 
 Since we only have one consumer and multiple agents can be subscribed
 to the same topic, we need a smart way to track when those events
@@ -178,7 +184,7 @@ The act of starting that stream iterator will add the topic to
 the TopicConductor service. This internal service is responsible for
 forwarding messages received by the consumer to the streams:
 
-.. code-block:: text
+.. sourcecode:: text
 
   [Consumer] -> [TopicConductor] -> [Topic] -> [Stream]
 
@@ -221,7 +227,7 @@ Acknowledgment
 The acknowledgment signifies that the event processing is complete and
 should not happen again.
 
-An event automatically acknowledged when:
+An event is automatically acknowledged when:
 
 - The agent stream advances to a new event (``Stream.__anext__``)
 - An exception occurs in the agent during event processing.
@@ -575,27 +581,10 @@ General
     .. automethod:: get_active_stream
         :noindex:
 
+    .. automethod:: get_root_stream
+        :noindex:
+
     .. automethod:: add_processor
-        :noindex:
-
-
-
-Joins
-~~~~~
-
-.. class:: Stream
-    :noindex:
-
-    .. automethod:: join
-        :noindex:
-
-    .. automethod:: left_join
-        :noindex:
-
-    .. automethod:: inner_join
-        :noindex:
-
-    .. automethod:: outer_join
         :noindex:
 
 Iteration tools
@@ -661,7 +650,8 @@ Attributes
 
     .. autoattribute:: concurrency_index
 
-    .. autoattribute:: children
+    .. autoattribute:: combined
 
-    .. autoattribute:: link
+    .. autoattribute:: _prev
 
+    .. autoattribute:: _next

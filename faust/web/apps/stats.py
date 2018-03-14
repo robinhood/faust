@@ -1,41 +1,34 @@
 """HTTP endpoint showing statistics from the Faust monitor."""
 from collections import defaultdict
 from typing import List, MutableMapping, Set
+from faust import web
 from faust.types.topics import TP
-from faust.web import views
-from faust.web.base import Request, Response
 
 __all__ = ['Assignment', 'Stats', 'Site']
-
 
 TPMap = MutableMapping[str, List[int]]
 
 
-class Stats(views.View):
+class Stats(web.View):
     """Monitor statistics."""
 
-    package = 'faust.web.apps.stats'
-
-    async def get(self, request: Request) -> Response:
-        return self.json({
-            f'Sensor{i}': s.asdict()
-            for i, s in enumerate(self.app.sensors)
-        })
+    async def get(self, request: web.Request) -> web.Response:
+        return self.json(
+            {f'Sensor{i}': s.asdict()
+             for i, s in enumerate(self.app.sensors)})
 
 
-class Assignment(views.View):
+class Assignment(web.View):
     """Cluster assignment information."""
-
-    package = 'faust.web.apps.stats'
 
     @classmethod
     def _topic_grouped(cls, assignment: Set[TP]) -> TPMap:
-        tps = defaultdict(list)
+        tps: MutableMapping[str, List[int]] = defaultdict(list)
         for tp in sorted(assignment):
             tps[tp.topic].append(tp.partition)
         return dict(tps)
 
-    async def get(self, request: Request) -> Response:
+    async def get(self, request: web.Request) -> web.Response:
         assignor = self.app.assignor
         return self.json({
             'actives': self._topic_grouped(assignor.assigned_actives()),
@@ -43,7 +36,7 @@ class Assignment(views.View):
         })
 
 
-class Site(views.Site):
+class Site(web.Site):
     """Statistics views."""
 
     views = {

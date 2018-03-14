@@ -1,7 +1,14 @@
 import abc
 import typing
 from typing import (
-    Any, Callable, ClassVar, FrozenSet, Mapping, NamedTuple, Type, Union,
+    Any,
+    Callable,
+    ClassVar,
+    FrozenSet,
+    Mapping,
+    NamedTuple,
+    Type,
+    Union,
 )
 from .codecs import CodecArg
 
@@ -20,13 +27,14 @@ try:
     @typing.no_type_check  # type: ignore
     class _InitSubclassCheck(metaclass=abc.ABCMeta):
 
-        def __init_subclass__(self, *args: Any,
+        def __init_subclass__(self,
+                              *args: Any,
                               ident: int = 808,
                               **kwargs: Any) -> None:
             self.ident = ident
             super().__init__(*args, **kwargs)  # type: ignore
 
-    @typing.no_type_check  #type: ignore
+    @typing.no_type_check  # type: ignore
     class _UsingKwargsInNew(_InitSubclassCheck, ident=909):
         ...
 except TypeError:
@@ -87,10 +95,8 @@ class ModelT(base):  # type: ignore
 
     @classmethod
     @abc.abstractmethod
-    def loads(
-            cls, s: bytes,
-            *,
-            default_serializer: CodecArg = None) -> 'ModelT':
+    def loads(cls, s: bytes, *,
+              default_serializer: CodecArg = None) -> 'ModelT':
         ...
 
     @abc.abstractmethod

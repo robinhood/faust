@@ -3,28 +3,48 @@ import abc
 from collections import defaultdict
 from heapq import heappop, heappush
 from typing import (
-    Any, Callable, Iterable, Iterator, List, Mapping,
-    MutableMapping, MutableSet, Optional, Set, Union, cast, no_type_check,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSet,
+    Optional,
+    Set,
+    Union,
+    cast,
+    no_type_check,
 )
 
 from mode import Seconds, Service
 from yarl import URL
 
-from .. import stores
-from ..channels import Event
-from ..streams import current_event
-from ..streams import joins
-from ..types import (
-    AppT, EventT, FieldDescriptorT, FutureMessage, JoinT,
-    RecordMetadata, TP, TopicT,
+from faust import stores
+from faust import joins
+from faust.events import Event
+from faust.streams import current_event
+from faust.types import (
+    AppT,
+    EventT,
+    FieldDescriptorT,
+    FutureMessage,
+    JoinT,
+    RecordMetadata,
+    TP,
+    TopicT,
 )
-from ..types.models import ModelArg, ModelT
-from ..types.stores import StoreT
-from ..types.streams import JoinableT, StreamT
-from ..types.tables import (
-    ChangelogEventCallback, CollectionT, RecoverCallback, RelativeHandler,
+from faust.types.models import ModelArg, ModelT
+from faust.types.stores import StoreT
+from faust.types.streams import JoinableT, StreamT
+from faust.types.tables import (
+    ChangelogEventCallback,
+    CollectionT,
+    RecoverCallback,
+    RelativeHandler,
 )
-from ..types.windows import WindowRange, WindowT
+from faust.types.windows import WindowRange, WindowT
 
 __all__ = ['Collection']
 
@@ -41,6 +61,8 @@ class Collection(Service, CollectionT):
     _latest_timestamp: float
     _recover_callbacks: MutableSet[RecoverCallback]
     _data: StoreT = None
+    _changelog_compacting: bool = True
+    _changelog_deleting: bool = None
 
     @abc.abstractmethod
     def _has_key(self, key: Any) -> bool:
@@ -58,7 +80,8 @@ class Collection(Service, CollectionT):
     def _del_key(self, key: Any) -> None:
         ...
 
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  name: str = None,
                  default: Callable[[], Any] = None,
@@ -115,12 +138,12 @@ class Collection(Service, CollectionT):
         if self._data is None:
             app = self.app
             if self.StateStore is not None:
-                self._data = self.StateStore(
-                    url=None, app=app, loop=self.loop)
+                self._data = self.StateStore(url=None, app=app, loop=self.loop)
             else:
-                url = self._store or self.app.store
+                url = self._store or self.app.conf.store
                 self._data = stores.by_url(url)(
-                    url, app,
+                    url,
+                    app,
                     table_name=self.name,
                     key_type=self.key_type,
                     value_type=self.value_type,
@@ -173,7 +196,9 @@ class Collection(Service, CollectionT):
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
         cast(Event, event)._attach(
-            self.changelog_topic, key, value,
+            self.changelog_topic,
+            key,
+            value,
             partition=event.message.partition,
             key_serializer='json',
             value_serializer='json',
@@ -191,13 +216,13 @@ class Collection(Service, CollectionT):
             timestamps = self._timestamps
             window = self.window
             while not self.should_stop:
-                while timestamps and window.stale(
-                        timestamps[0], self._latest_timestamp):
+                while timestamps and window.stale(timestamps[0],
+                                                  self._latest_timestamp):
                     timestamp = heappop(timestamps)
                     for key in self._timestamp_keys[timestamp]:
                         del self.data[key]
                     del self._timestamp_keys[timestamp]
-                await self.sleep(self.app.table_cleanup_interval)
+                await self.sleep(self.app.conf.table_cleanup_interval)
 
     def _should_expire_keys(self) -> bool:
         window = self.window
@@ -219,7 +244,7 @@ class Collection(Service, CollectionT):
         ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
-        return f'{self.app.id}-{self.name}-changelog'
+        return f'{self.app.conf.id}-{self.name}-changelog'
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -244,10 +269,28 @@ class Collection(Service, CollectionT):
         # TODO
         raise NotImplementedError('TODO')
 
-    def _new_changelog_topic(self, *,
+    def contribute_to_stream(self, active: StreamT) -> None:
+        # TODO  See Stream.contribute_to_stream()
+        # Should probably connect to Table changelog.
+        ...
+
+    async def remove_from_stream(self, stream: StreamT) -> None:
+        # TODO See Stream.remove_from_stream()
+        # Should stop any services started to support joining this table
+        # with one or more streams.
+        ...
+
+    def _new_changelog_topic(self,
+                             *,
                              retention: Seconds = None,
-                             compacting: bool = True,
+                             compacting: bool = None,
                              deleting: bool = None) -> TopicT:
+        if compacting is None:
+            compacting = self._changelog_compacting
+        if deleting is None:
+            deleting = self._changelog_deleting
+        if retention is None and self.window:
+            retention = self.window.expires
         return self.app.topic(
             self._changelog_topic_name(),
             key_type=self.key_type,
@@ -269,11 +312,8 @@ class Collection(Service, CollectionT):
     def __and__(self, other: Any) -> Any:
         return self.combine(self, other)
 
-    def _apply_window_op(self,
-                         op: Callable[[Any, Any], Any],
-                         key: Any,
-                         value: Any,
-                         timestamp: float) -> None:
+    def _apply_window_op(self, op: Callable[[Any, Any], Any], key: Any,
+                         value: Any, timestamp: float) -> None:
         get_ = self._get_key
         set_ = self._set_key
         for window_range in self._window_ranges(timestamp):
@@ -302,11 +342,13 @@ class Collection(Service, CollectionT):
     def _relative_field(self, field: FieldDescriptorT) -> RelativeHandler:
         def to_value(event: EventT) -> float:
             return field.getattr(cast(ModelT, event.value))
+
         return to_value
 
     def _relative_timestamp(self, timestamp: float) -> RelativeHandler:
         def handler(event: EventT) -> float:
             return timestamp
+
         return handler
 
     def _windowed_now(self, key: Any) -> Any:
@@ -320,8 +362,9 @@ class Collection(Service, CollectionT):
 
     def _windowed_delta(self, key: Any, d: Seconds,
                         event: EventT = None) -> Any:
-        return self._get_key(
-            (key, self.window.delta(self._relative_event(event), d)))
+        return self._get_key((key,
+                              self.window.delta(
+                                  self._relative_event(event), d)))
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         await self.data.on_partitions_assigned(self, assigned)
@@ -344,7 +387,7 @@ class Collection(Service, CollectionT):
     @property
     def changelog_topic(self) -> TopicT:
         if self._changelog_topic is None:
-            self._changelog_topic = self._new_changelog_topic(compacting=True)
+            self._changelog_topic = self._new_changelog_topic()
         return self._changelog_topic
 
     @changelog_topic.setter

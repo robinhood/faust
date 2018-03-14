@@ -57,7 +57,7 @@ To test this agent we use ``order.test_context()``:
             assert orders_for_account[order.account_id] == 2
 
     async def run_tests():
-        app.store = 'memory://'   # tables must be in-memory
+        app.conf.store = 'memory://'   # tables must be in-memory
         await test_order()
 
     if __name__ == '__main__':
@@ -118,7 +118,7 @@ first test ``foo`` with ``bar`` mocked, then in a different test do ``bar``:
 
     @pytest.fixture()
     def test_app():
-        app.store = 'memory://'
+        app.conf.store = 'memory://'
         return app
 
     @pytest.mark.asyncio()
@@ -165,7 +165,7 @@ the window of the current event:
 
     @pytest.mark.asyncio()
     async def test_process_order():
-        app.store = 'memory://'
+        app.conf.store = 'memory://'
         async with order.test_context() as agent:
             order = Order(account_id='1', product_id='2', amount=1, price=300)
             event = await agent.put(order)

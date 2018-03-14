@@ -37,17 +37,16 @@ globals().update(conf.build_config(
     # path_additions=[Path.cwd().parent / 'testproj']
     apicheck_ignore_modules=[
         'faust.__main__',
+        'faust.app._attached',
         'faust.assignor',
         'faust.cli',
         'faust.cli._env',
         'faust.models',
         'faust.serializers',
-        'faust.streams',
         'faust.transport.confluent',
         'faust.types',
         'faust.utils',
         r'faust.utils.kafka.*',
-        'faust.utils.types',
         'faust.web',
         r'faust.web.apps.*',
         'faust.web.apps.stats.app',
@@ -56,6 +55,12 @@ globals().update(conf.build_config(
         'faust.web.drivers',
     ],
 ))
+
+
+def configcheck_project_settings():
+    from faust import Settings
+    return Settings.setting_names()
+
 
 html_theme = 'alabaster'
 html_sidebars = {
@@ -90,3 +95,17 @@ if not os.environ.get('APICHECK'):
     extensions.append('sphinx_autodoc_annotation')
 
 napoleon_use_keyword = True
+
+applehelp_bundle_id = 'Faust'
+epub_identifier = 'Faust'
+latex_elements = {
+    'inputenc': '',
+    'utf8extra': '',
+    'preamble': r'''
+
+\usepackage{fontspec}
+\setsansfont{Arial}
+\setromanfont{Arial}
+\setmonofont{DejaVu Sans Mono}
+''',
+}

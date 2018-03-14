@@ -7,13 +7,13 @@ from mode import Seconds
 from mode.utils import text
 from mode.utils.collections import ManagedUserDict
 
-from .base import Collection
+from faust import windows
+from faust.types.tables import TableT, WindowWrapperT
+from faust.types.windows import WindowT
+from faust.utils import termtable
 
+from .base import Collection
 from .wrappers import WindowWrapper
-from .. import windows
-from ..types.tables import TableT, WindowWrapperT
-from ..types.windows import WindowT
-from ..utils import termtable
 
 __all__ = ['Table']
 
@@ -23,11 +23,9 @@ class Table(TableT, Collection, ManagedUserDict):
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         self.window = window
-        self.changelog_topic = self._new_changelog_topic(
-            retention=window.expires,
-            compacting=True,
-            deleting=True,
-        )
+        self._changelog_compacting = True
+        self._changelog_deleting = True
+        self._changelog_topic = None  # will reset on next property access
         return WindowWrapper(self)
 
     def hopping(self, size: Seconds, step: Seconds,
@@ -77,8 +75,7 @@ class Table(TableT, Collection, ManagedUserDict):
                      target: IO = sys.stdout,
                      title: str = '{table.name}') -> str:
         header = [text.title(key), text.title(value)]
-        data = cast(
-            Iterable[List[str]], dict(self).items())
+        data = cast(Iterable[List[str]], dict(self).items())
         data = list(sorted(data, key=sortkey)) if sort else list(data)
         if sort:
             data = list(sorted(data, key=sortkey))

@@ -30,10 +30,8 @@ class HoppingWindow(WindowT):
         ]
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:
-        return (
-            timestamp <= self._stale_before(latest_timestamp, self.expires)
-            if self.expires else False
-        )
+        return (timestamp <= self._stale_before(latest_timestamp, self.expires)
+                if self.expires else False)
 
     def current(self, timestamp: float) -> WindowRange:
         return self._timestamp_window(timestamp)
@@ -55,8 +53,7 @@ class TumblingWindow(HoppingWindow):
     Fixed-size, non-overlapping, gap-less windows.
     """
 
-    def __init__(self, size: Seconds,
-                 expires: Seconds = None) -> None:
+    def __init__(self, size: Seconds, expires: Seconds = None) -> None:
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
@@ -88,14 +85,14 @@ class SlidingWindow(WindowT):
                 AND
                 s1.ts - before <= s2.ts AND s2.ts <= s1.ts + after
         """
-        return [WindowRange(start=timestamp - self.before,
-                            end=timestamp + self.after)]
+        return [
+            WindowRange(
+                start=timestamp - self.before, end=timestamp + self.after),
+        ]
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:
-        return (
-            timestamp <= self._stale_before(self.expires, latest_timestamp)
-            if self.expires else False
-        )
+        return (timestamp <= self._stale_before(self.expires, latest_timestamp)
+                if self.expires else False)
 
     def _stale_before(self, expires: float, latest_timestamp: float) -> float:
         return latest_timestamp - expires

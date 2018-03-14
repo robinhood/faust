@@ -1,32 +1,4 @@
-"""Program ``faust worker`` used to start application from console.
-
-.. program:: faust worker
-
-.. cmdoption:: --logfile, -f
-
-    Path to logfile (default is <stderr>).
-
-.. cmdoption:: --loglevel, -l
-
-    Logging level to use: ``CRIT|ERROR|WARN|INFO|DEBUG``.
-
-.. cmdoption:: --blocking-timeout
-
-    Blocking detector timeout (requires --debug).
-
-.. cmdoption:: --web-host, -h
-
-    Canonical host name for the web server.
-
-.. cmdoption:: --web-port, -p
-
-    Port to run web server on.
-
-.. cmdoption:: --console-port
-
-    When :option:`faust --debug` is enabled this specifies the port
-    to run the :pypi:`aiomonitor` console on (default is 50101).
-"""
+"""Program ``faust worker`` used to start application from console."""
 import os
 import platform
 import socket
@@ -34,21 +6,24 @@ import typing
 from typing import Any, Iterable, Optional
 
 import click
+from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
 from yarl import URL
 
 from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
 from .base import AppCommand, TCPPort, WritableFilePath, option
-from .. import __version__ as faust_version
 
 if typing.TYPE_CHECKING:
-    from ..worker import Worker
+    from faust.worker import Worker
 else:
     class Worker: ...   # noqa
 
 __all__ = ['worker']
 
 FAUST = 'ƒaµS†'
+
+# XXX mypy borks if we do `from faust import __version`.
+faust_version: str = symbol_by_name('faust:__version__')
 
 LOGLEVELS = (
     'CRIT',
@@ -66,9 +41,7 @@ class CaseInsensitiveChoice(click.Choice):
     def __init__(self, choices: Iterable[Any]) -> None:
         self.choices = [str(val).lower() for val in choices]
 
-    def convert(self,
-                value: str,
-                param: Optional[click.Parameter],
+    def convert(self, value: str, param: Optional[click.Parameter],
                 ctx: click.Context) -> Any:
         if value.lower() in self.choices:
             return value
@@ -105,15 +78,10 @@ class worker(AppCommand):
             *self.args + args,
             **{**self.kwargs, **kwargs})
 
-    def start_worker(self,
-                     logfile: str,
-                     loglevel: str,
-                     blocking_timeout: float,
-                     web_port: int,
-                     web_bind: str,
-                     web_host: str,
-                     console_port: int) -> Any:
-        self.app.canonical_url = URL(f'http://{web_host}:{web_port}')
+    def start_worker(self, logfile: str, loglevel: str,
+                     blocking_timeout: float, web_port: int, web_bind: str,
+                     web_host: str, console_port: int) -> Any:
+        self.app.conf.canonical_url = URL(f'http://{web_host}:{web_port}')
         worker = self.app.Worker(
             debug=self.debug,
             quiet=self.quiet,
@@ -142,9 +110,9 @@ class worker(AppCommand):
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
         data = [
-            ('id', app.id),
-            ('transport', f'{app.broker} {transport_extra}'),
-            ('store', app.store),
+            ('id', app.conf.id),
+            ('transport', f'{app.conf.broker} {transport_extra}'),
+            ('store', app.conf.store),
             ('web', website.web.url),
             ('log', f'{logfile} ({loglevel})'),
             ('pid', f'{os.getpid()}'),
@@ -153,7 +121,8 @@ class worker(AppCommand):
             ('drivers', '{transport_v} {http_v}'.format(
                 transport_v=app.transport.driver_version,
                 http_v=website.web.driver_version)),
-            ('datadir', f'{str(app.datadir.absolute()):<40}'),
+            ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
+            ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
         ]
         table = self.table(
             [(self.bold(x), y) for x, y in data],
@@ -164,7 +133,7 @@ class worker(AppCommand):
         return table.table
 
     def faust_ident(self) -> str:
-        return self.colored('hiblue', f'{FAUST} v{faust_version}')
+        return self.color('hiblue', f'{FAUST} v{faust_version}')
 
     def platform(self) -> str:
         return '{py_imp} {py_version} ({system} {machine})'.format(

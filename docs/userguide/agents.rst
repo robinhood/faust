@@ -496,6 +496,36 @@ Another Agent
             async for event in stream:
                 print(f'AGENT A RECEIVED: {event!r}')
 
+
+.. _agent-errors:
+
+When agents raise an error
+--------------------------
+
+If an agent raises in the middle of processing an :term:`event`
+what do we do with :term:`acking` it?
+
+Currently the source message will be acked and not processed again,
+simply because it violates ""exactly-once" semantics".
+
+- What about retries?
+
+    It'd be safe to retry processing the event if the agent
+    processing is :term:`idempotent`, but we don't enforce idempotency
+    in stream processors so it's not something we can enable by default.
+
+    The retry would also have to stop processing of the topic
+    so that order is maintained: the next offset in the topic can only
+    be processed after the event is retried.
+
+- How about crashing?
+
+    Crashing the instance to require human intervention is certainly
+    a choice, but far from ideal considering how common mistakes
+    in code or unhandled exceptions are.  It may be better to log
+    the error and have ops replay and reprocess the stream on
+    notification.
+
 Using Agents
 ============
 
@@ -503,7 +533,7 @@ Cast or Ask?
 ------------
 
 When communicating with an agent, you can ask for the result of the
-request to be forwarded to another topic: this is the ``reply_to`` topic.
+request to be forwarded to another topic: this is the :setting:`reply_to` topic.
 
 The ``reply_to`` topic may be the topic of another agent, a source topic
 populated by a different system, or it may be a local ephemeral topic

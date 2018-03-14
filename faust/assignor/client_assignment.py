@@ -66,14 +66,14 @@ class CopartitionedAssignment:
         return self.actives if active else self.standbys
 
     def can_assign(self, partition: int, active: bool) -> bool:
-        return (
-            not self.partition_assigned(partition, active) and
-            (active or not self.partition_assigned(partition, active=True))
-        )
+        return (not self.partition_assigned(partition, active) and
+                (active or
+                 not self.partition_assigned(partition, active=True)))
 
     def __repr__(self) -> str:
         return R_COPART_ASSIGNMENT.format(
-            name=type(self).__name__, self=self,
+            name=type(self).__name__,
+            self=self,
         )
 
 

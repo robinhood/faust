@@ -13,7 +13,7 @@
 #  faust/app.py            - Faust Application
 #  faust/channels.py       - Channels for communication.
 #  faust/topics.py         - A topic is a named channel (e.g. a Kafka topic)
-#  faust/streams/stream.py - The stream iterates over events in a channel.
+#  faust/streams.py        - The stream iterates over events in a channel.
 #  faust/tables.py         - Data is stored in tables.
 #  faust/agents.py         - Agents use all of the above.
 # --- ~~~~~ ~ ~  ~           ~             ~   ~                   ~
@@ -42,8 +42,7 @@ class version_info_t(NamedTuple):
 
 # bumpversion can only search for {current_version}
 # so we have to parse the version here.
-_temp = re.match(
-    r'(\d+)\.(\d+).(\d+)(.+)?', __version__).groups()
+_temp = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__).groups()
 VERSION = version_info = version_info_t(
     int(_temp[0]), int(_temp[1]), int(_temp[2]), _temp[3] or '', '')
 del(_temp)
@@ -92,18 +91,14 @@ def _extract_arg_from_argv(
     return None
 
 
-_datadir = (
-    _extract_arg_from_argv(longopts=('--datadir',)) or
-    os.environ.get('FAUST_DATADIR') or
-    os.environ.get('F_DATADIR')
-)
+_datadir = (_extract_arg_from_argv(longopts=('--datadir',)) or
+            os.environ.get('FAUST_DATADIR') or
+            os.environ.get('F_DATADIR'))
 if _datadir:
     os.environ['FAUST_DATADIR'] = _datadir
-_loop = (
-    _extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',)) or
-    os.environ.get('FAUST_LOOP') or
-    os.environ.get('F_LOOP')
-)
+_loop = (_extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',)) or
+         os.environ.get('FAUST_LOOP') or
+         os.environ.get('F_LOOP'))
 if _loop:
     os.environ['FAUST_LOOP'] = _loop
     import mode.loop
@@ -116,41 +111,53 @@ if typing.TYPE_CHECKING:
     from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
-    from .channels import Channel, ChannelT, Event, EventT      # noqa: E402
+    from .channels import Channel, ChannelT                     # noqa: E402
+    from .events import Event, EventT                           # noqa: E402
     from .models import Model, ModelOptions, Record             # noqa: E402
     from .sensors import Monitor, Sensor                        # noqa: E402
     from .serializers import Codec                              # noqa: E402
-    from .streams.stream import Stream, StreamT, current_event  # noqa: E402
+    from .streams import Stream, StreamT, current_event         # noqa: E402
     from .tables.set import Set                                 # noqa: E402
     from .tables.table import Table                             # noqa: E402
-    from .topics import Topic                                   # noqa: E402
+    from .topics import Topic, TopicT                           # noqa: E402
+    from .types.settings import Settings                        # noqa: E402
     from .windows import (                                      # noqa: E402
-        HoppingWindow, TumblingWindow, SlidingWindow,
+        HoppingWindow,
+        TumblingWindow,
+        SlidingWindow,
     )
     from .worker import Worker                                # noqa: E402
 
 __all__ = [
     'Agent',
     'App',
-    'AppCommand', 'Command',
+    'AppCommand',
+    'Command',
     'Channel',
     'ChannelT',
     'Event',
     'EventT',
-    'Model', 'ModelOptions', 'Record',
+    'Model',
+    'ModelOptions',
+    'Record',
     'Monitor',
     'Sensor',
     'Codec',
-    'Service', 'ServiceT',
-    'Stream', 'StreamT', 'current_event',
+    'Service',
+    'ServiceT',
+    'Stream',
+    'StreamT',
+    'current_event',
     'Set',
     'Table',
     'Topic',
     'TopicT',
-    'HoppingWindow', 'TumblingWindow', 'SlidingWindow',
+    'Settings',
+    'HoppingWindow',
+    'TumblingWindow',
+    'SlidingWindow',
     'Worker',
 ]
-
 
 # Lazy loading.
 # - See werkzeug/__init__.py for the rationale behind this.
@@ -159,14 +166,20 @@ from types import ModuleType  # noqa
 all_by_module: Mapping[str, Sequence[str]] = {
     'faust.agents': ['Agent'],
     'faust.app': ['App'],
-    'faust.channels': ['Channel', 'ChannelT', 'Event', 'EventT'],
+    'faust.channels': ['Channel', 'ChannelT'],
+    'faust.events': ['Event', 'EventT'],
     'faust.models': ['ModelOptions', 'Record'],
     'faust.sensors': ['Monitor', 'Sensor'],
     'faust.serializers': ['Codec'],
-    'faust.streams.stream': ['Stream', 'StreamT', 'current_event'],
+    'faust.streams': [
+        'Stream',
+        'StreamT',
+        'current_event',
+    ],
     'faust.tables.set': ['Set'],
     'faust.tables.table': ['Table'],
-    'faust.topics': ['Topic'],
+    'faust.topics': ['Topic', 'TopicT'],
+    'faust.types.settings': ['Settings'],
     'faust.windows': [
         'HoppingWindow',
         'TumblingWindow',
@@ -184,24 +197,35 @@ for module, items in all_by_module.items():
 
 class _module(ModuleType):
     """Customized Python module."""
+    standard_package_vars = [
+        '__file__',
+        '__path__',
+        '__doc__',
+        '__all__',
+        '__docformat__',
+        '__name__',
+        '__path__',
+        'VERSION',
+        'version_info_t',
+        'version_info',
+        '__package__',
+        '__version__',
+        '__author__',
+        '__contact__',
+        '__homepage__',
+        '__docformat__',
+    ]
 
     def __getattr__(self, name: str) -> Any:
         if name in object_origins:
-            module = __import__(
-                object_origins[name], None, None, [name])
+            module = __import__(object_origins[name], None, None, [name])
             for extra_name in all_by_module[module.__name__]:
                 setattr(self, extra_name, getattr(module, extra_name))
             return getattr(module, name)
         return ModuleType.__getattribute__(self, name)
 
     def __dir__(self) -> Sequence[str]:
-        result = list(new_module.__all__)
-        result.extend(('__file__', '__path__', '__doc__', '__all__',
-                       '__docformat__', '__name__', '__path__',
-                       'VERSION', 'version_info_t', 'version_info',
-                       '__package__', '__version__', '__author__',
-                       '__contact__', '__homepage__', '__docformat__'))
-        return result
+        return sorted(list(new_module.__all__) + self.standard_package_vars)
 
 
 # keep a reference to this module so that it's not garbage collected

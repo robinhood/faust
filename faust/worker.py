@@ -2,39 +2,8 @@
 
 A "worker" starts a single instance of a Faust application.
 
-The Worker is the terminal interface to App, and is the third
-entry point in this list:
-
-1) :program:`faust worker`
-2) -> :class:`faust.cli.worker.worker`
-3) -> :class:`faust.Worker`
-4) -> :class:`faust.App`
-
-You can call ``await app.start()`` directly to get a side-effect free
-instance that can be embedded in any environment. It won't even emit logs
-to the console unless you have configured :mod:`logging` manually.
-
-The worker only concerns itself with the terminal, process
-signal handlers, logging, debugging mechanisms, etc.
-
-.. admonition:: Web server
-
-    The Worker also starts the web server, the app will not start it.
-
-.. admonition:: Multiple apps
-
-    If you want your worker to start multiple apps, you would have
-    to pass them in with the ``*services`` starargs::
-
-        worker = Worker(app1, app2, app3, app4)
-
-    This way the extra apps will be started together with the main app,
-    and the main app of the worker (``worker.app``) will end up being
-    the first positional argument (``app1``).
-
-    Note that the web server will only concern itself with the
-    main app, so if you want web access to the other apps you have to
-    include web servers for them (also passed in as ``*services`` starargs).
+See Also:
+    :ref:`app-starting`: for more information.
 """
 import asyncio
 import logging
@@ -82,8 +51,7 @@ logger = get_logger(__name__)
 def format_log_arguments(arg: Any) -> Any:
     if arg and isinstance(arg, Mapping):
         first_k, first_v = next(iter(arg.items()))
-        if (isinstance(first_k, str) and
-                isinstance(first_v, set) and
+        if (isinstance(first_k, str) and isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
             return '\n' + logtable(
                 [(k, v) for k, v in arg.items()],
@@ -120,7 +88,7 @@ class SpinnerHandler(logging.Handler):
 
     def emit(self, _record: logging.LogRecord) -> None:
         # the spinner is only in effect with WARN level and below.
-        if self.worker.spinner and not self.worker.absolutely_no_smiley:
+        if self.worker.spinner and not self.worker._shutdown_immediately:
             self.worker.spinner.update()
 
 
@@ -208,27 +176,28 @@ class Worker(mode.Worker):
     spinner: Spinner
 
     #: Set by signal to avoid printing an OK status.
-    absolutely_no_smiley: bool = False
+    _shutdown_immediately: bool = False
 
-    def __init__(
-            self, app: AppT, *services: ServiceT,
-            sensors: Iterable[SensorT] = None,
-            debug: bool = DEBUG,
-            quiet: bool = False,
-            loglevel: Union[str, int] = None,
-            logfile: Union[str, IO] = None,
-            logformat: str = None,
-            stdout: IO = sys.stdout,
-            stderr: IO = sys.stderr,
-            blocking_timeout: float = BLOCKING_TIMEOUT,
-            workdir: Union[Path, str] = None,
-            Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
-            web_port: int = None,
-            web_bind: str = None,
-            web_host: str = None,
-            console_port: int = 50101,
-            loop: asyncio.AbstractEventLoop = None,
-            **kwargs: Any) -> None:
+    def __init__(self,
+                 app: AppT,
+                 *services: ServiceT,
+                 sensors: Iterable[SensorT] = None,
+                 debug: bool = DEBUG,
+                 quiet: bool = False,
+                 loglevel: Union[str, int] = None,
+                 logfile: Union[str, IO] = None,
+                 logformat: str = None,
+                 stdout: IO = sys.stdout,
+                 stderr: IO = sys.stderr,
+                 blocking_timeout: float = BLOCKING_TIMEOUT,
+                 workdir: Union[Path, str] = None,
+                 Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
+                 web_port: int = None,
+                 web_bind: str = None,
+                 web_host: str = None,
+                 console_port: int = 50101,
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
         self.app = app
         self.sensors = set(sensors or [])
         self.workdir = Path(workdir or Path.cwd())
@@ -243,7 +212,7 @@ class Worker(mode.Worker):
             loglevel=loglevel,
             logfile=logfile,
             logformat=logformat,
-            loghandlers=app.loghandlers,
+            loghandlers=app.conf.loghandlers,
             stdout=stdout,
             stderr=stderr,
             blocking_timeout=blocking_timeout,
@@ -253,15 +222,15 @@ class Worker(mode.Worker):
         self.spinner = Spinner(file=self.stdout)
 
     def _on_sigint(self) -> None:
-        self.absolutely_no_smiley = True
+        self._shutdown_immediately = True
         super()._on_sigint()
 
     def _on_sigterm(self) -> None:
-        self.absolutely_no_smiley = True
+        self._shutdown_immediately = True
         super()._on_sigterm()
 
     async def on_startup_finished(self) -> None:
-        if self.absolutely_no_smiley:
+        if self._shutdown_immediately:
             self.say('')
             return
         # block detection started here after changelog stuff,
@@ -291,7 +260,7 @@ class Worker(mode.Worker):
     async def on_first_start(self) -> None:
         if self.workdir and Path.cwd().absolute() != self.workdir.absolute():
             os.chdir(Path(self.workdir).absolute())
-        if self.app.autodiscover:
+        if self.app.conf.autodiscover:
             self.app.discover()
         await super().on_first_start()  # <-- sets up logging
 
@@ -306,9 +275,7 @@ class Worker(mode.Worker):
         else:
             self._say('starting^', end='')
 
-    def on_setup_root_logger(self,
-                             logger: logging.Logger,
-                             level: int) -> None:
+    def on_setup_root_logger(self, logger: logging.Logger, level: int) -> None:
         # This is used to set up the terminal progress spinner
         # so that it spins for every log message emitted.
         if level and level < logging.WARN:
@@ -316,8 +283,7 @@ class Worker(mode.Worker):
 
         if self.spinner:
             logger.handlers[0].setLevel(level)
-            logger.addHandler(
-                SpinnerHandler(self, level=logging.DEBUG))
+            logger.addHandler(SpinnerHandler(self, level=logging.DEBUG))
             logger.setLevel(logging.DEBUG)
 
     @cached_property

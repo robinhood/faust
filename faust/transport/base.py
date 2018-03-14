@@ -4,9 +4,24 @@ import asyncio
 import gc
 import typing
 from collections import defaultdict
+from time import monotonic
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar, Iterable, Iterator,
-    List, Mapping, MutableMapping, Optional, Set, Tuple, Type, Union, cast,
+    Any,
+    AsyncIterator,
+    Awaitable,
+    ClassVar,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    MutableMapping,
+    MutableSet,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
 )
 from weakref import WeakSet
 
@@ -14,17 +29,21 @@ from mode.services import Service, ServiceT
 from mode.utils.futures import notify
 from yarl import URL
 
-from ..exceptions import ProducerSendError
-from ..types import AppT, Message, RecordMetadata, TP
-from ..types.transports import (
-    ConsumerCallback, ConsumerT,
-    PartitionsAssignedCallback, PartitionsRevokedCallback,
-    ProducerT, TPorTopicSet, TransportT,
+from faust.exceptions import ProducerSendError
+from faust.types import AppT, Message, RecordMetadata, TP
+from faust.types.transports import (
+    ConsumerCallback,
+    ConsumerT,
+    PartitionsAssignedCallback,
+    PartitionsRevokedCallback,
+    ProducerT,
+    TPorTopicSet,
+    TransportT,
 )
-from ..utils.functional import consecutive_numbers
+from faust.utils.functional import consecutive_numbers
 
 if typing.TYPE_CHECKING:
-    from ..app import App
+    from faust.app import App
 else:
     class App: ...  # noqa
 
@@ -98,17 +117,28 @@ class Consumer(Service, ConsumerT):
     #: will wait for the original request to finish, and do nothing.
     _commit_fut: asyncio.Future = None
 
-    if typing.TYPE_CHECKING:
-        # This works in mypy, but not in CPython
-        _unacked_messages: WeakSet[Message]
-    _unacked_messages = None
+    #: Set of unacked messages: that is messages that we started processing
+    #: and that we MUST attempt to complete processing of, before
+    #: shutting down or resuming a rebalance.
+    _unacked_messages: MutableSet[Message] = None
 
-    def __init__(self, transport: TransportT,
+    #: Time of last record batch received.
+    #: Set only when not set, and reset by commit() so actually
+    #: tracks how long it ago it was since we received a record that
+    #: was never committed.
+    _last_batch: float = None
+
+    #: Time of when the consumer was started.
+    _time_start: float = None
+
+    def __init__(self,
+                 transport: TransportT,
                  *,
                  callback: ConsumerCallback = None,
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
                  commit_interval: float = None,
+                 commit_livelock_soft_timeout: float = None,
                  **kwargs: Any) -> None:
         assert callback is not None
         self.transport = transport
@@ -118,13 +148,18 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self.commit_interval = (
-            commit_interval or self.app.commit_interval)
+            commit_interval or self.app.conf.broker_commit_interval)
+        self.commit_livelock_soft_timeout = (
+            commit_livelock_soft_timeout or
+            self.app.conf.broker_commit_livelock_soft_timeout)
         self._acked = defaultdict(list)
         self._acked_index = defaultdict(set)
         self._read_offset = defaultdict(lambda: None)
         self._committed_offset = defaultdict(lambda: None)
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
+        self._time_start = monotonic()
+        self.randomly_assigned_topics = set()
         super().__init__(loop=self.transport.loop, **kwargs)
 
     @abc.abstractmethod
@@ -146,6 +181,9 @@ class Consumer(Service, ConsumerT):
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self._on_partitions_revoked(revoked)
 
+    async def verify_subscription(self, assigned: Set[TP]) -> None:
+        ...
+
     async def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.  This is called by faust.topics.TopicConductor,
@@ -154,8 +192,7 @@ class Consumer(Service, ConsumerT):
             self._unacked_messages.add(message)
 
             # call sensors
-            await self._on_message_in(
-                message.tp, message.offset, message)
+            await self._on_message_in(message.tp, message.offset, message)
 
     def ack(self, message: Message) -> bool:
         if not message.acked:
@@ -209,6 +246,7 @@ class Consumer(Service, ConsumerT):
 
     async def on_stop(self) -> None:
         await self.wait_empty()
+        self._last_batch = None
 
     @Service.task
     async def _commit_handler(self) -> None:
@@ -216,6 +254,20 @@ class Consumer(Service, ConsumerT):
         while not self.should_stop:
             await self.commit()
             await self.sleep(self.commit_interval)
+
+    @Service.task
+    async def _commit_livelock_detector(self) -> None:
+        # XXX Should take into account the time of last records recieved.
+        soft_timeout = self.commit_livelock_soft_timeout
+        interval: float = self.commit_interval * 2.5
+        await self.sleep(interval)
+        while not self.should_stop:
+            if self._last_batch is not None:
+                s_since_batch = monotonic() - self._last_batch
+                if s_since_batch > soft_timeout:
+                    self.log.warn(
+                        'Possible livelock: COMMIT OFFSET NOT ADVANCING')
+            await self.sleep(interval)
 
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         """Maybe commit the offset for all or specific topics.
@@ -261,11 +313,14 @@ class Consumer(Service, ConsumerT):
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:
         commit_offsets = {}
         for tp in tps:
+            # Find the latest offset we can commit in this tp
             offset = self._new_offset(tp)
+            # check if we can commit to this offset
             if offset is not None and self._should_commit(tp, offset):
                 commit_offsets[tp] = offset
         if commit_offsets:
             try:
+                # send all messages attached to the new offset
                 await self._handle_attached(commit_offsets)
             except ProducerSendError as exc:
                 await self.crash(exc)
@@ -275,7 +330,7 @@ class Consumer(Service, ConsumerT):
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
         for tp, offset in commit_offsets.items():
-            await cast(App, self.app)._commit_attached(tp, offset)
+            await cast(App, self.app)._attachments.commit(tp, offset)
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''
@@ -286,10 +341,8 @@ class Consumer(Service, ConsumerT):
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
-        return (
-            tp for tp in self._acked
-            if topics is None or tp in topics or tp.topic in topics
-        )
+        return (tp for tp in self._acked
+                if topics is None or tp in topics or tp.topic in topics)
 
     def _should_commit(self, tp: TP, offset: int) -> bool:
         committed = self._committed_offset[tp]
@@ -401,20 +454,14 @@ class Producer(Service, ProducerT):
         self.transport = transport
         super().__init__(loop=self.transport.loop, **kwargs)
 
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
         raise NotImplementedError()
 
-    async def send_and_wait(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
@@ -435,7 +482,9 @@ class Transport(TransportT):
 
     driver_version: str
 
-    def __init__(self, url: Union[str, URL], app: AppT,
+    def __init__(self,
+                 url: Union[str, URL],
+                 app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = URL(url)
         self.app = app

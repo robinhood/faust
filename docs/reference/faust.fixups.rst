@@ -1,11 +1,11 @@
 =====================================================
- ``faust.router``
+ ``faust.fixups``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.router
+.. currentmodule:: faust.fixups
 
-.. automodule:: faust.router
+.. automodule:: faust.fixups
     :members:
     :undoc-members:

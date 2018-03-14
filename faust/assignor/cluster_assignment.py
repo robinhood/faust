@@ -1,9 +1,13 @@
 """Cluster assignement."""
 from typing import Any, List, MutableMapping, Sequence, Set
+from faust.models import Record
 from .client_assignment import (
-    ClientAssignment, ClientMetadata, CopartitionedAssignment,
+    ClientAssignment,
+    ClientMetadata,
+    CopartitionedAssignment,
 )
-from ..models import Record
+
+__all__ = ['CopartMapping', 'ClusterAssignment']
 
 CopartMapping = MutableMapping[str, CopartitionedAssignment]
 
@@ -28,14 +32,9 @@ class ClusterAssignment(Record,
 
     def topics(self) -> Set[str]:
         # All topics subscribed to in the cluster
-        return {
-            topic
-            for sub in self.subscriptions.values()
-            for topic in sub
-        }
+        return {topic for sub in self.subscriptions.values() for topic in sub}
 
-    def add_client(self, client: str,
-                   subscription: List[str],
+    def add_client(self, client: str, subscription: List[str],
                    metadata: ClientMetadata) -> None:
         self.subscriptions[client] = list(subscription)
         self.assignments[client] = metadata.assignment

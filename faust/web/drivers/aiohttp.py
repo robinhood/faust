@@ -57,7 +57,8 @@ class Web(base.Web):
     #: We serve the web server in a separate thread, with its own even loop.
     _thread: ServerThread = None
 
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  port: int = None,
                  bind: str = None,
@@ -67,15 +68,14 @@ class Web(base.Web):
         self._srv: Any = None
         self._handler: Any = None
 
-    def text(self, value: str,
-             *,
-             content_type: str = None,
+    def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> base.Response:
-        return cast(base.Response, Response(
+        response = Response(
             text=value,
             content_type=content_type,
             status=status,
-        ))
+        )
+        return cast(base.Response, response)
 
     def html(self, value: str, *, status: int = 200) -> base.Response:
         return self.text(value, status=status, content_type='text/html')
@@ -83,14 +83,13 @@ class Web(base.Web):
     def json(self, value: Any, *, status: int = 200) -> Any:
         return json_response(value, status=status)
 
-    def bytes(self, value: _bytes,
+    def bytes(self,
+              value: _bytes,
               *,
               content_type: str = None,
               status: int = 200) -> base.Response:
-        return cast(base.Response, Response(
-            body=value,
-            content_type=content_type,
-        ))
+        response = Response(body=value, content_type=content_type)
+        return cast(base.Response, response)
 
     def route(self, pattern: str, handler: Callable) -> None:
         self._app.router.add_route('*', pattern, handler)
@@ -100,9 +99,8 @@ class Web(base.Web):
         self.add_dependency(self._thread)
 
     async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
-        self._handler = self._app.make_handler()
-        self._srv = await loop.create_server(
-            self._handler, self.bind, self.port)
+        handler = self._handler = self._app.make_handler()
+        self._srv = await loop.create_server(handler, self.bind, self.port)
         self.log.info('Serving on %s', self.url)
 
     async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:

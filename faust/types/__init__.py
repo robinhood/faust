@@ -3,9 +3,11 @@ from mode import ServiceT
 
 from .agents import AgentManagerT, AgentT
 from .app import AppT
-from .channels import ChannelT, EventT
+from .channels import ChannelT
 from .codecs import CodecArg, CodecT
 from .core import K, V
+from .events import EventT
+from .fixups import FixupT
 from .joins import JoinT
 from .models import FieldDescriptorT, ModelArg, ModelOptions, ModelT
 from .sensors import SensorT
@@ -25,8 +27,12 @@ from .transports import (
     TransportT,
 )
 from .tuples import (
-    FutureMessage, Message, MessageSentCallback, PendingMessage,
-    RecordMetadata, TP,
+    FutureMessage,
+    Message,
+    MessageSentCallback,
+    PendingMessage,
+    RecordMetadata,
+    TP,
 )
 from .windows import WindowRange, WindowT
 
@@ -35,22 +41,31 @@ __all__ = [
     'ServiceT',
 
     # types.agents
-    'AgentManagerT', 'AgentT',
+    'AgentManagerT',
+    'AgentT',
 
     # types.app
     'AppT',
 
     # types.codecs
-    'CodecArg', 'CodecT',
+    'CodecArg',
+    'CodecT',
 
     # types.core
-    'K', 'V',
+    'K',
+    'V',
+
+    # types.fixups
+    'FixupT',
 
     # types.joins
     'JoinT',
 
     # types.models
-    'FieldDescriptorT', 'ModelArg', 'ModelOptions', 'ModelT',
+    'FieldDescriptorT',
+    'ModelArg',
+    'ModelOptions',
+    'ModelT',
 
     # types.sensors
     'SensorT',
@@ -62,21 +77,35 @@ __all__ = [
     'StoreT',
 
     # types.streams
-    'JoinableT', 'Processor', 'StreamT',
+    'JoinableT',
+    'Processor',
+    'StreamT',
 
     # types.tables
-    'CollectionT', 'SetT', 'TableT',
+    'CollectionT',
+    'SetT',
+    'TableT',
 
     # types.topics
-    'ChannelT', 'EventT', 'TopicT',
+    'ChannelT',
+    'EventT',
+    'TopicT',
 
     # types.transports
-    'ConsumerCallback', 'ConsumerT', 'ProducerT', 'TransportT',
+    'ConsumerCallback',
+    'ConsumerT',
+    'ProducerT',
+    'TransportT',
 
     # types.tuples
-    'FutureMessage', 'Message', 'MessageSentCallback', 'PendingMessage',
-    'RecordMetadata', 'TP',
+    'FutureMessage',
+    'Message',
+    'MessageSentCallback',
+    'PendingMessage',
+    'RecordMetadata',
+    'TP',
 
     # types.windows
-    'WindowRange', 'WindowT',
+    'WindowRange',
+    'WindowT',
 ]

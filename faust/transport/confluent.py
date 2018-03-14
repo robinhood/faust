@@ -3,8 +3,21 @@ import asyncio
 import typing
 from enum import Enum
 from typing import (
-    Any, AsyncIterator, Awaitable, Callable, ClassVar, Dict, Iterable,
-    List, Mapping, MutableMapping, NamedTuple, Optional, Set, Tuple, Type,
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Type,
     cast,
 )
 
@@ -13,11 +26,11 @@ from mode.threads import ServiceThread
 from mode.utils.futures import StampedeWrapper, notify
 from yarl import URL
 
-from . import base
+from faust.exceptions import ImproperlyConfigured
+from faust.types import AppT, Message, RecordMetadata, TP
+from faust.types.transports import ConsumerT, ProducerT
 
-from ..exceptions import ImproperlyConfigured
-from ..types import AppT, Message, RecordMetadata, TP
-from ..types.transports import ConsumerT, ProducerT
+from . import base
 
 try:
     import confluent_kafka
@@ -64,15 +77,13 @@ class RPCServiceThread(ServiceThread):
         method_queue: asyncio.Queue[EnqueuedMethod]
     method_queue = None
 
-    def __init__(self,
-                 method_queue: asyncio.Queue = None,
+    def __init__(self, method_queue: asyncio.Queue = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.method_queue = method_queue or asyncio.Queue(loop=self.loop)
 
-    def enqueue_method(self,
-                       method: Callable,
-                       *args: Any, **kwargs: Any) -> asyncio.Future:
+    def enqueue_method(self, method: Callable, *args: Any,
+                       **kwargs: Any) -> asyncio.Future:
         fut = self.loop.create_future()
         self.method_queue.put_nowait(EnqueuedMethod(method, fut, args, kwargs))
         return fut
@@ -92,10 +103,8 @@ def server_list(url: URL, default_port: int) -> str:
     # remove the scheme
     servers = str(url).split('://', 1)[1]
     # add default ports
-    return ';'.join(
-        host if ':' in host else f'{host}:{default_port}'
-        for host in servers.split(';')
-    )
+    return ';'.join(host if ':' in host else f'{host}:{default_port}'
+                    for host in servers.split(';'))
 
 
 class ConsumerThread(RPCServiceThread):
@@ -133,16 +142,14 @@ class ConsumerThread(RPCServiceThread):
         self._consumer.close()
         self.transport._topic_waiters.clear()
 
-    def _create_worker_consumer(
-            self,
-            app: AppT,
-            transport: 'Transport') -> _Consumer:
+    def _create_worker_consumer(self, app: AppT,
+                                transport: 'Transport') -> _Consumer:
         self._assignor = self.app.assignor
         return confluent_kafka.Consumer({
             'bootstrap.servers': server_list(
                 transport.url, transport.default_port),
-            'group.id': app.id,
-            'client.id': app.client_id,
+            'group.id': app.conf.id,
+            'client.id': app.conf.broker_client_id,
             'default.topic.config': {
                 'auto.offset.reset': 'earliest',
             },
@@ -152,14 +159,12 @@ class ConsumerThread(RPCServiceThread):
             #  'partition.assignment.strategy': [self._assignor],
         })
 
-    def _create_client_consumer(
-            self,
-            app: AppT,
-            transport: 'Transport') -> _Consumer:
+    def _create_client_consumer(self, app: AppT,
+                                transport: 'Transport') -> _Consumer:
         return confluent_kafka.Consumer({
             'bootstrap.servers': server_list(
                 transport.url, transport.default_port),
-            'client.id': self.app.client_id,
+            'client.id': self.app.conf.broker_client_id,
             'enable.auto.commit': True,
             'default.topic.config': {
                 'auto.offset.reset': 'earliest',
@@ -174,17 +179,17 @@ class ConsumerThread(RPCServiceThread):
             on_revoke=self._on_revoke,
         )
 
-    def _on_assign(self,
-                   consumer: _Consumer,
+    def _on_assign(self, consumer: _Consumer,
                    partitions: List[_TopicPartition]) -> None:
-        self.consumer._assignments.put_nowait(AssignmentRequest(
-            AssignmentType.ASSIGNED, cast(Set[TP], set(partitions))))
+        self.consumer._assignments.put_nowait(
+            AssignmentRequest(
+                AssignmentType.ASSIGNED, cast(Set[TP], set(partitions))))
 
-    def _on_revoke(self,
-                   consumer: _Consumer,
+    def _on_revoke(self, consumer: _Consumer,
                    partitions: List[_TopicPartition]) -> None:
-        self.consumer._assignments.put_nowait(AssignmentRequest(
-            AssignmentType.REVOKED, cast(Set[TP], set(partitions))))
+        self.consumer._assignments.put_nowait(
+            AssignmentRequest(
+                AssignmentType.REVOKED, cast(Set[TP], set(partitions))))
 
     async def _commit(self, tp: TP, offset: int, meta: str) -> None:
         self.log.dev('COMMITTING OFFSETS: tp=%r offset=%r', tp, offset)
@@ -239,7 +244,10 @@ class Consumer(base.Consumer):
     async def _really_drain(self, fetcher: ServiceT) -> None:
         await super()._drain_messages(fetcher)
 
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -249,7 +257,11 @@ class Consumer(base.Consumer):
                            ensure_created: bool = False) -> None:
         return  # XXX
         await cast(Transport, self.transport)._create_topic(
-            self, self._consumer._client, topic, partitions, replication,
+            self,
+            self._consumer._client,
+            topic,
+            partitions,
+            replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=int(want_seconds(retention) * 1000.0),
@@ -271,10 +283,8 @@ class Consumer(base.Consumer):
                 AssignmentType.REVOKED: self.on_partitions_revoked,
             }[typ](tps)
 
-    async def getmany(
-            self,
-            *partitions: TP,
-            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+    async def getmany(self, *partitions: TP,
+                      timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         # NOTE: This must execute in the ConsumerThread loop.
         create_message = Message  # localize
         _sleep = asyncio.sleep
@@ -387,7 +397,7 @@ class ProducerThread(RPCServiceThread):
         self._producer = confluent_kafka.Producer({
             'bootstrap.servers': server_list(
                 self.transport.url, self.transport.default_port),
-            'client.id': self.transport.app.client_id,
+            'client.id': self.transport.app.conf.broker_client_id,
             'max.in.flight.requests.per.connection': 1,
         })
 
@@ -395,18 +405,13 @@ class ProducerThread(RPCServiceThread):
         if self._producer is not None:
             self._producer.flush()
 
-    def produce(self,
-                topic: str,
-                key: bytes,
-                value: bytes,
-                partition: int,
+    def produce(self, topic: str, key: bytes, value: bytes, partition: int,
                 on_delivery: Callable) -> None:
         if partition is not None:
             self._producer.produce(
                 topic, key, value, partition, on_delivery=on_delivery)
         else:
-            self._producer.produce(
-                topic, key, value, on_delivery=on_delivery)
+            self._producer.produce(topic, key, value, on_delivery=on_delivery)
         notify(self._flush_soon)
 
     @Service.task
@@ -436,8 +441,7 @@ class ProducerThread(RPCServiceThread):
 
 class ProducerProduceFuture(asyncio.Future):
 
-    def set_from_on_delivery(self,
-                             err: Optional[BaseException],
+    def set_from_on_delivery(self, err: Optional[BaseException],
                              msg: _Message) -> None:
         if err:
             # XXX Not sure what err' is here, hopefully it's an exception
@@ -466,7 +470,10 @@ class Producer(base.Producer):
     async def on_restart(self) -> None:
         self.on_init()
 
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -474,12 +481,13 @@ class Producer(base.Producer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        _retention = (
-            int(want_seconds(retention) * 1000.0)
-            if retention else None
-        )
+        _retention = (int(want_seconds(retention) * 1000.0)
+                      if retention else None)
         await cast(Transport, self.transport)._create_topic(
-            self, topic, partitions, replication,
+            self,
+            topic,
+            partitions,
+            replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
             retention=_retention,
@@ -496,23 +504,17 @@ class Producer(base.Producer):
         cast(Transport, self.transport)._topic_waiters.clear()
         await self._producer_thread.stop()
 
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
         fut = ProducerProduceFuture(loop=self.loop)
         self._quick_produce(
             topic, value, key, partition, on_delivery=fut.set_from_on_delivery)
         return cast(Awaitable[RecordMetadata], fut)
 
-    async def send_and_wait(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int]) -> RecordMetadata:
         fut = await self.send(topic, key, value, partition)
         return await fut
 
@@ -561,20 +563,20 @@ class Transport(base.Transport):
             config['retention.ms'] = retention
         return config
 
-    async def _create_topic(self,
-                            owner: Service,
-                            topic: str,
-                            partitions: int,
-                            replication: int,
-                            **kwargs: Any) -> None:
+    async def _create_topic(self, owner: Service, topic: str, partitions: int,
+                            replication: int, **kwargs: Any) -> None:
         assert topic is not None
         try:
             wrap = self._topic_waiters[topic]
         except KeyError:
             wrap = self._topic_waiters[topic] = StampedeWrapper(
                 self._really_create_topic,
-                owner, topic, partitions, replication,
-                loop=self.loop, **kwargs)
+                owner,
+                topic,
+                partitions,
+                replication,
+                loop=self.loop,
+                **kwargs)
         try:
             await wrap()
         except Exception as exc:

@@ -158,8 +158,8 @@ Issue Trackers
 Bugs for a package in the Faust ecosystem should be reported to the relevant
 issue tracker.
 
-* :pypi:`faust` - https://github.com/fauststream/faust/issues
-* :pypi:`mode` - https://github.com/fauststream/mode/issues
+* :pypi:`Faust` - https://github.com/fauststream/faust/issues
+* :pypi:`Mode` - https://github.com/fauststream/mode/issues
 
 If you're unsure of the origin of the bug you can ask the
 :ref:`mailing-list`, or just use the Faust issue tracker.
@@ -343,8 +343,8 @@ fetch and checkout a remote branch like this:
 
 .. _contributing-testing:
 
-Running the unit test suite
----------------------------
+Running the test suite
+----------------------
 
 To run the Faust test suite you need to install a few dependencies.
 A complete list of the dependencies needed are located in
@@ -364,6 +364,9 @@ the test suite by calling :pypi:`py.test <pytest`:
 .. sourcecode:: console
 
     $ py.test
+
+This will run the unit tests, functional tests and doc example tests,
+but not integration tests or stress tests.
 
 Some useful options to :command:`py.test` are:
 
@@ -533,6 +536,19 @@ Commit your changes:
     $ git commit faust.worker.awesome.rst index.rst \
         -m "Adds reference for faust.worker.awesome"
 
+Configuration Reference
+-----------------------
+
+To make sure that all settings have a corresponding section in the
+configuration reference, please execute:
+
+.. sourcecode:: console
+
+    $ make configcheck
+
+If settings are missing from there an error is produced, and you can proceed
+by documenting the settings in :file:`docs/userguide/application.rst`.
+
 .. _coding-style:
 
 Coding Style
@@ -541,6 +557,28 @@ Coding Style
 You should probably be able to pick up the coding style
 from surrounding code, but it is a good idea to be aware of the
 following conventions.
+
+* We use static types and the :pypi:`mypy` type checker to verify them.
+
+  Python code must import these static types when using them, so to
+  keep static types lightweight we define interfaces for
+  classes in ``faust/types/``.
+
+  For example for the :class:`fauts.App` class, there is a corresponding
+  :class:`faust.types.app.AppT`; for :class:`faust.Channel` there is a
+  :class:`faust.types.channels.ChannelT` and similarly for most other classes
+  in the library.
+
+  We suffer some duplication because of this, but it keeps static typing imports
+  fast and reduces the need for recursive imports.
+
+  In some cases recursive imports still happen, in that case you can "trick"
+  the type checker into importing it, while regular Python does not::
+
+    if typing.TYPE_CHECKING:
+        from faust.app import App
+    else:
+        class App: ...  # noqa
 
 * All Python code must follow the :pep:`8` guidelines.
 
@@ -592,15 +630,13 @@ is following the conventions.
 
 * Import order
 
-    * Python standard library (`import xxx`)
-    * Python standard library ('from xxx import`)
+    * Python standard library
     * Third-party packages.
     * Other modules from the current package.
 
     or in case of code using Django:
 
     * Python standard library (`import xxx`)
-    * Python standard library ('from xxx import`)
     * Third-party packages.
     * Django packages.
     * Other modules from the current package.
@@ -613,7 +649,6 @@ is following the conventions.
 
         import threading
         import time
-
         from collections import deque
         from Queue import Queue, Empty
 
@@ -718,7 +753,7 @@ Arpan Shah
 Packages
 ========
 
-``faust``
+``Faust``
 ---------
 
 :git: https://github.com/fauststream/faust
@@ -727,13 +762,13 @@ Packages
 :PyPI: :pypi:`faust`
 :docs: http://docs.fauststream.com
 
-``mode``
+``Mode``
 --------
 
 :git: https://github.com/fauststream/mode
 :CI: http://travis-ci.org/#!/fauststream/mode
 :Windows-CI: https://ci.appveyor.com/project/ask/mode
-:PyPI: :pypi:`mode`
+:PyPI: :pypi:`Mode`
 :docs: http://mode.readthedocs.io/
 
 .. _release-procedure:

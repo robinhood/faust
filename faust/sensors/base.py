@@ -17,31 +17,20 @@ class Sensor(SensorT, Service):
     to create new monitors.
     """
 
-    async def on_message_in(
-            self,
-            tp: TP,
-            offset: int,
-            message: Message) -> None:
+    async def on_message_in(self, tp: TP, offset: int,
+                            message: Message) -> None:
         """Message received by a consumer."""
         # WARNING: Sensors must never keep a reference to the Message,
         #          as this means the message won't go out of scope!
         ...
 
-    async def on_stream_event_in(
-            self,
-            tp: TP,
-            offset: int,
-            stream: StreamT,
-            event: EventT) -> None:
+    async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
+                                 event: EventT) -> None:
         """Message sent to a stream as an event."""
         ...
 
-    async def on_stream_event_out(
-            self,
-            tp: TP,
-            offset: int,
-            stream: StreamT,
-            event: EventT) -> None:
+    async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
+                                  event: EventT) -> None:
         """Event was acknowledged by stream.
 
         Notes:
@@ -54,11 +43,10 @@ class Sensor(SensorT, Service):
         """
         ...
 
-    async def on_message_out(
-            self,
-            tp: TP,
-            offset: int,
-            message: Message = None) -> None:
+    async def on_message_out(self,
+                             tp: TP,
+                             offset: int,
+                             message: Message = None) -> None:
         """All streams finished processing message."""
         ...
 
@@ -78,19 +66,17 @@ class Sensor(SensorT, Service):
         """Consumer is about to commit topic offset."""
         ...
 
-    async def on_commit_completed(
-            self, consumer: ConsumerT, state: Any) -> None:
+    async def on_commit_completed(self, consumer: ConsumerT,
+                                  state: Any) -> None:
         """Consumer finished committing topic offset."""
         ...
 
-    async def on_send_initiated(
-            self, producer: ProducerT, topic: str,
-            keysize: int, valsize: int) -> Any:
+    async def on_send_initiated(self, producer: ProducerT, topic: str,
+                                keysize: int, valsize: int) -> Any:
         """About to send a message."""
         ...
 
-    async def on_send_completed(
-            self, producer: ProducerT, state: Any) -> None:
+    async def on_send_completed(self, producer: ProducerT, state: Any) -> None:
         """Message successfully sent."""
 
 
@@ -114,37 +100,25 @@ class SensorDelegate(SensorDelegateT):
     def __iter__(self) -> Iterator:
         return iter(self._sensors)
 
-    async def on_message_in(
-            self,
-            tp: TP,
-            offset: int,
-            message: Message) -> None:
+    async def on_message_in(self, tp: TP, offset: int,
+                            message: Message) -> None:
         for sensor in self._sensors:
             await sensor.on_message_in(tp, offset, message)
 
-    async def on_stream_event_in(
-            self,
-            tp: TP,
-            offset: int,
-            stream: StreamT,
-            event: EventT) -> None:
+    async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
+                                 event: EventT) -> None:
         for sensor in self._sensors:
             await sensor.on_stream_event_in(tp, offset, stream, event)
 
-    async def on_stream_event_out(
-            self,
-            tp: TP,
-            offset: int,
-            stream: StreamT,
-            event: EventT) -> None:
+    async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
+                                  event: EventT) -> None:
         for sensor in self._sensors:
             await sensor.on_stream_event_out(tp, offset, stream, event)
 
-    async def on_message_out(
-            self,
-            tp: TP,
-            offset: int,
-            message: Message = None) -> None:
+    async def on_message_out(self,
+                             tp: TP,
+                             offset: int,
+                             message: Message = None) -> None:
         for sensor in self._sensors:
             await sensor.on_message_out(tp, offset, message)
 
@@ -167,16 +141,15 @@ class SensorDelegate(SensorDelegateT):
             for sensor in self._sensors
         }
 
-    async def on_commit_completed(
-            self, consumer: ConsumerT, state: Any) -> None:
+    async def on_commit_completed(self, consumer: ConsumerT,
+                                  state: Any) -> None:
         # state is now a mapping from sensor->state, so
         # make sure to correct the correct state to each sensor.
         for sensor in self._sensors:
             await sensor.on_commit_completed(consumer, state[sensor])
 
-    async def on_send_initiated(
-            self, producer: ProducerT, topic: str,
-            keysize: int, valsize: int) -> Any:
+    async def on_send_initiated(self, producer: ProducerT, topic: str,
+                                keysize: int, valsize: int) -> Any:
         return {
             sensor: await sensor.on_send_initiated(
                 producer, topic, keysize, valsize)

@@ -1,14 +1,20 @@
 import abc
 import typing
 from typing import (
-    Any, Callable, Iterable, MutableMapping, Optional, Set, Union,
+    Any,
+    Callable,
+    Iterable,
+    MutableMapping,
+    Optional,
+    Set,
+    Union,
 )
 
 from mode import ServiceT
 from yarl import URL
 
-from .channels import EventT
 from .codecs import CodecArg
+from .events import EventT
 from .tuples import TP
 
 if typing.TYPE_CHECKING:
@@ -34,7 +40,9 @@ class StoreT(ServiceT, MutableMapping):
     value_serializer: CodecArg
 
     @abc.abstractmethod
-    def __init__(self, url: Union[str, URL], app: AppT,
+    def __init__(self,
+                 url: Union[str, URL],
+                 app: AppT,
                  *,
                  table_name: str = '',
                  key_type: ModelArg = None,
@@ -67,11 +75,11 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(
-            self, table: CollectionT, assigned: Set[TP]) -> None:
+    async def on_partitions_assigned(self, table: CollectionT,
+                                     assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(
-            self, table: CollectionT, revoked: Set[TP]) -> None:
+    async def on_partitions_revoked(self, table: CollectionT,
+                                    revoked: Set[TP]) -> None:
         ...

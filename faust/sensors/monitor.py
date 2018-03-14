@@ -204,11 +204,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         if max_sen is not None and len(self.send_latency) > max_sen:
             self.send_latency[:len(self.send_latency) - max_sen] = []
 
-    async def on_message_in(
-            self,
-            tp: TP,
-            offset: int,
-            message: Message) -> None:
+    async def on_message_in(self, tp: TP, offset: int,
+                            message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
         #          as this means the message won't go out of scope!
         self.messages_received_total += 1
@@ -216,12 +213,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.messages_received_by_topic[tp.topic] += 1
         message.time_in = monotonic()
 
-    async def on_stream_event_in(
-            self,
-            tp: TP,
-            offset: int,
-            stream: StreamT,
-            event: EventT) -> None:
+    async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
+                                 event: EventT) -> None:
         self.events_total += 1
         self.events_by_stream[label(stream)] += 1
         self.events_by_task[label(stream.task_owner)] += 1
@@ -232,12 +225,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'time_total': None,
         }
 
-    async def on_stream_event_out(
-            self,
-            tp: TP,
-            offset: int,
-            stream: StreamT,
-            event: EventT) -> None:
+    async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
+                                  event: EventT) -> None:
         time_out = monotonic()
         state = event.message.stream_meta[id(stream)]
         time_in = state['time_in']
@@ -249,11 +238,10 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         )
         self.events_runtime.append(time_total)
 
-    async def on_message_out(
-            self,
-            tp: TP,
-            offset: int,
-            message: Message = None) -> None:
+    async def on_message_out(self,
+                             tp: TP,
+                             offset: int,
+                             message: Message = None) -> None:
         self.messages_active -= 1
         message.time_out = monotonic()
         message.time_total = message.time_out - message.time_in
@@ -277,19 +265,17 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
         return monotonic()
 
-    async def on_commit_completed(
-            self, consumer: ConsumerT, state: Any) -> None:
+    async def on_commit_completed(self, consumer: ConsumerT,
+                                  state: Any) -> None:
         self.commit_latency.append(monotonic() - cast(float, state))
 
-    async def on_send_initiated(
-            self, producer: ProducerT, topic: str,
-            keysize: int, valsize: int) -> Any:
+    async def on_send_initiated(self, producer: ProducerT, topic: str,
+                                keysize: int, valsize: int) -> Any:
         self.messages_sent += 1
         self.messages_sent_by_topic[topic] += 1
         return monotonic()
 
-    async def on_send_completed(
-            self, producer: ProducerT, state: Any) -> None:
+    async def on_send_completed(self, producer: ProducerT, state: Any) -> None:
         self.send_latency.append(monotonic() - cast(float, state))
 
     @cached_property

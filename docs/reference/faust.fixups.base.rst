@@ -1,11 +1,11 @@
 =====================================================
- ``faust.streams.stream``
+ ``faust.fixups.base``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.streams.stream
+.. currentmodule:: faust.fixups.base
 
-.. automodule:: faust.streams.stream
+.. automodule:: faust.fixups.base
     :members:
     :undoc-members:

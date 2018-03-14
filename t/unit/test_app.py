@@ -21,6 +21,7 @@ class Value(faust.Record, serializer='json'):
 def app():
     instance = faust.App('testid')
     instance.producer = Mock(name='producer')
+    instance.finalize()
     return instance
 
 
@@ -75,7 +76,7 @@ def test_stream(app):
 
 
 def test_new_producer(app):
-    app._producer = None
+    del(app.producer)
     app._transport = Mock(name='transport')
     assert app._new_producer() is app._transport.create_producer.return_value
     app._transport.create_producer.assert_called_with(beacon=ANY)
@@ -86,7 +87,7 @@ def test_new_transport(app, patching):
     by_url = patching('faust.transport.by_url')
     assert app._new_transport() is by_url.return_value.return_value
     assert app.transport is by_url.return_value.return_value
-    by_url.assert_called_with(app.broker)
-    by_url.return_value.assert_called_with(app.broker, app, loop=app.loop)
+    by_url.assert_called_with(app.conf.broker)
+    by_url.return_value.assert_called_with(app.conf.broker, app, loop=app.loop)
     app.transport = 10
     assert app.transport == 10

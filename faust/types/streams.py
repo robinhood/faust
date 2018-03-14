@@ -2,14 +2,26 @@ import abc
 import asyncio
 import typing
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Awaitable, Callable, Iterable,
-    List, Mapping, Sequence, Tuple, TypeVar, Union, no_type_check,
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    no_type_check,
 )
 
 from mode import Seconds, ServiceT
 
-from .channels import ChannelT, EventT
+from .channels import ChannelT
 from .core import K
+from .events import EventT
 from .models import FieldDescriptorT, ModelArg
 from .topics import TopicT
 
@@ -36,12 +48,8 @@ T_contra = TypeVar('T_contra', contravariant=True)
 
 Processor = Callable[[T], Union[T, Awaitable[T]]]
 
-
 #: Type of the `key` argument to `Stream.group_by()`
-GroupByKeyArg = Union[
-    FieldDescriptorT,
-    Callable[[T], K],
-]
+GroupByKeyArg = Union[FieldDescriptorT, Callable[[T], K]]
 
 
 class JoinableT(abc.ABC):
@@ -70,6 +78,14 @@ class JoinableT(abc.ABC):
     def __and__(self, other: Any) -> Any:
         ...
 
+    @abc.abstractmethod
+    def contribute_to_stream(self, active: 'StreamT') -> None:
+        ...
+
+    @abc.abstractmethod
+    async def remove_from_stream(self, stream: 'StreamT') -> None:
+        ...
+
 
 class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
 
@@ -81,26 +97,31 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     current_event: EventT = None
     concurrency_index: int = None
 
-    children: List[JoinableT] = None
+    # List of combined streams/tables after ret = (s1 & s2) combined them.
+    # AFter this ret.combined == [s1, s2]
+    combined: List[JoinableT] = None
 
     # group_by, through, etc. sets this, and it means the
     # active stream (the one the agent would be reading from) can be found
     # by walking the path of links::
     #    >>> node = stream
-    #    >>> while node.link:
-    #    ...     node = node.link
+    #    >>> while node._next:
+    #    ...     node = node._next
     # which is also what .get_active_stream() gives
-    link: 'StreamT' = None
+    _next: 'StreamT' = None
+    _prev: 'StreamT' = None
 
     @abc.abstractmethod
-    def __init__(self, channel: AsyncIterator[T_co] = None,
+    def __init__(self,
+                 channel: AsyncIterator[T_co] = None,
                  *,
                  processors: Iterable[Processor[T]] = None,
-                 children: List[JoinableT] = None,
+                 combined: List[JoinableT] = None,
                  join_strategy: JoinT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
+    @abc.abstractmethod
     def get_active_stream(self) -> 'StreamT':
         ...
 
@@ -137,8 +158,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def enumerate(
-            self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
+    def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         ...
 
     @abc.abstractmethod
@@ -150,20 +170,21 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def group_by(self, key: GroupByKeyArg,
+    def group_by(self,
+                 key: GroupByKeyArg,
                  *,
                  name: str = None,
                  topic: TopicT = None) -> 'StreamT':
         ...
 
     @abc.abstractmethod
-    def derive_topic(
-            self, name: str,
-            *,
-            key_type: ModelArg = None,
-            value_type: ModelArg = None,
-            prefix: str = '',
-            suffix: str = '') -> TopicT:
+    def derive_topic(self,
+                     name: str,
+                     *,
+                     key_type: ModelArg = None,
+                     value_type: ModelArg = None,
+                     prefix: str = '',
+                     suffix: str = '') -> TopicT:
         ...
 
     @abc.abstractmethod

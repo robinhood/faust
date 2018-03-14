@@ -4,11 +4,12 @@ from typing import Any, Optional, Tuple, Type, cast
 
 from mode.utils.compat import want_bytes, want_str
 
+from faust.exceptions import KeyDecodeError, ValueDecodeError
+from faust.types import K, ModelArg, ModelT, V
+from faust.types.serializers import RegistryT
+from faust.utils.objects import cached_property
+
 from .codecs import CodecArg, dumps, loads
-from ..exceptions import KeyDecodeError, ValueDecodeError
-from ..types import K, ModelArg, ModelT, V
-from ..types.serializers import RegistryT
-from ..utils.objects import cached_property
 
 __all__ = ['Registry']
 
@@ -54,14 +55,13 @@ class Registry(RegistryT):
         except MemoryError:
             raise
         except Exception as exc:
-            raise KeyDecodeError(
-                str(exc)).with_traceback(sys.exc_info()[2]) from exc
+            raise KeyDecodeError(str(exc)).with_traceback(
+                sys.exc_info()[2]) from exc
 
     def _loads(self, serializer: CodecArg, data: bytes) -> Any:
         return loads(serializer, data)
 
-    def _serializer(
-            self, typ: Optional[ModelArg], *alt: CodecArg) -> CodecArg:
+    def _serializer(self, typ: Optional[ModelArg], *alt: CodecArg) -> CodecArg:
         serializer = None
         for serializer in alt:
             if serializer:
@@ -99,8 +99,8 @@ class Registry(RegistryT):
         except MemoryError:
             raise
         except Exception as exc:
-            raise ValueDecodeError(
-                str(exc)).with_traceback(sys.exc_info()[2]) from exc
+            raise ValueDecodeError(str(exc)).with_traceback(
+                sys.exc_info()[2]) from exc
 
     def _prepare_payload(self, typ: Optional[ModelArg], value: Any) -> Any:
         if typ is None:  # (autodetect)
@@ -171,5 +171,5 @@ class Registry(RegistryT):
 
     @cached_property
     def Model(self) -> Type[ModelT]:
-        from ..models.base import Model
+        from faust.models.base import Model
         return Model

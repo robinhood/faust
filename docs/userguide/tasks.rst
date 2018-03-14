@@ -123,7 +123,7 @@ HTTP Verbs: ``GET``/``POST``/``PUT``/``DELETE``
 Specify a :class:`faust.web.View` class when you need to handle HTTP
 verbs other than ``GET``:
 
-... code-block:: python
+... sourcecode:: python
 
     from faust.web import Request, Response, View
 
@@ -163,8 +163,8 @@ We define our table, and an agent reading from the stream to populate the table:
     app = faust.App(
         'word-counts',
         broker='kafka://localhost:9092',
-        default_partitions=8,
         store='rocksdb://',
+        topic_partitions=8,
     )
 
     posts_topic = app.topic('posts', value_type=str)

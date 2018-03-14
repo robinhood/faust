@@ -3,8 +3,17 @@ import asyncio
 import typing
 from datetime import datetime
 from typing import (
-    Any, Awaitable, Callable, ClassVar, Iterable, Mapping,
-    MutableMapping, Optional, Set, Type, Union,
+    Any,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Type,
+    Union,
 )
 
 from mode import Seconds, ServiceT
@@ -12,7 +21,7 @@ from mode.utils.collections import ManagedUserSet
 from mode.utils.compat import Counter
 from yarl import URL
 
-from .channels import EventT
+from .events import EventT
 from .stores import StoreT
 from .streams import JoinableT
 from .topics import TopicT
@@ -42,7 +51,6 @@ __all__ = [
     'CollectionTps',
 ]
 
-
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
@@ -64,7 +72,8 @@ class CollectionT(ServiceT, JoinableT):
     standby_buffer_size: int
 
     @abc.abstractmethod
-    def __init__(self, app: AppT,
+    def __init__(self,
+                 app: AppT,
                  *,
                  name: str = None,
                  default: Callable[[], Any] = None,
@@ -286,8 +295,7 @@ class WindowWrapperT(MutableMapping):
     table: TableT
 
     @abc.abstractmethod
-    def __init__(self, table: TableT,
-                 *,
+    def __init__(self, table: TableT, *,
                  relative_to: RelativeArg = None) -> None:
         ...
 

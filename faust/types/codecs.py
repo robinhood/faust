@@ -12,8 +12,7 @@ class CodecT(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def __init__(self,
-                 children: Tuple['CodecT', ...] = None,
+    def __init__(self, children: Tuple['CodecT', ...] = None,
                  **kwargs: Any) -> None:
         ...
 

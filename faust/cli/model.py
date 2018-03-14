@@ -1,17 +1,15 @@
-"""Program ``faust model`` used to list details about a model.
-
-.. program:: faust model
-"""
+"""Program ``faust model`` used to list details about a model."""
 from datetime import datetime
 from typing import Any, Sequence, Type
 
 import click
 from mode.utils import text
 
+from faust.models import registry
+from faust.types import FieldDescriptorT, ModelT
+from faust.utils.termtable import TableDataT
+
 from .base import AppCommand
-from ..models import registry
-from ..types import FieldDescriptorT, ModelT
-from ..utils.termtable import TableDataT
 
 __all__ = ['model']
 
@@ -35,39 +33,36 @@ class model(AppCommand):
         except KeyError:
             if '.' in name:
                 raise self._unknown_model(name)
-            lookup = '.'.join([self.app.origin, name])
+            lookup = '.'.join([self.app.conf.origin, name])
             try:
                 model = registry[lookup]
             except KeyError:
                 raise self._unknown_model(name, lookup=lookup)
-        self.say(self.tabulate(
-            self.model_fields(model),
-            headers=[self.bold(h) for h in self.headers],
-            title=self._name(model),
-            wrap_last_row=False,
-        ))
+        self.say(
+            self.tabulate(
+                self.model_fields(model),
+                headers=[self.bold(h) for h in self.headers],
+                title=self._name(model),
+                wrap_last_row=False,
+            ))
 
-    def _unknown_model(self, name: str,
-                       *,
+    def _unknown_model(self, name: str, *,
                        lookup: str = None) -> click.UsageError:
         lookup = lookup or name
         alt = text.didyoumean(
-            registry, lookup,
+            registry,
+            lookup,
             fmt_none=f'Please run `{self.prog_name} models` for a list.')
         return click.UsageError(f'No model {name!r}. {alt}')
 
     def model_fields(self, model: Type[ModelT]) -> TableDataT:
-        return [
-            self.field(getattr(model, k)) for k in model._options.fields
-        ]
+        return [self.field(getattr(model, k)) for k in model._options.fields]
 
     def field(self, field: FieldDescriptorT) -> Sequence[str]:
         return [
             field.field,
             self._type(field.type),
-            self.colored(
-                'autoblack',
-                '*' if field.required else repr(field.default)),
+            self.dark('*' if field.required else repr(field.default)),
         ]
 
     def _type(self, typ: Any) -> str:
@@ -76,7 +71,7 @@ class model(AppCommand):
     def model_to_row(self, model: Type[ModelT]) -> Sequence[str]:
         return [
             self.bold_tail(self._name(model)),
-            self.colored('autoblack', self._help(model)),
+            self.dark(self._help(model)),
         ]
 
     def _name(self, model: Type[ModelT]) -> str:

@@ -11,6 +11,13 @@
 :Keywords: distributed, stream, async, processing, data, queue
 
 
+.. sourcecode:: python
+
+    # Python Streams
+    # Forever scalable event processing & in-memory
+    # durable K/V store; as a library w/ asyncio & static typing.
+    import faust
+
 **Faust** is a Python library for event processing and streaming applications
 that are decentralized and fault-tolerant.
 
@@ -110,7 +117,9 @@ Installation
 You can install Faust either via the Python Package Index (PyPI)
 or from source.
 
-To install using `pip`::
+To install using `pip`:
+
+.. sourcecode:: console
 
     $ pip install -U faust
 
@@ -123,14 +132,21 @@ to install Faust and the dependencies for a given feature.
 You can specify these in your requirements or on the ``pip``
 command-line by using brackets. Separate multiple bundles using the comma:
 
-::
-
+.. sourcecode:: console
 
     $ pip install "faust[rocksdb]"
 
-    $ pip install "faust[rocksdb,uvloop,fast]"
+    $ pip install "faust[ckafka,rocksdb,uvloop,fast]"
 
 The following bundles are available:
+
+Brokers
+~~~~~~~
+
+:``faust[ckafka]``:
+    for using the production Kafka transport.  The ``ckafka://`` transport
+    mixes the aiokafka and confluent-kafka client libraries to achieve
+    better performance and reliability.
 
 Stores
 ~~~~~~
@@ -184,7 +200,9 @@ Downloading and installing from source
 Download the latest version of Faust from
 http://pypi.python.org/pypi/faust
 
-You can install it by doing::
+You can install it by doing:
+
+.. sourcecode:: console
 
     $ tar xvfz faust-0.0.0.tar.gz
     $ cd faust-0.0.0
@@ -246,7 +264,7 @@ and that it executes before you import libraries.
 
 
 Using ``eventlet``
-~~~~~~~~~~~~~~~~~~----
+~~~~~~~~~~~~~~~~~~~~~~
 
 This approach works with any blocking Python library that can work with
 ``eventlet``.
@@ -329,6 +347,14 @@ Will you support Python 2?
 
 There are no plans to support Python 2, but you are welcome to contribute to
 the project (details in the question above is relevant also for Python 2).
+
+
+I get a maximum number of open files exceeded error by RocksDB when running a Faust app locally. How can I fix this?
+--------------------------------------------------------------------------------------------------------------------
+
+You may need to increase the limit for the maximum number of open files. The
+following post explains how to do so on OS X:
+https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
 .. _getting-help:
 

@@ -1,6 +1,7 @@
-"""Command line programs using :pypi:`click`."""
+"""Command-line programs using :pypi:`click`."""
 import abc
 import asyncio
+import inspect
 import os
 import sys
 from functools import wraps
@@ -8,21 +9,31 @@ from pathlib import Path
 from textwrap import wrap
 from types import ModuleType
 from typing import (
-    Any, Callable, ClassVar, Dict, List,
-    Mapping, Sequence, Tuple, Type, no_type_check,
+    Any,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Dict,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    Type,
+    no_type_check,
 )
 
 import click
+import venusian
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
 from mode.utils.compat import isatty, want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
-from ._env import DATADIR, DEBUG, WORKDIR
+from faust.types import AppT, CodecArg, ModelT
+from faust.utils import json
+from faust.utils import termtable
 
-from ..types import AppT, CodecArg, ModelT
-from ..utils import json
-from ..utils import termtable
+from ._env import DATADIR, DEBUG, WORKDIR
 
 __all__ = [
     'AppCommand',
@@ -35,7 +46,6 @@ __all__ = [
     'find_app',
     'option',
 ]
-
 
 argument = click.argument
 option = click.option
@@ -82,14 +92,14 @@ WritableFilePath = click.Path(
 )
 
 builtin_options: Sequence[Callable] = [
-    click.version_option(version=faust_version),
+    click.version_option(version=f'Faust {faust_version}'),
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
     option('--quiet/--no-quiet', '-q', default=False,
            help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
            help='Enable debugging output, and the blocking detector.'),
-    option('--color/--no-color', default=True,
+    option('--no_color/--color', default=False,
            help='Enable colors in output.'),
     option('--workdir', '-W',
            default=WORKDIR,
@@ -164,8 +174,10 @@ def find_app(app: str,
 
 
 def prepare_app(app: AppT, name: str) -> AppT:
-    app.origin = name
-    if app.autodiscover:
+    if app.conf.origin is None:
+        app.conf.origin = name
+    app.finalize()
+    if app.conf.autodiscover:
         app.discover()
     return app
 
@@ -174,10 +186,12 @@ def prepare_app(app: AppT, name: str) -> AppT:
 # decorators in the same decorator.
 def _apply_options(options: Sequence[Callable]) -> Callable:
     """Add list of ``click.option`` values to click command function."""
+
     def _inner(fun: Callable) -> Callable:
         for opt in options:
             fun = opt(fun)
         return fun
+
     return _inner
 
 
@@ -217,7 +231,9 @@ class _Group(click.Group):
                         raise click.UsageError('Missing argument for --app')
 
     @no_type_check  # mypy bugs out on this
-    def make_context(self, info_name: str, args: str,
+    def make_context(self,
+                     info_name: str,
+                     args: str,
                      app: AppT = None,
                      parent: click.Context = None,
                      **extra: Any) -> click.Context:
@@ -233,15 +249,8 @@ class _Group(click.Group):
 @click.group(cls=_Group)
 @_apply_options(builtin_options)
 @click.pass_context
-def cli(ctx: click.Context,
-        app: str,
-        quiet: bool,
-        debug: bool,
-        workdir: str,
-        datadir: str,
-        json: bool,
-        color: bool,
-        loop: str) -> None:
+def cli(ctx: click.Context, app: str, quiet: bool, debug: bool, workdir: str,
+        datadir: str, json: bool, no_color: bool, loop: str) -> None:
     """Faust command-line interface."""
     ctx.obj = {
         'app': app,
@@ -250,7 +259,7 @@ def cli(ctx: click.Context,
         'workdir': workdir,
         'datadir': datadir,
         'json': json,
-        'color': color,
+        'no_color': no_color,
         'loop': loop,
     }
     if workdir:
@@ -263,7 +272,7 @@ def cli(ctx: click.Context,
         # WARNING: Note that the faust.app module *MUST not* have
         # been imported before setting the envvar.
         os.environ['F_DATADIR'] = datadir
-    if color and not isatty(sys.stdout):
+    if not no_color and not isatty(sys.stdout):
         enable_all_colors()
     else:
         disable_all_colors()
@@ -295,7 +304,7 @@ class Command(abc.ABC):
     workdir: str
     datadir: str
     json: bool
-    color: bool
+    no_color: bool
 
     builtin_options: List = builtin_options
     options: List = None
@@ -315,6 +324,7 @@ class Command(abc.ABC):
         def _inner(*args: Any, **kwargs: Any) -> Callable:
             cmd = cls(*args, **kwargs)  # type: ignore
             return cmd()
+
         return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
 
@@ -355,10 +365,14 @@ class Command(abc.ABC):
         self.workdir = self.ctx.obj['workdir']
         self.datadir = self.ctx.obj['datadir']
         self.json = self.ctx.obj['json']
-        self.color = self.ctx.obj['color']
+        self.no_color = self.ctx.obj['no_color']
         self.args = args
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
+
+    def on_discovered(self, scanner: venusian.Scanner, name: str,
+                      obj: 'Command') -> None:
+        ...
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
@@ -373,7 +387,8 @@ class Command(abc.ABC):
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
 
-    def tabulate(self, data: termtable.TableDataT,
+    def tabulate(self,
+                 data: termtable.TableDataT,
                  headers: Sequence[str] = None,
                  wrap_last_row: bool = True,
                  title: str = None,
@@ -390,10 +405,10 @@ class Command(abc.ABC):
             this returns json instead.
         """
         if self.json:
-            return self.dumps(data)
+            return self.dumps([dict(zip(headers, row)) for row in data])
         if headers:
             data = [headers] + list(data)
-        title = self.bold(self.colored(title_color, title))
+        title = self.bold(self.color(title_color, title))
         table = self.table(data, title=title, **kwargs)
         if wrap_last_row:
             # slow, but not big data
@@ -403,27 +418,32 @@ class Command(abc.ABC):
             ]
         return table.table
 
-    def table(self, data: termtable.TableDataT,
+    def table(self,
+              data: termtable.TableDataT,
               title: str = None,
               **kwargs: Any) -> termtable.Table:
         """Format table data as ANSI/ASCII table."""
         return termtable.table(data, title=title, target=sys.stdout, **kwargs)
 
-    def colored(self, color: str, text: str) -> str:
-        """Return colored text.
+    def color(self, name: str, text: str) -> str:
+        """Return text having a certain color by name.
 
         Examples::
-            >>> self.colored('blue', 'text_to_color')
-            >>> self.colored('hiblue', text_to_color')
+            >>> self.color('blue', 'text_to_color')
+            >>> self.color('hiblue', text_to_color')
 
         See Also:
             :pypi:`colorclass`: for a list of available colors.
         """
-        return Color(f'{{{color}}}{text}{{/{color}}}')
+        return Color(f'{{{name}}}{text}{{/{name}}}')
+
+    def dark(self, text: str) -> str:
+        """Return cursor text."""
+        return self.color('autoblack', text)
 
     def bold(self, text: str) -> str:
         """Return text in bold."""
-        return self.colored('b', text)
+        return self.color('b', text)
 
     def bold_tail(self, text: str, *, sep: str = '.') -> str:
         """Put bold emphasis on the last part of a foo.bar.baz string."""
@@ -473,7 +493,32 @@ class AppCommand(Command):
     #: Taken from instance parameters or :attr:`@value_serializer`.
     value_serialier: CodecArg
 
-    def __init__(self, ctx: click.Context,
+    @classmethod
+    def from_handler(
+            cls,
+            *options: Any,
+            **kwargs: Any) -> Callable[[Callable], Type['AppCommand']]:
+        def _inner(fun: Callable[..., Awaitable[Any]]) -> Type['AppCommand']:
+            target: Any = fun
+            if not inspect.signature(fun).parameters:
+                # if it does not take self argument, use staticmethod
+                target = staticmethod(fun)
+
+            fields = {
+                'run': target,
+                '__doc__': fun.__doc__,
+                '__name__': fun.__name__,
+                '__qualname__': fun.__qualname__,
+                '__module__': fun.__module__,
+                '__wrapped__': fun,
+                'options': options,
+            }
+            return type(fun.__name__, (cls,), {**fields, **kwargs})
+
+        return _inner
+
+    def __init__(self,
+                 ctx: click.Context,
                  *args: Any,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
@@ -483,7 +528,7 @@ class AppCommand(Command):
         self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is not None:
             # XXX How to find full argv[0] with click?
-            origin = self.app.origin
+            origin = self.app.conf.origin
             if sys.argv:
                 prog = Path(sys.argv[0]).absolute()
                 paths = []
@@ -506,8 +551,9 @@ class AppCommand(Command):
             if not appstr:
                 raise self.UsageError('Need to specify app using -A parameter')
             self.app = find_app(appstr)
-        self.key_serializer = key_serializer or self.app.key_serializer
-        self.value_serializer = value_serializer or self.app.value_serializer
+        self.key_serializer = key_serializer or self.app.conf.key_serializer
+        self.value_serializer = (value_serializer or
+                                 self.app.conf.value_serializer)
         self.args = args
         self.kwargs = kwargs
 
@@ -569,7 +615,7 @@ class AppCommand(Command):
         try:
             return symbol_by_name(attr)
         except ImportError as original_exc:
-            root, _, _ = self.app.origin.partition(':')
+            root, _, _ = self.app.conf.origin.partition(':')
             try:
                 return symbol_by_name(f'{root}.models.{attr}')
             except ImportError:
@@ -590,19 +636,20 @@ class AppCommand(Command):
     def abbreviate_fqdn(self, name: str, *, prefix: str = '') -> str:
         """Abbreviate fully-qualified Python name, by removing origin.
 
-        ``app.origin`` is the package where the app is defined,
+        ``app.conf.origin`` is the package where the app is defined,
         so if this is ``examples.simple`` it returns the truncated::
 
-            >>> app.origin
+            >>> app.conf.origin
             'examples.simple'
-            >>> abbr_fqdn(app.origin,
+            >>> abbr_fqdn(app.conf.origin,
             ...           'examples.simple.Withdrawal',
             ...           prefix='[...]')
             '[...]Withdrawal'
 
         but if the package is not part of origin it provides the full path::
 
-            >>> abbr_fqdn(app.origin, 'examples.other.Foo', prefix='[...]')
+            >>> abbr_fqdn(app.conf.origin,
+            ...           'examples.other.Foo', prefix='[...]')
             'examples.other.foo'
         """
-        return text.abbr_fqdn(self.app.origin, name, prefix=prefix)
+        return text.abbr_fqdn(self.app.conf.origin, name, prefix=prefix)

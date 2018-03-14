@@ -1,8 +1,8 @@
 """Transport using aiokafka consumer and confluent-kafka producer."""
 from typing import ClassVar, Type
+from faust.types.transports import ConsumerT, ProducerT
 from . import aiokafka
 from . import confluent
-from ..types.transports import ConsumerT, ProducerT
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 

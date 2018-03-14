@@ -1,9 +1,10 @@
 """Types for module :mod:`faust.router`."""
 import abc
 import typing
+
 from .assignor import HostToPartitionMap
 from .core import K
-
+from . import web
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -17,6 +18,10 @@ class RouterT(abc.ABC):
     app: AppT
 
     @abc.abstractmethod
+    def __init__(self, app: AppT) -> None:
+        ...
+
+    @abc.abstractmethod
     def key_store(self, table_name: str, key: K) -> str:
         ...
 
@@ -26,4 +31,9 @@ class RouterT(abc.ABC):
 
     @abc.abstractmethod
     def tables_metadata(self) -> HostToPartitionMap:
+        ...
+
+    @abc.abstractmethod
+    async def route_req(self, table_name: str, key: K, web: web.Web,
+                        request: web.Request) -> web.Response:
         ...

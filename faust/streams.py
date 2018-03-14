@@ -4,28 +4,49 @@ import reprlib
 import typing
 import weakref
 from typing import (
-    Any, AsyncIterable, AsyncIterator, Callable, Iterable, List,
-    Mapping, MutableSequence, Optional, Sequence, Set, Tuple, Union, cast,
+    Any,
+    AsyncIterable,
+    AsyncIterator,
+    Callable,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    MutableSequence,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+    cast,
 )
 
 from mode import Seconds, Service, want_seconds
 from mode.utils.aiter import aenumerate, aiter
-from mode.utils.futures import StampedeWrapper, maybe_async
+from mode.utils.futures import maybe_async
 from mode.utils.types.trees import NodeT
 
 from . import joins
-
-from ..exceptions import ImproperlyConfigured
-from ..types import AppT, EventT, K, Message, ModelArg, ModelT, TopicT
-from ..types.joins import JoinT
-from ..types.models import FieldDescriptorT
-from ..types.streams import (
-    GroupByKeyArg, JoinableT, Processor, StreamT, T, T_co, T_contra,
+from .exceptions import ImproperlyConfigured
+from .types import AppT, EventT, K, Message, ModelArg, ModelT, TP, TopicT
+from .types.joins import JoinT
+from .types.models import FieldDescriptorT
+from .types.streams import (
+    GroupByKeyArg,
+    JoinableT,
+    Processor,
+    StreamT,
+    T,
+    T_co,
+    T_contra,
 )
-from ..types.topics import ChannelT
+from .types.topics import ChannelT
 
-__all__ = ['Stream', 'current_event']
-
+__all__ = [
+    'Stream',
+    'current_event',
+]
 
 try:
     from contextvars import ContextVar
@@ -66,34 +87,48 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
     return value
 
 
+class _LinkedListDirection(NamedTuple):
+    attr: str
+    getter: Callable[[StreamT], StreamT]
+
+
+_LinkedListDirectionFwd = _LinkedListDirection('_next', lambda n: n._next)
+_LinkedListDirectionBwd = _LinkedListDirection('_prev', lambda n: n._prev)
+
+
 class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
 
     _processors: MutableSequence[Processor] = None
     _anext_started: bool = False
     _passive = False
+    _passive_started: asyncio.Event
 
-    def __init__(self, channel: AsyncIterator[T_co] = None,
+    def __init__(self,
+                 channel: AsyncIterator[T_co] = None,
                  *,
                  app: AppT = None,
                  processors: Iterable[Processor[T]] = None,
-                 children: List[JoinableT] = None,
+                 combined: List[JoinableT] = None,
                  on_start: Callable = None,
                  join_strategy: JoinT = None,
                  beacon: NodeT = None,
                  concurrency_index: int = None,
+                 prev: StreamT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
         self.channel = channel
         self.outbox = self.app.FlowControlQueue(
-            maxsize=self.app.stream_buffer_maxsize,
+            maxsize=self.app.conf.stream_buffer_maxsize,
             loop=self.loop,
             clear_on_resume=True,
         )
+        self._passive_started = asyncio.Event(loop=self.loop)
         self.join_strategy = join_strategy
-        self.children = children if children is not None else []
+        self.combined = combined if combined is not None else []
         self.concurrency_index = concurrency_index
+        self._prev = prev
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
@@ -128,23 +163,35 @@ class Stream(StreamT[T_co], Service):
 
         Notes:
             The chain of streams that leads to the active stream
-            is decided by the :attr:`link` attribute, and getting
+            is decided by the :attr:`_next` attribute, and getting
             the active stream is just traversing this linked-list::
 
                 >>> def get_active_stream(self):
                 ...     node = self
-                ...     while node.link:
-                ...         node = node.link
+                ...     while node._next:
+                ...         node = node._next
         """
-        node = self
+        return list(self._iter_ll_forwards())[-1]
+
+    def get_root_stream(self) -> StreamT:
+        return list(self._iter_ll_backwards())[-1]
+
+    def _iter_ll_forwards(self) -> Iterator[StreamT]:
+        return self._iter_ll(_LinkedListDirectionFwd)
+
+    def _iter_ll_backwards(self) -> Iterator[StreamT]:
+        return self._iter_ll(_LinkedListDirectionBwd)
+
+    def _iter_ll(self, dir_: _LinkedListDirection) -> Iterator[StreamT]:
+        node: StreamT = self
         seen: Set[StreamT] = set()
-        while node.link:
+        while node:
             if node in seen:
                 raise RuntimeError(
-                    'Loop in Stream.link linked-list. Call support!')
+                    'Loop in Stream.{dir_.attr}: Call support!')
             seen.add(node)
-            node = node.link
-        return node
+            yield node
+            node = dir_.getter(node)
 
     async def _send_to_outbox(self, value: T_contra) -> None:
         await self.outbox.put(value)
@@ -175,20 +222,34 @@ class Stream(StreamT[T_co], Service):
             'processors': self._processors,
             'on_start': self._on_start,
             'loop': self.loop,
-            'children': self.children,
+            'combined': self.combined,
             'beacon': self.beacon,
             'concurrency_index': self.concurrency_index,
+            'prev': self._prev,
         }
 
-    def clone(self, **kwargs: Any) -> Any:
+    def clone(self, **kwargs: Any) -> StreamT:
         """Create a clone of this stream.
 
         Notes:
             If the cloned stream is supposed to "supercede" this stream,
-            you should set `stream.link = cloned_stream` so that
+            you should use :meth:`_chain` instead so
+            `stream._next = cloned_stream` is set and
             :meth:`get_active_stream` returns the cloned stream.
         """
         return self.__class__(**{**self.info(), **kwargs})
+
+    def _chain(self, **kwargs: Any) -> StreamT:
+        self._next = new_stream = self.clone(
+            on_start=self.maybe_start,
+            prev=self,
+            # move processors to active stream
+            processors=list(self._processors),
+            **kwargs,
+        )
+        # delete moved processors from self
+        self._processors.clear()
+        return new_stream
 
     async def items(self) -> AsyncIterator[Tuple[K, T_co]]:
         """Iterate over the stream as ``key, value`` pairs.
@@ -262,20 +323,17 @@ class Stream(StreamT[T_co], Service):
                     a, b = stream.tee(2)
                     await asyncio.gather(processor1(a), processor2(b))
         """
-        streams = [
-            self.clone(on_start=self.maybe_start)
-            for _ in range(n)
-        ]
+        streams = [self.clone(on_start=self.maybe_start) for _ in range(n)]
 
         async def forward(value: T) -> T:
             for stream in streams:
                 await stream.send(value)
             return value
+
         self.add_processor(forward)
         return tuple(streams)
 
-    def enumerate(self,
-                  start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
+    def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         """Enumerate values received on this stream.
 
         Unlike Python's built-in ``enumerate``, this works with
@@ -314,43 +372,50 @@ class Stream(StreamT[T_co], Service):
         else:
             channelchannel = channel
 
-        channel_created = False
         channel_it = aiter(channelchannel)
-        if self.link is not None:
+        if self._next is not None:
             raise ImproperlyConfigured(
                 'Stream is already using group_by/through')
-        self.link = through = self.clone(
-            channel=channel_it,
-            on_start=self.maybe_start,
-        )
-
-        declare = StampedeWrapper(channelchannel.maybe_declare)
+        through = self._chain(channel=channel_it)
 
         async def forward(value: T) -> T:
-            nonlocal channel_created
-            if not channel_created:
-                await declare()
-                channel_created = True
             event = self.current_event
             return await maybe_forward(event, channelchannel)
 
         self.add_processor(forward)
-        self._enable_passive(cast(ChannelT, channel_it))
+        self._enable_passive(cast(ChannelT, channel_it), declare=True)
         return through
 
-    def _enable_passive(self, channel: ChannelT) -> None:
+    def _enable_passive(self, channel: ChannelT, *,
+                        declare: bool = False) -> None:
         if not self._passive:
             self._passive = True
-            self.add_future(self._passive_drainer(channel))
+            self.add_future(self._passive_drainer(channel, declare))
 
-    async def _passive_drainer(self, channel: ChannelT) -> None:
+    async def _passive_drainer(self, channel: ChannelT,
+                               declare: bool = False) -> None:
         try:
-            async for item in self:  # noqa
-                ...
-        except BaseException as exc:
-            # forward the exception to the final destination channel,
-            # e.g. in through/group_by/etc.
-            await channel.throw(exc)
+            if declare:
+                await channel.maybe_declare()
+            self._passive_started.set()
+            try:
+                async for item in self:  # noqa
+                    ...
+            except BaseException as exc:
+                # forward the exception to the final destination channel,
+                # e.g. in through/group_by/etc.
+                await channel.throw(exc)
+        finally:
+            self._channel_stop_iteration(channel)
+            self._passive = False
+
+    def _channel_stop_iteration(self, channel: Any) -> None:
+        try:
+            on_stop_iteration = channel.on_stop_iteration
+        except AttributeError:
+            pass
+        else:
+            on_stop_iteration()
 
     def echo(self, *channels: Union[str, ChannelT]) -> StreamT:
         """Forward values to one or more channels.
@@ -358,8 +423,7 @@ class Stream(StreamT[T_co], Service):
         Unlike :meth:`through`, we don't consume from these channels.
         """
         _channels = [
-            self.derive_topic(c) if isinstance(c, str) else c
-            for c in channels
+            self.derive_topic(c) if isinstance(c, str) else c for c in channels
         ]
 
         async def echoing(value: T) -> T:
@@ -369,10 +433,12 @@ class Stream(StreamT[T_co], Service):
                 return_when=asyncio.ALL_COMPLETED,
             )
             return value
+
         self.add_processor(echoing)
         return self
 
-    def group_by(self, key: GroupByKeyArg,
+    def group_by(self,
+                 key: GroupByKeyArg,
                  *,
                  name: str = None,
                  topic: TopicT = None,
@@ -439,21 +505,16 @@ class Stream(StreamT[T_co], Service):
         if topic is not None:
             channel = topic
         else:
-            suffix = '-' + self.app.id + '-' + name + '-repartition'
-            p = self.app.default_partitions if partitions else partitions
+            suffix = '-' + self.app.conf.id + '-' + name + '-repartition'
+            p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
-        topic_created = False
         format_key = self._format_key
 
         channel_it = aiter(channel)
-        if self.link is not None:
+        if self._next is not None:
             raise ImproperlyConfigured('Stream already uses group_by/through')
-        self.link = grouped = self.clone(
-            channel=channel_it,
-            on_start=self.maybe_start,
-        )
-        declare = StampedeWrapper(channel.maybe_declare)
+        grouped = self._chain(channel=channel_it)
 
         async def repartition(value: T) -> T:
             event = self.current_event
@@ -461,15 +522,11 @@ class Stream(StreamT[T_co], Service):
                 raise RuntimeError(
                     'Cannot repartition stream with non-topic channel')
             new_key = await format_key(key, value)
-
-            nonlocal topic_created
-            if not topic_created:
-                await declare()
-                topic_created = True
             await event.forward(channel, key=new_key)
             return value
+
         self.add_processor(repartition)
-        self._enable_passive(cast(ChannelT, channel_it))
+        self._enable_passive(cast(ChannelT, channel_it), declare=True)
         return grouped
 
     async def _format_key(self, key: GroupByKeyArg, value: T_contra) -> str:
@@ -477,7 +534,8 @@ class Stream(StreamT[T_co], Service):
             return cast(FieldDescriptorT, key).getattr(cast(ModelT, value))
         return await maybe_async(cast(Callable, key)(value))
 
-    def derive_topic(self, name: str,
+    def derive_topic(self,
+                     name: str,
                      *,
                      key_type: ModelArg = None,
                      value_type: ModelArg = None,
@@ -515,12 +573,16 @@ class Stream(StreamT[T_co], Service):
         # The resulting stream's `on_merge` callback can be used to
         # process values from all the combined streams, and e.g.
         # joins uses this to consolidate multiple values into one.
-        self.link = stream = self.clone(
-            children=self.children + list(nodes),
-        )
-        for node in stream.children:
-            node.outbox = stream.outbox
+        stream = self._chain(combined=self.combined + list(nodes))
+        for node in stream.combined:
+            node.contribute_to_stream(stream)
         return stream
+
+    def contribute_to_stream(self, active: StreamT) -> None:
+        self.outbox = active.outbox
+
+    async def remove_from_stream(self, stream: StreamT) -> None:
+        await self.stop()
 
     def join(self, *fields: FieldDescriptorT) -> StreamT:
         return self._join(joins.RightJoin(stream=self, fields=fields))
@@ -558,10 +620,19 @@ class Stream(StreamT[T_co], Service):
     async def on_start(self) -> None:
         if self._on_start:
             await self._on_start()
+        if self._passive:
+            await self._passive_started.wait()
+
+    async def stop(self) -> None:
+        # Stop all related streams (created by .through/.group_by/etc.)
+        for s in cast(Stream, self.get_root_stream())._iter_ll_forwards():
+            await Service.stop(s)
 
     async def on_stop(self) -> None:
-        if self.current_event is not None:
-            await self.ack(self.current_event)
+        self._passive = False
+        self._passive_started.clear()
+        for table_or_stream in self.combined:
+            await table_or_stream.remove_from_stream(self)
 
     def __iter__(self) -> Any:
         return self
@@ -577,7 +648,8 @@ class Stream(StreamT[T_co], Service):
         on_message_out = self._on_message_out
 
         # get from channel
-        get_next_value = self.channel.__anext__
+        channel = self.channel
+        get_next_value = channel.__anext__
         # Topic description -> processors
         processors = self._processors
         # Sensor: on_stream_event_in
@@ -589,50 +661,54 @@ class Stream(StreamT[T_co], Service):
         event_cls = EventT
         _current_event_contextvar = _current_event
 
-        while not self.should_stop:
-            # wait for next message
-            value: Any = None
-            while value is None:  # we iterate until on_merge gives value.
-                # decrement reference count for previous event processed.
-                _prev, self.current_event = self.current_event, None
-                if _prev is not None:
-                    # This inlines self.ack
-                    last_stream_to_ack = _prev.ack()
-                    prev_message = _prev.message
-                    ptp = prev_message.tp
-                    poffset = prev_message.offset
-                    await on_stream_event_out(ptp, poffset, self, _prev)
-                    if last_stream_to_ack:
-                        await on_message_out(ptp, poffset, prev_message)
+        try:
+            while not self.should_stop:
+                # wait for next message
+                value: Any = None
+                event: EventT = None
+                message: Message = None
+                tp: TP = None
+                offset: int = None
+                while value is None:  # we iterate until on_merge gives value.
+                    # get message from channel
+                    channel_value: Any = await get_next_value()
 
-                # get message from channel
-                channel_value: Any = await get_next_value()
+                    if isinstance(channel_value, event_cls):
+                        event = channel_value
+                        message = event.message
+                        tp = message.tp
+                        offset = message.offset
 
-                if isinstance(channel_value, event_cls):
-                    event: EventT = channel_value
-                    message: Message = event.message
-                    tp = message.tp
-                    offset = message.offset
+                        # call Sensors
+                        await on_stream_event_in(tp, offset, self, event)
 
-                    # call Sensors
-                    await on_stream_event_in(tp, offset, self, event)
+                        # set task-local current_event
+                        _current_event_contextvar.set(create_ref(event))
+                        # set Stream._current_event
+                        self.current_event = event
 
-                    # set task-local current_event
-                    _current_event_contextvar.set(create_ref(event))
-                    # set Stream._current_event
-                    self.current_event = event
+                        # Stream yields Event.value
+                        value = event.value
+                    else:
+                        value = channel_value
+                        self.current_event = None
 
-                    # Stream yields Event.value
-                    value = event.value
-                else:
-                    value = channel_value
+                    # reduce using processors
+                    for processor in processors:
+                        value = await _maybe_async(processor(value))
+                    value = await on_merge(value)
+                try:
+                    yield value
+                finally:
                     self.current_event = None
-
-                # reduce using processors
-                for processor in processors:
-                    value = await _maybe_async(processor(value))
-                value = await on_merge(value)
-            yield value
+                    if event is not None:
+                        # This inlines self.ack
+                        last_stream_to_ack = event.ack()
+                        await on_stream_event_out(tp, offset, self, event)
+                        if last_stream_to_ack:
+                            await on_message_out(tp, offset, message)
+        finally:
+            self._channel_stop_iteration(channel)
 
     async def __anext__(self) -> T:
         ...
@@ -665,8 +741,8 @@ class Stream(StreamT[T_co], Service):
         return self.clone()
 
     def _repr_info(self) -> str:
-        if self.children:
-            return reprlib.repr(self.children)
+        if self.combined:
+            return reprlib.repr(self.combined)
         return reprlib.repr(self.channel)
 
     def _repr_channel(self) -> str:

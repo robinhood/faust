@@ -1,44 +1,38 @@
 """HTTP endpoint showing partition routing destinations."""
-from faust.web import views
-from faust.web.base import Request, Response
+from faust import web
 
 __all__ = ['TablesMetadata', 'TableMetadata', 'KeyMetadata']
 
 
-class RouterView(views.View):
-    # package to get templates from.
-    package = 'faust.web.apps.router'
-
-
-class TablesMetadata(RouterView):
+class TablesMetadata(web.View):
     """List routes for all tables."""
 
-    async def get(self, request: Request) -> Response:
+    async def get(self, request: web.Request) -> web.Response:
         router = self.app.router
         return self.json(router.tables_metadata())
 
 
-class TableMetadata(RouterView):
+class TableMetadata(web.View):
     """List route for specific table."""
 
-    async def get(self, request: Request) -> Response:
+    async def get(self, request: web.Request) -> web.Response:
         # FIXME request.match_info is an attribute of aiohttp.Request
         table_name = request.match_info['name']
         router = self.app.router
         return self.json(router.table_metadata(table_name))
 
 
-class KeyMetadata(RouterView):
+class KeyMetadata(web.View):
     """List information about key."""
 
-    async def get(self, request: Request) -> Response:
+    async def get(self, request: web.Request) -> web.Response:
         table_name = request.match_info['name']
         key = request.match_info['key']
         router = self.app.router
         return self.json(str(router.key_store(table_name, key)))
 
 
-class Site(views.Site):
+class Site(web.Site):
     """Router views."""
 
     views = {

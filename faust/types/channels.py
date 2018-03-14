@@ -38,27 +38,27 @@ class EventT(AsyncContextManager):
         ...
 
     @abc.abstractmethod
-    async def send(
-            self, channel: Union[str, 'ChannelT'],
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
+    async def send(self,
+                   channel: Union[str, 'ChannelT'],
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
+                   force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
-    async def forward(
-            self, channel: Union[str, 'ChannelT'],
-            key: Any = None,
-            value: Any = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
+    async def forward(self,
+                      channel: Union[str, 'ChannelT'],
+                      key: Any = None,
+                      value: Any = None,
+                      partition: int = None,
+                      key_serializer: CodecArg = None,
+                      value_serializer: CodecArg = None,
+                      callback: MessageSentCallback = None,
+                      force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -74,16 +74,16 @@ class ChannelT(AsyncIterator):
     maxsize: int
 
     @abc.abstractmethod
-    def __init__(
-            self, app: AppT,
-            *,
-            key_type: ModelArg = None,
-            value_type: ModelArg = None,
-            is_iterator: bool = False,
-            queue: ThrowableQueue = None,
-            maxsize: int = 1,
-            root: 'ChannelT' = None,
-            loop: asyncio.AbstractEventLoop = None) -> None:
+    def __init__(self,
+                 app: AppT,
+                 *,
+                 key_type: ModelArg = None,
+                 value_type: ModelArg = None,
+                 is_iterator: bool = False,
+                 queue: ThrowableQueue = None,
+                 maxsize: int = 1,
+                 root: 'ChannelT' = None,
+                 loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -99,15 +99,14 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def send(
-            self,
-            key: K = None,
-            value: V = None,
-            partition: int = None,
-            key_serializer: CodecArg = None,
-            value_serializer: CodecArg = None,
-            callback: MessageSentCallback = None,
-            force: bool = False) -> Awaitable[RecordMetadata]:
+    async def send(self,
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
+                   force: bool = False) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
@@ -136,20 +135,15 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    def prepare_key(self,
-                    key: K,
-                    key_serializer: CodecArg) -> Any:
+    def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
         ...
 
     @abc.abstractmethod
-    def prepare_value(self,
-                      value: V,
-                      value_serializer: CodecArg) -> Any:
+    def prepare_value(self, value: V, value_serializer: CodecArg) -> Any:
         ...
 
     @abc.abstractmethod
-    async def decode(self, message: Message,
-                     *,
+    async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
         ...
 
@@ -170,17 +164,21 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def on_key_decode_error(
-            self, exc: Exception, message: Message) -> None:
+    async def on_key_decode_error(self, exc: Exception,
+                                  message: Message) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_value_decode_error(
-            self, exc: Exception, message: Message) -> None:
+    async def on_value_decode_error(self, exc: Exception,
+                                    message: Message) -> None:
         ...
 
     @abc.abstractmethod
     async def on_decode_error(self, exc: Exception, message: Message) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_stop_iteration(self) -> None:
         ...
 
     @abc.abstractmethod

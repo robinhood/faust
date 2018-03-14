@@ -1,14 +1,9 @@
-"""Program ``faust agents`` used to list agents.
-
-.. program:: faust agents
-"""
+"""Program ``faust agents`` used to list agents."""
 from operator import attrgetter
 from typing import Optional, Sequence
-
 import click
-
+from faust.types import AgentT
 from .base import AppCommand
-from ..types import AgentT
 
 
 class agents(AppCommand):
@@ -19,16 +14,20 @@ class agents(AppCommand):
     sortkey = attrgetter('name')
 
     options = [
-        click.option('--local/--no-local',
-                     help='Include agents using a local channel'),
+        click.option(
+            '--local/--no-local', help='Include agents using a local channel'),
     ]
 
     async def run(self, local: bool) -> None:
-        self.say(self.tabulate(
-            [self.agent_to_row(agent) for agent in self.agents(local=local)],
-            headers=self.headers,
-            title=self.title,
-        ))
+        self.say(
+            self.tabulate(
+                [
+                    self.agent_to_row(agent)
+                    for agent in self.agents(local=local)
+                ],
+                headers=self.headers,
+                title=self.title,
+            ))
 
     def agents(self, *, local: bool = False) -> Sequence[AgentT]:
         return [
@@ -41,7 +40,7 @@ class agents(AppCommand):
         return [
             self.bold_tail(self._name(agent)),
             self._topic(agent),
-            self.colored('autoblack', self._help(agent)),
+            self.dark(self._help(agent)),
         ]
 
     def _name(self, agent: AgentT) -> str:

@@ -3,15 +3,32 @@ import asyncio
 from collections import defaultdict, deque
 from time import time
 from typing import (
-    Any, AsyncIterator, Awaitable, ClassVar, Deque, Iterable,
-    Mapping, MutableMapping, Optional, Set, Tuple, Type, cast,
+    Any,
+    AsyncIterator,
+    Awaitable,
+    ClassVar,
+    Deque,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    cast,
 )
-import faust
+
 from mode import Seconds
 from mode.utils.futures import done_future
+from mode.utils.imports import symbol_by_name
+
+from faust.types import Message, RecordMetadata, TP
+from faust.types.transports import ConsumerT, ProducerT
+
 from . import base
-from ..types import Message, RecordMetadata, TP
-from ..types.transports import ConsumerT, ProducerT
+
+# XXX mypy borks on `import faust`
+faust_version = symbol_by_name('faust:__version__')
 
 
 class RebalanceListener:
@@ -28,7 +45,10 @@ class Consumer(base.Consumer):
 
     consumer_stopped_errors: ClassVar[Tuple[Type[Exception], ...]] = ()
 
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = 1000.0,
@@ -41,10 +61,8 @@ class Consumer(base.Consumer):
     async def subscribe(self, topics: Iterable[str]) -> None:
         await cast(Transport, self.transport).subscribe(topics)
 
-    async def getmany(
-            self,
-            *partitions: TP,
-            timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+    async def getmany(self, *partitions: TP,
+                      timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         transport = cast(Transport, self.transport)
         max_per_partition = 100
         if not partitions:
@@ -68,8 +86,7 @@ class Consumer(base.Consumer):
                 if i > max_per_partition:
                     break
 
-    def _new_topicpartition(
-            self, topic: str, partition: int) -> TP:
+    def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return TP(topic, partition)
 
     async def perform_seek(self) -> None:
@@ -116,7 +133,10 @@ class Consumer(base.Consumer):
 class Producer(base.Producer):
     """In-memory producer."""
 
-    async def create_topic(self, topic: str, partitions: int, replication: int,
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
                            *,
                            config: Mapping[str, Any] = None,
                            timeout: Seconds = None,
@@ -126,21 +146,15 @@ class Producer(base.Producer):
                            ensure_created: bool = False) -> None:
         ...
 
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> Awaitable[RecordMetadata]:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
         res = await self.send_and_wait(topic, key, value, partition)
         return done_future(res)
 
-    async def send_and_wait(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int]) -> RecordMetadata:
         return await cast(Transport, self.transport).send(
             topic, value, key, partition)
 
@@ -152,7 +166,7 @@ class Transport(base.Transport):
     Producer: ClassVar[Type[ProducerT]] = Producer
 
     default_port = 9092
-    driver_version = f'memory-{faust.__version__}'
+    driver_version = f'memory-{faust_version}'
 
     _subscription: Set[str]
     _messages: MutableMapping[str, Deque[Message]]
@@ -172,12 +186,9 @@ class Transport(base.Transport):
         self._subscription.update(topics)
         self._subscription_ready.set()
 
-    async def send(
-            self,
-            topic: str,
-            key: Optional[bytes],
-            value: Optional[bytes],
-            partition: Optional[int]) -> RecordMetadata:
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int]) -> RecordMetadata:
         message = Message(
             topic,
             partition=partition,

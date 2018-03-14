@@ -20,7 +20,7 @@ async def bar(stream):
 
 @pytest.fixture()
 def test_app():
-    app.store = 'memory://'
+    app.conf.store = 'memory://'
     return app
 
 

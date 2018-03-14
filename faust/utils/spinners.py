@@ -28,12 +28,14 @@ SPINNERS: Sequence[Sequence[str]] = [
     SPINNER_MOON,
 ]
 
+ACTIVE_SPINNER: Sequence[str] = random.choice(SPINNERS)
+
 
 class Spinner:
     """Progress bar spinner."""
 
     bell = '\b'
-    frames: Sequence[str] = random.choice(SPINNERS)
+    sprites: Sequence[str] = ACTIVE_SPINNER
     cursor_hide: str = '\x1b[?25l'
     cursor_show: str = '\x1b[?25h'
     hide_cursor: bool = True
@@ -46,9 +48,9 @@ class Spinner:
     def update(self) -> None:
         if not self.count:
             self.begin()
-        i = self.count % len(self.frames)
+        i = self.count % len(self.sprites)
         self.count += 1
-        self.write(self.frames[i])
+        self.write(self.sprites[i])
 
     def write(self, s: str) -> None:
         if self.file.isatty():
