@@ -6,6 +6,7 @@ include README.rst
 include MANIFEST.in
 include setup.cfg
 include setup.py
+recursive-include artwork *
 recursive-include docs *
 recursive-include extra/*
 recursive-include examples *
