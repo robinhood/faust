@@ -95,3 +95,17 @@ if not os.environ.get('APICHECK'):
     extensions.append('sphinx_autodoc_annotation')
 
 napoleon_use_keyword = True
+
+applehelp_bundle_id = 'Faust'
+epub_identifier = 'Faust'
+latex_elements = {
+    'inputenc': '',
+    'utf8extra': '',
+    'preamble': r'''
+
+\usepackage{fontspec}
+\setsansfont{Arial}
+\setromanfont{Arial}
+\setmonofont{DejaVu Sans Mono}
+''',
+}

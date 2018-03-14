@@ -35,6 +35,7 @@ help:
 	@echo "  devhelp     to make HTML files and a Devhelp project"
 	@echo "  epub        to make an epub"
 	@echo "  epub3       to make an epub3"
+	@echo "  xetex       to make LaTeX PDF with Unicode supprot"
 	@echo "  latex       to make LaTeX files, you can set PAPER=a4 or PAPER=letter"
 	@echo "  latexpdf    to make LaTeX files and run them through pdflatex"
 	@echo "  latexpdfja  to make LaTeX files and run them through platex/dvipdfmx"
@@ -160,6 +161,11 @@ latexpdfja:
 	@echo "Running LaTeX files through platex and dvipdfmx..."
 	$(MAKE) -C $(BUILDDIR)/latex all-pdf-ja
 	@echo "pdflatex finished; the PDF files are in $(BUILDDIR)/latex."
+
+.PHONY: xetex
+xetex:
+	sphinx-build -b latex -d _build/doctrees . $(BUILDDIR)/xetex && cd $(BUILDDIR)/xetex; xelatex *.tex
+	@echo "xetex finished; the PDF files are in $(BUILDDIR)/xetex."
 
 .PHONY: text
 text:

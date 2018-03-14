@@ -4,6 +4,12 @@
  Application
 =======================================
 
+.. topic:: \
+
+    *“I am not omniscient, but I know a lot.”*
+
+    -- Goethe, *Faust: First part*
+
 .. module:: faust
 
 .. currentmodule:: faust

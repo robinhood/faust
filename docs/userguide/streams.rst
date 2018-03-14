@@ -4,6 +4,12 @@
  Streams
 =================================================
 
+.. topic:: \
+
+    *“Everything transitory is but an image.”*
+
+    -- Goethe, *Faust: First part*
+
 .. contents::
     :local:
     :depth: 2
