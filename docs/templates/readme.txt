@@ -1,6 +1,7 @@
-=====================================================================
- Faust: Stream Processing for Python
-=====================================================================
+.. XXX Need to change this image to readthedocs before release
+
+.. image:: https://cvws.icloud-content.com/B/AQ-5ONKf_2xkCnWQ_XMtia0tbndwARN2xwL8kmWyu_-tb_fxF416JOcp/banner-alt1.png?o=AqSVxE8R4imqrOmeNdCGVwSKJKzwOckJ0j4nLTHN3UcZ&v=1&x=3&a=BxOV_v_q7I9WnbosECERXZ_YGJV3A3DOQQEAAANhzkE&e=1521065243&k=kwXcZp0stenUozNHQRaUHA&fl=&r=6bc3bc40-28b9-4774-8263-9a8429b37fc3-1&ckc=com.apple.clouddocs&ckz=com.apple.CloudDocs&p=35&s=GjIOslf-IebItUjncRcVqcj253U&cd=i
+
 
 |build-status| |license| |wheel| |pyversion| |pyimp|
 
