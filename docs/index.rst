@@ -34,22 +34,25 @@ Faust is just Python so you can reuse your existing code:
             if event > 1000:
                 yield alert('WOW')
 
-But wait, something is different? Yeah, that's the new :keyword:`async
-def`/:keyword:`await` syntax added in Python 3.6.  Faust takes advantage
-of :mod:`asyncio` to be asynchronous: many of these agents can run at
-the same time along with other background tasks, periodic timers,
+But wait, something is different? Faust takes advantage of the
+new :keyword:`async def`/:keyword:`await` syntax added in Python 3.6
+to be asynchronous. Many agents can execute simultaneously
+along with other background tasks, periodic timers,
 and network services.
 
 The :keyword:`async for` expression means you can perform network
 requests and do other I/O as a side effect of processing
 a stream -- without blocking other agents from executing at the same time.
 
-Faust depends on Apache Kafka as a message broker. Thus it expects the
+Faust optionally runs a **web server** so you can host your Web App on the
+same system, allowing you to rapidly prototype traditionally complex
+web app architectures that are easy to deploy and scale.
+
+Faust depends on **Apache Kafka** as a message broker. Thus it expects the
 ability to go forward and backward in time, treating the stream as a
 compacted log of events. We didn't specify a topic in the example above,
-but every agent is associated with a Kafka topic, and not specifying one
-means it will be anonymous. If you have an existing source topic you want
-to use you can also do so:
+which means the agent will use an anonymous topic. You can also
+specify the Kafka topic you want the stream to consume from:
 
 .. sourcecode:: python
 
@@ -59,21 +62,18 @@ to use you can also do so:
     async def process(stream):
         ...
 
-Faust optionally runs a web server so you can host your Web App on the
-same system, allowing you to rapidly prototype traditionally complex
-web app architectures that are easy to deploy and scale.
-
-Also tables... `Kafka Streams`_ describes this as "turning the database
+Then we have **Tables**! `Kafka Streams`_ describes this as "turning the database
 inside-out," and Faust supports it too! It means Faust doubles as a
-distributed key/value store. Stored locally using `RocksDB`_,
-an embedded database and using Kafka topics as a write-ahead log
-for recovery.
+distributed key/value store. We store data locally using `RocksDB`_ -
+an embedded database library written in C++ with blazing performance,
+then for recovery we use a Kafka topic as a write-ahead log.
 
 Count page views per URL:
 
 .. sourcecode:: python
 
-    click_topic = app.topic(click, key_type=str, value_type=str)
+    # data sent to 'clicks' topic with key="http://example.com" value="1"
+    click_topic = app.topic('clicks', key_type=str, value_type=str)
 
     # default value for missing URL will be 0 with `default=int`
     counts = app.Table('click_counts', default=int)
@@ -81,11 +81,11 @@ Count page views per URL:
     @app.agent(click_topic)
     async def count_click(clicks):
         async for url, count in clicks.items():  # key, value
-            counts[url] += count
+            counts[url] += int(count)
 
-    async def click(url, n=1):
-        await counts.send(key=url, value=n)
-
+Further, state stored in tables may be "windowed" using hopping, sliding, or
+tumbling intervals, so you can also keep track of "number of clicks in the last
+day", or "number of clicks in the last hour".
 
 The data in streams can be diverse as everything from byte streams, text,
 to manually deserialized data structures is easy to use. Additionally,
@@ -104,15 +104,6 @@ in topics are serialized and deserialized:
 
 Faust is statically typed, using the :pypi:`mypy` type checker,
 so you can take advantage of static types when writing Faust applications.
-
-.. tip::
-
-    For agents that do not modify tables, you can specify the number
-    of concurrent coroutines (``@app.agent(concurrency=1000)``) to process
-    up to 1000 events in a topic concurrently. Using asynchronous I/O you
-    can process thousands of external web requests every second, or some
-    other I/O related task, and if that is not enough, you can start more
-    machines to help process the workload.
 
 **Learn more about Faust in the** :ref:`intro` **introduction page**
     to read more about Faust, system requirements, installation instructions,
