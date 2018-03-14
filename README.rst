@@ -18,8 +18,8 @@
 .. sourcecode:: python
 
     # Python Streams
-    # Forever scalable event processing & in-memory
-    # durable K/V store; as a library w/ asyncio & static typing.
+    # Forever scalable event processing & in-memory durable K/V store;
+    # as a library w/ asyncio & static typing.
     import faust
 
 **Faust** is a Python library for event processing and streaming applications
