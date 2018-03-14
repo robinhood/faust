@@ -589,7 +589,7 @@ configuration reference, please execute:
     $ make configcheck
 
 If settings are missing from there an error is produced, and you can proceed
-by documenting the settings in ``docs/userguide/application.rst``.
+by documenting the settings in ``docs/userguide/settings.rst``.
 
 .. _coding-style:
 

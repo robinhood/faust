@@ -23,3 +23,4 @@
     testing
     vskafka
     vscelery
+    settings
