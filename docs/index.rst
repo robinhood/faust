@@ -87,23 +87,29 @@ Further, state stored in tables may be "windowed" using hopping, sliding, or
 tumbling intervals, so you can also keep track of "number of clicks in the last
 day", or "number of clicks in the last hour".
 
-The data in streams can be diverse as everything from byte streams, text,
-to manually deserialized data structures is easy to use. Additionally,
-Faust supports using modern Python syntax to describe how keys and values
-in topics are serialized and deserialized:
+The data found in streams can be anything: we support byte streams, text
+streams, and manually deserialized data structures. Taking this further
+we have **Models** using modern Python syntax to describe how keys and
+values in topics are serialized and deserialized:
 
 .. sourcecode:: python
 
     class Order(faust.Record):
         account_id: str
-        instrument_id: str
-        amount: float
-        value: float
+        product_id: str
+        price: float
+        amount: float = 1.0
 
     orders_topic = app.topic('orders', key_type=str, value_type=Order)
 
+    @app.agent(orders_topic)
+    async def process_order(orders):
+        async for order in orders:
+            total_price = order.price * order.amount
+            await send_order_received_email(order.account_id, order)
+
 Faust is statically typed, using the :pypi:`mypy` type checker,
-so you can take advantage of static types when writing Faust applications.
+so you can take advantage of static types when writing applications.
 
 **Learn more about Faust in the** :ref:`intro` **introduction page**
     to read more about Faust, system requirements, installation instructions,
