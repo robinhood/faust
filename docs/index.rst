@@ -35,7 +35,7 @@ Faust is just Python so you can reuse your existing code:
                 yield alert('WOW')
 
 But wait, something is different? Faust takes advantage of the
-new :keyword:`async def`/:keyword:`await` syntax added in Python 3.6
+new :keyword:`async <async def>`/:keyword:`await` syntax added in Python 3.6
 to be asynchronous. Many agents can execute simultaneously
 along with other background tasks, periodic timers,
 and network services.
