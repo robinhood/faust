@@ -46,6 +46,7 @@ globals().update(conf.build_config(
         'faust.transport.confluent',
         'faust.types',
         'faust.utils',
+        'faust.utils._iso8601_python',
         r'faust.utils.kafka.*',
         'faust.web',
         r'faust.web.apps.*',

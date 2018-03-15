@@ -1,3 +1,4 @@
 -r setproctitle.txt
 aiodns>=1.1
 cchardet>=2.1
+ciso8601
