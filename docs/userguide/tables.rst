@@ -37,7 +37,7 @@ We require this to align the table's partitions with the stream's, and to
 ensure the source topic partitions are correctly rebalanced to a different
 worker upon failure, along with any necessary table partitions.
 
-Updating table outside of a stream will raise an error:
+Modifying a table outside of a stream will raise an error:
 
 .. sourcecode:: python
 
@@ -59,7 +59,7 @@ happen simultaneously.
     Duplicate messages may result in double-counting and other data
     consistency issues, so we are hoping to take advantage of Kafka 0.11's
     stronger consistency guarantees and new "exactly-once"-semantics features
-    soon.
+    as soon as that is supported in a Python Kafka client.
 
 Co-partitioning Tables and Streams
 ----------------------------------
