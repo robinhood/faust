@@ -10,7 +10,7 @@ from mode.utils.collections import ManagedUserDict
 from faust import windows
 from faust.types.tables import TableT, WindowWrapperT
 from faust.types.windows import WindowT
-from faust.utils import termtable
+from faust.utils import terminal
 
 from .base import Collection
 from .wrappers import WindowWrapper
@@ -79,7 +79,7 @@ class Table(TableT, Collection, ManagedUserDict):
         data = list(sorted(data, key=sortkey)) if sort else list(data)
         if sort:
             data = list(sorted(data, key=sortkey))
-        return termtable.table(
+        return terminal.table(
             [header] + list(data),
             title=text.title(title.format(table=self)),
         ).table

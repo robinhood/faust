@@ -15,7 +15,7 @@ from faust.types.tables import (
     CollectionTps,
     TableManagerT,
 )
-from faust.utils.termtable import logtable
+from faust.utils import terminal
 
 from .changelogs import ChangelogReader, StandbyReader
 from .table import Table
@@ -96,7 +96,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 self._table_offsets[tp] = max(curr_offset, persisted_offset)
 
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
-        table = logtable(
+        table = terminal.logtable(
             [(k.topic, k.partition, v) for k, v in reader.offsets.items()],
             title='Sync Offset',
             headers=['topic', 'partition', 'offset'],
@@ -106,7 +106,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if offset >= 0:
                 table_offset = self._table_offsets.get(tp, -1)
                 self._table_offsets[tp] = max(table_offset, offset)
-        table = logtable(
+        table = terminal.logtable(
             [(k.topic, k.partition, v)
              for k, v in self._table_offsets.items()],
             title='Table Offsets',

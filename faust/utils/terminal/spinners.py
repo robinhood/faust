@@ -1,8 +1,11 @@
 """Terminal progress bar spinners."""
 import atexit
+import logging
 import random
 import sys
-from typing import IO, Sequence
+from typing import Any, IO, Sequence
+
+__all__ = ['Spinner', 'SpinnerHandler']
 
 SPINNER_ARC: Sequence[str] = [
     '◜', '◠', '◝', '◞', '◡', '◟',
@@ -39,18 +42,24 @@ class Spinner:
     cursor_hide: str = '\x1b[?25l'
     cursor_show: str = '\x1b[?25h'
     hide_cursor: bool = True
+    stopped: bool = False
 
     def __init__(self, file: IO = sys.stderr) -> None:
         self.file: IO = file
         self.width: int = 0
         self.count = 0
+        self.stopped = False
 
     def update(self) -> None:
-        if not self.count:
-            self.begin()
-        i = self.count % len(self.sprites)
-        self.count += 1
-        self.write(self.sprites[i])
+        if not self.stopped:
+            if not self.count:
+                self.begin()
+            i = self.count % len(self.sprites)
+            self.count += 1
+            self.write(self.sprites[i])
+
+    def stop(self) -> None:
+        self.stopped = True
 
     def write(self, s: str) -> None:
         if self.file.isatty():
@@ -73,3 +82,19 @@ class Spinner:
     def _finish(cls, file: IO, *, at_exit: bool = False) -> None:
         print(cls.cursor_show, end='', file=file)
         file.flush()
+
+
+class SpinnerHandler(logging.Handler):
+    """A logger handler that iterates our progress spinner for each log."""
+
+    spinner: Spinner
+
+    # For every logging call we advance the terminal spinner (-\/-)
+
+    def __init__(self, spinner: Spinner, **kwargs: Any) -> None:
+        self.spinner = spinner
+        super().__init__(**kwargs)
+
+    def emit(self, _record: logging.LogRecord) -> None:
+        # the spinner is only in effect with WARN level and below.
+        self.spinner and self.spinner.update()

@@ -175,8 +175,16 @@ Utils
     faust.utils.json
     faust.utils.objects
     faust.utils.platforms
-    faust.utils.spinners
-    faust.utils.termtable
+
+Terminal (TTY) Utilities
+------------------------
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.utils.terminal
+    faust.utils.terminal.spinners
+    faust.utils.terminal.tables
 
 Web
 ===

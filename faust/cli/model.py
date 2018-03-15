@@ -7,7 +7,7 @@ from mode.utils import text
 
 from faust.models import registry
 from faust.types import FieldDescriptorT, ModelT
-from faust.utils.termtable import TableDataT
+from faust.utils import terminal
 
 from .base import AppCommand
 
@@ -55,7 +55,7 @@ class model(AppCommand):
             fmt_none=f'Please run `{self.prog_name} models` for a list.')
         return click.UsageError(f'No model {name!r}. {alt}')
 
-    def model_fields(self, model: Type[ModelT]) -> TableDataT:
+    def model_fields(self, model: Type[ModelT]) -> terminal.TableDataT:
         return [self.field(getattr(model, k)) for k in model._options.fields]
 
     def field(self, field: FieldDescriptorT) -> Sequence[str]:

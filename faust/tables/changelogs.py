@@ -16,7 +16,7 @@ from mode.utils.times import Seconds
 
 from faust.types import AppT, ChannelT, EventT, TP
 from faust.types.tables import ChangelogReaderT, CollectionT
-from faust.utils.termtable import logtable
+from faust.utils import terminal
 
 __all__ = ['ChangelogReader', 'StandbyReader', 'local_tps']
 
@@ -79,7 +79,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             tp: highwaters[tp] - 1
             for tp in tps
         })
-        table = logtable(
+        table = terminal.logtable(
             [[k.topic, str(k.partition), str(v)]
              for k, v in self._highwaters.items()],
             title='Highwater',
@@ -104,7 +104,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
-        table = logtable(
+        table = terminal.logtable(
             [(k.topic, k.partition, v) for k, v in self.offsets.items()],
             title='Reading Starts At',
             headers=['topic', 'partition', 'offset'],

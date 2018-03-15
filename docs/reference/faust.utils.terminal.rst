@@ -1,11 +1,11 @@
 =====================================================
- ``faust.utils.termtable``
+ ``faust.utils.terminal``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.utils.termtable
+.. currentmodule:: faust.utils.terminal
 
-.. automodule:: faust.utils.termtable
+.. automodule:: faust.utils.terminal
     :members:
     :undoc-members:

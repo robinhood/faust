@@ -26,12 +26,12 @@ import click
 import venusian
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
-from mode.utils.compat import isatty, want_bytes
+from mode.utils.compat import want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
 from faust.types import AppT, CodecArg, ModelT
 from faust.utils import json
-from faust.utils import termtable
+from faust.utils import terminal
 
 from ._env import DATADIR, DEBUG, WORKDIR
 
@@ -272,7 +272,7 @@ def cli(ctx: click.Context, app: str, quiet: bool, debug: bool, workdir: str,
         # WARNING: Note that the faust.app module *MUST not* have
         # been imported before setting the envvar.
         os.environ['F_DATADIR'] = datadir
-    if not no_color and not isatty(sys.stdout):
+    if not no_color and not terminal.isatty(sys.stdout):
         enable_all_colors()
     else:
         disable_all_colors()
@@ -388,7 +388,7 @@ class Command(abc.ABC):
         return loop.run_until_complete(self.run(*args, **kwargs))
 
     def tabulate(self,
-                 data: termtable.TableDataT,
+                 data: terminal.TableDataT,
                  headers: Sequence[str] = None,
                  wrap_last_row: bool = True,
                  title: str = None,
@@ -419,11 +419,11 @@ class Command(abc.ABC):
         return table.table
 
     def table(self,
-              data: termtable.TableDataT,
+              data: terminal.TableDataT,
               title: str = None,
-              **kwargs: Any) -> termtable.Table:
+              **kwargs: Any) -> terminal.Table:
         """Format table data as ANSI/ASCII table."""
-        return termtable.table(data, title=title, target=sys.stdout, **kwargs)
+        return terminal.table(data, title=title, target=sys.stdout, **kwargs)
 
     def color(self, name: str, text: str) -> str:
         """Return text having a certain color by name.
@@ -450,7 +450,7 @@ class Command(abc.ABC):
         head, fsep, tail = text.rpartition(sep)
         return fsep.join([head, self.bold(tail)])
 
-    def _table_wrap(self, table: termtable.Table, text: str) -> str:
+    def _table_wrap(self, table: terminal.Table, text: str) -> str:
         max_width = max(table.column_max_width(1), 10)
         return '\n'.join(wrap(text, max_width))
 

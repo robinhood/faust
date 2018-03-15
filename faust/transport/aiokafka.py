@@ -41,8 +41,8 @@ from yarl import URL
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
+from faust.utils import terminal
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
-from faust.utils.termtable import logtable
 
 from . import base
 
@@ -308,7 +308,7 @@ class Consumer(base.Consumer):
         self._committed_offset.update(committed_offsets)
 
     async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
-        table = logtable(
+        table = terminal.logtable(
             [(str(tp), str(offset), meta)
              for tp, (offset, meta) in offsets.items()],
             title='Commit Offsets',

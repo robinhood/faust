@@ -23,9 +23,8 @@ from mode.utils.logging import formatter
 
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT, TP, TopicT
+from .utils import terminal
 from .utils.objects import cached_property
-from .utils.spinners import Spinner
-from .utils.termtable import logtable
 from .web.site import Website as _Website
 
 try:
@@ -53,13 +52,13 @@ def format_log_arguments(arg: Any) -> Any:
         first_k, first_v = next(iter(arg.items()))
         if (isinstance(first_k, str) and isinstance(first_v, set) and
                 isinstance(next(iter(first_v), None), TopicT)):
-            return '\n' + logtable(
+            return '\n' + terminal.logtable(
                 [(k, v) for k, v in arg.items()],
                 title='Subscription',
                 headers=['Topic', 'Descriptions'],
             )
         elif isinstance(first_v, TP_TYPES):
-            return '\n' + logtable(
+            return '\n' + terminal.logtable(
                 [(k.topic, k.partition, v) for k, v in arg.items()],
                 title='Topic Partition Map',
                 headers=['topic', 'partition', 'offset'],
@@ -70,26 +69,11 @@ def format_log_arguments(arg: Any) -> Any:
             for tp in arg:
                 topics[tp.topic].add(tp.partition)
 
-            return '\n' + logtable(
+            return '\n' + terminal.logtable(
                 [(k, repr(v)) for k, v in topics.items()],
                 title='Topic Partition Set',
                 headers=['topic', 'partitions'],
             )
-
-
-class SpinnerHandler(logging.Handler):
-    """A logger handler that iterates our progress spinner for each log."""
-
-    # For every logging call we advance the terminal spinner (-\/-)
-
-    def __init__(self, worker: 'Worker', **kwargs: Any) -> None:
-        self.worker = worker
-        super().__init__(**kwargs)
-
-    def emit(self, _record: logging.LogRecord) -> None:
-        # the spinner is only in effect with WARN level and below.
-        if self.worker.spinner and not self.worker._shutdown_immediately:
-            self.worker.spinner.update()
 
 
 class Worker(mode.Worker):
@@ -173,7 +157,7 @@ class Worker(mode.Worker):
     Website: Type[_Website]
 
     #: Class that displays a terminal progress spinner (see :pypi:`progress`).
-    spinner: Spinner
+    spinner: terminal.Spinner
 
     #: Set by signal to avoid printing an OK status.
     _shutdown_immediately: bool = False
@@ -219,15 +203,19 @@ class Worker(mode.Worker):
             console_port=console_port,
             loop=loop,
             **kwargs)
-        self.spinner = Spinner(file=self.stdout)
+        self.spinner = terminal.Spinner(file=self.stdout)
 
     def _on_sigint(self) -> None:
-        self._shutdown_immediately = True
+        self._flag_as_shutdown_by_signal()
         super()._on_sigint()
 
     def _on_sigterm(self) -> None:
-        self._shutdown_immediately = True
+        self._flag_as_shutdown_by_signal()
         super()._on_sigterm()
+
+    def _flag_as_shutdown_by_signal(self) -> None:
+        self._shutdown_immediately = True
+        self.spinner and self.spinner.stop()
 
     async def on_startup_finished(self) -> None:
         if self._shutdown_immediately:
@@ -283,7 +271,8 @@ class Worker(mode.Worker):
 
         if self.spinner:
             logger.handlers[0].setLevel(level)
-            logger.addHandler(SpinnerHandler(self, level=logging.DEBUG))
+            logger.addHandler(
+                terminal.SpinnerHandler(self.spinner, level=logging.DEBUG))
             logger.setLevel(logging.DEBUG)
 
     @cached_property
