@@ -43,9 +43,9 @@ decorator (see :ref:`tasks-cli-commands`).
 
     Directory to keep application state.
 
-.. cmdoption:: --json, --no-json
+.. cmdoption:: --json
 
-    Prefer data to be emitted in json format.
+    Return output in machine-readable JSON format.
 
 .. cmdoption:: --loop, -L
 
