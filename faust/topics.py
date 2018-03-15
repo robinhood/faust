@@ -457,6 +457,7 @@ class TopicConductor(ConductorT, Service):
                 # so that if a DecodeError is raised we can propagate
                 # that errors to the remaining channels.
                 delivered: Set[TopicT] = set()
+                full: List[Tuple[EventT, TopicT]] = []
                 try:
                     for chan in channels:
                         keyid = chan.key_type, chan.value_type
@@ -464,19 +465,36 @@ class TopicConductor(ConductorT, Service):
                             # first channel deserializes the payload:
                             event = await chan.decode(message, propagate=True)
                             event_keyid = keyid
-                            await chan.put(event)
+
+                            queue = chan.queue
+                            if queue.full():
+                                full.append((event, chan))
+                                continue
+                            queue.put_nowait(event)
                         else:
                             # subsequent channels may have a different
                             # key/value type pair, meaning they all can
                             # deserialize the message in different ways
 
-                            # Reuse the event if it uses the same keypair:
+                            dest_event: EventT
                             if keyid == event_keyid:
-                                await chan.put(event)
+                                # Reuse the event if it uses the same keypair:
+                                dest_event = event
                             else:
-                                # otherwise deserialize again:
-                                await chan.deliver(message)
+                                dest_event = await chan.decode(
+                                    message, propagate=True)
+                            queue = chan.queue
+                            if queue.full():
+                                full.append((dest_event, chan))
+                                continue
+                            queue.put_nowait(dest_event)
                         delivered.add(chan)
+                    if full:
+                        await asyncio.wait(
+                            [dest_chan.put(dest_event)
+                            for dest_event, dest_chan in full],
+                            return_when=asyncio.ALL_COMPLETED,
+                        )
                 except KeyDecodeError as exc:
                     remaining = channels - delivered
                     message.ack(self.app.consumer, n=len(remaining))
