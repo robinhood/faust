@@ -142,8 +142,13 @@ class Model(ModelT):
 
         # This is how we deal with Kafka's lack of message headers,
         # as needed by the RPC mechanism, without wrapping all data.
-        if isinstance(data, Mapping) and cls._blessed_key in data:
-            return registry[data[cls._blessed_key]['ns']]
+        if data is not None:
+            if isinstance(data, (bytes, str)):
+                return None
+            try:
+                return registry[data[cls._blessed_key]['ns']]
+            except (KeyError, TypeError):
+                pass
         return None
 
     @classmethod
