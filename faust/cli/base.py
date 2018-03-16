@@ -179,6 +179,16 @@ def prepare_app(app: AppT, name: str) -> AppT:
     app.finalize()
     if app.conf.autodiscover:
         app.discover()
+
+    # Hack to fix cProfile support.
+    main = sys.modules.get('__main__')
+    if main is not None and 'cProfile.py' in getattr(main, '__file__', ''):
+        from .models import registry
+        registry.update({
+            app.conf.origin + k[8:]: v
+            for k, v in registry.items()
+            if k.startswith('cProfile.')
+        })
     return app
 
 
