@@ -22,8 +22,6 @@ from typing import (
     Union,
     cast,
 )
-from weakref import WeakSet
-
 from mode import Seconds, Service, get_logger
 from mode.utils.futures import ThrowableQueue, notify, stampede
 
@@ -391,8 +389,8 @@ class TopicConductor(ConductorT, Service):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self._topics = WeakSet()
-        self._topicmap = defaultdict(WeakSet)
+        self._topics = set()
+        self._topicmap = defaultdict(set)
         self._acking_topics = set()
         self._subscription_changed = None
         self._subscription_done = None
@@ -436,7 +434,7 @@ class TopicConductor(ConductorT, Service):
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
                 message.incref(channels_n)
-                if topic in acking_topics and message not in unacked:
+                if topic in acking_topics:
                     # This inlines Consumer.track_message(message)
                     add_unacked(message)
                     await on_message_in(message.tp, message.offset, message)
