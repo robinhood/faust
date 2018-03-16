@@ -69,15 +69,33 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 #   - Has a callback that usually points back to ``TopicConductor.on_message``.
 #   - Receives messages and calls the callback for every message received.
 #   - Keeps track of the message and it's acked/unacked status.
-#   - If automatic acks are enabled the message is acked when the Message goes
-#     out of scope (like any variable using reference counting).
 #   - The TopicConductor forwards the message to all Streams that subscribes
 #     to the topic the message was sent to.
-#      - Each individual Stream will deserialize the message and create
-#        one Event instance per stream.  The message goes out of scope (and so
-#        acked), when all events referencing the message is also out of scope.
+#       - Messages are reference counted, and the TopicConductor increases
+#         the reference count to the number of subscribed streams.
+#
+#       - Stream.__aiter__ is set up in a way such that when what is iterating
+#         over the stream is finished with the message, a finally: block will
+#         decrease the reference count by one.
+#
+#       - When the reference count for a message hits zero, the stream will
+#         call ``Consumer.ack(message)``, which will mark that tp+offset
+#         combination as "commitable"
+#
+#      - The TopicConductor only deserializes the message once if all the
+#        streams share the same key_type/value_type.
 #   - Commits the offset at an interval
-#      - The current offset is based on range of the messages acked.
+
+#      - The Consumer has a background thread that periodically commits the
+#        offset.
+#
+#      - If the consumer marked an offset as committable this thread
+#        will advance the comitted offset.
+#
+#      - To find the offset that it can safely advance to the commit thread
+#        will traverse the _acked mapping of TP to list of acked offsets, by
+#        finding a range of consecutive acked offsets (see note in
+#        _new_offset).
 #
 # The Producer is responsible for:
 #
@@ -92,9 +110,11 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 class Consumer(Service, ConsumerT):
     """Base Consumer."""
 
-    consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = None
-
     app: AppT
+
+    #: Tuple of exception types that may be raised when the
+    #: underlying consumer driver is stopped.
+    consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = None
 
     # Mapping of TP to list of acked offsets.
     _acked: MutableMapping[TP, List[int]] = None
@@ -188,11 +208,10 @@ class Consumer(Service, ConsumerT):
         # add to set of pending messages that must be acked for graceful
         # shutdown.  This is called by faust.topics.TopicConductor,
         # before delivering messages to streams.
-        if message not in self._unacked_messages:
-            self._unacked_messages.add(message)
+        self._unacked_messages.add(message)
 
-            # call sensors
-            await self._on_message_in(message.tp, message.offset, message)
+        # call sensors
+        await self._on_message_in(message.tp, message.offset, message)
 
     def ack(self, message: Message) -> bool:
         if not message.acked:
@@ -212,8 +231,6 @@ class Consumer(Service, ConsumerT):
                             return True
                 finally:
                     notify(self._waiting_for_ack)
-            else:
-                assert message not in self._unacked_messages
         return False
 
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
@@ -257,7 +274,6 @@ class Consumer(Service, ConsumerT):
 
     @Service.task
     async def _commit_livelock_detector(self) -> None:
-        # XXX Should take into account the time of last records recieved.
         soft_timeout = self.commit_livelock_soft_timeout
         interval: float = self.commit_interval * 2.5
         await self.sleep(interval)
