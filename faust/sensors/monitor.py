@@ -4,7 +4,7 @@ import statistics
 from time import monotonic
 from typing import Any, List, Mapping, MutableMapping, Set, cast
 
-from mode import Service, ServiceT, label
+from mode import Service, ServiceT
 from mode.proxy import ServiceProxy
 from mode.utils.compat import Counter
 
@@ -216,8 +216,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
                                  event: EventT) -> None:
         self.events_total += 1
-        self.events_by_stream[label(stream)] += 1
-        self.events_by_task[label(stream.task_owner)] += 1
+        self.events_by_stream[stream] += 1
+        self.events_by_task[stream.task_owner] += 1
         self.events_active += 1
         event.message.stream_meta[id(stream)] = {
             'time_in': monotonic(),
