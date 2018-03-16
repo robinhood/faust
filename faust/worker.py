@@ -215,7 +215,8 @@ class Worker(mode.Worker):
 
     def _flag_as_shutdown_by_signal(self) -> None:
         self._shutdown_immediately = True
-        self.spinner and self.spinner.stop()
+        if self.spinner:
+            self.spinner.stop()
 
     async def on_startup_finished(self) -> None:
         if self._shutdown_immediately:

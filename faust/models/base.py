@@ -34,7 +34,6 @@ from typing import (
     Any,
     ClassVar,
     Iterable,
-    Mapping,
     MutableMapping,
     Optional,
     Type,

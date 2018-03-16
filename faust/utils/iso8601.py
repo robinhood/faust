@@ -6,4 +6,3 @@ else:
     parse = ciso8601.parse_datetime
 
 __all__ = ['parse']
-

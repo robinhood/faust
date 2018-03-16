@@ -97,4 +97,5 @@ class SpinnerHandler(logging.Handler):
 
     def emit(self, _record: logging.LogRecord) -> None:
         # the spinner is only in effect with WARN level and below.
-        self.spinner and self.spinner.update()
+        if self.spinner:
+            self.spinner.update()

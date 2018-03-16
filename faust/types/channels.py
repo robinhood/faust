@@ -1,10 +1,9 @@
 import abc
 import asyncio
 import typing
-from typing import Any, AsyncIterator, Awaitable, Union
+from typing import Any, AsyncIterator, Awaitable
 
 from mode import Seconds
-from mode.utils.compat import AsyncContextManager
 from mode.utils.futures import ThrowableQueue, stampede
 
 from .codecs import CodecArg

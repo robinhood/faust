@@ -11,6 +11,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    List,
     Mapping,
     MutableMapping,
     MutableSet,
@@ -426,7 +427,7 @@ class TopicConductor(ConductorT, Service):
             # when a message is received we find all channels
             # that subscribe to this message
             topic = message.topic
-            channels = get_channels_for_topic(topic)
+            channels = cast(Set[Topic], get_channels_for_topic(topic))
             channels_n = len_(channels)
             await acquire_flow_control()
             if channels_n:
@@ -454,8 +455,8 @@ class TopicConductor(ConductorT, Service):
                 # keep track of the number of channels we delivered to,
                 # so that if a DecodeError is raised we can propagate
                 # that errors to the remaining channels.
-                delivered: Set[TopicT] = set()
-                full: List[Tuple[EventT, TopicT]] = []
+                delivered: Set[Topic] = set()
+                full: List[Tuple[EventT, Topic]] = []
                 try:
                     for chan in channels:
                         keyid = chan.key_type, chan.value_type
@@ -490,7 +491,7 @@ class TopicConductor(ConductorT, Service):
                     if full:
                         await asyncio.wait(
                             [dest_chan.put(dest_event)
-                            for dest_event, dest_chan in full],
+                             for dest_event, dest_chan in full],
                             return_when=asyncio.ALL_COMPLETED,
                         )
                 except KeyDecodeError as exc:
