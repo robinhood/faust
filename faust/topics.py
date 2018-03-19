@@ -63,15 +63,21 @@ class Topic(Channel, TopicT):
 
         topics: List of topic names.
         partitions: Number of partitions for these topics.
-            On declaration, topics are created using this.
-            Note: kafka cluster configuration is used if message produced
-            when topic not declared.
-        retention: Number of seconds (float/timedelta) to keep messages
-            in the topic before they expire.
-        pattern: Regular expression to match.
-            You cannot specify both topics and a pattern.
-        key_type: Model used for keys in this topic.
-        value_type: Model used for values in this topic.
+                    On declaration, topics are created using this.
+                    Note: If a message is produced before the topic is
+                    declared, and ``autoCreateTopics`` is enabled on
+                    the Kafka Server, the number of partitions used
+                    will be specified by the server configuration.
+        retention: Number of seconds (as float/timedelta) to keep messages
+                   in the topic before they can be expired by the server.
+        pattern: Regular expression evaluated to decide what topics to
+                 subscribe to. You cannot specify both topics and a pattern.
+        key_type: How to deserialize keys for messages in this topic.
+                  Can be a :class:`faust.Model` type, :class:`str`,
+                  :class:`bytes`, or :const:`None` for "autodetect"
+        value_type: How to deserialize values for messages in this topic.
+                  Can be a :class:`faust.Model` type, :class:`str`,
+                  :class:`bytes`, or :const:`None` for "autodetect"
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
@@ -114,7 +120,7 @@ class Topic(Channel, TopicT):
         )
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
-        self.pattern = cast(Pattern, pattern)  # XXX mypy does not read setter
+        self.pattern = cast(Pattern, pattern)
         self.partitions = partitions
         self.retention = retention
         self.compacting = compacting
@@ -191,9 +197,7 @@ class Topic(Channel, TopicT):
     def pattern(self, pattern: Union[str, Pattern]) -> None:
         if pattern and self.topics:
             raise TypeError('Cannot specify both topics and pattern')
-        if isinstance(pattern, str):
-            pattern = re.compile(pattern)
-        self._pattern = pattern
+        self._pattern = re.compile(pattern) if pattern else None
 
     @property
     def partitions(self) -> int:
