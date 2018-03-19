@@ -4,6 +4,8 @@ Maintainers
 - Ask Solem <ask@fauststream.com>
 - Vineet Goel <vineet@fauststream.com>
 
+---------------------------------
+
 .. note::
 
     You must not solicit for free support from email addresses on this list.

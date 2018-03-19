@@ -17,6 +17,7 @@ Quick Start
 import asyncio
 import random
 from datetime import datetime, timezone
+from time import monotonic
 from itertools import count
 import faust
 from faust.cli import option
@@ -30,13 +31,13 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'faust-withdrawals',
+    'faust-withdrawals3',
     broker='kafka://127.0.0.1:9092',
     store='rocksdb://',
-    origin='withdrawals.simple',
+    origin='examples.withdrawals',
     topic_partitions=4,
 )
-withdrawals_topic = app.topic('withdrawals2', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals3', value_type=bytes)
 
 
 user_to_total = app.Table(
@@ -50,14 +51,20 @@ country_to_total = app.Table(
 
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
+    time_start = None
     async for i, withdrawal in withdrawals.enumerate():
-        user_to_total[withdrawal.user] += withdrawal.amount
+        if time_start is None:
+            time_start = monotonic()
+        if not i % 10_000:
+            print(f'TIME FOR 10k: {monotonic() - time_start}')
+            time_start = None
+        #user_to_total[withdrawal.user] += withdrawal.amount
 
 
-@app.agent(withdrawals_topic)
-async def track_country_withdrawal(withdrawals):
-    async for withdrawal in withdrawals.group_by(Withdrawal.country):
-        country_to_total[withdrawal.country] += withdrawal.amount
+#@app.agent(withdrawals_topic)
+#async def track_country_withdrawal(withdrawals):
+    #async for withdrawal in withdrawals.group_by(Withdrawal.country):
+        #country_to_total[withdrawal.country] += withdrawal.amount
 
 
 @app.command(
@@ -76,8 +83,6 @@ async def produce(self, max_latency: float, max_messages: int):
     num_users = 500
     users = [f'user_{i}' for i in range(num_users)]
     self.say('Done setting up. SENDING!')
-    from mode import Worker
-    Worker(track_user_withdrawal).install_signal_handlers()
     for i in range(max_messages) if max_messages is not None else count():
         withdrawal = Withdrawal(
             user=random.choice(users),
@@ -85,7 +90,9 @@ async def produce(self, max_latency: float, max_messages: int):
             country=random.choices(countries, country_dist)[0],
             date=datetime.utcnow().replace(tzinfo=timezone.utc),
         )
-        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
+        withdrawal_dict = withdrawal.to_representation()
+        withdrawal_dict.pop('__faust')
+        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal_dict)
         if not i % 10000:
             self.say(f'+SEND {i}')
         if max_latency:
@@ -93,4 +100,7 @@ async def produce(self, max_latency: float, max_messages: int):
 
 
 if __name__ == '__main__':
+    import sys
+    if len(sys.argv) < 2:
+        sys.argv.extend(['worker', '-l', 'info'])
     app.main()
