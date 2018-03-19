@@ -24,12 +24,20 @@ is to be added to the list of maintainers above.
 Comitters
 =========
 
-Arpan Shah           <arpan@robinhood.com>
-Sanyam Satia         <sanyam@robinhood.com>
++---------------------+---------------------------------------+
+| Arpan Shah          | <arpan@robinhood.com>                 |
++---------------------+---------------------------------------+
+| Sanyam Satia        | <sanyam@robinhood.com>                |
++---------------------+---------------------------------------+
+
 
 Contributors
 ============
 
-Jamshed Vesuna       <jamshed@robinhood.com>
-Jerry Li             <jerry.li@robinhood.com>
-Prithvi Narasimhan   <narasimhan.prithvi@gmail.com>
++---------------------+---------------------------------------+
+| Jamshed Vesuna      | <jamshed@robinhood.com>               |
++---------------------+---------------------------------------+
+| Jerry Li            | <jerry.li@robinhood.com>              |
++---------------------+---------------------------------------+
+| Prithvi Narasimhan  | <narasimhan.prithvi@gmail.com>        |
++---------------------+---------------------------------------+
