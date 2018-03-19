@@ -1,3 +1,4 @@
+# App.transport creates Kafka consumer and producer.
 import abc
 import asyncio
 import typing
@@ -47,15 +48,26 @@ ConsumerCallback = Callable[[Message], Awaitable]
 TPorTopic = Union[str, TP]
 TPorTopicSet = AbstractSet[TPorTopic]
 
-PartitionsRevokedCallback = Callable[[Set[TP]], Awaitable]
-PartitionsAssignedCallback = Callable[[Set[TP]], Awaitable]
+#: Callback (:keyword:`async def`) called when consumer partitions are revoked.
+PartitionsRevokedCallback = Callable[[Set[TP]], Awaitable[None]]
+
+#: Callback (:keyword:`async def`) called when consumer
+#: partitions are assigned.
+PartitionsAssignedCallback = Callable[[Set[TP]], Awaitable[None]]
 
 
 class ConsumerT(ServiceT):
 
-    id: int
+    #: The transport that created this Consumer.
     transport: 'TransportT'
+
+    #: How often we commit topic offsets.
+    #: See :setting:`broker_commit_interval`.
     commit_interval: float
+
+    #: Set of topic names that are considered "randomly assigned".
+    #: This means we don't crash if it's not part of our assignment.
+    #: Used by e.g. the leader assignor service.
     randomly_assigned_topics: Set[str]
 
     @abc.abstractmethod
@@ -162,6 +174,8 @@ class ConsumerT(ServiceT):
 
 
 class ProducerT(ServiceT):
+
+    #: The transport that created this Producer.
     transport: 'TransportT'
 
     @abc.abstractmethod
@@ -200,14 +214,27 @@ class ProducerT(ServiceT):
 
 
 class TransportT(abc.ABC):
+
+    #: The Consumer class used for this type of transport.
     Consumer: ClassVar[Type[ConsumerT]]
+
+    #: The Producer class used for this type of transport.
     Producer: ClassVar[Type[ProducerT]]
+
+    #: The Fetcher service used for this type of transport.
     Fetcher: ClassVar[Type[ServiceT]]
 
+    #: The :class:`faust.App` that created this transport.
     app: AppT
+
+    #: The URL to use for this transport (e.g. kafka://localhost).
     url: URL
-    loop: asyncio.AbstractEventLoop
+
+    #: String identifying the underlying driver used for this transport.
+    #: E.g. for :pypi:`aiokafka` this could be "aiokafka 0.4.1".
     driver_version: str
+
+    loop: asyncio.AbstractEventLoop
 
     @abc.abstractmethod
     def __init__(self,
