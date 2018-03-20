@@ -177,17 +177,18 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     @property
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
-        return {
-            label(stream): count
-            for stream, count in self.events_by_stream.items()
-        }
+        return {label(stream): count
+                for stream, count in self.events_by_stream.items()}
 
     @property
     def _events_by_task_dict(self) -> MutableMapping[str, int]:
-        return {
-            label(task): count
-            for task, count in self.events_by_task.items()
-        }
+        return {label(task): count
+                for task, count in self.events_by_task.items()}
+
+    @property
+    def _topic_buffer_full_dict(self) -> MutableMapping[str, int]:
+        return {label(topic): count
+                for topic, count in self.topic_buffer_full.items()}
 
     def asdict(self) -> Mapping:
         return {
@@ -205,7 +206,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'events_by_stream': self._events_by_stream_dict,
             'commit_latency': self.commit_latency,
             'send_latency': self.send_latency,
-            'topic_buffer_full': self.topic_buffer_full,
+            'topic_buffer_full': self._topic_buffer_full_dict,
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             },
