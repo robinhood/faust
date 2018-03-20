@@ -756,7 +756,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         try:
             await self.consumer.verify_subscription(assigned)
-            self.flow_control.resume()
             # Wait for TopicConductor to finish any new subscriptions
             await self.topics.wait_for_subscriptions()
             await self.consumer.pause_partitions(assigned)
@@ -765,6 +764,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             await self.topics.on_partitions_assigned(assigned)
             await self.tables.on_partitions_assigned(assigned)
             await self.on_partitions_assigned.send(assigned)
+            self.flow_control.resume()
         except Exception as exc:
             await self.crash(exc)
 
@@ -786,6 +786,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             if assignment:
                 self.flow_control.suspend()
                 await self.consumer.pause_partitions(assignment)
+                # Allow big buffers: clear the queues so we can
+                # wait for currently processing event in each stream
+                # to finish (note: this means _on_partitions_revoked
+                # cannot execute in a thread).
+                self.flow_control.clear()
+                # wait for currently processing event in each stream.
                 await self.consumer.wait_empty()
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
