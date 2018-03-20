@@ -97,7 +97,7 @@ BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit acknowledged messages.
 #: Used as the default value for :setting:`broker_commit_interval`.
-BROKER_COMMIT_INTERVAL = 3600.0
+BROKER_COMMIT_INTERVAL = 2.8
 
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
