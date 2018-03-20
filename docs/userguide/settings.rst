@@ -367,7 +367,7 @@ configured by the user.
 --------------------------
 
 :type: :class:`float`, :class:`~datetime.timedelta`
-:default: ``3.0``
+:default: ``2.8``
 
 How often we commit messages that have been fully processed (:term:`acked`).
 
@@ -414,7 +414,7 @@ Advanced Stream Settings
 -------------------------
 
 :type: :class:`int`
-:default: 1000
+:default: 32768
 
 This setting control backpressure to streams and agents reading from streams.
 
