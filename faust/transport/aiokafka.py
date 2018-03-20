@@ -386,6 +386,8 @@ class Producer(base.Producer):
                 transport.url, transport.default_port),
             client_id=transport.app.conf.broker_client_id,
             acks='all',
+            linger_ms=self.linger_ms,
+            max_batch_size=self.max_batch_size,
         )
 
     async def on_restart(self) -> None:

@@ -177,6 +177,8 @@ class ProducerT(ServiceT):
 
     #: The transport that created this Producer.
     transport: 'TransportT'
+    linger_ms: int
+    max_batch_size: int
 
     @abc.abstractmethod
     def __init__(self, transport: 'TransportT', **kwargs: Any) -> None:
