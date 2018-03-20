@@ -651,9 +651,10 @@ class Stream(StreamT[T_co], Service):
         channel = self.channel
         if isinstance(channel, ChannelT):
             chan_is_channel = True
-            chan_queue = self.channel.queue
+            chan = cast(ChannelT, self.channel)
+            chan_queue = chan.queue
             chan_queue_empty = chan_queue.empty
-            chan_errors = self.channel.queue._errors
+            chan_errors = chan_queue._errors
             chan_quick_get = chan_queue.get_nowait
         else:
             chan_is_channel = False

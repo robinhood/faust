@@ -160,3 +160,8 @@ class ChannelT(AsyncIterator):
     @abc.abstractmethod
     def subscriber_count(self) -> int:
         ...
+
+    @property
+    @abc.abstractmethod
+    def queue(self) -> ThrowableQueue:
+        ...

@@ -240,7 +240,7 @@ class Consumer(base.Consumer):
                                f'ACTIVES: {active_partitions}')
                 continue
             for message in messages:
-                yield tp, cast(Message, create_message(
+                yield tp, create_message(
                     message.topic,
                     message.partition,
                     message.offset,
@@ -251,7 +251,8 @@ class Consumer(base.Consumer):
                     message.checksum,
                     message.serialized_key_size,
                     message.serialized_value_size,
-                    tp))
+                    tp,
+                )
 
     async def verify_subscription(self, assigned: Set[TP]) -> None:
         subscription = (
