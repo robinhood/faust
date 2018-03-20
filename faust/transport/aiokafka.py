@@ -160,6 +160,9 @@ class Consumer(base.Consumer):
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
             auto_offset_reset='earliest',
+            max_poll_records=None,
+            max_partition_fetch_bytes=1048576 * 4,
+            fetch_max_wait_ms=1500,
         )
 
     def _create_client_consumer(
@@ -215,6 +218,7 @@ class Consumer(base.Consumer):
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
         active_partitions = self._get_active_partitions()
+        fetcher = _consumer._fetcher
 
         records: Mapping[TP, Iterable[Message]] = {}
         async with self._partitions_lock:
@@ -222,25 +226,22 @@ class Consumer(base.Consumer):
                 # Fetch records only if active partitions to avoid the risk of
                 # fetching all partitions in the beginning when none of the
                 # partitions is paused/resumed.
-                records = await _consumer._fetcher.fetched_records(
+                records = await fetcher.fetched_records(
                     active_partitions,
                     timeout,
-                    max_records=_consumer._max_poll_records,
                 )
             else:
                 # We should still release to the event loop
                 await self.sleep(0)
         create_message = Message  # localize
 
-        iterators = []
         for tp, messages in records.items():
             if tp not in active_partitions:
                 self.log.error(f'SKIP PAUSED PARTITION: {tp} '
                                f'ACTIVES: {active_partitions}')
                 continue
-            iterators.append((
-                tp,
-                (create_message(
+            for message in messages:
+                yield tp, cast(Message, create_message(
                     message.topic,
                     message.partition,
                     message.offset,
@@ -251,21 +252,7 @@ class Consumer(base.Consumer):
                     message.checksum,
                     message.serialized_key_size,
                     message.serialized_value_size,
-                    tp)
-                 for message in messages),
-            ))
-
-        sentinel = object()
-        all: Set[TP] = set(records)
-        empty: Set[TP] = set()
-        for tp, it in cycle(iterators):
-            message: Union[Message, object] = next(it, sentinel)
-            if message is sentinel:
-                empty.add(tp)
-            else:
-                yield tp, cast(Message, message)
-            if len(all) == len(empty):
-                break
+                    tp))
 
     async def verify_subscription(self, assigned: Set[TP]) -> None:
         subscription = (
