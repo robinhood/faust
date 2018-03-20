@@ -97,7 +97,7 @@ BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit acknowledged messages.
 #: Used as the default value for :setting:`broker_commit_interval`.
-BROKER_COMMIT_INTERVAL = 3.0
+BROKER_COMMIT_INTERVAL = 3600.0
 
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
@@ -114,7 +114,7 @@ REPLY_TO_PREFIX = 'f-reply-'
 REPLY_EXPIRES = want_seconds(timedelta(days=1))
 
 #: Max number of messages channels/streams/topics can "prefetch".
-STREAM_BUFFER_MAXSIZE = 1000
+STREAM_BUFFER_MAXSIZE = 32768
 
 #: Set of settings added for backwards compatibility
 SETTINGS_COMPAT: Set[str] = {'url'}
