@@ -81,8 +81,6 @@ class Channel(ChannelT):
         self.is_iterator = is_iterator
         self._queue = queue
         self.maxsize = maxsize
-        if self.maxsize is None:
-            self.maxsize = self.app.conf.stream_buffer_maxsize
         self.deliver = self._compile_deliver()  # type: ignore
         self._root = cast(Channel, root)
         self._subscribers = WeakSet()
@@ -93,8 +91,11 @@ class Channel(ChannelT):
             # this should only be set after clone = channel.__aiter__()
             # which means the loop is not accessed by merely defining
             # a channel at module scope.
+            maxsize = self.maxsize
+            if maxsize is None:
+                maxsize = self.app.conf.stream_buffer_maxsize
             self._queue = self.app.FlowControlQueue(
-                maxsize=self.maxsize,
+                maxsize=maxsize,
                 loop=self.loop,
                 clear_on_resume=True,
             )

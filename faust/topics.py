@@ -105,7 +105,7 @@ class Topic(Channel, TopicT):
                  queue: ThrowableQueue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
-                 maxsize: int = 1,
+                 maxsize: int = None,
                  root: ChannelT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics

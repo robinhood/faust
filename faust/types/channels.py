@@ -40,7 +40,7 @@ class ChannelT(AsyncIterator):
                  value_type: ModelArg = None,
                  is_iterator: bool = False,
                  queue: ThrowableQueue = None,
-                 maxsize: int = 1,
+                 maxsize: int = None,
                  root: 'ChannelT' = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...

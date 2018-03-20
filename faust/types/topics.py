@@ -35,14 +35,36 @@ __all__ = ['TopicT', 'ConductorT']
 
 
 class TopicT(ChannelT):
+
+    #: Iterable/Sequence of topic names to subscribe to.
     topics: Sequence[str]
+
+    #: or instead of ``topics``, a regular expression used
+    #: to match topics we want to subscribe to.
     pattern: Pattern
+
+    #: Topic retention setting: expiry time in seconds
+    #: for messages in the topic.
     retention: Seconds
+
+    #: Flag that when enabled means the topic can be "compacted":
+    #: if the topic is a log of key/value pairs, the broker can delete
+    #: old values for the same key.
     compacting: bool
+
     deleting: bool
+
+    #: Number of replicas for topic.
     replicas: int
+
+    #: Additional configuration as a mapping.
     config: Mapping[str, Any]
+
+    #: Enable acks for this topic.
     acks: bool
+
+    #: Mark topic as internal: it's owned by us and we are allowed
+    #: to create or delete the topic as necessary.
     internal: bool
 
     @abc.abstractmethod
@@ -65,7 +87,7 @@ class TopicT(ChannelT):
                  queue: ThrowableQueue = None,
                  key_serializer: CodecArg = None,
                  value_serializer: CodecArg = None,
-                 maxsize: int = 1,
+                 maxsize: int = None,
                  root: ChannelT = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
@@ -111,6 +133,9 @@ class TopicT(ChannelT):
 
 
 class ConductorT(ServiceT, MutableSet[ChannelT]):
+
+    # The topic conductor delegates messages from the Consumer
+    # to the various Topic instances subscribed to a topic.
 
     app: AppT
 
