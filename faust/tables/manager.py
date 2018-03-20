@@ -245,13 +245,13 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if callback_coros:
                 await asyncio.wait(callback_coros)
             await self.app.consumer.perform_seek()
+            await self._start_standbys(standby_tps)
+            self.log.info('New assignments handled')
+            await self._on_recovery_completed()
             await self.app.consumer.resume_partitions({
                 tp for tp in assigned
                 if not self._is_changelog_tp(tp)
             })
-            await self._start_standbys(standby_tps)
-            self.log.info('New assignments handled')
-            await self._on_recovery_completed()
         else:
             self.log.info('Recovery interrupted')
         self._revivers = None
