@@ -649,7 +649,19 @@ class Stream(StreamT[T_co], Service):
 
         # get from channel
         channel = self.channel
-        get_next_value = channel.__anext__
+        if isinstance(channel, ChannelT):
+            chan_is_channel = True
+            chan_queue = self.channel.queue
+            chan_queue_empty = chan_queue.empty
+            chan_errors = self.channel.queue._errors
+            chan_quick_get = chan_queue.get_nowait
+        else:
+            chan_is_channel = False
+            chan_queue = None
+            chan_queue_empty = None
+            chan_errors = None
+            chan_quick_get = None
+        chan_slow_get = channel.__anext__
         # Topic description -> processors
         processors = self._processors
         # Sensor: on_stream_event_in
@@ -671,7 +683,19 @@ class Stream(StreamT[T_co], Service):
                 offset: int = None
                 while value is None:  # we iterate until on_merge gives value.
                     # get message from channel
-                    channel_value: Any = await get_next_value()
+                    # This inlines ThrowableQueue.get for performance:
+                    # We selectively call `await Q.put`/`Q.put_nowait`,
+                    # and prefer the latter if the queue is non-empty.
+                    channel_value: Any
+                    if chan_is_channel:
+                        if chan_errors:
+                            raise chan_errors.popleft()
+                        if chan_queue_empty():
+                            channel_value = await chan_slow_get()
+                        else:
+                            channel_value = chan_quick_get()
+                    else:
+                        channel_value = await chan_slow_get()
 
                     if isinstance(channel_value, event_cls):
                         event = channel_value
