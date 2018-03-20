@@ -745,29 +745,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         return await self.topics.commit(topics)
 
-    async def _on_partitions_assigned(self, assigned: _Set[TP]) -> None:
-        """Handle new topic partition assignment.
-
-        This is called during a rebalance after :meth:`on_partitions_revoked`.
-
-        The new assignment provided overrides the previous
-        assignment, so any tp no longer in the assigned' list will have
-        been revoked.
-        """
-        try:
-            await self.consumer.verify_subscription(assigned)
-            # Wait for TopicConductor to finish any new subscriptions
-            await self.topics.wait_for_subscriptions()
-            await self.consumer.pause_partitions(assigned)
-            await self._fetcher.restart()
-            self.log.info(f'Restarted fetcher')
-            await self.topics.on_partitions_assigned(assigned)
-            await self.tables.on_partitions_assigned(assigned)
-            await self.on_partitions_assigned.send(assigned)
-            self.flow_control.resume()
-        except Exception as exc:
-            await self.crash(exc)
-
     async def _on_partitions_revoked(self, revoked: _Set[TP]) -> None:
         """Handle revocation of topic partitions.
 
@@ -796,6 +773,29 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
             await self.on_partitions_revoked.send(revoked)
+        except Exception as exc:
+            await self.crash(exc)
+
+    async def _on_partitions_assigned(self, assigned: _Set[TP]) -> None:
+        """Handle new topic partition assignment.
+
+        This is called during a rebalance after :meth:`on_partitions_revoked`.
+
+        The new assignment provided overrides the previous
+        assignment, so any tp no longer in the assigned' list will have
+        been revoked.
+        """
+        try:
+            await self.consumer.verify_subscription(assigned)
+            # Wait for TopicConductor to finish any new subscriptions
+            await self.topics.wait_for_subscriptions()
+            await self.consumer.pause_partitions(assigned)
+            await self._fetcher.restart()
+            self.log.info(f'Restarted fetcher')
+            await self.topics.on_partitions_assigned(assigned)
+            await self.tables.on_partitions_assigned(assigned)
+            await self.on_partitions_assigned.send(assigned)
+            self.flow_control.resume()
         except Exception as exc:
             await self.crash(exc)
 
