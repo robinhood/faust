@@ -4,7 +4,7 @@ import statistics
 from time import monotonic
 from typing import Any, List, Mapping, MutableMapping, Set, cast
 
-from mode import Service, ServiceT
+from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy
 from mode.utils.compat import Counter
 
@@ -170,6 +170,20 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.events_runtime = [] if events_runtime is None else events_runtime
         Service.__init__(self, **kwargs)
 
+    @property
+    def _events_by_stream_dict(self) -> MutableMapping[str, int]:
+        return {
+            label(stream): count
+            for stream, count in self.events_by_stream.items()
+        }
+
+    @property
+    def _events_by_task_dict(self) -> MutableMapping[str, int]:
+        return {
+            label(task): count
+            for task, count in self.events_by_task.items()
+        }
+
     def asdict(self) -> Mapping:
         return {
             'messages_active': self.messages_active,
@@ -182,8 +196,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'events_total': self.events_total,
             'events_s': self.events_s,
             'events_runtime_avg': self.events_runtime_avg,
-            'events_by_task': self.events_by_task,
-            'events_by_stream': self.events_by_stream,
+            'events_by_task': self._events_by_task_dict,
+            'events_by_stream': self._events_by_stream_dict,
             'commit_latency': self.commit_latency,
             'send_latency': self.send_latency,
             'tables': {
