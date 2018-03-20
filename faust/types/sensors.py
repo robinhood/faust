@@ -16,18 +16,17 @@ __all__ = ['SensorInterfaceT', 'SensorT']
 class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
-    async def on_message_in(self, tp: TP, offset: int,
-                            message: Message) -> None:
+    def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                                 event: EventT) -> None:
+    def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
+                           event: EventT) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                                  event: EventT) -> None:
+    def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
+                            event: EventT) -> None:
         ...
 
     @abc.abstractmethod
@@ -35,10 +34,10 @@ class SensorInterfaceT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def on_message_out(self,
-                             tp: TP,
-                             offset: int,
-                             message: Message = None) -> None:
+    def on_message_out(self,
+                       tp: TP,
+                       offset: int,
+                       message: Message = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -54,21 +53,20 @@ class SensorInterfaceT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
+    def on_commit_initiated(self, consumer: ConsumerT) -> Any:
         ...
 
     @abc.abstractmethod
-    async def on_commit_completed(self, consumer: ConsumerT,
-                                  state: Any) -> None:
+    def on_commit_completed(self, consumer: ConsumerT, state: Any) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_send_initiated(self, producer: ProducerT, topic: str,
-                                keysize: int, valsize: int) -> Any:
+    def on_send_initiated(self, producer: ProducerT, topic: str,
+                          keysize: int, valsize: int) -> Any:
         ...
 
     @abc.abstractmethod
-    async def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
         ...
 
 

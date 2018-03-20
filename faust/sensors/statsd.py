@@ -55,17 +55,16 @@ class StatsdMonitor(Monitor):
         return statsd.StatsClient(
             host=self.host, port=self.port, prefix=self.prefix)
 
-    async def on_message_in(self, tp: TP, offset: int,
-                            message: Message) -> None:
-        await super().on_message_in(tp, offset, message)
+    def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
+        super().on_message_in(tp, offset, message)
 
         self.client.incr('messages_received', rate=self.rate)
         self.client.incr('messages_active', rate=self.rate)
         self.client.incr(f'topic.{tp.topic}.messages_received', rate=self.rate)
 
-    async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                                 event: EventT) -> None:
-        await super().on_stream_event_in(tp, offset, stream, event)
+    def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
+                           event: EventT) -> None:
+        super().on_stream_event_in(tp, offset, stream, event)
         self.client.incr('events', rate=self.rate)
         self.client.incr(
             f'stream.{self._sanitize(label(stream))}.events', rate=self.rate)
@@ -75,20 +74,20 @@ class StatsdMonitor(Monitor):
         )
         self.client.incr('events_active', rate=self.rate)
 
-    async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                                  event: EventT) -> None:
-        await super().on_stream_event_out(tp, offset, stream, event)
+    def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
+                            event: EventT) -> None:
+        super().on_stream_event_out(tp, offset, stream, event)
         self.client.decr('events_active', rate=self.rate)
         self.client.timing(
             'events_runtime',
             self._time(self.events_runtime[-1]),
             rate=self.rate)
 
-    async def on_message_out(self,
-                             tp: TP,
-                             offset: int,
-                             message: Message = None) -> None:
-        await super().on_message_out(tp, offset, message)
+    def on_message_out(self,
+                       tp: TP,
+                       offset: int,
+                       message: Message = None) -> None:
+        super().on_message_out(tp, offset, message)
         self.client.decr('messages_active', rate=self.rate)
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
@@ -106,22 +105,20 @@ class StatsdMonitor(Monitor):
         self.client.incr(
             'table.{}.keys_deleted'.format(table.name), rate=self.rate)
 
-    async def on_commit_completed(self, consumer: ConsumerT,
-                                  state: Any) -> None:
-        await super().on_commit_completed(consumer, state)
+    def on_commit_completed(self, consumer: ConsumerT, state: Any) -> None:
+        super().on_commit_completed(consumer, state)
         self.client.timing(
             'commit_latency',
             self._time(monotonic() - cast(float, state)),
             rate=self.rate)
 
-    async def on_send_initiated(self, producer: ProducerT, topic: str,
-                                keysize: int, valsize: int) -> Any:
+    def on_send_initiated(self, producer: ProducerT, topic: str,
+                          keysize: int, valsize: int) -> Any:
         self.client.incr(f'topic.{topic}.messages_sent', rate=self.rate)
-        return await super().on_send_initiated(
-            producer, topic, keysize, valsize)
+        return super().on_send_initiated(producer, topic, keysize, valsize)
 
-    async def on_send_completed(self, producer: ProducerT, state: Any) -> None:
-        await super().on_send_completed(producer, state)
+    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+        super().on_send_completed(producer, state)
         self.client.incr('messages_sent', rate=self.rate)
         self.client.timing(
             'send_latency',

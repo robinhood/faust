@@ -705,7 +705,7 @@ class Stream(StreamT[T_co], Service):
                         offset = message.offset
 
                         # call Sensors
-                        await on_stream_event_in(tp, offset, self, event)
+                        on_stream_event_in(tp, offset, self, event)
 
                         # set task-local current_event
                         _current_event_contextvar.set(create_ref(event))
@@ -729,9 +729,9 @@ class Stream(StreamT[T_co], Service):
                     if event is not None:
                         # This inlines self.ack
                         last_stream_to_ack = event.ack()
-                        await on_stream_event_out(tp, offset, self, event)
+                        on_stream_event_out(tp, offset, self, event)
                         if last_stream_to_ack:
-                            await on_message_out(tp, offset, message)
+                            on_message_out(tp, offset, message)
         finally:
             self._channel_stop_iteration(channel)
 
@@ -754,9 +754,9 @@ class Stream(StreamT[T_co], Service):
         message = event.message
         tp = message.tp
         offset = message.offset
-        await self._on_stream_event_out(tp, offset, self, event)
+        self._on_stream_event_out(tp, offset, self, event)
         if last_stream_to_ack:
-            await self._on_message_out(tp, offset, message)
+            self._on_message_out(tp, offset, message)
         return last_stream_to_ack
 
     def __and__(self, other: Any) -> Any:

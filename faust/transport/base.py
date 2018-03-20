@@ -204,14 +204,13 @@ class Consumer(Service, ConsumerT):
     async def verify_subscription(self, assigned: Set[TP]) -> None:
         ...
 
-    async def track_message(self, message: Message) -> None:
+    def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.  This is called by faust.topics.TopicConductor,
         # before delivering messages to streams.
         self._unacked_messages.add(message)
-
         # call sensors
-        await self._on_message_in(message.tp, message.offset, message)
+        self._on_message_in(message.tp, message.offset, message)
 
     def ack(self, message: Message) -> bool:
         if not message.acked:
@@ -317,13 +316,13 @@ class Consumer(Service, ConsumerT):
     @Service.transitions_to(CONSUMER_COMMITTING)
     async def force_commit(self, topics: TPorTopicSet = None) -> bool:
         # Only one coroutine can commit at a time.
-        sensor_state = await self.app.sensors.on_commit_initiated(self)
+        sensor_state = self.app.sensors.on_commit_initiated(self)
 
         # Go over the ack list in each topic/partition
         commit_tps = list(self._filter_tps_with_pending_acks(topics))
         did_commit = await self._commit_tps(commit_tps)
 
-        await self.app.sensors.on_commit_completed(self, sensor_state)
+        self.app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
 
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:

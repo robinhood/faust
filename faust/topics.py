@@ -291,7 +291,7 @@ class Topic(Channel, TopicT):
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
         producer = await self._get_producer()
-        state = await app.sensors.on_send_initiated(
+        state = app.sensors.on_send_initiated(
             producer,
             topic,
             keysize=len(key) if key else 0,
@@ -299,7 +299,7 @@ class Topic(Channel, TopicT):
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
                 topic, key, value, partition=message.partition)
-            await app.sensors.on_send_completed(producer, state)
+            app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
         else:
             fut2 = await producer.send(
@@ -443,7 +443,7 @@ class TopicConductor(ConductorT, Service):
                 if topic in acking_topics:
                     # This inlines Consumer.track_message(message)
                     add_unacked(message)
-                    await on_message_in(message.tp, message.offset, message)
+                    on_message_in(message.tp, message.offset, message)
                     # XXX ugh this should be in the consumer somehow
                     if consumer._last_batch is None:
                         # set last_batch received timestamp if not already set.

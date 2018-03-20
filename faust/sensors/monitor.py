@@ -2,7 +2,7 @@
 import asyncio
 import statistics
 from time import monotonic
-from typing import Any, List, Mapping, MutableMapping, Set, cast
+from typing import Any, Callable, List, Mapping, MutableMapping, Set, cast
 
 from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy
@@ -173,22 +173,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.events_runtime_avg = events_runtime_avg
         self.events_runtime = [] if events_runtime is None else events_runtime
         self.topic_buffer_full = Counter()
+        self.time: Callable[[], float] = monotonic
         Service.__init__(self, **kwargs)
-
-    @property
-    def _events_by_stream_dict(self) -> MutableMapping[str, int]:
-        return {label(stream): count
-                for stream, count in self.events_by_stream.items()}
-
-    @property
-    def _events_by_task_dict(self) -> MutableMapping[str, int]:
-        return {label(task): count
-                for task, count in self.events_by_task.items()}
-
-    @property
-    def _topic_buffer_full_dict(self) -> MutableMapping[str, int]:
-        return {label(topic): count
-                for topic, count in self.topic_buffer_full.items()}
 
     def asdict(self) -> Mapping:
         return {
@@ -202,15 +188,27 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'events_total': self.events_total,
             'events_s': self.events_s,
             'events_runtime_avg': self.events_runtime_avg,
-            'events_by_task': self._events_by_task_dict,
-            'events_by_stream': self._events_by_stream_dict,
+            'events_by_task': self._events_by_task_dict(),
+            'events_by_stream': self._events_by_stream_dict(),
             'commit_latency': self.commit_latency,
             'send_latency': self.send_latency,
-            'topic_buffer_full': self._topic_buffer_full_dict,
+            'topic_buffer_full': self._topic_buffer_full_dict(),
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             },
         }
+
+    def _events_by_stream_dict(self) -> MutableMapping[str, int]:
+        return {label(stream): count
+                for stream, count in self.events_by_stream.items()}
+
+    def _events_by_task_dict(self) -> MutableMapping[str, int]:
+        return {label(task): count
+                for task, count in self.events_by_task.items()}
+
+    def _topic_buffer_full_dict(self) -> MutableMapping[str, int]:
+        return {label(topic): count
+                for topic, count in self.topic_buffer_full.items()}
 
     def _cleanup(self) -> None:
         max_avg = self.max_avg_history
@@ -225,30 +223,29 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         if max_sen is not None and len(self.send_latency) > max_sen:
             self.send_latency[:len(self.send_latency) - max_sen] = []
 
-    async def on_message_in(self, tp: TP, offset: int,
-                            message: Message) -> None:
+    def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
         #          as this means the message won't go out of scope!
         self.messages_received_total += 1
         self.messages_active += 1
         self.messages_received_by_topic[tp.topic] += 1
-        message.time_in = monotonic()
+        message.time_in = self.time()
 
-    async def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
-                                 event: EventT) -> None:
+    def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
+                           event: EventT) -> None:
         self.events_total += 1
         self.events_by_stream[stream] += 1
         self.events_by_task[stream.task_owner] += 1
         self.events_active += 1
         event.message.stream_meta[id(stream)] = {
-            'time_in': monotonic(),
+            'time_in': self.time(),
             'time_out': None,
             'time_total': None,
         }
 
-    async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
-                                  event: EventT) -> None:
-        time_out = monotonic()
+    def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
+                            event: EventT) -> None:
+        time_out = self.time()
         state = event.message.stream_meta[id(stream)]
         time_in = state['time_in']
         time_total = time_out - time_in
@@ -262,12 +259,12 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def on_topic_buffer_full(self, topic: TopicT) -> None:
         self.topic_buffer_full[topic] += 1
 
-    async def on_message_out(self,
-                             tp: TP,
-                             offset: int,
-                             message: Message = None) -> None:
+    def on_message_out(self,
+                       tp: TP,
+                       offset: int,
+                       message: Message = None) -> None:
         self.messages_active -= 1
-        message.time_out = monotonic()
+        message.time_out = self.time()
         message.time_total = message.time_out - message.time_in
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
@@ -286,21 +283,20 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             state = self.tables[table.name] = TableState(table)
             return state
 
-    async def on_commit_initiated(self, consumer: ConsumerT) -> Any:
-        return monotonic()
+    def on_commit_initiated(self, consumer: ConsumerT) -> Any:
+        return self.time()
 
-    async def on_commit_completed(self, consumer: ConsumerT,
-                                  state: Any) -> None:
-        self.commit_latency.append(monotonic() - cast(float, state))
+    def on_commit_completed(self, consumer: ConsumerT, state: Any) -> None:
+        self.commit_latency.append(self.time() - cast(float, state))
 
-    async def on_send_initiated(self, producer: ProducerT, topic: str,
-                                keysize: int, valsize: int) -> Any:
+    def on_send_initiated(self, producer: ProducerT, topic: str,
+                          keysize: int, valsize: int) -> Any:
         self.messages_sent += 1
         self.messages_sent_by_topic[topic] += 1
-        return monotonic()
+        return self.time()
 
-    async def on_send_completed(self, producer: ProducerT, state: Any) -> None:
-        self.send_latency.append(monotonic() - cast(float, state))
+    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+        self.send_latency.append(self.time() - cast(float, state))
 
     @cached_property
     def _service(self) -> ServiceT:
