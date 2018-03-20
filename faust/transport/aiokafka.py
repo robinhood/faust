@@ -385,7 +385,7 @@ class Producer(base.Producer):
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             client_id=transport.app.conf.broker_client_id,
-            acks='all',
+            acks=self.acks,
             linger_ms=self.linger_ms,
             max_batch_size=self.max_batch_size,
         )

@@ -124,6 +124,23 @@ PRODUCER_LINGER_MS = 0
 #: Used as the default value for :setting:`max_batch_size`.
 PRODUCER_MAX_BATCH_SIZE = 16384
 
+# The number of acknowledgments the producer requires the leader to have
+# received before considering a request complete. This controls the
+# durability of records that are sent. The following settings are common:
+#     0: Producer will not wait for any acknowledgment from the server
+#         at all. The message will immediately be considered sent.
+#         (Not recommended)
+#     1: The broker leader will write the record to its local log but
+#         will respond without awaiting full acknowledgement from all
+#         followers. In this case should the leader fail immediately
+#         after acknowledging the record but before the followers have
+#         replicated it then the record will be lost.
+#     -1: The broker leader will wait for the full set of in-sync
+#         replicas to acknowledge the record. This guarantees that the
+#         record will not be lost as long as at least one in-sync replica
+#         remains alive. This is the strongest available guarantee.
+PRODUCER_ACKS = -1
+
 #: Set of settings added for backwards compatibility
 SETTINGS_COMPAT: Set[str] = {'url'}
 
@@ -157,6 +174,7 @@ class Settings(abc.ABC):
     loghandlers: List[logging.StreamHandler] = None
     producer_linger_ms: int = PRODUCER_LINGER_MS
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
+    producer_acks: int = PRODUCER_ACKS
 
     _id: str = None
     _name: str = None
@@ -222,6 +240,7 @@ class Settings(abc.ABC):
             stream_buffer_maxsize: int = None,
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
+            producer_acks: int = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -281,6 +300,8 @@ class Settings(abc.ABC):
             self.producer_linger_ms = producer_linger_ms
         if producer_max_batch_size is not None:
             self.producer_max_batch_size = producer_max_batch_size
+        if producer_acks is not None:
+            self.producer_acks = producer_acks
 
         if reply_to_prefix is not None:
             self.reply_to_prefix = reply_to_prefix

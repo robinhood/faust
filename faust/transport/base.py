@@ -471,6 +471,7 @@ class Producer(Service, ProducerT):
         conf = self.transport.app.conf
         self.linger_ms = conf.producer_linger_ms
         self.max_batch_size = conf.producer_max_batch_size
+        self.acks = conf.producer_acks
         super().__init__(loop=self.transport.loop, **kwargs)
 
     async def send(self, topic: str, key: Optional[bytes],
