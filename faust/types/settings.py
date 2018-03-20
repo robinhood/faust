@@ -116,6 +116,14 @@ REPLY_EXPIRES = want_seconds(timedelta(days=1))
 #: Max number of messages channels/streams/topics can "prefetch".
 STREAM_BUFFER_MAXSIZE = 1000
 
+#: Minimum time to batch before sending out messages.
+#: Used as the default value for :setting:`linger_ms`.
+LINGER_MS = 0
+
+#: Maximum size of buffered data per partition in bytes.
+#: Used as the default value for :setting:`max_batch_size`.
+MAX_BATCH_SIZE = 16384
+
 #: Set of settings added for backwards compatibility
 SETTINGS_COMPAT: Set[str] = {'url'}
 
@@ -147,6 +155,8 @@ class Settings(abc.ABC):
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
     loghandlers: List[logging.StreamHandler] = None
+    linger_ms: int = None
+    max_batch_size: int = None
 
     _id: str = None
     _name: str = None
@@ -210,6 +220,8 @@ class Settings(abc.ABC):
             reply_create_topic: bool = None,
             reply_expires: Seconds = None,
             stream_buffer_maxsize: int = None,
+            linger_ms: int = None,
+            max_batch_size: int = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -233,6 +245,8 @@ class Settings(abc.ABC):
         self.id = id
         self.broker = broker or self._broker or BROKER_URL
         self.store = store or self._store or STORE_URL
+        self.linger_ms = linger_ms or LINGER_MS
+        self.max_batch_size = max_batch_size or MAX_BATCH_SIZE
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
