@@ -116,7 +116,7 @@ REPLY_EXPIRES = want_seconds(timedelta(days=1))
 #: Max number of messages channels/streams/topics can "prefetch".
 STREAM_BUFFER_MAXSIZE = 32768
 
-#: Minimum time to batch before sending out messages from the produce.
+#: Minimum time to batch before sending out messages from the producer.
 #: Used as the default value for :setting:`linger_ms`.
 PRODUCER_LINGER_MS = 0
 
