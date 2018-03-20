@@ -8,7 +8,7 @@ from mode import Service, ServiceT
 from mode.proxy import ServiceProxy
 from mode.utils.compat import Counter
 
-from faust.types import CollectionT, EventT, Message, StreamT, TP
+from faust.types import CollectionT, EventT, Message, StreamT, TP, TopicT
 from faust.types.transports import ConsumerT, ProducerT
 from faust.utils.objects import KeywordReduce, cached_property
 
@@ -126,6 +126,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     #: List of send latency values
     send_latency: List[float] = None
 
+    #: Counter of times a topics buffer was full
+    topic_buffer_full: Counter[TopicT] = None
+
     def __init__(self,
                  *,
                  max_avg_history: int = MAX_AVG_HISTORY,
@@ -145,6 +148,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
+                 topic_buffer_full: Counter[TopicT] = None,
                  **kwargs: Any) -> None:
         self.max_avg_history = max_avg_history
         self.max_commit_latency_history = max_commit_latency_history
@@ -168,6 +172,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.events_s = events_s
         self.events_runtime_avg = events_runtime_avg
         self.events_runtime = [] if events_runtime is None else events_runtime
+        self.topic_buffer_full = Counter()
         Service.__init__(self, **kwargs)
 
     def asdict(self) -> Mapping:
@@ -186,6 +191,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'events_by_stream': self.events_by_stream,
             'commit_latency': self.commit_latency,
             'send_latency': self.send_latency,
+            'topic_buffer_full': self.topic_buffer_full,
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             },
@@ -237,6 +243,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             time_total=time_total,
         )
         self.events_runtime.append(time_total)
+
+    def on_topic_buffer_full(self, topic: TopicT) -> None:
+        self.topic_buffer_full[topic] += 1
 
     async def on_message_out(self,
                              tp: TP,

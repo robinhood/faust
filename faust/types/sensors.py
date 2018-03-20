@@ -6,6 +6,7 @@ from mode import ServiceT
 from .events import EventT
 from .streams import StreamT
 from .tables import CollectionT
+from .topics import TopicT
 from .transports import ConsumerT, ProducerT
 from .tuples import Message, TP
 
@@ -27,6 +28,10 @@ class SensorInterfaceT(abc.ABC):
     @abc.abstractmethod
     async def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
                                   event: EventT) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_topic_buffer_full(self, topic: TopicT) -> None:
         ...
 
     @abc.abstractmethod
@@ -72,6 +77,8 @@ class SensorT(SensorInterfaceT, ServiceT):
 
 
 class SensorDelegateT(SensorInterfaceT, Iterable):
+
+    # Delegate calls to many sensors.
 
     @abc.abstractmethod
     def add(self, sensor: SensorT) -> None:

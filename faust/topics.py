@@ -416,6 +416,7 @@ class TopicConductor(ConductorT, Service):
         get_channels_for_topic = self._topicmap.__getitem__
         consumer: ConsumerT = None
         on_message_in = self.app.sensors.on_message_in
+        on_topic_buffer_full = self.app.sensors.on_topic_buffer_full
         unacked: Set[Message] = None
         add_unacked: Callable[[Message], None] = None
         acquire_flow_control: Callable = self.app.flow_control.acquire
@@ -493,6 +494,8 @@ class TopicConductor(ConductorT, Service):
                             queue.put_nowait(dest_event)
                         delivered.add(chan)
                     if full:
+                        for _, dest_chan in full:
+                            on_topic_buffer_full(dest_chan)
                         await asyncio.wait(
                             [dest_chan.put(dest_event)
                              for dest_event, dest_chan in full],

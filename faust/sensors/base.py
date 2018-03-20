@@ -5,6 +5,7 @@ from mode import Service
 
 from faust.types import AppT, CollectionT, EventT, Message, StreamT, TP
 from faust.types.sensors import SensorDelegateT, SensorT
+from faust.types.topics import TopicT
 from faust.types.transports import ConsumerT, ProducerT
 
 __all__ = ['Sensor', 'SensorDelegate']
@@ -114,6 +115,10 @@ class SensorDelegate(SensorDelegateT):
                                   event: EventT) -> None:
         for sensor in self._sensors:
             await sensor.on_stream_event_out(tp, offset, stream, event)
+
+    def on_topic_buffer_full(self, topic: TopicT) -> None:
+        for sensor in self._sensors:
+            sensor.on_topic_buffer_full(topic)
 
     async def on_message_out(self,
                              tp: TP,
