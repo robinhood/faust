@@ -115,6 +115,7 @@ class Stream(StreamT[T_co], Service):
                  beacon: NodeT = None,
                  concurrency_index: int = None,
                  prev: StreamT = None,
+                 active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -129,6 +130,7 @@ class Stream(StreamT[T_co], Service):
         self.combined = combined if combined is not None else []
         self.concurrency_index = concurrency_index
         self._prev = prev
+        self.active_partitions = active_partitions
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
@@ -226,6 +228,7 @@ class Stream(StreamT[T_co], Service):
             'beacon': self.beacon,
             'concurrency_index': self.concurrency_index,
             'prev': self._prev,
+            'active_partitions': self.active_partitions,
         }
 
     def clone(self, **kwargs: Any) -> StreamT:

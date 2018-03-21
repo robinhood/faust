@@ -14,12 +14,15 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSequence,
+    MutableSet,
+    Set,
     Tuple,
     Type,
     Union,
     cast,
 )
 from uuid import uuid4
+from weakref import WeakSet, WeakValueDictionary
 
 import venusian
 from mode import (
@@ -49,6 +52,7 @@ from faust.types import (
     ModelArg,
     RecordMetadata,
     StreamT,
+    TP,
     TopicT,
     V,
 )
@@ -151,12 +155,14 @@ class Actor(ActorT, Service):
                  stream: StreamT,
                  it: _T,
                  index: int = None,
+                 active_partitions: Set[int] = None,
                  **kwargs: Any) -> None:
         self.agent = agent
         self.stream = stream
         self.it = it
         self.index = index
         self.actor_task = None
+        self.active_partitions = active_partitions
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
@@ -165,6 +171,16 @@ class Actor(ActorT, Service):
 
     async def on_stop(self) -> None:
         self.cancel()
+
+    async def on_isolated_partition_revoked(self, tp: TP) -> None:
+        self.log.debug('Cancelling current task in actor for partition %r', tp)
+        self.cancel()
+        self.log.info('Stopping actor for revoked partition %r...', tp)
+        await self.stop()
+        self.log.debug('Actor for revoked partition %r stopped')
+
+    async def on_isolated_partition_assigned(self, tp: TP) -> None:
+        self.log.dev('Actor was assigned to %r', tp)
 
     def cancel(self) -> None:
         if self.actor_task:
@@ -207,12 +223,21 @@ class AgentService(Service):
         self.supervisor = None
         super().__init__(**kwargs)
 
-    async def _start_one(self, index: int = None) -> ActorT:
+    async def _start_one(self,
+                         index: int = None,
+                         active_partitions: Set[TP] = None) -> ActorT:
         # an index of None means there's only one instance,
         # and `index is None` is used as a test by functions that
         # disallows concurrency.
-        index = index if (self.agent.concurrency or 1) > 1 else None
-        return await cast(Agent, self.agent)._start_task(index, self.beacon)
+        index = index if self.agent.concurrency > 1 else None
+        return await cast(Agent, self.agent)._start_task(
+            index, active_partitions, self.beacon)
+
+    async def _start_for_partitions(self,
+                                    active_partitions: Set[TP]) -> ActorT:
+        assert active_partitions
+        self.log.info('Starting actor for partitions %s', active_partitions)
+        return await self._start_one(None, active_partitions)
 
     async def on_start(self) -> None:
         self.supervisor = self.agent.supervisor_strategy(
@@ -238,6 +263,7 @@ class AgentService(Service):
         # to be raised).
         if self.supervisor:
             await self.supervisor.stop()
+            self.supervisor = None
 
     @property
     def label(self) -> str:
@@ -263,6 +289,9 @@ class Agent(AgentT, ServiceProxy):
     _channel_iterator: AsyncIterator = None
     _sinks: List[SinkT] = None
 
+    _actors: MutableSet[ActorRefT] = None
+    _actor_by_partition: MutableMapping[TP, ActorRefT] = None
+
     def __init__(self,
                  fun: AgentFun,
                  *,
@@ -276,6 +305,7 @@ class Agent(AgentT, ServiceProxy):
                  help: str = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
+                 isolated_partitions: bool = True,
                  **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
@@ -290,15 +320,71 @@ class Agent(AgentT, ServiceProxy):
         self._value_type = value_type
         self._channel_arg = channel
         self._channel_kwargs = kwargs
-        self.concurrency = concurrency
+        self.concurrency = concurrency or 1
+        self.isolated_partitions = isolated_partitions
         self.help = help
         self._sinks = list(sink) if sink is not None else []
         self._on_error: AgentErrorHandler = on_error
         self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
+        self._actors = WeakSet()
+        self._actor_by_partition = WeakValueDictionary()
+        if self.isolated_partitions and self.concurrency > 1:
+            raise ImproperlyConfigured(
+                'Agent concurrency must be 1 when using isolated partitions')
         ServiceProxy.__init__(self)
+
+    def cancel(self) -> None:
+        for actor in self._actors:
+            actor.cancel()
 
     def on_discovered(self, scanner: venusian.Scanner, name: str,
                       obj: AgentT) -> None:
+        ...
+
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        if self.isolated_partitions:
+            return await self.on_isolated_partitions_revoked(revoked)
+        return await self.on_shared_partitions_revoked(revoked)
+
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        if self.isolated_partitions:
+            return await self.on_isolated_partitions_assigned(assigned)
+        return await self.on_shared_partitions_assigned(assigned)
+
+    async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
+        self.log.dev('Partitions revoked')
+        for tp in revoked:
+            aref: ActorRefT = self._actor_by_partition.pop(tp, None)
+            if aref is not None:
+                aref.on_isolated_partition_revoked(tp)
+
+    async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
+        for tp in sorted(assigned):
+            if not self._actor_by_partition:
+                # if this is the first time we are assigned
+                # we need to reassign the agent we started at boot to
+                # one of the partitions.
+                assert self._actors
+                assert len(self._actors) == 1
+                aref = self._actor_by_partition[tp] = next(iter(self._actors))
+                aref.active_partitions = {tp}
+                aref.stream.active_partitions = {tp}
+                print('REASSIGNED ACTOR %r TO %r' % (aref, tp))
+            try:
+                aref = self._actor_by_partition[tp]
+            except KeyError:
+                print('STARTING NEW ISOLATED FOR TP %r' % (tp,))
+                aref = await self._start_isolated(tp)
+                self._actor_by_partition[tp] = aref
+            await aref.on_isolated_partition_assigned(tp)
+
+    async def _start_isolated(self, tp: TP) -> None:
+        return await self._service._start_for_partitions({tp})
+
+    async def on_shared_partitions_revoked(self, revoked: Set[TP]) -> None:
+        ...
+
+    async def on_shared_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
     def info(self) -> Mapping:
@@ -312,6 +398,7 @@ class Agent(AgentT, ServiceProxy):
             'sinks': self._sinks,
             'on_error': self._on_error,
             'supervisor_strategy': self.supervisor_strategy,
+            'isolated_partitions': self.isolated_partitions,
         }
 
     def clone(self, *, cls: Type[AgentT] = None, **kwargs: Any) -> AgentT:
@@ -348,7 +435,9 @@ class Agent(AgentT, ServiceProxy):
         raise TypeError(
             f'Channel must be channel, topic, or str; not {type(channel)}')
 
-    def __call__(self, *, index: int = None) -> ActorRefT:
+    def __call__(self, *,
+                 index: int = None,
+                 active_partitions: Set[TP] = None) -> ActorRefT:
         # The agent function can be reused by other agents/tasks.
         # For example:
         #
@@ -366,7 +455,9 @@ class Agent(AgentT, ServiceProxy):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the agent
         # function is an `async def` function that yields)
-        return self.actor_from_stream(self.stream(concurrency_index=index))
+        return self.actor_from_stream(self.stream(
+            concurrency_index=index,
+            active_partitions=active_partitions))
 
     def actor_from_stream(self, stream: StreamT) -> ActorRefT:
         res = self.fun(stream)
@@ -378,6 +469,7 @@ class Agent(AgentT, ServiceProxy):
             stream,
             res,
             stream.concurrency_index,
+            stream.active_partitions,
             loop=self.loop,
             beacon=self.beacon,
         )
@@ -396,11 +488,15 @@ class Agent(AgentT, ServiceProxy):
             return event.value
         return event
 
-    async def _start_task(self, index: int, beacon: NodeT) -> ActorRefT:
+    async def _start_task(self,
+                          index: int,
+                          active_partitions: Set[TP] = None,
+                          beacon: NodeT = None) -> ActorRefT:
         # If the agent is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
-        return await self._prepare_actor(self(index=index), beacon)
+        actor = self(index=index, active_partitions=active_partitions)
+        return await self._prepare_actor(actor, beacon)
 
     async def _prepare_actor(self, aref: ActorRefT,
                              beacon: NodeT) -> ActorRefT:
@@ -416,6 +512,7 @@ class Agent(AgentT, ServiceProxy):
         task = asyncio.Task(self._execute_task(coro, aref), loop=self.loop)
         task._beacon = beacon  # type: ignore
         aref.actor_task = task
+        self._actors.add(aref)
         return aref
 
     async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
@@ -423,7 +520,8 @@ class Agent(AgentT, ServiceProxy):
         try:
             await coro
         except asyncio.CancelledError:
-            raise
+            if self.should_stop:
+                raise
         except Exception as exc:
             self.log.exception('Agent %r raised error: %r', aref, exc)
             if self._on_error is not None:
@@ -653,6 +751,12 @@ class Agent(AgentT, ServiceProxy):
 
     def _repr_info(self) -> str:
         return shorten_fqdn(self.name)
+
+    def get_topic_names(self) -> Iterable[str]:
+        channel = self.channel
+        if isinstance(channel, TopicT):
+            return channel.topics
+        return []
 
     @property
     def channel(self) -> ChannelT:

@@ -11,6 +11,7 @@ from typing import (
     List,
     Mapping,
     Sequence,
+    Set,
     Tuple,
     TypeVar,
     Union,
@@ -18,12 +19,14 @@ from typing import (
 )
 
 from mode import Seconds, ServiceT
+from mode.utils.trees import NodeT
 
 from .channels import ChannelT
 from .core import K
 from .events import EventT
 from .models import FieldDescriptorT, ModelArg
 from .topics import TopicT
+from .tuples import TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -95,6 +98,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     join_strategy: JoinT = None
     task_owner: asyncio.Task = None
     current_event: EventT = None
+    active_partitions: Set[TP] = None
     concurrency_index: int = None
 
     # List of combined streams/tables after ret = (s1 & s2) combined them.
@@ -115,9 +119,15 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     def __init__(self,
                  channel: AsyncIterator[T_co] = None,
                  *,
+                 app: AppT = None,
                  processors: Iterable[Processor[T]] = None,
                  combined: List[JoinableT] = None,
+                 on_start: Callable = None,
                  join_strategy: JoinT = None,
+                 beacon: NodeT = None,
+                 concurrency_index: int = None,
+                 prev: 'StreamT' = None,
+                 active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

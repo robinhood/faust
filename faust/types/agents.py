@@ -12,6 +12,7 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -27,7 +28,7 @@ from .events import EventT
 from .models import ModelArg
 from .streams import StreamT
 from .topics import ChannelT
-from .tuples import Message, RecordMetadata
+from .tuples import Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -68,17 +69,27 @@ class ActorT(ServiceT, Generic[_T]):
     stream: StreamT
     it: _T
     actor_task: asyncio.Task = None
+    active_partitions: Set[TP] = None
 
     #: If multiple instance are started for concurrency, this is its index.
     index: int = None
 
     @abc.abstractmethod
     def __init__(self, agent: 'AgentT', stream: StreamT, it: _T,
+                 active_partitions: Set[TP] = None,
                  **kwargs: Any) -> None:
         ...
 
     @abc.abstractmethod
     def cancel(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_isolated_partition_revoked(self, tp: TP) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_isolated_partition_assigned(self, tp: TP) -> None:
         ...
 
 
@@ -100,6 +111,7 @@ class AgentT(ServiceT):
     concurrency: int
     help: str
     supervisor_strategy: Type[SupervisorStrategyT]
+    isolated_partitions: bool
 
     @abc.abstractmethod
     def __init__(self,
@@ -115,6 +127,7 @@ class AgentT(ServiceT):
                  help: str = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
+                 isolated_partitions: bool = True,
                  **kwargs: Any) -> None:
         self.fun: AgentFun = fun
 
@@ -135,6 +148,14 @@ class AgentT(ServiceT):
 
     @abc.abstractmethod
     def stream(self, **kwargs: Any) -> StreamT:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
@@ -203,6 +224,10 @@ class AgentT(ServiceT):
 
     @abc.abstractmethod
     def clone(self, *, cls: Type['AgentT'] = None, **kwargs: Any) -> 'AgentT':
+        ...
+
+    @abc.abstractmethod
+    def get_topic_names(self) -> Iterable[str]:
         ...
 
     @property

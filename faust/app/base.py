@@ -770,6 +770,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 self.flow_control.clear()
                 # wait for currently processing event in each stream.
                 await self.consumer.wait_empty()
+                await self.agents.on_partitions_revoked(revoked)
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
             await self.on_partitions_revoked.send(revoked)
@@ -787,6 +788,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         try:
             await self.consumer.verify_subscription(assigned)
+            await self.agents.on_partitions_assigned(assigned)
             # Wait for TopicConductor to finish any new subscriptions
             await self.topics.wait_for_subscriptions()
             await self.consumer.pause_partitions(assigned)
