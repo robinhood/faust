@@ -151,6 +151,9 @@ class Consumer(Service, ConsumerT):
     #: Time of when the consumer was started.
     _time_start: float = None
 
+    _commit_every: int = None
+    _n_acked: int = None
+
     def __init__(self,
                  transport: TransportT,
                  *,
@@ -167,6 +170,7 @@ class Consumer(Service, ConsumerT):
         self._on_message_in = self.app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
+        self._comit_every = self.app.conf.broker_commit_every
         self.commit_interval = (
             commit_interval or self.app.conf.broker_commit_interval)
         self.commit_livelock_soft_timeout = (
@@ -227,6 +231,7 @@ class Consumer(Service, ConsumerT):
                             acked_index.add(offset)
                             acked_for_tp = self._acked[tp]
                             acked_for_tp.append(offset)
+                            self._n_acked += 1
                             return True
                 finally:
                     notify(self._waiting_for_ack)
@@ -407,6 +412,7 @@ class Consumer(Service, ConsumerT):
         flag_consumer_fetching = CONSUMER_FETCHING
         set_flag = self.diag.set_flag
         unset_flag = self.diag.unset_flag
+        commit_every = self._commit_every
 
         try:
             while not (consumer_should_stop() or fetcher_should_stop()):
@@ -419,6 +425,10 @@ class Consumer(Service, ConsumerT):
                     offset = message.offset
                     r_offset = get_read_offset(tp)
                     if r_offset is None or offset > r_offset:
+                        if commit_every is not None:
+                            if self._n_acked >= commit_every:
+                                self._n_acked = 0
+                                await self.commit()
                         await callback(message)
                         set_read_offset(tp, offset)
                     else:

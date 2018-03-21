@@ -361,6 +361,19 @@ You shouldn't have to set this manually.
 The client id is used to identify the software used, and is not usually
 configured by the user.
 
+.. setting:: broker_commit_every
+
+``broker_commit_every``
+-----------------------
+
+:type: :class:`int`
+:default: ``1000``
+
+Commit offset every n messages.
+
+See also :setting:`broker_commit_interval`, which is how frequently
+we commit on a timer when there are few messages being received.
+
 .. setting:: broker_commit_interval
 
 ``broker_commit_interval``
