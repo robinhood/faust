@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Dict,
     FrozenSet,
     Iterable,
@@ -54,6 +55,23 @@ ALIAS_FIELD_TYPES = {
 # in the source code we refer to a concrete type, in the example above
 # the concrete type for x would be `list`, and the concrete type
 # for y would be `dict`.
+
+__concrete_type_cache = {}
+
+
+def _concrete_type(typ: Type) -> Tuple[Type, Type]:
+    try:
+        concrete_type, cls = __concrete_type_cache[typ]
+    except KeyError:
+        try:
+            val = guess_concrete_type(typ)
+        except TypeError:
+            val = (TypeError, None)
+        __concrete_type_cache[typ] = val
+        return val
+    if concrete_type is TypeError:
+        raise TypeError()
+    return concrete_type, cls
 
 
 def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
@@ -274,7 +292,7 @@ class Record(Model, abstract=True):
             try:
                 # Get generic type (if any)
                 # E.g. Set[typ], List[typ], Optional[List[typ]] etc.
-                generic, subtyp = guess_concrete_type(typ)
+                generic, subtyp = _concrete_type(typ)
             except TypeError:
                 # just a scalar
                 return callback(typ, data)
