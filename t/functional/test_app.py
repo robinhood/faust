@@ -31,6 +31,7 @@ class test_settings:
         assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_commit_interval == settings.BROKER_COMMIT_INTERVAL
+        assert conf.broker_commit_every == settings.BROKER_COMMIT_EVERY
         assert (conf.broker_commit_livelock_soft_timeout ==
                 settings.BROKER_LIVELOCK_SOFT)
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
@@ -104,6 +105,7 @@ class test_settings:
                                  broker_client_id='client id',
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
+                                 broker_commit_every=202,
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
                                  table_cleanup_interval=80.8,
@@ -128,6 +130,7 @@ class test_settings:
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
+            broker_commit_every=broker_commit_every,
             broker_commit_interval=broker_commit_interval,
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
             table_cleanup_interval=table_cleanup_interval,
@@ -152,6 +155,7 @@ class test_settings:
         else:
             assert app.conf.tabledir.relative_to(
                 app.conf.appdir) == Path(tabledir)
+        assert app.conf.broker_commit_every == broker_commit_every
         assert app.conf.broker_commit_interval == broker_commit_interval
         assert (app.conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)

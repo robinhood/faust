@@ -95,7 +95,11 @@ MONITOR_TYPE = 'faust.sensors:Monitor'
 #: Default Kafka Client ID.
 BROKER_CLIENT_ID = f'faust-{faust_version}'
 
-#: How often we commit acknowledged messages.
+#: How often we commit acknowledged messages: every n messages.
+#: Used as the default value for :setting:`broker_commit_every`.
+BROKER_COMMIT_EVERY = 1000
+
+#: How often we commit acknowledged messages on a timer.
 #: Used as the default value for :setting:`broker_commit_interval`.
 BROKER_COMMIT_INTERVAL = 2.8
 
@@ -160,6 +164,7 @@ AutodiscoverArg = Union[
 class Settings(abc.ABC):
     autodiscover: AutodiscoverArg = False
     broker_client_id: str = BROKER_CLIENT_ID
+    broker_commit_every: int = BROKER_COMMIT_EVERY
     id_format: str = '{id}-v{self.version}'
     origin: str = None
     key_serializer: CodecArg = 'json'
@@ -217,6 +222,7 @@ class Settings(abc.ABC):
             version: int = None,
             broker: Union[str, URL] = None,
             broker_client_id: str = None,
+            broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
             store: Union[str, URL] = None,
@@ -280,6 +286,8 @@ class Settings(abc.ABC):
         self.table_cleanup_interval = (
             table_cleanup_interval or self._table_cleanup_interval)
 
+        if broker_commit_every is not None:
+            self.broker_commit_every = broker_commit_every
         if key_serializer is not None:
             self.key_serializer = key_serializer
         if value_serializer is not None:
