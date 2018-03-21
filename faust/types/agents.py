@@ -272,6 +272,14 @@ class AgentManagerT(MutableMapping[str, AgentT]):
     def cancel(self) -> None:
         ...
 
+    @abc.abstractmethod
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        ...
+
 
 class AgentTestWrapperT(AgentT, AsyncIterable):
 

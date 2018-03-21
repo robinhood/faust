@@ -44,6 +44,7 @@ from .types import (
 )
 from .types.topics import ChannelT, ConductorT, TopicT
 from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
+from .types.tuples import tp_set_to_map
 
 if typing.TYPE_CHECKING:
     from .app import App
@@ -571,9 +572,7 @@ class TopicConductor(ConductorT, Service):
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         self._tp_direct.clear()
-        assignmap = defaultdict(set)
-        for tp in assigned:
-            assignmap[tp.topic].add(tp)
+        assignmap = tp_set_to_map(assigned)
         for topic in self._topics:
             if topic.active_partitions:
                 assert topic.active_partitions.issubset(assigned)

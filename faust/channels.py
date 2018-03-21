@@ -6,7 +6,7 @@ and send things to it.
 """
 import asyncio
 import typing
-from typing import Any, Awaitable, Callable, Mapping, MutableSet, cast
+from typing import Any, Awaitable, Callable, Mapping, MutableSet, Set, cast
 from weakref import WeakSet
 
 from mode import Seconds, get_logger, want_seconds
@@ -27,6 +27,7 @@ from .types import (
     PendingMessage,
     RecordMetadata,
     StreamT,
+    TP,
     V,
 )
 
@@ -73,6 +74,7 @@ class Channel(ChannelT):
                  queue: ThrowableQueue = None,
                  maxsize: int = None,
                  root: ChannelT = None,
+                 active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.app = app
         self.loop = loop
@@ -83,6 +85,7 @@ class Channel(ChannelT):
         self.maxsize = maxsize
         self.deliver = self._compile_deliver()  # type: ignore
         self._root = cast(Channel, root)
+        self.active_partitions = active_partitions
         self._subscribers = WeakSet()
 
     @property

@@ -1,14 +1,20 @@
 import abc
 import asyncio
 import typing
-from typing import Any, AsyncIterator, Awaitable
+from typing import Any, AsyncIterator, Awaitable, Set
 
 from mode import Seconds
 from mode.utils.futures import ThrowableQueue, stampede
 
 from .codecs import CodecArg
 from .core import K, V
-from .tuples import FutureMessage, Message, MessageSentCallback, RecordMetadata
+from .tuples import (
+    FutureMessage,
+    Message,
+    MessageSentCallback,
+    RecordMetadata,
+    TP,
+)
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -31,6 +37,7 @@ class ChannelT(AsyncIterator):
     value_type: ModelArg
     loop: asyncio.AbstractEventLoop = None
     maxsize: int
+    active_partitions: Set[TP] = None
 
     @abc.abstractmethod
     def __init__(self,
@@ -42,6 +49,7 @@ class ChannelT(AsyncIterator):
                  queue: ThrowableQueue = None,
                  maxsize: int = None,
                  root: 'ChannelT' = None,
+                 active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

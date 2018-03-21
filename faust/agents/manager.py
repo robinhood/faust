@@ -4,7 +4,8 @@ from typing import MutableMapping, MutableSet, Set
 from weakref import WeakSet
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
-from faust.types import AgentManagerT, AgentT, AppT, TP
+from faust.types import AgentManagerT, AgentT, AppT
+from faust.types.tuples import TP, tp_set_to_map
 
 
 class AgentManager(AgentManagerT, ManagedUserDict):
@@ -40,27 +41,16 @@ class AgentManager(AgentManagerT, ManagedUserDict):
     def cancel(self) -> None:
         [agent.cancel() for agent in self.values()]
 
-    async def on_partitions_revoked(self, revoked: Set[TP]):
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         # for isolated_partitions agents we stop agents for revoked
         # partitions.
-
-        revokemap = self._tp_set_to_map(revoked)
-        for topic, tps in revokemap.items():
+        for topic, tps in tp_set_to_map(revoked).items():
             for agent in self._by_topic[topic]:
                 await agent.on_partitions_revoked(tps)
 
-    async def on_partitions_assigned(self, assigned: Set[TP]):
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         # for isolated_partitions agents we start agents for newly
         # assigned partitions
-
-        assignmap = self._tp_set_to_map(assigned)
-        for topic, tps in assignmap.items():
+        for topic, tps in tp_set_to_map(assigned).items():
             for agent in self._by_topic[topic]:
                 await agent.on_partitions_assigned(tps)
-
-    def _tp_set_to_map(self, tps: Set[TP]) -> MutableMapping[str, Set[TP]]:
-        # convert revoked/assigned to mapping of topic to partitions
-        tpmap: MutableMapping[str, Set[TP]] = defaultdict(set)
-        for tp in tps:
-            tpmap[tp.topic].add(tp)
-        return tpmap

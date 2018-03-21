@@ -1,6 +1,16 @@
 import asyncio
 import typing
-from typing import Any, Awaitable, Callable, Dict, NamedTuple, Union
+from collections import defaultdict
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    MutableMapping,
+    NamedTuple,
+    Set,
+    Union,
+)
 
 from .codecs import CodecArg
 from .core import K, V
@@ -21,6 +31,7 @@ __all__ = [
     'PendingMessage',
     'RecordMetadata',
     'TP',
+    'tp_set_to_map',
 ]
 
 MessageSentCallback = Callable[['FutureMessage'], Union[None, Awaitable[None]]]
@@ -168,6 +179,14 @@ class Message:
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self.tp} offset={self.offset}>'
+
+
+def tp_set_to_map(tps: Set[TP]) -> MutableMapping[str, Set[TP]]:
+    # convert revoked/assigned to mapping of topic to partitions
+    tpmap: MutableMapping[str, Set[TP]] = defaultdict(set)
+    for tp in tps:
+        tpmap[tp.topic].add(tp)
+    return tpmap
 
 
 # XXX See top of module! We redefine this with final FutureMessage

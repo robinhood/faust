@@ -67,8 +67,6 @@ class TopicT(ChannelT):
     #: to create or delete the topic as necessary.
     internal: bool
 
-    active_partitions: Set[TP] = None
-
     @abc.abstractmethod
     def __init__(self,
                  app: AppT,

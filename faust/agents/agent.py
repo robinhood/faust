@@ -155,7 +155,7 @@ class Actor(ActorT, Service):
                  stream: StreamT,
                  it: _T,
                  index: int = None,
-                 active_partitions: Set[int] = None,
+                 active_partitions: Set[TP] = None,
                  **kwargs: Any) -> None:
         self.agent = agent
         self.stream = stream
@@ -387,7 +387,6 @@ class Agent(AgentT, ServiceProxy):
                 if self._pending_active_partitions is not None:
                     assert not self._pending_active_partitions
                     self._pending_active_partitions.add(tp)
-                    assert aref.stream.channel.active_partitions == {tp}
             try:
                 aref = self._actor_by_partition[tp]
             except KeyError:
@@ -499,8 +498,10 @@ class Agent(AgentT, ServiceProxy):
                **kwargs: Any) -> StreamT:
         channel = self.channel_iterator
         if active_partitions is not None:
-            channel = channel.clone(is_iterator=False,
-                                    active_partitions=active_partitions)
+            channel = cast(TopicT, channel).clone(
+                is_iterator=False,
+                active_partitions=active_partitions,
+            )
             assert channel.active_partitions == active_partitions
         s = self.app.stream(
             channel,
