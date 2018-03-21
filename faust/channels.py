@@ -101,11 +101,11 @@ class Channel(ChannelT):
             )
         return self._queue
 
-    def clone(self, *, is_iterator: bool = None) -> ChannelT:
+    def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT:
         subchannel: Channel = type(self)(
             is_iterator=(is_iterator
                          if is_iterator is not None else self.is_iterator),
-            **self._clone_args())
+            **{**self._clone_args(), **kwargs})
         (self._root or self)._subscribers.add(subchannel)
         subchannel.queue  # make sure queue is created early
         return subchannel
@@ -119,6 +119,7 @@ class Channel(ChannelT):
             'maxsize': self.maxsize,
             'root': self._root if self._root is not None else self,
             'queue': None,
+            'active_partitions': self.active_partitions,
         }
 
     def stream(self, **kwargs: Any) -> StreamT:

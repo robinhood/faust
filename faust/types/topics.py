@@ -67,6 +67,8 @@ class TopicT(ChannelT):
     #: to create or delete the topic as necessary.
     internal: bool
 
+    active_partitions: Set[TP] = None
+
     @abc.abstractmethod
     def __init__(self,
                  app: AppT,
@@ -89,6 +91,7 @@ class TopicT(ChannelT):
                  value_serializer: CodecArg = None,
                  maxsize: int = None,
                  root: ChannelT = None,
+                 active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

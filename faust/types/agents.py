@@ -127,7 +127,7 @@ class AgentT(ServiceT):
                  help: str = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
-                 isolated_partitions: bool = True,
+                 isolated_partitions: bool = False,
                  **kwargs: Any) -> None:
         self.fun: AgentFun = fun
 

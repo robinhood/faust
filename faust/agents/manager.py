@@ -2,12 +2,12 @@
 from collections import defaultdict
 from typing import MutableMapping, MutableSet, Set
 from weakref import WeakSet
-from mode.utils.collections import FastUserDict
+from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
 from faust.types import AgentManagerT, AgentT, AppT, TP
 
 
-class AgentManager(AgentManagerT, FastUserDict):
+class AgentManager(AgentManagerT, ManagedUserDict):
     """Agent manager."""
 
     _by_topic: MutableMapping[str, MutableSet[AgentT]]
@@ -17,9 +17,8 @@ class AgentManager(AgentManagerT, FastUserDict):
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
 
-    def __setitem__(self, key: str, value: AgentT) -> None:
-        super().__setitem__(key, value)
-        # keep index of topic name to set of agents.
+    def on_key_set(self, key: str, value: AgentT) -> None:
+        # keep mapping from topic name to set of agents.
         for topic in value.get_topic_names():
             self._by_topic[topic].add(value)
 

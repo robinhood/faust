@@ -157,6 +157,7 @@ class AppT(ServiceT):
               concurrency: int = 1,
               supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None,
+              isolated_partitions: bool = False,
               **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         ...
 

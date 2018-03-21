@@ -397,6 +397,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
               concurrency: int = 1,
               supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None,
+              isolated_partitions: bool = False,
               **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         """Create Agent from async def function.
 
@@ -428,6 +429,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 concurrency=concurrency,
                 supervisor_strategy=supervisor_strategy,
                 sink=sink,
+                isolated_partitions=isolated_partitions,
                 on_error=self._on_agent_error,
                 help=fun.__doc__,
                 **kwargs)

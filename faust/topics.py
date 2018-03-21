@@ -78,6 +78,8 @@ class Topic(Channel, TopicT):
         value_type: How to deserialize values for messages in this topic.
                   Can be a :class:`faust.Model` type, :class:`str`,
                   :class:`bytes`, or :const:`None` for "autodetect"
+        active_partitions: Set of :class:`faust.types.tuples.TP` that this
+                  topic should be restricted to.
 
     Raises:
         TypeError: if both `topics` and `pattern` is provided.
@@ -107,6 +109,7 @@ class Topic(Channel, TopicT):
                  value_serializer: CodecArg = None,
                  maxsize: int = None,
                  root: ChannelT = None,
+                 active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics
         super().__init__(
@@ -128,6 +131,7 @@ class Topic(Channel, TopicT):
         self.replicas = replicas
         self.acks = acks
         self.internal = internal
+        self.active_partitions = active_partitions
         self.config = config or {}
 
     async def decode(self, message: Message, *,
@@ -187,7 +191,8 @@ class Topic(Channel, TopicT):
                 'key_serializer': self.key_serializer,
                 'value_serializer': self.value_serializer,
                 'acks': self.acks,
-                'config': self.config}}
+                'config': self.config,
+                'active_partitions': self.active_partitions}}
 
     @property
     def pattern(self) -> Optional[Pattern]:
@@ -379,9 +384,14 @@ class TopicConductor(ConductorT, Service):
     #: Fast index to see if Topic is registered.
     _topics: MutableSet[TopicT]
 
-    #: Map str topic to set of channeos that should get a copy
+    #: Map str topic to set of channels that should get a copy
     #: of each message sent to that topic.
     _topicmap: MutableMapping[str, MutableSet[TopicT]]
+
+    #: Map of TP to set of channels that should get a copy
+    #: of each message sent to that TP.
+    #: Anything in this set, overrides _topicmap
+    _tp_direct: MutableMapping[TP, MutableSet[TopicT]]
 
     #: Whenever a change is made, i.e. a Topic is added/removed, we notify
     #: the background task responsible for resubscribing.
@@ -396,6 +406,7 @@ class TopicConductor(ConductorT, Service):
         self.app = app
         self._topics = set()
         self._topicmap = defaultdict(set)
+        self._tp_direct = defaultdict(set)
         self._acking_topics = set()
         self._subscription_changed = None
         self._subscription_done = None
@@ -431,8 +442,12 @@ class TopicConductor(ConductorT, Service):
                 add_unacked = unacked.add
             # when a message is received we find all channels
             # that subscribe to this message
+            tp = message.tp
             topic = message.topic
-            channels = cast(Set[Topic], get_channels_for_topic(topic))
+            try:
+                channels = cast(Set[Topic], self._tp_direct[tp])
+            except KeyError:
+                channels = cast(Set[Topic], get_channels_for_topic(topic))
             channels_n = len_(channels)
             await acquire_flow_control()
             if channels_n:
@@ -555,10 +570,22 @@ class TopicConductor(ConductorT, Service):
         return self._topicmap
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        ...
+        self._tp_direct.clear()
+        assignmap = defaultdict(set)
+        for tp in assigned:
+            assignmap[tp.topic].add(tp)
+        for topic in self._topics:
+            if topic.active_partitions:
+                assert topic.active_partitions.issubset(assigned)
+                for tp in topic.active_partitions:
+                    self._tp_direct[tp].add(topic)
+            else:
+                for subtopic in topic.topics:
+                    for tp in assignmap[subtopic]:
+                        self._tp_direct[tp].add(topic)
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        ...
+        self._tp_direct.clear()
 
     def clear(self) -> None:
         self._topics.clear()

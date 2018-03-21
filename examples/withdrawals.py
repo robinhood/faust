@@ -40,24 +40,30 @@ app = faust.App(
 withdrawals_topic = app.topic('withdrawals3', value_type=bytes)
 
 
-user_to_total = app.Table(
-    'user_to_total', default=int,
-).tumbling(3600).relative_to_stream()
+#user_to_total = app.Table(
+#    'user_to_total', default=int,
+#).tumbling(3600).relative_to_stream()
 
-country_to_total = app.Table(
-    'country_to_total', default=int,
-).tumbling(10.0, expires=10.0).relative_to_stream()
+#country_to_total = app.Table(
+#    'country_to_total', default=int,
+#).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
-@app.agent(withdrawals_topic)
+@app.agent(withdrawals_topic, isolated_partitions=True)
 async def track_user_withdrawal(withdrawals):
     time_start = None
-    async for i, withdrawal in withdrawals.enumerate():
-        if time_start is None:
-            time_start = monotonic()
-        if not i % 10_000:
-            print(f'TIME FOR 10k: {monotonic() - time_start}')
-            time_start = None
+    async for event in withdrawals.events():
+        assert event.message.tp in withdrawals.active_partitions
+        print('AGENT FOR %r RECEIVED: %r' % (
+            withdrawals.active_partitions,
+            event.message.tp,
+        ))
+    #async for withdrawal in withdrawals.enumerate():
+    #    if time_start is None:
+    #        time_start = monotonic()
+    #    if not i % 10_000:
+    #        print(f'TIME FOR 10k: {monotonic() - time_start}')
+    #        time_start = None
         #user_to_total[withdrawal.user] += withdrawal.amount
 
 

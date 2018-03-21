@@ -161,8 +161,8 @@ class Actor(ActorT, Service):
         self.stream = stream
         self.it = it
         self.index = index
-        self.actor_task = None
         self.active_partitions = active_partitions
+        self.actor_task = None
         Service.__init__(self, **kwargs)
 
     async def on_start(self) -> None:
@@ -240,20 +240,29 @@ class AgentService(Service):
         return await self._start_one(None, active_partitions)
 
     async def on_start(self) -> None:
-        self.supervisor = self.agent.supervisor_strategy(
+        agent = self.agent
+        self.supervisor = agent.supervisor_strategy(
             max_restarts=100.0,
             over=1.0,
             replacement=self._replace_actor,
             loop=self.loop,
             beacon=self.beacon,
         )
-        for i in range(self.agent.concurrency):
-            res = await self._start_one(i)
+        active_partitions: Set[TP] = None
+        if agent.isolated_partitions:
+            # when we start our first agent, we create the set of
+            # partitions early, and save it in ._pending_active_partitions.
+            # That way we can update the set once partitions are assigned,
+            # and the actor we started may be assigned one of the partitions.
+            active_partitions = agent._pending_active_partitions = set()
+        for i in range(agent.concurrency):
+            res = await self._start_one(i, active_partitions)
             self.supervisor.add(res)
         await self.supervisor.start()
 
-    async def _replace_actor(self, _service: ServiceT, index: int) -> ServiceT:
-        return await self._start_one(index)
+    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
+        aref = cast(ActorRefT, service)
+        return await self._start_one(index, aref.active_partitions)
 
     async def on_stop(self) -> None:
         # Agents iterate over infinite streams, so we cannot wait for it
@@ -292,6 +301,13 @@ class Agent(AgentT, ServiceProxy):
     _actors: MutableSet[ActorRefT] = None
     _actor_by_partition: MutableMapping[TP, ActorRefT] = None
 
+    #: This mutable set is used by the first agent we start,
+    #: so that we can update its active_partitions later
+    #: (in on_partitions_assigned, when we know what partitions we get).
+    _pending_active_partitions: Set[TP] = None
+
+    _first_assignment_done: bool = False
+
     def __init__(self,
                  fun: AgentFun,
                  *,
@@ -305,7 +321,7 @@ class Agent(AgentT, ServiceProxy):
                  help: str = None,
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
-                 isolated_partitions: bool = True,
+                 isolated_partitions: bool = False,
                  **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
@@ -356,24 +372,25 @@ class Agent(AgentT, ServiceProxy):
         for tp in revoked:
             aref: ActorRefT = self._actor_by_partition.pop(tp, None)
             if aref is not None:
-                aref.on_isolated_partition_revoked(tp)
+                await aref.on_isolated_partition_revoked(tp)
 
     async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
         for tp in sorted(assigned):
-            if not self._actor_by_partition:
+            if self._first_assignment_done and not self._actor_by_partition:
+                self._first_assignment_done = True
                 # if this is the first time we are assigned
                 # we need to reassign the agent we started at boot to
                 # one of the partitions.
                 assert self._actors
                 assert len(self._actors) == 1
                 aref = self._actor_by_partition[tp] = next(iter(self._actors))
-                aref.active_partitions = {tp}
-                aref.stream.active_partitions = {tp}
-                print('REASSIGNED ACTOR %r TO %r' % (aref, tp))
+                if self._pending_active_partitions is not None:
+                    assert not self._pending_active_partitions
+                    self._pending_active_partitions.add(tp)
+                    assert aref.stream.channel.active_partitions == {tp}
             try:
                 aref = self._actor_by_partition[tp]
             except KeyError:
-                print('STARTING NEW ISOLATED FOR TP %r' % (tp,))
                 aref = await self._start_isolated(tp)
                 self._actor_by_partition[tp] = aref
             await aref.on_isolated_partition_assigned(tp)
@@ -468,8 +485,8 @@ class Agent(AgentT, ServiceProxy):
             self,
             stream,
             res,
-            stream.concurrency_index,
-            stream.active_partitions,
+            index=stream.concurrency_index,
+            active_partitions=stream.active_partitions,
             loop=self.loop,
             beacon=self.beacon,
         )
@@ -478,8 +495,18 @@ class Agent(AgentT, ServiceProxy):
         if sink not in self._sinks:
             self._sinks.append(sink)
 
-    def stream(self, **kwargs: Any) -> StreamT:
-        s = self.app.stream(self.channel_iterator, loop=self.loop, **kwargs)
+    def stream(self, active_partitions: Set[TP] = None,
+               **kwargs: Any) -> StreamT:
+        channel = self.channel_iterator
+        if active_partitions is not None:
+            channel = channel.clone(is_iterator=False,
+                                    active_partitions=active_partitions)
+            assert channel.active_partitions == active_partitions
+        s = self.app.stream(
+            channel,
+            loop=self.loop,
+            active_partitions=active_partitions,
+            **kwargs)
         s.add_processor(self._process_reply)
         return s
 

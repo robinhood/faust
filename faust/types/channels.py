@@ -46,7 +46,7 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    def clone(self, *, is_iterator: bool = None) -> 'ChannelT':
+    def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> 'ChannelT':
         ...
 
     @abc.abstractmethod
