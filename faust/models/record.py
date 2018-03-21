@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import (
     Any,
     Callable,
-    ClassVar,
     Dict,
     FrozenSet,
     Iterable,
