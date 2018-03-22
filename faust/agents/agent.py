@@ -806,7 +806,9 @@ class Agent(AgentT, ServiceProxy):
         # The channel is "memoized" here, so subsequent access to
         # instance.channel_iterator will return the same value.
         if self._channel_iterator is None:
-            self._channel_iterator = aiter(self.channel)
+            # we do not use aiter(channel) here, because
+            # that will also add it to the topic conductor too early.
+            self._channel_iterator = self.channel.clone(is_iterator=True)
         return self._channel_iterator
 
     @channel_iterator.setter
