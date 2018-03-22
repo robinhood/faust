@@ -152,7 +152,7 @@ class Consumer(Service, ConsumerT):
     _time_start: float = None
 
     _commit_every: int = None
-    _n_acked: int = None
+    _n_acked: int = 0
 
     def __init__(self,
                  transport: TransportT,
@@ -170,7 +170,7 @@ class Consumer(Service, ConsumerT):
         self._on_message_in = self.app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
-        self._comit_every = self.app.conf.broker_commit_every
+        self._commit_every = self.app.conf.broker_commit_every
         self.commit_interval = (
             commit_interval or self.app.conf.broker_commit_interval)
         self.commit_livelock_soft_timeout = (
