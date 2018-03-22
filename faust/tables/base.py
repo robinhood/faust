@@ -304,6 +304,9 @@ class Collection(Service, CollectionT):
             acks=False,
             internal=True,
             config=self.extra_topic_configs,
+            # use large buffer size as we do not commit attached messages
+            # when reading changelog streams.
+            maxsize=131_072,
         )
 
     def __copy__(self) -> Any:
