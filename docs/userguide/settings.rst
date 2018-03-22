@@ -445,9 +445,9 @@ This means that if the buffer size is large, the
 :setting:`broker_commit_interval` or :setting:`broker_commit_every` settings
 must be set to commit frequently, avoiding backpressure from building up.
 
-A buffer size of 131_072 may let you process over 30,000 events a second,
-but be careful with a buffer size that large when you also send messages
-or update tables.
+A buffer size of 131_072 may let you process over 30,000 events a second
+as a baseline, but be careful with a buffer size that large when you also
+send messages or update tables.
 
 The next version of Faust will take advantage of Kafka transactions
 to remove the bottleneck of sending messages on commit.
