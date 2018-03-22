@@ -97,7 +97,7 @@ BROKER_CLIENT_ID = f'faust-{faust_version}'
 
 #: How often we commit acknowledged messages: every n messages.
 #: Used as the default value for :setting:`broker_commit_every`.
-BROKER_COMMIT_EVERY = 1000
+BROKER_COMMIT_EVERY = 10_000
 
 #: How often we commit acknowledged messages on a timer.
 #: Used as the default value for :setting:`broker_commit_interval`.
@@ -118,7 +118,7 @@ REPLY_TO_PREFIX = 'f-reply-'
 REPLY_EXPIRES = want_seconds(timedelta(days=1))
 
 #: Max number of messages channels/streams/topics can "prefetch".
-STREAM_BUFFER_MAXSIZE = 32768
+STREAM_BUFFER_MAXSIZE = 4096
 
 #: Minimum time to batch before sending out messages from the producer.
 #: Used as the default value for :setting:`linger_ms`.
@@ -126,7 +126,7 @@ PRODUCER_LINGER_MS = 0
 
 #: Maximum size of buffered data per partition in bytes in the producer.
 #: Used as the default value for :setting:`max_batch_size`.
-PRODUCER_MAX_BATCH_SIZE = 16384
+PRODUCER_MAX_BATCH_SIZE = 16_384
 
 # The number of acknowledgments the producer requires the leader to have
 # received before considering a request complete. This controls the
