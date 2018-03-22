@@ -574,10 +574,11 @@ class TopicConductor(ConductorT, Service):
         self._tp_direct.clear()
         assignmap = tp_set_to_map(assigned)
         for topic in self._topics:
-            if topic.active_partitions:
-                assert topic.active_partitions.issubset(assigned)
-                for tp in topic.active_partitions:
-                    self._tp_direct[tp].add(topic)
+            if topic.active_partitions is not None:
+                if topic.active_partitions:
+                    assert topic.active_partitions.issubset(assigned)
+                    for tp in topic.active_partitions:
+                        self._tp_direct[tp].add(topic)
             else:
                 for subtopic in topic.topics:
                     for tp in assignmap[subtopic]:
