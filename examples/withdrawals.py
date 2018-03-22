@@ -52,18 +52,15 @@ withdrawals_topic = app.topic('withdrawals3', value_type=bytes)
 @app.agent(withdrawals_topic, isolated_partitions=True)
 async def track_user_withdrawal(withdrawals):
     time_start = None
+    i = 0
     async for event in withdrawals.events():
+        i += 1
         assert event.message.tp in withdrawals.active_partitions
-        print('AGENT FOR %r RECEIVED: %r' % (
-            withdrawals.active_partitions,
-            event.message.tp,
-        ))
-    #async for withdrawal in withdrawals.enumerate():
-    #    if time_start is None:
-    #        time_start = monotonic()
-    #    if not i % 10_000:
-    #        print(f'TIME FOR 10k: {monotonic() - time_start}')
-    #        time_start = None
+        if time_start is None:
+            time_start = monotonic()
+        if not i % 10_000:
+            print(f'TIME FOR 10k: {monotonic() - time_start}')
+            time_start = None
         #user_to_total[withdrawal.user] += withdrawal.amount
 
 
