@@ -291,7 +291,17 @@ class Channel(ChannelT):
         await self.queue.throw(exc)
 
     def __repr__(self) -> str:
-        return f'<{self.label}@{self._repr_id()}>'
+        s = f'<{self.label}@{self._repr_id()}'
+        if self.active_partitions is not None:
+            if self.active_partitions:
+                active = sorted(
+                    f'{tp.topic}:{tp.partition}'
+                    for tp in self.active_partitions)
+            else:
+                active = '{<pending for assignment>}'
+            s += f' active={active}'
+        s += '>'
+        return s
 
     def __str__(self) -> str:
         return '<ANON>'
