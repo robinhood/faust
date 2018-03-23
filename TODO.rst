@@ -89,6 +89,16 @@ Tables
             work just by the Window+key keying.
 
 
+ETA/countdown
+=============
+
+Send something to be processed later
+
+.. sourcecode:: python
+
+    async for event in my_topic.stream():
+        # forward to other topic, but only after two days
+        await topic.send(event, eta=timedelta(days=2))
 Tests
 =====
 
