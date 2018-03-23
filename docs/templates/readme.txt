@@ -17,7 +17,7 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-.. include:: ../includes/blurb.txt
+.. include:: ../includes/intro.txt
 
 Faust is...
 ===========

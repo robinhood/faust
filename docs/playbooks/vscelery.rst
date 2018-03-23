@@ -23,6 +23,9 @@ If you have used :pypi:`Celery` you probably know tasks such as this:
     def add(x, y):
         return x + y
 
+    if __name__ == '__main__':
+        add.delay(2, 2)
+
 Faust uses Kafka as a broker, not RabbitMQ, and Kafka behaves differently
 from the queues you may know from brokers using AMQP/Redis/Amazon SQS/and so on.
 
@@ -33,7 +36,7 @@ of messages sent.
 
 The Celery task above can be rewritten in Faust like this:
 
-.. sourcecode::
+.. sourcecode:: python
 
     import faust
 
@@ -47,6 +50,13 @@ The Celery task above can be rewritten in Faust like this:
     async def add(stream):
         async for op in stream:
             yield op.x + op.y
+
+    @app.command
+    async def produce():
+        await add.send(value=AddOperation(x, y))
+
+    if __name__ == '__main__':
+        app.main()
 
 Faust also support storing state with the task (see :ref:`guide-tables)`,
 and it supports leader election which is useful for things such as locks.
