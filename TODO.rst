@@ -34,12 +34,6 @@ TODO
 
 Ack buffer using start_offset-end_offset.
 
-Agent per partition
-===================
-
-Start one agent per partition.
-Must also be able to introspect what partitions an agent is active for.
-
 Tables
 ======
 
