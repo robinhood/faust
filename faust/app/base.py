@@ -265,7 +265,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     async def on_stop(self) -> None:
         if self._http_client:
-            self._http_client.close()
+            await self._http_client.close()
 
     def worker_init(self) -> None:
         for fixup in self.fixups:
