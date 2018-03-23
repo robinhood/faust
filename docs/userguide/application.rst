@@ -1,7 +1,7 @@
 .. _guide-application:
 
 =======================================
- Application
+ The App - Define your Faust project
 =======================================
 
 .. topic:: \
