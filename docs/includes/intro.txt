@@ -101,7 +101,7 @@ keys and values are serialized and deserialized:
 Faust is statically typed, using the :pypi:`mypy` type checker,
 so you can take advantage of static types when writing applications.
 
-**Learn more about Faust in the** :ref:`intro` **introduction page**
+**Learn more about Faust in the** :ref:`introduction` **introduction page**
     to read more about Faust, system requirements, installation instructions,
     community resources, and more.
 
