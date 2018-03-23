@@ -120,29 +120,91 @@ and values in that topic are serialized:
         async for event in stream:
             ...
 
-Use the ``key_type`` and ``value_type`` arguments to specify the models used for key
-and value serialization:
+Topic Arguments
+~~~~~~~~~~~~~~~
 
-.. sourcecode:: python
++ ``key_type``/``value_type``: :data:`~faust.types.models.ModelArg`
 
-    class MyValueModel(faust.Record):
-        name: str
-        value: float
+    Use the ``key_type`` and ``value_type`` arguments to specify the models
+    used for key and value serialization:
 
-    topic = app.topic(
-        'name_of_topic',
-        key_type=bytes,
-        value_type=MyValueModel,
-    )
+    .. sourcecode:: python
 
-The default ``key_type`` is :class:`bytes`, treating the key as a binary
-string, but the key can also be specified as a model type.
+        class MyValueModel(faust.Record):
+            name: str
+            value: float
 
-.. seealso::
+        topic = app.topic(
+            'name_of_topic',
+            key_type=bytes,
+            value_type=MyValueModel,
+        )
 
-    - The :ref:`guide-channels` guide -- for more about topics and channels.
+    The default ``key_type`` is :class:`bytes` and treats the key as a binary
+    string. The key can also be specified as a model type
+    (``key_type=MyKeyModel``).
 
-    - The :ref:`guide-models` guide -- for more about models and serialization.
+    .. seealso::
+
+        - The :ref:`guide-channels` guide -- for more about topics
+          and channels.
+
+        - The :ref:`guide-models` guide -- for more about models
+          and serialization.
+
++ ``key_serializer``/``value_serializer``: :data:`~faust.types.codecs.CodecArg`
+
+    The codec/serializer type used for keys and values in this topic.
+
+    If not specified the default will be taken from the
+    :setting:`key_serializer` and :setting:`value_serializer` settings.
+
+    .. seealso::
+
+        - The :ref:`codecs` section in the :ref:`guide-models` guide -- for
+          more information on available codecs, and also how to make your own
+          custom encoders and decoders.
+
++ ``partitions``: :class:`int`
+
+    The number of partitions this topic should have.
+    If not specified the default in the :setting:`topic_partitions` setting
+    is used.
+
+    Note: if this is an automatically created topic, or an externally managed
+    source topic, then please set this value to :const:`None`.
+
++ ``retention``: :class:`~mode.utils.times.Seconds`
+
+    Number of seconds (as :class:`float`/:class:`~datetime.timedelta`) to keep
+    messages in the topic before they can be expired by the server.
+
++ ``compacting``: :class:`bool`
+
+    Set to :const:`True` if this should be a compacting topic.  The Kafka
+    broker will then periodically compact the topic, only keeping the most
+    recent value for a key.
+
++ ``acks``: :class:`bool`
+
+    Enable automatic acknowledgement for this topic.  If you disable this
+    then you are responsible for manually acknowleding each event.
+
++ ``internal``: :class:`bool`
+
+    If set to :const:`True` this means we own and are responsible for this
+    topic: we are allowed to create or delete the topic.
+
++ ``maxsize``: :class:`int`
+
+    The maximum buffer size used for this channel, with default taken from
+    the :setting:`stream_buffer_maxsize` setting. When this buffer is exceeded
+    the worker will have to wait for agent/stream consumers to catch up, and
+    if the buffer is frequently full this will negatively affect performance.
+
+    Try tweaking the buffer sizes, but also the
+    :setting:`broker_commit_interval` setting to make sure it commits more
+    frequently with larger buffer sizes.
 
 ``app.channel()`` -- Create a local channel
 -------------------------------------------
@@ -174,6 +236,37 @@ Use :meth:`~@channel` to create an in-memory communication channel:
     - The :ref:`guide-channels` guide -- for more about topics and channels.
 
     - The :ref:`guide-models` guide -- for more about models and serialization.
+
+Channel Arguments
+~~~~~~~~~~~~~~~~~
+
++ ``key_type``/``value_type``: :data:`~faust.types.models.ModelArg`
+
+    Use the ``key_type`` and ``value_type`` arguments to specify the models
+    used for key and value serialization:
+
+    .. sourcecode:: python
+
+        class MyValueModel(faust.Record):
+            name: str
+            value: float
+
+        channel = app.channel(key_type=bytes, value_type=MyValueModel)
+
++ ``key_serializer``/``value_serializer``: :data:`~faust.types.codecs.CodecArg`
+
+    The codec/serializer type used for keys and values in this channell
+
+    If not specified the default will be taken from the
+    :setting:`key_serializer` and :setting:`value_serializer` settings.
+
++ ``maxsize``: :class:`int`
+
+    This is the maximum number of pending messages in the channel.
+    If this number is exceeded any call to `channel.put(value)` will block
+    until something consumes another message from the channel.
+
+    Defaults to the :setting:`stream_buffer_maxsize` setting.
 
 ``app.Table()`` -- Define a new table
 -------------------------------------
@@ -231,6 +324,87 @@ order, so only agents with ``concurrency=1`` are allowed to update tables.
         "what was the value in the last five minutes", or "what was the value of
         this count like yesterday".
 
+.. _application-table-arguments:
+
+Table Arguments
+~~~~~~~~~~~~~~~
+
++ ``name``: :class:`str`
+
+    The name of the table.  This must be *unique* as two tables with the same
+    in the same application will share changelog topics.
+
++ ``help``: :class:`str`
+
+    Short human readable description of table purpose.
+
++ ``default``: :class:`Callable[[], Any] <collections.Callable>`
+
+    User provided function called to get default value for missing keys.
+
+    Without any default this attempt to access a missing key
+    will raise :exc:`KeyError`:
+
+    .. sourcecode:: pycon
+
+        >>> table = app.Table('nodefault', default=None)
+
+        >>> table['missing']
+        Traceback (most recent call last):
+          File "<stdin>", line 1, in <module>
+        KeyError: 'missing'
+
+    With the default callback set to :class:`int`, the same missing
+    key will now set the key to ``0`` and return ``0``:
+
+    .. sourcecode:: pycon
+
+        >>> table = app.Table('hasdefault', default=int)
+
+        >>> table['missing']
+        0
+
++ ``key_type``/``value_type``: :data:`~faust.types.models.ModelArg`
+
+    Use the ``key_type`` and ``value_type`` arguments to specify the models
+    used for serializing/deserializing keys and values in this table.
+
+    .. sourcecode:: python
+
+        class MyValueModel(faust.Record):
+            name: str
+            value: float
+
+        table = app.Table(key_type=bytes, value_type=MyValueModel)
+
++ ``store``: :class:`str` or :class:`~yarl.URL`
+
+    The name of a storage backend to use, or the URL to one.
+
+    Default is taken from the :setting:`store` setting.
+
++ ``partitions``: :class:`int`
+
+    The number of partitions for the changelog topic used by this table.
+
+    Default is taken from the :setting:`topic_partitions` setting.
+
++ ``changelog_topic``: :class:`~faust.topics.Topic`
+
+    The changelog topic description to use for this table.
+
+    Only for advanced users who know what they're doing.
+
++ ``recovery_buffer_size``: :class:`int`
+
+    How often we flush changelog records during recovery.  Default is every
+    1000 changelog messages.
+
++ ``standby_buffer_size``: :class:`int`
+
+    How often we flush changelog records during recovery.  Default
+    is :const:`None` (always).
+
 ``app.Set()`` -- Define a new Set-based table
 ---------------------------------------------
 
@@ -250,6 +424,12 @@ associate each key with a particular value:
 
     - The :ref:`guide-tables` guide -- for more information about tables and
       sets.
+
+Set Arguments
+~~~~~~~~~~~~~
+
+Supports the same arguments as :meth:`@table`: see
+:ref:`application-table-arguments`.
 
 ``@app.agent()`` -- Define a new stream processor
 -------------------------------------------------
@@ -322,6 +502,76 @@ Finally, you should see in the worker console that it received our message:
     - The :ref:`guide-channels` guide -- for more information about channels
       and topics.
 
+Agent Arguments
+~~~~~~~~~~~~~~~
+
++ ``name``: :class:`str`
+
+    The name of the agent is automatically taken from the decorated
+    function and the module it is defined in.
+
+    You can also specify the name manually, but note that this should
+    include the module name, e.g.: ``name='proj.agents.add'``.
+
++ ``channel``: :class:`~faust.channels.Channel`
+
+    The channel or topic this agent should consume from.
+
++ ``concurrency``: :class:`int`
+
+    The number of concurrent actors to start for this agent.
+
+    For example if you have an agent processing RSS feeds, a concurrency
+    of ``100`` means you can process up to hundred RSS feeds at the same time.
+
+    Adding concurrency to your agent also means it will process events
+    in the topic *out of order*, and snould you rewind the stream that order
+    may differ when processing the events a second time.
+
+    .. admonition:: Concurrency and tables
+
+        Concurrent agents are **not allowed to modify tables**: an
+        exception is raised if this is attempted.
+
+        They are however allowed to read from tables.
+
++ ``sink``: :data:`Iterable[SinkT] <faust.types.agents.SinkT>`
+
+    For agents that also yield a value: forward the value
+    to be processed by one or more "sinks".
+
+    A sink can be another agent, a topic, or a callback (async or non-async).
+
+    .. seealso::
+
+        :ref:`agent-sinks` -- for more information on using sinks.
+
++ ``on_error``: :class:`Callable[[Agent, BaseException], None]`
+
+    Optional error callback to be called when this agent
+    raises an unexpected exception.
+
++ ``supervisor_strategy``: :class:`mode.SupervisorStrategyT`
+
+    A supervisor strategy that decides what happens when this agent
+    raises an exception.
+
+    The default supervisor strategy is
+    :class:`mode.OneForOneSupervisor` -- restarting one and one agent instance
+    as they crash.
+
+    Other built-in supervisor strategies include:
+
+        + :class:`mode.OneForAllSupervisor`
+
+            If one agent instance of this type raises an exception we will
+            restart all other agent instances of this type
+
+        + :class:`mode.CrashingSupervisor`
+
+            If one agent instance of this type raises an exception we will
+            crash the worker instance.
+
 ``@app.task()`` -- Define a new support task.
 ---------------------------------------------
 
@@ -362,6 +612,17 @@ operational state.
 
     - The :ref:`tasks-timers` section in the :ref:`guide-tasks` guide -- for
       more information about creating timers.
+
+Timer Arguments
+~~~~~~~~~~~~~~~
+
++ ``on_leader``: :class:`bool`
+
+    If enabled this timer will only execute on one of the worker instances
+    at a time -- that is only on the leader of the cluster.
+
+    This can be used as a distributed mutex to execute something
+    on one machine at a time.
 
 ``@app.page()`` -- Define a new Web View
 ----------------------------------------
