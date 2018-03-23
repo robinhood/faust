@@ -12,6 +12,7 @@ from typing import (
     Iterable,
     Mapping,
     MutableMapping,
+    MutableSet,
     Optional,
     Set,
     Tuple,
@@ -23,6 +24,7 @@ from typing import (
 from mode import Seconds, ServiceT
 from yarl import URL
 
+from .channels import ChannelT
 from .tuples import Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
@@ -37,6 +39,7 @@ __all__ = [
     'PartitionsAssignedCallback',
     'ConsumerT',
     'ProducerT',
+    'ConductorT',
     'TransportT',
 ]
 
@@ -78,6 +81,7 @@ class ConsumerT(ServiceT):
                  on_partitions_revoked: PartitionsRevokedCallback = None,
                  on_partitions_assigned: PartitionsAssignedCallback = None,
                  commit_interval: float = None,
+                 loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:
         self._on_partitions_revoked: PartitionsRevokedCallback
         self._on_partitions_assigned: PartitionsAssignedCallback
@@ -181,7 +185,9 @@ class ProducerT(ServiceT):
     max_batch_size: int
 
     @abc.abstractmethod
-    def __init__(self, transport: 'TransportT', **kwargs: Any) -> None:
+    def __init__(self, transport: 'TransportT',
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
         ...
 
     @abc.abstractmethod
@@ -215,6 +221,38 @@ class ProducerT(ServiceT):
         ...
 
 
+class ConductorT(ServiceT, MutableSet[ChannelT]):
+
+    # The topic conductor delegates messages from the Consumer
+    # to the various Topic instances subscribed to a topic.
+
+    app: AppT
+
+    @abc.abstractmethod
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def acks_enabled_for(self, topic: str) -> bool:
+        ...
+
+    @abc.abstractmethod
+    async def commit(self, topics: TPorTopicSet) -> bool:
+        ...
+
+    @abc.abstractmethod
+    async def wait_for_subscriptions(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        ...
+
+
 class TransportT(abc.ABC):
 
     #: The Consumer class used for this type of transport.
@@ -222,6 +260,9 @@ class TransportT(abc.ABC):
 
     #: The Producer class used for this type of transport.
     Producer: ClassVar[Type[ProducerT]]
+
+    #: The Conductor class used to delegate messages from Consumer to streams.
+    Conductor: ClassVar[Type[ConductorT]]
 
     #: The Fetcher service used for this type of transport.
     Fetcher: ClassVar[Type[ServiceT]]
@@ -252,4 +293,8 @@ class TransportT(abc.ABC):
 
     @abc.abstractmethod
     def create_producer(self, **kwargs: Any) -> ProducerT:
+        ...
+
+    @abc.abstractmethod
+    def create_conductor(self, **kwargs: Any) -> ConductorT:
         ...

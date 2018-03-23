@@ -33,8 +33,8 @@ from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
 from .tables import CollectionT, SetT, TableManagerT, TableT
-from .topics import ChannelT, ConductorT, TopicT
-from .transports import ConsumerT, ProducerT, TransportT
+from .topics import ChannelT, TopicT
+from .transports import ConductorT, ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
 from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View
 from .windows import WindowT
@@ -137,6 +137,7 @@ class AppT(ServiceT):
               acks: bool = True,
               internal: bool = False,
               config: Mapping[str, Any] = None,
+              maxsize: int = None,
               loop: asyncio.AbstractEventLoop = None) -> TopicT:
         ...
 

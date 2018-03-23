@@ -18,7 +18,7 @@ from faust.types.assignor import (
     TopicToPartitionMap,
 )
 from faust.types.tables import TableManagerT
-from faust.types.topics import TP
+from faust.types.tuples import TP
 
 from .client_assignment import ClientAssignment, ClientMetadata
 from .cluster_assignment import ClusterAssignment

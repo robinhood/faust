@@ -121,6 +121,7 @@ Transports
     faust.transport.aiokafka
     faust.transport.base
     faust.transport.ckafka
+    faust.transport.conductor
     faust.transport.memory
 
 Assignor

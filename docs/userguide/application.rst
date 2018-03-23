@@ -760,7 +760,7 @@ as a dependency of the app.
     Examples of classes that are services in Faust include: the
     :class:`~faust.App`, a :class:`stream <faust.Stream>`, an :class:`agent <faust.Agent>`,
     a :class:`table <faust.Table>`, the :class:`~faust.TableManager`, the
-    :class:`~faust.topics.TopicConductor`, and just about everything that is
+    :class:`~faust.transports.Conductor`, and just about everything that is
     started and stopped is.
 
     Services can also have background tasks, or execute in an OS thread.

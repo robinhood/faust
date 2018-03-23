@@ -55,7 +55,7 @@ ALIAS_FIELD_TYPES = {
 # the concrete type for x would be `list`, and the concrete type
 # for y would be `dict`.
 
-__concrete_type_cache = {}
+__concrete_type_cache: Dict[Type, Tuple[Type, Type]] = {}
 
 
 def _concrete_type(typ: Type) -> Tuple[Type, Type]:

@@ -72,7 +72,7 @@ class AppService(Service):
                 self.app.sensors,
                 # Producer: always stop after Consumer.
                 [self.app.producer],
-                # Consumer: always stop after TopicConductor
+                # Consumer: always stop after Conductor
                 [self.app.consumer],
                 # Leader Assignor (assignor.LeaderAssignor)
                 [self.app._leader_assignor],
@@ -80,7 +80,7 @@ class AppService(Service):
                 [self.app._reply_consumer],
                 # Agents (app.agents)
                 self.app.agents.values(),
-                # Topic Manager (app.TopicConductor))
+                # Conductor (transport.Conductor))
                 [self.app.topics],
                 # Table Manager (app.TableManager)
                 [self.app.tables],

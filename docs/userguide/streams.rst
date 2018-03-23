@@ -181,12 +181,12 @@ iterates over the topic as a stream::
             print(value)
 
 The act of starting that stream iterator will add the topic to
-the TopicConductor service. This internal service is responsible for
+the Conductor service. This internal service is responsible for
 forwarding messages received by the consumer to the streams:
 
 .. sourcecode:: text
 
-  [Consumer] -> [TopicConductor] -> [Topic] -> [Stream]
+  [Consumer] -> [Conductor] -> [Topic] -> [Stream]
 
 
 The :keyword:`async for` is what triggers this, and the agent code above
@@ -194,7 +194,7 @@ is roughly equivalent to::
 
    async def custom_agent(app: App, topic: Topic):
         topic_iterator = aiter(topic)
-        app.topics.add(topic)  # app.topics is the TopicConductor
+        app.topics.add(topic)  # app.topics is the Conductor
         stream = Stream(topic_iterator, app=app)
         async for value in stream:
             print(value)
@@ -213,7 +213,7 @@ If two agents use streams subscribed to the same topic::
           async for value in stream:
               print(f'B: {value}')
 
-The TopicConductor will forward every message received on the "orders"
+The Conductor will forward every message received on the "orders"
 topic to both of the agents, increasing the reference count whenever
 it enters an agents stream.
 

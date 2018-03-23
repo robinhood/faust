@@ -132,11 +132,11 @@ consumption, like managing topic subscriptions etc.
 Agents are also services, and any async function decorated using ``@app.agent``
 will start with the app.
 
-``TopicConductor``
+``Conductor``
 ------------------
 
-The topic conductor manages topic subscriptions and the streams messages
-in a topic is forwarded to.
+The topic conductor manages topic subscriptions, and forward messages
+from the Kafka consumer to the streams.
 
 ``app.stream(topic)`` will iterate over the topic: ``aiter(topic)``.
 The conductor feeds messages into that iteration, so the stream

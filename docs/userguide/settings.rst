@@ -760,31 +760,6 @@ Example using the string path to a class::
 
     app = App(..., Router='myproj.routers.Router')
 
-.. setting:: TopicConductor
-
-``TopicConductor``
-------------------
-
-:type: ``Union[str, Type[ConductorT]]``
-:default: ``"faust.topics:TopicConductor"``
-
-The :class:`~faust.topics.TopicConductor` class used for routing events
-from the Kafka consumer to streams reading from topics; or the fully-qualified
-path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
-
-Example using a class::
-
-    from faust.topics import TopicConductor
-
-    class MyTopicConductor(TopicConductor):
-        ...
-
-    app = App(..., TopicConductor=TopicConductor)
-
-Example using the string path to a class::
-
-    app = App(..., TopicConductor='myproj.conductors.TopicConductor')
-
 .. setting:: Topic
 
 ``Topic``

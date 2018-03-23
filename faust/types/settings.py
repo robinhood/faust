@@ -22,7 +22,7 @@ from .sensors import SensorT
 from .serializers import RegistryT
 from .streams import StreamT
 from .tables import SetT, TableManagerT, TableT
-from .topics import ConductorT, TopicT
+from .topics import TopicT
 from .web import HttpClientT
 
 if typing.TYPE_CHECKING:
@@ -78,10 +78,6 @@ LEADER_ASSIGNOR_TYPE = 'faust.assignor:LeaderAssignor'
 
 #: Path to router class, providing the default for :setting:`Router`.
 ROUTER_TYPE = 'faust.app.router:Router'
-
-#: Path to topic conductor class, providing the default
-#: for :setting:`TopicConductor`.
-CONDUCTOR_TYPE = 'faust.topics:TopicConductor'
 
 #: Path to topic class, providing the default for :setting:`Topic`.
 TOPIC_TYPE = 'faust:Topic'
@@ -203,7 +199,6 @@ class Settings(abc.ABC):
     _PartitionAssignor: Type[PartitionAssignorT] = None
     _LeaderAssignor: Type[LeaderAssignorT] = None
     _Router: Type[RouterT] = None
-    _TopicConductor: Type[ConductorT] = None
     _Topic: Type[TopicT] = None
     _HttpClient: Type[HttpClientT] = None
     _Monitor: Type[SensorT] = None
@@ -257,7 +252,6 @@ class Settings(abc.ABC):
             PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
             LeaderAssignor: SymbolArg[Type[LeaderAssignorT]] = None,
             Router: SymbolArg[Type[RouterT]] = None,
-            TopicConductor: SymbolArg[Type[ConductorT]] = None,
             Topic: SymbolArg[Type[TopicT]] = None,
             HttpClient: SymbolArg[Type[HttpClientT]] = None,
             Monitor: SymbolArg[Type[SensorT]] = None,
@@ -337,10 +331,6 @@ class Settings(abc.ABC):
             self._LeaderAssignor or
             LEADER_ASSIGNOR_TYPE)
         self.Router = Router or self._Router or ROUTER_TYPE
-        self.TopicConductor = (
-            TopicConductor or
-            self._TopicConductor or
-            CONDUCTOR_TYPE)
         self.Topic = Topic or self._Topic or TOPIC_TYPE
         self.HttpClient = HttpClient or self._HttpClient or HTTP_CLIENT_TYPE
         self.Monitor = Monitor or self._Monitor or MONITOR_TYPE
@@ -545,14 +535,6 @@ class Settings(abc.ABC):
     @Router.setter
     def Router(self, Router: SymbolArg[Type[RouterT]]) -> None:
         self._Router = symbol_by_name(Router)
-
-    @property
-    def TopicConductor(self) -> Type[ConductorT]:
-        return self._TopicConductor
-
-    @TopicConductor.setter
-    def TopicConductor(self, Conductor: SymbolArg[Type[ConductorT]]) -> None:
-        self._TopicConductor = symbol_by_name(Conductor)
 
     @property
     def Topic(self) -> Type[TopicT]:
