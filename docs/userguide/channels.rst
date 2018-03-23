@@ -1,7 +1,7 @@
 .. _guide-channels:
 
 =====================================
- Channels & Topics
+ Channels & Topics - Data Sources
 =====================================
 
 .. contents::

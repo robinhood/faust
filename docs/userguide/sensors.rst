@@ -1,7 +1,7 @@
 .. _guide-sensors:
 
 =====================================
- Sensors
+ Sensors - Monitors and Statistics
 =====================================
 
 .. contents::

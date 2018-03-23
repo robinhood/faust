@@ -20,7 +20,5 @@
     cli
     sensors
     testing
-    vskafka
-    vscelery
     settings
     debugging

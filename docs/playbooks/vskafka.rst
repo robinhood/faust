@@ -1,8 +1,8 @@
 .. _kafka-streams-comparison:
 
-========================
- Faust vs Kafka Streams
-========================
+==================================
+ Overview: Faust vs Kafka Streams
+==================================
 
 .. contents::
     :local:

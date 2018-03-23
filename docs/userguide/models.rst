@@ -1,7 +1,7 @@
 .. _guide-models:
 
 =====================================
- Models and Serialization
+ Models, Serialization, and Codecs
 =====================================
 
 .. contents::
