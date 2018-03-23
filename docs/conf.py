@@ -80,7 +80,7 @@ html_sidebars = {
 }
 html_theme_options = {
     #'logo': 'logo.png',
-    'description': 'A library for building streaming applications in Python with a focus on simplicity.',
+    'description': 'A library for building streaming applications in Python.',
     'github_banner': True,
     'travis_button': True,
     'show_related': True,
