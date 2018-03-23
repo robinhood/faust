@@ -11,6 +11,8 @@
 
 .. include:: includes/intro.txt
 
+-----------------------------------
+
 Contents
 ========
 
@@ -22,12 +24,16 @@ Contents
 .. toctree::
     :maxdepth: 2
 
-    introduction/index
+    introduction
 
 .. toctree::
     :maxdepth: 2
 
     playbooks/index
+
+.. toctree::
+    :maxdepth: 2
+
     userguide/index
 
 .. toctree::
@@ -38,6 +44,7 @@ Contents
     changelog
     contributing
     developerguide/index
+    authors
     glossary
 
 Indices and tables

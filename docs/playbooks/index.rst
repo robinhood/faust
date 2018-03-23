@@ -15,3 +15,4 @@
     leaderelection
     vskafka
     vscelery
+    cheatsheet

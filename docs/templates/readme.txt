@@ -30,6 +30,20 @@ Faust is...
 
 .. include:: ../includes/resources.txt
 
+Contributing
+============
+
+Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
+
+You're highly encouraged to participate in the development
+of `Faust`.
+
+Be sure to also read the `Contributing to Faust`_ section in the
+documentation.
+
+.. _`Contributing to Faust`:
+    http://docs.fauststream.com/en/master/contributing.html
+
 .. include:: ../includes/code-of-conduct.txt
 
 .. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master

@@ -22,10 +22,13 @@ Come chat with us on Slack:
 
 https://fauststream.slack.com
 
+Resources
+=========
+
 .. _bug-tracker:
 
 Bug tracker
-===========
+-----------
 
 If you have any suggestions, bug reports, or annoyances please report them
 to our issue tracker at https://github.com/fauststream/faust/issues/
@@ -33,25 +36,9 @@ to our issue tracker at https://github.com/fauststream/faust/issues/
 .. _wiki:
 
 Wiki
-====
+----
 
 https://wiki.github.com/fauststream/faust/
-
-.. _contributing-short:
-
-Contributing
-============
-
-Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
-
-You're highly encouraged to participate in the development
-of `Faust`.
-
-Be sure to also read the `Contributing to Faust`_ section in the
-documentation.
-
-.. _`Contributing to Faust`:
-    http://docs.fauststream.com/en/master/contributing.html
 
 .. _license:
 

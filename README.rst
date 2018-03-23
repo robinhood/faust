@@ -22,16 +22,18 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-**Faust** is a Python library for *event processing*
-and *streaming applications* that are fault-tolerant and easy to use.
-It provides a high performance, distributed system that scales to a
+**Faust** is a Python library for writing streaming applications
+that are fault-tolerant and easy to use.
+
+It is used at `Robinhood`_ to build high performance, highly concurrent
+distributed systems and real-time data pipelines that scale to a
 massive number of machines.
 
 Faust provides both *stream processing* and *event processing*,
-so it is similar to tools such as `Celery`_,
+sharing similarity with tools such as `Celery`_,
 `Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
 
-Faust is heavily inspired by `Kafka Streams`_ but uses asynchronous generators
+Faust is heavily inspired by `Kafka Streams`_, but uses asynchronous generators
 instead of a DSL. This way it blends into Python code, so you can use
 NumPy, PyTorch, NLTK, Django, Flask, SQLAlchemy, and all
 the other tools that you like in Python.
@@ -133,6 +135,7 @@ so you can take advantage of static types when writing applications.
 **then explore the** ``guide``
     for in-depth information organized by topic.
 
+.. _`Robinhood`: http://robinhood.com
 .. _`async/await`:
     https://medium.freecodecamp.org/a-guide-to-asynchronous-programming-in-python-with-asyncio-232e2afa44f6
 .. _`Celery`: http://celeryproject.org

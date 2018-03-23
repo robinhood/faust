@@ -21,4 +21,6 @@
     sensors
     testing
     settings
+    installation
+    kafka
     debugging

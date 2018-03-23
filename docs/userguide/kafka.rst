@@ -1,5 +1,5 @@
 =============================================
- What is Kafka?
+ Kafka - The basics you need to know
 =============================================
 
 .. contents::
@@ -7,4 +7,3 @@
     :depth: 1
 
 .. include:: ../includes/kafka.txt
-
