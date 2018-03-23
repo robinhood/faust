@@ -512,7 +512,8 @@ class Transport(TransportT):
     #: Producer subclass used for this transport.
     Producer: ClassVar[Type[ProducerT]]
 
-    Conductor: ClassVar[Type[ConductorT]] = Conductor
+    Conductor: ClassVar[Type[ConductorT]]
+    Conductor = Conductor
 
     #: Service that fetches messages from the broker.
     Fetcher: ClassVar[Type[ServiceT]] = Fetcher
