@@ -379,7 +379,7 @@ class TopicConductor(ConductorT, Service):
     #: Fast index to see if Topic is registered.
     _topics: MutableSet[TopicT]
 
-    #: Map str topic to set of channeos that should get a copy
+    #: Map str topic to set of channels that should get a copy
     #: of each message sent to that topic.
     _topicmap: MutableMapping[str, MutableSet[TopicT]]
 
