@@ -32,6 +32,7 @@ globals().update(conf.build_config(
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
         'click': ('http://click.pocoo.org/6/', None),
         'mode': ('https://mode.readthedocs.io/en/latest/', None),
+        'mypy': ('https://mypy.readthedocs.io/en/latest/', None),
     },
     # django_settings='testproj.settings',
     # from pathlib import Path
