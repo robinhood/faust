@@ -336,6 +336,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
               acks: bool = True,
               internal: bool = False,
               config: Mapping[str, Any] = None,
+              maxsize: int = None,
               loop: asyncio.AbstractEventLoop = None) -> TopicT:
         """Create topic description.
 
