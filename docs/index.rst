@@ -9,66 +9,59 @@
     # w/ asyncio & static typing.
     import faust
 
-**Faust** is a Python library for *event processing* and *streaming applications*
-that are decentralized and fault-tolerant.
+**Faust** is a Python library for *event processing*
+and *streaming applications* that are fault-tolerant and easy to use.
+It provides a high performance, distributed system that scales to a
+massive number of machines.
 
-Heavily inspired by `Kafka Streams`_, Faust takes
-a radically much more straightforward approach to stream processing
-and is very simple to learn and use.
+Faust provides both *stream processing* and *event processing*,
+so it is similar to tools such as :pypi:`Celery`,
+`Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
 
-It is similar to tools such as `Apache Spark`_/`Storm`_/`Samza`_,
-and `Apache Flink`_, but the Faust API is used for both *stream processing*
-and *event processing*, as provided by libraries such as :pypi:`Celery`.
+Faust is heavily inspired by `Kafka Streams`_ but uses asynchronous generators
+instead of a DSL. This way it blends into Python code, so you can use
+:pypi:`numpy`, :pypi:`pyTorch`, and all the other tools that you like
+in Python.
 
-Faust lets you write streaming pipelines using native Python code,
-so instead of a DSL like ``stream().groupBy(x).filterNot(y).etc.``,
-Faust is just Python so you can reuse your existing code:
+Faust requires Python 3.6 and up, for the simple reason it takes substantial
+advantage of the new :keyword:`async <async def>`/:keyword:`await` syntax
+added recently to Python.  The benefit to that is performance rarely seen
+before in Python systems.
+
+Here's an example agent processing "order events":
 
 .. sourcecode:: python
 
     app = faust.App('myapp', broker='kafka://localhost')
 
-    @app.agent()
-    async def process(stream):
-        async for event in stream:
-            if event > 1000:
-                yield alert('WOW')
+    class Order(faust.Record):
+        account_id: str
+        amount: int
 
-But wait, something is different? Faust takes advantage of the
-new :keyword:`async <async def>`/:keyword:`await` syntax added in Python 3.6
-to be asynchronous. Many agents can execute simultaneously
-along with other background tasks, periodic timers,
-and network services.
+    @app.agent(value_type=Order)
+    async def order(orders):
+        async for order in orders:
+            print(f'Order for {order.account_id}: {order.amount}')
+            # do something with order
 
-The :keyword:`async for` expression means you can perform network
-requests and do other I/O as a side effect of processing
-a stream -- without blocking other agents from executing at the same time.
+This "agent" can execute on many machines at the same time so that you
+can distribute work across a cluster of worker instances.
 
-Faust optionally runs a **web server** so you can host your Web App on the
-same system, allowing you to rapidly prototype traditionally complex
-web app architectures that are easy to deploy and scale.
+So what does the ``async`` stuff do for us anyway?
 
-Faust depends on **Apache Kafka** as a message broker. Thus it expects the
-ability to go forward and backward in time, treating the stream as a
-compacted log of events. We didn't specify a topic in the example above,
-which means the agent will use an anonymous topic. You can also
-specify the Kafka topic you want the stream to consume from:
+The :keyword:`async for` expression enables you to perform web requests
+and other I/O as a side effect of processing the stream.
 
-.. sourcecode:: python
+The only external dependency required by Faust is `Apache Kafka`_. In the
+future, we hope to support more messaging systems.
 
-    orders_topic = app.topic('orders')
+Faust also lets you create "tables", which are like named distributed
+key/value stores. We store the data locally using `RocksDB`_ - an embedded
+database library written in C++, then publish changes to a Kafka topic for
+recovery (a write-ahead log).
 
-    @app.agent(orders_topic)
-    async def process(stream):
-        ...
-
-Then we have **Tables**! `Kafka Streams`_ describes this as "turning the database
-inside-out," and Faust supports it too! It means Faust doubles as a
-distributed key/value store. We store data locally using `RocksDB`_ -
-an embedded database library written in C++ with blazing performance,
-then for recovery we use a Kafka topic as a write-ahead log.
-
-Count page views per URL:
+To the user, a table is just a dictionary so that you can do things like
+count page views by URL:
 
 .. sourcecode:: python
 
@@ -83,14 +76,21 @@ Count page views per URL:
         async for url, count in clicks.items():  # key, value
             counts[url] += int(count)
 
-Further, state stored in tables may be "windowed" using hopping, sliding, or
-tumbling intervals, so you can also keep track of "number of clicks in the last
-day", or "number of clicks in the last hour".
+The data sent to a Kafka topic is partitioned, and since we use the URL
+as a key in the "clicks" topic, that is how Kafka will shard the data
+in such a way that every count from the same URL delivers to the
+same Faust worker instance.
 
-The data found in streams can be anything: we support byte streams, text
-streams, and manually deserialized data structures. Taking this further
-we have **Models** using modern Python syntax to describe how keys and
-values in topics are serialized and deserialized:
+The state stored in tables may also be "windowed" so you can keep track
+of "number of clicks from the last day," or
+"number of clicks in the last hour.". We support tumbling, hopping
+and sliding windows of time, and old windows can be expired to stop
+data from filling up.
+
+The data found in streams and tables can be anything: we support byte streams,
+Unicode, and manually deserialized data structures. Taking this
+further we have "Models" that use modern Python syntax to describe how
+keys and values are serialized and deserialized:
 
 .. sourcecode:: python
 
@@ -125,8 +125,9 @@ so you can take advantage of static types when writing applications.
 .. _`Apache Spark`: http://spark.apache.org
 .. _`Storm`: http://storm.apache.org
 .. _`Samza`: http://samza.apache.org
-.. _`Apache Flink`: http://flink.apache.org
+.. _`Flink`: http://flink.apache.org
 .. _`RocksDB`: http://rocksdb.org
+.. _`Apache Kafka`: https://kafka.apache.org
 
 Contents
 ========
