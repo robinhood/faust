@@ -18,9 +18,9 @@
     tables
     tasks
     cli
-    deployment
     sensors
     testing
     vskafka
     vscelery
     settings
+    debugging

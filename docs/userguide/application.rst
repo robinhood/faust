@@ -707,9 +707,6 @@ To get help for a particular subcommand run:
 
    - The :meth:`~@main` method in the API reference.
 
-   - The :ref:`guide-deployment` guide -- for more on deploying Faust
-     applications.
-
 ``@app.command()`` -- Define a new command-line command
 -------------------------------------------------------
 
