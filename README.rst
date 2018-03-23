@@ -33,13 +33,12 @@ so it is similar to tools such as `Celery`_,
 
 Faust is heavily inspired by `Kafka Streams`_ but uses asynchronous generators
 instead of a DSL. This way it blends into Python code, so you can use
-``numpy``, ``pyTorch``, and all the other tools that you like
-in Python.
+NumPy, PyTorch, NLTK, Django, Flask, SQLAlchemy, and all
+the other tools that you like in Python.
 
 Faust requires Python 3.6 and up, for the simple reason it takes substantial
-advantage of the new ``async <async def>``/``await`` syntax
-added recently to Python.  The benefit to that is performance rarely seen
-before in Python systems.
+advantage of the new `async/await`_ syntax added recently to Python.
+The benefit to that is performance rarely seen before in Python systems.
 
 Here's an example agent processing "order events":
 
@@ -134,6 +133,8 @@ so you can take advantage of static types when writing applications.
 **then explore the** ``guide``
     for in-depth information organized by topic.
 
+.. _`async/await`:
+    https://medium.freecodecamp.org/a-guide-to-asynchronous-programming-in-python-with-asyncio-232e2afa44f6
 .. _`Celery`: http://celeryproject.org
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org
