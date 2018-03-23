@@ -62,6 +62,8 @@ You can create channels manually and read/write from them:
 
         async for event in channel:
             print(event.value)
+            # the channel is infinite so we break after first event
+            break
 
 Reference
 ~~~~~~~~~
