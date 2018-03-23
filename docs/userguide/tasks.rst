@@ -97,9 +97,10 @@ Add a simple page returning a JSON structure by adding this to your app module:
         })
 
 
-This example view has limited usefulness, as it only provides you with
-a count of how many times the page was requested (on that particular server,
-for as long as it's up).
+This example view is of limited usefulness. It only provides you with
+a count of how many times the page is requested, on that particular server,
+for as long as it's up, but you can also call actors or access table
+data in web views.
 
 Restart your Faust worker, and you can visit your new page at:
 
@@ -109,13 +110,14 @@ Restart your Faust worker, and you can visit your new page at:
 
 Your workers may have an arbitrary number of views, and it's up to you what
 they provide. Just like other web apps they can communicate with Redis,
-SQL databases, and so on.
+SQL databases, and so on. Anything you want, really, and it's executing
+in an asynchronous event loop.
 
 You can decide to develop your web app directly in the Faust workers, or you
 may choose to keep your regular web server separate from your Faust workers.
 
-The choice is yours, but you can unquestionably create complex systems
-quickly, just by putting everything in a single Faust app.
+You can create complex systems quickly, just by putting everything in a single
+Faust app.
 
 HTTP Verbs: ``GET``/``POST``/``PUT``/``DELETE``
 ===============================================
@@ -212,14 +214,20 @@ just by calling ``app.main()``.
 Even if you don't do that, the :program:`faust` program is always available
 and you can point it to any app:
 
-The :program:`faust` command is always available,
-and you can point it to any app:
-
 .. sourcecode:: console
 
     $ faust -A myapp worker -l info
 
-Do this to get a list of subcommands supported by the app:
+
+The ``myapp`` argument should point to a Python module/package having
+an ``app`` attribute.  If the attribute has a different name, please specify
+a fully qualified path:
+
+.. sourcecode:: console
+
+    $ faust -A myproj.apps:faust_app worker -l info
+
+Do ``--help`` to get a list of subcommands supported by the app:
 
 .. sourcecode:: console
 
