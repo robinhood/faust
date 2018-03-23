@@ -125,14 +125,14 @@ keys and values are serialized and deserialized:
 Faust is statically typed, using the ``mypy`` type checker,
 so you can take advantage of static types when writing applications.
 
-**Learn more about Faust in the** ``intro`` **introduction page**
+**Learn more about Faust in the** `intro`_ **introduction page**
     to read more about Faust, system requirements, installation instructions,
     community resources, and more.
 
-**or go directly to the** ``quickstart`` **tutorial**
+**or go directly to the** `quickstart`_ **tutorial**
     to see Faust in action by programming a streaming application.
 
-**then explore the** ``guide``
+**then explore the** `User Guide`_
     for in-depth information organized by topic.
 
 .. _`Robinhood`: http://robinhood.com
@@ -146,6 +146,12 @@ so you can take advantage of static types when writing applications.
 .. _`Flink`: http://flink.apache.org
 .. _`RocksDB`: http://rocksdb.org
 .. _`Apache Kafka`: https://kafka.apache.org
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Faust is...
 ===========
@@ -210,6 +216,12 @@ Faust is...
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Installation
 ============
@@ -322,6 +334,12 @@ You can install the latest snapshot of Faust using the following
 ``pip`` command::
 
     $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 FAQ
 ===
@@ -456,6 +474,12 @@ You may need to increase the limit for the maximum number of open files. The
 following post explains how to do so on OS X:
 https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
+
 .. _getting-help:
 
 Getting Help
@@ -480,10 +504,13 @@ Come chat with us on Slack:
 
 https://fauststream.slack.com
 
+Resources
+=========
+
 .. _bug-tracker:
 
 Bug tracker
-===========
+-----------
 
 If you have any suggestions, bug reports, or annoyances please report them
 to our issue tracker at https://github.com/fauststream/faust/issues/
@@ -491,11 +518,25 @@ to our issue tracker at https://github.com/fauststream/faust/issues/
 .. _wiki:
 
 Wiki
-====
+----
 
 https://wiki.github.com/fauststream/faust/
 
-.. _contributing-short:
+.. _license:
+
+License
+=======
+
+This software is licensed under the `New BSD License`. See the ``LICENSE``
+file in the top distribution directory for the full license text.
+
+.. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Contributing
 ============
@@ -510,16 +551,6 @@ documentation.
 
 .. _`Contributing to Faust`:
     http://docs.fauststream.com/en/master/contributing.html
-
-.. _license:
-
-License
-=======
-
-This software is licensed under the `New BSD License`. See the ``LICENSE``
-file in the top distribution directory for the full license text.
-
-.. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
 
 Code of Conduct
 ===============
@@ -565,6 +596,12 @@ reported by opening an issue or contacting one or more of the project maintainer
 This Code of Conduct is adapted from the Contributor Covenant,
 version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
+
 .. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/fauststream/faust
@@ -584,4 +621,10 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 .. |pyimp| image:: https://img.shields.io/pypi/implementation/faust.svg
     :alt: Support Python implementations.
     :target: http://pypi.python.org/pypi/faust/
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 

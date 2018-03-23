@@ -6,4 +6,7 @@ REFS = {
     'slack-channel': 'getting-started/resources.html#slack-channel',
     'bundles': 'introduction/installation.html#bundles',
     'reporting-bugs': 'contributing.html#reporting-bugs',
+    'intro': 'introduction.html',
+    'quickstart': 'playbooks/quickstart.html',
+    'guide': 'userguide/index.html',
 }
