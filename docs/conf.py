@@ -36,6 +36,7 @@ globals().update(conf.build_config(
         'rocksdb': ('http://python-rocksdb.readthedocs.io/en/latest/', None),
         'terminaltables': ('https://robpol86.github.io/terminaltables/', None),
         'venusian': ('http://venusian.readthedocs.io/en/latest/', None),
+        'yarl': ('http://yarl.readthedocs.io/en/latest/', None),
     },
     # django_settings='testproj.settings',
     # from pathlib import Path
