@@ -28,7 +28,7 @@ It provides a high performance, distributed system that scales to a
 massive number of machines.
 
 Faust provides both *stream processing* and *event processing*,
-so it is similar to tools such as ``Celery``,
+so it is similar to tools such as `Celery`_,
 `Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
 
 Faust is heavily inspired by `Kafka Streams`_ but uses asynchronous generators
@@ -134,6 +134,7 @@ so you can take advantage of static types when writing applications.
 **then explore the** ``guide``
     for in-depth information organized by topic.
 
+.. _`Celery`: http://celeryproject.org
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org
 .. _`Storm`: http://storm.apache.org
