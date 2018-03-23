@@ -427,14 +427,30 @@ Advanced Stream Settings
 -------------------------
 
 :type: :class:`int`
-:default: 32768
+:default: 4096
 
 This setting control backpressure to streams and agents reading from streams.
 
-If set to 1000 (default) this means that an agent can only keep at most
-1000 unprocessed items in the stream buffer.
+If set to 4096 (default) this means that an agent can only keep at most
+4096 unprocessed items in the stream buffer.
 
-Essentially this will a limit the number of messages a stream can "prefetch".
+Essentially this will limit the number of messages a stream can "prefetch".
+
+Higher numbers gives better throughput, but do note that if your agent
+sends messages or update tables (which sends changelog messages), Faust 1.0
+will move the sending of those messages to when the offset of the source
+message (the one that initiated the sending/change) is committed.
+
+This means that if the buffer size is large, the
+:setting:`broker_commit_interval` or :setting:`broker_commit_every` settings
+must be set to commit frequently, avoiding backpressure from building up.
+
+A buffer size of 131_072 may let you process over 30,000 events a second
+as a baseline, but be careful with a buffer size that large when you also
+send messages or update tables.
+
+The next version of Faust will take advantage of Kafka transactions
+to remove the bottleneck of sending messages on commit.
 
 Advanced Web Server Settings
 ============================
@@ -743,31 +759,6 @@ Example using a class::
 Example using the string path to a class::
 
     app = App(..., Router='myproj.routers.Router')
-
-.. setting:: TopicConductor
-
-``TopicConductor``
-------------------
-
-:type: ``Union[str, Type[ConductorT]]``
-:default: ``"faust.topics:TopicConductor"``
-
-The :class:`~faust.topics.TopicConductor` class used for routing events
-from the Kafka consumer to streams reading from topics; or the fully-qualified
-path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
-
-Example using a class::
-
-    from faust.topics import TopicConductor
-
-    class MyTopicConductor(TopicConductor):
-        ...
-
-    app = App(..., TopicConductor=TopicConductor)
-
-Example using the string path to a class::
-
-    app = App(..., TopicConductor='myproj.conductors.TopicConductor')
 
 .. setting:: Topic
 

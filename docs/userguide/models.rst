@@ -1,7 +1,7 @@
 .. _guide-models:
 
 =====================================
- Models and Serialization
+ Models, Serialization, and Codecs
 =====================================
 
 .. contents::
@@ -53,10 +53,10 @@ Manual Serialization
 ====================
 
 You're not required to define models to read the data from a stream.
-Manual de-serialization also works and is rather easy to perform, but models
-provide additional benefit, such as the field descriptors that let you refer
-to fields in `group_by` statements, static typing using :pypi:`mypi`,
-automatic conversion of :class:`datetime`, and so on...
+Manual de-serialization also works and is rather easy to perform.
+Models provide additional benefit, such as the field descriptors that
+let you refer to fields in `group_by` statements, static typing using
+:pypi:`mypi`, automatic conversion of :class:`datetime`, and so on...
 
 To deserialize streams manually, merely use a topic with bytes values:
 

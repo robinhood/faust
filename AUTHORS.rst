@@ -35,6 +35,8 @@ Contributors
 ============
 
 +---------------------+---------------------------------------+
+| Allison Wang        | <allison.wang@robinhood.com>          |
++---------------------+---------------------------------------+
 | Jamshed Vesuna      | <jamshed@robinhood.com>               |
 +---------------------+---------------------------------------+
 | Jerry Li            | <jerry.li@robinhood.com>              |

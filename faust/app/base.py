@@ -64,8 +64,9 @@ from faust.types.serializers import RegistryT
 from faust.types.settings import Settings
 from faust.types.streams import StreamT
 from faust.types.tables import CollectionT, SetT, TableManagerT, TableT
-from faust.types.topics import ConductorT, TopicT
+from faust.types.topics import TopicT
 from faust.types.transports import (
+    ConductorT,
     ConsumerT,
     ProducerT,
     TPorTopicSet,
@@ -265,7 +266,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     async def on_stop(self) -> None:
         if self._http_client:
-            self._http_client.close()
+            await self._http_client.close()
 
     def worker_init(self) -> None:
         for fixup in self.fixups:
@@ -336,6 +337,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
               acks: bool = True,
               internal: bool = False,
               config: Mapping[str, Any] = None,
+              maxsize: int = None,
               loop: asyncio.AbstractEventLoop = None) -> TopicT:
         """Create topic description.
 
@@ -719,9 +721,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 The resulting :class:`faust.types.tuples.RecordMetadata`
                 object is then available as ``fut.result()``.
         """
+        chan: ChannelT
         if isinstance(channel, str):
-            channel = self.topic(channel)
-        return await channel.send(
+            chan = self.topic(channel)
+        else:
+            chan = channel
+        return await chan.send(
             key,
             value,
             partition,
@@ -791,7 +796,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         try:
             await self.consumer.verify_subscription(assigned)
             await self.agents.on_partitions_assigned(assigned)
-            # Wait for TopicConductor to finish any new subscriptions
+            # Wait for transport.Conductor to finish any new subscriptions
             await self.topics.wait_for_subscriptions()
             await self.consumer.pause_partitions(assigned)
             await self._fetcher.restart()
@@ -813,6 +818,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             on_partitions_assigned=self._on_partitions_assigned,
             beacon=self.beacon,
         )
+
+    def _new_conductor(self) -> ConductorT:
+        return self.transport.create_conductor(beacon=self.beacon)
 
     def _new_transport(self) -> TransportT:
         return transport.by_url(self.conf.broker)(
@@ -967,8 +975,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         can check if a topic is being consumed from by doing
         ``topic in app.topics``.
         """
-        return self.conf.TopicConductor(
-            app=self, loop=self.loop, beacon=self.beacon)
+        return self._new_conductor()
 
     @property
     def monitor(self) -> Monitor:

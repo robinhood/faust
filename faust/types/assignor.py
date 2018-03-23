@@ -4,7 +4,7 @@ from typing import List, MutableMapping, Set
 
 from mode import ServiceT
 
-from .topics import TP
+from .tuples import TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT

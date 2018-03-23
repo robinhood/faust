@@ -30,7 +30,13 @@ globals().update(conf.build_config(
     extra_intersphinx_mapping={
         'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
+        'click': ('http://click.pocoo.org/6/', None),
         'mode': ('https://mode.readthedocs.io/en/latest/', None),
+        'mypy': ('https://mypy.readthedocs.io/en/latest/', None),
+        'rocksdb': ('http://python-rocksdb.readthedocs.io/en/latest/', None),
+        'terminaltables': ('https://robpol86.github.io/terminaltables/', None),
+        'venusian': ('http://venusian.readthedocs.io/en/latest/', None),
+        'yarl': ('http://yarl.readthedocs.io/en/latest/', None),
     },
     # django_settings='testproj.settings',
     # from pathlib import Path
@@ -74,7 +80,7 @@ html_sidebars = {
 }
 html_theme_options = {
     #'logo': 'logo.png',
-    'description': 'A library for building streaming applications in Python with a focus on simplicity.',
+    'description': 'A library for building streaming applications in Python.',
     'github_banner': True,
     'travis_button': True,
     'show_related': True,

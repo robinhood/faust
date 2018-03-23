@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Withdrawal example.
 
-Quick Start
-===========
+Quickstart
+==========
 
 1) Start worker:
 
@@ -61,14 +61,6 @@ async def track_user_withdrawal(withdrawals):
         if not i % 10_000:
             print(f'TIME FOR 10k: {monotonic() - time_start}')
             time_start = None
-        #user_to_total[withdrawal.user] += withdrawal.amount
-
-
-#@app.agent(withdrawals_topic)
-#async def track_country_withdrawal(withdrawals):
-    #async for withdrawal in withdrawals.group_by(Withdrawal.country):
-        #country_to_total[withdrawal.country] += withdrawal.amount
-
 
 @app.command(
     option('--max-latency',

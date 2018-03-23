@@ -1,18 +1,9 @@
 import abc
 import asyncio
 import typing
-from typing import (
-    Any,
-    Mapping,
-    MutableSet,
-    Optional,
-    Pattern,
-    Sequence,
-    Set,
-    Union,
-)
+from typing import Any, Mapping, Optional, Pattern, Sequence, Set, Union
 
-from mode import Seconds, ServiceT
+from mode import Seconds
 from mode.utils.futures import ThrowableQueue
 
 from .channels import ChannelT
@@ -22,16 +13,11 @@ from .tuples import TP
 if typing.TYPE_CHECKING:
     from .app import AppT
     from .models import ModelArg
-    from .streams import StreamT
-    from .transports import ConsumerT, TPorTopicSet
 else:
     class AppT: ...             # noqa
     class ModelArg: ...         # noqa
-    class StreamT: ...          # noqa
-    class ConsumerT: ...        # noqa
-    class TPorTopicSet: ...     # noqa
 
-__all__ = ['TopicT', 'ConductorT']
+__all__ = ['TopicT']
 
 
 class TopicT(ChannelT):
@@ -130,36 +116,4 @@ class TopicT(ChannelT):
                      prefix: str = '',
                      suffix: str = '',
                      **kwargs: Any) -> 'TopicT':
-        ...
-
-
-class ConductorT(ServiceT, MutableSet[ChannelT]):
-
-    # The topic conductor delegates messages from the Consumer
-    # to the various Topic instances subscribed to a topic.
-
-    app: AppT
-
-    @abc.abstractmethod
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    def acks_enabled_for(self, topic: str) -> bool:
-        ...
-
-    @abc.abstractmethod
-    async def commit(self, topics: TPorTopicSet) -> bool:
-        ...
-
-    @abc.abstractmethod
-    async def wait_for_subscriptions(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...

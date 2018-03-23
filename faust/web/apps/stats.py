@@ -2,7 +2,7 @@
 from collections import defaultdict
 from typing import List, MutableMapping, Set
 from faust import web
-from faust.types.topics import TP
+from faust.types.tuples import TP
 
 __all__ = ['Assignment', 'Stats', 'Site']
 

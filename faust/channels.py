@@ -294,9 +294,9 @@ class Channel(ChannelT):
         s = f'<{self.label}@{self._repr_id()}'
         if self.active_partitions is not None:
             if self.active_partitions:
-                active = sorted(
+                active = '{' + ', '.join(sorted(
                     f'{tp.topic}:{tp.partition}'
-                    for tp in self.active_partitions)
+                    for tp in self.active_partitions)) + '}'
             else:
                 active = '{<pending for assignment>}'
             s += f' active={active}'

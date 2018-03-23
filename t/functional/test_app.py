@@ -9,7 +9,6 @@ from faust.app.router import Router
 from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
-from faust.topics import TopicConductor
 from faust.types import settings
 from faust.types.app import HttpClientT
 from yarl import URL
@@ -62,7 +61,6 @@ class test_settings:
         assert conf.PartitionAssignor is PartitionAssignor
         assert conf.LeaderAssignor is LeaderAssignor
         assert conf.Router is Router
-        assert conf.TopicConductor is TopicConductor
         assert conf.Topic is faust.Topic
         assert conf.HttpClient is HttpClientT
         assert conf.Monitor is Monitor

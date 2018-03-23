@@ -92,13 +92,3 @@
             # values in this table are not concrete! access .current
             # for the value related to the time of the current event
             print(orders_by_country[order.country_origin].current())
-
-.. topic:: Send something to be processed later
-
-    TODO This is not implemented yet
-
-    .. sourcecode:: python
-
-        async for event in my_topic.stream():
-            # forward to other topic, but only after two days
-            await topic.send(event, eta=timedelta(days=2))

@@ -1,7 +1,7 @@
-.. _guide-deployment:
+.. _guide-debugging:
 
 ===========================================
- Deployment
+ Debugging
 ===========================================
 
 .. contents::
@@ -11,16 +11,6 @@
 .. module:: faust
 
 .. currentmodule:: faust
-
-Daemonization
-=============
-
-TODO
-
-uvloop vs. asyncio
-==================
-
-TODO
 
 Debugging with :pypi:`aiomonitor`
 =================================
@@ -113,13 +103,3 @@ there you just type `quit` to exit out of the telnet session:
     monitor >>> ^]
     telnet> quit
     Connection closed.
-
-Logging
-=======
-
-TODO
-
-Sentry
-------
-
-TODO

@@ -32,6 +32,7 @@ from yarl import URL
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import (
+    ConductorT,
     ConsumerCallback,
     ConsumerT,
     PartitionsAssignedCallback,
@@ -41,6 +42,8 @@ from faust.types.transports import (
     TransportT,
 )
 from faust.utils.functional import consecutive_numbers
+
+from .conductor import Conductor
 
 if typing.TYPE_CHECKING:
     from faust.app import App
@@ -66,12 +69,12 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 #
 #   - Holds reference to the transport that created it
 #   - ... and the app via ``self.transport.app``.
-#   - Has a callback that usually points back to ``TopicConductor.on_message``.
+#   - Has a callback that usually points back to ``Conductor.on_message``.
 #   - Receives messages and calls the callback for every message received.
 #   - Keeps track of the message and it's acked/unacked status.
-#   - The TopicConductor forwards the message to all Streams that subscribes
+#   - The Conductor forwards the message to all Streams that subscribes
 #     to the topic the message was sent to.
-#       - Messages are reference counted, and the TopicConductor increases
+#       - Messages are reference counted, and the Conductor increases
 #         the reference count to the number of subscribed streams.
 #
 #       - Stream.__aiter__ is set up in a way such that when what is iterating
@@ -82,7 +85,7 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 #         call ``Consumer.ack(message)``, which will mark that tp+offset
 #         combination as "commitable"
 #
-#      - The TopicConductor only deserializes the message once if all the
+#      - The Conductor only deserializes the message once if all the
 #        streams share the same key_type/value_type.
 #   - Commits the offset at an interval
 
@@ -162,6 +165,7 @@ class Consumer(Service, ConsumerT):
                  on_partitions_assigned: PartitionsAssignedCallback = None,
                  commit_interval: float = None,
                  commit_livelock_soft_timeout: float = None,
+                 loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:
         assert callback is not None
         self.transport = transport
@@ -184,7 +188,7 @@ class Consumer(Service, ConsumerT):
         self._waiting_for_ack = None
         self._time_start = monotonic()
         self.randomly_assigned_topics = set()
-        super().__init__(loop=self.transport.loop, **kwargs)
+        super().__init__(loop=loop or self.transport.loop, **kwargs)
 
     @abc.abstractmethod
     async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
@@ -210,7 +214,7 @@ class Consumer(Service, ConsumerT):
 
     def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
-        # shutdown.  This is called by faust.topics.TopicConductor,
+        # shutdown.  This is called by transport.Conductor,
         # before delivering messages to streams.
         self._unacked_messages.add(message)
         # call sensors
@@ -475,13 +479,15 @@ class Fetcher(Service):
 class Producer(Service, ProducerT):
     """Base Producer."""
 
-    def __init__(self, transport: TransportT, **kwargs: Any) -> None:
+    def __init__(self, transport: TransportT,
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
         self.transport = transport
         conf = self.transport.app.conf
         self.linger_ms = conf.producer_linger_ms
         self.max_batch_size = conf.producer_max_batch_size
         self.acks = conf.producer_acks
-        super().__init__(loop=self.transport.loop, **kwargs)
+        super().__init__(loop=loop or self.transport.loop, **kwargs)
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
@@ -506,6 +512,9 @@ class Transport(TransportT):
     #: Producer subclass used for this transport.
     Producer: ClassVar[Type[ProducerT]]
 
+    Conductor: ClassVar[Type[ConductorT]]
+    Conductor = Conductor
+
     #: Service that fetches messages from the broker.
     Fetcher: ClassVar[Type[ServiceT]] = Fetcher
 
@@ -521,7 +530,10 @@ class Transport(TransportT):
 
     def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:
-        return self.Consumer(self, callback=callback, **kwargs)
+        return self.Consumer(self, callback=callback, loop=self.loop, **kwargs)
 
     def create_producer(self, **kwargs: Any) -> ProducerT:
         return self.Producer(self, **kwargs)
+
+    def create_conductor(self, **kwargs: Any) -> ConductorT:
+        return self.Conductor(app=self.app, loop=self.loop, **kwargs)

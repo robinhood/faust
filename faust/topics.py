@@ -2,36 +2,27 @@
 import asyncio
 import re
 import typing
-from collections import defaultdict
 from functools import partial
-from time import monotonic
 from typing import (
     Any,
     Awaitable,
     Callable,
-    Iterable,
-    Iterator,
-    List,
     Mapping,
-    MutableMapping,
-    MutableSet,
     Optional,
     Pattern,
     Sequence,
     Set,
-    Tuple,
     Union,
     cast,
 )
-from mode import Seconds, Service, get_logger
-from mode.utils.futures import ThrowableQueue, notify, stampede
+from mode import Seconds, get_logger
+from mode.utils.futures import ThrowableQueue, stampede
 
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
 from .types import (
     AppT,
     CodecArg,
-    ConsumerT,
     EventT,
     FutureMessage,
     K,
@@ -42,16 +33,15 @@ from .types import (
     TP,
     V,
 )
-from .types.topics import ChannelT, ConductorT, TopicT
-from .types.transports import ConsumerCallback, ProducerT, TPorTopicSet
-from .types.tuples import tp_set_to_map
+from .types.topics import ChannelT, TopicT
+from .types.transports import ProducerT
 
 if typing.TYPE_CHECKING:
     from .app import App
 else:
     class App: ...  # noqa
 
-__all__ = ['Topic', 'TopicConductor']
+__all__ = ['Topic']
 
 logger = get_logger(__name__)
 
@@ -371,259 +361,3 @@ class Topic(Channel, TopicT):
 
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
-
-
-class TopicConductor(ConductorT, Service):
-    """Manages the channels that subscribe to topics.
-
-    - Consumes messages from topic using a single consumer.
-    - Forwards messages to all channels subscribing to a topic.
-    """
-
-    logger = logger
-
-    #: Fast index to see if Topic is registered.
-    _topics: MutableSet[TopicT]
-
-    #: Map str topic to set of channels that should get a copy
-    #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, MutableSet[TopicT]]
-
-    #: Map of TP to set of channels that should get a copy
-    #: of each message sent to that TP.
-    #: Anything in this set, overrides _topicmap
-    _tp_direct: MutableMapping[TP, MutableSet[TopicT]]
-
-    #: Whenever a change is made, i.e. a Topic is added/removed, we notify
-    #: the background task responsible for resubscribing.
-    _subscription_changed: Optional[asyncio.Event]
-
-    _subscription_done: Optional[asyncio.Future]
-
-    _acking_topics: Set[str]
-
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
-        Service.__init__(self, **kwargs)
-        self.app = app
-        self._topics = set()
-        self._topicmap = defaultdict(set)
-        self._tp_direct = defaultdict(set)
-        self._acking_topics = set()
-        self._subscription_changed = None
-        self._subscription_done = None
-        # we compile the closure used for receive messages
-        # (this just optimizes symbol lookups, localizing variables etc).
-        self.on_message: Callable[[Message], Awaitable[None]]
-        self.on_message = self._compile_message_handler()
-
-    async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.app.consumer.commit(topics)
-
-    def _compile_message_handler(self) -> ConsumerCallback:
-        # This method localizes variables and attribute access
-        # for better performance.  This is part of the inner loop
-        # of a Faust worker, so tiny improvements here has big impact.
-
-        # topic str -> list of TopicT
-        get_channels_for_topic = self._topicmap.__getitem__
-        consumer: ConsumerT = None
-        on_message_in = self.app.sensors.on_message_in
-        on_topic_buffer_full = self.app.sensors.on_topic_buffer_full
-        unacked: Set[Message] = None
-        add_unacked: Callable[[Message], None] = None
-        acquire_flow_control: Callable = self.app.flow_control.acquire
-        len_: Callable[[Any], int] = len
-        acking_topics: Set[str] = self._acking_topics
-
-        async def on_message(message: Message) -> None:
-            nonlocal consumer, unacked, add_unacked
-            if consumer is None:
-                consumer = self.app.consumer
-                unacked = consumer._unacked_messages
-                add_unacked = unacked.add
-            # when a message is received we find all channels
-            # that subscribe to this message
-            tp = message.tp
-            topic = message.topic
-            try:
-                channels = cast(Set[Topic], self._tp_direct[tp])
-            except KeyError:
-                channels = cast(Set[Topic], get_channels_for_topic(topic))
-            channels_n = len_(channels)
-            await acquire_flow_control()
-            if channels_n:
-                # we increment the reference count for this message in bulk
-                # immediately, so that nothing will get a chance to decref to
-                # zero before we've had the chance to pass it to all channels
-                message.incref(channels_n)
-                if topic in acking_topics:
-                    # This inlines Consumer.track_message(message)
-                    add_unacked(message)
-                    on_message_in(message.tp, message.offset, message)
-                    # XXX ugh this should be in the consumer somehow
-                    if consumer._last_batch is None:
-                        # set last_batch received timestamp if not already set.
-                        # the commit livelock monitor uses this to check
-                        # how long between receiving a message to we commit it
-                        # (we reset _last_batch to None in .commit())
-                        consumer._last_batch = monotonic()
-
-                event: EventT = None
-                event_keyid: Tuple[K, V] = None
-
-                # forward message to all channels subscribing to this topic
-
-                # keep track of the number of channels we delivered to,
-                # so that if a DecodeError is raised we can propagate
-                # that errors to the remaining channels.
-                delivered: Set[Topic] = set()
-                full: List[Tuple[EventT, Topic]] = []
-                try:
-                    for chan in channels:
-                        keyid = chan.key_type, chan.value_type
-                        if event is None:
-                            # first channel deserializes the payload:
-                            event = await chan.decode(message, propagate=True)
-                            event_keyid = keyid
-
-                            queue = chan.queue
-                            if queue.full():
-                                full.append((event, chan))
-                                continue
-                            queue.put_nowait(event)
-                        else:
-                            # subsequent channels may have a different
-                            # key/value type pair, meaning they all can
-                            # deserialize the message in different ways
-
-                            dest_event: EventT
-                            if keyid == event_keyid:
-                                # Reuse the event if it uses the same keypair:
-                                dest_event = event
-                            else:
-                                dest_event = await chan.decode(
-                                    message, propagate=True)
-                            queue = chan.queue
-                            if queue.full():
-                                full.append((dest_event, chan))
-                                continue
-                            queue.put_nowait(dest_event)
-                        delivered.add(chan)
-                    if full:
-                        for _, dest_chan in full:
-                            on_topic_buffer_full(dest_chan)
-                        await asyncio.wait(
-                            [dest_chan.put(dest_event)
-                             for dest_event, dest_chan in full],
-                            return_when=asyncio.ALL_COMPLETED,
-                        )
-                except KeyDecodeError as exc:
-                    remaining = channels - delivered
-                    message.ack(self.app.consumer, n=len(remaining))
-                    for channel in remaining:
-                        await channel.on_key_decode_error(exc, message)
-                        delivered.add(channel)
-                except ValueDecodeError as exc:
-                    remaining = channels - delivered
-                    message.ack(self.app.consumer, n=len(remaining))
-                    for channel in remaining:
-                        await channel.on_value_decode_error(exc, message)
-                        delivered.add(channel)
-
-        return on_message
-
-    def acks_enabled_for(self, topic: str) -> bool:
-        return topic in self._acking_topics
-
-    @Service.task
-    async def _subscriber(self) -> None:
-        # the first time we start, we will wait two seconds
-        # to give agents a chance to start up and register their
-        # streams.  This way we won't have N subscription requests at the
-        # start.
-        await self.sleep(2.0)
-
-        # tell the consumer to subscribe to the topics.
-        await self.app.consumer.subscribe(await self._update_topicmap())
-        notify(self._subscription_done)
-
-        # Now we wait for changes
-        ev = self._subscription_changed = asyncio.Event(loop=self.loop)
-        while not self.should_stop:
-            await ev.wait()
-            await self.app.consumer.subscribe(await self._update_topicmap())
-            ev.clear()
-            notify(self._subscription_done)
-
-    async def wait_for_subscriptions(self) -> None:
-        if self._subscription_done is not None:
-            await self._subscription_done
-
-    async def _update_topicmap(self) -> Iterable[str]:
-        self._topicmap.clear()
-        for channel in self._topics:
-            if channel.internal:
-                await channel.maybe_declare()
-            for topic in channel.topics:
-                if channel.acks:
-                    self._acking_topics.add(topic)
-                self._topicmap[topic].add(channel)
-        return self._topicmap
-
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        self._tp_direct.clear()
-        assignmap = tp_set_to_map(assigned)
-        for topic in self._topics:
-            if topic.active_partitions is not None:
-                if topic.active_partitions:
-                    assert topic.active_partitions.issubset(assigned)
-                    for tp in topic.active_partitions:
-                        self._tp_direct[tp].add(topic)
-            else:
-                for subtopic in topic.topics:
-                    for tp in assignmap[subtopic]:
-                        self._tp_direct[tp].add(topic)
-
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self._tp_direct.clear()
-
-    def clear(self) -> None:
-        self._topics.clear()
-        self._topicmap.clear()
-        self._acking_topics.clear()
-
-    def __contains__(self, value: Any) -> bool:
-        return value in self._topics
-
-    def __iter__(self) -> Iterator[TopicT]:
-        return iter(self._topics)
-
-    def __len__(self) -> int:
-        return len(self._topics)
-
-    def __hash__(self) -> int:
-        return object.__hash__(self)
-
-    def add(self, topic: Any) -> None:
-        if topic not in self._topics:
-            self._topics.add(topic)
-            self._flag_changes()
-
-    def discard(self, topic: Any) -> None:
-        self._topics.discard(topic)
-        self.beacon.discard(topic)
-        self._flag_changes()
-
-    def _flag_changes(self) -> None:
-        if self._subscription_changed is not None:
-            self._subscription_changed.set()
-        if self._subscription_done is None:
-            self._subscription_done = asyncio.Future(loop=self.loop)
-
-    @property
-    def label(self) -> str:
-        return f'{type(self).__name__}({len(self._topics)})'
-
-    @property
-    def shortlabel(self) -> str:
-        return type(self).__name__

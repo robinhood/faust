@@ -22,34 +22,136 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-**Faust** is a Python library for event processing and streaming applications
-that are decentralized and fault-tolerant.
+**Faust** is a Python library for writing streaming applications
+that are fault-tolerant and easy to use.
 
-It's inspired by tools such as `Kafka Streams`_, `Apache Spark`_,
-`Apache Storm`_, `Apache Samza`_ and `Apache Flink`_; but takes
-a radically more straightforward approach to stream processing.
+It is used at `Robinhood`_ to build high performance, highly concurrent
+distributed systems and real-time data pipelines that scale to a
+massive number of machines.
 
-Modern web applications are increasingly built as a collection
-of microservices and even before this, it has been difficult to write
-data reporting operations at scale.  In a reactive stream based system,
-you don't have to strain your database with costly queries. In Faust,
-a streaming data pipeline updates information as events happen
-in your system, in real-time.
+Faust provides both *stream processing* and *event processing*,
+sharing similarity with tools such as `Celery`_,
+`Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
 
-Faust also enables you to take advantage of ``asyncio`` and asynchronous
-processing, moving complicated and costly operations outside
-of the web server process: converting video, notifying third-party services,
-etc. are common use cases for event processing.
+Faust is heavily inspired by `Kafka Streams`_, but uses asynchronous generators
+instead of a DSL. This way it blends into Python code, so you can use
+NumPy, PyTorch, NLTK, Django, Flask, SQLAlchemy, and all
+the other tools that you like in Python.
 
-You may not know it yet, but if you're writing a modern web application,
-you probably already need Faust.
+Faust requires Python 3.6 and up, for the simple reason it takes substantial
+advantage of the new `async/await`_ syntax added recently to Python.
+The benefit to that is performance rarely seen before in Python systems.
 
+Here's an example agent processing "order events":
+
+.. sourcecode:: python
+
+    app = faust.App('myapp', broker='kafka://localhost')
+
+    class Order(faust.Record):
+        account_id: str
+        amount: int
+
+    @app.agent(value_type=Order)
+    async def order(orders):
+        async for order in orders:
+            print(f'Order for {order.account_id}: {order.amount}')
+            # do something with order
+
+This "agent" can execute on many machines at the same time so that you
+can distribute work across a cluster of worker instances.
+
+So what does the ``async`` stuff do for us anyway?
+
+The ``async for`` expression enables you to perform web requests
+and other I/O as a side effect of processing the stream.
+
+The only external dependency required by Faust is `Apache Kafka`_. In the
+future, we hope to support more messaging systems.
+
+Faust also lets you create "tables", which are like named distributed
+key/value stores. We store the data locally using `RocksDB`_ - an embedded
+database library written in C++, then publish changes to a Kafka topic for
+recovery (a write-ahead log).
+
+To the user, a table is just a dictionary so that you can do things like
+count page views by URL:
+
+.. sourcecode:: python
+
+    # data sent to 'clicks' topic with key="http://example.com" value="1"
+    click_topic = app.topic('clicks', key_type=str, value_type=str)
+
+    # default value for missing URL will be 0 with `default=int`
+    counts = app.Table('click_counts', default=int)
+
+    @app.agent(click_topic)
+    async def count_click(clicks):
+        async for url, count in clicks.items():  # key, value
+            counts[url] += int(count)
+
+The data sent to a Kafka topic is partitioned, and since we use the URL
+as a key in the "clicks" topic, that is how Kafka will shard the data
+in such a way that every count from the same URL delivers to the
+same Faust worker instance.
+
+The state stored in tables may also be "windowed" so you can keep track
+of "number of clicks from the last day," or
+"number of clicks in the last hour.". We support tumbling, hopping
+and sliding windows of time, and old windows can be expired to stop
+data from filling up.
+
+The data found in streams and tables can be anything: we support byte streams,
+Unicode, and manually deserialized data structures. Taking this
+further we have "Models" that use modern Python syntax to describe how
+keys and values are serialized and deserialized:
+
+.. sourcecode:: python
+
+    class Order(faust.Record):
+        account_id: str
+        product_id: str
+        price: float
+        amount: float = 1.0
+
+    orders_topic = app.topic('orders', key_type=str, value_type=Order)
+
+    @app.agent(orders_topic)
+    async def process_order(orders):
+        async for order in orders:
+            total_price = order.price * order.amount
+            await send_order_received_email(order.account_id, order)
+
+Faust is statically typed, using the ``mypy`` type checker,
+so you can take advantage of static types when writing applications.
+
+**Learn more about Faust in the** `intro`_ **introduction page**
+    to read more about Faust, system requirements, installation instructions,
+    community resources, and more.
+
+**or go directly to the** `quickstart`_ **tutorial**
+    to see Faust in action by programming a streaming application.
+
+**then explore the** `User Guide`_
+    for in-depth information organized by topic.
+
+.. _`Robinhood`: http://robinhood.com
+.. _`async/await`:
+    https://medium.freecodecamp.org/a-guide-to-asynchronous-programming-in-python-with-asyncio-232e2afa44f6
+.. _`Celery`: http://celeryproject.org
 .. _`Kafka Streams`: https://kafka.apache.org/documentation/streams
 .. _`Apache Spark`: http://spark.apache.org
-.. _`Apache Storm`: http://storm.apache.org
-.. _`Apache Flink`: http://flink.apache.org
-.. _`Apache Samza`: http://samza.apache.org
+.. _`Storm`: http://storm.apache.org
+.. _`Samza`: http://samza.apache.org
+.. _`Flink`: http://flink.apache.org
+.. _`RocksDB`: http://rocksdb.org
+.. _`Apache Kafka`: https://kafka.apache.org
 
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Faust is...
 ===========
@@ -114,6 +216,12 @@ Faust is...
     If you know how to use Python, you already know how to use Faust,
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Installation
 ============
@@ -226,6 +334,12 @@ You can install the latest snapshot of Faust using the following
 ``pip`` command::
 
     $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 FAQ
 ===
@@ -360,6 +474,12 @@ You may need to increase the limit for the maximum number of open files. The
 following post explains how to do so on OS X:
 https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
+
 .. _getting-help:
 
 Getting Help
@@ -384,10 +504,13 @@ Come chat with us on Slack:
 
 https://fauststream.slack.com
 
+Resources
+=========
+
 .. _bug-tracker:
 
 Bug tracker
-===========
+-----------
 
 If you have any suggestions, bug reports, or annoyances please report them
 to our issue tracker at https://github.com/fauststream/faust/issues/
@@ -395,11 +518,25 @@ to our issue tracker at https://github.com/fauststream/faust/issues/
 .. _wiki:
 
 Wiki
-====
+----
 
 https://wiki.github.com/fauststream/faust/
 
-.. _contributing-short:
+.. _license:
+
+License
+=======
+
+This software is licensed under the `New BSD License`. See the ``LICENSE``
+file in the top distribution directory for the full license text.
+
+.. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Contributing
 ============
@@ -414,16 +551,6 @@ documentation.
 
 .. _`Contributing to Faust`:
     http://docs.fauststream.com/en/master/contributing.html
-
-.. _license:
-
-License
-=======
-
-This software is licensed under the `New BSD License`. See the ``LICENSE``
-file in the top distribution directory for the full license text.
-
-.. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
 
 Code of Conduct
 ===============
@@ -469,6 +596,12 @@ reported by opening an issue or contacting one or more of the project maintainer
 This Code of Conduct is adapted from the Contributor Covenant,
 version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
+
 .. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/fauststream/faust
@@ -488,4 +621,10 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 .. |pyimp| image:: https://img.shields.io/pypi/implementation/faust.svg
     :alt: Support Python implementations.
     :target: http://pypi.python.org/pypi/faust/
+
+.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+
+.. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 

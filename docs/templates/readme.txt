@@ -17,7 +17,7 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-.. include:: ../includes/blurb.txt
+.. include:: ../includes/intro.txt
 
 Faust is...
 ===========
@@ -29,6 +29,20 @@ Faust is...
 .. include:: ../includes/faq.txt
 
 .. include:: ../includes/resources.txt
+
+Contributing
+============
+
+Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
+
+You're highly encouraged to participate in the development
+of `Faust`.
+
+Be sure to also read the `Contributing to Faust`_ section in the
+documentation.
+
+.. _`Contributing to Faust`:
+    http://docs.fauststream.com/en/master/contributing.html
 
 .. include:: ../includes/code-of-conduct.txt
 

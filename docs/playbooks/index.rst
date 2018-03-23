@@ -13,3 +13,6 @@
     quickstart
     pageviews
     leaderelection
+    vskafka
+    vscelery
+    cheatsheet
