@@ -14,7 +14,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    cast,
 )
 from mode import Service, get_logger
 from mode.utils.futures import notify
@@ -40,88 +39,44 @@ else:
     class App: ...  # noqa
     class Topic: ...  # noqa
 
-__all__ = ['Conductor']
+__all__ = ['Conductor', 'ConductorCompiler']
 
 logger = get_logger(__name__)
 
 
-class Conductor(ConductorT, Service):
-    """Manages the channels that subscribe to topics.
+class ConductorCompiler:
 
-    - Consumes messages from topic using a single consumer.
-    - Forwards messages to all channels subscribing to a topic.
-    """
-
-    logger = logger
-
-    #: Fast index to see if Topic is registered.
-    _topics: MutableSet[TopicT]
-
-    #: Map str topic to set of channels that should get a copy
-    #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, MutableSet[TopicT]]
-
-    #: Map of TP to set of channels that should get a copy of each
-    #: message sent to that TP.
-    #: Anything in this setm overrides _topicmap
-    _tp_direct: MutableMapping[TP, MutableSet[TopicT]]
-
-    #: Whenever a change is made, i.e. a Topic is added/removed, we notify
-    #: the background task responsible for resubscribing.
-    _subscription_changed: Optional[asyncio.Event]
-
-    _subscription_done: Optional[asyncio.Future]
-
-    _acking_topics: Set[str]
-
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
-        Service.__init__(self, **kwargs)
-        self.app = app
-        self._topics = set()
-        self._topicmap = defaultdict(set)
-        self._tp_direct = defaultdict(set)
-        self._acking_topics = set()
-        self._subscription_changed = None
-        self._subscription_done = None
-        # we compile the closure used for receive messages
-        # (this just optimizes symbol lookups, localizing variables etc).
-        self.on_message: ConsumerCallback = self._compile_message_handler()
-
-    async def commit(self, topics: TPorTopicSet) -> bool:
-        return await self.app.consumer.commit(topics)
-
-    def _compile_message_handler(self) -> ConsumerCallback:
+    def build(self,
+              conductor: 'Conductor',
+              tp: TP,
+              channels: Set[Topic]) -> ConsumerCallback:
         # This method localizes variables and attribute access
         # for better performance.  This is part of the inner loop
         # of a Faust worker, so tiny improvements here has big impact.
 
-        # topic str -> list of TopicT
-        get_channels_for_topic = self._topicmap.__getitem__
+        topic, partition = tp
+        app = conductor.app
         consumer: ConsumerT = None
-        on_message_in = self.app.sensors.on_message_in
-        on_topic_buffer_full = self.app.sensors.on_topic_buffer_full
+        on_message_in = app.sensors.on_message_in
+        on_topic_buffer_full = app.sensors.on_topic_buffer_full
         unacked: Set[Message] = None
         add_unacked: Callable[[Message], None] = None
-        acquire_flow_control: Callable = self.app.flow_control.acquire
+        acquire_flow_control: Callable = app.flow_control.acquire
         len_: Callable[[Any], int] = len
-        acking_topics: Set[str] = self._acking_topics
+        acking_topics: Set[str] = conductor._acking_topics
 
         async def on_message(message: Message) -> None:
             nonlocal consumer, unacked, add_unacked
             if consumer is None:
-                consumer = self.app.consumer
+                # localize consumer related attributes on first message
+                # as the consumer is lazy.
+                consumer = app.consumer
                 unacked = consumer._unacked_messages
                 add_unacked = unacked.add
             # when a message is received we find all channels
             # that subscribe to this message
-            tp = message.tp
-            topic = message.topic
-            try:
-                channels = cast(Set[Topic], self._tp_direct[tp])
-            except KeyError:
-                channels = cast(Set[Topic], get_channels_for_topic(topic))
-            channels_n = len_(channels)
             await acquire_flow_control()
+            channels_n = len_(channels)
             if channels_n:
                 # we increment the reference count for this message in bulk
                 # immediately, so that nothing will get a chance to decref to
@@ -200,11 +155,75 @@ class Conductor(ConductorT, Service):
                     for channel in remaining:
                         await channel.on_value_decode_error(exc, message)
                         delivered.add(channel)
-
         return on_message
+
+
+class Conductor(ConductorT, Service):
+    """Manages the channels that subscribe to topics.
+
+    - Consumes messages from topic using a single consumer.
+    - Forwards messages to all channels subscribing to a topic.
+    """
+
+    logger = logger
+
+    #: Fast index to see if Topic is registered.
+    _topics: MutableSet[TopicT]
+
+    #: Map str topic to set of channels that should get a copy
+    #: of each message sent to that topic.
+    _topicmap: MutableMapping[str, MutableSet[TopicT]]
+
+    #: Map of TP to set of channels that should get a copy of each
+    #: message sent to that TP.
+    #: Anything in this setm overrides _topicmap
+    _tp_direct: MutableMapping[TP, MutableSet[TopicT]]
+
+    _chanmap: MutableMapping[TP, ConsumerCallback]
+
+    #: Whenever a change is made, i.e. a Topic is added/removed, we notify
+    #: the background task responsible for resubscribing.
+    _subscription_changed: Optional[asyncio.Event]
+
+    _subscription_done: Optional[asyncio.Future]
+
+    _acking_topics: Set[str]
+
+    _compiler: ConductorCompiler
+
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        Service.__init__(self, **kwargs)
+        self.app = app
+        self._topics = set()
+        self._topicmap = defaultdict(set)
+        self._tp_direct = defaultdict(set)
+        self._chanmap = {}
+        self._acking_topics = set()
+        self._subscription_changed = None
+        self._subscription_done = None
+        self._compiler = ConductorCompiler()
+        # we compile the closure used for receive messages
+        # (this just optimizes symbol lookups, localizing variables etc).
+        self.on_message: ConsumerCallback
+        self.on_message = self._compile_message_handler()
+
+    async def commit(self, topics: TPorTopicSet) -> bool:
+        return await self.app.consumer.commit(topics)
 
     def acks_enabled_for(self, topic: str) -> bool:
         return topic in self._acking_topics
+
+    def _compile_message_handler(self) -> ConsumerCallback:
+        # This method localizes variables and attribute access
+        # for better performance.  This is part of the inner loop
+        # of a Faust worker, so tiny improvements here has big impact.
+
+        get_handler_for_tp = self._chanmap.__getitem__
+
+        async def on_message(message: Message) -> None:
+            return await get_handler_for_tp(message.tp)(message)
+
+        return on_message
 
     @Service.task
     async def _subscriber(self) -> None:
@@ -232,6 +251,7 @@ class Conductor(ConductorT, Service):
 
     async def _update_topicmap(self) -> Iterable[str]:
         self._topicmap.clear()
+        self._chanmap.clear()
         for channel in self._topics:
             if channel.internal:
                 await channel.maybe_declare()
@@ -239,6 +259,7 @@ class Conductor(ConductorT, Service):
                 if channel.acks:
                     self._acking_topics.add(topic)
                 self._topicmap[topic].add(channel)
+
         return self._topicmap
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
@@ -254,6 +275,13 @@ class Conductor(ConductorT, Service):
                 for subtopic in topic.topics:
                     for tp in assignmap[subtopic]:
                         self._tp_direct[tp].add(topic)
+        self._update_chanmap()
+
+    def _update_chanmap(self) -> None:
+        self._chanmap.update(
+            (tp, self._compiler.build(self, tp, channels))
+            for tp, channels in self._tp_direct.items()
+        )
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         self._tp_direct.clear()
@@ -262,6 +290,7 @@ class Conductor(ConductorT, Service):
         self._topics.clear()
         self._topicmap.clear()
         self._tp_direct.clear()
+        self._chanmap.clear()
         self._acking_topics.clear()
 
     def __contains__(self, value: Any) -> bool:
@@ -283,7 +312,6 @@ class Conductor(ConductorT, Service):
 
     def discard(self, topic: Any) -> None:
         self._topics.discard(topic)
-        self.beacon.discard(topic)
         self._flag_changes()
 
     def _flag_changes(self) -> None:
