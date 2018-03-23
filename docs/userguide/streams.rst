@@ -140,7 +140,7 @@ A processor takes a value as argument and returns a value:
 
 
 Since the processors are stored in an ordered list, the processors above
-will execute in order, and the final value going out of the stream will be the
+will execute in order and the final value going out of the stream will be the
 reduction after all processors are applied:
 
 .. sourcecode:: pycon

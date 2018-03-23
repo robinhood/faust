@@ -572,6 +572,14 @@ Agent Arguments
             If one agent instance of this type raises an exception we will
             crash the worker instance.
 
++ ``**kwargs``
+
+    If the ``channel`` argument is not specified the agent will use an
+    automatically named topic.
+
+    Any additional keyword arguments are considered to be configuration
+    for this topic, with support for the same arguments as :meth:`@topic`.
+
 ``@app.task()`` -- Define a new support task.
 ---------------------------------------------
 
