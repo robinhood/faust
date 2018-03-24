@@ -774,7 +774,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 # cannot execute in a thread).
                 self.flow_control.clear()
                 # wait for currently processing event in each stream.
-                await self.consumer.wait_empty()
+                if self.conf.stream_wait_empty:
+                    await self.consumer.wait_empty()
             else:
                 self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
             await self.on_partitions_revoked.send(revoked)

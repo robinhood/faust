@@ -37,6 +37,7 @@ class test_settings:
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
+        assert conf.stream_wait_empty
 
         assert not conf.autodiscover
         assert conf.origin is None
@@ -115,6 +116,7 @@ class test_settings:
                                  reply_create_topic=True,
                                  reply_expires=90.9,
                                  stream_buffer_maxsize=101,
+                                 stream_wait_empty=False,
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -140,6 +142,7 @@ class test_settings:
             reply_create_topic=reply_create_topic,
             reply_expires=reply_expires,
             stream_buffer_maxsize=stream_buffer_maxsize,
+            stream_wait_empty=stream_wait_empty,
         )
         assert app.conf.id == app.conf.prepare_id(id)
         assert app.conf.broker == URL(str(broker))
@@ -165,6 +168,7 @@ class test_settings:
         assert app.conf.reply_to == reply_to
         assert app.conf.reply_expires == reply_expires
         assert app.conf.stream_buffer_maxsize == stream_buffer_maxsize
+        assert app.conf.stream_wait_empty == stream_wait_empty
         return app
 
     def test_id_no_version(self):
