@@ -169,7 +169,7 @@ class Settings(abc.ABC):
     reply_to_prefix: str = REPLY_TO_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
-    stream_wait_empty: bool = True,
+    stream_wait_empty: bool = True
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
