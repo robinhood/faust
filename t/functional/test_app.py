@@ -39,6 +39,7 @@ class test_settings:
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
         assert conf.stream_wait_empty
         assert not conf.stream_ack_cancelled_tasks
+        assert conf.stream_ack_exceptions
 
         assert not conf.autodiscover
         assert conf.origin is None
@@ -119,6 +120,7 @@ class test_settings:
                                  stream_buffer_maxsize=101,
                                  stream_wait_empty=False,
                                  stream_ack_cancelled_tasks=True,
+                                 stream_ack_exceptions=False,
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -146,6 +148,7 @@ class test_settings:
             stream_buffer_maxsize=stream_buffer_maxsize,
             stream_wait_empty=stream_wait_empty,
             stream_ack_cancelled_tasks=stream_ack_cancelled_tasks,
+            stream_ack_exceptions=stream_ack_exceptions,
         )
         assert app.conf.id == app.conf.prepare_id(id)
         assert app.conf.broker == URL(str(broker))
@@ -174,6 +177,7 @@ class test_settings:
         assert app.conf.stream_wait_empty == stream_wait_empty
         assert (app.conf.stream_ack_cancelled_tasks ==
                 stream_ack_cancelled_tasks)
+        assert app.conf.stream_ack_exceptions == stream_ack_exceptions
         return app
 
     def test_id_no_version(self):

@@ -677,6 +677,7 @@ class Stream(StreamT[T_co], Service):
         _maybe_async = maybe_async
         event_cls = EventT
         _current_event_contextvar = _current_event
+        ack_exceptions = self.app.conf.stream_ack_exceptions
         ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
 
         try:
@@ -731,6 +732,14 @@ class Stream(StreamT[T_co], Service):
                 try:
                     yield value
                 except CancelledError:
+                    if not ack_cancelled_tasks:
+                        do_ack = False
+                    raise
+                except Exception:
+                    if not ack_exceptions:
+                        do_ack = False
+                    raise
+                except BaseException:
                     if not ack_cancelled_tasks:
                         do_ack = False
                     raise

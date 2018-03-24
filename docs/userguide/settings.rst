@@ -457,7 +457,7 @@ to remove the bottleneck of sending messages on commit.
 ``stream_wait_empty``
 ---------------------
 
-:type: class:`bool`
+:type: :class:`bool`
 :default: :const:`True`
 
 This setting controls whether the worker should wait for the currently
@@ -471,11 +471,37 @@ that event again.
 By default we will wait for the currently active tasks, but if your
 streams are idempotent you can disable it using this setting.
 
-.. tip::
+.. setting:: stream_ack_exceptions
 
-    You may want to combine that with setting
-    :setting:`stream_ack_cancelled_tasks=False <stream_ack_cancelled_tasks>`
-    to make sure the cancelled task is not acked, and it can be processed again.
+``stream_ack_exceptions``
+-------------------------
+
+:type: :class:`bool`
+:default: :const:`True`
+
+What happens when an exception is raised while processing an event?
+We ack that message by default, so we never reprocess it. This may be
+surprising, but it avoids the very likely scenario of causing a high
+frequency loop, where the error constantly happens and we never recover.
+
+You can set this to :const:`False` to reprocess events that caused
+an exception to be raised.
+
+.. setting:: stream_ack_cancelled_tasks
+
+``stream_ack_cancelled_tasks``
+------------------------------
+
+:type: :class:`bool`
+:default: :const:`False`
+
+What happens when processing an event and the task processing it is cancelled?
+Agent tasks can be cancelled during shutdown or rebalance, and by default
+we do not ack the task in this case, so the event can be reprocessed.
+
+If your agent processors are not idempotent you may want to set this flag to
+:const:`True`, so that once processing an event started, it will not
+process that event again.
 
 Advanced Web Server Settings
 ============================
