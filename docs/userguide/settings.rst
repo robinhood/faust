@@ -452,6 +452,31 @@ send messages or update tables.
 The next version of Faust will take advantage of Kafka transactions
 to remove the bottleneck of sending messages on commit.
 
+.. setting:: stream_wait_empty
+
+``stream_wait_empty``
+---------------------
+
+:type: class:`bool`
+:default: :const:`True`
+
+This setting controls whether the worker should wait for the currently
+processing task in an agent to complete before rebalancing or shutting down.
+
+On rebalance/shut down we clear the stream buffers. Those events will be
+reprocessed after the rebalance anyway, but we may have already started
+processing one event in every agent, and if we rebalance we will process
+that event again.
+
+By default we will wait for the currently active tasks, but if your
+streams are idempotent you can disable it using this setting.
+
+.. tip::
+
+    You may want to combine that with setting
+    :setting:`stream_ack_cancelled_tasks=False <stream_ack_cancelled_tasks>`
+    to make sure the cancelled task is not acked, and it can be processed again.
+
 Advanced Web Server Settings
 ============================
 

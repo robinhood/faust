@@ -169,6 +169,7 @@ class Settings(abc.ABC):
     reply_to_prefix: str = REPLY_TO_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
+    stream_wait_empty: bool = True,
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
@@ -239,6 +240,7 @@ class Settings(abc.ABC):
             reply_create_topic: bool = None,
             reply_expires: Seconds = None,
             stream_buffer_maxsize: int = None,
+            stream_wait_empty: bool = None,
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
             producer_acks: int = None,
@@ -298,6 +300,8 @@ class Settings(abc.ABC):
             self.loghandlers = loghandlers
         if stream_buffer_maxsize is not None:
             self.stream_buffer_maxsize = stream_buffer_maxsize
+        if stream_wait_empty is not None:
+            self.stream_wait_empty = stream_wait_empty
         if producer_linger_ms is not None:
             self.producer_linger_ms = producer_linger_ms
         if producer_max_batch_size is not None:
