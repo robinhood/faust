@@ -14,6 +14,7 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    cast,
 )
 from mode import Service, get_logger
 from mode.utils.futures import notify
@@ -49,7 +50,7 @@ class ConductorCompiler:
     def build(self,
               conductor: 'Conductor',
               tp: TP,
-              channels: Set[Topic]) -> ConsumerCallback:
+              channels: MutableSet[Topic]) -> ConsumerCallback:
         # This method localizes variables and attribute access
         # for better performance.  This is part of the inner loop
         # of a Faust worker, so tiny improvements here has big impact.
@@ -145,13 +146,13 @@ class ConductorCompiler:
                         )
                 except KeyDecodeError as exc:
                     remaining = channels - delivered
-                    message.ack(self.app.consumer, n=len(remaining))
+                    message.ack(app.consumer, n=len(remaining))
                     for channel in remaining:
                         await channel.on_key_decode_error(exc, message)
                         delivered.add(channel)
                 except ValueDecodeError as exc:
                     remaining = channels - delivered
-                    message.ack(self.app.consumer, n=len(remaining))
+                    message.ack(app.consumer, n=len(remaining))
                     for channel in remaining:
                         await channel.on_value_decode_error(exc, message)
                         delivered.add(channel)
@@ -279,7 +280,9 @@ class Conductor(ConductorT, Service):
 
     def _update_chanmap(self) -> None:
         self._chanmap.update(
-            (tp, self._compiler.build(self, tp, channels))
+            (tp, self._compiler.build(self,
+                                      tp,
+                                      cast(MutableSet[Topic], channels)))
             for tp, channels in self._tp_direct.items()
         )
 
