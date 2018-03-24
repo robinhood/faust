@@ -3,6 +3,7 @@ import asyncio
 import reprlib
 import typing
 import weakref
+from asyncio import CancelledError
 from typing import (
     Any,
     AsyncIterable,
@@ -673,9 +674,11 @@ class Stream(StreamT[T_co], Service):
         _maybe_async = maybe_async
         event_cls = EventT
         _current_event_contextvar = _current_event
+        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
 
         try:
             while not self.should_stop:
+                do_ack = True  # set to False to not ack event.
                 # wait for next message
                 value: Any = None
                 event: EventT = None
@@ -724,9 +727,13 @@ class Stream(StreamT[T_co], Service):
                     value = await on_merge(value)
                 try:
                     yield value
+                except CancelledError:
+                    if not ack_cancelled_tasks:
+                        do_ack = False
+                    raise
                 finally:
                     self.current_event = None
-                    if event is not None:
+                    if do_ack and event is not None:
                         # This inlines self.ack
                         last_stream_to_ack = event.ack()
                         on_stream_event_out(tp, offset, self, event)
