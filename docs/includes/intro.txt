@@ -1,9 +1,8 @@
 **Faust** is a Python library for writing streaming applications
 that are fault-tolerant and easy to use.
 
-It is used at `Robinhood`_ to build high performance, highly concurrent
-distributed systems and real-time data pipelines that scale to a
-massive number of machines.
+It is used at `Robinhood`_ to build high performance distributed systems,
+and real-time data pipelines.
 
 Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as `Celery`_,
@@ -11,12 +10,11 @@ sharing similarity with tools such as `Celery`_,
 
 Faust is heavily inspired by `Kafka Streams`_, but uses asynchronous generators
 instead of a DSL. This way it blends into Python code, so you can use
-NumPy, PyTorch, NLTK, Django, Flask, SQLAlchemy, and all
+NumPy, PyTorch, Pandas, NLTK, Django, Flask, SQLAlchemy, and all
 the other tools that you like in Python.
 
-Faust requires Python 3.6 and up, for the simple reason it takes substantial
-advantage of the new `async/await`_ syntax added recently to Python.
-The benefit to that is performance rarely seen before in Python systems.
+Faust takes advantage of the new `async/await`_ syntax added recently
+to Python, and so requires Python 3.6 or later.
 
 Here's an example agent processing "order events":
 
