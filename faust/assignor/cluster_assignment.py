@@ -1,5 +1,5 @@
 """Cluster assignement."""
-from typing import Any, List, MutableMapping, Sequence, Set
+from typing import List, MutableMapping, Sequence, Set
 from faust.models import Record
 from .client_assignment import (
     ClientAssignment,
