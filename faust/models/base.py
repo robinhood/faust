@@ -236,8 +236,6 @@ class Model(ModelT):
         if '__init__' not in cls.__dict__:
             cls.__init__ = cls._model_init
 
-        cls.__init__ = cls._BUILD_init()
-
     @classmethod
     @abc.abstractmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
