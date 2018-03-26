@@ -171,6 +171,7 @@ Utils
 .. toctree::
     :maxdepth: 1
 
+    faust.utils.codegen
     faust.utils.functional
     faust.utils.iso8601
     faust.utils.json

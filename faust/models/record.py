@@ -1,5 +1,6 @@
 """Record - Dictionary Model."""
 from datetime import datetime
+from functools import partial
 from typing import (
     Any,
     Callable,
@@ -15,14 +16,13 @@ from typing import (
     cast,
 )
 
-from mode.utils.text import pluralize
-
 from faust.types.models import (
     Converter,
     FieldDescriptorT,
     ModelOptions,
     ModelT,
 )
+from faust.utils import codegen
 from faust.utils import iso8601
 from faust.utils.objects import annotations, guess_concrete_type
 
@@ -39,6 +39,8 @@ ALIAS_FIELD_TYPES = {
     set: Set,
     frozenset: FrozenSet,
 }
+
+_ReconFun = Callable[[Type, Any], Any]
 
 # Models can refer to other models:
 #
@@ -99,6 +101,47 @@ def _is_date(cls: Type, *, types: Tuple[Type, ...] = DATE_TYPES) -> bool:
         return issubclass(cls, types)
     except TypeError:
         return False
+
+
+def _field_callback(typ: Type, callback: _ReconFun) -> Any:
+    try:
+        generic, subtyp = _concrete_type(typ)
+    except TypeError:
+        pass
+    else:
+        if generic is list:
+            return partial(_from_generic_list, subtyp, callback)
+        elif generic is tuple:
+            return partial(_from_generic_tuple, subtyp, callback)
+        elif generic is dict:
+            return partial(_from_generic_dict, subtyp, callback)
+        elif generic is set:
+            return partial(_from_generic_set, subtyp, callback)
+    return partial(callback, typ)
+
+
+def _from_generic_list(typ: Type, callback: _ReconFun, data: Iterable) -> List:
+    return [callback(typ, v) for v in data]
+
+
+def _from_generic_tuple(typ: Type, callback: _ReconFun, data: Tuple) -> Tuple:
+    return tuple(callback(typ, v) for v in data)
+
+
+def _from_generic_dict(typ: Type,
+                       callback: _ReconFun, data: Mapping) -> Mapping:
+    return {k: callback(typ, v) for k, v in data.items()}
+
+
+def _from_generic_set(typ: Type, callback: _ReconFun, data: Set) -> Set:
+    return {callback(typ, v) for v in data}
+
+
+def _to_model(typ: Type[ModelT], data: Any) -> ModelT:
+    # called everytime something needs to be converted into a model.
+    if data is not None and not isinstance(data, typ):
+        return typ.from_data(data)
+    return data
 
 
 class Record(Model, abstract=True):
@@ -211,100 +254,70 @@ class Record(Model, abstract=True):
         self_cls = cls._maybe_namespace(data)
         return (self_cls or cls)(**data, __strict__=False)
 
-    def __init__(self, *args: Any, __strict__: bool = True,
+    def __init__(self, *args: Any,
+                 __strict__: bool = True,
+                 __faust: Any = None,
                  **kwargs: Any) -> None:
-        # Set fields from keyword arguments.
-        self._init_fields(args, kwargs, strict=__strict__)
+        ...  # overridden by _BUILD_init
 
-    def _init_fields(self,
-                     positional: Tuple,
-                     keywords: Dict,
-                     *,
-                     strict: bool = True) -> None:
-        n_args = len(positional)
-        n_args_spec = len(self._options.fieldpos)
-        if n_args > n_args_spec:
-            _argument = pluralize(n_args_spec, 'argument')
-            raise TypeError(
-                f'{type(self).__name__}() takes {n_args_spec} positional'
-                f' {_argument} but {n_args} were given')
-        fields = self._to_fieldmap(positional, keywords)
-        fields.pop('__faust', None)  # remove metadata
-        fieldset = frozenset(fields)
-        options = self._options
-        get_field = fields.get
-
-        # Check all required arguments.
-        missing = options.fieldset - fieldset - options.optionalset
-        if missing:
-            raise TypeError('{} missing required {}: {}'.format(
-                type(self).__name__, pluralize(len(missing), 'argument'),
-                ', '.join(sorted(missing))))
-
-        if strict:
-            # Check for unknown arguments.
-            extraneous = fieldset - options.fieldset
-            if extraneous:
-                raise TypeError('{} got unexpected {}: {}'.format(
-                    type(self).__name__,
-                    pluralize(len(extraneous), 'argument'),
-                    ', '.join(sorted(extraneous))))
-
-        # Reconstruct child models
-        fields.update({
-            k: self._to_models(typ, get_field(k))
-            for k, typ in self._options.models.items()
-        })
-
-        # Reconstruct non-builtin types
-        fields.update({
-            k: self._reconstruct_type(typ, get_field(k), callback)
-            for k, (typ, callback) in self._options.converse.items()
-        })
-
-        # Fast: This sets attributes from kwargs.
-        self.__dict__.update(fields)
-
-    def _to_fieldmap(self, positional: Tuple, keywords: Dict) -> Dict:
-        if positional:
-            pos2field = self._options.fieldpos.__getitem__
-            keywords.update({
-                pos2field(i): arg
-                for i, arg in enumerate(positional)
-            })
-        return keywords
-
-    def _to_models(self, typ: Type[ModelT], data: Any) -> Any:
-        # convert argument that is a submodel (can be List[X] or X)
-        return self._reconstruct_type(typ, data, self._to_model)
-
-    def _to_model(self, typ: Type[ModelT], data: Any) -> ModelT:
-        # _to_models uses this as a callback to _reconstruct_type,
-        # called everytime something needs to be converted into a model.
-        if data is not None and not isinstance(data, typ):
-            return typ.from_data(data)
-        return data
-
-    def _reconstruct_type(self, typ: Type, data: Any,
-                          callback: Callable[[Type, Any], Any]) -> Any:
-        if data is not None:
-            try:
-                # Get generic type (if any)
-                # E.g. Set[typ], List[typ], Optional[List[typ]] etc.
-                generic, subtyp = _concrete_type(typ)
-            except TypeError:
-                # just a scalar
-                return callback(typ, data)
+    @classmethod
+    def _BUILD_init(cls) -> Callable[[], None]:
+        kwonlyargs = ['*', '__strict__=True', '__faust=None', '**kwargs']
+        fields = cls._options.fieldpos
+        optional = cls._options.optionalset
+        models = cls._options.models
+        converse = cls._options.converse
+        initfield = cls._options.initfield = {}
+        has_post_init = hasattr(cls, '__post_init__')
+        required = []
+        opts = []
+        setters = []
+        for field in fields.values():
+            model = models.get(field)
+            conv = converse.get(field)
+            fieldval = f'{field}'
+            if model is not None:
+                initfield[field] = _field_callback(model, _to_model)
+                assert initfield[field] is not None
+                fieldval = f'self._init_field("{field}", {field})'
+            if conv is not None:
+                initfield[field] = _field_callback(*conv)
+                assert initfield[field] is not None
+                fieldval = f'self._init_field("{field}", {field})'
+            if field in optional:
+                opts.append(f'{field}=None')
+                setters.extend([
+                    f'if {field} is not None:',
+                    f'  self.{field} = {fieldval}',
+                ])
             else:
-                if generic is list:
-                    return [callback(subtyp, v) for v in data]
-                elif generic is tuple:
-                    return tuple(callback(subtyp, v) for v in data)
-                elif generic is dict:
-                    return {k: callback(subtyp, v) for k, v in data.items()}
-                elif generic is set:
-                    return {callback(subtyp, v) for v in data}
-        return data
+                required.append(field)
+                setters.append(f'self.{field} = {fieldval}')
+
+        rest = [
+            'if kwargs and __strict__:',
+            '    from mode.utils.text import pluralize',
+            '    raise TypeError("{} got unexpected {}: {}".format(',
+            '        type(self).__name__,',
+            '        pluralize(len(kwargs), "argument"),',
+            '        ", ".join(sorted(kwargs))))',
+            'self.__dict__.update(kwargs)',
+        ]
+
+        if has_post_init:
+            rest.extend([
+                'self.__post_init__()',
+            ])
+
+        return codegen.InitMethod(
+            required + opts + kwonlyargs,
+            setters + rest,
+            globals=globals(),
+            locals=locals(),
+        )
+
+    def _init_field(self, field: str, value: Any) -> Any:
+        return self._options.initfield[field](value)
 
     def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         data = cast(Dict, self.to_representation())

@@ -32,6 +32,7 @@ import inspect
 from operator import attrgetter
 from typing import (
     Any,
+    Callable,
     ClassVar,
     Iterable,
     MutableMapping,
@@ -231,6 +232,12 @@ class Model(ModelT):
         # models by namespace.
         registry[options.namespace] = cls
 
+        cls._model_init = cls._BUILD_init()
+        if '__init__' not in cls.__dict__:
+            cls.__init__ = cls._model_init
+
+        cls.__init__ = cls._BUILD_init()
+
     @classmethod
     @abc.abstractmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
@@ -242,6 +249,11 @@ class Model(ModelT):
                                       target: Type,
                                       options: ModelOptions,
                                       parent: FieldDescriptorT = None) -> None:
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _BUILD_init(cls) -> Callable[[], None]:
         ...
 
     @abc.abstractmethod
