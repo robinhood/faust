@@ -80,6 +80,9 @@ class ModelOptions(abc.ABC):
     #: Mapping of field names to default value.
     defaults: Mapping[str, Any] = None  # noqa: E704 (flake8 bug)
 
+    #: Mapping of init field conversion callbacks.
+    initfield: Mapping[str, Callable[[Any], Any]] = None
+
 
 base = abc.ABC if abc_compatible_with_init_subclass else object
 

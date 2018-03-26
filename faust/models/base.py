@@ -32,10 +32,12 @@ import inspect
 from operator import attrgetter
 from typing import (
     Any,
+    Callable,
     ClassVar,
     Iterable,
     MutableMapping,
     Optional,
+    Tuple,
     Type,
 )
 
@@ -133,7 +135,11 @@ class Model(ModelT):
     _blessed_key = '__faust'
 
     @classmethod
-    def _maybe_namespace(cls, data: Any) -> Optional[Type[ModelT]]:
+    def _maybe_namespace(
+            cls, data: Any,
+            *,
+            fast_types: Tuple[Type, ...] = (bytes, str),
+            isinstance: Callable = isinstance) -> Optional[Type[ModelT]]:
         # The serialized data may contain a ``__faust`` blessed key
         # holding the name of the model it should be deserialized as.
         # So even if value_type=MyModel, the data may mandata that it
@@ -141,14 +147,13 @@ class Model(ModelT):
 
         # This is how we deal with Kafka's lack of message headers,
         # as needed by the RPC mechanism, without wrapping all data.
-        if data is not None:
-            if isinstance(data, (bytes, str)):
-                return None
-            try:
-                return registry[data[cls._blessed_key]['ns']]
-            except (KeyError, TypeError):
-                pass
-        return None
+        if data is None or isinstance(data, fast_types):
+            return None
+        try:
+            ns = data[cls._blessed_key]['ns']
+        except (KeyError, TypeError):
+            return None
+        return registry[ns]
 
     @classmethod
     def _maybe_reconstruct(cls, data: Any) -> Any:
@@ -231,6 +236,10 @@ class Model(ModelT):
         # models by namespace.
         registry[options.namespace] = cls
 
+        cls._model_init = cls._BUILD_init()
+        if '__init__' not in cls.__dict__:
+            cls.__init__ = cls._model_init
+
     @classmethod
     @abc.abstractmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
@@ -242,6 +251,11 @@ class Model(ModelT):
                                       target: Type,
                                       options: ModelOptions,
                                       parent: FieldDescriptorT = None) -> None:
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _BUILD_init(cls) -> Callable[[], None]:
         ...
 
     @abc.abstractmethod

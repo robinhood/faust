@@ -123,8 +123,7 @@ def test_parameters_with_custom_init_and_super():
         x: int
         y: int
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __post_init__(self):
             self.z = self.x + self.y
 
     p = Point(30, 10)
@@ -272,9 +271,17 @@ def test_constructor_from_data():
 
 @pytest.mark.parametrize('a,b', [
     (User(id=1, username=2, account=Account(id=1, name=2)),
-     User(id=1, username=2, account=Account(id=2, name=2))),
+     User(id=1, username=2, account=Account(id=1, name=2))),
+    (User(id=1, username=2, account=Account(id=1, name=2, active=False)),
+     User(id=1, username=2, account=Account(id=1, name=2, active=False))),
+])
+def test_eq(a, b):
+    assert a == b
+
+
+@pytest.mark.parametrize('a,b', [
     (User(id=1, username=2, account=Account(id=1, name=2)),
-     User(id=2, username=2, account=Account(id=1, name=2))),
+     User(id=2, username=2, account=Account(id=2, name=2))),
     (User(id=1, username=2, account=Account(id=1, name=2)),
      User(id=1, username=3, account=Account(id=1, name=2))),
     (User(id=1, username=2, account=Account(id=1, name=2)),
@@ -363,7 +370,7 @@ class test_too_many_arguments_raises_TypeError():
     with pytest.raises(TypeError) as einfo:
         Y(10, 20, 30)
     reason = str(einfo.value)
-    assert reason == 'Y() takes 2 positional arguments but 3 were given'
+    assert reason == '__init__() takes 3 positional arguments but 4 were given'
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__dict():

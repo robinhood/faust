@@ -1,5 +1,5 @@
 """Cluster assignement."""
-from typing import Any, List, MutableMapping, Sequence, Set
+from typing import List, MutableMapping, Sequence, Set
 from faust.models import Record
 from .client_assignment import (
     ClientAssignment,
@@ -21,14 +21,11 @@ class ClusterAssignment(Record,
     subscriptions: MutableMapping[str, Sequence[str]] = None
     assignments: MutableMapping[str, ClientAssignment] = None
 
-    def __init__(self,
-                 subscriptions: MutableMapping[str, Sequence[str]] = None,
-                 assignments: MutableMapping[str, ClientAssignment] = None,
-                 **kwargs: Any) -> None:
-        super().__init__(
-            subscriptions=subscriptions or {},
-            assignments=assignments or {},
-            **kwargs)
+    def __post_init__(self) -> None:
+        if self.subscriptions is None:
+            self.subscriptions = {}
+        if self.assignments is None:
+            self.assignments = {}
 
     def topics(self) -> Set[str]:
         # All topics subscribed to in the cluster
