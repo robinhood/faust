@@ -388,6 +388,7 @@ class Producer(base.Producer):
             acks=self.acks,
             linger_ms=self.linger_ms,
             max_batch_size=self.max_batch_size,
+            max_request_size=self.max_request_size,
         )
 
     async def on_restart(self) -> None:

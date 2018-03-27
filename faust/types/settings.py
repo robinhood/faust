@@ -124,6 +124,10 @@ PRODUCER_LINGER_MS = 0
 #: Used as the default value for :setting:`max_batch_size`.
 PRODUCER_MAX_BATCH_SIZE = 16_384
 
+#: Maximum size of a request in bytes in the producer.
+#: Used as the default value for :setting:`max_request_size`.
+PRODUCER_MAX_REQUEST_SIZE = 1_048_576
+
 # The number of acknowledgments the producer requires the leader to have
 # received before considering a request complete. This controls the
 # durability of records that are sent. The following settings are common:
@@ -179,6 +183,7 @@ class Settings(abc.ABC):
     producer_linger_ms: int = PRODUCER_LINGER_MS
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
+    producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
 
     _id: str = None
     _name: str = None
@@ -248,6 +253,7 @@ class Settings(abc.ABC):
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
             producer_acks: int = None,
+            producer_max_request_size: int = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -316,6 +322,8 @@ class Settings(abc.ABC):
             self.producer_max_batch_size = producer_max_batch_size
         if producer_acks is not None:
             self.producer_acks = producer_acks
+        if producer_max_request_size is not None:
+            self.producer_max_request_size = producer_max_request_size
 
         if reply_to_prefix is not None:
             self.reply_to_prefix = reply_to_prefix
