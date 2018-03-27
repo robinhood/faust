@@ -215,6 +215,7 @@ class Record(Model, abstract=True):
                  **kwargs: Any) -> None:
         # Set fields from keyword arguments.
         self._init_fields(args, kwargs, strict=__strict__)
+        self.__post_init__()
 
     def _init_fields(self,
                      positional: Tuple,

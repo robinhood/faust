@@ -244,6 +244,9 @@ class Model(ModelT):
                                       parent: FieldDescriptorT = None) -> None:
         ...
 
+    def __post_init__(self) -> None:
+        ...
+
     @abc.abstractmethod
     def to_representation(self) -> Any:
         """Convert object to JSON serializable object."""

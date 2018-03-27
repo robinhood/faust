@@ -409,3 +409,16 @@ def test_fields_with_way_too_much_of_a_concrete_type__frozenset():
     class X(Record, isodates=True):
         foo: int
         details: frozenset
+
+
+def test_supports_post_init():
+
+    class X(Record):
+        x: int
+        y: int
+
+        def __post_init__(self):
+            self.z: int = self.x + self.y
+
+    x = X(1, 3)
+    assert x.z == 4
