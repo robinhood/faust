@@ -8,6 +8,7 @@ from mode.utils import text
 from mode.utils.collections import ManagedUserDict
 
 from faust import windows
+from faust.streams import current_event
 from faust.types.tables import TableT, WindowWrapperT
 from faust.types.windows import WindowT
 from faust.utils import terminal
@@ -58,12 +59,16 @@ class Table(TableT, Collection, ManagedUserDict):
 
     def on_key_set(self, key: Any, value: Any) -> None:
         self._send_changelog(key, value)
-        self._maybe_set_key_ttl(key)
+        event = current_event()
+        partition = event.message.partition
+        self._maybe_set_key_ttl(key, partition)
         self._sensor_on_set(self, key, value)
 
     def on_key_del(self, key: Any) -> None:
         self._send_changelog(key, value=None)
-        self._maybe_del_key_ttl(key)
+        event = current_event()
+        partition = event.message.partition
+        self._maybe_del_key_ttl(key, partition)
         self._sensor_on_del(self, key)
 
     def as_ansitable(self,

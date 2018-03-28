@@ -213,42 +213,39 @@ class Collection(Service, CollectionT):
     @Service.transitions_to(TABLE_CLEANING)
     async def _clean_data(self) -> None:
         if self._should_expire_keys():
-            window = self.window
             while not self.should_stop:
-                for partition, timestamps in self._partition_timestamps.items(
-                ):
-                    while timestamps and window.stale(
-                            timestamps[0],
-                            self._partition_latest_timestamp[partition]):
-                        timestamp = heappop(timestamps)
-                        for key in self._partition_timestamp_keys[(partition,
-                                                                   timestamp)]:
-                            del self.data[key]
-                        del self._partition_timestamp_keys[(partition,
-                                                            timestamp)]
+                self._del_old_keys()
                 await self.sleep(self.app.conf.table_cleanup_interval)
+
+    def _del_old_keys(self) -> None:
+        window = self.window
+        for partition, timestamps in self._partition_timestamps.items():
+            while timestamps and window.stale(
+                    timestamps[0],
+                    self._partition_latest_timestamp[partition]):
+                timestamp = heappop(timestamps)
+                for key in self._partition_timestamp_keys[(partition,
+                                                           timestamp)]:
+                    del self.data[key]
+                del self._partition_timestamp_keys[(partition, timestamp)]
 
     def _should_expire_keys(self) -> bool:
         window = self.window
         return not (window is None or window.expires is None)
 
-    def _maybe_set_key_ttl(self, key: Any) -> None:
+    def _maybe_set_key_ttl(self, key: Any, partition: int) -> None:
         if not self._should_expire_keys():
             return
         _, window_range = key
-        event = current_event()
-        partition = event.message.partition
         heappush(self._partition_timestamps[partition], window_range.end)
         self._partition_latest_timestamp[partition] = max(
             self._partition_latest_timestamp[partition], window_range.end)
         self._partition_timestamp_keys[(partition, window_range.end)].add(key)
 
-    def _maybe_del_key_ttl(self, key: Any) -> None:
+    def _maybe_del_key_ttl(self, key: Any, partition: int) -> None:
         if not self._should_expire_keys():
             return
         _, window_range = key
-        event = current_event()
-        partition = event.message.partition
         ts_keys = self._partition_timestamp_keys.get((partition,
                                                       window_range.end))
         ts_keys.discard(key)
