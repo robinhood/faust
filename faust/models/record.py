@@ -206,9 +206,10 @@ class Record(Model, abstract=True):
                     FieldDescriptor(field, typ, cls, needed, default, parent))
 
     @classmethod
-    def from_data(cls, data: Mapping) -> 'Record':
+    def from_data(cls, data: Mapping, *,
+                  ignore_metadata: bool = False) -> 'Record':
         # check for blessed key to see if another model should be used.
-        self_cls = cls._maybe_namespace(data)
+        self_cls = cls if ignore_metadata else cls._maybe_namespace(data)
         return (self_cls or cls)(**data, __strict__=False)
 
     def __init__(self, *args: Any, __strict__: bool = True,
@@ -283,7 +284,10 @@ class Record(Model, abstract=True):
         # _to_models uses this as a callback to _reconstruct_type,
         # called everytime something needs to be converted into a model.
         if data is not None and not isinstance(data, typ):
-            return typ.from_data(data)
+            return typ.from_data(
+                data,
+                ignore_metadata=self._options.ignore_metadata,
+            )
         return data
 
     def _reconstruct_type(self, typ: Type, data: Any,

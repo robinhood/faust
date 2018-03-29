@@ -422,3 +422,22 @@ def test_supports_post_init():
 
     x = X(1, 3)
     assert x.z == 4
+
+
+def test_ignore_metadata():
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record):
+        a: int
+
+    class Y(Record, ignore_metadata=True):
+        x: X
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = Y.loads(data, default_serializer='json')
+    assert isinstance(y2.x, X)

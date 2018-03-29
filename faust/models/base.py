@@ -173,6 +173,7 @@ class Model(ModelT):
                           serializer: str = None,
                           namespace: str = None,
                           include_metadata: bool = True,
+                          ignore_metadata: bool = False,
                           isodates: bool = False,
                           abstract: bool = False,
                           **kwargs: Any) -> None:
@@ -186,13 +187,20 @@ class Model(ModelT):
         #   cls.__is_abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
         cls._init_subclass(
-            serializer, namespace, include_metadata, isodates, abstract)
+            serializer,
+            namespace,
+            include_metadata,
+            ignore_metadata,
+            isodates,
+            abstract,
+        )
 
     @classmethod
     def _init_subclass(cls,
                        serializer: str = None,
                        namespace: str = None,
                        include_metadata: bool = True,
+                       ignore_metadata: bool = False,
                        isodates: bool = False,
                        abstract: bool = False) -> None:
         if abstract:
@@ -216,6 +224,7 @@ class Model(ModelT):
         if serializer is not None:
             options.serializer = serializer
         options.include_metadata = include_metadata
+        options.ignore_metadata = ignore_metadata
         options.namespace = namespace or canoname(cls)
         options.isodates = isodates
 
