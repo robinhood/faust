@@ -56,9 +56,9 @@ class Collection(Service, CollectionT):
 
     _store: URL
     _changelog_topic: TopicT
-    _timestamp_keys: MutableMapping[float, MutableSet]
-    _timestamps: List[float]
-    _latest_timestamp: float
+    _partition_timestamp_keys: MutableMapping[tuple, MutableSet]
+    _partition_timestamps: MutableMapping[int, List[float]]
+    _partition_latest_timestamp: MutableMapping[int, float]
     _recover_callbacks: MutableSet[RecoverCallback]
     _data: StoreT = None
     _changelog_compacting: bool = True
@@ -116,9 +116,9 @@ class Collection(Service, CollectionT):
         assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
 
         # Table key expiration
-        self._timestamp_keys = defaultdict(set)
-        self._timestamps = []
-        self._latest_timestamp = 0
+        self._partition_timestamp_keys = defaultdict(set)
+        self._partition_timestamps = defaultdict(list)
+        self._partition_latest_timestamp = defaultdict(int)
 
         self._recover_callbacks = set()
         if on_recover:
@@ -213,34 +213,41 @@ class Collection(Service, CollectionT):
     @Service.transitions_to(TABLE_CLEANING)
     async def _clean_data(self) -> None:
         if self._should_expire_keys():
-            timestamps = self._timestamps
-            window = self.window
             while not self.should_stop:
-                while timestamps and window.stale(timestamps[0],
-                                                  self._latest_timestamp):
-                    timestamp = heappop(timestamps)
-                    for key in self._timestamp_keys[timestamp]:
-                        del self.data[key]
-                    del self._timestamp_keys[timestamp]
+                self._del_old_keys()
                 await self.sleep(self.app.conf.table_cleanup_interval)
+
+    def _del_old_keys(self) -> None:
+        window = self.window
+        for partition, timestamps in self._partition_timestamps.items():
+            while timestamps and window.stale(
+                    timestamps[0],
+                    self._partition_latest_timestamp[partition]):
+                timestamp = heappop(timestamps)
+                for key in self._partition_timestamp_keys[(partition,
+                                                           timestamp)]:
+                    del self.data[key]
+                del self._partition_timestamp_keys[(partition, timestamp)]
 
     def _should_expire_keys(self) -> bool:
         window = self.window
         return not (window is None or window.expires is None)
 
-    def _maybe_set_key_ttl(self, key: Any) -> None:
+    def _maybe_set_key_ttl(self, key: Any, partition: int) -> None:
         if not self._should_expire_keys():
             return
         _, window_range = key
-        heappush(self._timestamps, window_range.end)
-        self._latest_timestamp = max(self._latest_timestamp, window_range.end)
-        self._timestamp_keys[window_range.end].add(key)
+        heappush(self._partition_timestamps[partition], window_range.end)
+        self._partition_latest_timestamp[partition] = max(
+            self._partition_latest_timestamp[partition], window_range.end)
+        self._partition_timestamp_keys[(partition, window_range.end)].add(key)
 
-    def _maybe_del_key_ttl(self, key: Any) -> None:
+    def _maybe_del_key_ttl(self, key: Any, partition: int) -> None:
         if not self._should_expire_keys():
             return
         _, window_range = key
-        ts_keys = self._timestamp_keys.get(window_range.end)
+        ts_keys = self._partition_timestamp_keys.get((partition,
+                                                      window_range.end))
         ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
@@ -336,7 +343,7 @@ class Collection(Service, CollectionT):
 
     def _relative_now(self, event: EventT = None) -> float:
         # get current timestamp
-        return self._latest_timestamp
+        return self._partition_latest_timestamp[event.message.partition]
 
     def _relative_event(self, event: EventT = None) -> float:
         # get event timestamp
