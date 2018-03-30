@@ -52,7 +52,6 @@ class ModelOptions(abc.ABC):
     serializer: CodecArg = None
     namespace: str = None
     include_metadata: bool = True
-    ignore_metadata: bool = False
     isodates: bool = False
 
     #: Index: Flattened view of __annotations__ in MRO order.
