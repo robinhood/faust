@@ -25,9 +25,8 @@
 **Faust** is a Python library for writing streaming applications
 that are fault-tolerant and easy to use.
 
-It is used at `Robinhood`_ to build high performance, highly concurrent
-distributed systems and real-time data pipelines that scale to a
-massive number of machines.
+It is used at `Robinhood`_ to build high performance distributed systems,
+and real-time data pipelines.
 
 Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as `Celery`_,
@@ -35,12 +34,11 @@ sharing similarity with tools such as `Celery`_,
 
 Faust is heavily inspired by `Kafka Streams`_, but uses asynchronous generators
 instead of a DSL. This way it blends into Python code, so you can use
-NumPy, PyTorch, NLTK, Django, Flask, SQLAlchemy, and all
+NumPy, PyTorch, Pandas, NLTK, Django, Flask, SQLAlchemy, and all
 the other tools that you like in Python.
 
-Faust requires Python 3.6 and up, for the simple reason it takes substantial
-advantage of the new `async/await`_ syntax added recently to Python.
-The benefit to that is performance rarely seen before in Python systems.
+Faust takes advantage of the new `async/await`_ syntax added recently
+to Python, and so requires Python 3.6 or later.
 
 Here's an example agent processing "order events":
 
@@ -125,7 +123,7 @@ keys and values are serialized and deserialized:
 Faust is statically typed, using the ``mypy`` type checker,
 so you can take advantage of static types when writing applications.
 
-**Learn more about Faust in the** `intro`_ **introduction page**
+**Learn more about Faust in the** `introduction`_ **introduction page**
     to read more about Faust, system requirements, installation instructions,
     community resources, and more.
 
@@ -147,7 +145,7 @@ so you can take advantage of static types when writing applications.
 .. _`RocksDB`: http://rocksdb.org
 .. _`Apache Kafka`: https://kafka.apache.org
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
@@ -217,7 +215,7 @@ Faust is...
     and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
@@ -335,7 +333,7 @@ You can install the latest snapshot of Faust using the following
 
     $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
@@ -474,7 +472,7 @@ You may need to increase the limit for the maximum number of open files. The
 following post explains how to do so on OS X:
 https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
@@ -532,7 +530,7 @@ file in the top distribution directory for the full license text.
 
 .. # vim: syntax=rst expandtab tabstop=4 shiftwidth=4 shiftround
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
@@ -596,7 +594,7 @@ reported by opening an issue or contacting one or more of the project maintainer
 This Code of Conduct is adapted from the Contributor Covenant,
 version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
@@ -622,7 +620,7 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
     :alt: Support Python implementations.
     :target: http://pypi.python.org/pypi/faust/
 
-.. _`intro`: http://docs.fauststream.com/en/latest/introduction.html
+.. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
