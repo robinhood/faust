@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import faust
+import mode
 import pytest
 from faust import App
 from faust.assignor import LeaderAssignor, PartitionAssignor
@@ -53,6 +54,8 @@ class test_settings:
         assert conf.loghandlers is None
         assert conf.version == 1
         assert conf.canonical_url is None
+
+        assert conf.agent_supervisor is mode.OneForOneSupervisor
 
         assert conf.Agent is faust.Agent
         assert conf.Stream is faust.Stream
