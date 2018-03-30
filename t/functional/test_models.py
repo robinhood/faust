@@ -422,3 +422,41 @@ def test_supports_post_init():
 
     x = X(1, 3)
     assert x.z == 4
+
+
+def test_default_no_blessed_key():
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record):
+        a: int
+
+    class Y(Record):
+        x: X
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = Y.loads(data, default_serializer='json')
+    assert isinstance(y2.x, X)
+
+
+def test_enabled_blessed_key():
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record, allow_blessed_key=True):
+        a: int
+
+    class Y(Record):
+        x: X
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = Y.loads(data, default_serializer='json')
+    assert isinstance(y2.x, LooksLikeX)

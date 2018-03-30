@@ -9,7 +9,12 @@ __all__ = ['ReqRepRequest', 'ReqRepResponse']
 # It's going to be included in every single agent request,
 # so I figured "org.faust.ReqRepRequest" was too long,
 # but maybe that's silly?
-class ReqRepRequest(Record, serializer='json', namespace='@RRReq'):
+class ReqRepRequest(Record,
+                    serializer='json',
+                    namespace='@RRReq',
+                    # any stream should allow this type
+                    # to wrap other values.
+                    allow_blessed_key=True):
     """Value wrapped in a Request-Reply request."""
 
     # agent.ask(value) wraps the value in this record
