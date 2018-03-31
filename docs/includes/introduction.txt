@@ -1,10 +1,8 @@
 **Simple**
-    Faust is just Python, and thanks to the new asynchronous generators
-    first introduced in Python 3.6, it blends into your existing Python code.
-
-    Also, since it's using the new :mod:`asyncio`, it is very fast
-    and can run other network services in the same process: web servers,
-    web sockets, etc.
+    Faust is extremely easy to use compared to other stream processing
+    solutions.  There's no DSL to limit your creativity, no restricted
+    set of operations to work from, and since Faust is a library, it can
+    integrate with just about anything.
 
     Here's one of the easier applications you can make::
 
@@ -32,7 +30,7 @@
             app.main()
 
     You're probably a bit intimidated by the `async` and `await` keywords,
-    but you don't need to have used :mod:`asyncio` from before
+    but you don't have to know how :mod:`asyncio` works to use
     Faust: just mimic the examples, and you'll be fine.
 
     The example application starts two tasks: one is processing a stream,
@@ -52,13 +50,11 @@
 
 **Fast**
     A single-core Faust worker instance can already process tens of thousands
-    of events every second, in some cases much more, and we are reasonably
-    confident that throughput will increase once we can support a more
-    optimized Kafka client.
+    of events every second, and we are reasonably confident that throughput will
+    increase once we can support a more optimized Kafka client.
 
-**Use your favorite libraries**
-    If you can use Python, you can use Faust!
-    Faust is just Python, and a stream is just an ``async for`` expression.
-    Can you use Python? You can use Faustkkkkk, you already know how to use Faust.
-    It works with your favorite Python libraries like Django, Flask,
+**Flexible**
+    Faust is just Python, and a stream is an infinite asynchronous iterator.
+    If you know how to use Python, you already know how to use Faust,
+    and it works with your favorite Python libraries like Django, Flask,
     SQLAlchemy, NTLK, NumPy, Scikit, TensorFlow, etc.
