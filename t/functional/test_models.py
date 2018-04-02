@@ -1,3 +1,4 @@
+import abc
 from datetime import datetime
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
@@ -493,3 +494,31 @@ def test_enabled_blessed_key():
     data = Y.dumps(y, serializer='json')
     y2 = Y.loads(data, default_serializer='json')
     assert isinstance(y2.x, LooksLikeX)
+
+
+def test_blessed_key_deeply_nested():
+
+    class BaseAttribution(Record, abc.ABC):
+
+        def __post_init__(self, *args, **kwargs) -> None:
+            self.data_store = None
+
+    class AdjustData(Record):
+        activity_kind: str
+
+    class Event(Record):
+        category: str
+        event: str
+        data: AdjustData
+
+    class AdjustRecord(BaseAttribution):
+        event: Event
+
+    x = AdjustRecord(Event(
+        category='foo',
+        event='bar',
+        data=AdjustData('baz'),
+    ))
+    value = x.loads(x.dumps(serializer='json'), default_serializer='json')
+    assert isinstance(value.event, Event)
+    assert isinstance(value.event.data, AdjustData)

@@ -251,8 +251,11 @@ class Record(Model, abstract=True):
     @classmethod
     def from_data(cls, data: Mapping) -> 'Record':
         # check for blessed key to see if another model should be used.
-        self_cls = cls._maybe_namespace(data)
-        return (self_cls or cls)(**data, __strict__=False)
+        if hasattr(data, '__is_model__'):
+            return data
+        else:
+            self_cls = cls._maybe_namespace(data)
+            return (self_cls or cls)(**data, __strict__=False)
 
     def __init__(self, *args: Any,
                  __strict__: bool = True,

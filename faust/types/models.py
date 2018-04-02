@@ -89,6 +89,7 @@ base = abc.ABC if abc_compatible_with_init_subclass else object
 
 
 class ModelT(base):  # type: ignore
+    __is_model__: ClassVar[bool] = True
 
     _options: ClassVar[ModelOptions]
 
