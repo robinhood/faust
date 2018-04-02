@@ -477,8 +477,7 @@ def test_default_multiple_levels_no_blessed_key():
     assert isinstance(s.account.address, Address)
 
 
-
-def test_enabled_blessed_key():
+def test_enabled_blessed_key(app):
 
     class X(Record):
         a: int
@@ -487,13 +486,13 @@ def test_enabled_blessed_key():
         a: int
 
     class Y(Record):
-        x: ModelT
+        x: LooksLikeX
 
     x = LooksLikeX(303)
     y = Y(x)
 
     data = Y.dumps(y, serializer='json')
-    y2 = Y.loads(data, default_serializer='json')
+    y2 = app.serializers.loads_key(Y, data, serializer='json')
     assert isinstance(y2.x, LooksLikeX)
 
 
@@ -526,3 +525,105 @@ def test_blessed_key_deeply_nested():
     model = AdjustRecord.from_data(value_dict)
     assert isinstance(model.event, Event)
     assert isinstance(model.event.data, AdjustData)
+
+
+ADTRIBUTE_PAYLOAD = """
+{"user": {"username": "3da6ef8f-aed1-47e7-ad4f-034363d0565b",
+ "secret": null, "__faust": {"ns": "trebuchet.models.logging.User"}},
+ "device": {"platform": "iOS",
+ "device_id": "F5FA74CE-0F17-491F-A6B1-AAE1D036CBF2",
+ "os_version": "11.2.6", "manufacturer": "phone",
+ "device_version": "iPhone8,2", "screen_resolution": null,
+ "source": null, "campaign": null,
+ "campaign_version": null, "adid": null,
+ "engagement_time": null,
+ "__faust": {"ns": "trebuchet.models.logging.Device"}},
+ "app": {"version": "4667", "app_id": "com.robinhood.release.Robinhood",
+ "build_num": null, "locale": null, "language": null,
+ "__faust": {"ns": "trebuchet.models.logging.App"}},
+ "event": {"category": "adjust_data", "event": "attribution",
+ "experiments": null, "session_id": null, "data":
+ {"activity_kind": "session", "network_name": "Organic",
+ "adid": "04df21c2ef05a91598e13c82096d921b",
+ "tracker": "494pkq", "reftag": "oJuX55u4N4OI4",
+ "nonce": "mt5lyv18d", "campaign_name": "",
+ "adgroup_name": "", "creative_name": "", "click_referer": "",
+ "is_organic": "1", "reattribution_attribution_window": "",
+ "impression_attribution_window": "", "store": "itunes",
+ "match_type": "", "platform_adid": "", "search_term": "",
+ "event_name": "", "installed_at": "2017-09-02 00:28:03.000",
+ "engagement_time": null, "deeplink": "",
+ "source_user": "", "__faust": {
+ "ns": "trebuchet.models.logging_data.AdjustData"}},
+ "__faust": {"ns": "trebuchet.models.logging.Event"}},
+ "timestamp": "2018-03-22 16:57:19.000", "client_ip": "174.207.10.101",
+ "event_hash": "50c9a0e19b9644abe269aadcea9e7526", "__faust": {
+    "ns": "trebuchet.models.logging.LoggingEvent"}}
+"""
+
+
+def test_adtribute_payload(app):
+
+    class BaseAttribution(Record, abc.ABC):
+
+        def __post_init__(self) -> None:
+            self.data_store = None
+
+    class AdjustData(Record):
+
+        activity_kind: str
+        network_name: str
+        adid: str
+        tracker: str
+        reftag: str
+        nonce: str
+        campaign_name: str = None
+        adgroup_name: str = None
+        creative_name: str = None
+        click_referer: str = None
+        is_organic: str = None
+        reattribution_attribution_window: str = None
+        impression_attribution_window: str = None
+        store: str = None
+        match_type: str = None
+        platform_adid: str = None
+        search_term: str = None
+        event_name: str = None
+        installed_at: str = None
+        engagement_time: str = None
+        deeplink: str = None
+        source_user: str = None
+
+    class User(Record):
+        username: str
+
+    class App(Record):
+        version: str
+        app_id: str
+
+    class Device(Record):
+        platform: str
+        device_id: str
+        os_version: str
+        device_version: str
+        manufacturer: str
+
+    class Event(Record):
+        category: str
+        event: str
+        data: AdjustData
+
+    class AdjustRecord(BaseAttribution):
+        user: User
+        device: Device
+        app: App
+        event: Event
+        timestamp: str
+        client_ip: str = None
+        event_hash: str = None
+
+    def __post_init__(self) -> None:
+        self.data_store = None
+
+    app.serializers.loads_value(
+        AdjustRecord, ADTRIBUTE_PAYLOAD, serializer='json')
