@@ -31,13 +31,13 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'faust-withdrawals3',
+    'faust-withdrawals4',
     broker='kafka://127.0.0.1:9092',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=4,
 )
-withdrawals_topic = app.topic('withdrawals3', value_type=bytes)
+withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
 
 
 user_to_total = app.Table(
@@ -52,67 +52,69 @@ country_to_total = app.Table(
 class State:
     i: int = 0
     time_start: float = None
+
+
 state = State()
 
 
-def track(withdrawal: Withdrawal, *, state = state) -> None:
+def track(withdrawal: Withdrawal, *, state: State = state) -> None:
     time_start = state.time_start
     if time_start is None:
         time_start = state.time_start = monotonic()
     state.i += 1
-    if not state.i % 100_000:
-        print(f'TIME FOR 100k: {monotonic() - time_start}')
+    if not state.i % 10_000:
+        print(f'TIME FOR 10k: {monotonic() - time_start}')
+        print(f'WITHDRAWAL: {withdrawal!r}')
         state.time_start = None
 
 
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
-    time_start = None
     async for i, withdrawal in withdrawals.enumerate():
         track(withdrawal)
         #user_to_total[withdrawal.user] += withdrawal.amount
 
 
-@app.agent(withdrawals_topic)
-async def ag2(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag2(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
-@app.agent(withdrawals_topic)
-async def ag3(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag3(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
-@app.agent(withdrawals_topic)
-async def ag4(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag4(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
 
-@app.agent(withdrawals_topic)
-async def ag5(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag5(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
-@app.agent(withdrawals_topic)
-async def ag6(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag6(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
-@app.agent(withdrawals_topic)
-async def ag7(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag7(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
-@app.agent(withdrawals_topic)
-async def ag8(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag8(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 
-@app.agent(withdrawals_topic)
-async def ag9(withdrawals):
-    async for withdrawal in withdrawals.enumerate():
-        track(withdrawal)
+#@app.agent(withdrawals_topic)
+#async def ag9(withdrawals):
+#    async for withdrawal in withdrawals.enumerate():
+#        track(withdrawal)
 #@app.agent(withdrawals_topic)
 #async def track_country_withdrawal(withdrawals):
     #async for withdrawal in withdrawals.group_by(Withdrawal.country):
@@ -129,26 +131,33 @@ async def ag9(withdrawals):
 )
 async def produce(self, max_latency: float, max_messages: int):
     """Produce example Withdrawal events."""
+    for i, withdrawal in enumerate(generate_withdrawals(max_messages)):
+        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal)
+        if not i % 10000:
+            self.say(f'+SEND {i}')
+        if max_latency:
+            await asyncio.sleep(random.uniform(0, max_latency))
+
+
+
+def generate_withdrawals_dict(n: int = None):
     num_countries = 5
     countries = [f'country_{i}' for i in range(num_countries)]
     country_dist = [0.9] + ([0.10 / num_countries] * (num_countries - 1))
     num_users = 500
     users = [f'user_{i}' for i in range(num_users)]
-    self.say('Done setting up. SENDING!')
-    for i in range(max_messages) if max_messages is not None else count():
-        withdrawal = Withdrawal(
-            user=random.choice(users),
-            amount=random.uniform(0, 25_000),
-            country=random.choices(countries, country_dist)[0],
-            date=datetime.utcnow().replace(tzinfo=timezone.utc),
-        )
-        withdrawal_dict = withdrawal.to_representation()
-        withdrawal_dict.pop('__faust')
-        await withdrawals_topic.send(key=withdrawal.user, value=withdrawal_dict)
-        if not i % 10000:
-            self.say(f'+SEND {i}')
-        if max_latency:
-            await asyncio.sleep(random.uniform(0, max_latency))
+    for _ in range(n) if n is not None else count():
+        yield {
+            'user': random.choice(users),
+            'amount': random.uniform(0, 25_000),
+            'country': random.choices(countries, country_dist)[0],
+            'date': datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
+        }
+
+
+def generate_withdrawals(n: int = None):
+    for d in generate_withdrawals_dict(n):
+        yield Withdrawal(**d)
 
 
 if __name__ == '__main__':

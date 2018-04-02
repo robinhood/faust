@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, List, Set, Type, Union
 from uuid import uuid4
 
-from mode import Seconds, want_seconds
+from mode import Seconds, SupervisorStrategyT, want_seconds
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
 
@@ -41,6 +41,7 @@ BROKER_URL = 'kafka://localhost:9092'
 #: Table storage URL, used as default for :setting:`store`.
 STORE_URL = 'memory://'
 
+
 #: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
 #: poth is absolute.
@@ -48,6 +49,10 @@ TABLEDIR = 'tables'
 
 #: Path to agent class, used as default for :setting:`Agent`.
 AGENT_TYPE = 'faust.Agent'
+
+#: Default agent supervisor type, used as default for
+#: :setting:`agent_supervisor`.
+AGENT_SUPERVISOR_TYPE = 'mode.OneForOneSupervisor'
 
 #: Path to stream class, used as default for :setting:`Stream`.
 STREAM_TYPE = 'faust.Stream'
@@ -124,6 +129,10 @@ PRODUCER_LINGER_MS = 0
 #: Used as the default value for :setting:`max_batch_size`.
 PRODUCER_MAX_BATCH_SIZE = 16_384
 
+#: Maximum size of a request in bytes in the producer.
+#: Used as the default value for :setting:`max_request_size`.
+PRODUCER_MAX_REQUEST_SIZE = 1_048_576
+
 # The number of acknowledgments the producer requires the leader to have
 # received before considering a request complete. This controls the
 # durability of records that are sent. The following settings are common:
@@ -179,6 +188,7 @@ class Settings(abc.ABC):
     producer_linger_ms: int = PRODUCER_LINGER_MS
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
+    producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
 
     _id: str = None
     _name: str = None
@@ -188,6 +198,7 @@ class Settings(abc.ABC):
     _canonical_url: URL = None
     _datadir: Path = None
     _tabledir: Path = None
+    _agent_supervisor: Type[SupervisorStrategyT] = None
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
@@ -213,7 +224,7 @@ class Settings(abc.ABC):
             if v.kind not in SETTINGS_SKIP
         } - SETTINGS_COMPAT
 
-    def __init__(
+    def __init__(  # noqa: C901
             self,
             id: str,
             *,
@@ -223,6 +234,7 @@ class Settings(abc.ABC):
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
+            agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
@@ -248,6 +260,7 @@ class Settings(abc.ABC):
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
             producer_acks: int = None,
+            producer_max_request_size: int = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -316,6 +329,8 @@ class Settings(abc.ABC):
             self.producer_max_batch_size = producer_max_batch_size
         if producer_acks is not None:
             self.producer_acks = producer_acks
+        if producer_max_request_size is not None:
+            self.producer_max_request_size = producer_max_request_size
 
         if reply_to_prefix is not None:
             self.reply_to_prefix = reply_to_prefix
@@ -325,6 +340,11 @@ class Settings(abc.ABC):
             self.reply_to = f'{self.reply_to_prefix}{uuid4()}'
         if reply_expires is not None:
             self.reply_expires = reply_expires
+
+        self.agent_supervisor = (
+            agent_supervisor or
+            self._agent_supervisor or
+            AGENT_SUPERVISOR_TYPE)
 
         self.Agent = Agent or self._Agent or AGENT_TYPE
         self.Stream = Stream or self._Stream or STREAM_TYPE
@@ -465,6 +485,15 @@ class Settings(abc.ABC):
     @reply_expires.setter
     def reply_expires(self, reply_expires: Seconds) -> None:
         self._reply_expires = want_seconds(reply_expires)
+
+    @property
+    def agent_supervisor(self) -> Type[SupervisorStrategyT]:
+        return self._agent_supervisor
+
+    @agent_supervisor.setter
+    def agent_supervisor(
+            self, sup: SymbolArg[Type[SupervisorStrategyT]]) -> None:
+        self._agent_supervisor = symbol_by_name(sup)
 
     @property
     def Agent(self) -> Type[AgentT]:

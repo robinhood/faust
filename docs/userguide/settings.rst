@@ -511,7 +511,7 @@ Advanced Web Server Settings
 ``canonical_url``
 -----------------
 
-:type:  ``str``
+:type:  :class:`str`
 :default: ``socket.gethostname()``
 
 You shouldn't have to set this manually.
@@ -520,6 +520,53 @@ The canonical URL defines how to reach the web server on a running
 worker node, and is usually set by combining the :option:`faust worker --web-host`
 and :option:`faust worker --web-port` command line arguments, not
 by passing it as a keyword argument to :class:`App`.
+
+Advanced Agent Settings
+=======================
+
+.. setting:: agent_supervisor
+
+``agent_supervisor``
+--------------------
+
+:type: :class:`str:`/:class:`mode.SupervisorStrategyT`
+:default: :class:`mode.OneForOneSupervisor`
+
+An agent may start multiple instances (actors) when
+the concurrency setting is higher than one (e.g.
+``@app.agent(concurrency=2)``).
+
+Multiple instances of the same agent are considered to be in the same
+supervisor group.
+
+The default supervisor is the :class:`mode.OneForOneSupervisor`:
+if an instance in the group crashes, we restart that instance only.
+
+These are the supervisors supported:
+
++ :class:`mode.OneForOneSupervisor`
+
+    If an instance in the group crashes we restart only that instance.
+
++ :class:`mode.OneForAllSupervisor`
+
+    If an instance in the group crashes we restart the whole group.
+
++ :class:`mode.CrashingSupervisor`
+
+    If an instance in the group crashes we stop the whole application,
+    and exit so that the Operating System supervisor can restart us.
+
++ :class:`mode.ForfeitOneForOneSupervisor`
+
+    If an instance in the group crashes we give up on that instance
+    and never restart it again (until the program is restarted).
+
++ :class:`mode.ForfeitOneForAllSupervisor`
+
+    If an instance in the group crashes we stop all instances
+    in the group and never restarted them again (until the program is
+    restarted).
 
 Agent RPC Settings
 ==================

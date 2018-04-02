@@ -416,3 +416,80 @@ def test_fields_with_way_too_much_of_a_concrete_type__frozenset():
     class X(Record, isodates=True):
         foo: int
         details: frozenset
+
+
+def test_supports_post_init():
+
+    class X(Record):
+        x: int
+        y: int
+
+        def __post_init__(self):
+            self.z: int = self.x + self.y
+
+    x = X(1, 3)
+    assert x.z == 4
+
+
+def test_default_no_blessed_key():
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record):
+        a: int
+
+    class Y(Record):
+        x: X
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = Y.loads(data, default_serializer='json')
+    assert isinstance(y2.x, X)
+
+
+def test_default_multiple_levels_no_blessed_key():
+
+    class StdAttribution(Record):
+        first_name: str
+        last_name: str
+
+    class Address(Record):
+        country: str
+
+    class Account(StdAttribution):
+        address: Address
+
+    class Event(Record):
+        account: Account
+
+    event = Event(account=Account(
+        first_name='George',
+        last_name='Costanza',
+        address=Address('US'),
+    ))
+    s = event.loads(event.dumps(serializer='json'), default_serializer='json')
+    assert isinstance(s.account, Account)
+    assert isinstance(s.account.address, Address)
+
+
+
+def test_enabled_blessed_key():
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record, allow_blessed_key=True):
+        a: int
+
+    class Y(Record):
+        x: X
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = Y.loads(data, default_serializer='json')
+    assert isinstance(y2.x, LooksLikeX)

@@ -152,8 +152,12 @@ class Model(ModelT):
         try:
             ns = data[cls._blessed_key]['ns']
         except (KeyError, TypeError):
-            return None
-        return registry[ns]
+            pass
+        else:
+            model = registry[ns]
+            if model._options.allow_blessed_key:
+                return model
+        return None
 
     @classmethod
     def _maybe_reconstruct(cls, data: Any) -> Any:
@@ -180,6 +184,7 @@ class Model(ModelT):
                           include_metadata: bool = True,
                           isodates: bool = False,
                           abstract: bool = False,
+                          allow_blessed_key: bool = False,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -191,7 +196,13 @@ class Model(ModelT):
         #   cls.__is_abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
         cls._init_subclass(
-            serializer, namespace, include_metadata, isodates, abstract)
+            serializer,
+            namespace,
+            include_metadata,
+            isodates,
+            abstract,
+            allow_blessed_key,
+        )
 
     @classmethod
     def _init_subclass(cls,
@@ -199,7 +210,8 @@ class Model(ModelT):
                        namespace: str = None,
                        include_metadata: bool = True,
                        isodates: bool = False,
-                       abstract: bool = False) -> None:
+                       abstract: bool = False,
+                       allow_blessed_key: bool = False) -> None:
         if abstract:
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
@@ -223,6 +235,7 @@ class Model(ModelT):
         options.include_metadata = include_metadata
         options.namespace = namespace or canoname(cls)
         options.isodates = isodates
+        options.allow_blessed_key = allow_blessed_key
 
         # Add introspection capabilities
         cls._contribute_to_options(options)

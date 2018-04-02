@@ -24,7 +24,6 @@ from uuid import uuid4
 import venusian
 from mode import (
     CrashingSupervisor,
-    OneForOneSupervisor,
     Service,
     ServiceT,
     SupervisorStrategyT,
@@ -80,8 +79,6 @@ __all__ = [
     'AwaitableActor',
     'Agent',
 ]
-
-SUPERVISOR_STRATEGY: Type[SupervisorStrategyT] = OneForOneSupervisor
 
 # --- What is an agent?
 #
@@ -215,7 +212,10 @@ class AgentService(Service):
         return await cast(Agent, self.agent)._start_task(index, self.beacon)
 
     async def on_start(self) -> None:
-        self.supervisor = self.agent.supervisor_strategy(
+        SupervisorStrategy = self.agent.supervisor_strategy
+        if SupervisorStrategy is None:
+            SupervisorStrategy = self.agent.app.conf.agent_supervisor
+        self.supervisor = SupervisorStrategy(
             max_restarts=100.0,
             over=1.0,
             replacement=self._replace_actor,
@@ -294,7 +294,7 @@ class Agent(AgentT, ServiceProxy):
         self.help = help
         self._sinks = list(sink) if sink is not None else []
         self._on_error: AgentErrorHandler = on_error
-        self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
+        self.supervisor_strategy = supervisor_strategy
         ServiceProxy.__init__(self)
 
     def on_discovered(self, scanner: venusian.Scanner, name: str,
