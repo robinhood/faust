@@ -38,8 +38,8 @@ Page View
 ----------
 
 Let's now define a :ref:`model <guide-models>` that each page view event
-from the stream deserializes into, for easy access to fields and static
-typing support.
+from the stream deserializes into. The record is used for JSON dictionaries
+and describes fields much like the new dataclasses in Python 3.7:
 
 Create a model for our page view event:
 
@@ -49,10 +49,16 @@ Create a model for our page view event:
         id: str
         user: str
 
+Type annotations are used not only for defining static types, but also
+to define how fields are deserialized, and lets you specify models
+that contains other models, and so on.  See the :ref:`guide-models` guide
+for more information.
+
 Input Stream
 ------------
 
-Next we define the source topic to read the page view events from.
+Next we define the source topic to read the "page view" events from,
+and we specify that every value in this topic is of the PageView type.
 
 .. sourcecode:: python
 
@@ -61,8 +67,9 @@ Next we define the source topic to read the page view events from.
 Counts Table
 ------------
 
-Then define a :ref:`Table <guide-tables>` to maintain running
-counts for page views.
+Then we define a :ref:`Table <guide-tables>`. This is like a Python
+dictionary, but is distributed across the cluster, partitioned by the
+dictionary key.
 
 .. sourcecode:: python
 
@@ -111,7 +118,6 @@ Then start Kafka:
 .. sourcecode:: console
 
     $ $KAFKA_HOME/bin/kafka-server-start $KAFKA_HOME/etc/kafka/server.properties
-
 
 Starting the Faust worker
 -------------------------
