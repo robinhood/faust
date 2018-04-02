@@ -95,7 +95,8 @@ class ModelT(base):  # type: ignore
 
     @classmethod
     @abc.abstractmethod
-    def from_data(cls, data: Any) -> 'ModelT':
+    def from_data(cls, data: Any, *,
+                  preferred_type: Type['ModelT'] = None) -> 'ModelT':
         ...
 
     @classmethod

@@ -138,6 +138,7 @@ class Model(ModelT):
     def _maybe_namespace(
             cls, data: Any,
             *,
+            preferred_type: Type[ModelT] = None,
             fast_types: Tuple[Type, ...] = (bytes, str),
             isinstance: Callable = isinstance) -> Optional[Type[ModelT]]:
         # The serialized data may contain a ``__faust`` blessed key
@@ -154,9 +155,13 @@ class Model(ModelT):
         except (KeyError, TypeError):
             pass
         else:
-            model = registry[ns]
-            if model._options.allow_blessed_key:
-                return model
+            # we only allow blessed keys when type=None, or type=Model
+            if (preferred_type is None or
+                    preferred_type is ModelT or
+                    preferred_type is Model):
+                model = registry[ns]
+                if model._options.allow_blessed_key:
+                    return model
         return None
 
     @classmethod

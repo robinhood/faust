@@ -2,6 +2,7 @@ import abc
 from datetime import datetime
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
+from faust.types import ModelT
 from faust.utils import json
 import pytest
 
@@ -486,7 +487,7 @@ def test_enabled_blessed_key():
         a: int
 
     class Y(Record):
-        x: X
+        x: ModelT
 
     x = LooksLikeX(303)
     y = Y(x)
@@ -519,6 +520,9 @@ def test_blessed_key_deeply_nested():
         event='bar',
         data=AdjustData('baz'),
     ))
-    value = x.loads(x.dumps(serializer='json'), default_serializer='json')
-    assert isinstance(value.event, Event)
-    assert isinstance(value.event.data, AdjustData)
+    value = x.dumps(serializer='json')
+    value_dict = json.loads(value)
+    value_dict['event']['__faust']['ns'] = 'x.y.z'
+    model = AdjustRecord.from_data(value_dict)
+    assert isinstance(model.event, Event)
+    assert isinstance(model.event.data, AdjustData)

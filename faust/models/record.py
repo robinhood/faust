@@ -140,7 +140,7 @@ def _from_generic_set(typ: Type, callback: _ReconFun, data: Set) -> Set:
 def _to_model(typ: Type[ModelT], data: Any) -> ModelT:
     # called everytime something needs to be converted into a model.
     if data is not None and not isinstance(data, typ):
-        return typ.from_data(data)
+        return typ.from_data(data, preferred_type=typ)
     return data
 
 
@@ -249,13 +249,15 @@ class Record(Model, abstract=True):
                     FieldDescriptor(field, typ, cls, needed, default, parent))
 
     @classmethod
-    def from_data(cls, data: Mapping) -> 'Record':
+    def from_data(cls, data: Mapping, *,
+                  preferred_type: Type[ModelT] = None) -> 'Record':
         # check for blessed key to see if another model should be used.
         if hasattr(data, '__is_model__'):
             return data
         else:
-            self_cls = cls._maybe_namespace(data)
-            return (self_cls or cls)(**data, __strict__=False)
+            self_cls = cls._maybe_namespace(
+                data, preferred_type=preferred_type)
+        return (self_cls or cls)(**data, __strict__=False)
 
     def __init__(self, *args: Any,
                  __strict__: bool = True,
