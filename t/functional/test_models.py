@@ -443,6 +443,32 @@ def test_default_no_blessed_key():
     assert isinstance(y2.x, X)
 
 
+def test_default_multiple_levels_no_blessed_key():
+
+    class StdAttribution(Record):
+        first_name: str
+        last_name: str
+
+    class Address(Record):
+        country: str
+
+    class Account(StdAttribution):
+        address: Address
+
+    class Event(Record):
+        account: Account
+
+    event = Event(account=Account(
+        first_name='George',
+        last_name='Costanza',
+        address=Address('US'),
+    ))
+    s = event.loads(event.dumps(serializer='json'), default_serializer='json')
+    assert isinstance(s.account, Account)
+    assert isinstance(s.account.address, Address)
+
+
+
 def test_enabled_blessed_key():
 
     class X(Record):
