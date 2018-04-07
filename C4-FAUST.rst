@@ -291,11 +291,11 @@ Further Reading
 Implementation
 ==============
 
-+ The `ZeroMQ community <http://zeromq.org/>` uses the C4 process
++ The `ZeroMQ community <http://zeromq.org/>`_ uses the C4 process
   for many projects.
 
-+ `OSSEC <http://www.ossec.net/>`_
++ `OSSEC <http://www.ossec.net/>`_,
   `uses the C4 process <https://ossec-docs.readthedocs.org/en/latest/development/oRFC/orfc-1.html>`_.
 
 + The `Machinekit <http://www.machinekit.io/>`_ community
-  `uses the C4 process <http://www.machinekit.io/about/>`.
+  `uses the C4 process <http://www.machinekit.io/about/>`_.
