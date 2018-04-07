@@ -44,12 +44,26 @@ Here's an example agent processing "order events":
 
 .. sourcecode:: python
 
+    # The application is our project.
+    # It's the core API of Faust, and also provides configuration.
     app = faust.App('myapp', broker='kafka://localhost')
 
+    # Models describe how keys and values in streams are serialized.
+    # They use the new static typing features of Python 3.6,
+    # and look a lot like Python dataclasses.
     class Order(faust.Record):
         account_id: str
         amount: int
 
+    # The Agent is a stream processor that can execute on
+    # many machines, and have many instances running on each CPU core.
+    # This to help build high performance distributed applications
+    # for parallel processing.
+    #
+    # This agent below will process incoming orders from a Kafka topic,
+    # which is like a queue but keeps history, and can be partitioned
+    # for the purpose of sharding data across instances.
+    #
     @app.agent(value_type=Order)
     async def order(orders):
         async for order in orders:
