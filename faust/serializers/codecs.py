@@ -12,14 +12,14 @@ Serialization by name
 =====================
 
 The func:`dumps` function takes a codec name and the object to encode,
-the return value is bytes:
+then returns bytes:
 
 .. sourcecode:: pycon
 
     >>> s = dumps('json', obj)
 
 For the reverse direction, the func:`loads` function takes a codec
-name and an encoded payload to decode (bytes):
+name and bytes to decode:
 
 .. sourcecode:: pycon
 
@@ -64,10 +64,11 @@ and ``_dumps()``:
             return msgpack.loads(s)
 
 Our codec now encodes/decodes to raw msgpack format, but we
-may also need to transfer this payload on a transport not
-handling binary data well.  Codecs may be chained together,
-so to add a text encoding like base64, which we use in this case,
-we use the ``|`` operator to form a combined codec:
+may also need to transfer this payload over a transport easily confused
+by binary data, such as JSON where everything is Unicode.
+
+You can chain codecs together, so to add a binary text encoding like base64,
+to ur codec, we use the ``|`` operator to form a combined codec:
 
 .. sourcecode:: python
 
@@ -77,7 +78,7 @@ we use the ``|`` operator to form a combined codec:
     codecs.register('msgpack', msgpack())
 
 At this point we monkey-patched Faust to support
-our codec, and we can use it to define records:
+our codec, and we can use it to define records like this:
 
 .. sourcecode:: pycon
 
@@ -180,11 +181,13 @@ __all__ = [
 class Codec(CodecT):
     """Base class for codecs."""
 
-    #: children contains the codecs below us.
+    #: next steps in the recursive codec chain.
+    #: ``x = pickle | binary`` returns codec with
+    #: children set to ``(pickle, binary)``.
     children: Tuple[CodecT, ...]
 
     #: cached version of children including this codec as the first node.
-    # could use chain below, but seems premature so just copying the list.
+    #: could use chain below, but seems premature so just copying the list.
     nodes: Tuple[CodecT, ...]
 
     #: subclasses can support keyword arguments,
