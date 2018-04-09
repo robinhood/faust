@@ -21,7 +21,7 @@ Here's an example agent processing "order events":
 .. sourcecode:: python
 
     # The application is our project.
-    # It's the core API of Faust, and also provides configuration.
+    # It's the core API of Faust and provides configuration.
     app = faust.App('myapp', broker='kafka://localhost')
 
     # Models describe how keys and values in streams are serialized.
