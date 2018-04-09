@@ -69,7 +69,7 @@ What can it do?
     any order with the same account id will be received by the same
     stream processing agent, so the count updates correctly in the table.
 
-    Sharding and partitioning is an essential part of stateful stream
+    Sharding/partitioning is an essential part of stateful stream
     processing applications, so take this into account when designing your
     system, but note that streams can also be processed in round-robin order
     so you can use Faust for event processing and as a task queue also.
@@ -154,8 +154,8 @@ What do I need?
 
 Faust requires Python 3.6 or later, and a running Kafka broker.
 
-There's currently no plan to port Faust to earlier Python versions;
-please get in touch if you want to work on this.
+There's no plan to support earlier Python versions.
+Please get in touch if this is something you want to work on.
 
 
 Extensions
