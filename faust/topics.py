@@ -48,7 +48,7 @@ class Topic(Channel, TopicT):
     """Define new topic description.
 
     Arguments:
-        app: App instance this topic is bound to.
+        app: App instance used to create this topic description.
 
         topics: List of topic names.
         partitions: Number of partitions for these topics.

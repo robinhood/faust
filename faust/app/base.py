@@ -109,7 +109,7 @@ SCAN_SERVICE = 'faust.service'
 SCAN_TASK = 'faust.task'
 
 #: Default decorator categories for :pypi`venusian` to scan for when
-#: autodiscovering.
+#: autodiscovering things like @app.agent decorators.
 SCAN_CATEGORIES: Iterable[str] = [
     SCAN_AGENT,
     SCAN_COMMAND,
@@ -157,8 +157,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         id (str): Application ID.
 
     Keyword Arguments:
-        loop (asyncio.AbstractEventLoop):
-            Provide specific asyncio event loop instance.
+        loop (asyncio.AbstractEventLoop): optional event loop to use.
 
     See Also:
         :ref:`application-configuration` -- for supported keyword arguments.
@@ -168,8 +167,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     #: Set this to True if app should only start the services required to
     #: operate as an RPC client (producer and reply consumer).
     client_only = False
-
-    _attachments: Attachments = None
 
     #: Source of configuration: ``app.conf`` (when configured)
     _conf: Settings = None
@@ -195,6 +192,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     _http_client: HttpClientT = None
 
     _extra_services: List[ServiceT] = None
+
+    # See faust/app/_attached.py
+    _attachments: Attachments = None
 
     def __init__(self,
                  id: str,
@@ -402,21 +402,23 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
               **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         """Create Agent from async def function.
 
-        The decorated function may be an async iterator, in this
-        mode the value yielded in reaction to a request will be the reply::
-
-            @app.agent()
-            async def my_agent(requests):
-                async for number in requests:
-                    yield number * 2
-
-        It can also be a regular async function, but then replies are not
-        supported::
+        It can be a regular async function::
 
             @app.agent()
             async def my_agent(stream):
                 async for number in stream:
                     print(f'Received: {number!r}')
+
+        Or it can be an async iterator that yields values.
+        These values can be used as the reply in an RPC-style call,
+        or for sinks: callbacks that forward events to
+        other agents/topics/statsd/and so on.
+
+            @app.agent(sink=[log_topic])
+            async def my_agent(requests):
+                async for number in requests:
+                    yield number * 2
+
         """
 
         def _inner(fun: AgentFun) -> AgentT:
@@ -458,7 +460,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         executed at worker startup (after recovery and the worker is
         fully ready for operation).
 
-        The function may take zero or one argument.
+        The function may take zero, or one argument.
         If the target function takes an argument, the ``app`` argument
         is passed::
 
@@ -701,18 +703,16 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """Send event to channel/topic.
 
         Arguments:
-            channel: Channel/topic or the name of a
-                topic to send event to.
+            channel: Channel/topic or the name of a topic to send event to.
             key: Message key.
             value: Message value.
             partition: Specific partition to send to.
                 If not set the partition will be chosen by the partitioner.
-            key_serializer: Serializer to use
-                only when key is not a model.
-            value_serializer: Serializer to use
-                only when value is not a model.
-            callback: Callable to be called after
-                the message is published.  Signature must be unary as the
+            key_serializer: Serializer to use (if value is not model).
+            value_serializer: Serializer to use (if value is not model).
+            callback: Called after the message is fully delivered to the
+                channel, but not to the consumer.
+                Signature must be unary as the
                 :class:`~faust.types.tuples.FutureMessage` future is passed
                 to it.
 
@@ -735,14 +735,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @stampede
     async def maybe_start_producer(self) -> ProducerT:
-        """Start producer if it has not already been started."""
+        """Ensure producer is started."""
         producer = self.producer
         # producer may also have been started by app.start()
         await producer.maybe_start()
         return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
-        """Commit acked messages in topics'.
+        """Commit offset for acked messages in specified topics'.
 
         Warning:
             This will commit acked messages in **all topics**
@@ -768,12 +768,16 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             if assignment:
                 self.flow_control.suspend()
                 await self.consumer.pause_partitions(assignment)
-                # Allow big buffers: clear the queues so we can
-                # wait for currently processing event in each stream
-                # to finish (note: this means _on_partitions_revoked
-                # cannot execute in a thread).
+                # Every agent instance has an incoming buffer of messages
+                # (a asyncio.Queue) -- we clear those to make sure
+                # agents will not start processing them.
+                #
+                # This allows for large buffer sizes (stream_buffer_maxsize).
                 self.flow_control.clear()
-                # wait for currently processing event in each stream.
+                # even if we clear, some of the agent instances may have
+                # already started working on an event.
+                #
+                # we need to wait for them.
                 if self.conf.stream_wait_empty:
                     await self.consumer.wait_empty()
             else:
@@ -787,13 +791,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
         This is called during a rebalance after :meth:`on_partitions_revoked`.
 
-        The new assignment provided overrides the previous
+        The new assignment overrides the previous
         assignment, so any tp no longer in the assigned' list will have
         been revoked.
         """
         try:
             await self.consumer.verify_subscription(assigned)
-            # Wait for transport.Conductor to finish any new subscriptions
+            # Wait for transport.Conductor to finish calling Consumer.subscribe
             await self.topics.wait_for_subscriptions()
             await self.consumer.pause_partitions(assigned)
             await self._fetcher.restart()
