@@ -117,9 +117,8 @@ class ChangelogReader(Service, ChangelogReaderT):
         tps = self.tps
         for tp in tps:
             offset = self.offsets[tp]
-            # self.log.info(f'Seeking {tp} to offset: {offset}')
             if offset >= 0:
-                # FIXME: Remove check when fixed offset-1 discrepancy
+                # FIXME Remove check when fixed offset-1 discrepancy
                 await consumer.seek(tp, offset)
                 assert await consumer.position(tp) == offset
 

@@ -5,13 +5,9 @@ from faust.types import K, ModelT
 __all__ = ['ReqRepRequest', 'ReqRepResponse']
 
 
-# XXX "namespace" below is used as e.g. the Avro registry key.
-# It's going to be included in every single agent request,
-# so I figured "org.faust.ReqRepRequest" was too long,
-# but maybe that's silly?
 class ReqRepRequest(Record,
                     serializer='json',
-                    namespace='@RRReq',
+                    namespace='@ReqRepRequest',  # internal namespace
                     # any stream should allow this type
                     # to wrap other values.
                     allow_blessed_key=True):
@@ -25,7 +21,7 @@ class ReqRepRequest(Record,
     correlation_id: str
 
 
-class ReqRepResponse(Record, serializer='json', namespace='@RRRes'):
+class ReqRepResponse(Record, serializer='json', namespace='@ReqRepResponse'):
     """Request-Reply response."""
 
     key: K

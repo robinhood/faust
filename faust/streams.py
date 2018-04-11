@@ -164,8 +164,8 @@ class Stream(StreamT[T_co], Service):
 
         Notes:
             The chain of streams that leads to the active stream
-            is decided by the :attr:`_next` attribute, and getting
-            the active stream is just traversing this linked-list::
+            is decided by the :attr:`_next` attribute. To get
+            to the active stream we just traverse this linked-list::
 
                 >>> def get_active_stream(self):
                 ...     node = self
@@ -234,9 +234,9 @@ class Stream(StreamT[T_co], Service):
 
         Notes:
             If the cloned stream is supposed to "supercede" this stream,
-            you should use :meth:`_chain` instead so
-            `stream._next = cloned_stream` is set and
-            :meth:`get_active_stream` returns the cloned stream.
+            like in ``group_by``/``through``/etc., you should use
+            :meth:`_chain` instead so `stream._next = cloned_stream`
+            is set and :meth:`get_active_stream` returns the cloned stream.
         """
         return self.__class__(**{**self.info(), **kwargs})
 
