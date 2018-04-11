@@ -100,7 +100,8 @@ class Site:
         for pattern, view in self.views.items():
             web.route(prefix + pattern, view(self.app, web).dispatch)
 
-    def on_discovered(self, scanner: venusian.Scanner, name: str,
+    @classmethod
+    def on_discovered(cls, scanner: venusian.Scanner, name: str,
                       obj: 'Site') -> None:
         ...
 

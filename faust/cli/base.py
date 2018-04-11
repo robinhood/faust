@@ -380,7 +380,8 @@ class Command(abc.ABC):
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
 
-    def on_discovered(self, scanner: venusian.Scanner, name: str,
+    @classmethod
+    def on_discovered(cls, scanner: venusian.Scanner, name: str,
                       obj: 'Command') -> None:
         ...
 
