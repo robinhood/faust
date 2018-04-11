@@ -101,11 +101,6 @@ class Site:
             web.route(prefix + pattern, view(self.app, web).dispatch)
 
     @classmethod
-    def on_discovered(cls, scanner: venusian.Scanner, name: str,
-                      obj: 'Site') -> None:
-        ...
-
-    @classmethod
     def from_handler(cls, path: str, *,
                      base: Type[View] = None) -> CommandDecorator:
         base = base if base is not None else View

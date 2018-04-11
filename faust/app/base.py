@@ -29,7 +29,6 @@ from typing import (
     cast,
 )
 
-import venusian
 from mode import Seconds, ServiceT, SupervisorStrategyT, want_seconds
 from mode.proxy import ServiceProxy
 from mode.services import ServiceCallbacks
@@ -51,6 +50,7 @@ from faust.channels import Channel, ChannelT
 from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
+from faust.utils import venusian
 from faust.utils.objects import cached_property
 from faust.web.views import Request, Response, Site, View
 
@@ -165,7 +165,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     """
 
     #: Set this to True if app should only start the services required to
-    #: operate as an RPC client (producer and reply consumer).
+    #: operate as an RPC client (producer and simple reply consumer).
     client_only = False
 
     #: Source of configuration: ``app.conf`` (when configured)
@@ -342,7 +342,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """Create topic description.
 
         Topics are named channels (for example a Kafka topic),
-        to communicate locally create a :meth:`channel`.
+        that exist on a server.  To make an ephemeral local communication
+        channel use: :meth:`channel`.
 
         See Also:
             :class:`faust.topics.Topic`
@@ -436,7 +437,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 help=fun.__doc__,
                 **kwargs)
             self.agents[agent.name] = agent
-            venusian.attach(agent, agent.on_discovered, category=SCAN_AGENT)
+            venusian.attach(agent, category=SCAN_AGENT)
             return agent
 
         return _inner
@@ -474,13 +475,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> async def on_startup():
             ...     print('STARTING UP')
         """
-        venusian.attach(fun, self._on_task_discovered, category=SCAN_TASK)
+        venusian.attach(fun, category=SCAN_TASK)
         self._tasks.append(fun)
         return fun
-
-    def _on_task_discovered(self, scanner: venusian.Scanner, name: str,
-                            obj: TaskArg) -> None:
-        ...
 
     def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
         """Define an async def function to be run at periodic intervals.
@@ -534,14 +531,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 class Foo(Service):
                     ...
         """
-        venusian.attach(
-            cls, self._on_service_discovered, category=SCAN_SERVICE)
+        venusian.attach(cls, category=SCAN_SERVICE)
         self._extra_services.append(cls)
         return cls
-
-    def _on_service_discovered(self, scanner: venusian.Scanner, name: str,
-                               obj: Type[ServiceT]) -> None:
-        ...
 
     def is_leader(self) -> bool:
         return self._leader_assignor.is_leader()
@@ -638,7 +630,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         def _decorator(fun: PageArg) -> Type[Site]:
             site = Site.from_handler(path, base=base)(fun)
             self.pages.append(('', site))
-            venusian.attach(site, site.on_discovered, category=SCAN_PAGE)
+            venusian.attach(site, category=SCAN_PAGE)
             return site
 
         return _decorator
@@ -672,7 +664,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
             cmd = _base.from_handler(*options, **kwargs)(fun)
-            venusian.attach(cmd, cmd.on_discovered, category=SCAN_COMMAND)
+            venusian.attach(cmd, category=SCAN_COMMAND)
             return cmd
 
         return _inner

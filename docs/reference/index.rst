@@ -177,6 +177,7 @@ Utils
     faust.utils.json
     faust.utils.objects
     faust.utils.platforms
+    faust.utils.venusian
 
 Terminal (TTY) Utilities
 ------------------------

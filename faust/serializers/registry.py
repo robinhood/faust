@@ -17,7 +17,7 @@ IsInstanceArg = Tuple[Type, ...]
 
 
 class Registry(RegistryT):
-    """Registry for serialization/deserialization.
+    """Serializing message keys/values.
 
     Arguments:
         key_serializer: Default key serializer to use when none provided.

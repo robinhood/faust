@@ -380,11 +380,6 @@ class Command(abc.ABC):
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
 
-    @classmethod
-    def on_discovered(cls, scanner: venusian.Scanner, name: str,
-                      obj: 'Command') -> None:
-        ...
-
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
         # NOTE: If you override __call__ below, you have a non-async command.

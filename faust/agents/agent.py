@@ -297,10 +297,6 @@ class Agent(AgentT, ServiceProxy):
         self.supervisor_strategy = supervisor_strategy
         ServiceProxy.__init__(self)
 
-    def on_discovered(self, scanner: venusian.Scanner, name: str,
-                      obj: AgentT) -> None:
-        ...
-
     def info(self) -> Mapping:
         return {
             'app': self.app,
