@@ -260,14 +260,10 @@ class Consumer(base.Consumer):
         assigned_topics = {t for t, p in assigned}
         missing = subscription - assigned_topics
         if missing:
-            try:
-                raise RuntimeError(
-                    f'Subscribed but not assigned to topics: {missing}.'
-                    f'Please restart the worker in a bit, '
-                    f'maybe topics not created yet')
-            except RuntimeError as exc:
-                await self.crash(exc)
-                raise
+            self.log.error(
+                f'Subscribed but not assigned to topics: {missing}.'
+                f'Please restart the worker in a bit, '
+                f'maybe topics not created yet')
 
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return cast(TP, _TopicPartition(topic, partition))
