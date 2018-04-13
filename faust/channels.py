@@ -108,8 +108,9 @@ class Channel(ChannelT):
                          if is_iterator is not None else self.is_iterator),
             **self._clone_args())
         (self._root or self)._subscribers.add(subchannel)
-        subchannel.queue  # make sure queue is created at this point
-                          # ^ it's a cached_property
+        # make sure queue is created at this point
+        # ^ it's a cached_property
+        subchannel.queue
         return subchannel
 
     def _clone_args(self) -> Mapping:

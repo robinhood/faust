@@ -2,8 +2,6 @@
 import inspect
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
 
-import venusian
-
 from faust.types import AppT
 from faust.types.web import PageArg, ViewGetHandler
 

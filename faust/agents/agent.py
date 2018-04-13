@@ -21,7 +21,6 @@ from typing import (
 )
 from uuid import uuid4
 
-import venusian
 from mode import (
     CrashingSupervisor,
     Service,
@@ -384,10 +383,10 @@ class Agent(AgentT, ServiceProxy):
 
     def stream(self, **kwargs: Any) -> StreamT:
         s = self.app.stream(self.channel_iterator, loop=self.loop, **kwargs)
-        s.add_processor(self._process_reply)
+        s.add_processor(self._maybe_unwrap_reply_request)
         return s
 
-    def _process_reply(self, event: Any) -> Any:
+    def _maybe_unwrap_reply_request(self, event: Any) -> Any:
         if isinstance(event, ReqRepRequest):
             return event.value
         return event

@@ -9,8 +9,6 @@ from venusian import Scanner, attach as _attach
 
 __all__ = ['Scanner', 'attach']
 
-Scanner = venusian.Scanner
-
 
 def attach(fun: Callable, category: str, *,
            callback: Callable[[Scanner, str, Any], None] = None,

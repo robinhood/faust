@@ -23,7 +23,6 @@ from typing import (
 )
 
 import click
-import venusian
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
 from mode.utils.compat import want_bytes
