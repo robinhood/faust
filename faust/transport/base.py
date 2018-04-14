@@ -321,7 +321,8 @@ class Consumer(Service, ConsumerT):
             # set commit_fut to None so that next call will commit.
             fut, self._commit_fut = self._commit_fut, None
             # notify followers that the commit is done.
-            fut.set_result(None)
+            if fut is not None:
+                fut.set_result(None)
 
     @Service.transitions_to(CONSUMER_COMMITTING)
     async def force_commit(self, topics: TPorTopicSet = None) -> bool:
