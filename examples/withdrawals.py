@@ -39,86 +39,27 @@ app = faust.App(
 )
 withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
 
-
-user_to_total = app.Table(
-    'user_to_total', default=int,
-).tumbling(3600).relative_to_stream()
+user_to_total = app.Table('user_to_total', default=int)
+    #).tumbling(3600).relative_to_stream()
 
 country_to_total = app.Table(
-    'country_to_total', default=int,
-).tumbling(10.0, expires=10.0).relative_to_stream()
-
-
-class State:
-    i: int = 0
-    time_start: float = None
-
-
-state = State()
-
-
-def track(withdrawal: Withdrawal, *, state: State = state) -> None:
-    time_start = state.time_start
-    if time_start is None:
-        time_start = state.time_start = monotonic()
-    state.i += 1
-    if not state.i % 10_000:
-        print(f'TIME FOR 10k: {monotonic() - time_start}')
-        print(f'WITHDRAWAL: {withdrawal!r}')
-        state.time_start = None
+    'country_to_total', default=int)
+#).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
-    async for i, withdrawal in withdrawals.enumerate():
-        track(withdrawal)
-        #user_to_total[withdrawal.user] += withdrawal.amount
+    async for withdrawal in withdrawals:
+        print(f'WITHDRAWAL: {withdrawal!r}')
+        user_to_total[withdrawal.user] += withdrawal.amount
+        print(f'TOTAL NOW: {user_to_total[withdrawal.user]}')
 
 
-#@app.agent(withdrawals_topic)
-#async def ag2(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-#@app.agent(withdrawals_topic)
-#async def ag3(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-#@app.agent(withdrawals_topic)
-#async def ag4(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-
-#@app.agent(withdrawals_topic)
-#async def ag5(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-#@app.agent(withdrawals_topic)
-#async def ag6(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-#@app.agent(withdrawals_topic)
-#async def ag7(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-#@app.agent(withdrawals_topic)
-#async def ag8(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
-
-#@app.agent(withdrawals_topic)
-#async def ag9(withdrawals):
-#    async for withdrawal in withdrawals.enumerate():
-#        track(withdrawal)
 #@app.agent(withdrawals_topic)
 #async def track_country_withdrawal(withdrawals):
-    #async for withdrawal in withdrawals.group_by(Withdrawal.country):
-        #country_to_total[withdrawal.country] += withdrawal.amount
+#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+#        country_to_total[withdrawal.country] += withdrawal.amount
+#        print(f'COUNTRY TOTAL NOW: {user_to_total[withdrawal.user]}')
 
 
 @app.command(

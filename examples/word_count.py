@@ -18,18 +18,14 @@ word_counts = app.Table('word_counts', default=int,
                         help='Keep count of words (str to int).')
 
 
-class Word(faust.Record):
-    word: str
-
-
 @app.agent(posts_topic)
 async def shuffle_words(posts):
     async for post in posts:
         for word in post.split():
-            await count_words.send(key=word, value=Word(word=word))
+            await count_words.send(key=word, value=word)
 
 
-@app.agent()
+@app.agent(value_type=str)
 async def count_words(words):
     """Count words from blog post article body."""
     async for word in words:
