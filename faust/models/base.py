@@ -156,11 +156,17 @@ class Model(ModelT):
             pass
         else:
             # we only allow blessed keys when type=None, or type=Model
-            if (preferred_type is None or
-                    preferred_type is ModelT or
-                    preferred_type is Model):
+            type_is_abstract = (preferred_type is None or
+                                preferred_type is ModelT or
+                                preferred_type is Model)
+            try:
                 model = registry[ns]
-                if model._options.allow_blessed_key:
+            except KeyError:
+                if type_is_abstract:
+                    raise
+                return None
+            else:
+                if type_is_abstract or model._options.allow_blessed_key:
                     return model
         return None
 

@@ -118,7 +118,9 @@ first test ``foo`` with ``bar`` mocked, then in a different test do ``bar``:
 
     @pytest.fixture()
     def test_app():
+        app.finalize()
         app.conf.store = 'memory://'
+        app.flow_control.resume()
         return app
 
     @pytest.mark.asyncio()

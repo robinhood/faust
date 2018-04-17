@@ -27,7 +27,9 @@ async def process_order(orders):
 
 @pytest.mark.asyncio()
 async def test_process_order():
+    app.finalize()
     app.conf.store = 'memory://'
+    app.flow_control.resume()
     async with process_order.test_context() as agent:
         order = Order(account_id='1', product_id='2', amount=1, price=300)
         event = await agent.put(order)

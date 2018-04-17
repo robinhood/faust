@@ -109,7 +109,8 @@ VALUE_TESTS = [
     Case(ACCOUNT1_UNBLESSED_JSON, Account, 'json', ACCOUNT1),
 
     # source blessed User json -> User (!!!)
-    Case(USER1.dumps(serializer='json'), Account, 'json', USER1),
+    # value_type is None so it accepts any type
+    Case(USER1.dumps(serializer='json'), None, 'json', USER1),
 ]
 
 

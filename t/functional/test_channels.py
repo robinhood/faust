@@ -78,6 +78,7 @@ def test_clone(app):
 
 @pytest.mark.asyncio
 async def test_send_receive(app):
+    app.flow_control.resume()
     channel1 = app.channel(maxsize=10)
     channel2 = app.channel(maxsize=1)
     with pytest.raises(RuntimeError):

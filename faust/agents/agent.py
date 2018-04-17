@@ -316,6 +316,9 @@ class Agent(AgentT, ServiceProxy):
                      channel: ChannelT = None,
                      supervisor_strategy: SupervisorStrategyT = None,
                      **kwargs: Any) -> AgentTestWrapperT:
+        # flow control into channel queues are disabled at startup,
+        # so need to resume that.
+        self.app.flow_control.resume()
         return self.clone(
             cls=AgentTestWrapper,
             channel=channel if channel is not None else self.app.channel(),

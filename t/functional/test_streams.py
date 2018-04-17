@@ -21,6 +21,7 @@ def _new_stream(app, channel, *args, **kwargs):
 def _prepare_app(app):
     loop = asyncio.get_event_loop()
     app.loop = loop
+    app.flow_control.resume()  # <-- flow control initially suspended
     return app
 
 
@@ -207,6 +208,5 @@ async def _start_stop_stream(stream):
 async def test_start_and_stop_Stream(app):
     s = new_topic_stream(app).group_by(lambda k: k, name='foo-bar')
     await _start_stop_stream(s)
-    print(list(app.topics._topics))
     assert not app.topics._topics
     await app.producer.stop()
