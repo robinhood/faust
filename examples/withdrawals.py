@@ -50,16 +50,18 @@ country_to_total = app.Table(
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
-        print(f'WITHDRAWAL: {withdrawal!r}')
+        # print(f'WITHDRAWAL: {withdrawal!r}')
         user_to_total[withdrawal.user] += withdrawal.amount
-        print(f'TOTAL NOW: {user_to_total[withdrawal.user]}')
+        await track_country_withdrawal.send(key=withdrawal.country,
+                                            value=withdrawal)
+        # print(f'TOTAL NOW: {user_to_total[withdrawal.user]}')
 
 
-#@app.agent(withdrawals_topic)
-#async def track_country_withdrawal(withdrawals):
-#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
-#        country_to_total[withdrawal.country] += withdrawal.amount
-#        print(f'COUNTRY TOTAL NOW: {user_to_total[withdrawal.user]}')
+@app.agent()
+async def track_country_withdrawal(withdrawals):
+   async for withdrawal in withdrawals:
+       country_to_total[withdrawal.country] += withdrawal.amount
+       # print(f'COUNTRY TOTAL NOW: {user_to_total[withdrawal.user]}')
 
 
 @app.command(
@@ -78,7 +80,6 @@ async def produce(self, max_latency: float, max_messages: int):
             self.say(f'+SEND {i}')
         if max_latency:
             await asyncio.sleep(random.uniform(0, max_latency))
-
 
 
 def generate_withdrawals_dict(n: int = None):
