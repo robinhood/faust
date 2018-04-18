@@ -258,12 +258,12 @@ class Conductor(ConductorT, Service):
     def add(self, topic: Any) -> None:
         if topic not in self._topics:
             self._topics.add(topic)
-            self._flag_changes()
+            topicmap = self._topicmap
+            if topicmap and any(t not in topicmap for t in topic.topics):
+                self._flag_changes()
 
     def discard(self, topic: Any) -> None:
         self._topics.discard(topic)
-        self.beacon.discard(topic)
-        self._flag_changes()
 
     def _flag_changes(self) -> None:
         if self._subscription_changed is not None:
