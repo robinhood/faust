@@ -62,7 +62,7 @@ async def track_user_withdrawal(withdrawals):
 
 
 async def something(x, y):
-    await asyncio.sleep(0)
+    await asyncio.sleep(random.uniform(0.000001, 0.001))
     return x + y
 
 
