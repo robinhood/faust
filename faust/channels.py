@@ -1,7 +1,8 @@
 """Channel.
 
-A channel is just like an :class:`asyncio.Queue`: you can subscribe to it,
-and send things to it.
+A channel is used to send values to streams.
+
+The stream will iterate over incoming events in the channel.
 
 """
 import asyncio
@@ -45,13 +46,13 @@ class Channel(ChannelT):
     """Create new channel.
 
     Arguments:
-        app: The app this channel is used with.
-             Note: Channels are usually created by calling ``app.channel()``
+        app: The app that created this channel (``app.channel()``)
 
         key_type:  The Model used for keys in this channel.
         value_type: The Model used for values in this channel.
-        maxsize: Max number of messages the channel can hold before
-           if exceeded ``put`` calls will block until a message is removed.
+        maxsize: The maximum number of messages this channel can hold.
+                 If exceeded any new ``put`` call will block until a message
+                 is removed from the channel.
         loop: The asyncio event loop to use.
     """
 
@@ -110,10 +111,13 @@ class Channel(ChannelT):
                          if is_iterator is not None else self.is_iterator),
             **{**self._clone_args(), **kwargs})
         (self._root or self)._subscribers.add(subchannel)
-        subchannel.queue  # make sure queue is created early
+        # make sure queue is created at this point
+        # ^ it's a cached_property
+        subchannel.queue
         return subchannel
 
     def _clone_args(self) -> Mapping:
+        # How to create a copy of this channel.
         return {
             'app': self.app,
             'loop': self.loop,

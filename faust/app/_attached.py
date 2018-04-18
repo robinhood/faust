@@ -22,8 +22,21 @@ __all__ = ['Attachment', 'Attachments']
 
 class Attachment(NamedTuple):
     # Tuple used in heapq entry for Attachments._pending
-    # These are used to send messages when an offset is committed
-    # (sending of the message is attached to an offset in a source topic).
+    # These are used to delay producing of messages until source offset is
+    # committed:
+    #
+    # @app.agent(source_topic)
+    # async def process(stream):
+    #    async for value in stream:
+    #        await other_topic.send(value)  # does not send here!
+    #
+    # sending of the message is attached to the offset of value in the source
+    # topic, so that when the event is acked, only then do we send the
+    # message.  This gives better consistency: if we reprocess the event
+    # we don't send messages twice.
+    #
+    # Note though: we need Kafka transactions to cover all cases of
+    # inconsistencies.
     offset: int
     message: Unordered[FutureMessage]
 

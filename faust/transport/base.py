@@ -321,7 +321,8 @@ class Consumer(Service, ConsumerT):
             # set commit_fut to None so that next call will commit.
             fut, self._commit_fut = self._commit_fut, None
             # notify followers that the commit is done.
-            fut.set_result(None)
+            if fut is not None:
+                fut.set_result(None)
 
     @Service.transitions_to(CONSUMER_COMMITTING)
     async def force_commit(self, topics: TPorTopicSet = None) -> bool:
@@ -488,6 +489,7 @@ class Producer(Service, ProducerT):
         self.linger_ms = conf.producer_linger_ms
         self.max_batch_size = conf.producer_max_batch_size
         self.acks = conf.producer_acks
+        self.max_request_size = conf.producer_max_request_size
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 
     async def send(self, topic: str, key: Optional[bytes],

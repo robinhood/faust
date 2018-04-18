@@ -32,10 +32,12 @@ import inspect
 from operator import attrgetter
 from typing import (
     Any,
+    Callable,
     ClassVar,
     Iterable,
     MutableMapping,
     Optional,
+    Tuple,
     Type,
 )
 
@@ -133,7 +135,12 @@ class Model(ModelT):
     _blessed_key = '__faust'
 
     @classmethod
-    def _maybe_namespace(cls, data: Any) -> Optional[Type[ModelT]]:
+    def _maybe_namespace(
+            cls, data: Any,
+            *,
+            preferred_type: Type[ModelT] = None,
+            fast_types: Tuple[Type, ...] = (bytes, str),
+            isinstance: Callable = isinstance) -> Optional[Type[ModelT]]:
         # The serialized data may contain a ``__faust`` blessed key
         # holding the name of the model it should be deserialized as.
         # So even if value_type=MyModel, the data may mandata that it
@@ -141,13 +148,26 @@ class Model(ModelT):
 
         # This is how we deal with Kafka's lack of message headers,
         # as needed by the RPC mechanism, without wrapping all data.
-        if data is not None:
-            if isinstance(data, (bytes, str)):
-                return None
+        if data is None or isinstance(data, fast_types):
+            return None
+        try:
+            ns = data[cls._blessed_key]['ns']
+        except (KeyError, TypeError):
+            pass
+        else:
+            # we only allow blessed keys when type=None, or type=Model
+            type_is_abstract = (preferred_type is None or
+                                preferred_type is ModelT or
+                                preferred_type is Model)
             try:
-                return registry[data[cls._blessed_key]['ns']]
-            except (KeyError, TypeError):
-                pass
+                model = registry[ns]
+            except KeyError:
+                if type_is_abstract:
+                    raise
+                return None
+            else:
+                if type_is_abstract or model._options.allow_blessed_key:
+                    return model
         return None
 
     @classmethod
@@ -175,6 +195,7 @@ class Model(ModelT):
                           include_metadata: bool = True,
                           isodates: bool = False,
                           abstract: bool = False,
+                          allow_blessed_key: bool = False,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -186,7 +207,13 @@ class Model(ModelT):
         #   cls.__is_abstract__ = False
         # To fix this we simply delegate to a _init_subclass classmethod.
         cls._init_subclass(
-            serializer, namespace, include_metadata, isodates, abstract)
+            serializer,
+            namespace,
+            include_metadata,
+            isodates,
+            abstract,
+            allow_blessed_key,
+        )
 
     @classmethod
     def _init_subclass(cls,
@@ -194,7 +221,8 @@ class Model(ModelT):
                        namespace: str = None,
                        include_metadata: bool = True,
                        isodates: bool = False,
-                       abstract: bool = False) -> None:
+                       abstract: bool = False,
+                       allow_blessed_key: bool = False) -> None:
         if abstract:
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
@@ -218,6 +246,7 @@ class Model(ModelT):
         options.include_metadata = include_metadata
         options.namespace = namespace or canoname(cls)
         options.isodates = isodates
+        options.allow_blessed_key = allow_blessed_key
 
         # Add introspection capabilities
         cls._contribute_to_options(options)
@@ -231,6 +260,10 @@ class Model(ModelT):
         # models by namespace.
         registry[options.namespace] = cls
 
+        cls._model_init = cls._BUILD_init()
+        if '__init__' not in cls.__dict__:
+            cls.__init__ = cls._model_init
+
     @classmethod
     @abc.abstractmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
@@ -242,6 +275,11 @@ class Model(ModelT):
                                       target: Type,
                                       options: ModelOptions,
                                       parent: FieldDescriptorT = None) -> None:
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _BUILD_init(cls) -> Callable[[], None]:
         ...
 
     @abc.abstractmethod

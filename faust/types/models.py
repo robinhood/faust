@@ -52,6 +52,7 @@ class ModelOptions(abc.ABC):
     serializer: CodecArg = None
     namespace: str = None
     include_metadata: bool = True
+    allow_blessed_key: bool = False
     isodates: bool = False
 
     #: Index: Flattened view of __annotations__ in MRO order.
@@ -80,17 +81,22 @@ class ModelOptions(abc.ABC):
     #: Mapping of field names to default value.
     defaults: Mapping[str, Any] = None  # noqa: E704 (flake8 bug)
 
+    #: Mapping of init field conversion callbacks.
+    initfield: Mapping[str, Callable[[Any], Any]] = None
+
 
 base = abc.ABC if abc_compatible_with_init_subclass else object
 
 
 class ModelT(base):  # type: ignore
+    __is_model__: ClassVar[bool] = True
 
     _options: ClassVar[ModelOptions]
 
     @classmethod
     @abc.abstractmethod
-    def from_data(cls, data: Any) -> 'ModelT':
+    def from_data(cls, data: Any, *,
+                  preferred_type: Type['ModelT'] = None) -> 'ModelT':
         ...
 
     @classmethod

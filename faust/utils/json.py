@@ -1,8 +1,16 @@
 """JSON utilities."""
 import datetime
+import enum
 import uuid
 from decimal import Decimal
 from typing import Any, List, Optional, Tuple, Type
+
+__all__ = [
+    'JSONEncoder',
+    'dumps',
+    'loads',
+    'str_to_decimal',
+]
 
 DEFAULT_TEXTUAL_TYPES: List[Type] = [Decimal, uuid.UUID, bytes]
 
@@ -25,15 +33,17 @@ except ImportError:
     import json  # type: ignore
     _JSON_DEFAULT_KWARGS = {}
 
-__all__ = [
-    'JSONEncoder',
-    'dumps',
-    'loads',
-    'str_to_decimal',
-]
-
 #: Max length for string to be converted to decimal.
 DECIMAL_MAXLEN = 1000
+
+#: Types that we convert to lists.
+SEQUENCE_TYPES: Tuple[type, ...] = (set,)
+
+#: Types that are datetimes and dates (-> .isoformat())
+DATE_TYPES: Tuple[type, ...] = (datetime.date, datetime.time)
+
+#: Types we use `return obj.value` for (Enum)
+VALUE_DELEGATE_TYPES: Tuple[type, ...] = (enum.Enum,)
 
 
 def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
@@ -62,17 +72,16 @@ def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
 
 
 class JSONEncoder(json.JSONEncoder):
-    """JSON Encoder.
 
-    Version of JSONEncoder that doesn't strip away microsecond
-    information.
-    """
+    # Our version of JSONEncoder keeps microsecond information
+    # in datetimes.
 
     def default(self,
                 o: Any,
                 *,
-                sequences: Tuple[type, ...] = (set,),
-                dates: Tuple[type, ...] = (datetime.date, datetime.time),
+                sequences: Tuple[type, ...] = SEQUENCE_TYPES,
+                dates: Tuple[type, ...] = DATE_TYPES,
+                value_delegate: Tuple[type, ...] = VALUE_DELEGATE_TYPES,
                 textual: Tuple[type, ...] = TEXTUAL_TYPES) -> Any:
         if isinstance(o, dates):
             if not isinstance(o, (datetime.datetime, datetime.time)):
@@ -81,6 +90,8 @@ class JSONEncoder(json.JSONEncoder):
             if r.endswith('+00:00'):
                 r = r[:-6] + 'Z'
             return r
+        elif isinstance(o, value_delegate):
+            return o.value
         elif isinstance(o, sequences):
             return list(o)
         elif isinstance(o, textual):

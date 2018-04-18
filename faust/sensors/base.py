@@ -20,8 +20,6 @@ class Sensor(SensorT, Service):
 
     def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
         """Message received by a consumer."""
-        # WARNING: Sensors must never keep a reference to the Message,
-        #          as this means the message won't go out of scope!
         ...
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,

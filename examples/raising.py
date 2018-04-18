@@ -39,27 +39,39 @@ app = faust.App(
 )
 withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
 
-#user_to_total = app.Table(
-#    'user_to_total', default=int,
-#).tumbling(3600).relative_to_stream()
+user_to_total = app.Table('user_to_total', default=int)
+    #).tumbling(3600).relative_to_stream()
 
-#country_to_total = app.Table(
-#    'country_to_total', default=int,
+country_to_total = app.Table(
+    'country_to_total', default=int)
 #).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
-@app.agent(withdrawals_topic, isolated_partitions=True)
+@app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
-    time_start = None
     i = 0
-    async for event in withdrawals.events():
+    async for withdrawal in withdrawals:
+        if not i:
+            await asyncio.sleep(10)
         i += 1
-        assert event.message.tp in withdrawals.active_partitions
-        if time_start is None:
-            time_start = monotonic()
-        if not i % 10_000:
-            print(f'TIME FOR 10k: {monotonic() - time_start}')
-            time_start = None
+        if not i % 1000:
+            print(f'TRACK USER WITHDRAWAL: {i}')
+        if not i % 1500:
+            raise KeyError('OH NO')
+        await something(i, i)
+
+
+async def something(x, y):
+    await asyncio.sleep(0)
+    return x + y
+
+
+#@app.agent(withdrawals_topic)
+#async def track_country_withdrawal(withdrawals):
+#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
+#        country_to_total[withdrawal.country] += withdrawal.amount
+#        print(f'COUNTRY TOTAL NOW: {user_to_total[withdrawal.user]}')
+
 
 @app.command(
     option('--max-latency',

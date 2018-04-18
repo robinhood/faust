@@ -1,6 +1,8 @@
+import abc
 from datetime import datetime
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
+from faust.types import ModelT
 from faust.utils import json
 import pytest
 
@@ -123,8 +125,7 @@ def test_parameters_with_custom_init_and_super():
         x: int
         y: int
 
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
+        def __post_init__(self):
             self.z = self.x + self.y
 
     p = Point(30, 10)
@@ -272,9 +273,17 @@ def test_constructor_from_data():
 
 @pytest.mark.parametrize('a,b', [
     (User(id=1, username=2, account=Account(id=1, name=2)),
-     User(id=1, username=2, account=Account(id=2, name=2))),
+     User(id=1, username=2, account=Account(id=1, name=2))),
+    (User(id=1, username=2, account=Account(id=1, name=2, active=False)),
+     User(id=1, username=2, account=Account(id=1, name=2, active=False))),
+])
+def test_eq(a, b):
+    assert a == b
+
+
+@pytest.mark.parametrize('a,b', [
     (User(id=1, username=2, account=Account(id=1, name=2)),
-     User(id=2, username=2, account=Account(id=1, name=2))),
+     User(id=2, username=2, account=Account(id=2, name=2))),
     (User(id=1, username=2, account=Account(id=1, name=2)),
      User(id=1, username=3, account=Account(id=1, name=2))),
     (User(id=1, username=2, account=Account(id=1, name=2)),
@@ -363,7 +372,7 @@ class test_too_many_arguments_raises_TypeError():
     with pytest.raises(TypeError) as einfo:
         Y(10, 20, 30)
     reason = str(einfo.value)
-    assert reason == 'Y() takes 2 positional arguments but 3 were given'
+    assert reason == '__init__() takes 3 positional arguments but 4 were given'
 
 
 def test_fields_with_way_too_much_of_a_concrete_type__dict():
@@ -409,3 +418,212 @@ def test_fields_with_way_too_much_of_a_concrete_type__frozenset():
     class X(Record, isodates=True):
         foo: int
         details: frozenset
+
+
+def test_supports_post_init():
+
+    class X(Record):
+        x: int
+        y: int
+
+        def __post_init__(self):
+            self.z: int = self.x + self.y
+
+    x = X(1, 3)
+    assert x.z == 4
+
+
+def test_default_no_blessed_key():
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record):
+        a: int
+
+    class Y(Record):
+        x: X
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = Y.loads(data, default_serializer='json')
+    assert isinstance(y2.x, X)
+
+
+def test_default_multiple_levels_no_blessed_key():
+
+    class StdAttribution(Record):
+        first_name: str
+        last_name: str
+
+    class Address(Record):
+        country: str
+
+    class Account(StdAttribution):
+        address: Address
+
+    class Event(Record):
+        account: Account
+
+    event = Event(account=Account(
+        first_name='George',
+        last_name='Costanza',
+        address=Address('US'),
+    ))
+    s = event.loads(event.dumps(serializer='json'), default_serializer='json')
+    assert isinstance(s.account, Account)
+    assert isinstance(s.account.address, Address)
+
+
+def test_enabled_blessed_key(app):
+
+    class X(Record):
+        a: int
+
+    class LooksLikeX(Record, allow_blessed_key=True):
+        a: int
+
+    class Y(Record):
+        x: LooksLikeX
+
+    x = LooksLikeX(303)
+    y = Y(x)
+
+    data = Y.dumps(y, serializer='json')
+    y2 = app.serializers.loads_key(Y, data, serializer='json')
+    assert isinstance(y2.x, LooksLikeX)
+
+
+def test_blessed_key_deeply_nested():
+
+    class BaseAttribution(Record, abc.ABC):
+
+        def __post_init__(self, *args, **kwargs) -> None:
+            self.data_store = None
+
+    class AdjustData(Record):
+        activity_kind: str
+
+    class Event(Record):
+        category: str
+        event: str
+        data: AdjustData
+
+    class AdjustRecord(BaseAttribution):
+        event: Event
+
+    x = AdjustRecord(Event(
+        category='foo',
+        event='bar',
+        data=AdjustData('baz'),
+    ))
+    value = x.dumps(serializer='json')
+    value_dict = json.loads(value)
+    value_dict['event']['__faust']['ns'] = 'x.y.z'
+    model = AdjustRecord.from_data(value_dict)
+    assert isinstance(model.event, Event)
+    assert isinstance(model.event.data, AdjustData)
+
+
+ADTRIBUTE_PAYLOAD = """
+{"user": {"username": "3da6ef8f-aed1-47e7-ad4f-034363d0565b",
+ "secret": null, "__faust": {"ns": "trebuchet.models.logging.User"}},
+ "device": {"platform": "iOS",
+ "device_id": "F5FA74CE-0F17-491F-A6B1-AAE1D036CBF2",
+ "os_version": "11.2.6", "manufacturer": "phone",
+ "device_version": "iPhone8,2", "screen_resolution": null,
+ "source": null, "campaign": null,
+ "campaign_version": null, "adid": null,
+ "engagement_time": null,
+ "__faust": {"ns": "trebuchet.models.logging.Device"}},
+ "app": {"version": "4667", "app_id": "com.robinhood.release.Robinhood",
+ "build_num": null, "locale": null, "language": null,
+ "__faust": {"ns": "trebuchet.models.logging.App"}},
+ "event": {"category": "adjust_data", "event": "attribution",
+ "experiments": null, "session_id": null, "data":
+ {"activity_kind": "session", "network_name": "Organic",
+ "adid": "04df21c2ef05a91598e13c82096d921b",
+ "tracker": "494pkq", "reftag": "oJuX55u4N4OI4",
+ "nonce": "mt5lyv18d", "campaign_name": "",
+ "adgroup_name": "", "creative_name": "", "click_referer": "",
+ "is_organic": "1", "reattribution_attribution_window": "",
+ "impression_attribution_window": "", "store": "itunes",
+ "match_type": "", "platform_adid": "", "search_term": "",
+ "event_name": "", "installed_at": "2017-09-02 00:28:03.000",
+ "engagement_time": null, "deeplink": "",
+ "source_user": "", "__faust": {
+ "ns": "trebuchet.models.logging_data.AdjustData"}},
+ "__faust": {"ns": "trebuchet.models.logging.Event"}},
+ "timestamp": "2018-03-22 16:57:19.000", "client_ip": "174.207.10.101",
+ "event_hash": "50c9a0e19b9644abe269aadcea9e7526", "__faust": {
+    "ns": "trebuchet.models.logging.LoggingEvent"}}
+"""
+
+
+def test_adtribute_payload(app):
+
+    class BaseAttribution(Record, abc.ABC):
+
+        def __post_init__(self) -> None:
+            self.data_store = None
+
+    class AdjustData(Record):
+
+        activity_kind: str
+        network_name: str
+        adid: str
+        tracker: str
+        reftag: str
+        nonce: str
+        campaign_name: str = None
+        adgroup_name: str = None
+        creative_name: str = None
+        click_referer: str = None
+        is_organic: str = None
+        reattribution_attribution_window: str = None
+        impression_attribution_window: str = None
+        store: str = None
+        match_type: str = None
+        platform_adid: str = None
+        search_term: str = None
+        event_name: str = None
+        installed_at: str = None
+        engagement_time: str = None
+        deeplink: str = None
+        source_user: str = None
+
+    class User(Record):
+        username: str
+
+    class App(Record):
+        version: str
+        app_id: str
+
+    class Device(Record):
+        platform: str
+        device_id: str
+        os_version: str
+        device_version: str
+        manufacturer: str
+
+    class Event(Record):
+        category: str
+        event: str
+        data: AdjustData
+
+    class AdjustRecord(BaseAttribution):
+        user: User
+        device: Device
+        app: App
+        event: Event
+        timestamp: str
+        client_ip: str = None
+        event_hash: str = None
+
+    def __post_init__(self) -> None:
+        self.data_store = None
+
+    app.serializers.loads_value(
+        AdjustRecord, ADTRIBUTE_PAYLOAD, serializer='json')

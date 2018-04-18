@@ -17,7 +17,7 @@ IsInstanceArg = Tuple[Type, ...]
 
 
 class Registry(RegistryT):
-    """Registry for serialization/deserialization.
+    """Serializing message keys/values.
 
     Arguments:
         key_serializer: Default key serializer to use when none provided.
@@ -111,7 +111,7 @@ class Registry(RegistryT):
             return want_bytes(value)
         else:
             # type set to Model
-            return cast(ModelT, typ).from_data(value)
+            return cast(ModelT, typ).from_data(value, preferred_type=typ)
 
     def dumps_key(self,
                   typ: Optional[ModelArg],

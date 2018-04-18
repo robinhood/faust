@@ -153,7 +153,8 @@ def qualname(obj: Any) -> str:
     """Get object qualified name."""
     if not hasattr(obj, '__name__') and hasattr(obj, '__class__'):
         obj = obj.__class__
-    return '.'.join((obj.__module__, obj.__name__))
+    name = getattr(obj, '__qualname__', obj.__name__)
+    return '.'.join((obj.__module__, name))
 
 
 def canoname(obj: Any, *, main_name: str = None) -> str:

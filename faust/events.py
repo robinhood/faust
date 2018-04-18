@@ -26,12 +26,23 @@ class Event(EventT):
     """An event received on a channel.
 
     Notes:
-        - Events are delivered to channels/topics::
+
+        - Events have a key and a value::
+
+            event.key, event.value
+
+        - They also have a reference to the original message
+          (if available), such as a Kafka record:
+
+            event.message.offset
+
+        - Iteratiing over channels/topics yields Event:
 
             async for event in channel:
                 ...
 
-        - Streams iterate over channels and yields values::
+        - Iterating over a stream (that in turn iterate over channel) yields
+          Event.value::
 
             async for value in channel.stream()  # value is event.value
                 ...
@@ -63,10 +74,8 @@ class Event(EventT):
               - Get access to message properties like, what topic+partition
                 the value was received on, or its offset.
 
-          Note that if you want access to both key and value, you should use
+          If you want access to both key and value, you should use
           ``stream.items()`` instead.
-
-            For example:
 
             .. sourcecode:: python
 
@@ -78,23 +87,8 @@ class Event(EventT):
             such as ``.group_by(key)`` and ``.through(topic)`` returns cloned
             stream objects, so in the example:
 
-            .. sourcecode:: python
-
-                @app.agent(topic)
-                async def process(stream):
-                    async for value in stream.through(other_topic):
-                        event = stream.current_event
-
-            will not work *because the stream being iterated over and the
-            ``stream`` argument passed to the agent are now different objects*.
-
-            To safely access the current event having just a stream object
-            you should use::
-
-                current_event = stream.get_active_stream().current_event
-
-            But even easier would be to use the context var that will always
-            point to the current event in the current :class:`asyncio.Task`:
+            The best way to access the current_event in an agent is
+            to use the contextvar:
 
             .. sourcecode:: python
 

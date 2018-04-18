@@ -1,4 +1,4 @@
-"""Windowing strategies."""
+"""Window Types."""
 from typing import List
 from mode import Seconds, want_seconds
 from .types import WindowRange, WindowT

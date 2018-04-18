@@ -27,9 +27,9 @@ class ServerThread(ServiceThread):
         await super().start()
         # thread exceptions do not propagate to the main thread, so we
         # need some way to communicate socket open errors, such as "port in
-        # use", etc. back to the parent.  This future is set to an exception
-        # if that happens, and it awaiting it here will reraise the error
-        # in the parent thread.
+        # use", back to the parent thread.  The _port_open future is set to
+        # an exception state when that happens, and awaiting will propagate
+        # the error to the parent thread.
         try:
             await self._port_open
         finally:
@@ -45,7 +45,7 @@ class ServerThread(ServiceThread):
         await super().crash(exc)
 
     async def on_thread_stop(self) -> None:
-        # on_stop() executes in parent thread, on_thread_stop in thread.
+        # on_stop() executes in parent thread, on_thread_stop in the thread.
         await self.web.stop_server(self.loop)
 
 
@@ -54,7 +54,7 @@ class Web(base.Web):
 
     driver_version = f'aiohttp={aiohttp_version}'
 
-    #: We serve the web server in a separate thread, with its own even loop.
+    #: We serve the web server in a separate thread (and separate event loop).
     _thread: ServerThread = None
 
     def __init__(self,

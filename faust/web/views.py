@@ -2,8 +2,6 @@
 import inspect
 from typing import Any, Awaitable, Callable, Mapping, Type, cast
 
-import venusian
-
 from faust.types import AppT
 from faust.types.web import PageArg, ViewGetHandler
 
@@ -99,10 +97,6 @@ class Site:
     def enable(self, web: Web, *, prefix: str = '') -> None:
         for pattern, view in self.views.items():
             web.route(prefix + pattern, view(self.app, web).dispatch)
-
-    def on_discovered(self, scanner: venusian.Scanner, name: str,
-                      obj: 'Site') -> None:
-        ...
 
     @classmethod
     def from_handler(cls, path: str, *,

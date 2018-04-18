@@ -117,9 +117,8 @@ class ChangelogReader(Service, ChangelogReaderT):
         tps = self.tps
         for tp in tps:
             offset = self.offsets[tp]
-            # self.log.info(f'Seeking {tp} to offset: {offset}')
             if offset >= 0:
-                # FIXME: Remove check when fixed offset-1 discrepancy
+                # FIXME Remove check when fixed offset-1 discrepancy
                 await consumer.seek(tp, offset)
                 assert await consumer.position(tp) == offset
 
@@ -216,6 +215,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                 elif not remaining and can_log_done:
                     can_log_done = False
                     self.log.info('All up to date')
+                    break
         except StopAsyncIteration:
             self.log.info('Got stop iteration')
             pass

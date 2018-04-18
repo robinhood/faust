@@ -23,7 +23,6 @@ from typing import (
 )
 
 import click
-import venusian
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
 from mode.utils.compat import want_bytes
@@ -379,10 +378,6 @@ class Command(abc.ABC):
         self.args = args
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
-
-    def on_discovered(self, scanner: venusian.Scanner, name: str,
-                      obj: 'Command') -> None:
-        ...
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:

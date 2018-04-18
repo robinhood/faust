@@ -24,10 +24,8 @@ from typing import (
 from uuid import uuid4
 from weakref import WeakSet, WeakValueDictionary
 
-import venusian
 from mode import (
     CrashingSupervisor,
-    OneForOneSupervisor,
     Service,
     ServiceT,
     SupervisorStrategyT,
@@ -84,8 +82,6 @@ __all__ = [
     'AwaitableActor',
     'Agent',
 ]
-
-SUPERVISOR_STRATEGY: Type[SupervisorStrategyT] = OneForOneSupervisor
 
 # --- What is an agent?
 #
@@ -241,7 +237,10 @@ class AgentService(Service):
 
     async def on_start(self) -> None:
         agent = self.agent
-        self.supervisor = agent.supervisor_strategy(
+        SupervisorStrategy = agent.supervisor_strategy
+        if SupervisorStrategy is None:
+            SupervisorStrategy = self.agent.app.conf.agent_supervisor
+        self.supervisor = SupervisorStrategy(
             max_restarts=100.0,
             over=1.0,
             replacement=self._replace_actor,
@@ -424,6 +423,9 @@ class Agent(AgentT, ServiceProxy):
                      channel: ChannelT = None,
                      supervisor_strategy: SupervisorStrategyT = None,
                      **kwargs: Any) -> AgentTestWrapperT:
+        # flow control into channel queues are disabled at startup,
+        # so need to resume that.
+        self.app.flow_control.resume()
         return self.clone(
             cls=AgentTestWrapper,
             channel=channel if channel is not None else self.app.channel(),
@@ -508,10 +510,10 @@ class Agent(AgentT, ServiceProxy):
             loop=self.loop,
             active_partitions=active_partitions,
             **kwargs)
-        s.add_processor(self._process_reply)
+        s.add_processor(self._maybe_unwrap_reply_request)
         return s
 
-    def _process_reply(self, event: Any) -> Any:
+    def _maybe_unwrap_reply_request(self, event: Any) -> Any:
         if isinstance(event, ReqRepRequest):
             return event.value
         return event

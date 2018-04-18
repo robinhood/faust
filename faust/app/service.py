@@ -15,14 +15,21 @@ else:
 class AppService(Service):
     """Service responsible for starting/stopping an application."""
 
-    # The App() is created during module import and cannot subclass Service
-    # directly as Service.__init__ creates the asyncio event loop, and
-    # creating the event loop as a side effect of importing a module
-    # is a dangerous practice (e.g., if you switch to uvloop after you can
-    # end up in a situation where some services use the old loop).
+    # Service.__init__ needs the event loop to create asyncio.Events.
+    # This means it creates the event loop if it does not exist:
+    #    asyncio.get_event_loop()
+    # This is usually fine, but the app is also defined at module-scope:
+    #
+    #   # myproj/app.py
+    #   import faust
+    #   app = faust.App('myapp')
+    #
+    #  This means the event loop will be created too early, and that makes
+    #  it difficult to install a different event loop policy
+    #  (asyncio.set_event_loop_policy).
 
     # To solve this we use ServiceProxy to split into App + AppService,
-    # in a way such that the AppService is started lazily when first needed.
+    # in a way such that Service.__init__ is called lazily when first needed.
 
     _extra_service_instances: List[ServiceT] = None
 
@@ -33,7 +40,7 @@ class AppService(Service):
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         # Client-Only: Boots up enough services to be able to
         # produce to topics and receive replies from topics.
-        # XXX If we switch to socket RPC using routers we can remove this.
+        # XXX Need better way to do RPC
         if self.app.client_only:
             return self._components_client()
         # Server: Starts everything.

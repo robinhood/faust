@@ -1,8 +1,9 @@
 **Simple**
-    Faust is extremely easy to use compared to other stream processing
-    solutions.  There's no DSL to limit your creativity, no restricted
-    set of operations to work from, and since Faust is a library, it can
-    integrate with just about anything.
+    Faust is extremely easy to use. To get started using other stream processing
+    solutions you have complicated hello-world projects, and
+    infrastructure requirements.  Faust only requires Kafka,
+    the rest is just Python, so If you know Python you can already use Faust to do
+    stream processing, and it can integrate with just about anything.
 
     Here's one of the easier applications you can make::
 
