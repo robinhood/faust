@@ -254,7 +254,11 @@ class Worker(mode.Worker):
         await super().on_first_start()  # <-- sets up logging
 
     def _setproctitle(self, info: str, *, ident: str = PSIDENT) -> None:
-        setproctitle(f'{ident} {info}')
+        setproctitle(f'{ident} -{info}- {self._proc_ident()}')
+
+    def _proc_ident(self) -> str:
+        conf = self.app.conf
+        return f'{conf.id} -p {self.web_port} {conf.datadir.absolute()}'
 
     async def on_execute(self) -> None:
         # This is called as soon as we starts
