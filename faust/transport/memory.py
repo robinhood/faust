@@ -7,7 +7,6 @@ from typing import (
     AsyncIterator,
     Awaitable,
     ClassVar,
-    Deque,
     Iterable,
     Mapping,
     MutableMapping,
@@ -19,6 +18,7 @@ from typing import (
 )
 
 from mode import Seconds
+from mode.utils.compat import Deque
 from mode.utils.futures import done_future
 from mode.utils.imports import symbol_by_name
 

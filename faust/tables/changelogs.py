@@ -2,7 +2,6 @@ import asyncio
 from typing import (
     Any,
     AsyncIterable,
-    Counter,
     Iterable,
     List,
     MutableMapping,
@@ -11,6 +10,7 @@ from typing import (
 )
 
 from mode import Service
+from mode.utils.compat import Counter
 from mode.utils.aiter import aenumerate
 from mode.utils.times import Seconds
 
