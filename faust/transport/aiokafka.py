@@ -162,6 +162,7 @@ class Consumer(base.Consumer):
             max_poll_records=None,
             max_partition_fetch_bytes=1048576 * 4,
             fetch_max_wait_ms=1500,
+            check_crcs=app.conf.check_crcs,
         )
 
     def _create_client_consumer(
@@ -175,6 +176,7 @@ class Consumer(base.Consumer):
                 transport.url, transport.default_port),
             enable_auto_commit=True,
             auto_offset_reset='earliest',
+            check_crcs=app.conf.check_crcs,
         )
 
     async def create_topic(self,

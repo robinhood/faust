@@ -170,6 +170,7 @@ class Settings(abc.ABC):
     autodiscover: AutodiscoverArg = False
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
+    check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
     origin: str = None
     key_serializer: CodecArg = 'json'
@@ -234,6 +235,7 @@ class Settings(abc.ABC):
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
+            check_crcs: bool = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
@@ -301,6 +303,8 @@ class Settings(abc.ABC):
 
         if broker_commit_every is not None:
             self.broker_commit_every = broker_commit_every
+        if check_crcs is not None:
+            self.check_crcs = check_crcs
         if key_serializer is not None:
             self.key_serializer = key_serializer
         if value_serializer is not None:
