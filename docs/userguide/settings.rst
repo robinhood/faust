@@ -395,6 +395,14 @@ How often we commit messages that have been fully processed (:term:`acked`).
 How long time it takes before we warn that the Kafka commit offset has
 not advanced (only when processing messages).
 
+``broker_check_crcs``
+--------------------------
+
+:type: :class:`bool`
+:default: ``True`
+
+Automatically check the CRC32 of the records consumed.
+
 Advanced Table Settings
 =======================
 

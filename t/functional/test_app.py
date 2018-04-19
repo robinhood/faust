@@ -34,6 +34,7 @@ class test_settings:
         assert conf.broker_commit_every == settings.BROKER_COMMIT_EVERY
         assert (conf.broker_commit_livelock_soft_timeout ==
                 settings.BROKER_LIVELOCK_SOFT)
+        assert conf.broker_check_crcs
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
@@ -112,6 +113,7 @@ class test_settings:
                                  broker_commit_every=202,
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
+                                 broker_check_crcs=False,
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
                                  value_serializer='str',
@@ -140,6 +142,7 @@ class test_settings:
             broker_commit_every=broker_commit_every,
             broker_commit_interval=broker_commit_interval,
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
+            broker_check_crcs=broker_check_crcs,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -169,6 +172,7 @@ class test_settings:
         assert app.conf.broker_commit_interval == broker_commit_interval
         assert (app.conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)
+        assert app.conf.broker_check_crcs == broker_check_crcs
         assert app.conf.table_cleanup_interval == table_cleanup_interval
         assert app.conf.key_serializer == key_serializer
         assert app.conf.value_serializer == value_serializer
