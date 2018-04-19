@@ -2,7 +2,6 @@ import abc
 from datetime import datetime
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
-from faust.types import ModelT
 from faust.utils import json
 import pytest
 
