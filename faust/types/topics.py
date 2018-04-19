@@ -4,7 +4,7 @@ import typing
 from typing import Any, Mapping, Optional, Pattern, Sequence, Union
 
 from mode import Seconds
-from mode.utils.futures import ThrowableQueue
+from mode.utils.queues import ThrowableQueue
 
 from .channels import ChannelT
 from .codecs import CodecArg

@@ -15,7 +15,8 @@ from typing import (
     cast,
 )
 from mode import Seconds, get_logger
-from mode.utils.futures import ThrowableQueue, stampede
+from mode.utils.futures import stampede
+from mode.utils.queues import ThrowableQueue
 
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError

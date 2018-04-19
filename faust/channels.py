@@ -11,7 +11,8 @@ from typing import Any, Awaitable, Callable, Mapping, MutableSet, cast
 from weakref import WeakSet
 
 from mode import Seconds, get_logger, want_seconds
-from mode.utils.futures import ThrowableQueue, maybe_async, stampede
+from mode.utils.futures import maybe_async, stampede
+from mode.utils.queues import ThrowableQueue
 
 from .events import Event
 from .streams import current_event

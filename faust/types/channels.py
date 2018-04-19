@@ -4,7 +4,8 @@ import typing
 from typing import Any, AsyncIterator, Awaitable
 
 from mode import Seconds
-from mode.utils.futures import ThrowableQueue, stampede
+from mode.utils.futures import stampede
+from mode.utils.queues import ThrowableQueue
 
 from .codecs import CodecArg
 from .core import K, V

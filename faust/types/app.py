@@ -18,7 +18,8 @@ from typing import (
 )
 
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
-from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
+from mode.utils.futures import stampede
+from mode.utils.queues import FlowControlEvent, ThrowableQueue
 from mode.utils.types.trees import NodeT
 
 from faust.utils.objects import cached_property

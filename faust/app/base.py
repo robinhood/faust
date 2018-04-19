@@ -34,8 +34,9 @@ from mode.proxy import ServiceProxy
 from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
-from mode.utils.futures import FlowControlEvent, ThrowableQueue, stampede
+from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import, symbol_by_name
+from mode.utils.queues import FlowControlEvent, ThrowableQueue
 from mode.utils.types.trees import NodeT
 
 from faust import transport
