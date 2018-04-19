@@ -253,7 +253,7 @@ class Record(Model, abstract=True):
                   preferred_type: Type[ModelT] = None) -> 'Record':
         # check for blessed key to see if another model should be used.
         if hasattr(data, '__is_model__'):
-            return data
+            return cast(Record, data)
         else:
             self_cls = cls._maybe_namespace(
                 data, preferred_type=preferred_type)

@@ -111,7 +111,8 @@ class Registry(RegistryT):
             return want_bytes(value)
         else:
             # type set to Model
-            return cast(ModelT, typ).from_data(value, preferred_type=typ)
+            model = cast(ModelT, typ)
+            return model.from_data(value, preferred_type=model)
 
     def dumps_key(self,
                   typ: Optional[ModelArg],
