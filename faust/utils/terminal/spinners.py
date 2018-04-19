@@ -77,6 +77,7 @@ class Spinner:
     def finish(self) -> None:
         print(f'{self.bell * (self.width + 1)}', end='', file=self.file)
         self._finish(self.file)
+        self.stop()
 
     @classmethod
     def _finish(cls, file: IO, *, at_exit: bool = False) -> None:
