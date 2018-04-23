@@ -38,12 +38,12 @@ from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
 from faust.exceptions import ProducerSendError
+from faust.transport import base
+from faust.transport.consumer import CONSUMER_SEEKING
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 from faust.utils import terminal
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
-
-from . import base
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
@@ -279,7 +279,7 @@ class Consumer(base.Consumer):
         cast(Transport, self.transport)._topic_waiters.clear()
 
     async def perform_seek(self) -> None:
-        await self.transition_with(base.CONSUMER_SEEKING, self._perform_seek())
+        await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
 
     async def _perform_seek(self) -> None:
         read_offset = self._read_offset

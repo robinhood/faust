@@ -118,11 +118,14 @@ Transports
     :maxdepth: 1
 
     faust.transport
-    faust.transport.aiokafka
     faust.transport.base
-    faust.transport.ckafka
     faust.transport.conductor
-    faust.transport.memory
+    faust.transport.consumer
+    faust.transport.producer
+    faust.transport.drivers
+    faust.transport.drivers.aiokafka
+    faust.transport.drivers.ckafka
+    faust.transport.drivers.memory
 
 Assignor
 ========

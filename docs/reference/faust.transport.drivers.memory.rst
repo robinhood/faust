@@ -1,11 +1,11 @@
 =====================================================
- ``faust.transport.aiokafka``
+ ``faust.transport.drivers.memory``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.transport.aiokafka
+.. currentmodule:: faust.transport.drivers.memory
 
-.. automodule:: faust.transport.aiokafka
+.. automodule:: faust.transport.drivers.memory
     :members:
     :undoc-members:

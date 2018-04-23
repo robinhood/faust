@@ -27,19 +27,24 @@ from mode.utils.futures import StampedeWrapper, notify
 from yarl import URL
 
 from faust.exceptions import ImproperlyConfigured
+from faust.transport import base
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 
-from . import base
-
 try:
     import confluent_kafka
-    from confluent_kafka import TopicPartition as _TopicPartition
-    from confluent_kafka import KafkaException
+    from confluent_kafka import (  # type: ignore
+        TopicPartition as _TopicPartition,
+    )
+    from confluent_kafka import KafkaException  # type: ignore
 except ImportError:
     confluent_kafka = None
-    class _TopicPartition: ...            # noqa
-    class KafkaException(Exception): ...  # noqa
+
+    class _TopicPartition:  # type: ignore
+        ...
+
+    class KafkaException(Exception):  # type: ignore
+        ...
 
 if typing.TYPE_CHECKING:
     from confluent_kafka import Consumer as _Consumer

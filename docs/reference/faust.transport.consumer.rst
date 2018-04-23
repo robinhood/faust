@@ -1,11 +1,11 @@
 =====================================================
- ``faust.transport.memory``
+ ``faust.transport.consumer``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.transport.memory
+.. currentmodule:: faust.transport.consumer
 
-.. automodule:: faust.transport.memory
+.. automodule:: faust.transport.consumer
     :members:
     :undoc-members:

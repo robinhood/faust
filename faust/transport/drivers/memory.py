@@ -22,10 +22,9 @@ from mode.utils.compat import Deque
 from mode.utils.futures import done_future
 from mode.utils.imports import symbol_by_name
 
+from faust.transport import base
 from faust.types import Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
-
-from . import base
 
 # XXX mypy borks on `import faust`
 faust_version = symbol_by_name('faust:__version__')
