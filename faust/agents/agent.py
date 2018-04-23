@@ -352,10 +352,6 @@ class Agent(AgentT, ServiceProxy):
         for actor in self._actors:
             actor.cancel()
 
-    def on_discovered(self, scanner: venusian.Scanner, name: str,
-                      obj: AgentT) -> None:
-        ...
-
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         if self.isolated_partitions:
             return await self.on_isolated_partitions_revoked(revoked)
