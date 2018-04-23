@@ -7,10 +7,11 @@ from typing import (
     MutableMapping, NamedTuple, Union, cast,
 )
 
+from mode.utils.objects import Unordered
+
 from faust.streams import current_event
 from faust.types import AppT, ChannelT, CodecArg, K, RecordMetadata, TP, V
 from faust.types.tuples import FutureMessage, Message, MessageSentCallback
-from faust.utils.objects import Unordered
 
 if typing.TYPE_CHECKING:
     from faust.events import Event

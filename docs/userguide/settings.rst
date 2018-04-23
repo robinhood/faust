@@ -511,6 +511,32 @@ If your agent processors are not idempotent you may want to set this flag to
 :const:`True`, so that once processing an event started, it will not
 process that event again.
 
+Advanced Worker Settings
+========================
+
+.. setting:: worker_redirect_stdouts
+
+``worker_redirect_stdouts``
+---------------------------
+
+:type: :class:`bool`
+:default: :const:`True`
+
+Enable to have the worker redirect output to :data:`sys.stdout` and
+:data:`sys.stderr` to the Python logging system.
+
+Enabled by default.
+
+.. setting:: worker_redirect_stdouts_level
+
+``worker_redirect_stdouts_level``
+---------------------------------
+
+:type: :class:`str`/:class:`int`
+:default: :data:``logging.WARN``
+
+The logging level to use when redirect STDOUT/STDERR to logging.
+
 Advanced Web Server Settings
 ============================
 

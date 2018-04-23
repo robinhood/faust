@@ -4,11 +4,11 @@ from time import monotonic
 from typing import Any, cast
 
 from mode import label
+from mode.utils.objects import cached_property
 
 from faust.exceptions import ImproperlyConfigured
 from faust.types import CollectionT, EventT, Message, StreamT, TP
 from faust.types.transports import ConsumerT, ProducerT
-from faust.utils.objects import cached_property
 
 from .monitor import Monitor
 

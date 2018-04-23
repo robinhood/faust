@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from mode import Seconds, SupervisorStrategyT, want_seconds
 from mode.utils.imports import SymbolArg, symbol_by_name
+from mode.utils.logging import Severity
 from yarl import URL
 
 from faust.cli._env import DATADIR
@@ -190,6 +191,8 @@ class Settings(abc.ABC):
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
+    worker_redirect_stdouts: bool = True
+    worker_redirect_stdouts_level: Severity = 'WARN'
 
     _id: str = None
     _name: str = None
@@ -263,6 +266,8 @@ class Settings(abc.ABC):
             producer_max_batch_size: int = None,
             producer_acks: int = None,
             producer_max_request_size: int = None,
+            worker_redirect_stdouts: bool = None,
+            worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -335,6 +340,10 @@ class Settings(abc.ABC):
             self.producer_acks = producer_acks
         if producer_max_request_size is not None:
             self.producer_max_request_size = producer_max_request_size
+        if worker_redirect_stdouts is not None:
+            self.worker_redirect_stdouts = worker_redirect_stdouts
+        if worker_redirect_stdouts_level is not None:
+            self.worker_redirect_stdouts_level = worker_redirect_stdouts_level
 
         if reply_to_prefix is not None:
             self.reply_to_prefix = reply_to_prefix

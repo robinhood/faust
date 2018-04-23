@@ -3,11 +3,11 @@ import sys
 from typing import Any, Optional, Tuple, Type, cast
 
 from mode.utils.compat import want_bytes, want_str
+from mode.utils.objects import cached_property
 
 from faust.exceptions import KeyDecodeError, ValueDecodeError
 from faust.types import K, ModelArg, ModelT, V
 from faust.types.serializers import RegistryT
-from faust.utils.objects import cached_property
 
 from .codecs import CodecArg, dumps, loads
 

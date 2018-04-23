@@ -175,7 +175,6 @@ Utils
     faust.utils.functional
     faust.utils.iso8601
     faust.utils.json
-    faust.utils.objects
     faust.utils.platforms
     faust.utils.venusian
 

@@ -30,11 +30,11 @@ from mode import (
 from mode.proxy import ServiceProxy
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import maybe_async
+from mode.utils.objects import cached_property, canoname, qualname
 from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
 from faust.exceptions import ImproperlyConfigured
-from faust.utils.objects import cached_property, canoname, qualname
 
 from faust.types import (
     AppT,

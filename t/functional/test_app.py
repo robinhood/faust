@@ -55,6 +55,8 @@ class test_settings:
         assert conf.loghandlers is None
         assert conf.version == 1
         assert conf.canonical_url is None
+        assert conf.worker_redirect_stdouts
+        assert conf.worker_redirect_stdouts_level == 'WARN'
 
         assert conf.agent_supervisor is mode.OneForOneSupervisor
 
@@ -126,6 +128,8 @@ class test_settings:
                                  stream_wait_empty=False,
                                  stream_ack_cancelled_tasks=True,
                                  stream_ack_exceptions=False,
+                                 worker_redirect_stdouts=False,
+                                 worker_redirect_stdouts_level='DEBUG',
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -155,36 +159,40 @@ class test_settings:
             stream_wait_empty=stream_wait_empty,
             stream_ack_cancelled_tasks=stream_ack_cancelled_tasks,
             stream_ack_exceptions=stream_ack_exceptions,
+            worker_redirect_stdouts=worker_redirect_stdouts,
+            worker_redirect_stdouts_level=worker_redirect_stdouts_level,
         )
-        assert app.conf.id == app.conf.prepare_id(id)
-        assert app.conf.broker == URL(str(broker))
-        assert app.conf.store == URL(str(store))
-        assert app.conf.autodiscover == autodiscover
-        assert app.conf.canonical_url == URL(str(canonical_url))
-        assert app.conf.broker_client_id == broker_client_id
-        assert app.conf.datadir == Path(str(datadir))
+        conf = app.conf
+        assert conf.id == app.conf.prepare_id(id)
+        assert conf.broker == URL(str(broker))
+        assert conf.store == URL(str(store))
+        assert conf.autodiscover == autodiscover
+        assert conf.canonical_url == URL(str(canonical_url))
+        assert conf.broker_client_id == broker_client_id
+        assert conf.datadir == Path(str(datadir))
         if Path(tabledir).is_absolute():
-            assert app.conf.tabledir == Path(str(tabledir))
+            assert conf.tabledir == Path(str(tabledir))
         else:
-            assert app.conf.tabledir.relative_to(
-                app.conf.appdir) == Path(tabledir)
-        assert app.conf.broker_commit_every == broker_commit_every
-        assert app.conf.broker_commit_interval == broker_commit_interval
-        assert (app.conf.broker_commit_livelock_soft_timeout ==
+            assert conf.tabledir.relative_to(conf.appdir) == Path(tabledir)
+        assert conf.broker_commit_every == broker_commit_every
+        assert conf.broker_commit_interval == broker_commit_interval
+        assert (conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)
-        assert app.conf.broker_check_crcs == broker_check_crcs
-        assert app.conf.table_cleanup_interval == table_cleanup_interval
-        assert app.conf.key_serializer == key_serializer
-        assert app.conf.value_serializer == value_serializer
-        assert app.conf.table_standby_replicas == table_standby_replicas
-        assert app.conf.topic_replication_factor == topic_replication_factor
-        assert app.conf.reply_to == reply_to
-        assert app.conf.reply_expires == reply_expires
-        assert app.conf.stream_buffer_maxsize == stream_buffer_maxsize
-        assert app.conf.stream_wait_empty == stream_wait_empty
-        assert (app.conf.stream_ack_cancelled_tasks ==
-                stream_ack_cancelled_tasks)
-        assert app.conf.stream_ack_exceptions == stream_ack_exceptions
+        assert conf.broker_check_crcs == broker_check_crcs
+        assert conf.table_cleanup_interval == table_cleanup_interval
+        assert conf.key_serializer == key_serializer
+        assert conf.value_serializer == value_serializer
+        assert conf.table_standby_replicas == table_standby_replicas
+        assert conf.topic_replication_factor == topic_replication_factor
+        assert conf.reply_to == reply_to
+        assert conf.reply_expires == reply_expires
+        assert conf.stream_buffer_maxsize == stream_buffer_maxsize
+        assert conf.stream_wait_empty == stream_wait_empty
+        assert conf.stream_ack_cancelled_tasks == stream_ack_cancelled_tasks
+        assert conf.stream_ack_exceptions == stream_ack_exceptions
+        assert conf.worker_redirect_stdouts == worker_redirect_stdouts
+        assert (conf.worker_redirect_stdouts_level ==
+                worker_redirect_stdouts_level)
         return app
 
     def test_id_no_version(self):

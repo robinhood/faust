@@ -16,6 +16,8 @@ from typing import (
     cast,
 )
 
+from mode.utils.objects import annotations, guess_concrete_type
+
 from faust.types.models import (
     Converter,
     FieldDescriptorT,
@@ -24,7 +26,6 @@ from faust.types.models import (
 )
 from faust.utils import codegen
 from faust.utils import iso8601
-from faust.utils.objects import annotations, guess_concrete_type
 
 from .base import FieldDescriptor, Model
 
