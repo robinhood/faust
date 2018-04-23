@@ -25,7 +25,6 @@ def _prepare_app(app):
     return app
 
 
-
 @pytest.mark.asyncio
 async def test_simple(app):
     stream = new_stream(app)
@@ -197,7 +196,7 @@ class test_chained_streams:
 async def _start_stop_stream(stream):
     await stream.start()
     assert stream._prev._passive
-    it = stream.__aiter__()
+    stream.__aiter__()
     assert stream.app.topics
 
     await stream.stop()

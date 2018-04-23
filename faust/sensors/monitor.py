@@ -7,10 +7,10 @@ from typing import Any, Callable, List, Mapping, MutableMapping, Set, cast
 from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy
 from mode.utils.compat import Counter
+from mode.utils.objects import KeywordReduce, cached_property
 
 from faust.types import CollectionT, EventT, Message, StreamT, TP, TopicT
 from faust.types.transports import ConsumerT, ProducerT
-from faust.utils.objects import KeywordReduce, cached_property
 
 from .base import Sensor
 

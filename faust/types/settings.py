@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from mode import Seconds, SupervisorStrategyT, want_seconds
 from mode.utils.imports import SymbolArg, symbol_by_name
+from mode.utils.logging import Severity
 from yarl import URL
 
 from faust.cli._env import DATADIR
@@ -170,6 +171,7 @@ class Settings(abc.ABC):
     autodiscover: AutodiscoverArg = False
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
+    broker_check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
     origin: str = None
     key_serializer: CodecArg = 'json'
@@ -189,6 +191,8 @@ class Settings(abc.ABC):
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
+    worker_redirect_stdouts: bool = True
+    worker_redirect_stdouts_level: Severity = 'WARN'
 
     _id: str = None
     _name: str = None
@@ -234,6 +238,7 @@ class Settings(abc.ABC):
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
+            broker_check_crcs: bool = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
@@ -261,6 +266,8 @@ class Settings(abc.ABC):
             producer_max_batch_size: int = None,
             producer_acks: int = None,
             producer_max_request_size: int = None,
+            worker_redirect_stdouts: bool = None,
+            worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
@@ -301,6 +308,8 @@ class Settings(abc.ABC):
 
         if broker_commit_every is not None:
             self.broker_commit_every = broker_commit_every
+        if broker_check_crcs is not None:
+            self.broker_check_crcs = broker_check_crcs
         if key_serializer is not None:
             self.key_serializer = key_serializer
         if value_serializer is not None:
@@ -331,6 +340,10 @@ class Settings(abc.ABC):
             self.producer_acks = producer_acks
         if producer_max_request_size is not None:
             self.producer_max_request_size = producer_max_request_size
+        if worker_redirect_stdouts is not None:
+            self.worker_redirect_stdouts = worker_redirect_stdouts
+        if worker_redirect_stdouts_level is not None:
+            self.worker_redirect_stdouts_level = worker_redirect_stdouts_level
 
         if reply_to_prefix is not None:
             self.reply_to_prefix = reply_to_prefix

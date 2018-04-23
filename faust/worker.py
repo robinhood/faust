@@ -20,11 +20,11 @@ from kafka.structs import TopicPartition as _TopicPartition
 from mode import ServiceT, get_logger
 from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import formatter
+from mode.utils.objects import cached_property
 
 from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT, TP, TopicT
 from .utils import terminal
-from .utils.objects import cached_property
 from .web.site import Website as _Website
 
 try:
@@ -201,6 +201,8 @@ class Worker(mode.Worker):
             stderr=stderr,
             blocking_timeout=blocking_timeout,
             console_port=console_port,
+            redirect_stdouts=app.conf.worker_redirect_stdouts,
+            redirect_stdouts_level=app.conf.worker_redirect_stdouts_level,
             loop=loop,
             **kwargs)
         self.spinner = terminal.Spinner(file=self.stdout)
@@ -254,7 +256,11 @@ class Worker(mode.Worker):
         await super().on_first_start()  # <-- sets up logging
 
     def _setproctitle(self, info: str, *, ident: str = PSIDENT) -> None:
-        setproctitle(f'{ident} {info}')
+        setproctitle(f'{ident} -{info}- {self._proc_ident()}')
+
+    def _proc_ident(self) -> str:
+        conf = self.app.conf
+        return f'{conf.id} -p {self.web_port} {conf.datadir.absolute()}'
 
     async def on_execute(self) -> None:
         # This is called as soon as we starts

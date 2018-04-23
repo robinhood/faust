@@ -23,7 +23,7 @@ from typing import (
     cast,
 )
 
-from mode import Seconds, Service, want_seconds
+from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import maybe_async
 from mode.utils.types.trees import NodeT
@@ -48,6 +48,8 @@ __all__ = [
     'Stream',
     'current_event',
 ]
+
+logger = get_logger(__name__)
 
 try:
     from contextvars import ContextVar
@@ -99,6 +101,7 @@ _LinkedListDirectionBwd = _LinkedListDirection('_prev', lambda n: n._prev)
 
 class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
+    logger = logger
 
     _processors: MutableSequence[Processor] = None
     _anext_started: bool = False
@@ -682,75 +685,104 @@ class Stream(StreamT[T_co], Service):
 
         try:
             while not self.should_stop:
-                do_ack = True  # set to False to not ack event.
-                # wait for next message
-                value: Any = None
-                event: EventT = None
-                message: Message = None
-                tp: TP = None
-                offset: int = None
-                while value is None:  # we iterate until on_merge gives value.
-                    # get message from channel
-                    # This inlines ThrowableQueue.get for performance:
-                    # We selectively call `await Q.put`/`Q.put_nowait`,
-                    # and prefer the latter if the queue is non-empty.
-                    channel_value: Any
-                    if chan_is_channel:
-                        if chan_errors:
-                            raise chan_errors.popleft()
-                        if chan_queue_empty():
-                            channel_value = await chan_slow_get()
+                with flight_recorder(self.logger, timeout=10.0) as on_timeout:
+                    do_ack = True  # set to False to not ack event.
+                    # wait for next message
+                    value: Any = None
+                    event: EventT = None
+                    message: Message = None
+                    tp: TP = None
+                    offset: int = None
+                    # we iterate until on_merge gives value.
+                    while value is None:
+                        # get message from channel
+                        # This inlines ThrowableQueue.get for performance:
+                        # We selectively call `await Q.put`/`Q.put_nowait`,
+                        # and prefer the latter if the queue is non-empty.
+                        channel_value: Any
+                        if chan_is_channel:
+                            if chan_errors:
+                                raise chan_errors.popleft()
+                            if chan_queue_empty():
+                                on_timeout.info('+chan_slow_get() empty')
+                                channel_value = await chan_slow_get()
+                                on_timeout.info('-chan_slow_get() empty')
+                            else:
+                                on_timeout.info('+chan_quick_get()')
+                                channel_value = chan_quick_get()
+                                on_timeout.info('-chan_quick_get()')
                         else:
-                            channel_value = chan_quick_get()
-                    else:
-                        channel_value = await chan_slow_get()
+                            # chan is an AsyncIterable
+                            on_timeout.info('+chan_slow_get() is_aiter')
+                            channel_value = await chan_slow_get()
+                            on_timeout.info('-chan_slow_get() is_aiter')
 
-                    if isinstance(channel_value, event_cls):
-                        event = channel_value
-                        message = event.message
-                        tp = message.tp
-                        offset = message.offset
+                        if isinstance(channel_value, event_cls):
+                            event = channel_value
+                            message = event.message
+                            tp = message.tp
+                            offset = message.offset
 
-                        # call Sensors
-                        on_stream_event_in(tp, offset, self, event)
+                            # call Sensors
+                            on_timeout.info('+on_stream_event_in')
+                            on_stream_event_in(tp, offset, self, event)
+                            on_timeout.info('-on_stream_event_in')
 
-                        # set task-local current_event
-                        _current_event_contextvar.set(create_ref(event))
-                        # set Stream._current_event
-                        self.current_event = event
+                            # set task-local current_event
+                            on_timeout.info('+set current event contextvar')
+                            _current_event_contextvar.set(create_ref(event))
+                            on_timeout.info('-set current event contextvar')
+                            # set Stream._current_event
+                            self.current_event = event
 
-                        # Stream yields Event.value
-                        value = event.value
-                    else:
-                        value = channel_value
+                            # Stream yields Event.value
+                            value = event.value
+                        else:
+                            value = channel_value
+                            self.current_event = None
+
+                        # reduce using processors
+                        on_timeout.info('+calling stream processors')
+                        for processor in processors:
+                            on_timeout.info(f'+{processor} (processor)')
+                            value = await _maybe_async(processor(value))
+                            on_timeout.info(f'-{processor} (processor)')
+                        on_timeout.info('-calling stream processors')
+                        value = await on_merge(value)
+                    try:
+                        on_timeout.info('+sending to stream')
+                        yield value
+                    except CancelledError:
+                        on_timeout.error('!!! stream got CancelledError')
+                        if not ack_cancelled_tasks:
+                            do_ack = False
+                        raise
+                    except Exception as exc:
+                        on_timeout.error(f'!!! stream got error {exc!r}')
+                        if not ack_exceptions:
+                            do_ack = False
+                        raise
+                    except BaseException as exc:
+                        on_timeout.error(f'!!! stream got base-error {exc!r}')
+                        if not ack_cancelled_tasks:
+                            do_ack = False
+                        raise
+                    finally:
+                        on_timeout.info('-sending to stream')
                         self.current_event = None
-
-                    # reduce using processors
-                    for processor in processors:
-                        value = await _maybe_async(processor(value))
-                    value = await on_merge(value)
-                try:
-                    yield value
-                except CancelledError:
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
-                except Exception:
-                    if not ack_exceptions:
-                        do_ack = False
-                    raise
-                except BaseException:
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
-                finally:
-                    self.current_event = None
-                    if do_ack and event is not None:
-                        # This inlines self.ack
-                        last_stream_to_ack = event.ack()
-                        on_stream_event_out(tp, offset, self, event)
-                        if last_stream_to_ack:
-                            on_message_out(tp, offset, message)
+                        if do_ack and event is not None:
+                            # This inlines self.ack
+                            on_timeout.info('+event.ack()')
+                            last_stream_to_ack = event.ack()
+                            on_timeout.info('-event.ack()')
+                            on_timeout.info('+on_stream_event_out()')
+                            on_stream_event_out(tp, offset, self, event)
+                            on_timeout.info('-on_stream_event_out()')
+                            if last_stream_to_ack:
+                                on_timeout.info('We are last stream!')
+                                on_timeout.info('+on_message_out()')
+                                on_message_out(tp, offset, message)
+                                on_timeout.info('-on_message_out()')
         finally:
             self._channel_stop_iteration(channel)
 

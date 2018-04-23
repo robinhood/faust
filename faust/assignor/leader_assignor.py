@@ -1,9 +1,9 @@
 """Leader assignor."""
 from typing import Any
 from mode import Service
+from mode.utils.objects import cached_property
 from faust.types import AppT, TP, TopicT
 from faust.types.assignor import LeaderAssignorT
-from faust.utils.objects import cached_property
 
 __all__ = ['LeaderAssignor']
 

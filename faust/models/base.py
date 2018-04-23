@@ -41,9 +41,10 @@ from typing import (
     Type,
 )
 
+from mode.utils.objects import canoname
+
 from faust.serializers.codecs import CodecArg, dumps, loads
 from faust.types.models import FieldDescriptorT, ModelOptions, ModelT
-from faust.utils.objects import canoname
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']
 
