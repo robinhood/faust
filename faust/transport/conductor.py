@@ -171,16 +171,17 @@ class Conductor(ConductorT, Service):
     #: Fast index to see if Topic is registered.
     _topics: MutableSet[TopicT]
 
-    #: Map str topic to set of channels that should get a copy
-    #: of each message sent to that topic.
-    _topicmap: MutableMapping[str, MutableSet[TopicT]]
+    #: Map of (topic,partition) to set of channels that subscribe to that TP.
+    _tp_index: MutableMapping[TP, MutableSet[TopicT]]
 
-    #: Map of TP to set of channels that should get a copy of each
-    #: message sent to that TP.
-    #: Anything in this setm overrides _topicmap
-    _tp_direct: MutableMapping[TP, MutableSet[TopicT]]
+    #: Map str topic name to set of channels that subscribe
+    #: to that topic.
+    _topic_name_index: MutableMapping[str, MutableSet[TopicT]]
 
-    _chanmap: MutableMapping[TP, ConsumerCallback]
+    #: For every TP assigned we compile a callback closure,
+    #: and when we receive a message to a TP we look up which callback
+    #: to call here.
+    _tp_to_callback: MutableMapping[TP, ConsumerCallback]
 
     #: Whenever a change is made, i.e. a Topic is added/removed, we notify
     #: the background task responsible for resubscribing.
@@ -196,9 +197,9 @@ class Conductor(ConductorT, Service):
         Service.__init__(self, **kwargs)
         self.app = app
         self._topics = set()
-        self._topicmap = defaultdict(set)
-        self._tp_direct = defaultdict(set)
-        self._chanmap = {}
+        self._topic_name_index = defaultdict(set)
+        self._tp_index = defaultdict(set)
+        self._tp_to_callback = {}
         self._acking_topics = set()
         self._subscription_changed = None
         self._subscription_done = None
@@ -219,10 +220,10 @@ class Conductor(ConductorT, Service):
         # for better performance.  This is part of the inner loop
         # of a Faust worker, so tiny improvements here has big impact.
 
-        get_handler_for_tp = self._chanmap.__getitem__
+        get_callback_for_tp = self._tp_to_callback.__getitem__
 
         async def on_message(message: Message) -> None:
-            return await get_handler_for_tp(message.tp)(message)
+            return await get_callback_for_tp(message.tp)(message)
 
         return on_message
 
@@ -235,14 +236,14 @@ class Conductor(ConductorT, Service):
         await self.sleep(2.0)
 
         # tell the consumer to subscribe to the topics.
-        await self.app.consumer.subscribe(await self._update_topicmap())
+        await self.app.consumer.subscribe(await self._update_indices())
         notify(self._subscription_done)
 
         # Now we wait for changes
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
             await ev.wait()
-            await self.app.consumer.subscribe(await self._update_topicmap())
+            await self.app.consumer.subscribe(await self._update_indices())
             ev.clear()
             notify(self._subscription_done)
 
@@ -250,36 +251,42 @@ class Conductor(ConductorT, Service):
         if self._subscription_done is not None:
             await self._subscription_done
 
-    async def _update_topicmap(self) -> Iterable[str]:
-        self._topicmap.clear()
-        self._chanmap.clear()
+    async def _update_indices(self) -> Iterable[str]:
+        self._topic_name_index.clear()
+        self._tp_to_callback.clear()
         for channel in self._topics:
             if channel.internal:
                 await channel.maybe_declare()
             for topic in channel.topics:
                 if channel.acks:
                     self._acking_topics.add(topic)
-                self._topicmap[topic].add(channel)
+                self._topic_name_index[topic].add(channel)
 
-        return self._topicmap
+        return self._topic_name_index
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        self._tp_direct.clear()
+        self._tp_index.clear()
+        self._update_tp_index(assigned)
+        self._update_callback_map()
+
+    def _update_tp_index(self, assigned: Set[TP]) -> None:
         assignmap = tp_set_to_map(assigned)
+        tp_index = self._tp_index
         for topic in self._topics:
             if topic.active_partitions is not None:
+                # Isolated Partitions: One agent per partition.
                 if topic.active_partitions:
                     assert topic.active_partitions.issubset(assigned)
                     for tp in topic.active_partitions:
-                        self._tp_direct[tp].add(topic)
+                        tp_index[tp].add(topic)
             else:
+                # Default: One agent receives messages for all partitions.
                 for subtopic in topic.topics:
                     for tp in assignmap[subtopic]:
-                        self._tp_direct[tp].add(topic)
-        self._update_chanmap()
+                        tp_index[tp].add(topic)
 
-    def _update_chanmap(self) -> None:
-        self._chanmap.update(
+    def _update_callback_map(self) -> None:
+        self._tp_to_callback.update(
             (tp, self._compiler.build(self,
                                       tp,
                                       cast(MutableSet[Topic], channels)))
@@ -291,9 +298,9 @@ class Conductor(ConductorT, Service):
 
     def clear(self) -> None:
         self._topics.clear()
-        self._topicmap.clear()
+        self._topic_name_index.clear()
         self._tp_direct.clear()
-        self._chanmap.clear()
+        self._tp_to_callback.clear()
         self._acking_topics.clear()
 
     def __contains__(self, value: Any) -> bool:
@@ -311,9 +318,12 @@ class Conductor(ConductorT, Service):
     def add(self, topic: Any) -> None:
         if topic not in self._topics:
             self._topics.add(topic)
-            topicmap = self._topicmap
-            if topicmap and any(t not in topicmap for t in topic.topics):
+            if self._topic_contain_unsubscribed_topics(topic):
                 self._flag_changes()
+
+    def _topic_contain_unsubscribed_topics(self, topic: TopicT) -> bool:
+        index = self._topic_name_index
+        return bool(index and any(t not in index for t in topic.topics))
 
     def discard(self, topic: Any) -> None:
         self._topics.discard(topic)
