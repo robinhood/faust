@@ -10,6 +10,8 @@ To install using `pip`:
 
     $ pip install -U faust
 
+.. _bundles:
+
 Bundles
 -------
 
@@ -106,6 +108,8 @@ With pip
 ~~~~~~~~
 
 You can install the latest snapshot of Faust using the following
-:program:`pip` command::
+:program:`pip` command:
+
+.. sourcecode:: console
 
     $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust

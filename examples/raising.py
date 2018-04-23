@@ -17,7 +17,6 @@ Quickstart
 import asyncio
 import random
 from datetime import datetime, timezone
-from time import monotonic
 from itertools import count
 import faust
 from faust.cli import option
@@ -36,15 +35,9 @@ app = faust.App(
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=4,
+    worker_redirect_stdouts=False,
 )
 withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
-
-user_to_total = app.Table('user_to_total', default=int)
-    #).tumbling(3600).relative_to_stream()
-
-country_to_total = app.Table(
-    'country_to_total', default=int)
-#).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
 @app.agent(withdrawals_topic)
@@ -52,25 +45,18 @@ async def track_user_withdrawal(withdrawals):
     i = 0
     async for withdrawal in withdrawals:
         if not i:
-            await asyncio.sleep(10)
+            print('GOT FIRST WITHDRAWAL: %r' % (withdrawal,))
         i += 1
         if not i % 1000:
             print(f'TRACK USER WITHDRAWAL: {i}')
-        if not i % 1500:
-            raise KeyError('OH NO')
+        #  if not i % 1500:
+        #      raise KeyError('OH NO')
         await something(i, i)
 
 
 async def something(x, y):
     await asyncio.sleep(random.uniform(0.000001, 0.001))
     return x + y
-
-
-#@app.agent(withdrawals_topic)
-#async def track_country_withdrawal(withdrawals):
-#    async for withdrawal in withdrawals.group_by(Withdrawal.country):
-#        country_to_total[withdrawal.country] += withdrawal.amount
-#        print(f'COUNTRY TOTAL NOW: {user_to_total[withdrawal.user]}')
 
 
 @app.command(
@@ -91,6 +77,10 @@ async def produce(self, max_latency: float, max_messages: int):
             await asyncio.sleep(random.uniform(0, max_latency))
 
 
+def generate_withdrawals(n: int = None):
+    for d in generate_withdrawals_dict(n):
+        yield Withdrawal(**d)
+
 
 def generate_withdrawals_dict(n: int = None):
     num_countries = 5
@@ -105,11 +95,6 @@ def generate_withdrawals_dict(n: int = None):
             'country': random.choices(countries, country_dist)[0],
             'date': datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
         }
-
-
-def generate_withdrawals(n: int = None):
-    for d in generate_withdrawals_dict(n):
-        yield Withdrawal(**d)
 
 
 if __name__ == '__main__':

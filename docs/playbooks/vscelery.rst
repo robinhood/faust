@@ -58,7 +58,7 @@ The Celery task above can be rewritten in Faust like this:
     if __name__ == '__main__':
         app.main()
 
-Faust also support storing state with the task (see :ref:`guide-tables)`,
+Faust also support storing state with the task (see :ref:`guide-tables`),
 and it supports leader election which is useful for things such as locks.
 
 **Learn more about Faust in the** :ref:`intro` **introduction page**

@@ -17,7 +17,6 @@ Quickstart
 import asyncio
 import random
 from datetime import datetime, timezone
-from time import monotonic
 from itertools import count
 import faust
 from faust.cli import option
@@ -39,16 +38,16 @@ app = faust.App(
 )
 withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
 
-#user_to_total = app.Table(
-#    'user_to_total', default=int,
-#).tumbling(3600).relative_to_stream()
+user_to_total = app.Table(
+    'user_to_total', default=int,
+).tumbling(3600).relative_to_stream()
 
-#country_to_total = app.Table(
-#    'country_to_total', default=int,
-#).tumbling(10.0, expires=10.0).relative_to_stream()
+country_to_total = app.Table(
+    'country_to_total', default=int,
+).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
-@app.agent(withdrawals_topic, isolated_partitions=True)
+@app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
         user_to_total[withdrawal.user] += withdrawal.amount
@@ -57,7 +56,7 @@ async def track_user_withdrawal(withdrawals):
 @app.agent()
 async def track_country_withdrawal(withdrawals):
     async for withdrawal in withdrawals.group_by(Withdrawal.country):
-       country_to_total[withdrawal.country] += withdrawal.amount
+        country_to_total[withdrawal.country] += withdrawal.amount
 
 
 @app.command(

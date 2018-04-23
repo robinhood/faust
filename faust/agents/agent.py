@@ -340,7 +340,7 @@ class Agent(AgentT, ServiceProxy):
         self.help = help
         self._sinks = list(sink) if sink is not None else []
         self._on_error: AgentErrorHandler = on_error
-        self.supervisor_strategy = supervisor_strategy or SUPERVISOR_STRATEGY
+        self.supervisor_strategy = supervisor_strategy
         self._actors = WeakSet()
         self._actor_by_partition = WeakValueDictionary()
         if self.isolated_partitions and self.concurrency > 1:
@@ -495,11 +495,11 @@ class Agent(AgentT, ServiceProxy):
     def stream(self, active_partitions: Set[TP] = None,
                **kwargs: Any) -> StreamT:
         channel = self.channel_iterator
+        channel = cast(TopicT, channel).clone(
+            is_iterator=False,
+            active_partitions=active_partitions,
+        )
         if active_partitions is not None:
-            channel = cast(TopicT, channel).clone(
-                is_iterator=False,
-                active_partitions=active_partitions,
-            )
             assert channel.active_partitions == active_partitions
         s = self.app.stream(
             channel,

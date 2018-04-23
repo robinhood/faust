@@ -399,7 +399,7 @@ not advanced (only when processing messages).
 --------------------------
 
 :type: :class:`bool`
-:default: ``True`
+:default: :const:`True`
 
 Automatically check the CRC32 of the records consumed.
 

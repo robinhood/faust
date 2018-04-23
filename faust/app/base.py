@@ -14,8 +14,7 @@ from typing import (
     Any,
     AsyncIterable,
     Awaitable,
-    Callable,
-    Iterable,
+    Callable, Iterable,
     Iterator,
     List,
     Mapping,
@@ -415,7 +414,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         Or it can be an async iterator that yields values.
         These values can be used as the reply in an RPC-style call,
         or for sinks: callbacks that forward events to
-        other agents/topics/statsd/and so on.
+        other agents/topics/statsd, and so on::
 
             @app.agent(sink=[log_topic])
             async def my_agent(requests):
