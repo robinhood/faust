@@ -426,13 +426,18 @@ class Consumer(Service, ConsumerT):
 
         try:
             while not (consumer_should_stop() or fetcher_should_stop()):
-                set_flag(flag_consumer_fetching)
-                ait = cast(AsyncIterator, getmany(timeout=5.0))
-                # Sleeping because sometimes getmany is called in a loop
-                # never releasing to the event loop
-                await self.sleep(0)
-                async for tp, message in ait:
-                    with flight_recorder(self.log, timeout=10.0) as on_timeout:
+                with flight_recorder(self.log, timeout=4.9) as on_timeout:
+                    set_flag(flag_consumer_fetching)
+                    on_timeout.info('+getmany(timeout=5.0)')
+                    ait = cast(AsyncIterator, getmany(timeout=5.0))
+                    on_timeout.info('-getmany(timeout=5.0)')
+                    # Sleeping because sometimes getmany is called in a loop
+                    # never releasing to the event loop
+                    on_timeout.info('+sleep(0)')
+                    await self.sleep(0)
+                    on_timeout.info('-sleep(0)')
+                    on_timeout.info('+iterate over fetch result')
+                    async for tp, message in ait:
                         offset = message.offset
                         r_offset = get_read_offset(tp)
                         if r_offset is None or offset > r_offset:
@@ -449,7 +454,9 @@ class Consumer(Service, ConsumerT):
                         else:
                             self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
                                          offset, message.key, message.value)
+                    on_timeout.info('-iterate over fetch result')
                 unset_flag(flag_consumer_fetching)
+
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
                 # we're already stopping so ignore
