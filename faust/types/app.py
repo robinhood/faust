@@ -70,6 +70,7 @@ class AppT(ServiceT):
 
     finalized: bool = False
     configured: bool = False
+    rebalancing: bool = False
 
     on_configured: SyncSignal[Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()

@@ -71,6 +71,18 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
     def __init__(self, consumer: ConsumerT) -> None:
         self.consumer: ConsumerT = consumer
 
+    async def on_partitions_revoked(
+            self, revoked: Iterable[_TopicPartition]) -> None:
+        self.consumer.app.rebalancing = True
+        # see comment in on_partitions_assigned
+        consumer = cast(Consumer, self.consumer)
+        _revoked = cast(Set[TP], set(revoked))
+        # remove revoked partitions from active + paused tps.
+        consumer._active_partitions.difference_update(_revoked)
+        consumer._paused_partitions.difference_update(_revoked)
+        # start callback chain of assigned callbacks.
+        await consumer.on_partitions_revoked(set(_revoked))
+
     async def on_partitions_assigned(
             self, assigned: Iterable[_TopicPartition]) -> None:
         # have to cast to Consumer since ConsumerT interface does not
@@ -89,18 +101,10 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
         consumer._last_batch = None
-        await consumer.on_partitions_assigned(_assigned)
-
-    async def on_partitions_revoked(
-            self, revoked: Iterable[_TopicPartition]) -> None:
-        # see comment in on_partitions_assigned
-        consumer = cast(Consumer, self.consumer)
-        _revoked = cast(Set[TP], set(revoked))
-        # remove revoked partitions from active + paused tps.
-        consumer._active_partitions.difference_update(_revoked)
-        consumer._paused_partitions.difference_update(_revoked)
-        # start callback chain of assigned callbacks.
-        await consumer.on_partitions_revoked(set(_revoked))
+        try:
+            await consumer.on_partitions_assigned(_assigned)
+        finally:
+            consumer.app.rebalancing = False
 
 
 class Consumer(base.Consumer):
