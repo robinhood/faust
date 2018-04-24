@@ -34,7 +34,7 @@ from kafka.errors import (
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
 )
-from mode import Seconds, Service, get_logger, want_seconds
+from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
 from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
@@ -327,8 +327,11 @@ class Consumer(base.Consumer):
                     'will be eventually processed again: %r',
                     revoked,
                 )
-            await self._consumer.commit(offsets)
-            self._commited_offset.update(offsets)
+            with flight_recorder(self.log, timeout=10.0) as on_timeout:
+                on_timeout.info('+aiokafka_consumer.commit()')
+                await self._consumer.commit(commitable)
+                on_timeout.info('-aiokafka._consumer.commit()')
+            self._committed_offset.update(commitable_offsets)
             self._last_batch = None
             return True
         except CommitFailedError as exc:
