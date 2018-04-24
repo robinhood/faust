@@ -18,13 +18,16 @@ class AgentManager(AgentManagerT, ManagedUserDict):
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
 
-    def on_key_set(self, key: str, value: AgentT) -> None:
-        # keep mapping from topic name to set of agents.
-        for topic in value.get_topic_names():
-            self._by_topic[topic].add(value)
-
     async def start(self) -> None:
+        self._update_topic_index()
         [await agent.start() for agent in self.values()]
+
+    def _update_topic_index(self):
+        # keep mapping from topic name to set of agents.
+        by_topic_index = self._by_topic
+        for agent in self.values():
+            for topic in agent.get_topic_names():
+                by_topic_index[topic].add(agent)
 
     async def restart(self) -> None:
         [await agent.restart() for agent in self.values()]
