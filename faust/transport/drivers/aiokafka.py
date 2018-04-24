@@ -310,16 +310,15 @@ class Consumer(base.Consumer):
         )
         self.log.dev('COMMITTING OFFSETS:\n%s', table)
         try:
-            assignment = self.assignment
-            offsets: Dict[TP, OffsetAndMetadata] = {}
+            assignment = self.assignment()
+            commitable: Dict[TP, OffsetAndMetadata] = {}
             revoked: Dict[TP, OffsetAndMetadata] = {}
-            to_update: Dict[TP, int] = {}
+            commitable_offsets: Dict[TP, int] = {}
             for tp, (offset, meta) in offsets.items():
                 offset_and_metadata = self._new_offsetandmetadata(offset, meta)
-                (offsets if tp in assignment else revoked)[tp] = meta
                 if tp in assignment:
-                    offsets[tp] = offset_and_metadata
-                    to_update[tp] = offset
+                    commitable_offsets[tp] = offset
+                    commitable[tp] = offset_and_metadata
                 else:
                     revoked[tp] = offset_and_metadata
             if revoked:
