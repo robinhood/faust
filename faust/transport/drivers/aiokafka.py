@@ -319,7 +319,7 @@ class Consumer(base.Consumer):
                 else:
                     revoked[tp] = offset_and_metadata
             if revoked:
-                self.log.warn(
+                self.log.info(
                     'Discarded commit for revoked partitions that '
                     'will be eventually processed again: %r',
                     revoked,
