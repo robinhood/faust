@@ -685,7 +685,7 @@ class Stream(StreamT[T_co], Service):
 
         try:
             while not self.should_stop:
-                with flight_recorder(self.logger, timeout=10.0) as on_timeout:
+                with flight_recorder(self, timeout=10.0) as on_timeout:
                     do_ack = True  # set to False to not ack event.
                     # wait for next message
                     value: Any = None
