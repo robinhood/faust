@@ -203,6 +203,9 @@ class test_settings:
         with pytest.raises(ImproperlyConfigured):
             app.finalize()
 
+    def test_compat_url(self):
+        assert self.App(url='foo').conf.broker == URL('foo')
+
     def test_compat_client_id(self):
         with pytest.warns(FutureWarning):
             assert self.App(client_id='foo').conf.broker_client_id == 'foo'

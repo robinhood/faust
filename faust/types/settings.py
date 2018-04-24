@@ -281,14 +281,14 @@ class Settings(abc.ABC):
             Topic: SymbolArg[Type[TopicT]] = None,
             HttpClient: SymbolArg[Type[HttpClientT]] = None,
             Monitor: SymbolArg[Type[SensorT]] = None,
-            # XXX backward compat (remove fpr Faust 1.0)
+            # XXX backward compat (remove for Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
         self.origin = origin if origin is not None else self.origin
         self.id = id
-        self.broker = broker or self._broker or BROKER_URL
+        self.broker = url or broker or self._broker or BROKER_URL
         self.store = store or self._store or STORE_URL
         if autodiscover is not None:
             self.autodiscover = autodiscover
