@@ -5,6 +5,7 @@ from typing import (
     AsyncIterator,
     Awaitable,
     ClassVar,
+    Dict,
     Iterable,
     Mapping,
     MutableMapping,
@@ -305,14 +306,26 @@ class Consumer(base.Consumer):
         )
         self.log.dev('COMMITTING OFFSETS:\n%s', table)
         try:
-            await self._consumer.commit({
-                tp: self._new_offsetandmetadata(offset, meta)
-                for tp, (offset, meta) in offsets.items()
-            })
-            self._committed_offset.update({
-                tp: offset
-                for tp, (offset, _) in offsets.items()
-            })
+            assignment = self.assignment
+            offsets: Dict[TP, OffsetAndMetadata] = {}
+            revoked: Dict[TP, OffsetAndMetadata] = {}
+            to_update: Dict[TP, int] = {}
+            for tp, (offset, meta) in offsets.items():
+                offset_and_metadata = self._new_offsetandmetadata(offset, meta)
+                (offsets if tp in assignment else revoked)[tp] = meta
+                if tp in assignment:
+                    offsets[tp] = offset_and_metadata
+                    to_update[tp] = offset
+                else:
+                    revoked[tp] = offset_and_metadata
+            if revoked:
+                self.log.warn(
+                    'Discarded commit for revoked partitions that '
+                    'will be eventually processed again: %r',
+                    revoked,
+                )
+            await self._consumer.commit(offsets)
+            self._commited_offset.update(offsets)
             self._last_batch = None
             return True
         except CommitFailedError as exc:
