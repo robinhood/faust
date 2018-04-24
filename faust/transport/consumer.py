@@ -426,7 +426,7 @@ class Consumer(Service, ConsumerT):
 
         try:
             while not (consumer_should_stop() or fetcher_should_stop()):
-                with flight_recorder(self.log, timeout=4.9) as on_timeout:
+                with flight_recorder(self.log, timeout=30.0) as on_timeout:
                     set_flag(flag_consumer_fetching)
                     on_timeout.info('+getmany(timeout=5.0)')
                     ait = cast(AsyncIterator, getmany(timeout=5.0))
