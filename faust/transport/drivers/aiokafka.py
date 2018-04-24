@@ -33,7 +33,7 @@ from kafka.errors import (
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
 )
-from mode import Seconds, Service, want_seconds
+from mode import Seconds, Service, get_logger, want_seconds
 from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
@@ -48,6 +48,8 @@ from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 __all__ = ['Consumer', 'Producer', 'Transport']
 
 _TPTypes = Union[TP, _TopicPartition]
+
+logger = get_logger(__name__)
 
 
 def server_list(url: URL, default_port: int) -> str:
@@ -102,6 +104,8 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
 
 class Consumer(base.Consumer):
     """Kafka consumer using :pypi:`aiokafka`."""
+
+    logger = logger
 
     RebalanceListener: ClassVar[Type[ConsumerRebalanceListener]]
     RebalanceListener = ConsumerRebalanceListener
@@ -373,6 +377,8 @@ class Consumer(base.Consumer):
 
 class Producer(base.Producer):
     """Kafka producer using :pypi:`aiokafka`."""
+
+    logger = logger
 
     _producer: aiokafka.AIOKafkaProducer
 

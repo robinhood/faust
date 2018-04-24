@@ -101,6 +101,8 @@ logger = get_logger(__name__)
 class Fetcher(Service):
     app: AppT
 
+    logger = logger
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         super().__init__(**kwargs)
@@ -114,6 +116,8 @@ class Consumer(Service, ConsumerT):
     """Base Consumer."""
 
     app: AppT
+
+    logger = logger
 
     #: Tuple of exception types that may be raised when the
     #: underlying consumer driver is stopped.
@@ -428,7 +432,7 @@ class Consumer(Service, ConsumerT):
                 # never releasing to the event loop
                 await self.sleep(0)
                 async for tp, message in ait:
-                    with flight_recorder(logger, timeout=10.0) as on_timeout:
+                    with flight_recorder(self.log, timeout=10.0) as on_timeout:
                         offset = message.offset
                         r_offset = get_read_offset(tp)
                         if r_offset is None or offset > r_offset:
