@@ -193,6 +193,10 @@ class Conductor(ConductorT, Service):
 
     _compiler: ConductorCompiler
 
+    #: We wait for 45 seconds after a resubscription request, to make
+    #: sure any later requests are handled at the same time.
+    _resubscribe_sleep_lock_seconds: float = 45.0
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
@@ -242,9 +246,25 @@ class Conductor(ConductorT, Service):
         # Now we wait for changes
         ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
+            # Wait for something to add/remove topics from subscription.
             await ev.wait()
-            await self.app.consumer.subscribe(await self._update_indices())
+            if self.app.rebalancing:
+                # we do not want to perform a resubscribe if the application
+                # is rebalancing.
+                ev.clear()
+            else:
+                # The change could be in reaction to something like "all agents
+                # restarting", in that case it would be bad if we resubscribe
+                # over and over, so we wait for 45 seconds to make sure any
+                # further subscription requests will happen during the same
+                # rebalance.
+                await self.sleep(self._resubscribe_sleep_lock_seconds)
+                subscribed_topics = await self._update_indices()
+                await self.app.consumer.subscribe(subscribed_topics)
+
+            # clear the subscription_changed flag, so we can wait on it again.
             ev.clear()
+            # wake-up anything waiting for the subscription to be done.
             notify(self._subscription_done)
 
     async def wait_for_subscriptions(self) -> None:
