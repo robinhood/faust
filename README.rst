@@ -8,7 +8,7 @@
 
 |build-status| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 0.9.58
+:Version: 0.9.59
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/fauststream/faust
