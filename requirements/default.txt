@@ -1,5 +1,5 @@
 aiohttp>=2.3.9,<4.0.0
-aiokafka~=0.4.2
+aiokafka~=0.4.3
 click~=6.7
 colorclass~=2.2
 mode~=1.12.1
