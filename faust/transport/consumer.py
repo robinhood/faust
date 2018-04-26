@@ -67,7 +67,7 @@ from typing import (
 )
 from weakref import WeakSet
 
-from mode import Service, ServiceT, flight_recorder, get_logger
+from mode import Service, ServiceT, get_logger
 from mode.utils.futures import notify
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, Message, TP

@@ -22,7 +22,7 @@ class AgentManager(AgentManagerT, ManagedUserDict):
         self._update_topic_index()
         [await agent.start() for agent in self.values()]
 
-    def _update_topic_index(self):
+    def _update_topic_index(self) -> None:
         # keep mapping from topic name to set of agents.
         by_topic_index = self._by_topic
         for agent in self.values():
