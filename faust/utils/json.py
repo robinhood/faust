@@ -3,7 +3,7 @@ import datetime
 import enum
 import uuid
 from decimal import Decimal
-from typing import Any, List, Optional, Tuple, Type
+from typing import Any, Callable, List, Optional, Tuple, Type
 
 __all__ = [
     'JSONEncoder',
@@ -45,6 +45,8 @@ DATE_TYPES: Tuple[type, ...] = (datetime.date, datetime.time)
 #: Types we use `return obj.value` for (Enum)
 VALUE_DELEGATE_TYPES: Tuple[type, ...] = (enum.Enum,)
 
+HAS_TIME: Tuple[type, ...] = (datetime.datetime, datetime.time)
+
 
 def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
     """Convert string to :class:`~decimal.Decimal`.
@@ -82,9 +84,15 @@ class JSONEncoder(json.JSONEncoder):
                 sequences: Tuple[type, ...] = SEQUENCE_TYPES,
                 dates: Tuple[type, ...] = DATE_TYPES,
                 value_delegate: Tuple[type, ...] = VALUE_DELEGATE_TYPES,
+                has_time: Tuple[type, ...] = HAS_TIME,
+                _isinstance: Callable = isinstance,
+                _str: Callable = str,
+                _list: Callable = list,
                 textual: Tuple[type, ...] = TEXTUAL_TYPES) -> Any:
-        if isinstance(o, dates):
-            if not isinstance(o, (datetime.datetime, datetime.time)):
+        if _isinstance(o, textual):
+            return _str(o)
+        elif _isinstance(o, dates):
+            if not _isinstance(o, has_time):
                 o = datetime.datetime(o.year, o.month, o.day, 0, 0, 0, 0)
             r = o.isoformat()
             if r.endswith('+00:00'):
@@ -93,16 +101,13 @@ class JSONEncoder(json.JSONEncoder):
         elif isinstance(o, value_delegate):
             return o.value
         elif isinstance(o, sequences):
-            return list(o)
-        elif isinstance(o, textual):
-            return str(o)
+            return _list(o)
         else:
-            try:
-                to_json = o.__json__
-            except AttributeError:
-                return super(JSONEncoder, self).default(o)
-            else:
+            to_json = getattr(o, '__json__', None)
+            if to_json is not None:
                 return to_json()
+            raise TypeError(
+                f'JSON cannot serialize {type(o).__name__!r}: {o!r}')
 
 
 def dumps(obj: Any, cls: Type[JSONEncoder] = JSONEncoder,
