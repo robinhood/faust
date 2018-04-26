@@ -44,6 +44,7 @@ from faust.transport.consumer import CONSUMER_SEEKING
 from faust.types import AppT, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 from faust.utils import terminal
+from faust.utils.sockets import collect_hosts
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
@@ -57,8 +58,8 @@ def server_list(url: URL, default_port: int) -> str:
     # remove the scheme
     servers = str(url).split('://', 1)[1]
     # add default ports
-    return ';'.join(host if ':' in host else f'{host}:{default_port}'
-                    for host in servers.split(';'))
+    addrs = list(collect_hosts(servers, default_port))
+    return ';'.join(f'{host}:{port}' for host, port in addrs)
 
 
 def _ensure_TP(tp: _TPTypes) -> TP:

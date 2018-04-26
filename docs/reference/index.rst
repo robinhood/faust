@@ -179,6 +179,7 @@ Utils
     faust.utils.iso8601
     faust.utils.json
     faust.utils.platforms
+    faust.utils.sockets
     faust.utils.venusian
 
 Terminal (TTY) Utilities
