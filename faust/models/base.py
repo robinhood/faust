@@ -384,12 +384,7 @@ class FieldDescriptor(FieldDescriptorT):
             return self
 
         # instance attribute accessed
-        try:
-            return instance.__dict__[self.field]
-        except KeyError:
-            if self.required:
-                raise
-            return self.default
+        return instance.__dict__[self.field]
 
     def getattr(self, obj: ModelT) -> Any:
         return attrgetter('.'.join(reversed(list(self._parents_path()))))(obj)
