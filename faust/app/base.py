@@ -121,7 +121,7 @@ SCAN_CATEGORIES: Iterable[str] = [
 #: List of regular expressions for :pypi:`venusian` that acts as a filter
 #: for modules that :pypi:`venusian` should ignore when autodiscovering
 #: decorators.
-SCAN_IGNORE: Iterable[str] = ['test_.*']
+SCAN_IGNORE: Iterable[str] = ['test_.*', '.*__main__.*']
 
 E_NEED_ORIGIN = """
 `origin` argument to faust.App is mandatory when autodiscovery enabled.

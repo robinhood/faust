@@ -257,6 +257,8 @@ class Model(ModelT):
         # Store options on new subclass.
         cls._options = options
 
+        cls._contribute_methods()
+
         # Register in the global registry, so we can look up
         # models by namespace.
         registry[options.namespace] = cls
@@ -268,6 +270,10 @@ class Model(ModelT):
     @classmethod
     @abc.abstractmethod
     def _contribute_to_options(cls, options: ModelOptions) -> None:
+        ...
+
+    @classmethod
+    def _contribute_methods(cls) -> None:
         ...
 
     @classmethod

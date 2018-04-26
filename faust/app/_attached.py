@@ -73,6 +73,7 @@ class Attachments:
 
         # attach message to current event if there is one.
         send: Callable = self.app.send
+        #force = True
         if not force:
             event = current_event()
             if event is not None:
