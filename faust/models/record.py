@@ -145,6 +145,10 @@ def _to_model(typ: Type[ModelT], data: Any) -> ModelT:
     return data
 
 
+def _maybe_to_representation(val: ModelT = None) -> Optional[Any]:
+    return val.to_representation() if val is not None else None
+
+
 class Record(Model, abstract=True):
     """Describes a model type that is a record (Mapping).
 
@@ -300,7 +304,7 @@ class Record(Model, abstract=True):
                     f'if {field} is not None:',
                     f'  self.{field} = {fieldval}',
                     f'else:',
-                    f'  self.{field} = self._options.defaults["{field}"]'
+                    f'  self.{field} = self._options.defaults["{field}"]',
                 ])
             else:
                 required.append(field)
@@ -328,33 +332,19 @@ class Record(Model, abstract=True):
             locals=locals(),
         )
 
+    def _init_field(self, field: str, value: Any) -> Any:
+        return self._options.initfield[field](value)
+
     @classmethod
     def _BUILD_asdict(cls) -> Callable[..., Dict[str, Any]]:
-        modelattrs = cls._options.modelattrs
-
         preamble = [
             'return {',
         ]
 
-        fields = []
-        for key in cls._options.fields:
-            is_model = key in modelattrs
-            #if is_model:
-            #    generic = modelattrs[key]
-                #if generic is list or generic is tuple or generic is set:
-            #        fields.append(
-            #            f'    {key!r}: ['
-            #            f'        v.to_representation() for v in self.{key}],')
-            #    elif generic is dict:
-            #        fields.append(
-            #            f'    {key!r}: {{k: v.to_representation()'
-            #            f'              for k, v in self.{key}.items()}},')
-            #    else:
-            #        fields.append(
-            #            f'    {key!r}: (self.{key}.to_representation()'
-            #            f'              if self.{key} else None),')
-            #else:
-            fields.append(f'    {key!r}: self.{key},')
+        fields = [
+            f'  {field!r}: {cls._BUILD_asdict_field(field)},'
+            for field in cls._options.fields
+        ]
 
         postamble = [
             '}',
@@ -368,8 +358,23 @@ class Record(Model, abstract=True):
             locals=locals(),
         )
 
-    def _init_field(self, field: str, value: Any) -> Any:
-        return self._options.initfield[field](value)
+    @classmethod
+    def _BUILD_asdict_field(cls, field: str) -> str:
+        modelattrs = cls._options.modelattrs
+        is_model = field in modelattrs
+        if is_model:
+            generic = modelattrs[field]
+            if generic is list or generic is tuple:
+                return f'[v.to_representation() for v in self.{field}]'
+            elif generic is set:
+                return f'self.{field}'
+            elif generic is dict:
+                return (f'{{k: v.to_representation() '
+                        f'  for k, v in self.{field}.items()}}')
+            else:
+                return f'_maybe_to_representation(self.{field})'
+        else:
+            return f'self.{field}'
 
     def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         data = self.asdict()
