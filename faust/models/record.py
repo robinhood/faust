@@ -299,6 +299,8 @@ class Record(Model, abstract=True):
                 setters.extend([
                     f'if {field} is not None:',
                     f'  self.{field} = {fieldval}',
+                    f'else:',
+                    f'  self.{field} = self._options.defaults["{field}"]'
                 ])
             else:
                 required.append(field)
