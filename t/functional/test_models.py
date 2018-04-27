@@ -636,3 +636,17 @@ def test_overwrite_asdict():
 
             def asdict(self):
                 return {'foo': 1}
+
+
+def test_prepare_dict():
+
+    class Quote(Record):
+        ask_price: float = None
+        bid_price: float = None
+
+        def _prepare_dict(self, payload):
+            return {k: v for k, v in payload.items() if v is not None}
+
+    assert Quote().asdict() == {}
+    assert Quote(1.0, 2.0).asdict() == {'ask_price': 1.0, 'bid_price': 2.0}
+    assert Quote(None, 2.0).asdict() == {'bid_price': 2.0}

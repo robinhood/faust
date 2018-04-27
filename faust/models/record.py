@@ -341,7 +341,7 @@ class Record(Model, abstract=True):
     @classmethod
     def _BUILD_asdict(cls) -> Callable[..., Dict[str, Any]]:
         preamble = [
-            'return {',
+            'return self._prepare_dict({',
         ]
 
         fields = [
@@ -350,7 +350,7 @@ class Record(Model, abstract=True):
         ]
 
         postamble = [
-            '}',
+            '})',
         ]
 
         return codegen.Method(
@@ -360,6 +360,9 @@ class Record(Model, abstract=True):
             globals=globals(),
             locals=locals(),
         )
+
+    def _prepare_dict(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        return payload
 
     @classmethod
     def _BUILD_asdict_field(cls, field: str) -> str:
