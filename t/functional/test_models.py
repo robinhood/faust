@@ -626,3 +626,13 @@ def test_adtribute_payload(app):
 
     app.serializers.loads_value(
         AdjustRecord, ADTRIBUTE_PAYLOAD, serializer='json')
+
+
+def test_overwrite_asdict():
+
+    with pytest.raises(RuntimeError):
+
+        class R(Record):
+
+            def asdict(self):
+                return {'foo': 1}
