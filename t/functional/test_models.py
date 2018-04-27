@@ -650,3 +650,20 @@ def test_prepare_dict():
     assert Quote().asdict() == {}
     assert Quote(1.0, 2.0).asdict() == {'ask_price': 1.0, 'bid_price': 2.0}
     assert Quote(None, 2.0).asdict() == {'bid_price': 2.0}
+
+
+def test_custom_init_calling_model_init():
+
+    class Quote(Record):
+        ask_price: float
+        bid_price: float
+
+        def __init__(self, ask_price: str, bid_price: str, **kwargs):
+            self._model_init(ask_price, bid_price, **kwargs)
+
+    q1 = Quote(1.0, 2.0)
+    assert q1.ask_price == 1.0
+    assert q1.bid_price == 2.0
+
+    with pytest.raises(TypeError):
+        Quote(1.0, 2.0, foo=1)
