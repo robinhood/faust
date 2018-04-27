@@ -278,7 +278,6 @@ class Record(Model, abstract=True):
         models = cls._options.models
         converse = cls._options.converse
         initfield = cls._options.initfield = {}
-        defaults = cls._options.defaults
         has_post_init = hasattr(cls, '__post_init__')
         required = []
         opts = []
@@ -300,8 +299,6 @@ class Record(Model, abstract=True):
                 setters.extend([
                     f'if {field} is not None:',
                     f'  self.{field} = {fieldval}',
-                    f'else:',
-                    f'  self.{field} = self._options.defaults["{field}"]',
                 ])
             else:
                 required.append(field)
@@ -323,8 +320,8 @@ class Record(Model, abstract=True):
             ])
 
         return codegen.InitMethod(
-            args=required + opts + kwonlyargs,
-            body=setters + rest,
+            required + opts + kwonlyargs,
+            setters + rest,
             globals=globals(),
             locals=locals(),
         )
@@ -340,16 +337,31 @@ class Record(Model, abstract=True):
         fields = []
         for key in cls._options.fields:
             is_model = key in modelattrs
-            fields.append(f'  {key!r}: self.{key},')
+            #if is_model:
+            #    generic = modelattrs[key]
+                #if generic is list or generic is tuple or generic is set:
+            #        fields.append(
+            #            f'    {key!r}: ['
+            #            f'        v.to_representation() for v in self.{key}],')
+            #    elif generic is dict:
+            #        fields.append(
+            #            f'    {key!r}: {{k: v.to_representation()'
+            #            f'              for k, v in self.{key}.items()}},')
+            #    else:
+            #        fields.append(
+            #            f'    {key!r}: (self.{key}.to_representation()'
+            #            f'              if self.{key} else None),')
+            #else:
+            fields.append(f'    {key!r}: self.{key},')
 
         postamble = [
             '}',
         ]
 
         return codegen.Method(
-            name='_asdict',
-            args=[],
-            body=preamble + fields + postamble,
+            '_asdict',
+            [],
+            preamble + fields + postamble,
             globals=globals(),
             locals=locals(),
         )
