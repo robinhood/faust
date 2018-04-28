@@ -8,8 +8,95 @@
 
 1.0.0
 =====
-:release-date: TBA
-:release-by:
-:state: FROZEN
+:release-date: 2018-04-27 4:13 P.M PDT
+:release-by: Ask Solem
 
-- Initial release
+- **Models**: Raise error if ``Record.asdict()`` is overridden.
+
+- **Models**: Can now override ``Record._prepare_dict`` to change the
+  payload generated.
+
+    For example if you want your model to serialize to a dictionary,
+    but not have any fields with :const:`None` values, you can override
+    ``_prepare_dict`` to accomplish this:
+
+    .. sourcecode:: python
+
+        class Quote(faust.Record):
+            ask_price: float = None
+            bid_price: float = None
+
+            def _prepare_dict(self, data):
+                # Remove keys with None values from payload.
+                return {k: v for k, v in data.items() if v is not None}
+
+        assert Quote(1.0, None).asdict() == {'ask_price': 1.0}
+
+- **Stream**: Removed annoying ``Flight Recorder`` logging that was too noisy.
+
+.. _version-0.9.65:
+
+0.9.65
+======
+:release-date: 2018-04-27 2:04 P.M PDT
+:release-by: Vineet Goel
+
+- **Producer**: New setting to configure compression.
+
+  + See :setting:`producer_compression_type`.
+
+- **Documentation**: New :ref:`settings-producer` section.
+
+.. _version-0.9.64:
+
+0.9.64
+======
+:release-date: 2018-04-26 4:48 P.M PDT
+:release-by: Ask Solem
+
+- **Models**: Optimization for ``FieldDescriptor.__get__``.
+
+- **Serialization**: Optimization for :mod:`faust.utils.json`.
+
+.. _version-0.9.63:
+
+0.9.63
+======
+:release-date: 2018-04-26 04:32 P.M PDT
+:release-by: Vineet Goel
+
+- **Requirements**:
+
+    + Now depends on :pypi:`aiokafka` 0.4.5 (Robinhood fork).
+
+- **Models**: ``Record.asdict()`` and ``to_representation()`` were slow
+  on complicated models, so we are now using code generation to optimize them.
+
+    .. warning::
+
+        You are no longer allowed to override ``Record.asdict()``.
+
+.. _version-0.9.62:
+
+0.9.62
+======
+:release-date: 2018-04-26 12:06 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**:
+
+    + Now depends on :ref:`Mode 1.12.2 <mode:version-1.12.2>`.
+
+    + Now depends on :pypi:`aiokafka` 0.4.4 (Robinhood fork).
+
+- **Consumer**: Fixed :exc:`asyncio.base_futures.IllegalStateError` error
+  in commit handler.
+
+- **CLI**: Fixed bug when invoking worker using ``faust -A``.
+
+
+
+-
+
+
+
