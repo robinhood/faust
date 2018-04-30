@@ -314,7 +314,7 @@ class Stream(StreamT[T_co], Service):
                     await buffer_consuming
                 finally:
                     buffer_consuming = None
-            buffer_add(value)
+            buffer_add(cast(T_co, value))
             if buffer_size() >= max_:
                 # signal that the buffer is full and should be emptied.
                 buffer_full.set()
