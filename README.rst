@@ -25,8 +25,8 @@
 **Faust** is a Python library for writing streaming applications
 that are fault-tolerant and easy to use.
 
-It is used at `Robinhood`_ to build high performance distributed systems,
-and real-time data pipelines.
+It is used at `Robinhood`_ to build high performance distributed systems
+and real-time data pipelines that process billions of events every day.
 
 Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as `Celery`_,
@@ -45,7 +45,7 @@ Here's an example agent processing "order events":
 .. sourcecode:: python
 
     # The application is our project.
-    # It's the core API of Faust, and also provides configuration.
+    # It's the core API of Faust and provides configuration.
     app = faust.App('myapp', broker='kafka://localhost')
 
     # Models describe how keys and values in streams are serialized.
@@ -169,10 +169,11 @@ Faust is...
 ===========
 
 **Simple**
-    Faust is extremely easy to use compared to other stream processing
-    solutions.  There's no DSL to limit your creativity, no restricted
-    set of operations to work from, and since Faust is a library, it can
-    integrate with just about anything.
+    Faust is extremely easy to use. To get started using other stream processing
+    solutions you have complicated hello-world projects, and
+    infrastructure requirements.  Faust only requires Kafka,
+    the rest is just Python, so If you know Python you can already use Faust to do
+    stream processing, and it can integrate with just about anything.
 
     Here's one of the easier applications you can make::
 
@@ -247,6 +248,8 @@ To install using `pip`:
 
     $ pip install -U faust
 
+.. _bundles:
+
 Bundles
 -------
 
@@ -260,17 +263,9 @@ command-line by using brackets. Separate multiple bundles using the comma:
 
     $ pip install "faust[rocksdb]"
 
-    $ pip install "faust[ckafka,rocksdb,uvloop,fast]"
+    $ pip install "faust[rocksdb,uvloop,fast]"
 
 The following bundles are available:
-
-Brokers
-~~~~~~~
-
-:``faust[ckafka]``:
-    for using the production Kafka transport.  The ``ckafka://`` transport
-    mixes the aiokafka and confluent-kafka client libraries to achieve
-    better performance and reliability.
 
 Stores
 ~~~~~~
@@ -343,7 +338,9 @@ With pip
 ~~~~~~~~
 
 You can install the latest snapshot of Faust using the following
-``pip`` command::
+``pip`` command:
+
+.. sourcecode:: console
 
     $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
 

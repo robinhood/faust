@@ -25,17 +25,9 @@ command-line by using brackets. Separate multiple bundles using the comma:
 
     $ pip install "faust[rocksdb]"
 
-    $ pip install "faust[ckafka,rocksdb,uvloop,fast]"
+    $ pip install "faust[rocksdb,uvloop,fast]"
 
 The following bundles are available:
-
-Brokers
-~~~~~~~
-
-:``faust[ckafka]``:
-    for using the production Kafka transport.  The ``ckafka://`` transport
-    mixes the aiokafka and confluent-kafka client libraries to achieve
-    better performance and reliability.
 
 Stores
 ~~~~~~
