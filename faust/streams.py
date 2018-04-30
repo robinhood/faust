@@ -25,7 +25,7 @@ from typing import (
 
 from mode import Seconds, Service, get_logger, want_seconds
 from mode.utils.aiter import aenumerate, aiter
-from mode.utils.futures import maybe_async
+from mode.utils.futures import maybe_async, notify
 from mode.utils.types.trees import NodeT
 
 from . import joins
@@ -294,19 +294,53 @@ class Stream(StreamT[T_co], Service):
                 unreasonable length of time(!).
         """
         buffer: List[T_co] = []
-        add = buffer.append
+        buffer_add = buffer.append
+        buffer_size = buffer.__len__
+        buffer_full = asyncio.Event(loop=self.loop)
+        buffer_consumed = asyncio.Event(loop=self.loop)
         timeout = want_seconds(within) if within else None
 
-        async def _buffer() -> None:
-            async for value in self:
-                add(value)
-                if len(buffer) >= max_:
-                    break
+        buffer_consuming: asyncio.Future = None
 
+        channel_it = aiter(self.channel)
+
+        # We add this processor to populate the buffer, and the stream
+        # is passively consumed in the background (enable_passive below).
+        async def add_to_buffer(value: T) -> T:
+            # buffer_consuming is set when consuming buffer after timeout.
+            nonlocal buffer_consuming
+            if buffer_consuming is not None:
+                try:
+                    await buffer_consuming
+                finally:
+                    buffer_consuming = None
+            buffer_add(value)
+            if buffer_size() >= max_:
+                # signal that the buffer is full and should be emptied.
+                buffer_full.set()
+                # strict wait for buffer to be consumed after buffer full.
+                # (if max_ is 1000, we are not allowed to return 1001 values.)
+                buffer_consumed.clear()
+                await self.wait(buffer_consumed)
+            return value
+
+        self.add_processor(add_to_buffer)
+        self._enable_passive(cast(ChannelT, channel_it))
         while not self.should_stop:
-            if not await self.wait_for_stopped(_buffer(), timeout=timeout):
-                yield list(buffer)
-                buffer.clear()
+            # wait until buffer full, or timeout
+            await self.wait_for_stopped(buffer_full, timeout=timeout)
+            if buffer:
+                # make sure background thread does not add new times to
+                # budfer while we read.
+                buffer_consuming = self.loop.create_future()
+                try:
+                    yield list(buffer)
+                finally:
+                    buffer.clear()
+                    # allow writing to buffer again
+                    notify(buffer_consuming)
+                    buffer_full.clear()
+                    buffer_consumed.set()
 
     def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
         """Clone stream into n new streams, receiving copies of values.
