@@ -11,6 +11,16 @@
 :release-date: 2018-05-01 9:52 A.M PDT
 :release-by: Ask Solem
 
+- **Stream**: Fixed issue with using :keyword:`break` when iterating
+  over stream.
+
+    The last message in a stream would not be acked if the :keyword:`break`
+    keyword was used::
+
+        async for value in stream:
+            if value == 3:
+                break
+
 - **Stream**: ``.take`` now acks events *after* buffer processed.
 
     Previously the events were erroneously acked at the time
@@ -25,16 +35,6 @@
 
         A large buffer will increase the chance of consistency
         issues where events are processed more than once.
-
-- **Stream**: Fixed issue with using :keyword:`break` when iterating
-  over stream.
-
-    The last message in a stream would not be acked if the :keyword:`break`
-    keyword was used::
-
-        async for value in stream:
-            if value == 3:
-                break
 
 - **Stream**: New ``noack`` modifier disables acking of messages in the
   stream.
