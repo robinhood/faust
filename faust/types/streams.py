@@ -166,10 +166,6 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
         ...
 
     @abc.abstractmethod
-    def tee(self, n: int = 2) -> Tuple['StreamT', ...]:
-        ...
-
-    @abc.abstractmethod
     def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         ...
 

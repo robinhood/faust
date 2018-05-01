@@ -438,30 +438,6 @@ The above code works better: if values are constantly being streamed it will
 process hundreds and hundreds without delay, but if there are long periods of
 time with no events received it will still process what it has gathered.
 
-``tee()`` -- Clone stream
--------------------------
-
-Use :meth:`Stream.tee() <faust.Stream.tee>` to create clones of the stream
-so that you can iterate over the stream in many different ways.
-
-The operation works exactly like :func:`itertools.tee` and return ``n``
-independent async iterators from a single stream:
-
-.. sourcecode:: python
-
-    from mode.utils.aiter import aiter, anext
-
-    @app.agent()
-    async def process(stream):
-        backward, forward = stream.tee(2)
-        anext(forward)
-        async for value in forward:
-            previous_value = anext(backward)
-
-.. seealso::
-
-    - The :func:`itertools.tee` function in the Python standard library.
-
 ``enumerate()`` -- Count values
 -------------------------------
 
@@ -599,9 +575,6 @@ Iteration tools
 
     .. autocomethod:: take
         :async-for:
-        :noindex:
-
-    .. automethod:: tee
         :noindex:
 
     .. automethod:: enumerate

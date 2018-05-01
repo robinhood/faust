@@ -356,38 +356,6 @@ class Stream(StreamT[T_co], Service):
                     buffer_full.clear()
                     buffer_consumed.set()
 
-    def tee(self, n: int = 2) -> Tuple[StreamT, ...]:
-        """Clone stream into n new streams, receiving copies of values.
-
-        This is the stream analog of :func:`itertools.tee`.
-
-        Examples:
-            .. sourcecode:: python
-
-                async def processor1(stream):
-                    async for value in stream:
-                        print(value * 2)
-
-                async def processor2(stream):
-                    async for value in stream:
-                        print(value / 2)
-
-                @app.agent(topic)
-                async def mytask(stream):
-                    # duplicate the stream and process it in different ways.
-                    a, b = stream.tee(2)
-                    await asyncio.gather(processor1(a), processor2(b))
-        """
-        streams = [self.clone(on_start=self.maybe_start) for _ in range(n)]
-
-        async def forward(value: T) -> T:
-            for stream in streams:
-                await stream.send(value)
-            return value
-
-        self.add_processor(forward)
-        return tuple(streams)
-
     def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         """Enumerate values received on this stream.
 
