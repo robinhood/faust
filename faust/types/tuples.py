@@ -57,6 +57,12 @@ class PendingMessage(NamedTuple):
     key_serializer: CodecArg
     value_serializer: CodecArg
     callback: MessageSentCallback
+    topic: str = None
+    offset: int = None
+
+    @property
+    def tp(self) -> TP:
+        return TP(self.topic, self.partition)
 
 
 class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):

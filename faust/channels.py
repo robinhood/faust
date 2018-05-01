@@ -201,7 +201,9 @@ class Channel(ChannelT):
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:
-        event = self._create_event(fut.message.key, fut.message.value)
+        event = self._create_event(
+            fut.message.key, fut.message.value,
+            message=cast(Message, fut.message))
         await self.put(event)
         return await self._finalize_message(fut,
                                             RecordMetadata(
@@ -229,7 +231,7 @@ class Channel(ChannelT):
 
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
-        return self._create_event(message.key, message.value, message)
+        return self._create_event(message.key, message.value, message=message)
 
     async def deliver(self, message: Message) -> None:
         ...  # closure compiled at __init__
