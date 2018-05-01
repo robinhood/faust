@@ -302,7 +302,9 @@ class Stream(StreamT[T_co], Service):
                 unreasonable length of time(!).
         """
         buffer: List[T_co] = []
+        events: List[EventT] = []
         buffer_add = buffer.append
+        event_add = events.append
         buffer_size = buffer.__len__
         buffer_full = asyncio.Event(loop=self.loop)
         buffer_consumed = asyncio.Event(loop=self.loop)
@@ -323,6 +325,7 @@ class Stream(StreamT[T_co], Service):
                 finally:
                     buffer_consuming = None
             buffer_add(cast(T_co, value))
+            event_add(self.current_event)
             if buffer_size() >= max_:
                 # signal that the buffer is full and should be emptied.
                 buffer_full.set()
@@ -345,6 +348,9 @@ class Stream(StreamT[T_co], Service):
                     yield list(buffer)
                 finally:
                     buffer.clear()
+                    for event in events:
+                        await self.ack(event)
+                    events.clear()
                     # allow writing to buffer again
                     notify(buffer_consuming)
                     buffer_full.clear()
