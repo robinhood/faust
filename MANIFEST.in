@@ -1,6 +1,6 @@
-include AUTHORS
+include AUTHORS.rst
 include CODE_OF_CONDUCT.rst
-include Changelog
+include Changelog.rst
 include LICENSE
 include README.rst
 include MANIFEST.in

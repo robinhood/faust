@@ -39,7 +39,7 @@
 - **Stream**: New ``noack`` modifier disables acking of messages in the
   stream.
 
-    Use this to disable automatic acknowledgment of events:
+    Use this to disable automatic acknowledgment of events::
 
         async for value in stream.noack():
             # manual acknowledgment
