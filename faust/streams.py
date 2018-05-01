@@ -51,12 +51,12 @@ __all__ = [
 
 logger = get_logger(__name__)
 
-try:
+try:  # pragma: no cover
     from contextvars import ContextVar
 
     def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
         ...
-except ImportError:
+except ImportError:  # pragma: no cover
     from aiocontextvars import ContextVar, Context
 
     def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
@@ -71,7 +71,7 @@ except ImportError:
         task.ctx = Context(Context.current())  # type: ignore
 
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     _current_event: ContextVar[weakref.ReferenceType[EventT]]
 _current_event = ContextVar('current_event')
 

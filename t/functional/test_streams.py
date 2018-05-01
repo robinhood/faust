@@ -2,6 +2,7 @@ import asyncio
 from unittest.mock import Mock
 from mode.utils.aiter import aiter, anext
 from mode.utils.futures import done_future
+from faust.streams import maybe_forward
 import pytest
 from .helpers import channel_empty, message, put
 
@@ -89,6 +90,35 @@ async def test_items(app):
         if i > 99:
             break
     assert await channel_empty(stream.channel)
+
+
+@pytest.mark.asyncio
+async def test_events(app):
+    stream = new_stream(app)
+    for i in range(100):
+        await stream.channel.deliver(message(key=i, value=i * 2))
+        await stream.send(i)  # no associated event
+    i = 0
+    events = []
+    async for event in stream.events():
+        assert event.key == i
+        assert event.value == i * 2
+        events.append(mock_event_ack(event))
+        i += 1
+        if i > 99:
+            break
+    await asyncio.sleep(0)  # have to sleep twice here for all events to be
+    await asyncio.sleep(0)  # acked for some reason
+    try:
+        for event in events:
+            event.ack.assert_called_once_with()
+    except AssertionError:
+        fail_count = len([e for e in events if not e.ack.call_count])
+        fail_positions = [i for i, e in enumerate(events)
+                          if not e.ack.call_count]
+        print(f'ACK FAILED FOR {fail_count} EVENT(S)')
+        print(f'  POSITIONS: {fail_positions}')
+        raise
 
 
 class test_chained_streams:
@@ -221,10 +251,9 @@ async def test_ack(app):
     event = None
     async for value in s:
         assert value == 1
-        event = s.current_event
-        event.ack = Mock(name='ack')
-        event.ack.return_value = False
+        event = mock_stream_event_ack(s)
         break
+    assert event
     await asyncio.sleep(0)  # needed for some reason
     event.ack.assert_called_with()
 
@@ -239,9 +268,75 @@ async def test_noack(app):
     event = None
     async for value in new_s:
         assert value == 1
-        event = new_s.current_event
-        event.ack = Mock(name='ack')
-        event.ack.return_value = False
+        event = mock_stream_event_ack(new_s)
         break
+    assert event
     await asyncio.sleep(0)  # needed for some reason
     event.ack.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_acked_when_raising(app):
+    s = new_stream(app)
+    await s.channel.send(value=1)
+    await s.channel.send(value=2)
+
+    event1 = None
+    with pytest.raises(RuntimeError):
+        async for value in s:
+            event1 = mock_stream_event_ack(s)
+            assert value == 1
+            raise RuntimeError
+    assert event1
+    await asyncio.sleep(0)
+    event1.ack.assert_called_with()
+
+    event2 = None
+    with pytest.raises(RuntimeError):
+        async for value in s:
+            event2 = mock_stream_event_ack(s)
+            assert value == 2
+            raise RuntimeError
+    assert event2
+    await asyncio.sleep(0)
+    event2.ack.assert_called_with()
+
+
+@pytest.mark.asyncio
+async def test_maybe_forward__when_event(app):
+    s = new_stream(app)
+    event = await get_event_from_value(s, 'foo')
+    s.channel.send = Mock(name='channel.send')
+    event.forward = Mock(name='event.forward')
+    event.forward.return_value = done_future()
+    await maybe_forward(event, s.channel)
+    event.forward.assert_called_once_with(s.channel)
+    s.channel.send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_maybe_forward__when_concrete_value(app):
+    s = new_stream(app)
+    s.channel.send = Mock(name='channel.send')
+    s.channel.send.return_value = done_future()
+    await maybe_forward('foo', s.channel)
+    s.channel.send.assert_called_once_with(value='foo')
+
+
+def mock_stream_event_ack(stream):
+    return mock_event_ack(stream.current_event)
+
+
+def mock_event_ack(event, return_value=False):
+    event.ack = Mock(name='ack')
+    event.ack.return_value = return_value
+    return event
+
+
+async def get_event_from_value(stream, value, key=None):
+    await stream.channel.send(key=key, value=value)
+    async for value in stream:
+        event = stream.current_event
+        assert event
+        event.ack = Mock(name='event.ack')
+        return event
