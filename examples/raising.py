@@ -43,12 +43,11 @@ withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     i = 0
-    async for withdrawal in withdrawals:
-        if not i:
-            print('GOT FIRST WITHDRAWAL: %r' % (withdrawal,))
+    async for withdrawal in withdrawals.take(1000, within=0.6):
         i += 1
-        if not i % 1000:
-            print(f'TRACK USER WITHDRAWAL: {i}')
+        print('LEN: %r' % (len(withdrawal),))
+        #if not i % 1000:
+        #    print(f'TRACK USER WITHDRAWAL: {i}')
         #  if not i % 1500:
         #      raise KeyError('OH NO')
         await something(i, i)

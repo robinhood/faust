@@ -4,6 +4,77 @@
  Change history
 ================
 
+.. _version-1.0.1:
+
+1.0.1
+=====
+:release-date: 2018-05-01 9:52 A.M PDT
+:release-by: Ask Solem
+
+- **Stream**: ``.take`` now acks events *after* buffer processed.
+
+    Previously the events were erroneously acked at the time
+    of entering the buffer.
+
+    .. note::
+
+        To accomplish this we maintain a list of events to ack
+        as soon as the buffer is processed. The operation is
+        ``O(n)`` where ``n`` is the size of the buffer, so please
+        keep buffer sizes small (e.g. 1000).
+
+        A large buffer will increase the chance of consistency
+        issues where events are processed more than once.
+
+- **Stream**: Fixed issue with using :keyword:`break` when iterating
+  over stream.
+
+    The last message in a stream would not be acked if the :keyword:`break`
+    keyword was used::
+
+        async for value in stream:
+            if value == 3:
+                break
+
+- **Stream**: New ``noack`` modifier disables acking of messages in the
+  stream.
+
+    Use this to disable automatic acknowledgment of events:
+
+        async for value in stream.noack():
+            # manual acknowledgment
+            await stream.ack(stream.current_event)
+
+    .. admonition:: Manual Acknowledgement
+
+        The stream is a sequence of events, where each event has a sequence
+        number: the "offset".
+
+        To mark an event as processed, so that we do not process it again,
+        the Kafka broker will keep track of the last committed offset
+        for any topic.
+
+        This means "acknowledgement" works quite differently from other
+        message brokers, such as RabbitMQ where you can selectively
+        ack some messages, but not others.
+
+        If the messages in the topic look like this sequence:
+
+        .. sourcecode:: text
+
+            1 2 3 4 5 6 7 8
+
+        You can commit the offset for #5, only after processing all
+        events before it. This means you MUST ack offsets (1, 2, 3, 4)
+        *before* being allowed to commit 5 as the new offset.
+
+- **Stream**: Fixed issue with ``.take`` not properly respecting the
+  ``within`` argument.
+
+    The new implementation of take now starts a background thread
+    to fill the buffer. This avoids having to restart iterating
+    over the stream, which caused issues.
+
 .. _version-1.0.0:
 
 1.0.0
