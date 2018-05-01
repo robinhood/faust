@@ -1,5 +1,7 @@
 import asyncio
+from unittest.mock import Mock
 from mode.utils.aiter import aiter, anext
+from mode.utils.futures import done_future
 import pytest
 from .helpers import channel_empty, message, put
 
@@ -209,3 +211,37 @@ async def test_start_and_stop_Stream(app):
     await _start_stop_stream(s)
     assert not app.topics._topics
     await app.producer.stop()
+
+
+@pytest.mark.asyncio
+async def test_ack(app):
+    s = new_stream(app)
+    assert s.get_active_stream() is s
+    await s.channel.send(value=1)
+    event = None
+    async for value in s:
+        assert value == 1
+        event = s.current_event
+        event.ack = Mock(name='ack')
+        event.ack.return_value = False
+        break
+    await asyncio.sleep(0)  # needed for some reason
+    event.ack.assert_called_with()
+
+
+@pytest.mark.asyncio
+async def test_noack(app):
+    s = new_stream(app)
+    new_s = s.noack()
+    assert new_s is not s
+    assert s.get_active_stream() is new_s
+    await new_s.channel.send(value=1)
+    event = None
+    async for value in new_s:
+        assert value == 1
+        event = new_s.current_event
+        event.ack = Mock(name='ack')
+        event.ack.return_value = False
+        break
+    await asyncio.sleep(0)  # needed for some reason
+    event.ack.assert_not_called()

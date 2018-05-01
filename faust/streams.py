@@ -120,6 +120,7 @@ class Stream(StreamT[T_co], Service):
                  concurrency_index: int = None,
                  prev: StreamT = None,
                  active_partitions: Set[TP] = None,
+                 enable_acks: bool = True,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -135,6 +136,7 @@ class Stream(StreamT[T_co], Service):
         self.concurrency_index = concurrency_index
         self._prev = prev
         self.active_partitions = active_partitions
+        self.enable_acks = enable_acks
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
@@ -256,6 +258,12 @@ class Stream(StreamT[T_co], Service):
         )
         # delete moved processors from self
         self._processors.clear()
+        return new_stream
+
+    def noack(self) -> 'StreamT':
+        self._next = new_stream = self.clone(
+            enable_acks=False,
+        )
         return new_stream
 
     async def items(self) -> AsyncIterator[Tuple[K, T_co]]:
@@ -719,7 +727,7 @@ class Stream(StreamT[T_co], Service):
 
         try:
             while not self.should_stop:
-                do_ack = True  # set to False to not ack event.
+                do_ack = self.enable_acks  # set to False to not ack event.
                 # wait for next message
                 value: Any = None
                 event: EventT = None

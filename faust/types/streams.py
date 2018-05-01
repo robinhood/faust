@@ -100,6 +100,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     current_event: EventT = None
     active_partitions: Set[TP] = None
     concurrency_index: int = None
+    enable_acks: bool = True
 
     # List of combined streams/tables after ret = (s1 & s2) combined them.
     # AFter this ret.combined == [s1, s2]
@@ -128,6 +129,7 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
                  concurrency_index: int = None,
                  prev: 'StreamT' = None,
                  active_partitions: Set[TP] = None,
+                 enable_acks: bool = True,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
