@@ -57,6 +57,7 @@ class Attachments:
     def __init__(self, app: AppT) -> None:
         self.app = app
         self._pending = defaultdict(list)
+        self.enabled = True
 
     async def maybe_put(self,
                         channel: Union[ChannelT, str],
@@ -73,7 +74,7 @@ class Attachments:
 
         # attach message to current event if there is one.
         send: Callable = self.app.send
-        if not force:
+        if self.enabled and not force:
             event = current_event()
             if event is not None:
                 return cast(Event, event)._attach(

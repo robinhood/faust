@@ -93,6 +93,30 @@ async def test_items(app):
 
 
 @pytest.mark.asyncio
+async def test_through(app):
+    app._attachments.enabled = False
+    orig = new_stream(app)
+    channel = app.channel(loop=app.loop)
+    stream = orig.through(channel)
+
+    for i in range(100):
+        await orig.channel.deliver(message(key=i, value=i * 2))
+
+    assert stream.get_root_stream() is orig
+
+    events = []
+    async for i, value in stream.enumerate():
+        assert value == i * 2
+        assert stream.current_event
+        events.append(mock_event_ack(stream.current_event))
+        if i >= 99:
+            break
+    await orig.stop()
+    await stream.stop()
+    assert_events_acked(events)
+
+
+@pytest.mark.asyncio
 async def test_events(app):
     stream = new_stream(app)
     for i in range(100):
@@ -107,8 +131,13 @@ async def test_events(app):
         i += 1
         if i > 99:
             break
+    await stream.stop()
     await asyncio.sleep(0)  # have to sleep twice here for all events to be
     await asyncio.sleep(0)  # acked for some reason
+    assert_events_acked(events)
+
+
+def assert_events_acked(events):
     try:
         for event in events:
             event.ack.assert_called_once_with()

@@ -64,6 +64,9 @@ class PendingMessage(NamedTuple):
     def tp(self) -> TP:
         return TP(self.topic, self.partition)
 
+    def ack(self, consumer: ConsumerT) -> None:
+        ...  # used as Event.message in testing
+
 
 class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
     message: PendingMessage

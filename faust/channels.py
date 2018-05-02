@@ -146,7 +146,7 @@ class Channel(ChannelT):
                    callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to channel."""
-        if not force:
+        if self.app._attachments.enabled and not force:
             event = current_event()
             if event is not None:
                 return cast(Event, event)._attach(
