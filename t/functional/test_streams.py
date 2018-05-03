@@ -131,7 +131,7 @@ def test_through_with_concurrency_index(app):
 
 def test_through_twice(app):
     s = new_topic_stream(app)
-    s2 = s.through('bar')
+    s.through('bar')
     with pytest.raises(ImproperlyConfigured):
         s.through('baz')
 
@@ -147,13 +147,15 @@ def test_group_by_with_concurrency_index(app):
 def test_group_by_callback_must_have_name(app):
     s = new_topic_stream(app)
     with pytest.raises(TypeError):
-        s2 = s.group_by(lambda s: s.foo)
+        s.group_by(lambda s: s.foo)
+
 
 def test_group_by_twice(app):
     s = new_topic_stream(app)
-    s2 = s.group_by(lambda s: s.foo, name='foo')
+    s.group_by(lambda s: s.foo, name='foo')
     with pytest.raises(ImproperlyConfigured):
         s.group_by(lambda s: s.foo, name='foo')
+
 
 @pytest.mark.asyncio
 async def test_stream_over_iterable(app):
@@ -436,7 +438,7 @@ def test_repr__combined(app):
 
 def test_iter_raises(app):
     with pytest.raises(NotImplementedError):
-        for item in new_stream(app):
+        for _ in new_stream(app):
             assert False
 
 
@@ -465,4 +467,3 @@ async def test_stop_stops_related_streams(app):
     assert s1.should_stop
     assert s2.should_stop
     assert s3.should_stop
-
