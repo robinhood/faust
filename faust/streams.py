@@ -775,10 +775,19 @@ class Stream(StreamT[T_co], Service):
                         on_stream_event_out(tp, offset, self, event)
                         if last_stream_to_ack:
                             on_message_out(tp, offset, message)
+        except StopAsyncIteration:
+            # We are not allowed to propagate StopAsyncIteration in __aiter__
+            # (if we do, it'll be converted to RuntimeError by CPython).
+            # It can be raised when streaming over a list:
+            #    async for value in app.stream([1, 2, 3, 4]):
+            #       ...
+            # To support that, we just return here and that will stop
+            # the iteration.
+            return
         finally:
             self._channel_stop_iteration(channel)
 
-    async def __anext__(self) -> T:
+    async def __anext__(self) -> T:  # pragma: no cover
         ...
 
     async def ack(self, event: EventT) -> bool:

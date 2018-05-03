@@ -65,12 +65,12 @@ del(re)
 # A side effect is that anything importing faust
 # that also happens to have a '-D' argument in sys.argv will have the
 # F_DATADIR environment variable set.  I think that's ok. [ask]
-def _extract_arg_from_argv(
+def _extract_arg_from_argv(  # pragma: no cover
         argv: Sequence[str] = sys.argv,
         *,
         shortopts: Tuple[str, ...] = (),
         longopts: Tuple[str, ...] = ('--datadir',)) -> Optional[str]:
-    for i, arg in enumerate(argv):
+    for i, arg in enumerate(argv):  # pragma: no cover
         if arg in shortopts:
             try:
                 value = argv[i + 1]
@@ -78,7 +78,7 @@ def _extract_arg_from_argv(
                 import click
                 raise click.UsageError(f'Missing value for {arg} option')
             return value
-        if arg.startswith(longopts):
+        if arg.startswith(longopts):  # pragma: no cover
             key, _, value = arg.partition('=')
             if not value:
                 try:
@@ -94,12 +94,12 @@ def _extract_arg_from_argv(
 _datadir = (_extract_arg_from_argv(longopts=('--datadir',)) or
             os.environ.get('FAUST_DATADIR') or
             os.environ.get('F_DATADIR'))
-if _datadir:
+if _datadir:  # pragma: no cover
     os.environ['FAUST_DATADIR'] = _datadir
 _loop = (_extract_arg_from_argv(shortopts=('-L',), longopts=('--loop',)) or
          os.environ.get('FAUST_LOOP') or
          os.environ.get('F_LOOP'))
-if _loop:
+if _loop:  # pragma: no cover
     os.environ['FAUST_LOOP'] = _loop
     import mode.loop
     mode.loop.use(_loop)
@@ -107,7 +107,7 @@ if _loop:
 # To ensure `import faust` executes quickly, this module imports
 # attributes lazily. The next section provides static type checkers
 # with information about the contents of this module.
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402

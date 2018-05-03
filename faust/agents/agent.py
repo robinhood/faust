@@ -71,7 +71,7 @@ from faust.types.agents import (
 from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app.base import App
 else:
     class App: ...   # noqa

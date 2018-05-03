@@ -1,7 +1,9 @@
 import asyncio
+from copy import copy
 from unittest.mock import Mock
 from mode.utils.aiter import aiter, anext
 from mode.utils.futures import done_future
+from faust.exceptions import ImproperlyConfigured
 from faust.streams import maybe_forward
 import pytest
 from .helpers import channel_empty, message, put
@@ -103,6 +105,9 @@ async def test_through(app):
         await orig.channel.deliver(message(key=i, value=i * 2))
 
     assert stream.get_root_stream() is orig
+    assert orig._passive
+    # noop
+    orig._enable_passive(orig.channel)
 
     events = []
     async for i, value in stream.enumerate():
@@ -114,6 +119,49 @@ async def test_through(app):
     await orig.stop()
     await stream.stop()
     assert_events_acked(events)
+
+
+def test_through_with_concurrency_index(app):
+    s = new_stream(app)
+    s.concurrency_index = 0
+
+    with pytest.raises(ImproperlyConfigured):
+        s.through('foo')
+
+
+def test_through_twice(app):
+    s = new_topic_stream(app)
+    s2 = s.through('bar')
+    with pytest.raises(ImproperlyConfigured):
+        s.through('baz')
+
+
+def test_group_by_with_concurrency_index(app):
+    s = new_stream(app)
+    s.concurrency_index = 0
+
+    with pytest.raises(ImproperlyConfigured):
+        s.group_by(lambda s: s.foo)
+
+
+def test_group_by_callback_must_have_name(app):
+    s = new_topic_stream(app)
+    with pytest.raises(TypeError):
+        s2 = s.group_by(lambda s: s.foo)
+
+def test_group_by_twice(app):
+    s = new_topic_stream(app)
+    s2 = s.group_by(lambda s: s.foo, name='foo')
+    with pytest.raises(ImproperlyConfigured):
+        s.group_by(lambda s: s.foo, name='foo')
+
+@pytest.mark.asyncio
+async def test_stream_over_iterable(app):
+    s = app.stream([0, 1, 2, 3, 4, 5])
+    i = 0
+    async for value in s:
+        assert value == i
+        i += 1
 
 
 @pytest.mark.asyncio
@@ -369,3 +417,52 @@ async def get_event_from_value(stream, value, key=None):
         assert event
         event.ack = Mock(name='event.ack')
         return event
+
+
+def test_copy(app):
+    s = new_stream(app)
+    s2 = copy(s)
+    assert s2 is not s
+    assert s2.channel is s.channel
+
+
+def test_repr(app):
+    assert repr(new_stream(app))
+
+
+def test_repr__combined(app):
+    assert repr(new_stream(app) & new_stream(app))
+
+
+def test_iter_raises(app):
+    with pytest.raises(NotImplementedError):
+        for item in new_stream(app):
+            assert False
+
+
+def test_derive_topic_from_nontopic_channel_raises(app):
+    with pytest.raises(ValueError):
+        new_stream(app).derive_topic('bar')
+
+
+@pytest.mark.asyncio
+async def test_remove_from_stream(app):
+    s = new_stream(app)
+    await s.start()
+    assert not s.should_stop
+    await s.remove_from_stream(s)
+    assert s.should_stop
+
+
+@pytest.mark.asyncio
+async def test_stop_stops_related_streams(app):
+    s1 = new_stream(app)
+    s2 = new_stream(app)
+    await s1.start()
+    await s2.start()
+    s3 = s1 & s2
+    await s3.stop()
+    assert s1.should_stop
+    assert s2.should_stop
+    assert s3.should_stop
+
