@@ -1,5 +1,6 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
+from itertools import chain
 from typing import (
     Any,
     AsyncIterator,
@@ -7,6 +8,8 @@ from typing import (
     ClassVar,
     Dict,
     Iterable,
+    Iterator,
+    List,
     Mapping,
     MutableMapping,
     Optional,
@@ -26,6 +29,7 @@ from aiokafka.errors import (
     KafkaError,
 )
 from aiokafka.structs import (
+    ConsumerRecord,
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
@@ -48,6 +52,17 @@ from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
+# This is what we get from aiokafka getmany()
+# A mapping of TP to buffer-list of records.
+RecordMap = Mapping[TP, List[ConsumerRecord]]
+
+# But we want to process records from topics in round-robin order.
+# We convert records into a mapping from topic-name to "chain-of-buffers":
+#   topic_index['topic-name'] = chain(all_topic_partition_buffers)
+# This means we can get the next message available in any topic
+# by doing: next(topic_index['topic_name'])
+TopicIndexMap = MutableMapping[str, '_TopicBuffer']
+
 _TPTypes = Union[TP, _TopicPartition]
 
 logger = get_logger(__name__)
@@ -63,6 +78,33 @@ def server_list(url: URL, default_port: int) -> str:
 
 def _ensure_TP(tp: _TPTypes) -> TP:
     return tp if isinstance(tp, TP) else TP(tp.topic, tp.partition)
+
+
+class _TopicBuffer(Iterator):
+    _buffers: List[Iterator[Tuple[TP, ConsumerRecord]]]
+    _chain: Iterator[Tuple[TP, ConsumerRecord]]
+
+    def __init__(self) -> None:
+        self._buffers = []
+        # Chain of buffers, going round robin through partitions.
+        # This is finalized when needed (after all topics added).
+        self._chain = None
+
+    def add(self, tp: TP, buffer: List[ConsumerRecord]) -> None:
+        self._buffers.append((tp, message) for message in buffer)
+
+    def _finalize_chain(self) -> Iterator[ConsumerRecord]:
+        it = self._chain = chain.from_iterable(self._buffers)
+        return it
+
+    def __iter__(self) -> '_TopicBuffer':
+        return self
+
+    def __next__(self) -> Tuple[TP, ConsumerRecord]:
+        it = self._chain
+        if it is None:
+            it = self._finalize_chain()
+        return next(it)
 
 
 class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
@@ -227,10 +269,13 @@ class Consumer(base.Consumer):
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
+        if _consumer._closed:
+            raise ConsumerStoppedError()
         active_partitions = self._get_active_partitions()
         fetcher = _consumer._fetcher
+        _next = next
 
-        records: Mapping[TP, Iterable[Message]] = {}
+        records: RecordMap = {}
         async with self._partitions_lock:
             if active_partitions:
                 # Fetch records only if active partitions to avoid the risk of
@@ -238,32 +283,101 @@ class Consumer(base.Consumer):
                 # partitions is paused/resumed.
                 records = await fetcher.fetched_records(
                     active_partitions,
-                    timeout,
+                    timeout=timeout,
                 )
             else:
                 # We should still release to the event loop
                 await self.sleep(0)
         create_message = Message  # localize
 
+        # records' contain mapping from TP to list of messages.
+        # if there are two agents, consuming from topics t1 and t2,
+        # te normal order of iteration would be to process each
+        # tp in the dict:
+        #    for tp. messages in records.items():
+        #        for message in messages:
+        #           yield tp, message
+        #
+        # The problem with this is that if we have prefetched 16k messages
+        # for one topic, the other topics won't even start processing
+        # before those 16k messages are completed.
+        #
+        # So we try round-robin between the tps instead:
+        #
+        #    iterators: Dict[TP, Iterator] = {
+        #        tp: iter(messages)
+        #        for tp, messages in records.items()
+        #    }
+        #    while iterators:
+        #        for tp, messages in iterators.items():
+        #            yield tp, next(messages)
+        #            # remove from iterators if empty.
+        #
+        #
+        # Sadly, the problem with this implementation is that
+        # the records mapping is ordered by TP and records.keys()
+        # may look like this:
+        #
+        #  TP(topic='bar', partition=0)
+        #  TP(topic='bar', partition=1)
+        #  TP(topic='bar', partition=2)
+        #  TP(topic='bar', partition=3)
+        #  TP(topic='foo', partition=0)
+        #  TP(topic='foo', partition=1)
+        #  TP(topic='foo', partition=2)
+        #  TP(topic='foo', partition=3)
+        #
+        # This is bad since if there are 100 partitions for each topic,
+        # it will process 100 items in the first topic, then 100 items
+        # in the other topic, but even worse if partition counts
+        # vary greatly, for example if t1 has 1000 partitions and t2
+        # has 1 partition, then t2 will end up being starved most of the time.
+        #
+        # We solve this by going round-robin through each topic.
+        topic_index = self._records_to_topic_index(records, active_partitions)
+        to_remove: Set[str] = set()
+        sentinel = object()
+        while topic_index:
+            for topic in to_remove:
+                topic_index.pop(topic, None)
+            for topic, messages in topic_index.items():
+                item = _next(messages, sentinel)
+                if item is sentinel:
+                    # this topic is now empty,
+                    # but we cannot remove from dict while iterating over it,
+                    # so move that to the outer loop.
+                    to_remove.add(topic)
+                    continue
+                tp, record = item  # type: ignore
+                yield tp, create_message(
+                    record.topic,
+                    record.partition,
+                    record.offset,
+                    record.timestamp / 1000.0,
+                    record.timestamp_type,
+                    record.key,
+                    record.value,
+                    record.checksum,
+                    record.serialized_key_size,
+                    record.serialized_value_size,
+                    tp,
+                )
+
+    def _records_to_topic_index(self,
+                                records: RecordMap,
+                                active_partitions: Set[TP]) -> TopicIndexMap:
+        topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             if tp not in active_partitions:
                 self.log.error(f'SKIP PAUSED PARTITION: {tp} '
                                f'ACTIVES: {active_partitions}')
                 continue
-            for message in messages:
-                yield tp, create_message(
-                    message.topic,
-                    message.partition,
-                    message.offset,
-                    message.timestamp / 1000.0,
-                    message.timestamp_type,
-                    message.key,
-                    message.value,
-                    message.checksum,
-                    message.serialized_key_size,
-                    message.serialized_value_size,
-                    tp,
-                )
+            try:
+                entry = topic_index[tp.topic]
+            except KeyError:
+                entry = topic_index[tp.topic] = _TopicBuffer()
+            entry.add(tp, messages)
+        return topic_index
 
     async def verify_subscription(self, assigned: Set[TP]) -> None:
         subscription = (
