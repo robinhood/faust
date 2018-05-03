@@ -441,6 +441,8 @@ class Consumer(base.Consumer):
                     'will be eventually processed again: %r',
                     revoked,
                 )
+            if not commitable:
+                return False
             with flight_recorder(self.log, timeout=300.0) as on_timeout:
                 on_timeout.info('+aiokafka_consumer.commit()')
                 await self._consumer.commit(commitable)
