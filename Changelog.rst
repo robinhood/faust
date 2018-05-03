@@ -4,6 +4,73 @@
  Change history
 ================
 
+.. _version-1.0.2:
+
+1.0.2
+=====
+:release-date: 2018-05-03 3:32 P.M PDT
+:release-by: Ask Solem
+
+- **Transports**: Implements fair scheduling in :pypi:`aiokafka` transport.
+
+    We now round-robin through topics when processing fetched records from
+    Kafka. This helps us avoid starvation when some topics have many
+    more records than others, and also takes into account that different
+    topics may have wildly varying partition counts.
+
+    In this version when a worker is subscribed to partitions::
+
+        [
+            TP(topic='foo', partition=0),
+            TP(topic='foo', partition=1),
+            TP(topic='foo', partition=2),
+            TP(topic='foo', partition=3),
+
+            TP(topic='bar', partition=0),
+            TP(topic='bar', partition=1),
+            TP(topic='bar', partition=2),
+            TP(topic='bar', partition=3),
+
+            TP(topic='baz', partition=0)
+        ]
+
+    .. note::
+
+        ``TP`` is short for *topic and partition*.
+
+    When processing messages in these partitions, the worker will
+    round robin between the topics in such a way that each topic
+    will have an equal chance of being processed.
+
+- **Transports**: Fixed crash in :pypi:`aiokafka` transport.
+
+    The worker would attempt to commit an empty set of partitions,
+    causing an exception to be raised.  This has now been fixed.
+
+- **Stream**: Removed unused method ``Stream.tee``.
+
+    This method was an example implementation and not used by any
+    of our internal apps.
+
+- **Stream**: Fixed bug when something raises :exc:`StopAsyncIteration`
+   while processing the stream.
+
+    The Python async iterator protocol mandates that it's illegal
+    to raise :exc:`StopAsyncIteration` in an ``__aiter__`` method.
+
+    Before this change, code such as this::
+
+        async for value in stream:
+            value = anext(other_async_iterator)
+
+    where ``anext`` raises :exc:`StopAsyncIteration`, Python would
+    have the outer ``__aiter__`` reraise that exception as::
+
+        RuntimeError('__aiter__ raised StopAsyncIteration')
+
+    This no longer happens as we catch the :exc:`StopAsyncIteration` exception
+    early to ensure it does not propagate.
+
 .. _version-1.0.1:
 
 1.0.1
