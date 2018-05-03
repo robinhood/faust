@@ -18,6 +18,7 @@ import asyncio
 import random
 from datetime import datetime, timezone
 from itertools import count
+from time import monotonic
 import faust
 from faust.cli import option
 
@@ -38,18 +39,38 @@ app = faust.App(
     worker_redirect_stdouts=False,
 )
 withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
+foo_topic = app.topic('withdrawals5', value_type=Withdrawal)
 
 
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     i = 0
-    async for withdrawal in withdrawals.take(1000, within=0.6):
+    time_start = None
+    async for _withdrawal in withdrawals:  # noqa
         i += 1
-        print('LEN: %r' % (len(withdrawal),))
-        #if not i % 1000:
-        #    print(f'TRACK USER WITHDRAWAL: {i}')
-        #  if not i % 1500:
-        #      raise KeyError('OH NO')
+        if time_start is None:
+            time_start = monotonic()
+        if not i % 1000:
+            print(f'TRACK USER WITHDRAWAL: {i} {monotonic() - time_start}')
+            time_start = monotonic()
+        if not i % 1500:
+            raise KeyError('OH NO')
+        await something(i, i)
+
+
+@app.agent(foo_topic)
+async def other(withdrawals):
+    i = 0
+    time_start = None
+    async for _withdrawal in withdrawals:  # noqa
+        i += 1
+        if time_start is None:
+            time_start = monotonic()
+        if not i % 1000:
+            print(f'OTHER: {i} {monotonic() - time_start}')
+            time_start = monotonic()
+        if not i % 1500:
+            raise KeyError('OH NO')
         await something(i, i)
 
 
