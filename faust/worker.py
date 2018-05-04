@@ -27,10 +27,10 @@ from .types import AppT, SensorT, TP, TopicT
 from .utils import terminal
 from .web.site import Website as _Website
 
-try:
+try:  # pragma: no cover
     # if installed we use this to set ps.name (argv[0])
     from setproctitle import setproctitle
-except ImportError:
+except ImportError:  # pragma: no cover
     def setproctitle(title: str) -> None: ...  # noqa
 
 __all__ = ['Worker']
@@ -47,7 +47,7 @@ logger = get_logger(__name__)
 
 
 @formatter
-def format_log_arguments(arg: Any) -> Any:
+def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
     if arg and isinstance(arg, Mapping):
         first_k, first_v = next(iter(arg.items()))
         if (isinstance(first_k, str) and isinstance(first_v, set) and
@@ -222,11 +222,13 @@ class Worker(mode.Worker):
 
     async def on_startup_finished(self) -> None:
         if self._shutdown_immediately:
-            self.say('')
-            return
+            return self._on_shutdown_immediately()
         # block detection started here after changelog stuff,
         # and blocking RocksDB bulk updates.
         await self.maybe_start_blockdetection()
+        self._on_startup_end_spinner()
+
+    def _on_startup_end_spinner(self) -> None:
         if self.spinner:
             self.spinner.finish()
             if self.spinner.file.isatty():
@@ -236,6 +238,9 @@ class Worker(mode.Worker):
             self.spinner = None
         else:
             self.log.info('Ready')
+
+    def _on_shutdown_immediately(self) -> None:
+        self.say('')  # make sure spinner newlines.
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         # App service is now a child of worker.
@@ -249,11 +254,17 @@ class Worker(mode.Worker):
         return chain([self.website], self.services, [self.app])
 
     async def on_first_start(self) -> None:
-        if self.workdir and Path.cwd().absolute() != self.workdir.absolute():
-            os.chdir(Path(self.workdir).absolute())
+        self.change_workdir(self.workdir)
+        self.autodiscover()
+        self.default_on_first_start()
+
+    def change_workdir(self, path: Path) -> None:
+        if path and path.absolute() != path.cwd().absolute():
+            os.chdir(path.absolute())
+
+    def autodiscover(self) -> None:
         if self.app.conf.autodiscover:
             self.app.discover()
-        await super().on_first_start()  # <-- sets up logging
 
     def _setproctitle(self, info: str, *, ident: str = PSIDENT) -> None:
         setproctitle(f'{ident} -{info}- {self._proc_ident()}')
@@ -273,9 +284,14 @@ class Worker(mode.Worker):
     def on_setup_root_logger(self, logger: logging.Logger, level: int) -> None:
         # This is used to set up the terminal progress spinner
         # so that it spins for every log message emitted.
+        self._disable_spinner_if_level_below_WARN(level)
+        self._setup_spinner_handler(logger, level)
+
+    def _disable_spinner_if_level_below_WARN(self, level: int) -> None:
         if level and level < logging.WARN:
             self.spinner = None
 
+    def _setup_spinner_handler(self, logger: logging.Logger, level: int):
         if self.spinner:
             logger.handlers[0].setLevel(level)
             logger.addHandler(

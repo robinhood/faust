@@ -1,0 +1,13 @@
+[run]
+branch = 1
+cover_pylib = 0
+include=*faust/*
+omit = t.*
+
+[report]
+omit =
+    */python?.?/*
+    */site-packages/*
+    */pypy/*
+    */faust/types/*
+    */faust/utils/kafka/*
