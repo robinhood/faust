@@ -1,5 +1,4 @@
 from unittest.mock import Mock, patch
-import pytest
 from faust.utils import venusian
 
 

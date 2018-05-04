@@ -1,4 +1,5 @@
 """Kafka protocol extensions."""
+# pragma: no cover
 import abc
 from typing import Type
 from kafka.protocol.struct import Struct

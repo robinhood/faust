@@ -78,6 +78,7 @@ def test_logtable(tty, contexts, headers, expected_tty, expected_data):
             )
             assert ret is table().table
 
+
 @pytest.mark.parametrize('tty,expected_table_type', [
     (True, terminaltables.SingleTable),
     (False, terminaltables.AsciiTable),
