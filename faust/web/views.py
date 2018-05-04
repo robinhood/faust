@@ -1,6 +1,6 @@
 """Class-based views."""
 import inspect
-from typing import Any, Awaitable, Callable, Mapping, Type, cast
+from typing import Any, Awaitable, Callable, List, Mapping, Type, cast
 
 from faust.types import AppT
 from faust.types.web import PageArg, ViewGetHandler
@@ -40,7 +40,10 @@ class View:
             'put': self.put,
         }
 
-    async def dispatch(self, request: Any) -> None:
+    async def __call__(self, request: Any) -> Any:
+        return await self.dispatch(request)
+
+    async def dispatch(self, request: Any) -> Any:
         method = request.method.lower()
         return await self.methods[method](cast(Request, request))
 
@@ -76,8 +79,9 @@ class View:
               status: int = 200) -> Response:
         return self.web.bytes(value, content_type=content_type, status=status)
 
-    def route(self, pattern: str, handler: Callable) -> None:
-        return self.web.route(pattern, handler)
+    def route(self, pattern: str, handler: Callable) -> Any:
+        self.web.route(pattern, handler)
+        return handler
 
     def notfound(self, reason: str = 'Not Found', **kwargs: Any) -> Response:
         return self.error(404, reason, **kwargs)
@@ -94,9 +98,16 @@ class Site:
     def __init__(self, app: AppT) -> None:
         self.app = app
 
-    def enable(self, web: Web, *, prefix: str = '') -> None:
-        for pattern, view in self.views.items():
-            web.route(prefix + pattern, view(self.app, web).dispatch)
+    def enable(self, web: Web, *, prefix: str = '') -> List[View]:
+        return [
+            self._route(web, view_cls, prefix + pattern)
+            for pattern, view_cls in self.views.items()
+        ]
+
+    def _route(self, web: Web, view_cls: View, pattern: str) -> View:
+        view = view_cls(self.app, web)
+        web.route(pattern, view)
+        return view
 
     @classmethod
     def from_handler(cls, path: str, *,
