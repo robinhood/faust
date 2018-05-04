@@ -292,15 +292,15 @@ class Consumer(base.Consumer):
 
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,
-        # te normal order of iteration would be to process each
+        # normal order of iteration would be to process each
         # tp in the dict:
         #    for tp. messages in records.items():
         #        for message in messages:
         #           yield tp, message
         #
-        # The problem with this is that if we have prefetched 16k messages
-        # for one topic, the other topics won't even start processing
-        # before those 16k messages are completed.
+        # The problem with this, is if we have prefetched 16k records
+        # for one partition, the other partitions won't even start processing
+        # before those 16k records are completed.
         #
         # So we try round-robin between the tps instead:
         #
@@ -313,10 +313,9 @@ class Consumer(base.Consumer):
         #            yield tp, next(messages)
         #            # remove from iterators if empty.
         #
-        #
-        # Sadly, the problem with this implementation is that
-        # the records mapping is ordered by TP and records.keys()
-        # may look like this:
+        # The problem with this implementation is that
+        # the records mapping is ordered by TP, so records.keys()
+        # will look like this:
         #
         #  TP(topic='bar', partition=0)
         #  TP(topic='bar', partition=1)
@@ -327,10 +326,10 @@ class Consumer(base.Consumer):
         #  TP(topic='foo', partition=2)
         #  TP(topic='foo', partition=3)
         #
-        # This is bad since if there are 100 partitions for each topic,
+        # If there are 100 partitions for each topic,
         # it will process 100 items in the first topic, then 100 items
         # in the other topic, but even worse if partition counts
-        # vary greatly, for example if t1 has 1000 partitions and t2
+        # vary greatly, t1 has 1000 partitions and t2
         # has 1 partition, then t2 will end up being starved most of the time.
         #
         # We solve this by going round-robin through each topic.
