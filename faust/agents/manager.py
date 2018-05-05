@@ -1,6 +1,6 @@
 """Agent manager."""
 from collections import defaultdict
-from typing import MutableMapping, MutableSet, Set
+from typing import Dict, MutableMapping, MutableSet, Set
 from weakref import WeakSet
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
@@ -56,8 +56,9 @@ class AgentManager(AgentManagerT, ManagedUserDict):
         for agent, tps in self._collect_agents_for_update(assigned).items():
             await agent.on_partitions_assigned(tps)
 
-    def _collect_agents_for_update(self, tps: Set[TP]) -> None:
-        by_agent = defaultdict(set)
+    def _collect_agents_for_update(
+            self, tps: Set[TP]) -> Dict[AgentT, Set[TP]]:
+        by_agent: Dict[AgentT, Set[TP]] = defaultdict(set)
         for topic, tps in tp_set_to_map(tps).items():
             for agent in self._by_topic[topic]:
                 by_agent[agent].update(tps)
