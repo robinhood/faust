@@ -47,13 +47,18 @@ class AgentManager(AgentManagerT, ManagedUserDict):
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         # for isolated_partitions agents we stop agents for revoked
         # partitions.
-        for topic, tps in tp_set_to_map(revoked).items():
-            for agent in self._by_topic[topic]:
-                await agent.on_partitions_revoked(tps)
+        for agent, tps in self._collect_agents_for_update(revoked).items():
+            await agent.on_partitions_revoked(tps)
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         # for isolated_partitions agents we start agents for newly
         # assigned partitions
-        for topic, tps in tp_set_to_map(assigned).items():
+        for agent, tps in self._collect_agents_for_update(assigned).items():
+            await agent.on_partitions_assigned(tps)
+
+    def _collect_agents_for_update(self, tps: Set[TP]) -> None:
+        by_agent = defaultdict(set)
+        for topic, tps in tp_set_to_map(tps).items():
             for agent in self._by_topic[topic]:
-                await agent.on_partitions_assigned(tps)
+                by_agent[agent].update(tps)
+        return by_agent
