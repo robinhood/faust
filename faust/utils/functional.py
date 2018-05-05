@@ -1,6 +1,6 @@
 """Functional utilities."""
 from itertools import groupby
-from typing import Any, Callable, Iterable, Iterator, Optional, Sequence
+from typing import Iterable, Iterator, Sequence
 
 __all__ = ['consecutive_numbers']
 
