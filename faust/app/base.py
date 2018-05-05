@@ -84,7 +84,7 @@ from faust.types.windows import WindowT
 from ._attached import Attachments
 from .service import AppService
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.cli.base import AppCommand
     from faust.events import Event
     from faust.worker import Worker as WorkerT
@@ -203,7 +203,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                  config_source: Any = None,
                  **options: Any) -> None:
         self._default_options = (id, options)
-        self.agents = AgentManager()
+        self.agents = AgentManager(self)
         self.sensors = SensorDelegate(self)
         self._attachments = Attachments(self)
         self._monitor = monitor
@@ -265,6 +265,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 raise ImproperlyConfigured('App requires an id!')
 
     async def on_stop(self) -> None:
+        await self._maybe_close_http_client()
+
+    async def _maybe_close_http_client(self):
         if self._http_client:
             await self._http_client.close()
 
