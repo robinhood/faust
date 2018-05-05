@@ -107,7 +107,6 @@ Tables
     faust.tables.base
     faust.tables.changelogs
     faust.tables.manager
-    faust.tables.set
     faust.tables.table
     faust.tables.wrappers
 

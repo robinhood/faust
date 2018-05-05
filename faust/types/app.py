@@ -33,7 +33,7 @@ from .router import RouterT
 from .sensors import SensorDelegateT
 from .serializers import RegistryT
 from .streams import StreamT
-from .tables import CollectionT, SetT, TableManagerT, TableT
+from .tables import CollectionT, TableManagerT, TableT
 from .topics import ChannelT, TopicT
 from .transports import ConductorT, ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
@@ -192,16 +192,6 @@ class AppT(ServiceT):
               partitions: int = None,
               help: str = None,
               **kwargs: Any) -> TableT:
-        ...
-
-    @abc.abstractmethod
-    def Set(self,
-            name: str,
-            *,
-            window: WindowT = None,
-            partitions: int = None,
-            help: str = None,
-            **kwargs: Any) -> SetT:
         ...
 
     @abc.abstractmethod

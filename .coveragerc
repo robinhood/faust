@@ -9,5 +9,9 @@ omit =
     */python?.?/*
     */site-packages/*
     */pypy/*
+    */faust/__main__.py
     */faust/types/*
+    */faust/assignor/*
+    */faust/fixups/*
+    */faust/web/apps/*
     */faust/utils/kafka/*

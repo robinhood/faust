@@ -17,7 +17,6 @@ from typing import (
 )
 
 from mode import Seconds, ServiceT
-from mode.utils.collections import ManagedUserSet
 from mode.utils.compat import Counter
 from yarl import URL
 
@@ -42,7 +41,6 @@ __all__ = [
     'RelativeArg',
     'CollectionT',
     'TableT',
-    'SetT',
     'TableManagerT',
     'WindowSetT',
     'WindowWrapperT',
@@ -166,10 +164,6 @@ class TableT(CollectionT, MutableMapping):
                      sortkey: Callable[[Any], Any] = None,
                      title: str = None) -> str:
         ...
-
-
-class SetT(CollectionT, ManagedUserSet):
-    ...
 
 
 class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):

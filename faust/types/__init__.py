@@ -18,7 +18,7 @@ from .streams import (
     Processor,
     StreamT,
 )
-from .tables import CollectionT, SetT, TableT
+from .tables import CollectionT, TableT
 from .topics import TopicT
 from .transports import (
     ConsumerCallback,
@@ -83,7 +83,6 @@ __all__ = [
 
     # types.tables
     'CollectionT',
-    'SetT',
     'TableT',
 
     # types.topics

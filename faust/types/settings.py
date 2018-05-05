@@ -22,7 +22,7 @@ from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
 from .streams import StreamT
-from .tables import SetT, TableManagerT, TableT
+from .tables import TableManagerT, TableT
 from .topics import TopicT
 from .web import HttpClientT
 
@@ -219,7 +219,6 @@ class Settings(abc.ABC):
     _Stream: Type[StreamT] = None
     _Table: Type[TableT] = None
     _TableManager: Type[TableManagerT] = None
-    _Set: Type[SetT] = None
     _Serializers: Type[RegistryT] = None
     _Worker: Type[WorkerT] = None
     _PartitionAssignor: Type[PartitionAssignorT] = None
@@ -281,7 +280,6 @@ class Settings(abc.ABC):
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             TableManager: SymbolArg[Type[TableManagerT]] = None,
-            Set: SymbolArg[Type[SetT]] = None,
             Serializers: SymbolArg[Type[RegistryT]] = None,
             Worker: SymbolArg[Type[WorkerT]] = None,
             PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
@@ -542,14 +540,6 @@ class Settings(abc.ABC):
     @Table.setter
     def Table(self, Table: SymbolArg[Type[TableT]]) -> None:
         self._Table = symbol_by_name(Table)
-
-    @property
-    def Set(self) -> Type[SetT]:
-        return self._Set
-
-    @Set.setter
-    def Set(self, Set: SymbolArg[Type[SetT]]) -> None:
-        self._Set = symbol_by_name(Set)
 
     @property
     def TableManager(self) -> Type[TableManagerT]:

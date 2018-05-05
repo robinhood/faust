@@ -713,7 +713,7 @@ Set this to :const:`True` if you plan on using the RPC with agents.
 This will create the internal topic used for RPC replies on that instance
 at startup.
 
-.. Setting:: reply_expires
+.. setting:: reply_expires
 
 ``reply_expires``
 -----------------
@@ -804,28 +804,6 @@ Example using a class::
 Example using the string path to a class::
 
     app = App(..., Table='myproj.tables.Table')
-
-.. setting:: Set
-
-``Set``
--------
-
-:type: ``Union[str, Type[SetT]]``
-:default: ``"faust.Set"``
-
-The :class:`~faust.Set` class to use for sets, or the fully-qualified
-path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
-
-Example using a class::
-
-    class MyBaseSetTable(faust.Set):
-        ...
-
-    app = App(..., Set=MyBaseSetTable)
-
-Example using the string path to a class::
-
-    app = App(..., Set='myproj.tables.Set')
 
 .. setting:: TableManager
 

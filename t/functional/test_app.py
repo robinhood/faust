@@ -64,7 +64,6 @@ class test_settings:
         assert conf.Stream is faust.Stream
         assert conf.Table is faust.Table
         assert conf.TableManager is TableManager
-        assert conf.Set is faust.Set
         assert conf.Serializers is Registry
         assert conf.Worker is faust.Worker
         assert conf.PartitionAssignor is PartitionAssignor

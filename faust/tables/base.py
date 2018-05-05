@@ -1,4 +1,4 @@
-"""Base class Collection for Tables/Sets/etc."""
+"""Base class Collection for Table and future data structures."""
 import abc
 from collections import defaultdict
 from heapq import heappop, heappush

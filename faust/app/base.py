@@ -22,7 +22,7 @@ from typing import (
     MutableSequence,
     Optional,
     Pattern,
-    Set as _Set,
+    Set,
     Type,
     Union,
     cast,
@@ -63,7 +63,7 @@ from faust.types.router import RouterT
 from faust.types.serializers import RegistryT
 from faust.types.settings import Settings
 from faust.types.streams import StreamT
-from faust.types.tables import CollectionT, SetT, TableManagerT, TableT
+from faust.types.tables import CollectionT, TableManagerT, TableT
 from faust.types.topics import TopicT
 from faust.types.transports import (
     ConductorT,
@@ -267,7 +267,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     async def on_stop(self) -> None:
         await self._maybe_close_http_client()
 
-    async def _maybe_close_http_client(self):
+    async def _maybe_close_http_client(self) -> None:
         if self._http_client:
             await self._http_client.close()
 
@@ -604,32 +604,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 **kwargs))
         return table.using_window(window) if window else table
 
-    def Set(self,
-            name: str,
-            *,
-            window: WindowT = None,
-            partitions: int = None,
-            help: str = None,
-            **kwargs: Any) -> SetT:
-        """Define new Set table.
-
-        A set is a table with the :class:`typing.AbstractSet` interface,
-        that internally stores the table as a dictionary of (key, True)
-        values.
-
-        Note:
-            The set does *not have* the dict/Mapping interface.
-        """
-        Set = self.conf.Set if self.finalized else symbol_by_name('faust:Set')
-        return self.tables.add(
-            Set(self,
-                name=name,
-                beacon=self.beacon,
-                partitions=partitions,
-                window=window,
-                help=help,
-                **kwargs))
-
     def page(self, path: str, *,
              base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
         def _decorator(fun: PageArg) -> Type[Site]:
@@ -747,7 +721,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         return await self.topics.commit(topics)
 
-    async def _on_partitions_revoked(self, revoked: _Set[TP]) -> None:
+    async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.
 
         This is called during a rebalance and is followed by
@@ -785,7 +759,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         except Exception as exc:
             await self.crash(exc)
 
-    async def _on_partitions_assigned(self, assigned: _Set[TP]) -> None:
+    async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
 
         This is called during a rebalance after :meth:`on_partitions_revoked`.
