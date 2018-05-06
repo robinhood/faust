@@ -33,7 +33,7 @@ from faust.types.topics import TopicT
 from faust.types.transports import ConductorT, ConsumerCallback, TPorTopicSet
 from faust.types.tuples import tp_set_to_map
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
     from faust.topics import Topic
 else:

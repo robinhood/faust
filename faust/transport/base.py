@@ -33,7 +33,7 @@ from .conductor import Conductor
 from .consumer import Consumer, Fetcher
 from .producer import Producer
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
 else:
     class App: ...  # noqa

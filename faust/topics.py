@@ -37,7 +37,7 @@ from .types import (
 from .types.topics import ChannelT, TopicT
 from .types.transports import ProducerT
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from .app import App
 else:
     class App: ...  # noqa

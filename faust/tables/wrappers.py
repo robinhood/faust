@@ -19,7 +19,7 @@ from faust.types.tables import (
     WindowWrapperT,
 )
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from .table import Table
 else:
     class Table: ...  # noqa

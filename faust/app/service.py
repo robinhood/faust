@@ -6,7 +6,7 @@ from mode import Service, ServiceT
 from faust.exceptions import ImproperlyConfigured
 from faust.types import AppT
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from .base import App
 else:
     class App: ...  # noqa

@@ -81,7 +81,7 @@ from faust.types.transports import (
 )
 from faust.utils.functional import consecutive_numbers
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
 else:
     class App: ...  # noqa: E701
