@@ -42,6 +42,7 @@ Agents
     :maxdepth: 1
 
     faust.agents
+    faust.agents.actor
     faust.agents.agent
     faust.agents.manager
     faust.agents.models

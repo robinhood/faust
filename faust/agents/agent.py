@@ -61,13 +61,11 @@ from faust.types.agents import (
     AgentFun,
     AgentT,
     AgentTestWrapperT,
-    AsyncIterableActorT,
-    AwaitableActorT,
     ReplyToArg,
     SinkT,
-    _T,
 )
 
+from .actor import Actor, AsyncIterableActor, AwaitableActor
 from .models import ReqRepRequest, ReqRepResponse
 from .replies import BarrierState, ReplyPromise
 
@@ -76,12 +74,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 else:
     class App: ...   # noqa
 
-__all__ = [
-    'Actor',
-    'AsyncIterableActor',
-    'AwaitableActor',
-    'Agent',
-]
+__all__ = ['Agent']
 
 # --- What is an agent?
 #
@@ -138,69 +131,6 @@ __all__ = [
 #
 # TIP: Sinks can also be added as an argument to the ``@agent`` decorator:
 #      ``@app.agent(sinks=[other_agent])``.
-
-
-class Actor(ActorT, Service):
-    """An actor is a specific agent instance."""
-
-    # Agent will start n * concurrency actors.
-
-    def __init__(self,
-                 agent: AgentT,
-                 stream: StreamT,
-                 it: _T,
-                 index: int = None,
-                 active_partitions: Set[TP] = None,
-                 **kwargs: Any) -> None:
-        self.agent = agent
-        self.stream = stream
-        self.it = it
-        self.index = index
-        self.active_partitions = active_partitions
-        self.actor_task = None
-        Service.__init__(self, **kwargs)
-
-    async def on_start(self) -> None:
-        assert self.actor_task
-        self.add_future(self.actor_task)
-
-    async def on_stop(self) -> None:
-        self.cancel()
-
-    async def on_isolated_partition_revoked(self, tp: TP) -> None:
-        self.log.debug('Cancelling current task in actor for partition %r', tp)
-        self.cancel()
-        self.log.info('Stopping actor for revoked partition %r...', tp)
-        await self.stop()
-        self.log.debug('Actor for revoked partition %r stopped')
-
-    async def on_isolated_partition_assigned(self, tp: TP) -> None:
-        self.log.dev('Actor was assigned to %r', tp)
-
-    def cancel(self) -> None:
-        if self.actor_task:
-            self.actor_task.cancel()
-
-    def __repr__(self) -> str:
-        return f'<{self.shortlabel}>'
-
-    @property
-    def label(self) -> str:
-        return f'Agent*: {shorten_fqdn(self.agent.name)}'
-
-
-class AsyncIterableActor(AsyncIterableActorT, Actor):
-    """Used for agent function that yields."""
-
-    def __aiter__(self) -> AsyncIterator:
-        return self.it.__aiter__()
-
-
-class AwaitableActor(AwaitableActorT, Actor):
-    """Used for actor function that do not yield."""
-
-    def __await__(self) -> Any:
-        return self.it.__await__()
 
 
 class AgentService(Service):
@@ -548,6 +478,7 @@ class Agent(AgentT, ServiceProxy):
             if self.should_stop:
                 raise
         except Exception as exc:
+            print('ERROR: %r' % (exc,))
             self.log.exception('Agent %r raised error: %r', aref, exc)
             if self._on_error is not None:
                 await self._on_error(self, exc)
@@ -722,7 +653,7 @@ class Agent(AgentT, ServiceProxy):
                    values: Union[AsyncIterable[V], Iterable[V]],
                    key: K = None,
                    reply_to: ReplyToArg = None,
-    ) -> List[Any]:  # pragma: no cover
+                   ) -> List[Any]:  # pragma: no cover
         return await self.kvjoin(
             ((key, value) async for value in aiter(values)),
             reply_to=reply_to,

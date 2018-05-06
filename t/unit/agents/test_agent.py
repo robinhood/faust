@@ -1,4 +1,6 @@
-from unittest.mock import Mock, patch
+import asyncio
+from unittest.mock import Mock, call, patch
+
 import pytest
 from faust.agents.agent import (
     Actor,
@@ -6,101 +8,35 @@ from faust.agents.agent import (
     AsyncIterableActor,
     AwaitableActor,
 )
+from faust import Record
+from faust.agents.models import ReqRepRequest, ReqRepResponse
+from faust.events import Event
 from faust.types import TP
 from mode import label
+from mode.utils.aiter import aiter
 from mode.utils.futures import done_future
 
 
-class test_Actor:
-
-    ActorType = Actor
-
-    @pytest.fixture()
-    def agent(self):
-        agent = Mock(name='agent')
-        agent.name = 'myagent'
-        return agent
-
-    @pytest.fixture()
-    def stream(self):
-        return Mock(name='stream')
-
-    @pytest.fixture()
-    def it(self):
-        it = Mock(name='it')
-        it.__aiter__ = Mock(name='it.__aiter__')
-        it.__await__ = Mock(name='it.__await__')
-        return it
-
-    @pytest.fixture()
-    def actor(self, *, agent, stream, it):
-        return self.ActorType(agent, stream, it)
-
-    def test_constructor(self, *, actor, agent, stream, it):
-        assert actor.agent is agent
-        assert actor.stream is stream
-        assert actor.it is it
-        assert actor.index is None
-        assert actor.active_partitions is None
-        assert actor.actor_task is None
-
-    @pytest.mark.asyncio
-    async def test_on_start(self, *, actor):
-        actor.actor_task = Mock(name='actor_task')
-        actor.add_future = Mock(name='add_future')
-        await actor.on_start()
-        actor.add_future.assert_called_once_with(actor.actor_task)
-
-    @pytest.mark.asyncio
-    async def test_on_stop(self, *, actor):
-        actor.cancel = Mock(name='cancel')
-        await actor.on_stop()
-        actor.cancel.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test_on_isolated_partition_revoked(self, *, actor):
-        actor.cancel = Mock(name='cancel')
-        actor.stop = Mock(name='stop')
-        actor.stop.return_value = done_future()
-        await actor.on_isolated_partition_revoked(TP('foo', 0))
-        actor.cancel.assert_called_once_with()
-        actor.stop.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test_on_isolated_partition_assigned(self, *, actor):
-        await actor.on_isolated_partition_assigned(TP('foo', 0))
-
-    def test_cancel(self, *, actor):
-        actor.actor_task = Mock(name='actor_task')
-        actor.cancel()
-        actor.actor_task.cancel.assert_called_once_with()
-
-    def test_cancel__when_no_task(self, *, actor):
-        actor.actor_task = None
-        actor.cancel()
-
-    def test_repr(self, *, actor):
-        assert repr(actor)
+class Word(Record):
+    word: str
 
 
-class test_AsyncIterableActor(test_Actor):
+class FutureMock(Mock):
+    awaited = False
 
-    ActorType = AsyncIterableActor
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._loop = asyncio.get_event_loop()
 
-    def test_aiter(self, *, actor, it):
-        res = actor.__aiter__()
-        it.__aiter__.assert_called_with()
-        assert res is it.__aiter__()
+    def __await__(self):
+        self.awaited = True
+        yield self()
 
+    def assert_awaited(self):
+        assert self.awaited
 
-class test_AwaitableActor(test_Actor):
-
-    ActorType = AwaitableActor
-
-    def test_await(self, *, actor, it):
-        res = actor.__await__()
-        it.__await__.assert_called_with()
-        assert res is it.__await__()
+    def assert_not_awaited(self):
+        assert not self.awaited
 
 
 class test_Agent:
@@ -128,6 +64,161 @@ class test_Agent:
                 ...
 
         return other_agent
+
+    @pytest.mark.asyncio
+    async def test_execute_task(self, *, agent):
+        coro = done_future()
+        await agent._execute_task(coro, Mock(name='aref'))
+
+    @pytest.mark.asyncio
+    async def test_execute_task__cancelled_stopped(self, *, agent):
+        coro = FutureMock()
+        coro.side_effect = asyncio.CancelledError()
+        await agent.stop()
+        with pytest.raises(asyncio.CancelledError):
+            await agent._execute_task(coro, Mock(name='aref'))
+        coro.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_execute_task__cancelled_running(self, *, agent):
+        coro = FutureMock()
+        coro.side_effect = asyncio.CancelledError()
+        await agent._execute_task(coro, Mock(name='aref'))
+        coro.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_execute_task__raising(self, *, agent):
+        agent._on_error = Mock(name='on_error')
+        agent._on_error.return_value = done_future()
+        agent.log = Mock(name='log')
+        aref = Mock(name='aref')
+        aref.crash.return_value = done_future()
+        agent._service = Mock(name='_service')
+        coro = FutureMock()
+        exc = coro.side_effect = KeyError('bar')
+        with pytest.raises(KeyError):
+            await agent._execute_task(coro, aref)
+        coro.assert_awaited()
+
+        aref.crash.assert_called_once_with(exc)
+        agent._service.supervisor.wakeup.assert_called_once_with()
+        agent._on_error.assert_called_once_with(agent, exc)
+
+        agent._on_error = None
+        with pytest.raises(KeyError):
+            await agent._execute_task(coro, aref)
+
+    @pytest.mark.asyncio
+    async def test_slurp(self, *, agent, app):
+        aref = agent(index=None, active_partitions=None)
+        stream = aref.stream.get_active_stream()
+        agent._delegate_to_sinks = Mock(name='_delegate_to_sinks')
+        agent._delegate_to_sinks.return_value = done_future()
+        agent._reply = Mock(name='_reply')
+        agent._reply.return_value = done_future()
+
+        def on_delegate(value):
+            raise StopAsyncIteration()
+
+        word = Word('word')
+        word_req = ReqRepRequest(word, 'reply_to', 'correlation_id')
+        values = [
+            (Event(app, None, word_req, Mock(name='message1')), word),
+            (Event(app, 'key', 'bar', Mock(name='message2')), 'bar'),
+        ]
+
+        class AIT:
+
+            async def __aiter__(self):
+                for event, value in values:
+                    stream.current_event = event
+                    yield value
+        it = aiter(AIT())
+        await agent._slurp(aref, it)
+
+        agent._reply.assert_called_once_with(None, word, word_req)
+        agent._delegate_to_sinks.assert_has_calls([
+            call(word),
+            call('bar'),
+        ])
+
+    @pytest.mark.asyncio
+    async def test_delegate_to_sinks(self, *, agent, agent2, foo_topic):
+        agent2.send = Mock(name='agent2.send')
+        agent2.send.return_value = done_future()
+        foo_topic.send = Mock(name='foo_topic.send')
+        foo_topic.send.return_value = done_future()
+        sink_callback = Mock(name='sink_callback')
+        sink_callback2_mock = Mock(name='sink_callback2_mock')
+
+        async def sink_callback2(value):
+            return sink_callback2_mock(value)
+
+        agent._sinks = [
+            agent2,
+            foo_topic,
+            sink_callback,
+            sink_callback2,
+        ]
+
+        value = Mock(name='value')
+        await agent._delegate_to_sinks(value)
+
+        agent2.send.assert_called_once_with(value=value)
+        foo_topic.send.assert_called_once_with(value=value)
+        sink_callback.assert_called_once_with(value)
+        sink_callback2_mock.assert_called_once_with(value)
+
+    @pytest.mark.asyncio
+    async def test_reply(self, *, agent):
+        agent.app = Mock(name='app')
+        agent.app.send.return_value = done_future()
+        req = ReqRepRequest('value', 'reply_to', 'correlation_id')
+        await agent._reply('key', 'reply', req)
+        agent.app.send.assert_called_once_with(
+            req.reply_to,
+            key=None,
+            value=ReqRepResponse(
+                key='key',
+                value='reply',
+                correlation_id=req.correlation_id,
+            ),
+        )
+
+
+    @pytest.mark.asyncio
+    async def test_cast(self, *, agent):
+        agent.send = Mock(name='send')
+        agent.send.return_value = done_future()
+        await agent.cast('value', key='key', partition=303)
+        agent.send.assert_called_once_with('key', 'value', partition=303)
+
+    @pytest.mark.asyncio
+    async def test_ask(self, *, agent):
+        agent.app = Mock(name='app')
+        agent.ask_nowait = Mock(name='ask_nowait')
+        pp = done_future()
+        p = agent.ask_nowait.return_value = done_future(pp)
+        pp.correlation_id = 'foo'
+        agent.app._reply_consumer.add.return_value = done_future()
+        agent.app.maybe_start_client.return_value = done_future()
+
+        await agent.ask(
+            value='val',
+            key='key',
+            partition=303,
+            correlation_id='correlation_id',
+        )
+        agent.ask_nowait.assert_called_once_with(
+            'val',
+            key='key',
+            partition=303,
+            reply_to=agent.app.conf.reply_to,
+            correlation_id='correlation_id',
+            force=True,
+        )
+        agent.app._reply_consumer.add.assert_called_once_with(
+            pp.correlation_id, pp)
 
     @pytest.mark.asyncio
     async def test_ask_nowait(self, *, agent):
