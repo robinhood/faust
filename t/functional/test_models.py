@@ -280,6 +280,10 @@ def test_eq(a, b):
     assert a == b
 
 
+def test_eq__incompatible():
+    assert Account(id=1, name=2) != object()
+
+
 @pytest.mark.parametrize('a,b', [
     (User(id=1, username=2, account=Account(id=1, name=2)),
      User(id=2, username=2, account=Account(id=2, name=2))),
@@ -296,6 +300,20 @@ def test_eq(a, b):
 ])
 def test_ne(a, b):
     assert a != b
+
+
+def test_json():
+    assert User(1, 2, Account(id=1, name=2)).__json__() == {
+        'id': 1,
+        'username': 2,
+        'account': {
+            'id': 1,
+            'name': 2,
+            'active': True,
+            '__faust': {'ns': Account._options.namespace},
+        },
+        '__faust': {'ns': User._options.namespace},
+    }
 
 
 class test_FieldDescriptor:
@@ -676,4 +694,16 @@ def test_repr():
 def test_ident():
     assert Account.id.ident == 'Account.id'
 
+
+DATETIME1 = datetime(2012, 6, 5, 13, 33, 0)
+
+
+@pytest.mark.parametrize('input,expected', [
+    (None, None),
+    (DATETIME1, DATETIME1),
+    (DATETIME1.isoformat(), DATETIME1),
+
+])
+def test_parse_iso8601(input, expected):
+    assert Account._parse_iso8601(None, input) == expected
 
