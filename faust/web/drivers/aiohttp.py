@@ -1,5 +1,6 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
+from contextlib import contextmanager
 from typing import Any, Callable, cast
 
 from aiohttp import __version__ as aiohttp_version
@@ -53,6 +54,7 @@ class Web(base.Web):
     """Web server and framework implemention using :pypi:`aiohttp`."""
 
     driver_version = f'aiohttp={aiohttp_version}'
+    handler_shutdown_timeout: float = 60.0
 
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: ServerThread = None
@@ -88,7 +90,11 @@ class Web(base.Web):
               *,
               content_type: str = None,
               status: int = 200) -> base.Response:
-        response = Response(body=value, content_type=content_type)
+        response = Response(
+            body=value,
+            status=status,
+            content_type=content_type,
+        )
         return cast(base.Response, response)
 
     def route(self, pattern: str, handler: Callable) -> None:
@@ -104,17 +110,29 @@ class Web(base.Web):
         self.log.info('Serving on %s', self.url)
 
     async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:
+        await self._stop_server()
+        await self._shutdown_webapp()
+        await self._shutdown_handler()
+        await self._cleanup_app()
+
+    async def _stop_server(self) -> None:
         if self._srv is not None:
             self.log.info('Closing server')
             self._srv.close()
             self.log.info('Waiting for server to close handle')
             await self._srv.wait_closed()
+
+    async def _shutdown_webapp(self) -> None:
         if self._app is not None:
             self.log.info('Shutting down web application')
             await self._app.shutdown()
+
+    async def _shutdown_handler(self) -> None:
         if self._handler is not None:
             self.log.info('Waiting for handler to shut down')
-            await self._handler.shutdown(60.0)
+            await self._handler.shutdown(self.handler_shutdown_timeout)
+
+    async def _cleanup_app(self) -> None:
         if self._app is not None:
             self.log.info('Cleanup')
             await self._app.cleanup()
