@@ -1,4 +1,5 @@
 import typing
+from unittest.mock import Mock
 
 import faust
 import pytest
@@ -111,22 +112,49 @@ VALUE_TESTS = [
     # source blessed User json -> User (!!!)
     # value_type is None so it accepts any type
     Case(USER1.dumps(serializer='json'), None, 'json', USER1),
+
+    # key/value=None
+    Case(None, None, 'json', None),
 ]
 
 
 @pytest.mark.parametrize('payload,typ,serializer,expected', VALUE_TESTS)
-def test_loads_key(payload, typ, serializer, expected, app):
+def test_loads_key(payload, typ, serializer, expected, *, app):
     assert app.serializers.loads_key(
         typ, payload, serializer=serializer) == expected
 
 
+def test_loads_key__expected_model_received_None(*, app):
+    with pytest.raises(KeyDecodeError):
+        app.serializers.loads_key(Account, None, serializer='json')
+
+
+def test_loads_key__propagates_MemoryError(*, app):
+    app.serializers._loads = Mock(name='_loads')
+    app.serializers._loads.side_effect = MemoryError()
+    with pytest.raises(MemoryError):
+        app.serializers.loads_key(Account, ACCOUNT1_JSON, serializer='json')
+
+
+def test_loads_value__propagates_MemoryError(*, app):
+    app.serializers._loads = Mock(name='_loads')
+    app.serializers._loads.side_effect = MemoryError()
+    with pytest.raises(MemoryError):
+        app.serializers.loads_value(Account, ACCOUNT1_JSON, serializer='json')
+
+
+def test_loads_value__expected_model_received_None(*, app):
+    with pytest.raises(ValueDecodeError):
+        app.serializers.loads_value(Account, None, serializer='json')
+
+
 @pytest.mark.parametrize('payload,typ,serializer,expected', VALUE_TESTS)
-def test_loads_value(payload, typ, serializer, expected, app):
+def test_loads_value(payload, typ, serializer, expected, *, app):
     assert app.serializers.loads_value(
         typ, payload, serializer=serializer) == expected
 
 
-def test_loads_value_missing_key_raises_error(app):
+def test_loads_value_missing_key_raises_error(*, app):
     account = ACCOUNT1.to_representation()
     account.pop('active')
     with pytest.raises(ValueDecodeError):
@@ -134,9 +162,25 @@ def test_loads_value_missing_key_raises_error(app):
             Account, json.dumps(account), serializer='json')
 
 
-def test_loads_key_missing_key_raises_error(app):
+def test_loads_key_missing_key_raises_error(*, app):
     account = ACCOUNT1.to_representation()
     account.pop('active')
     with pytest.raises(KeyDecodeError):
         app.serializers.loads_key(
             Account, json.dumps(account), serializer='json')
+
+
+def test_dumps_value__bytes(*, app):
+    assert app.serializers.dumps_value(
+        bytes, b'foo', serializer='json') == b'foo'
+
+
+@pytest.mark.parametrize('typ,alt,expected', [
+    (str, (), 'raw'),
+    (bytes, (), 'raw'),
+    (str, ('json',), 'json'),
+    (bytes, ('json',), 'json'),
+    (None, (), None),
+])
+def test_serializer_type(typ, alt, expected, *, app):
+    assert app.serializers._serializer(typ, *alt) == expected
