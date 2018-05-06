@@ -1,7 +1,7 @@
 import base64
 from typing import Mapping
 from faust.serializers.codecs import (
-    Codec, binary as _binary, dumps, get_codec, json, loads,
+    Codec, binary as _binary, codecs, dumps, get_codec, json, loads, register,
 )
 from faust.utils import json as _json
 from hypothesis import given
@@ -44,3 +44,20 @@ def test_combinators(input: Mapping[str, str]) -> None:
 def test_get_codec():
     assert get_codec('json|binary')
     assert get_codec(Codec) is Codec
+
+
+def test_register():
+    try:
+        class MyCodec(Codec):
+            ...
+        register('mine', MyCodec)
+        assert get_codec('mine') is MyCodec
+    finally:
+        codecs.pop('mine')
+
+
+def test_raw():
+    bits = get_codec('raw').dumps('foo')
+    assert isinstance(bits, bytes)
+    assert get_codec('raw').loads(bits) == b'foo'
+
