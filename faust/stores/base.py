@@ -122,39 +122,39 @@ class SerializedStore(Store):
     """Base class for table storage drivers requiring serialization."""
 
     @abc.abstractmethod
-    def _get(self, key: bytes) -> bytes:
+    def _get(self, key: bytes) -> bytes:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _set(self, key: bytes, value: bytes) -> None:
+    def _set(self, key: bytes, value: bytes) -> None:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _del(self, key: bytes) -> None:
+    def _del(self, key: bytes) -> None:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _iterkeys(self) -> Iterator[bytes]:
+    def _iterkeys(self) -> Iterator[bytes]:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _itervalues(self) -> Iterator[bytes]:
+    def _itervalues(self) -> Iterator[bytes]:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
+    def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _size(self) -> int:
+    def _size(self) -> int:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _contains(self, key: bytes) -> bool:
+    def _contains(self, key: bytes) -> bool:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _clear(self) -> None:
+    def _clear(self) -> None:  # pragma: no cover
         ...
 
     def apply_changelog_batch(self, batch: Iterable[EventT],
