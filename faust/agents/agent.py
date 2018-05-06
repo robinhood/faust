@@ -126,7 +126,6 @@ __all__ = [
 #               yield True
 #           yield False
 #
-#
 # We can add a sink to process the yielded values.  A sink can be
 # 1) another agent, 2) a channel/topic, or 3) or callable accepting
 # the value as a single argument (that callable can be async or non-async):
@@ -684,7 +683,8 @@ class Agent(AgentT, ServiceProxy):
     async def map(self,
                   values: Union[AsyncIterable, Iterable],
                   key: K = None,
-                  reply_to: ReplyToArg = None) -> AsyncIterator:
+                  reply_to: ReplyToArg = None,
+                  ) -> AsyncIterator:  # pragma: no cover
         # Map takes only values, but can provide one key that is used for all.
         async for value in self.kvmap(
                 ((key, v) async for v in aiter(values)), reply_to):
@@ -693,7 +693,8 @@ class Agent(AgentT, ServiceProxy):
     async def kvmap(
             self,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
-            reply_to: ReplyToArg = None) -> AsyncIterator[str]:
+            reply_to: ReplyToArg = None,
+    ) -> AsyncIterator[str]:  # pragma: no cover
         # kvmap takes (key, value) pairs.
         reply_to = self._get_strtopic(reply_to or self.app.conf.reply_to)
 
@@ -720,7 +721,8 @@ class Agent(AgentT, ServiceProxy):
     async def join(self,
                    values: Union[AsyncIterable[V], Iterable[V]],
                    key: K = None,
-                   reply_to: ReplyToArg = None) -> List[Any]:
+                   reply_to: ReplyToArg = None,
+    ) -> List[Any]:  # pragma: no cover
         return await self.kvjoin(
             ((key, value) async for value in aiter(values)),
             reply_to=reply_to,
@@ -729,7 +731,7 @@ class Agent(AgentT, ServiceProxy):
     async def kvjoin(
             self,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
-            reply_to: ReplyToArg = None) -> List[Any]:
+            reply_to: ReplyToArg = None) -> List[Any]:  # pragma: no cover
         reply_to = self._get_strtopic(reply_to or self.app.conf.reply_to)
         barrier = BarrierState(reply_to)
 
@@ -754,7 +756,7 @@ class Agent(AgentT, ServiceProxy):
     async def _barrier_send(
             self, barrier: BarrierState,
             items: Union[AsyncIterable[Tuple[K, V]], Iterable[Tuple[K, V]]],
-            reply_to: ReplyToArg) -> AsyncIterator[str]:
+            reply_to: ReplyToArg) -> AsyncIterator[str]:  # pragma: no cover
         # map: send many tasks to agents
         # while trying to pop incoming results off.
         async for key, value in aiter(items):
@@ -822,7 +824,7 @@ class Agent(AgentT, ServiceProxy):
         return f'{type(self).__name__}: {shorten_fqdn(qualname(self.fun))}'
 
 
-class AgentTestWrapper(Agent, AgentTestWrapperT):
+class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
 
     _stream: StreamT = None
 

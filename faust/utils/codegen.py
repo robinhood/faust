@@ -14,8 +14,7 @@ def Function(name: str,
              locals: Dict[str, Any] = None,
              return_type: Any = MISSING,
              argsep: str = ', ') -> Callable:
-    if locals is None:
-        locals = {}
+    assert locals is not None
     return_annotation = ''
     if return_type is not MISSING:
         locals['_return_type'] = return_type

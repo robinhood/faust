@@ -10,7 +10,9 @@ omit =
     */site-packages/*
     */pypy/*
     */faust/__main__.py
+    */faust/agents/replies.py
     */faust/app/_attached.py
+    */faust/app/router.py
     */faust/types/*
     */faust/assignor/*
     */faust/fixups/*
@@ -21,6 +23,7 @@ omit =
     */faust/tables/*
     */faust/cli/_env.py
     */faust/cli/agents.py
+    */faust/cli/base.py
     */faust/cli/model.py
     */faust/cli/models.py
     */faust/cli/reset.py
