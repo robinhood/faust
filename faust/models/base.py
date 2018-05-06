@@ -269,39 +269,41 @@ class Model(ModelT):
 
     @classmethod
     @abc.abstractmethod
-    def _contribute_to_options(cls, options: ModelOptions) -> None:
+    def _contribute_to_options(
+            cls, options: ModelOptions) -> None:  # pragma: no cover
         ...
 
     @classmethod
-    def _contribute_methods(cls) -> None:
-        ...
-
-    @classmethod
-    @abc.abstractmethod
-    def _contribute_field_descriptors(cls,
-                                      target: Type,
-                                      options: ModelOptions,
-                                      parent: FieldDescriptorT = None) -> None:
+    def _contribute_methods(cls) -> None:  # pragma: no cover
         ...
 
     @classmethod
     @abc.abstractmethod
-    def _BUILD_init(cls) -> Callable[[], None]:
+    def _contribute_field_descriptors(
+            cls,
+            target: Type,
+            options: ModelOptions,
+            parent: FieldDescriptorT = None) -> None:  # pragma: no cover
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _BUILD_init(cls) -> Callable[[], None]:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def to_representation(self) -> Any:
+    def to_representation(self) -> Any:  # pragma: no cover
         """Convert object to JSON serializable object."""
 
     @abc.abstractmethod
-    def _humanize(self) -> str:
+    def _humanize(self) -> str:  # pragma: no cover
         """Return string representation of object for debugging purposes."""
         ...
 
     def derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         return self._derive(*objects, **fields)
 
-    @abc.abstractmethod
+    @abc.abstractmethod  # pragma: no cover
     def _derive(self, *objects: ModelT, **fields: Any) -> ModelT:
         raise NotImplementedError()
 

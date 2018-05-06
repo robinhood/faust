@@ -667,3 +667,13 @@ def test_custom_init_calling_model_init():
 
     with pytest.raises(TypeError):
         Quote(1.0, 2.0, foo=1)
+
+
+def test_repr():
+    assert repr(Account.id)
+
+
+def test_ident():
+    assert Account.id.ident == 'Account.id'
+
+
