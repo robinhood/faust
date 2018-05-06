@@ -97,13 +97,13 @@ class AppService(Service):
         )
 
     async def on_first_start(self) -> None:
-        self.app._create_directories()
         if not self.app.agents:
             # XXX I can imagine use cases where an app is useful
             #     without agents, but use this as more of an assertion
             #     to make sure agents are registered correctly. [ask]
             raise ImproperlyConfigured(
                 'Attempting to start app that has no agents')
+        self.app._create_directories()
         await self.app.on_first_start()
 
     async def on_start(self) -> None:
@@ -112,7 +112,7 @@ class AppService(Service):
 
     async def on_started(self) -> None:
         # Wait for table recovery to complete.
-        if not await self.wait_for_stopped(self.app.tables.recovery_completed):
+        if not await self.wait_for_table_recovery_completed():
             # Add all asyncio.Tasks, like timers, etc.
             await self.on_started_init_extra_tasks()
 
@@ -126,6 +126,9 @@ class AppService(Service):
                 await self.app.on_startup_finished()
 
             await self.app.on_started()
+
+    async def wait_for_table_recovery_completed(self) -> None:
+        return await self.wait_for_stopped(self.app.tables.recovery_completed)
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:
@@ -141,11 +144,16 @@ class AppService(Service):
         if self._extra_service_instances is None:
             # instantiate the services added using the @app.service decorator.
             self._extra_service_instances = [
-                self._prepare_subservice(s) for s in self.app._extra_services
+                await self.on_init_extra_service(service)
+                for service in self.app._extra_services
             ]
-            for service in self._extra_service_instances:
-                # start the services now, or when the app is started.
-                await self.add_runtime_dependency(service)
+
+    async def on_init_extra_service(
+            self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:
+        s: ServiceT = self._prepare_subservice(service)
+        # start the service now, or when the app is started.
+        await self.add_runtime_dependency(s)
+        return s
 
     def _prepare_subservice(
             self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:

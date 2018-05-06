@@ -15,7 +15,10 @@ omit =
     */faust/assignor/*
     */faust/fixups/*
     */faust/web/apps/*
+    */faust/utils/functional.py
     */faust/utils/kafka/*
+    */faust/transport/*
+    */faust/tables/*
     */faust/cli/_env.py
     */faust/cli/agents.py
     */faust/cli/model.py
@@ -24,3 +27,4 @@ omit =
     */faust/cli/send.py
     */faust/cli/tables.py
     */faust/cli/worker.py
+    */faust/windows.py
