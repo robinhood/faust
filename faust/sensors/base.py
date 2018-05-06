@@ -48,6 +48,10 @@ class Sensor(SensorT, Service):
         """All streams finished processing message."""
         ...
 
+    def on_topic_buffer_full(self, topic: TopicT) -> None:
+        """Topic buffer full so conductor had to wait."""
+        ...
+
     def on_table_get(self, table: CollectionT, key: Any) -> None:
         """Key retrieved from table."""
         ...
