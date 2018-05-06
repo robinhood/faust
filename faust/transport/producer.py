@@ -40,5 +40,12 @@ class Producer(Service, ProducerT):
                             partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
+                           **kwargs: Any) -> None:
+        raise NotImplementedError()
+
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
