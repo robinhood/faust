@@ -81,7 +81,8 @@ class WindowSet(WindowSetT, FastUserDict):
 
     def current(self, event: EventT = None) -> Any:
         t = cast(Table, self.table)
-        return t._windowed_timestamp(self.key, t._relative_event(event))
+        return t._windowed_timestamp(
+            self.key, t._relative_event(event or self.event))
 
     def delta(self, d: Seconds, event: EventT = None) -> Any:
         table = cast(Table, self.table)
@@ -90,7 +91,7 @@ class WindowSet(WindowSetT, FastUserDict):
     def __getitem__(self, w: Any) -> Any:
         # wrapper[key][event] returns WindowSet with event already set.
         if isinstance(w, EventT):
-            return type(self)(self.key, self.table, w)
+            return type(self)(self.key, self.table, self.wrapper, w)
         # wrapper[key][window_range] returns value for that range.
         return self.table[self.key, w]
 
