@@ -1,5 +1,5 @@
 import faust
-from faust.types import StreamT
+from faust.types import StreamT, TP
 from mode import label
 from mode.utils.aiter import aiter, anext
 from mode.utils.queues import FlowControlQueue
@@ -18,6 +18,15 @@ def channel(app):
 
 
 def test_repr(channel):
+    assert repr(channel)
+
+
+def test_repr__active_partitions_empty(channel):
+    channel.active_partitions = set()
+    assert repr(channel)
+
+def test_repr__with_active_partitions(channel):
+    channel.active_partitions = {TP('foo', 0), TP('foo', 1)}
     assert repr(channel)
 
 
@@ -115,3 +124,29 @@ async def test_send_receive(app):
 
     assert await anext(it1) == b'moo'
     assert await anext(it1_2) == b'moo'
+
+
+@pytest.mark.asyncio
+async def test_on_key_decode_error(*, app):
+    channel = app.channel()
+    await channel.on_key_decode_error(KeyError('foo'), 'msg')
+    with pytest.raises(KeyError):
+        await channel.get()
+
+
+@pytest.mark.asyncio
+async def test_on_value_decode_error(*, app):
+    channel = app.channel()
+    await channel.on_value_decode_error(KeyError('foo'), 'msg')
+    with pytest.raises(KeyError):
+        await channel.get()
+
+
+def test_derive(app):
+    channel = app.channel(maxsize=1)
+    assert channel.derive() is channel
+
+
+@pytest.mark.asyncio
+async def test_declare__does_nothing(app):
+    await app.channel().declare()

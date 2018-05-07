@@ -195,11 +195,14 @@ class Consumer(Service, ConsumerT):
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 
     @abc.abstractmethod
-    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
+    async def _commit(
+            self,
+            offsets: Mapping[TP, Tuple[int, str]]) -> bool:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _new_topicpartition(self, topic: str, partition: int) -> TP:
+    def _new_topicpartition(
+            self, topic: str, partition: int) -> TP:  # pragma: no cover
         ...
 
     def _is_changelog_tp(self, tp: TP) -> bool:

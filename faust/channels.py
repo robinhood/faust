@@ -233,7 +233,7 @@ class Channel(ChannelT):
                      propagate: bool = False) -> EventT:
         return self._create_event(message.key, message.value, message=message)
 
-    async def deliver(self, message: Message) -> None:
+    async def deliver(self, message: Message) -> None:  # pragma: no cover
         ...  # closure compiled at __init__
 
     def _compile_deliver(self) -> Callable[[Message], Awaitable[None]]:

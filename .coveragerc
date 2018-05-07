@@ -19,7 +19,6 @@ omit =
     */faust/web/apps/*
     */faust/utils/functional.py
     */faust/utils/kafka/*
-    */faust/transport/*
     */faust/tables/*
     */faust/cli/_env.py
     */faust/cli/agents.py
