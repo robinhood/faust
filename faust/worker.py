@@ -256,7 +256,7 @@ class Worker(mode.Worker):
     async def on_first_start(self) -> None:
         self.change_workdir(self.workdir)
         self.autodiscover()
-        self.default_on_first_start()
+        await self.default_on_first_start()
 
     def change_workdir(self, path: Path) -> None:
         if path and path.absolute() != path.cwd().absolute():
