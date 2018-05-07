@@ -44,6 +44,7 @@ Contents
     changelog
     contributing
     developerguide/index
+    history/index
     authors
     glossary
 
