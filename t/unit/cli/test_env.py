@@ -1,5 +1,4 @@
 import os
-from unittest.mock import patch
 import pytest
 from faust.cli._env import _getenv
 

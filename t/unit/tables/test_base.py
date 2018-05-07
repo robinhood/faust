@@ -231,7 +231,7 @@ class test_Collection:
             table & table
 
     def test_apply_window_op(self, *, table):
-        ranges = self.mock_ranges(table)
+        self.mock_ranges(table)
         table._set_key(('k', 1.1), 30)
         table._set_key(('k', 1.2), 40)
         table._set_key(('k', 1.3), 50)
@@ -279,7 +279,7 @@ class test_Collection:
         assert table._relative_timestamp(303.3)(Mock(name='event')) == 303.3
 
     def test_windowed_now(self, *, table):
-        with patch('faust.tables.base.current_event') as current_event:
+        with patch('faust.tables.base.current_event'):
             table._windowed_timestamp = Mock(name='windowed_timestamp')
             ret = table._windowed_now('k')
             table._windowed_timestamp.assert_called_once_with('k', 0)
