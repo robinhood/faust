@@ -20,13 +20,6 @@ omit =
     */faust/utils/functional.py
     */faust/utils/kafka/*
     */faust/tables/*
-    */faust/cli/_env.py
-    */faust/cli/agents.py
+    */faust/transport/drivers/*
     */faust/cli/base.py
-    */faust/cli/model.py
-    */faust/cli/models.py
-    */faust/cli/reset.py
-    */faust/cli/send.py
-    */faust/cli/tables.py
-    */faust/cli/worker.py
     */faust/windows.py

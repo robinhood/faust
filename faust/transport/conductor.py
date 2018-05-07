@@ -45,7 +45,7 @@ __all__ = ['Conductor', 'ConductorCompiler']
 logger = get_logger(__name__)
 
 
-class ConductorCompiler:
+class ConductorCompiler:  # pragma: no cover
 
     def build(self,
               conductor: 'Conductor',
@@ -232,7 +232,7 @@ class Conductor(ConductorT, Service):
         return on_message
 
     @Service.task
-    async def _subscriber(self) -> None:
+    async def _subscriber(self) -> None:  # pragma: no cover
         # the first time we start, we will wait two seconds
         # to give agents a chance to start up and register their
         # streams.  This way we won't have N subscription requests at the
