@@ -65,19 +65,19 @@ class Collection(Service, CollectionT):
     _changelog_deleting: bool = None
 
     @abc.abstractmethod
-    def _has_key(self, key: Any) -> bool:
+    def _has_key(self, key: Any) -> bool:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _get_key(self, key: Any) -> Any:
+    def _get_key(self, key: Any) -> Any:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _set_key(self, key: Any, value: Any) -> None:
+    def _set_key(self, key: Any, value: Any) -> None:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _del_key(self, key: Any) -> None:
+    def _del_key(self, key: Any) -> None:  # pragma: no cover
         ...
 
     def __init__(self,
@@ -342,7 +342,8 @@ class Collection(Service, CollectionT):
             yield window_range
 
     def _relative_now(self, event: EventT = None) -> float:
-        # get current timestamp
+        # get current timestampe
+        event = event if event is not None else current_event()
         return self._partition_latest_timestamp[event.message.partition]
 
     def _relative_event(self, event: EventT = None) -> float:

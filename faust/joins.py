@@ -1,5 +1,5 @@
 """Join strategies."""
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from .types import EventT, FieldDescriptorT, JoinT, JoinableT
 
 __all__ = [
@@ -21,6 +21,15 @@ class Join(JoinT):
 
     async def process(self, event: EventT) -> Optional[EventT]:
         raise NotImplementedError()
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, type(self)):
+            return (other.fields == self.fields and
+                    other.stream is self.stream)
+        return False
+
+    def __ne__(self, other: Any) -> bool:
+        return not self.__eq__(other)
 
 
 class RightJoin(Join):
