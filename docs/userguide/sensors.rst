@@ -83,10 +83,6 @@ Monitor Attributes
 .. class:: Monitor
     :noindex:
 
-        .. autoattribute:: messages
-            :annotation:
-            :noindex:
-
         .. autoattribute:: messages_active
             :annotation:
             :noindex:
