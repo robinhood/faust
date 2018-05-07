@@ -1,1 +1,2 @@
 -r typecheck.txt
+codecov

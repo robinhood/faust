@@ -6,7 +6,7 @@
  Python Stream Processing
 ===========================
 
-|build-status| |license| |wheel| |pyversion| |pyimp|
+|build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
 :Version: 1.0.2
 :Web: http://fauststream.com
@@ -614,6 +614,9 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 .. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/fauststream/faust
+
+.. |coverage| image:: https://codecov.io/github/fauststream/faust/coverage.svg?branch=master
+    :target: https://codecov.io/github/fauststream/faust?branch=master
 
 .. |license| image:: https://img.shields.io/pypi/l/faust.svg
     :alt: BSD License

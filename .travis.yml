@@ -1,18 +1,60 @@
 language: python
-sudo: false
-cache: false
-python:
-    - '3.6'
-os:
-    - linux
-    - osx
+sudo: required
+cache: pip
 env:
   global:
-    PYTHONUNBUFFERED=yes
-  matrix:
-    - TOXENV=3.6
-    - TOXENV=flake8
-    - TOXENV=typecheck
-    - TOXENV=apicheck
-install: travis_retry pip install -U tox
+  - PYTHONUNBUFFERED=yes
+matrix:
+  include:
+    - python: "3.6.5"
+      env: TOXENV=flake8
+      os: linux
+    - python: "3.6.5"
+      env: TOXENV=typecheck
+      os: linux
+    - python: "3.6.5"
+      env: TOXENV=apicheck
+      os: linux
+    - python: "3.6.5"
+      env: TOXENV=configcheck
+      os: linux
+    - python: "3.6.0"
+      env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y USE_PYENV=y
+      os: linux
+    - python: "3.6.1"
+      env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y USE_PYENV=y
+      os: linux
+    - python: "3.6.2"
+      env: TOXENV=3.6 IDENT="3.6.2" RUN_SUITE=y USE_PYENV=y
+      os: linux
+    - python: "3.6.3"
+      env: TOXENV=3.6 IDENT="3.6.3" RUN_SUITE=y USE_PYENV=y
+      os: linux
+    - python: "3.6.4"
+      env: TOXENV=3.6 IDENT="3.6.4" RUN_SUITE=y USE_PYENV=y
+      os: linux
+    - python: "3.6.5"
+      env: TOXENV=3.6 IDENT="3.6.5" RUN_SUITE=y USE_PYENV=y
+      os: linux
+before_install:
+install:
+- |
+    if [[ $USE_PYENV ]]; then
+        git clone https://github.com/yyuu/pyenv.git ~/.pyenv
+        PYENV_ROOT="$HOME/.pyenv"
+        PATH="$PYENV_ROOT/bin:$PATH"
+        eval "$(pyenv init -)"
+        pyenv install "${TRAVIS_PYTHON_VERSION}"
+        pyenv global "${TRAVIS_PYTHON_VERSION}"
+    fi
+- travis_retry pip install -U tox
+after_success:
+  - |
+          if [[ ! -z "$IDENT" ]]; then
+              .tox/$TOXENV/bin/coverage xml
+              .tox/$TOXENV/bin/codecov -e IDENT
+          fi;
 script: tox -v -- -v
+notifications:
+  slack:
+    secure: BjXwFkOJcCcfMgK014fv5QnN+exFNTEBIPTGKCu+CXQWYiTHsLEDzdbfG3tXZrflmgEsSGFXB88o+A6x49PF0CTgAz55yTDu5gtJ3L7csFeABH4ntshVuvthfw0wLB8tlLGzXfOynjtOWqJcHJoK69WrKvNY3MvPwzwKobJOtLMfI0AHrJMgtJPiIz8iiZ5S9h3TsZX2YSLcnuc86zdipsGmZnRcjTKzFGqSLS1CazXc39MAKgYPYH+SKV8zo/0PkULZycUmKKEe/jMfSGIHfeD5g8JacndgbVh/btybCvkWBSAy7sOnwbc5TH+Q2PO2zDOE2S0tXF5mOvWq7zxZdVa0Slz69AbHUDocyZu6+JQ2AIbu39yEfwZZ1EJMp/U0+SUUvnA8C0jEsYkRv/PlpYG8AV+O0EDOa+EI1Ha44TD0z4U4y0bbkKRR2hi+6RTbB09EWSRQLlzq0ZVt3AA/wLxSpMFYuGR8NjUEMx7YI5ZB9rORRZaz07ssu6fnvXk7b/3tJ9lg5tfEeghrDTMXKC4IymB76Apm3nw7ufOv6Xk9o8R4Xake2tIlY08L/EjtTghfFZqeJ2qFIJ/76RRzOKOvGFrsjOLer/gpA4hFcIsReOO1MazjXaNbKwOuM0pfuaEzbaEKM36NUyCjijaPOWIfqvkJqBp4FCHafHJW3sw=
