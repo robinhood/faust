@@ -1,10 +1,11 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 import pytest
-from faust.transport.consumer import Fetcher, Consumer
+from faust.transport.consumer import Consumer, Fetcher, ProducerSendError
 from faust.types import TP
 from mode.utils.futures import done_future
 
 TP1 = TP('foo', 0)
+TP2 = TP('foo', 1)
 
 
 class test_Fetcher:
@@ -21,7 +22,6 @@ class test_Fetcher:
         await fetcher._fetcher(fetcher)
 
         app.consumer._drain_messages.assert_called_once_with(fetcher)
-
 
 
 class MyConsumer(Consumer):
@@ -100,6 +100,12 @@ class test_Consumer:
     def message(self):
         return Mock(name='message')
 
+    def test_read_offset_default(self, *, consumer):
+        assert consumer._read_offset[TP1] is None
+
+    def test_committed_offset_default(self, *, consumer):
+        assert consumer._committed_offset[TP1] is None
+
     def test_is_changelog_tp(self, *, app, consumer):
         app.tables = Mock(name='tables')
         app.tables.changelog_topics = {'foo', 'bar'}
@@ -140,7 +146,8 @@ class test_Consumer:
             message.tp, message.offset, message)
 
     @pytest.mark.parametrize('offset', [
-            1, 303,
+        1,
+        303,
     ])
     def test_ack(self, offset, *, consumer, message):
         message.acked = False
@@ -193,3 +200,169 @@ class test_Consumer:
 
         await consumer.on_stop()
         consumer.wait_empty.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_force_commit(self, *, consumer):
+        consumer.app = Mock(name='app')
+        oci = consumer.app.sensors.on_commit_initiated
+        occ = consumer.app.sensors.on_commit_completed
+        consumer._commit_tps = Mock(name='_commit_tps')
+        consumer._commit_tps.return_value = done_future()
+        consumer._acked = {
+            TP1: [1, 2, 3, 4, 5],
+        }
+        consumer._committed_offset = {
+            TP1: 2,
+        }
+        await consumer.force_commit({TP1})
+        oci.assert_called_once_with(consumer)
+        consumer._commit_tps.assert_called_once_with([TP1])
+        occ.assert_called_once_with(consumer, oci())
+
+    @pytest.mark.asyncio
+    async def test_commit_tps(self, *, consumer):
+        consumer._handle_attached = Mock(name='_handle_attached')
+        consumer._handle_attached.return_value = done_future()
+        consumer._commit_offsets = Mock(name='_commit_offsets')
+        consumer._commit_offsets.return_value = done_future()
+        consumer._filter_committable_offsets = Mock(name='filt')
+        consumer._filter_committable_offsets.return_value = {
+            TP1: 4,
+            TP2: 30,
+        }
+        await consumer._commit_tps({TP1, TP2})
+
+        consumer._handle_attached.assert_called_once_with({
+            TP1: 4,
+            TP2: 30,
+        })
+        consumer._commit_offsets.assert_called_once_with({
+            TP1: 4,
+            TP2: 30,
+        })
+
+    @pytest.mark.asyncio
+    async def test_commit_tps__ProducerSendError(self, *, consumer):
+        consumer._handle_attached = Mock(name='_handle_attached')
+        exc = consumer._handle_attached.side_effect = ProducerSendError()
+        consumer.crash = Mock(name='crash')
+        consumer.crash.return_value = done_future()
+        consumer._filter_committable_offsets = Mock(name='filt')
+        consumer._filter_committable_offsets.return_value = {
+            TP1: 4,
+            TP2: 30,
+        }
+        await consumer._commit_tps({TP1, TP2})
+
+        consumer.crash.assert_called_once_with(exc)
+
+    @pytest.mark.asyncio
+    async def test_commit_tps__no_commitable(slef, *, consumer):
+        consumer._filter_commitable_offsets = Mock(name='filt')
+        consumer._filter_commitable_offsets.return_value = {}
+        await consumer._commit_tps({TP1, TP2})
+
+    def test_filter_committable_offsets(self, *, consumer):
+        consumer._acked = {
+            TP1: [1, 2, 3, 4, 7, 8],
+            TP2: [30, 31, 32, 33, 34, 35, 36, 40],
+        }
+        consumer._committed_offset = {
+            TP1: 4,
+            TP2: 30,
+        }
+        assert consumer._filter_committable_offsets({TP1, TP2}) == {
+            TP2: 36,
+        }
+
+    @pytest.mark.asyncio
+    async def test_handle_attached(self, *, consumer):
+        consumer.app = Mock(name='app')
+        consumer.app._attachments.commit.return_value = done_future()
+        await consumer._handle_attached({
+            TP1: 3003,
+            TP2: 6006,
+        })
+        consumer.app._attachments.commit.assert_has_calls([
+            call(TP1, 3003),
+            call(TP2, 6006),
+        ])
+
+    @pytest.mark.asyncio
+    async def test_commit_offsets(self, *, consumer):
+        consumer._commit = Mock(name='_commit')
+        consumer._commit.return_value = done_future()
+        await consumer._commit_offsets({
+            TP1: 3003,
+            TP2: 6006,
+        })
+        consumer._commit.assert_called_once_with({
+            TP1: (3003, ''),
+            TP2: (6006, ''),
+        })
+
+    def test_filter_tps_with_pending_acks(self, *, consumer):
+        consumer._acked = {
+            TP1: [1, 2, 3, 4, 5, 6],
+            TP2: [3, 4, 5, 6],
+        }
+        assert list(consumer._filter_tps_with_pending_acks()) == [
+            TP1, TP2,
+        ]
+        assert list(consumer._filter_tps_with_pending_acks([TP1])) == [
+            TP1,
+        ]
+        assert list(consumer._filter_tps_with_pending_acks([TP1.topic])) == [
+            TP1, TP2,
+        ]
+
+    @pytest.mark.parametrize('tp,offset,committed,should', [
+        (TP1, 0, 0, False),
+        (TP1, 1, 0, True),
+        (TP1, 6, 8, False),
+        (TP1, 100, 8, True),
+    ])
+    def test_should_commit(self, tp, offset, committed, should, *, consumer):
+        consumer._committed_offset[tp] = committed
+        assert consumer._should_commit(tp, offset) == should
+
+    @pytest.mark.parametrize('tp,acked,expected_offset', [
+        (TP1, [], None),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 10),
+        (TP1, [1, 2, 3, 4, 5, 6, 7, 8, 10], 8),
+        (TP1, [1, 2, 3, 4, 6, 7, 8, 10], 4),
+        (TP1, [1, 3, 4, 6, 7, 8, 10], 1),
+    ])
+    def test_new_offset(self, tp, acked, expected_offset, *, consumer):
+        consumer._acked[tp] = acked
+        assert consumer._new_offset(tp) == expected_offset
+
+    @pytest.mark.asyncio
+    async def test_on_task_error(self, *, consumer):
+        consumer.commit = Mock(name='commit')
+        consumer.commit.return_value = done_future()
+        await consumer.on_task_error(KeyError())
+        consumer.commit.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_commit_handler(self, *, consumer):
+        consumer.sleep = Mock(name='sleep')
+        i = 0
+
+        def on_sleep(secs):
+            nonlocal i
+            if i:
+                consumer._stopped.set()
+            i += 1
+            return done_future()
+
+        consumer.sleep.side_effect = on_sleep
+        consumer.commit = Mock(name='commit')
+        consumer.commit.return_value = done_future()
+
+        await consumer._commit_handler(consumer)
+        consumer.sleep.assert_has_calls([
+            call(consumer.commit_interval),
+            call(consumer.commit_interval),
+        ])
+        consumer.commit.assert_called_once_with()

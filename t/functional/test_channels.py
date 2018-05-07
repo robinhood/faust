@@ -25,6 +25,7 @@ def test_repr__active_partitions_empty(channel):
     channel.active_partitions = set()
     assert repr(channel)
 
+
 def test_repr__with_active_partitions(channel):
     channel.active_partitions = {TP('foo', 0), TP('foo', 1)}
     assert repr(channel)

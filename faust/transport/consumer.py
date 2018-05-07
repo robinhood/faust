@@ -53,6 +53,7 @@ from typing import (
     Any,
     AsyncIterator,
     ClassVar,
+    Dict,
     Iterable,
     Iterator,
     List,
@@ -254,7 +255,7 @@ class Consumer(Service, ConsumerT):
         wait_count = 0
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
-            if not wait_count % 100_000:
+            if not wait_count % 100_000:  # pragma: no cover
                 remaining = [(m.refcount, m) for m in self._unacked_messages]
                 self.log.warn(f'Waiting for {remaining}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
@@ -269,7 +270,8 @@ class Consumer(Service, ConsumerT):
                 # wait for `ack()` to wake us up
                 asyncio.wait_for(
                     self._waiting_for_ack, loop=self.loop, timeout=1)
-            except (asyncio.TimeoutError, asyncio.CancelledError):
+            except (asyncio.TimeoutError,
+                    asyncio.CancelledError):  # pragma: no cover
                 pass
             finally:
                 self._waiting_for_ack = None
@@ -289,7 +291,7 @@ class Consumer(Service, ConsumerT):
             await self.sleep(self.commit_interval)
 
     @Service.task
-    async def _commit_livelock_detector(self) -> None:
+    async def _commit_livelock_detector(self) -> None:  # pragma: no cover
         soft_timeout = self.commit_livelock_soft_timeout
         interval: float = self.commit_interval * 2.5
         await self.sleep(interval)
@@ -301,7 +303,8 @@ class Consumer(Service, ConsumerT):
                         'Possible livelock: COMMIT OFFSET NOT ADVANCING')
             await self.sleep(interval)
 
-    async def commit(self, topics: TPorTopicSet = None) -> bool:
+    async def commit(
+            self, topics: TPorTopicSet = None) -> bool:  # pragma: no cover
         """Maybe commit the offset for all or specific topics.
 
         Arguments:
@@ -344,13 +347,7 @@ class Consumer(Service, ConsumerT):
         return did_commit
 
     async def _commit_tps(self, tps: Iterable[TP]) -> bool:
-        commit_offsets = {}
-        for tp in tps:
-            # Find the latest offset we can commit in this tp
-            offset = self._new_offset(tp)
-            # check if we can commit to this offset
-            if offset is not None and self._should_commit(tp, offset):
-                commit_offsets[tp] = offset
+        commit_offsets = self._filter_committable_offsets(tps)
         if commit_offsets:
             try:
                 # send all messages attached to the new offset
@@ -360,6 +357,16 @@ class Consumer(Service, ConsumerT):
             else:
                 return await self._commit_offsets(commit_offsets)
         return False
+
+    def _filter_committable_offsets(self, tps: Iterable[TP]) -> Dict[TP, int]:
+        commit_offsets = {}
+        for tp in tps:
+            # Find the latest offset we can commit in this tp
+            offset = self._new_offset(tp)
+            # check if we can commit to this offset
+            if offset is not None and self._should_commit(tp, offset):
+                commit_offsets[tp] = offset
+        return commit_offsets
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
         for tp, offset in commit_offsets.items():
@@ -410,7 +417,8 @@ class Consumer(Service, ConsumerT):
     async def on_task_error(self, exc: BaseException) -> None:
         await self.commit()
 
-    async def _drain_messages(self, fetcher: ServiceT) -> None:
+    async def _drain_messages(
+            self, fetcher: ServiceT) -> None:  # pragma: no cover
         # This is the background thread started by Fetcher, used to
         # constantly read messages using Consumer.getmany.
         # It takes Fetcher as argument, because we must be able to
