@@ -139,6 +139,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
                  messages_active: int = 0,
                  events_active: int = 0,
                  messages_received_total: int = 0,
+                 messages_received_by_topic: Counter[str] = None,
                  events_total: int = 0,
                  events_by_stream: Counter[StreamT] = None,
                  events_by_task: Counter[asyncio.Task] = None,
@@ -211,17 +212,27 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
                 for topic, count in self.topic_buffer_full.items()}
 
     def _cleanup(self) -> None:
-        max_avg = self.max_avg_history
-        if max_avg is not None and len(self.events_runtime) > max_avg:
-            self.events_runtime[:len(self.events_runtime) - max_avg] = []
+        self._cleanup_max_avg_history()
+        self._cleanup_commit_latency_history()
+        self._cleanup_send_latency_history()
 
-        max_com = self.max_commit_latency_history
-        if max_com is not None and len(self.commit_latency) > max_com:
-            self.commit_latency[:len(self.commit_latency) - max_com] = []
+    def _cleanup_max_avg_history(self) -> None:
+        max_history = self.max_avg_history
+        events_runtime = self.events_runtime
+        if max_history is not None and len(events_runtime) > max_history:
+            events_runtime[:len(events_runtime) - max_history] = []
 
-        max_sen = self.max_send_latency_history
-        if max_sen is not None and len(self.send_latency) > max_sen:
-            self.send_latency[:len(self.send_latency) - max_sen] = []
+    def _cleanup_commit_latency_history(self) -> None:
+        max_history = self.max_commit_latency_history
+        commit_latency = self.commit_latency
+        if max_history is not None and len(commit_latency) > max_history:
+            commit_latency[:len(commit_latency) - max_history] = []
+
+    def _cleanup_send_latency_history(self) -> None:
+        max_history = self.max_send_latency_history
+        send_latency = self.send_latency
+        if max_history is not None and len(send_latency) > max_history:
+            send_latency[:len(send_latency) - max_history] = []
 
     def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
@@ -301,10 +312,6 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     @cached_property
     def _service(self) -> ServiceT:
         return MonitorService(self)
-
-    @property
-    def messages(self) -> Set[Message]:
-        return self.app.consumer.unacked
 
 
 class MonitorService(Service):
