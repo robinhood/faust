@@ -61,7 +61,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self._stop_event = asyncio.Event(loop=self.loop)
 
     @property
-    def _buff_size(self) -> int:
+    def _buffer_size(self) -> int:
         return self.table.recovery_buffer_size
 
     async def on_stop(self) -> None:
@@ -203,7 +203,7 @@ class ChangelogReader(Service, ChangelogReaderT):
             async for i, event in aenumerate(self._read_changelog()):
                 buf.append(event)
                 await self.table.on_changelog_event(event)
-                if len(buf) >= self._buff_size:
+                if len(buf) >= self._buffer_size:
                     self.table.apply_changelog_batch(buf)
                     buf.clear()
                 if self._should_stop_reading():
@@ -250,7 +250,7 @@ class StandbyReader(ChangelogReader):
     """Service reading table changelogs to keep an up-to-date backup."""
 
     @property
-    def _buff_size(self) -> int:
+    def _buffer_size(self) -> int:
         return self.table.standby_buffer_size
 
     @Service.task
