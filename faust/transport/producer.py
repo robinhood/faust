@@ -7,8 +7,8 @@ The Producer is responsible for:
    - Sending messages.
 """
 import asyncio
-from typing import Any, Awaitable, Optional
-from mode import Service
+from typing import Any, Awaitable, Mapping, Optional
+from mode import Seconds, Service
 from faust.types.tuples import RecordMetadata, TP
 from faust.types.transports import ProducerT, TransportT
 
@@ -44,7 +44,13 @@ class Producer(Service, ProducerT):
                            topic: str,
                            partitions: int,
                            replication: int,
-                           **kwargs: Any) -> None:
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
+                           ensure_created: bool = False) -> None:
         raise NotImplementedError()
 
     def key_partition(self, topic: str, key: bytes) -> TP:

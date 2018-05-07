@@ -104,7 +104,7 @@ class Site:
             for pattern, view_cls in self.views.items()
         ]
 
-    def _route(self, web: Web, view_cls: View, pattern: str) -> View:
+    def _route(self, web: Web, view_cls: Type[View], pattern: str) -> View:
         view = view_cls(self.app, web)
         web.route(pattern, view)
         return view

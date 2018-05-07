@@ -291,7 +291,8 @@ class Worker(mode.Worker):
         if level and level < logging.WARN:
             self.spinner = None
 
-    def _setup_spinner_handler(self, logger: logging.Logger, level: int):
+    def _setup_spinner_handler(
+            self, logger: logging.Logger, level: int) -> None:
         if self.spinner:
             logger.handlers[0].setLevel(level)
             logger.addHandler(
