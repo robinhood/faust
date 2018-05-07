@@ -165,28 +165,40 @@ class AgentService(Service):
         return await self._start_one(None, active_partitions)
 
     async def on_start(self) -> None:
-        agent = self.agent
-        SupervisorStrategy = agent.supervisor_strategy
-        if SupervisorStrategy is None:
-            SupervisorStrategy = self.agent.app.conf.agent_supervisor
-        self.supervisor = SupervisorStrategy(
+        self.supervisor = self._new_supervisor()
+        await self._on_start_supervisor()
+
+    def _new_supervisor(self) -> SupervisorStrategyT:
+        return self._get_supervisor_strategy()(
             max_restarts=100.0,
             over=1.0,
             replacement=self._replace_actor,
             loop=self.loop,
             beacon=self.beacon,
         )
+
+    def _get_supervisor_strategy(self) -> Type[SupervisorStrategyT]:
+        SupervisorStrategy = self.agent.supervisor_strategy
+        if SupervisorStrategy is None:
+            SupervisorStrategy = self.agent.app.conf.agent_supervisor
+        return SupervisorStrategy
+
+    async def _on_start_supervisor(self) -> None:
+        active_partitions = self._get_active_partitions()
+        for i in range(self.agent.concurrency):
+            res = await self._start_one(i, active_partitions)
+            self.supervisor.add(res)
+        await self.supervisor.start()
+
+    def _get_active_partitions(self) -> Set[TP]:
         active_partitions: Set[TP] = None
-        if agent.isolated_partitions:
+        if self.agent.isolated_partitions:
             # when we start our first agent, we create the set of
             # partitions early, and save it in ._pending_active_partitions.
             # That way we can update the set once partitions are assigned,
             # and the actor we started may be assigned one of the partitions.
-            active_partitions = agent._pending_active_partitions = set()
-        for i in range(agent.concurrency):
-            res = await self._start_one(i, active_partitions)
-            self.supervisor.add(res)
-        await self.supervisor.start()
+            active_partitions = self.agent._pending_active_partitions = set()
+        return active_partitions
 
     async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
         aref = cast(ActorRefT, service)
@@ -198,6 +210,9 @@ class AgentService(Service):
         # Instead we cancel it and this forces the stream to ack the
         # last message processed (but not the message causing the error
         # to be raised).
+        await self._stop_supervisor()
+
+    async def _stop_supervisor(self) -> None:
         if self.supervisor:
             await self.supervisor.stop()
             self.supervisor = None
@@ -300,23 +315,33 @@ class Agent(AgentT, ServiceProxy):
 
     async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
         for tp in sorted(assigned):
-            if self._first_assignment_done and not self._actor_by_partition:
-                self._first_assignment_done = True
-                # if this is the first time we are assigned
-                # we need to reassign the agent we started at boot to
-                # one of the partitions.
-                assert self._actors
-                assert len(self._actors) == 1
-                aref = self._actor_by_partition[tp] = next(iter(self._actors))
-                if self._pending_active_partitions is not None:
-                    assert not self._pending_active_partitions
-                    self._pending_active_partitions.add(tp)
-            try:
-                aref = self._actor_by_partition[tp]
-            except KeyError:
-                aref = await self._start_isolated(tp)
-                self._actor_by_partition[tp] = aref
-            await aref.on_isolated_partition_assigned(tp)
+            await self._assign_isolated_partition(tp)
+
+    async def _assign_isolated_partition(self, tp: TP) -> None:
+        if (not self._first_assignment_done and
+                not self._actor_by_partition):
+            self._first_assignment_done = True
+            # if this is the first time we are assigned
+            # we need to reassign the agent we started at boot to
+            # one of the partitions.
+            self._on_first_isolated_partition_assigned(tp)
+        await self._maybe_start_isolated(tp)
+
+    def _on_first_isolated_partition_assigned(self, tp: TP) -> None:
+        assert self._actors
+        assert len(self._actors) == 1
+        aref = self._actor_by_partition[tp] = next(iter(self._actors))
+        if self._pending_active_partitions is not None:
+            assert not self._pending_active_partitions
+            self._pending_active_partitions.add(tp)
+
+    async def _maybe_start_isolated(self, tp: TP) -> None:
+        try:
+            aref = self._actor_by_partition[tp]
+        except KeyError:
+            aref = await self._start_isolated(tp)
+            self._actor_by_partition[tp] = aref
+        await aref.on_isolated_partition_assigned(tp)
 
     async def _start_isolated(self, tp: TP) -> None:
         return await self._service._start_for_partitions({tp})
@@ -347,7 +372,7 @@ class Agent(AgentT, ServiceProxy):
     def test_context(self,
                      channel: ChannelT = None,
                      supervisor_strategy: SupervisorStrategyT = None,
-                     **kwargs: Any) -> AgentTestWrapperT:
+                     **kwargs: Any) -> AgentTestWrapperT:  # pragma: no cover
         # flow control into channel queues are disabled at startup,
         # so need to resume that.
         self.app.flow_control.resume()
@@ -438,10 +463,10 @@ class Agent(AgentT, ServiceProxy):
         s.add_processor(self._maybe_unwrap_reply_request)
         return s
 
-    def _maybe_unwrap_reply_request(self, event: Any) -> Any:
-        if isinstance(event, ReqRepRequest):
-            return event.value
-        return event
+    def _maybe_unwrap_reply_request(self, value: V) -> Any:
+        if isinstance(value, ReqRepRequest):
+            return value.value
+        return value
 
     async def _start_task(self,
                           index: int,
