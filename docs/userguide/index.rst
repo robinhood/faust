@@ -24,3 +24,4 @@
     installation
     kafka
     debugging
+    workers
