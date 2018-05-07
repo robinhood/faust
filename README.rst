@@ -11,7 +11,7 @@
 :Version: 1.0.2
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
-:Source: http://github.com/fauststream/faust
+:Source: http://github.com/robinhood/faust
 :Keywords: distributed, stream, async, processing, data, queue
 
 
@@ -342,7 +342,7 @@ You can install the latest snapshot of Faust using the following
 
 .. sourcecode:: console
 
-    $ pip install https://github.com/fauststream/faust/zipball/master#egg=faust
+    $ pip install https://github.com/robinhood/faust/zipball/master#egg=faust
 
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
@@ -522,14 +522,14 @@ Bug tracker
 -----------
 
 If you have any suggestions, bug reports, or annoyances please report them
-to our issue tracker at https://github.com/fauststream/faust/issues/
+to our issue tracker at https://github.com/robinhood/faust/issues/
 
 .. _wiki:
 
 Wiki
 ----
 
-https://wiki.github.com/fauststream/faust/
+https://wiki.github.com/robinhood/faust/
 
 .. _license:
 
@@ -550,7 +550,7 @@ file in the top distribution directory for the full license text.
 Contributing
 ============
 
-Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
+Development of `Faust` happens at GitHub: https://github.com/robinhood/faust
 
 You're highly encouraged to participate in the development
 of `Faust`.
@@ -611,12 +611,12 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
-.. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
+.. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.png?branch=master
     :alt: Build status
-    :target: https://travis-ci.org/fauststream/faust
+    :target: https://travis-ci.org/robinhood/faust
 
-.. |coverage| image:: https://codecov.io/github/fauststream/faust/coverage.svg?branch=master
-    :target: https://codecov.io/github/fauststream/faust?branch=master
+.. |coverage| image:: https://codecov.io/github/robinhood/faust/coverage.svg?branch=master
+    :target: https://codecov.io/github/robinhood/faust?branch=master
 
 .. |license| image:: https://img.shields.io/pypi/l/faust.svg
     :alt: BSD License

@@ -1,6 +1,6 @@
 :Version: 1.0.2
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
-:Source: http://github.com/fauststream/faust
+:Source: http://github.com/robinhood/faust
 :Keywords: distributed, stream, async, processing, data, queue
 

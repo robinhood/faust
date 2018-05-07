@@ -33,7 +33,7 @@ Faust is...
 Contributing
 ============
 
-Development of `Faust` happens at GitHub: https://github.com/fauststream/faust
+Development of `Faust` happens at GitHub: https://github.com/robinhood/faust
 
 You're highly encouraged to participate in the development
 of `Faust`.
@@ -46,12 +46,12 @@ documentation.
 
 .. include:: ../includes/code-of-conduct.txt
 
-.. |build-status| image:: https://secure.travis-ci.org/fauststream/faust.png?branch=master
+.. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.png?branch=master
     :alt: Build status
-    :target: https://travis-ci.org/fauststream/faust
+    :target: https://travis-ci.org/robinhood/faust
 
-.. |coverage| image:: https://codecov.io/github/fauststream/faust/coverage.svg?branch=master
-    :target: https://codecov.io/github/fauststream/faust?branch=master
+.. |coverage| image:: https://codecov.io/github/robinhood/faust/coverage.svg?branch=master
+    :target: https://codecov.io/github/robinhood/faust?branch=master
 
 .. |license| image:: https://img.shields.io/pypi/l/faust.svg
     :alt: BSD License

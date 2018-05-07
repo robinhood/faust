@@ -14,7 +14,7 @@ globals().update(conf.build_config(
     # version_stable='1.4',
     canonical_url='http://docs.fauststream.com',
     webdomain='',
-    github_project='fauststream/faust',
+    github_project='robinhood/faust',
     copyright='2017-2018',
     html_logo='images/logo.png',
     html_favicon='images/favicon.ico',
@@ -84,7 +84,7 @@ html_theme_options = {
     'github_banner': True,
     'travis_button': True,
     'show_related': True,
-    'github_user': 'fauststream',
+    'github_user': 'robinhood',
     'pre_bg': '#4c4c4c',
     'github_repo': 'faust',
 }
