@@ -4,6 +4,53 @@
  Change history
 ================
 
+.. _version-1.0.3:
+
+1.0.3
+=====
+:release-date: 2018-05-07 3:45 P.M PDT
+:release-by: Ask Solem
+
+- **Tests**:
+
+    + Adds 5650 lines of tests, increasing test coverage to 90%.
+
+- **Requirements**:
+
+    + Now depends on :ref:`Mode 1.12.3 <mode:version-1.12.3>`.
+
+- **Development**:
+
+    + CI now builds coverage.
+
+    + CI now tests multiple CPython versions:
+
+        * CPython 3.6.0
+        * CPython 3.6.1
+        * CPython 3.6.2
+        * CPython 3.6.3
+        * CPython 3.6.4
+        * CPython 3.6.5
+
+- **Backward incompatible changes**:
+
+    + Removed ``faust.Set`` unused by any internal applications.
+
+- **Fixes**:
+
+    + ``app.agents`` did not forward app to
+      :class:`~faust.agents.manager.AgentManager`.
+
+        The agent manager does not use the app, but fixing this
+        in anticipation of people writing custom agent managers.
+
+    + :class:`~faust.agents.manager.AgentManager`: On partitions revoked
+        the agent manager now makes sure there's only one call
+        to each agents ``agent.on_partitions_revoked`` callback.
+
+        This is more of a pedantic change, but could have caused problems
+        for advanced topic configurations.
+
 .. _version-1.0.2:
 
 1.0.2
