@@ -34,6 +34,7 @@ class test_AppService:
         ]
 
     def test_components_server(self, *, s, app):
+        components = list(s._components_server())
         expected_components = list(app.sensors)
         expected_components.extend([
             app.producer,
@@ -41,14 +42,13 @@ class test_AppService:
             app._leader_assignor,
             app._reply_consumer,
         ])
-        expected_components.extend(list(app.sensors))
         expected_components.extend(list(app.agents.values()))
         expected_components.extend([
             app.topics,
             app.tables,
             app._fetcher,
         ])
-        assert list(s._components_server()) == expected_components
+        assert components == expected_components
 
     @pytest.mark.asyncio
     async def test_on_first_start(self, *, s):

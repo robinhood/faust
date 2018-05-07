@@ -22,7 +22,7 @@ class ServerThread(ServiceThread):
         self.web = web
         super().__init__(**kwargs)
 
-    async def start(self) -> None:
+    async def start(self) -> None:  # pragma: no cover
         self._port_open = asyncio.Future(loop=self.parent_loop)
         await super().start()
         # thread exceptions do not propagate to the main thread, so we
