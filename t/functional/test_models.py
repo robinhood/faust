@@ -706,4 +706,3 @@ DATETIME1 = datetime(2012, 6, 5, 13, 33, 0)
 ])
 def test_parse_iso8601(input, expected):
     assert Account._parse_iso8601(None, input) == expected
-

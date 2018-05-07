@@ -64,7 +64,7 @@ class test_Worker:
 
     def test__on_siginit__no_spinner(self, worker):
         worker.spinner = None
-        with patch('asyncio.ensure_future') as ensure_future:
+        with patch('asyncio.ensure_future'):
             worker._on_sigint()
 
     @pytest.mark.asyncio
@@ -87,7 +87,7 @@ class test_Worker:
     async def test_on_startup_finished(self, worker):
         worker.maybe_start_blockdetection = Mock(name='maybe_start_block')
         worker.maybe_start_blockdetection.return_value = done_future()
-        worker._on_startup_end_spinner= Mock(name='on_startup_end_spinner')
+        worker._on_startup_end_spinner = Mock(name='on_startup_end_spinner')
         await worker.on_startup_finished()
         worker.maybe_start_blockdetection.assert_called_once_with()
         worker._on_startup_end_spinner.assert_called_once_with()
@@ -247,4 +247,3 @@ class test_Worker:
                 beacon=worker.beacon,
             )
             assert website is Website()
-

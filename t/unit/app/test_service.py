@@ -25,25 +25,30 @@ class test_AppService:
         assert s.on_init_dependencies() == s._components_server()
 
     def test_components_client(self, *, s, app):
-        assert (list(s._components_client()) ==
-            [app.producer,
-             app.consumer,
-             app._reply_consumer,
-             app.topics,
-             app._fetcher],
-        )
+        assert list(s._components_client()) == [
+            app.producer,
+            app.consumer,
+            app._reply_consumer,
+            app.topics,
+            app._fetcher,
+        ]
 
     def test_components_server(self, *, s, app):
-        assert (list(s._components_server()) ==
-            list(app.sensors) +
-            [app.producer,
-             app.consumer,
-             app._leader_assignor,
-             app._reply_consumer] +
-            list(app.agents.values()) +
-            [app.topics,
-             app.tables,
-             app._fetcher])
+        expected_components = list(app.sensors)
+        expected_components.extend([
+            app.producer,
+            app.consumer,
+            app._leader_assignor,
+            app._reply_consumer,
+        ])
+        expected_components.extend(list(app.sensors))
+        expected_components.extend(list(app.agents.values()))
+        expected_components.extend([
+            app.topics,
+            app.tables,
+            app._fetcher,
+        ])
+        assert list(s._components_server()) == expected_components
 
     @pytest.mark.asyncio
     async def test_on_first_start(self, *, s):
@@ -156,4 +161,3 @@ class test_AppService:
 
     def test_label(self, *, s):
         assert label(s)
-

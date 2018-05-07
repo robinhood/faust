@@ -1,5 +1,5 @@
 import pytest
-from faust.web.base import Web, Request
+from faust.web.base import Request, Web
 
 
 class test_Web:
@@ -31,4 +31,3 @@ class test_Request:
 
     def test_query(self):
         Request().query
-

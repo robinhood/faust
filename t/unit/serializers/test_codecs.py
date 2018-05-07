@@ -60,4 +60,3 @@ def test_raw():
     bits = get_codec('raw').dumps('foo')
     assert isinstance(bits, bytes)
     assert get_codec('raw').loads(bits) == b'foo'
-

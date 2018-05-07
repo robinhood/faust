@@ -14,7 +14,6 @@ class test_Event:
     def value(self):
         return Mock(name='value')
 
-
     @pytest.fixture
     def message(self):
         return Mock(name='message')
@@ -28,7 +27,7 @@ class test_Event:
         callback = Mock(name='callback')
         event._send = Mock(name='event._send')
         event._send.return_value = done_future()
-        result = await event.send(
+        await event.send(
             channel='chan',
             key=event.key,
             value=event.value,
@@ -53,7 +52,7 @@ class test_Event:
         callback = Mock(name='callback')
         event._send = Mock(name='event._send')
         event._send.return_value = done_future()
-        result = await event.send(
+        await event.send(
             channel='chan',
             partition=3,
             key_serializer='kser',
@@ -76,7 +75,7 @@ class test_Event:
         callback = Mock(name='callback')
         event._send = Mock(name='event._send')
         event._send.return_value = done_future()
-        result = await event.forward(
+        await event.forward(
             channel='chan',
             key=event.key,
             value=event.value,
@@ -101,7 +100,7 @@ class test_Event:
         callback = Mock(name='callback')
         event._send = Mock(name='event._send')
         event._send.return_value = done_future()
-        result = await event.forward(
+        await event.forward(
             channel='chan',
             partition=3,
             key_serializer='kser',
@@ -155,4 +154,3 @@ class test_Event:
         assert block_executed
 
         event.ack.assert_called_once_with()
-

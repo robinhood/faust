@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 import pytest
 from faust.types import TP
-from faust.agents.manager import AgentManager
 from mode.utils.futures import done_future
 
 
@@ -77,7 +76,7 @@ class test_AgentManager:
             TP('t4', 9),
         })
         agent1.on_partitions_revoked.assert_called_once_with({
-            TP('t1', 0), TP('t1', 1)
+            TP('t1', 0), TP('t1', 1),
         })
         agent2.on_partitions_revoked.assert_called_once_with({
             TP('t1', 0),
@@ -101,7 +100,7 @@ class test_AgentManager:
             TP('t4', 9),
         })
         agent1.on_partitions_assigned.assert_called_once_with({
-            TP('t1', 0), TP('t1', 1)
+            TP('t1', 0), TP('t1', 1),
         })
         agent2.on_partitions_assigned.assert_called_once_with({
             TP('t1', 0),

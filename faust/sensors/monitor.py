@@ -2,7 +2,7 @@
 import asyncio
 import statistics
 from time import monotonic
-from typing import Any, Callable, List, Mapping, MutableMapping, Set, cast
+from typing import Any, Callable, List, Mapping, MutableMapping, cast
 
 from mode import Service, ServiceT, label
 from mode.proxy import ServiceProxy

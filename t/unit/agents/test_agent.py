@@ -3,13 +3,7 @@ from unittest.mock import ANY, Mock, call, patch
 
 import pytest
 from faust import Record
-from faust.agents.agent import (
-    Actor,
-    Agent,
-    AgentService,
-    AsyncIterableActor,
-    AwaitableActor,
-)
+from faust.agents.agent import AgentService
 from faust.agents.models import ReqRepRequest, ReqRepResponse
 from faust.events import Event
 from faust.exceptions import ImproperlyConfigured
@@ -193,7 +187,7 @@ class test_Agent:
         @app.agent(foo_topic)
         async def other_agent(stream):
             async for value in stream:
-                ...
+                value
 
         return other_agent
 
@@ -531,7 +525,6 @@ class test_Agent:
             ),
         )
 
-
     @pytest.mark.asyncio
     async def test_cast(self, *, agent):
         agent.send = Mock(name='send')
@@ -544,7 +537,7 @@ class test_Agent:
         agent.app = Mock(name='app')
         agent.ask_nowait = Mock(name='ask_nowait')
         pp = done_future()
-        p = agent.ask_nowait.return_value = done_future(pp)
+        agent.ask_nowait.return_value = done_future(pp)
         pp.correlation_id = 'foo'
         agent.app._reply_consumer.add.return_value = done_future()
         agent.app.maybe_start_client.return_value = done_future()

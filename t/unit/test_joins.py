@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 import pytest
 from faust import Record
-from faust.joins import Join, InnerJoin, LeftJoin, OuterJoin, RightJoin
+from faust.joins import InnerJoin, Join, LeftJoin, OuterJoin, RightJoin
 
 
 class User(Record):

@@ -224,7 +224,7 @@ class test_App:
         fixup1 = Mock(name='fixup1')
         fixup1.autodiscover_modules.return_value = ['d', 'e']
         app.fixups = [fixup1]
-        with patch('faust.app.base.venusian') as venusian:
+        with patch('faust.app.base.venusian'):
             with patch('importlib.import_module') as import_module:
                 app.discover()
 
@@ -235,7 +235,7 @@ class test_App:
                         call('c'),
                         call('d'),
                         call('e'),
-                        call('faust')
+                        call('faust'),
                     ],
                     any_order=True,
                 )
@@ -247,7 +247,7 @@ class test_App:
     def test_discover__unknown_module(self, *, app):
         app.conf.autodiscover = ['xcxz']
         app.conf.origin = 'faust'
-        with patch('faust.app.base.venusian') as venusian:
+        with patch('faust.app.base.venusian'):
             with pytest.raises(ModuleNotFoundError):
                 app.discover()
 
@@ -356,6 +356,7 @@ class test_App:
     @pytest.mark.asyncio
     async def test_timer(self, *, app):
         did_execute = Mock(name='did_execute')
+
         @app.timer(0.1)
         async def foo():
             did_execute()

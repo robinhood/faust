@@ -330,7 +330,7 @@ class Agent(AgentT, ServiceProxy):
     def _on_first_isolated_partition_assigned(self, tp: TP) -> None:
         assert self._actors
         assert len(self._actors) == 1
-        aref = self._actor_by_partition[tp] = next(iter(self._actors))
+        self._actor_by_partition[tp] = next(iter(self._actors))
         if self._pending_active_partitions is not None:
             assert not self._pending_active_partitions
             self._pending_active_partitions.add(tp)

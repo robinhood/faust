@@ -1,6 +1,5 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
-from contextlib import contextmanager
 from typing import Any, Callable, cast
 
 from aiohttp import __version__ as aiohttp_version

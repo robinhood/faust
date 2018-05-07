@@ -1,6 +1,7 @@
 import pytest
 from faust.transport.producer import Producer
 
+
 class test_Producer:
 
     @pytest.fixture

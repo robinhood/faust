@@ -147,4 +147,3 @@ class test_SerializedStore:
         store['foo'] = '303'
         store.clear()
         assert not len(store)
-
