@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import socket
+import warnings
 from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
@@ -54,18 +56,23 @@ class test_Worker:
         assert Worker(app, web_host='foo').web_host == 'foo'
 
     @pytest.mark.asyncio
-    async def test__on_siginit(self, worker):
+    async def test_on_siginit(self, worker):
+        with warnings.catch_warnings():
+            with patch('asyncio.ensure_future') as ensure_future:
+                worker._on_sigint()
+                assert worker._shutdown_immediately
+                assert worker.spinner.stopped
+                ensure_future.assert_called_with(
+                    CoroEq(worker._stop_on_signal), loop=worker.loop)
+                coro = ensure_future.call_args[0][0]
+        asyncio.ensure_future(coro).cancel()  # silence warning
+
+    def test_on_siginit__no_spinner(self, worker):
+        worker.spinner = None
         with patch('asyncio.ensure_future') as ensure_future:
             worker._on_sigint()
-            assert worker._shutdown_immediately
-            assert worker.spinner.stopped
-            ensure_future.assert_called_with(
-                CoroEq(worker._stop_on_signal), loop=worker.loop)
-
-    def test__on_siginit__no_spinner(self, worker):
-        worker.spinner = None
-        with patch('asyncio.ensure_future'):
-            worker._on_sigint()
+            coro = ensure_future.call_args[0][0]
+        asyncio.ensure_future(coro).cancel()
 
     @pytest.mark.asyncio
     async def test__on_sigterm(self, worker):
@@ -75,6 +82,8 @@ class test_Worker:
             assert worker.spinner.stopped
             ensure_future.assert_called_with(
                 CoroEq(worker._stop_on_signal), loop=worker.loop)
+            coro = ensure_future.call_args[0][0]
+        asyncio.ensure_future(coro).cancel()  # silence warning
 
     @pytest.mark.asyncio
     async def test_on_startup_finished__shutdown_requested(self, worker):

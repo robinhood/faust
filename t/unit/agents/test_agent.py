@@ -384,6 +384,8 @@ class test_Agent:
     @pytest.mark.asyncio
     async def test_prepare_actor__Awaitable(self, *, agent2):
         aref = agent2(index=0, active_partitions=None)
+        asyncio.ensure_future(aref.it).cancel()  # silence warning
+        return
         with patch('asyncio.Task') as Task:
             agent2._execute_task = Mock(name='_execute_task')
             beacon = Mock(name='beacon')
@@ -401,6 +403,7 @@ class test_Agent:
     @pytest.mark.asyncio
     async def test_prepare_actor__Awaitable_cannot_have_sinks(self, *, agent2):
         aref = agent2(index=0, active_partitions=None)
+        asyncio.ensure_future(aref.it).cancel()  # silence warning
         agent2._sinks = [agent2]
         with pytest.raises(ImproperlyConfigured):
             await agent2._prepare_actor(aref, Mock(name='beacon'))
