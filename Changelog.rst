@@ -12,6 +12,46 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.5:
+
+1.0.5
+=====
+:release-date: 2018-05-08 4:09 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**:
+
+    + Now depends on :ref:`Mode 1.12.3 <mode:version-1.12.3>`.
+
+- **Agents**: Fixed problem with hanging after agent raises exception.
+
+    If an agent raises an exception we cannot handle it within
+    the stream iteration, so we need to restart the agent.
+
+    Starting from this change, even though we restart the agent, we reuse
+    the same :class:`faust.Stream` object that the crashed agent was using.
+
+    This makes recovery more seamless and there are fewer steps
+    involved.
+
+- **Transports**: Fixed worker hanging issue introduced in 1.0.4.
+
+    In version :ref:`version-1.0.4` we introduced a bug in the round-robin
+    scheduling of topic partitions that manifested itself by hanging
+    with 100% CPU usage.
+
+    After processing all records in all topic partitions, the worker
+    would spinloop.
+
+- **API**: Added new base class for windows: :class:`faust.Window`
+
+    There was the typing interface :class:`faust.types.windows.WindowT`,
+    but now there is also a concrete base class that can be used in
+    for example ``Mock(autospec=Window)``.
+
+- **Tests**: Now takes advantage of the new
+  :class:`~mode.utils.mocks.AsyncMock`.
+
 .. _version-1.0.4:
 
 1.0.4
