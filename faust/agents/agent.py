@@ -150,13 +150,14 @@ class AgentService(Service):
 
     async def _start_one(self,
                          index: int = None,
-                         active_partitions: Set[TP] = None) -> ActorT:
+                         active_partitions: Set[TP] = None,
+                         stream: StreamT = None) -> ActorT:
         # an index of None means there's only one instance,
         # and `index is None` is used as a test by functions that
         # disallows concurrency.
         index = index if self.agent.concurrency > 1 else None
         return await cast(Agent, self.agent)._start_task(
-            index, active_partitions, self.beacon)
+            index, active_partitions, stream, self.beacon)
 
     async def _start_for_partitions(self,
                                     active_partitions: Set[TP]) -> ActorT:
@@ -202,7 +203,8 @@ class AgentService(Service):
 
     async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
         aref = cast(ActorRefT, service)
-        return await self._start_one(index, aref.active_partitions)
+        return await self._start_one(
+            index, aref.active_partitions, aref.stream)
 
     async def on_stop(self) -> None:
         # Agents iterate over infinite streams, so we cannot wait for it
@@ -405,7 +407,8 @@ class Agent(AgentT, ServiceProxy):
 
     def __call__(self, *,
                  index: int = None,
-                 active_partitions: Set[TP] = None) -> ActorRefT:
+                 active_partitions: Set[TP] = None,
+                 stream: StreamT = None) -> ActorRefT:
         # The agent function can be reused by other agents/tasks.
         # For example:
         #
@@ -423,9 +426,16 @@ class Agent(AgentT, ServiceProxy):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the agent
         # function is an `async def` function that yields)
-        return self.actor_from_stream(self.stream(
-            concurrency_index=index,
-            active_partitions=active_partitions))
+        if stream is None:
+            stream = self.stream(
+                concurrency_index=index,
+                active_partitions=active_partitions,
+            )
+        else:
+            # reusing actor stream after agent restart
+            assert stream.concurrency_index == index
+            assert stream.active_partitions == active_partitions
+        return self.actor_from_stream(stream)
 
     def actor_from_stream(self, stream: StreamT) -> ActorRefT:
         res = self.fun(stream)
@@ -471,11 +481,16 @@ class Agent(AgentT, ServiceProxy):
     async def _start_task(self,
                           index: int,
                           active_partitions: Set[TP] = None,
+                          stream: StreamT = None,
                           beacon: NodeT = None) -> ActorRefT:
         # If the agent is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
         # that will consume it.
-        actor = self(index=index, active_partitions=active_partitions)
+        actor = self(
+            index=index,
+            active_partitions=active_partitions,
+            stream=stream,
+        )
         return await self._prepare_actor(actor, beacon)
 
     async def _prepare_actor(self, aref: ActorRefT,
