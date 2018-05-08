@@ -116,8 +116,8 @@ class _TopicBuffer(Iterator):
     def __next__(self) -> Tuple[TP, ConsumerRecord]:
         it = self._it
         if it is None:
-            it = self._it = iter(self)
-        return it.__next__()
+            it = self._it = iter(self)  # type: ignore
+        return it.__next__()  # type: ignore
 
 
 class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
