@@ -124,6 +124,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
         HoppingWindow,
         TumblingWindow,
         SlidingWindow,
+        Window,
     )
     from .worker import Worker                                # noqa: E402
 
@@ -154,6 +155,7 @@ __all__ = [
     'HoppingWindow',
     'TumblingWindow',
     'SlidingWindow',
+    'Window',
     'Worker',
 ]
 
@@ -181,6 +183,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
         'HoppingWindow',
         'TumblingWindow',
         'SlidingWindow',
+        'Window',
     ],
     'faust.worker': ['Worker'],
     'mode.services': ['Service', 'ServiceT'],
