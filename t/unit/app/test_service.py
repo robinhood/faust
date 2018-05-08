@@ -1,6 +1,7 @@
-from faust.exceptions import ImproperlyConfigured
 from mode import Service, label
 from mode.utils.mocks import AsyncMock, Mock, call
+from faust import App
+from faust.exceptions import ImproperlyConfigured
 import pytest
 
 
@@ -51,7 +52,11 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_first_start(self, *, s):
-        s.app = Mock(name='app', on_first_start=AsyncMock())
+        s.app = Mock(
+            name='app',
+            autospec=App,
+            on_first_start=AsyncMock(),
+        )
         await s.on_first_start()
 
         s.app._create_directories.assert_called_once_with()
@@ -59,7 +64,7 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_first_start__no_agents_raises_error(self, *, s):
-        s.app = Mock(name='app')
+        s.app = Mock(name='app', autospec=App)
         s.app.agents = {}
         with pytest.raises(ImproperlyConfigured):
             await s.on_first_start()
@@ -68,6 +73,7 @@ class test_AppService:
     async def test_on_start(self, *, s):
         s.app = Mock(
             name='app',
+            autospec=App,
             on_start=AsyncMock(),
         )
         await s.on_start()
@@ -128,7 +134,7 @@ class test_AppService:
     @pytest.mark.asyncio
     async def test_on_started_init_extra_services(self, *, s, app):
         s.add_runtime_dependency = AsyncMock(name='add_runtime_dependency')
-        service1 = Mock(name='service1')
+        service1 = Mock(name='service1', autospec=Service)
         app._extra_services = [service1]
         s._extra_service_instances = None
         await s.on_started_init_extra_services()

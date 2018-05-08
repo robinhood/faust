@@ -1,4 +1,7 @@
+import asyncio
+import collections
 import pytest
+from faust.agents import Agent
 from faust.agents.actor import Actor, AsyncIterableActor, AwaitableActor
 from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
@@ -10,7 +13,7 @@ class test_Actor:
 
     @pytest.fixture()
     def agent(self):
-        agent = Mock(name='agent')
+        agent = Mock(name='agent', autospec=Agent)
         agent.name = 'myagent'
         return agent
 
@@ -20,7 +23,7 @@ class test_Actor:
 
     @pytest.fixture()
     def it(self):
-        it = Mock(name='it')
+        it = Mock(name='it', autospec=collections.Iterator)
         it.__aiter__ = Mock(name='it.__aiter__')
         it.__await__ = Mock(name='it.__await__')
         return it
@@ -39,7 +42,7 @@ class test_Actor:
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, actor):
-        actor.actor_task = Mock(name='actor_task')
+        actor.actor_task = Mock(name='actor_task', autospec=asyncio.Task)
         actor.add_future = Mock(name='add_future')
         await actor.on_start()
         actor.add_future.assert_called_once_with(actor.actor_task)
@@ -63,7 +66,7 @@ class test_Actor:
         await actor.on_isolated_partition_assigned(TP('foo', 0))
 
     def test_cancel(self, *, actor):
-        actor.actor_task = Mock(name='actor_task')
+        actor.actor_task = Mock(name='actor_task', autospec=asyncio.Task)
         actor.cancel()
         actor.actor_task.cancel.assert_called_once_with()
 

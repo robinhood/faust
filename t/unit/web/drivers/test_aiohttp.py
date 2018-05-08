@@ -1,5 +1,7 @@
 import asyncio
 import pytest
+from aiohttp.web import Application
+from faust.web import base
 from faust.web.drivers.aiohttp import ServerThread, Web
 from mode.utils.mocks import AsyncMock, Mock, patch
 
@@ -40,7 +42,11 @@ class test_ServerThread:
 
     @pytest.mark.asyncio
     async def test_on_thread_start(self, *, thread):
-        thread.web = Mock(name='web', stop_server=AsyncMock())
+        thread.web = Mock(
+            name='web',
+            autospec=base.Web,
+            stop_server=AsyncMock(),
+        )
         await thread.on_thread_stop()
 
         thread.web.stop_server.assert_called_once_with(thread.loop)
@@ -81,8 +87,12 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_start_server(self, *, web):
-        loop = Mock(name='loop', create_server=AsyncMock())
-        web._app = Mock(name='_app')
+        loop = Mock(
+            name='loop',
+            autospec=asyncio.AbstractEventLoop,
+            create_server=AsyncMock(),
+        )
+        web._app = Mock(name='_app', autospec=Application)
         await web.start_server(loop)
 
         web._app.make_handler.assert_called_once_with()
@@ -98,7 +108,8 @@ class test_Web:
         web._shutdown_handler = AsyncMock(name='_shutdown_handler')
         web._cleanup_app = AsyncMock(name='_cleanup_app')
 
-        await web.stop_server(Mock(name='loop'))
+        await web.stop_server(
+            Mock(name='loop', autospec=asyncio.AbstractEventLoop))
         web._stop_server.assert_called_once_with()
         web._shutdown_webapp.assert_called_once_with()
         web._shutdown_handler.assert_called_once_with()
@@ -117,7 +128,11 @@ class test_Web:
     async def test_shutdown_webapp(self, *, web):
         web._app = None
         await web._shutdown_webapp()
-        web._app = Mock(name='_app', shutdown=AsyncMock())
+        web._app = Mock(
+            name='_app',
+            autospec=Application,
+            shutdown=AsyncMock(),
+        )
         await web._shutdown_webapp()
         web._app.shutdown.assert_called_once_with()
 
@@ -133,6 +148,10 @@ class test_Web:
     async def test_cleanup_app(self, *, web):
         web._app = None
         await web._cleanup_app()
-        web._app = Mock(name='_app', cleanup=AsyncMock())
+        web._app = Mock(
+            name='_app',
+            autospec=Application,
+            cleanup=AsyncMock(),
+        )
         await web._cleanup_app()
         web._app.cleanup.assert_called_once_with()

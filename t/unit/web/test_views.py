@@ -1,5 +1,6 @@
 import pytest
 from mode.utils.mocks import AsyncMock, Mock, call
+from faust.web.base import Request, Web
 from faust.web.views import Site, View
 
 
@@ -12,7 +13,7 @@ class test_View:
 
     @pytest.fixture
     def web(self):
-        return Mock(name='web')
+        return Mock(name='web', autospec=Web)
 
     @pytest.fixture
     def view(self, app, web):
@@ -42,7 +43,7 @@ class test_View:
     ])
     @pytest.mark.asyncio
     async def test_dispatch(self, method, *, view):
-        request = Mock(name='request')
+        request = Mock(name='request', autospec=Request)
         request.method = method
         handler = AsyncMock(name=method)
         view.methods[method.lower()] = handler
@@ -51,29 +52,34 @@ class test_View:
 
     @pytest.mark.asyncio
     async def test_get(self, view):
-        req = Mock(name='request')
+        req = Mock(name='request', autospec=Request)
         assert (await view.methods['get'](req)) == (view, req)
 
     @pytest.mark.asyncio
     async def test_interface_get(self, app, web):
         view = View(app, web)
-        assert (await view.get(Mock(name='request'))) is None
+        assert await view.get(
+            Mock(name='request', autospec=Request)) is None
 
     @pytest.mark.asyncio
     async def test_interface_post(self, view):
-        assert (await view.post(Mock(name='request'))) is None
+        assert await view.post(
+            Mock(name='request', autospec=Request)) is None
 
     @pytest.mark.asyncio
     async def test_interface_put(self, view):
-        assert (await view.put(Mock(name='request'))) is None
+        assert await view.put(
+            Mock(name='request', autospec=Request)) is None
 
     @pytest.mark.asyncio
     async def test_interface_patch(self, view):
-        assert (await view.patch(Mock(name='request'))) is None
+        assert await view.patch(
+            Mock(name='request', autospec=Request)) is None
 
     @pytest.mark.asyncio
     async def test_interface_delete(self, view):
-        assert (await view.delete(Mock(name='request'))) is None
+        assert await view.delete(
+            Mock(name='request', autospec=Request)) is None
 
     def test_text(self, view, web):
         response = view.text('foo', content_type='app/json', status=101)
@@ -147,7 +153,7 @@ class test_Site:
         assert fun_site.app is app
 
     def test_enable(self, cls_site):
-        web = Mock(name='web')
+        web = Mock(name='web', autospec=Web)
         view = next(iter(cls_site.views.values()))
         assert view
         views = cls_site.enable(web, prefix='/xxx')

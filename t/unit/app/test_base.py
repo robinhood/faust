@@ -1,13 +1,25 @@
 import re
 import faust
+from faust.agents import Agent
+from faust.agents.manager import AgentManager
 from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
+from faust.app.service import AppService
 from faust.assignor.leader_assignor import LeaderAssignor, LeaderAssignorT
 from faust.channels import Channel, ChannelT
 from faust.exceptions import ImproperlyConfigured
+from faust.fixups.base import Fixup
+from faust.sensors.monitor import Monitor
 from faust.serializers import codecs
+from faust.tables.manager import TableManager
+from faust.transport.base import Transport
+from faust.transport.conductor import Conductor
+from faust.transport.consumer import Consumer, Fetcher
 from faust.types.models import ModelT
+from faust.types.settings import Settings
 from mode import Service
+from mode.utils.futures import FlowControlEvent
 from mode.utils.compat import want_bytes
+from mode.utils.logging import CompositeLogger
 from mode.utils.mocks import ANY, AsyncMock, MagicMock, Mock, call, patch
 from yarl import URL
 import pytest
@@ -90,23 +102,33 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
         assignment = revoked
     app.topics = MagicMock(
         name='app.topics',
+        autospec=Conductor,
         on_partitions_revoked=AsyncMock(),
     )
     app.tables = Mock(
         name='app.tables',
+        autospec=TableManager,
         on_partitions_revoked=AsyncMock(),
     )
     app._fetcher = Mock(
         name='app._fetcher',
+        autospec=Fetcher,
         stop=AsyncMock(),
     )
     app.consumer = Mock(
         name='app.consumer',
+        autospec=Consumer,
         pause_partitions=AsyncMock(),
         wait_empty=AsyncMock(),
     )
-    app.flow_control = Mock(name='app.flow_control')
-    app.agents = Mock(name='app.agents')
+    app.flow_control = Mock(
+        name='app.flow_control',
+        autospec=FlowControlEvent,
+    )
+    app.agents = Mock(
+        name='app.agents',
+        autospec=AgentManager,
+    )
     signal = app.on_partitions_revoked.connect(AsyncMock(name='signal'))
 
     app.consumer.assignment.return_value = None
@@ -142,27 +164,35 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
 async def test_on_partitions_assigned(assigned, *, app):
     app.consumer = Mock(
         name='app.consumer',
+        autospec=Consumer,
         verify_subscription=AsyncMock(),
         pause_partitions=AsyncMock(),
     )
     app.agents = Mock(
         name='app.agents',
+        autospec=AgentManager,
         on_partitions_assigned=AsyncMock(),
     )
     app.topics = MagicMock(
         name='app.topics',
+        autospec=Conductor,
         on_partitions_assigned=AsyncMock(),
         wait_for_subscriptions=AsyncMock(),
     )
     app.tables = Mock(
         name='app.tables',
+        autospec=TableManager,
         on_partitions_assigned=AsyncMock(),
     )
     app._fetcher = Mock(
         name='app._fetcher',
+        autospec=Fetcher,
         restart=AsyncMock(),
     )
-    app.flow_control = Mock(name='app.flow_control')
+    app.flow_control = Mock(
+        name='app.flow_control',
+        autospec=FlowControlEvent,
+    )
     signal = app.on_partitions_assigned.connect(AsyncMock(name='signal'))
 
     await app._on_partitions_assigned(assigned)
@@ -178,7 +208,7 @@ async def test_on_partitions_assigned(assigned, *, app):
     signal.assert_called_once_with(
         app, assigned, signal=app.on_partitions_assigned)
 
-    app.log = Mock(name='log')
+    app.log = Mock(name='log', autospec=CompositeLogger)
     exc = app.log.info.side_effect = RuntimeError()
     app.crash = AsyncMock(name='crash')
     await app._on_partitions_assigned(assigned)
@@ -195,7 +225,10 @@ class test_App:
 
     def test_new_producer(self, *, app):
         del(app.producer)
-        transport = app._transport = Mock(name='transport')
+        transport = app._transport = Mock(
+            name='transport',
+            autospec=Transport,
+        )
         assert app._new_producer() is transport.create_producer.return_value
         transport.create_producer.assert_called_with(beacon=ANY)
         assert app.producer is transport.create_producer.return_value
@@ -221,8 +254,8 @@ class test_App:
     def test_worker_init(self, *, app):
         on_worker_init = app.on_worker_init.connect(
             Mock(name='on_worker_init'))
-        fixup1 = Mock(name='fixup1')
-        fixup2 = Mock(name='fixup2')
+        fixup1 = Mock(name='fixup1', autospec=Fixup)
+        fixup2 = Mock(name='fixup2', autospec=Fixup)
         app.fixups = [fixup1, fixup2]
 
         app.worker_init()
@@ -234,7 +267,7 @@ class test_App:
     def test_discover(self, *, app):
         app.conf.autodiscover = ['a', 'b', 'c']
         app.conf.origin = 'faust'
-        fixup1 = Mock(name='fixup1')
+        fixup1 = Mock(name='fixup1', autospec=Fixup)
         fixup1.autodiscover_modules.return_value = ['d', 'e']
         app.fixups = [fixup1]
         with patch('faust.app.base.venusian'):
@@ -336,22 +369,22 @@ class test_App:
     @pytest.mark.asyncio
     async def test_on_agent_error(self, *, app):
         app._consumer = None
-        agent = Mock(name='agent')
+        agent = Mock(name='agent', autospec=Agent)
         await app._on_agent_error(agent, KeyError())
 
     @pytest.mark.asyncio
     async def test_on_agent_error__consumer(self, *, app):
-        app._consumer = Mock(name='consumer')
-        agent = Mock(name='agent')
+        app._consumer = Mock(name='consumer', autospec=Consumer)
+        agent = Mock(name='agent', autospec=Agent)
         exc = KeyError()
         await app._on_agent_error(agent, exc)
         app._consumer.on_task_error.assert_called_with(exc)
 
     @pytest.mark.asyncio
     async def test_on_agent_error__MemoryError(self, *, app):
-        app._consumer = Mock(name='consumer')
+        app._consumer = Mock(name='consumer', autospec=Consumer)
         app._consumer.on_task_error.side_effect = MemoryError()
-        agent = Mock(name='agent')
+        agent = Mock(name='agent', autospec=Agent)
         exc = KeyError()
         with pytest.raises(MemoryError):
             await app._on_agent_error(agent, exc)
@@ -387,7 +420,10 @@ class test_App:
         assert Foo in app._extra_services
 
     def test_is_leader(self, *, app):
-        app._leader_assignor = Mock(name='_leader_assignor')
+        app._leader_assignor = Mock(
+            name='_leader_assignor',
+            autospec=LeaderAssignor,
+        )
         app._leader_assignor.is_leader.return_value = True
         assert app.is_leader()
 
@@ -421,7 +457,11 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
-        app._service = Mock(name='_service', maybe_start=AsyncMock())
+        app._service = Mock(
+            name='_service',
+            autospec=AppService,
+            maybe_start=AsyncMock(),
+        )
         await app.start_client()
         assert app.client_only
         app._service.maybe_start.assert_called_once_with()
@@ -429,7 +469,10 @@ class test_App:
     @pytest.mark.asyncio
     async def test_maybe_start_client(self, *, app):
         app.start_client = AsyncMock(name='start_client')
-        app._service = Mock(name='_service')
+        app._service = Mock(
+            name='_service',
+            autospec=AppService,
+        )
 
         app._service.started = True
         await app.maybe_start_client()
@@ -441,18 +484,22 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_commit(self, *, app):
-        app.topics = Mock(name='topics', commit=AsyncMock())
+        app.topics = Mock(
+            name='topics',
+            autospec=Conductor,
+            commit=AsyncMock(),
+        )
         await app.commit({1})
         app.topics.commit.assert_called_with({1})
 
     def test_Worker(self, *, app):
-        app.conf = Mock(name='conf')
+        app.conf = Mock(name='conf', autospec=Settings)
         worker = app.Worker(loglevel=10)
         app.conf.Worker.assert_called_once_with(app, loglevel=10)
         assert worker is app.conf.Worker()
 
     def test_create_directories(self, *, app):
-        app.conf = Mock(name='conf')
+        app.conf = Mock(name='conf', autospec=Settings)
 
         app._create_directories()
 
@@ -465,7 +512,10 @@ class test_App:
 
     def test_monitor(self, *, app):
         assert app._monitor is None
-        app.conf.Monitor = Mock(name='Monitor')
+        app.conf.Monitor = Mock(
+            name='Monitor',
+            return_value=Mock(autospec=Monitor),
+        )
         monitor = app.monitor
         app.conf.Monitor.assert_called_once_with(
             loop=app.loop, beacon=app.beacon)
@@ -473,12 +523,18 @@ class test_App:
         assert app.monitor is monitor
         assert app._monitor is monitor
 
-        monitor2 = app.monitor = Mock(name='monitor2')
+        monitor2 = app.monitor = Mock(
+            name='monitor2',
+            autospec=Monitor,
+        )
         assert app._monitor is monitor2
         assert app.monitor is monitor2
 
     def test_fetcher(self, *, app):
-        app.transport.Fetcher = Mock(name='Fetcher')
+        app.transport.Fetcher = Mock(
+            name='Fetcher',
+            return_value=Mock(autospec=Fetcher),
+        )
         fetcher = app._fetcher
         app.transport.Fetcher.assert_called_once_with(
             app, loop=app.loop, beacon=app.beacon,
@@ -520,7 +576,7 @@ class test_AppConfiguration:
             app.conf.id
 
     def test_set_conf(self, *, app):
-        conf = Mock(name='conf')
+        conf = Mock(name='conf', autospec=Settings)
         app.conf = conf
         assert app.conf is conf
 

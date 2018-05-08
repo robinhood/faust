@@ -1,10 +1,14 @@
+import asyncio
 import operator
 from copy import copy
+
 import pytest
 from faust import joins
-from faust import Record
+from faust import Event, Record, Stream, Topic
+from faust.stores.base import Store
 from faust.tables.base import Collection
 from faust.types import TP
+from faust.windows import Window
 from mode import label, shortlabel
 from mode.utils.mocks import AsyncMock, Mock, patch
 
@@ -53,7 +57,7 @@ class test_Collection:
         assert hash(table)
 
     def test_get_store_custom_StateStore(self, *, table):
-        table.StateStore = Mock(name='StateStore')
+        table.StateStore = Mock(name='StateStore', autospec=Store)
         table._data = None
         ret = table._get_store()
         table.StateStore.assert_called_once_with(
@@ -65,6 +69,7 @@ class test_Collection:
     async def test_on_start(self, *, table):
         table.changelog_topic = Mock(
             name='changelog_topic',
+            autospec=Topic,
             maybe_declare=AsyncMock(),
         )
         await table.on_start()
@@ -90,13 +95,14 @@ class test_Collection:
     async def test_need_active_standby_for(self, *, table):
         table._data = Mock(
             name='_data',
+            autospec=Store,
             need_active_standby_for=AsyncMock(),
         )
         assert (await table.need_active_standby_for(TP1) ==
                 table._data.need_active_standby_for.coro())
 
     def test_reset_state(self, *, table):
-        data = table._data = Mock(name='_data')
+        data = table._data = Mock(name='_data', autospec=Store)
         table.reset_state()
         data.reset_state.assert_called_once_with()
 
@@ -120,8 +126,8 @@ class test_Collection:
                 table._send_changelog('k', 'v')
 
     def test_on_changelog_sent(self, *, table):
-        fut = Mock(name='future')
-        table._data = Mock(name='data')
+        fut = Mock(name='future', autospec=asyncio.Future)
+        table._data = Mock(name='data', autospec=Store)
         table._on_changelog_sent(fut)
         table._data.set_persisted_offset.assert_called_once_with(
             fut.result().topic_partition, fut.result().offset,
@@ -149,7 +155,7 @@ class test_Collection:
     def test_should_expire_keys(self, *, table):
         table.window = None
         assert not table._should_expire_keys()
-        table.window = Mock(name='window')
+        table.window = Mock(name='window', autospec=Window)
         table.window.expires = 3600
         assert table._should_expire_keys()
 
@@ -187,7 +193,7 @@ class test_Collection:
 
     def test__join(self, *, table):
         with pytest.raises(NotImplementedError):
-            table._join(Mock(name='join_strategy'))
+            table._join(Mock(name='join_strategy', autospec=joins.Join))
 
     def test_clone(self, *, table):
         t2 = table.clone()
@@ -195,17 +201,17 @@ class test_Collection:
 
     def test_combine(self, *, table):
         with pytest.raises(NotImplementedError):
-            table.combine(Mock(name='joinable'))
+            table.combine(Mock(name='joinable', autospec=Stream))
 
     def test_contribute_to_stream(self, *, table):
-        table.contribute_to_stream(Mock(name='stream'))
+        table.contribute_to_stream(Mock(name='stream', autospec=Stream))
 
     @pytest.mark.asyncio
     async def test_remove_from_stream(self, *, table):
-        await table.remove_from_stream(Mock(name='stream'))
+        await table.remove_from_stream(Mock(name='stream', autospec=Stream))
 
     def test_new_changelog_topic__window_expires(self, *, table):
-        table.window = Mock(name='window')
+        table.window = Mock(name='window', autospec=Window)
         table.window.expires = 3600.3
         assert table._new_changelog_topic(retention=None).retention == 3600.3
 
@@ -251,7 +257,7 @@ class test_Collection:
             assert table._get_key(('k', r)) is None
 
     def test_window_ranges(self, *, table):
-        table.window = Mock(name='window')
+        table.window = Mock(name='window', autospec=Window)
         table.window.ranges.return_value = [1, 2, 3]
         assert list(table._window_ranges(300.3)) == [1, 2, 3]
 
@@ -261,22 +267,23 @@ class test_Collection:
         return ranges
 
     def test_relative_now(self, *, table):
-        event = Mock(name='event')
+        event = Mock(name='event', autospec=Event)
         table._partition_latest_timestamp[event.message.partition] = 30.3
         assert table._relative_now(event) == 30.3
 
     def test_relative_event(self, *, table):
-        event = Mock(name='event')
+        event = Mock(name='event', autospec=Event)
         assert table._relative_event(event) is event.message.timestamp
 
     def test_relative_field(self, *, table):
         user = User('foo', 'bar')
-        event = Mock(name='event')
+        event = Mock(name='event', autospec=Event)
         event.value = user
         assert table._relative_field(User.id)(event) == 'foo'
 
     def test_relative_timestamp(self, *, table):
-        assert table._relative_timestamp(303.3)(Mock(name='event')) == 303.3
+        assert table._relative_timestamp(303.3)(
+            Mock(name='event', autospec=Event)) == 303.3
 
     def test_windowed_now(self, *, table):
         with patch('faust.tables.base.current_event'):
@@ -286,7 +293,7 @@ class test_Collection:
             assert ret is table._windowed_timestamp()
 
     def test_windowed_timestamp(self, *, table):
-        table.window = Mock(name='window')
+        table.window = Mock(name='window', autospec=Window)
         table.window.current.return_value = 10.1
         assert not table._windowed_contains('k', 303.3)
         table._set_key(('k', 10.1), 101.1)
@@ -294,8 +301,8 @@ class test_Collection:
         assert table._windowed_contains('k', 303.3)
 
     def test_windowed_delta(self, *, table):
-        event = Mock(name='event')
-        table.window = Mock(name='window')
+        event = Mock(name='event', autospec=Event)
+        table.window = Mock(name='window', autospec=Window)
         table.window.delta.return_value = 10.1
         table._set_key(('k', 10.1), 101.1)
         assert table._windowed_delta('k', 303.3, event=event) == 101.1
@@ -304,6 +311,7 @@ class test_Collection:
     async def test_on_partitions_assigned(self, *, table):
         table._data = Mock(
             name='data',
+            autospec=Store,
             on_partitions_assigned=AsyncMock(),
         )
         await table.on_partitions_assigned({TP1})
@@ -314,6 +322,7 @@ class test_Collection:
     async def test_on_partitions_revoked(self, *, table):
         table._data = Mock(
             name='data',
+            autospec=Store,
             on_partitions_revoked=AsyncMock(),
         )
         await table.on_partitions_revoked({TP1})
@@ -321,7 +330,7 @@ class test_Collection:
 
     @pytest.mark.asyncio
     async def test_on_changelog_event(self, *, table):
-        event = Mock(name='event')
+        event = Mock(name='event', autospec=Event)
         table._on_changelog_event = None
         await table.on_changelog_event(event)
         table._on_changelog_event = AsyncMock(name='callback')
@@ -335,7 +344,7 @@ class test_Collection:
         assert shortlabel(table)
 
     def test_apply_changelog_batch(self, *, table):
-        table._data = Mock(name='data')
+        table._data = Mock(name='data', autospec=Store)
         table.apply_changelog_batch([1, 2, 3])
         table._data.apply_changelog_batch.assert_called_once_with(
             [1, 2, 3],

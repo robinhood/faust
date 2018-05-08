@@ -1,6 +1,9 @@
 from typing import Any
 import pytest
-from faust.types import TP
+from faust import Event, Stream, Table, Topic
+from faust.transport.consumer import Consumer
+from faust.transport.producer import Producer
+from faust.types import Message, TP
 from faust.sensors.monitor import (
     Monitor,
     MonitorService,
@@ -21,23 +24,23 @@ class test_Monitor:
 
     @pytest.fixture
     def message(self):
-        return Mock(name='message')
+        return Mock(name='message', autospec=Message)
 
     @pytest.fixture
     def stream(self):
-        return Mock(name='stream')
+        return Mock(name='stream', autospec=Stream)
 
     @pytest.fixture
     def topic(self):
-        return Mock(name='topic')
+        return Mock(name='topic', autospec=Topic)
 
     @pytest.fixture
     def event(self):
-        return Mock(name='event')
+        return Mock(name='event', autospec=Event)
 
     @pytest.fixture
     def table(self):
-        return Mock(name='table')
+        return Mock(name='table', autospec=Table)
 
     @pytest.fixture
     def mon(self, *, time):
@@ -225,23 +228,27 @@ class test_Monitor:
             assert mon._table_or_create(table).keys_deleted == i
 
     def test_on_commit_initiated(self, *, mon, time):
-        assert mon.on_commit_initiated(Mock(name='consumer')) == time()
+        assert mon.on_commit_initiated(
+            Mock(name='consumer', autospec=Consumer)) == time()
 
     def test_on_commit_completed(self, *, mon, time):
         other_time = 56.7
-        mon.on_commit_completed(Mock(name='consumer'), other_time)
+        mon.on_commit_completed(
+            Mock(name='consumer', autospec=Consumer), other_time)
         assert mon.commit_latency[-1] == time() - other_time
 
     def test_on_send_initiated(self, *, mon, time):
         for i in range(1, 11):
-            state = mon.on_send_initiated(Mock(name='producer'), 'topic', 2, 4)
+            state = mon.on_send_initiated(
+                Mock(name='producer', autospec=Producer), 'topic', 2, 4)
             assert mon.messages_sent == i
             assert mon.messages_sent_by_topic['topic'] == i
             assert state == time()
 
     def test_on_send_completed(self, *, mon, time):
         other_time = 56.7
-        mon.on_send_completed(Mock(name='producer'), other_time)
+        mon.on_send_completed(
+            Mock(name='producer', autospec=Producer), other_time)
         assert mon.send_latency[-1] == time() - other_time
 
     def test_TableState_asdict(self, *, mon, table):

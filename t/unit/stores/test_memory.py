@@ -1,4 +1,5 @@
 import pytest
+from faust import Event
 from faust.stores.memory import Store
 from faust.types import TP
 from mode.utils.mocks import Mock
@@ -16,7 +17,7 @@ class test_Store:
         assert not store.data
 
     def test_apply_changelog_batch(self, *, store):
-        event1 = Mock(name='event1')
+        event1 = Mock(name='event1', autospec=Event)
         event1.key = b'key'
         event1.value = b'value'
         events = [event1]

@@ -1,5 +1,8 @@
+import asyncio
 import re
 import pytest
+from faust import Event
+from faust.types import Message
 from mode.utils.mocks import AsyncMock, Mock
 
 
@@ -11,11 +14,11 @@ class test_Topic:
 
     @pytest.fixture
     def message(self):
-        return Mock(name='message')
+        return Mock(name='message', autospec=Message)
 
     def test_on_published(self, *, topic):
-        fut = Mock(name='fut')
-        message = Mock(name='message')
+        fut = Mock(name='fut', autospec=asyncio.Future)
+        message = Mock(name='message', autospec=Message)
         topic._on_published(fut, message)
         fut.result.assert_called_once_with()
         message.set_result.assert_called_once_with(fut.result())
@@ -30,7 +33,7 @@ class test_Topic:
     @pytest.mark.asyncio
     async def test_decode(self, *, topic, message):
         topic._compile_decode = Mock(name='_compile_decode')
-        decode = topic._compile_decode.return_value = AsyncMock()
+        topic._compile_decode.return_value = AsyncMock()
 
         await topic.decode(message, propagate=True)
         topic._compile_decode.assert_called_once_with()
@@ -38,8 +41,8 @@ class test_Topic:
     @pytest.mark.asyncio
     async def test_put(self, *, topic):
         topic.is_iterator = True
-        topic.queue.put = AsyncMock(name='queue')
-        event = Mock(name='event')
+        topic.queue.put = AsyncMock(name='queue.put')
+        event = Mock(name='event', autospec=Event)
         await topic.put(event)
         topic.queue.put.assert_called_once_with(event)
 
@@ -47,7 +50,7 @@ class test_Topic:
     async def test_put__raise_when_not_iterator(self, *, topic):
         topic.is_iterator = False
         with pytest.raises(RuntimeError):
-            await topic.put(Mock(name='event'))
+            await topic.put(Mock(name='event', autospec=Event))
 
     def test_set_pattern__raise_when_topics(self, *, topic):
         topic.topics = ['A', 'B']

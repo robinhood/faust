@@ -1,5 +1,6 @@
 import faust
 import pytest
+from faust.transport.producer import Producer
 from mode.utils.mocks import AsyncMock, Mock
 
 
@@ -8,6 +9,7 @@ def app():
     instance = faust.App('testid')
     instance.producer = Mock(
         name='producer',
+        autospec=Producer,
         maybe_start=AsyncMock(),
         start=AsyncMock(),
         send=AsyncMock(),

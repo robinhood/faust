@@ -1,4 +1,5 @@
 import pytest
+from faust.agents import Agent
 from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
 
@@ -8,6 +9,7 @@ class test_AgentManager:
     def create_agent(self, name, topic_names=None):
         agent = Mock(
             name=name,
+            autospec=Agent,
             start=AsyncMock(),
             stop=AsyncMock(),
             restart=AsyncMock(),

@@ -1,4 +1,5 @@
 import pytest
+from faust import Event, Table
 from faust.stores.base import SerializedStore, Store
 from faust.types import TP
 from mode import label
@@ -52,11 +53,17 @@ class test_Store:
 
     @pytest.mark.asyncio
     async def test_on_partitions_assigned(self, *, store):
-        await store.on_partitions_assigned(Mock(name='table'), set())
+        await store.on_partitions_assigned(
+            Mock(name='table', autospec=Table),
+            set(),
+        )
 
     @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, store):
-        await store.on_partitions_revoked(Mock(name='table'), set())
+        await store.on_partitions_revoked(
+            Mock(name='table', autospec=Table),
+            set(),
+        )
 
     def test_encode_key(self, *, store):
         assert store._encode_key({'foo': 1}) == b'{"foo": 1}'
@@ -122,7 +129,7 @@ class test_SerializedStore:
         return MySerializedStore(url='foo://', app=app)
 
     def test_apply_changelog_batch(self, *, store):
-        event = Mock(name='event')
+        event = Mock(name='event', autospec=Event)
         event.message.key = b'foo'
         event.message.value = b'bar'
         store.apply_changelog_batch([event], to_key=Mock(), to_value=Mock())

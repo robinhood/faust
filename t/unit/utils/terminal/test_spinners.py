@@ -1,3 +1,4 @@
+import logging
 import sys
 from faust.utils.terminal.spinners import Spinner, SpinnerHandler
 from mode.utils.mocks import Mock, call, patch
@@ -22,7 +23,7 @@ class test_Spinner:
         assert spinner.count == 0
         assert not spinner.stopped
 
-    def xxx_constructor__default_is_stderr(self):
+    def test_constructor__default_is_stderr(self):
         assert Spinner().file is sys.stderr
 
     def test_update(self):
@@ -82,12 +83,17 @@ class test_Spinner:
 
 
 def test_SpinnerHandler():
-    s = Mock(name='spinner')
+    s = Mock(name='spinner', autospec=Spinner)
     handler = SpinnerHandler(spinner=s)
     assert handler.spinner is s
-    handler.emit(Mock(name='logrecord'))
+    handler.emit(Mock(name='logrecord', autospec=logging.LogRecord))
     handler.spinner.update.assert_called_once_with()
 
 
 def test_SpinnerHandler__no_spinner():
-    SpinnerHandler(spinner=None).emit(Mock(name='logrecord'))
+    SpinnerHandler(spinner=None).emit(
+        Mock(
+            name='logrecord',
+            autospec=logging.LogRecord,
+        ),
+    )

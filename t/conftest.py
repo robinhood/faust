@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from mode.utils.mocks import Mock
+from mode.utils.mocks import MagicMock
 
 sentinel = object()
 
@@ -40,7 +40,7 @@ class _patching(object):
         return getattr(self.monkeypatch, name)
 
     def __call__(self, path, value=sentinel, name=None,
-                 new=mock.MagicMock, **kwargs):
+                 new=MagicMock, **kwargs):
         value = self._value_or_mock(value, new, name, path, **kwargs)
         self.monkeypatch.setattr(path, value)
         return value
@@ -58,7 +58,7 @@ class _patching(object):
             value, name = name, None
         return self(target, value, name=name)
 
-    def setitem(self, dic, name, value=sentinel, new=mock.MagicMock, **kwargs):
+    def setitem(self, dic, name, value=sentinel, new=MagicMock, **kwargs):
         # same as pytest.monkeypatch.setattr but default value is MagicMock
         value = self._value_or_mock(value, new, name, dic, **kwargs)
         self.monkeypatch.setitem(dic, name, value)

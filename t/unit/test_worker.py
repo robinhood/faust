@@ -5,9 +5,12 @@ import warnings
 from pathlib import Path
 
 import pytest
+from faust import Sensor
 from faust.worker import WEBSITE_CLS, Worker
 from faust.utils import terminal
 from mode.utils.imports import symbol_by_name
+from mode.utils.logging import CompositeLogger
+from mode.utils.trees import Node
 from mode.utils.mocks import AsyncMock, Mock, patch
 
 
@@ -101,7 +104,10 @@ class test_Worker:
         worker._on_startup_end_spinner.assert_called_once_with()
 
     def test_on_startup_end_spinner(self, worker):
-        spinner = worker.spinner = Mock(name='spinner')
+        spinner = worker.spinner = Mock(
+            name='spinner',
+            autospec=terminal.Spinner,
+        )
         spinner.file.isatty.return_value = True
         worker.say = Mock(name='say')
         worker._on_startup_end_spinner()
@@ -111,12 +117,15 @@ class test_Worker:
 
     def test_on_startup_end_spinner__no_spinner(self, worker):
         worker.spinner = None
-        worker.log = Mock(name='log')
+        worker.log = Mock(name='log', spec=CompositeLogger)
         worker._on_startup_end_spinner()
         worker.log.info.assert_called_once_with('Ready')
 
     def test_on_startup_end_spinner__notatty(self, worker):
-        spinner = worker.spinner = Mock(name='spinner')
+        spinner = worker.spinner = Mock(
+            name='spinner',
+            autospec=terminal.Spinner,
+        )
         spinner.file.isatty.return_value = False
         worker.say = Mock(name='say')
         worker._on_startup_end_spinner()
@@ -130,7 +139,7 @@ class test_Worker:
         worker.say.assert_called_once_with('')
 
     def test_on_init_dependencies(self, worker, app):
-        app.beacon = Mock(name='app.beacon')
+        app.beacon = Mock(name='app.beacon', autospec=Node)
         deps = worker.on_init_dependencies()
         assert list(deps) == (
             [worker.website] +
@@ -141,8 +150,8 @@ class test_Worker:
         assert app.on_startup_finished == worker.on_startup_finished
 
     def test_on_init_dependencies__sensors_to_app(self, worker, app):
-        s1 = Mock(name='S1')
-        s2 = Mock(name='S2')
+        s1 = Mock(name='S1', autospec=Sensor)
+        s2 = Mock(name='S2', autospec=Sensor)
         worker.sensors = {s1, s2}
         worker.on_init_dependencies()
         assert app.sensors._sensors.issubset(worker.sensors)
@@ -195,7 +204,10 @@ class test_Worker:
     @pytest.mark.asyncio
     async def test_on_execute(self, worker):
         worker._setproctitle = Mock(name='setproctitle')
-        worker.spinner = Mock(name='spinner')
+        worker.spinner = Mock(
+            name='spinner',
+            autospec=terminal.Spinner,
+        )
         worker._say = Mock(name='say')
         await worker.on_execute()
         worker._setproctitle.assert_called_with('init')
@@ -206,7 +218,7 @@ class test_Worker:
     def test_on_setup_root_logger(self, worker):
         worker._disable_spinner_if_level_below_WARN = Mock(name='dd')
         worker._setup_spinner_handler = Mock(name='ss')
-        logger = Mock(name='logger')
+        logger = Mock(name='logger', autospec=logging.Logger)
         worker.on_setup_root_logger(logger, logging.INFO)
         worker._disable_spinner_if_level_below_WARN.assert_called_with(
             logging.INFO)
@@ -229,8 +241,8 @@ class test_Worker:
             assert worker.spinner is None
 
     def test_setup_spinner_handler(self, worker):
-        logger = Mock(name='logger')
-        logger.handlers = [Mock(name='handler')]
+        logger = Mock(name='logger', autospec=logging.Logger)
+        logger.handlers = [Mock(name='handler', autospec=logging.Handler)]
         with patch('faust.utils.terminal.SpinnerHandler') as SpinnerHandler:
             worker._setup_spinner_handler(logger, logging.INFO)
             logger.handlers[0].setLevel.assert_called_with(logging.INFO)
@@ -241,7 +253,13 @@ class test_Worker:
 
     def test_setup_spinner_handler__when_no_spinner(self, worker):
         worker.spinner = None
-        worker._setup_spinner_handler(Mock(name='logger'), logging.INFO)
+        worker._setup_spinner_handler(
+            Mock(
+                name='logger',
+                autospec=logging.Logger,
+            ),
+            logging.INFO,
+        )
 
     def test_website(self, app):
         with patch('faust.web.site.Website') as Website:

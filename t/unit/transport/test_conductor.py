@@ -1,7 +1,9 @@
 import asyncio
 import pytest
+from faust import App, Channel, Topic
+from faust.transport.consumer import Consumer
 from faust.transport.conductor import Conductor
-from faust.types import TP
+from faust.types import Message, TP
 from mode import label, shortlabel
 from mode.utils.futures import done_future
 from mode.utils.mocks import AsyncMock, Mock
@@ -31,7 +33,9 @@ class test_Conductor:
     async def test_commit(self, *, con):
         con.app = Mock(
             name='app',
+            autospec=App,
             consumer=Mock(
+                autospec=Consumer,
                 commit=AsyncMock(),
             ),
         )
@@ -42,7 +46,7 @@ class test_Conductor:
     @pytest.mark.asyncio
     async def test_on_message(self, *, con):
         cb = con._tp_to_callback[TP1] = AsyncMock(name='callback')
-        message = Mock(name='message')
+        message = Mock(name='message', autospec=Message)
         message.tp = TP1
         await con.on_message(message)
         cb.assert_called_once_with(message)
@@ -56,11 +60,11 @@ class test_Conductor:
 
     @pytest.mark.asyncio
     async def test_update_indices(self, *, con):
-        topic1 = Mock(name='topic1')
+        topic1 = Mock(name='topic1', autospec=Topic)
         topic1.acks = False
         topic1.topics = ['t1']
         topic1.internal = False
-        topic2 = Mock(name='topic2')
+        topic2 = Mock(name='topic2', autospec=Topic)
         topic2.acks = True
         topic2.topics = ['t2']
         topic2.internal = True
@@ -88,7 +92,7 @@ class test_Conductor:
 
     def test_update_tp_index(self, *, con):
         assigned = {TP1, TP2}
-        topic1 = Mock(name='topic1')
+        topic1 = Mock(name='topic1', autospec=Topic)
         topic1.topics = [TP1.topic]
         topic1.active_partitions = None
         con._topics.add(topic1)
@@ -98,7 +102,7 @@ class test_Conductor:
 
     def test_update_tp_index__active_partitions(self, *, con):
         assigned = {TP1, TP2}
-        topic1 = Mock(name='topic1')
+        topic1 = Mock(name='topic1', autospec=Topic)
         topic1.active_partitions = {TP1, TP2}
         con._topics.add(topic1)
         con._update_tp_index(assigned)
@@ -107,7 +111,7 @@ class test_Conductor:
 
     def test_update_tp_index__active_partitions_empty(self, *, con):
         assigned = {TP1, TP2}
-        topic1 = Mock(name='topic1')
+        topic1 = Mock(name='topic1', autospec=Topic)
         topic1.active_partitions = set()
         con._topics.add(topic1)
         con._update_tp_index(assigned)
@@ -115,8 +119,8 @@ class test_Conductor:
         assert topic1 not in con._tp_index[TP2]
 
     def test_update_callback_map(self, *, con):
-        chan1 = Mock(name='chan1')
-        chan2 = Mock(name='chan2')
+        chan1 = Mock(name='chan1', autospec=Channel)
+        chan2 = Mock(name='chan2', autospec=Channel)
         con._tp_index = {
             TP1: chan1,
             TP2: chan2,

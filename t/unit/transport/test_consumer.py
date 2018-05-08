@@ -1,6 +1,10 @@
 import pytest
+from faust import App
+from faust.app._attached import Attachments
+from faust.tables.manager import TableManager
 from faust.transport.consumer import Consumer, Fetcher, ProducerSendError
-from faust.types import TP
+from faust.transport.conductor import Conductor
+from faust.types import Message, TP
 from mode.utils.mocks import AsyncMock, Mock, call
 
 TP1 = TP('foo', 0)
@@ -17,6 +21,7 @@ class test_Fetcher:
     async def test_fetcher(self, *, fetcher, app):
         app.consumer = Mock(
             name='consumer',
+            autospec=Consumer,
             _drain_messages=AsyncMock(),
         )
         await fetcher._fetcher(fetcher)
@@ -97,7 +102,7 @@ class test_Consumer:
 
     @pytest.fixture
     def message(self):
-        return Mock(name='message')
+        return Mock(name='message', autospec=Message)
 
     def test_read_offset_default(self, *, consumer):
         assert consumer._read_offset[TP1] is None
@@ -106,7 +111,7 @@ class test_Consumer:
         assert consumer._committed_offset[TP1] is None
 
     def test_is_changelog_tp(self, *, app, consumer):
-        app.tables = Mock(name='tables')
+        app.tables = Mock(name='tables', autospec=TableManager)
         app.tables.changelog_topics = {'foo', 'bar'}
         assert consumer._is_changelog_tp(TP('foo', 31))
         assert consumer._is_changelog_tp(TP('bar', 0))
@@ -148,7 +153,7 @@ class test_Consumer:
     ])
     def test_ack(self, offset, *, consumer, message):
         message.acked = False
-        consumer.app = Mock(name='app')
+        consumer.app = Mock(name='app', autospec=App)
         consumer.app.topics.acks_enabled_for.return_value = True
         consumer._committed_offset[message.tp] = 3
         message.offset = offset
@@ -163,13 +168,13 @@ class test_Consumer:
 
     def test_ack__disabled(self, *, consumer, message, app):
         message.acked = False
-        app.topics = Mock(name='app.topics')
+        app.topics = Mock(name='app.topics', autospec=Conductor)
         app.topics.acks_enabled_for.return_value = False
         consumer.ack(message)
 
     @pytest.mark.asyncio
     async def test_wait_empty(self, *, consumer):
-        consumer._unacked_messages = {Mock()}
+        consumer._unacked_messages = {Mock(autospec=Message)}
 
         def on_commit():
             for _ in range(10):
@@ -194,7 +199,7 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_force_commit(self, *, consumer):
-        consumer.app = Mock(name='app')
+        consumer.app = Mock(name='app', autospec=App)
         oci = consumer.app.sensors.on_commit_initiated
         occ = consumer.app.sensors.on_commit_completed
         consumer._commit_tps = AsyncMock(name='_commit_tps')
@@ -266,7 +271,9 @@ class test_Consumer:
     async def test_handle_attached(self, *, consumer):
         consumer.app = Mock(
             name='app',
+            autospec=App,
             _attachments=Mock(
+                autospec=Attachments,
                 commit=AsyncMock(),
             ),
         )

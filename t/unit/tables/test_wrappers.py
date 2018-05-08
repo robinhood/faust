@@ -6,6 +6,7 @@ import pytest
 from faust.events import Event
 from faust.exceptions import ImproperlyConfigured
 from faust.tables.wrappers import WindowSet
+from faust.types import Message
 from mode.utils.mocks import Mock
 
 DATETIME = datetime.utcnow()
@@ -29,7 +30,7 @@ def wtable(*, table):
 
 @pytest.fixture
 def event():
-    return Mock(name='event')
+    return Mock(name='event', autospec=Event)
 
 
 class test_WindowSet:
@@ -45,7 +46,7 @@ class test_WindowSet:
         assert wset.event == event
 
     def test_apply(self, *, wset, event):
-        Mock(name='event2')
+        Mock(name='event2', autospec=Event)
         wset.wrapper.get_timestamp = Mock(name='wrapper.get_timestamp')
         wset.table._apply_window_op = Mock(name='_apply_window_op')
 
@@ -61,7 +62,7 @@ class test_WindowSet:
         return m
 
     def test_apply__custom_event(self, *, wset, event):
-        event2 = Mock(name='event2')
+        event2 = Mock(name='event2', autospec=Event)
         wset.table._apply_window_op = Mock(name='_apply_window_op')
         get_timestamp = self.mock_get_timestamp(wset)
 
@@ -86,7 +87,7 @@ class test_WindowSet:
         assert ret is wset.table._windowed_now()
 
     def test_current(self, *, table, wset):
-        event2 = Mock(name='event2')
+        event2 = Mock(name='event2', autospec=Event)
         table._windowed_timestamp = Mock(name='_windowed_timestamp')
         table._relative_event = Mock(name='_relative_event')
         ret = wset.current(event2)
@@ -105,7 +106,7 @@ class test_WindowSet:
         assert ret is table._windowed_timestamp()
 
     def test_delta(self, *, table, wset):
-        event2 = Mock(name='event2')
+        event2 = Mock(name='event2', autospec=Event)
         table._windowed_delta = Mock(name='_windowed_delta')
         ret = wset.delta(30.3, event2)
         table._windowed_delta.assert_called_once_with('k', 30.3, event2)
@@ -122,7 +123,10 @@ class test_WindowSet:
         assert wset[30.3] == 101.1
 
     def test_getitem__event(self, *, app, wset):
-        e = Event(app, key='KK', value='VV', message=Mock(name='message'))
+        e = Event(app,
+                  key='KK',
+                  value='VV',
+                  message=Mock(name='message', autospec=Message))
         ret = wset[e]
         assert isinstance(ret, WindowSet)
         assert ret.key == wset.key
@@ -136,7 +140,10 @@ class test_WindowSet:
         assert wset.table[(wset.key, 30.3)] == 'val'
 
     def test_setitem__event(self, *, app, wset):
-        e = Event(app, key='KK', value='VV', message=Mock(name='message'))
+        e = Event(app,
+                  key='KK',
+                  value='VV',
+                  message=Mock(name='message', autospec=Message))
         with pytest.raises(NotImplementedError):
             wset[e] = 'val'
 
@@ -146,7 +153,10 @@ class test_WindowSet:
         assert not wset.table
 
     def test_delitem__event(self, *, app, wset):
-        e = Event(app, key='KK', value='VV', message=Mock(name='message'))
+        e = Event(app,
+                  key='KK',
+                  value='VV',
+                  message=Mock(name='message', autospec=Message))
         with pytest.raises(NotImplementedError):
             del(wset[e])
 

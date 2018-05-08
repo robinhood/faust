@@ -1,6 +1,7 @@
 import pytest
 from faust.channels import Channel
 from faust.tables.changelogs import ChangelogReader, StandbyReader, local_tps
+from faust.transport.consumer import Consumer
 from faust.types import TP
 from mode import label
 from mode.utils.mocks import AsyncMock, Mock
@@ -65,6 +66,7 @@ class test_ChangelogReader:
         reader._highwaters = {'foo': 'moo'}
         app.consumer = Mock(
             name='consumer',
+            autospec=Consumer,
             highwaters=AsyncMock(return_value=highwaters),
         )
 
@@ -108,6 +110,7 @@ class test_ChangelogReader:
         }
         app.consumer = Mock(
             name='consumer',
+            autospec=Consumer,
             earliest_offsets=AsyncMock(return_value=earliest),
         )
         self.set_highwaters(reader, TP1, 1000, 31)
@@ -123,6 +126,7 @@ class test_ChangelogReader:
 
         app.consumer = Mock(
             name='consumer',
+            autospec=Consumer,
             seek=AsyncMock(),
             position=AsyncMock(side_effect=on_position),
         )
