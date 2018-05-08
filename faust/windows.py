@@ -3,10 +3,19 @@ from typing import List
 from mode import Seconds, want_seconds
 from .types import WindowRange, WindowT
 
-__all__ = ['HoppingWindow', 'TumblingWindow', 'SlidingWindow']
+__all__ = [
+    'Window',
+    'HoppingWindow',
+    'TumblingWindow',
+    'SlidingWindow',
+]
 
 
-class HoppingWindow(WindowT):
+class Window(WindowT):
+    ...
+
+
+class HoppingWindow(Window):
     """Hopping window type.
 
     Fixed-size, overlapping windows.
@@ -57,7 +66,7 @@ class TumblingWindow(HoppingWindow):
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
-class SlidingWindow(WindowT):
+class SlidingWindow(Window):
     """Sliding window type.
 
     Fixed-size, overlapping windows that work on differences between
