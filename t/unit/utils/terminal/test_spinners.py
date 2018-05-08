@@ -1,5 +1,4 @@
 import logging
-import sys
 from faust.utils.terminal.spinners import Spinner, SpinnerHandler
 from mode.utils.mocks import Mock, call, patch
 
@@ -22,9 +21,6 @@ class test_Spinner:
         assert spinner.width == 0
         assert spinner.count == 0
         assert not spinner.stopped
-
-    def test_constructor__default_is_stderr(self):
-        assert Spinner().file is sys.stderr
 
     def test_update(self):
         s = self.spinner()
