@@ -44,7 +44,7 @@ class test_AgentService:
         tps = {TP('foo', 0)}
         await service._start_one(index=index, active_partitions=tps)
         agent._start_task.assert_called_once_with(
-            expected_index, tps, service.beacon)
+            expected_index, tps, None, service.beacon)
 
     @pytest.mark.asyncio
     async def test_start_for_partitions(self, *, service):
@@ -117,7 +117,11 @@ class test_AgentService:
         service._start_one = AsyncMock(name='_start_one')
         assert (await service._replace_actor(aref, 101) ==
                 service._start_one.coro())
-        service._start_one.assert_called_once_with(101, aref.active_partitions)
+        service._start_one.assert_called_once_with(
+            101,
+            aref.active_partitions,
+            aref.stream,
+        )
 
     @pytest.mark.asyncio
     async def test_on_stop(self, *, service):
