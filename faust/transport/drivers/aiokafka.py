@@ -103,7 +103,7 @@ class _TopicBuffer(Iterator):
         sentinel = object()
         to_remove: Set[TP] = set()
         mark_as_to_remove = to_remove.add
-        while True:
+        while buffers:
             for tp in to_remove:
                 buffers_remove(tp, None)
             for tp, buffer in buffers_items():
