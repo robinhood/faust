@@ -1,6 +1,5 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
-from itertools import chain
 from typing import (
     Any,
     AsyncIterator,
@@ -39,6 +38,7 @@ from kafka.errors import (
     for_code,
 )
 from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
+from mode.utils.compat import OrderedDict
 from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
@@ -81,30 +81,43 @@ def _ensure_TP(tp: _TPTypes) -> TP:
 
 
 class _TopicBuffer(Iterator):
-    _buffers: List[Iterator[Tuple[TP, ConsumerRecord]]]
-    _chain: Iterator[Tuple[TP, ConsumerRecord]]
+    _buffers: Dict[TP, Iterator[ConsumerRecord]]
+    _it = Iterator[ConsumerRecord]
 
     def __init__(self) -> None:
-        self._buffers = []
-        # Chain of buffers, going round robin through partitions.
-        # This is finalized when needed (after all topics added).
-        self._chain = None
+        # note: this is a regular dict, but ordered on Python 3.6
+        # we use this alias to signify it must be ordered.
+        self._buffers = OrderedDict()
+        # getmany calls next(_TopicBuffer), and does not call iter(),
+        # so the first call to next caches an iterator.
+        self._it: Iterator[ConsumerRecord] = None
 
     def add(self, tp: TP, buffer: List[ConsumerRecord]) -> None:
-        self._buffers.append((tp, message) for message in buffer)
+        assert tp not in self._buffers
+        self._buffers[tp] = iter(buffer)
 
-    def _finalize_chain(self) -> Iterator[ConsumerRecord]:
-        it = self._chain = chain.from_iterable(self._buffers)
-        return it
-
-    def __iter__(self) -> '_TopicBuffer':
-        return self
+    def __iter__(self) -> Iterator[Tuple[TP, ConsumerRecord]]:
+        buffers = self._buffers
+        buffers_items = buffers.items
+        buffers_remove = buffers.pop
+        sentinel = object()
+        to_remove: Set[TP] = set()
+        mark_as_to_remove = to_remove.add
+        while True:
+            for tp in to_remove:
+                buffers_remove(tp, None)
+            for tp, buffer in buffers_items():
+                item = next(buffer, sentinel)
+                if item is sentinel:
+                    mark_as_to_remove(tp)
+                    continue
+                yield tp, item
 
     def __next__(self) -> Tuple[TP, ConsumerRecord]:
-        it = self._chain
+        it = self._it
         if it is None:
-            it = self._finalize_chain()
-        return next(it)
+            it = self._it = iter(self)
+        return it.__next__()
 
 
 class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
