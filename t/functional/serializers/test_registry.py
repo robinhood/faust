@@ -1,10 +1,10 @@
 import typing
-from unittest.mock import Mock
 
 import faust
 import pytest
 from faust.exceptions import KeyDecodeError, ValueDecodeError
 from faust.utils import json
+from mode.utils.mocks import Mock
 
 
 class Case(typing.NamedTuple):

@@ -1,7 +1,6 @@
-from unittest.mock import Mock
 import pytest
 from faust.types import TP
-from mode.utils.mocks import AsyncMock
+from mode.utils.mocks import AsyncMock, Mock
 
 
 class test_AgentManager:

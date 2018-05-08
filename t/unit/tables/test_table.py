@@ -1,7 +1,7 @@
-from unittest.mock import Mock, patch
 import faust
 import pytest
 from faust.tables.wrappers import WindowWrapper
+from mode.utils.mocks import Mock, patch
 
 
 class TableKey(faust.Record):

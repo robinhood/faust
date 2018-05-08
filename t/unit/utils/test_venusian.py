@@ -1,5 +1,5 @@
-from unittest.mock import Mock, patch
 from faust.utils import venusian
+from mode.utils import Mock, patch
 
 
 def test_attach():

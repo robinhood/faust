@@ -1,8 +1,9 @@
 from contextlib import ExitStack, contextmanager
-from unittest.mock import Mock, patch
+
 import pytest
 import terminaltables
 from faust.utils.terminal import tables
+from mode.utils.mocks import Mock, patch
 
 TABLE_DATA = [
     ('foo', 1.0, 3.33, 6.66, 9.99),

@@ -1,11 +1,12 @@
 import operator
 from datetime import datetime
-from unittest.mock import Mock
+
 import faust
 import pytest
 from faust.events import Event
 from faust.exceptions import ImproperlyConfigured
 from faust.tables.wrappers import WindowSet
+from mode.utils.mocks import Mock
 
 DATETIME = datetime.utcnow()
 DATETIME_TS = DATETIME.timestamp()

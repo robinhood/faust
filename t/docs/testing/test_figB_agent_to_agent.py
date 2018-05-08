@@ -1,6 +1,6 @@
-from unittest.mock import Mock, patch
 import faust
 import pytest
+from mode.utils.mocks import Mock, patch
 
 app = faust.App('example-test-agent-call')
 

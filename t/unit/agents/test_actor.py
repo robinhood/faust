@@ -1,8 +1,7 @@
-from unittest.mock import Mock
 import pytest
 from faust.agents.actor import Actor, AsyncIterableActor, AwaitableActor
 from faust.types import TP
-from mode.utils.mocks import AsyncMock
+from mode.utils.mocks import AsyncMock, Mock
 
 
 class test_Actor:

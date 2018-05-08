@@ -1,7 +1,7 @@
-from unittest.mock import Mock
 import pytest
 from faust.stores.memory import Store
 from faust.types import TP
+from mode.utils.mocks import Mock
 
 
 class test_Store:

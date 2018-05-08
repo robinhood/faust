@@ -3,12 +3,12 @@ import logging
 import socket
 import warnings
 from pathlib import Path
-from unittest.mock import Mock, patch
+
 import pytest
-from mode.utils.imports import symbol_by_name
-from mode.utils.mocks import AsyncMock
 from faust.worker import WEBSITE_CLS, Worker
 from faust.utils import terminal
+from mode.utils.imports import symbol_by_name
+from mode.utils.mocks import AsyncMock, Mock, patch
 
 
 class CoroEq:

@@ -1,6 +1,6 @@
 import asyncio
-from unittest import mock
 import pytest
+from mode.utils.mocks import Mock
 
 sentinel = object()
 

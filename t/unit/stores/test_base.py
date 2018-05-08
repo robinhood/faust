@@ -1,8 +1,8 @@
-from unittest.mock import Mock
 import pytest
-from mode import label
 from faust.stores.base import SerializedStore, Store
 from faust.types import TP
+from mode import label
+from mode.utils.mocks import Mock
 
 
 class MyStore(Store):

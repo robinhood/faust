@@ -1,6 +1,5 @@
-from unittest.mock import Mock, call
 import pytest
-from mode.utils.mocks import AsyncMock
+from mode.utils.mocks import AsyncMock, Mock, call
 from faust.web.views import Site, View
 
 

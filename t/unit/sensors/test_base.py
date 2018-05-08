@@ -1,7 +1,7 @@
-from unittest.mock import Mock
 import pytest
 from faust.sensors import Sensor
 from faust.types import TP
+from mode.utils.mocks import Mock
 
 TP1 = TP('foo', 0)
 
