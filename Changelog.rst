@@ -12,6 +12,21 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.4:
+
+1.0.4
+=====
+:release-date: 2018-05-08 11:45 A.M PDT
+:release-by: Vineet Goel
+
+- **Transports**:
+
+    In version-1.0.2_ we implemented fair scheduling in :pypi:`aiokafka`
+    transport such that while processing the worker had an equal chance of
+    processing each assigned Topic. Now we also round-robin through topic
+    partitions within topics such that the worker has an equal chance of
+    processing message from each assigned partition within a topic as well.
+
 .. _version-1.0.3:
 
 1.0.3
