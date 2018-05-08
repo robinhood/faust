@@ -21,7 +21,7 @@ please visit the :ref:`history` section.
 
 - **Requirements**:
 
-    + Now depends on :ref:`Mode 1.12.3 <mode:version-1.12.3>`.
+    + Now depends on :ref:`Mode 1.12.4 <mode:version-1.12.4>`.
 
 - **Agents**: Fixed problem with hanging after agent raises exception.
 
