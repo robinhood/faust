@@ -1,7 +1,6 @@
-from unittest.mock import Mock, call
 from faust.exceptions import ImproperlyConfigured
 from mode import Service, label
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock, call
 import pytest
 
 
@@ -52,8 +51,7 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_first_start(self, *, s):
-        s.app = Mock(name='app')
-        s.app.on_first_start.return_value = done_future()
+        s.app = Mock(name='app', on_first_start=AsyncMock())
         await s.on_first_start()
 
         s.app._create_directories.assert_called_once_with()
@@ -68,8 +66,10 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, s):
-        s.app = Mock(name='app')
-        s.app.on_start.return_value = done_future()
+        s.app = Mock(
+            name='app',
+            on_start=AsyncMock(),
+        )
         await s.on_start()
 
         s.app.finalize.assert_called_once_with()
@@ -77,34 +77,29 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_started(self, *, s):
-        s.wait_for_table_recovery_completed = Mock(name='wftrc')
-        s.on_started_init_extra_tasks = Mock(name='osiet')
-        s.on_started_init_extra_tasks.return_value = done_future()
-        s.on_started_init_extra_services = Mock(name='osies')
-        s.on_started_init_extra_services.return_value = done_future()
-        s.app.on_started = Mock(name='on_started')
-        s.app.on_started.return_value = done_future()
+        s.wait_for_table_recovery_completed = AsyncMock(return_value=True)
+        s.on_started_init_extra_tasks = AsyncMock(name='osiet')
+        s.on_started_init_extra_services = AsyncMock(name='osies')
+        s.app.on_started = AsyncMock(name='on_started')
         s.app.on_startup_finished = None
-        s.wait_for_table_recovery_completed.return_value = done_future(True)
+        s.wait_for_table_recovery_completed.coro.return_value = True
         await s.on_started()
 
-        s.wait_for_table_recovery_completed.return_value = done_future(False)
+        s.wait_for_table_recovery_completed.coro.return_value = False
         await s.on_started()
 
         s.on_started_init_extra_tasks.assert_called_once_with()
         s.on_started_init_extra_services.assert_called_once_with()
         s.app.on_started.assert_called_once_with()
 
-        s.app.on_startup_finished = Mock(name='on_startup_finished')
-        s.app.on_startup_finished.return_value = done_future()
+        s.app.on_startup_finished = AsyncMock(name='on_startup_finished')
         await s.on_started()
 
         s.app.on_startup_finished.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_wait_for_table_recovery_completed(self, *, s):
-        s.wait_for_stopped = Mock(name='wait_for_stopped')
-        s.wait_for_stopped.return_value = done_future()
+        s.wait_for_stopped = AsyncMock(name='wait_for_stopped')
         await s.wait_for_table_recovery_completed()
         s.wait_for_stopped.assert_called_once_with(
             s.app.tables.recovery_completed)
@@ -132,8 +127,7 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_started_init_extra_services(self, *, s, app):
-        s.add_runtime_dependency = Mock(name='add_runtime_dependency')
-        s.add_runtime_dependency.return_value = done_future()
+        s.add_runtime_dependency = AsyncMock(name='add_runtime_dependency')
         service1 = Mock(name='service1')
         app._extra_services = [service1]
         s._extra_service_instances = None
@@ -154,8 +148,7 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_restart(self, *, s, app):
-        app.on_restart = Mock(name='on_restart')
-        app.on_restart.return_value = done_future()
+        app.on_restart = AsyncMock(name='on_restart')
         await s.on_restart()
         app.on_restart.assert_called_once_with()
 

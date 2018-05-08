@@ -5,8 +5,8 @@ import warnings
 from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
-from mode.utils.futures import done_future
 from mode.utils.imports import symbol_by_name
+from mode.utils.mocks import AsyncMock
 from faust.worker import WEBSITE_CLS, Worker
 from faust.utils import terminal
 
@@ -94,8 +94,7 @@ class test_Worker:
 
     @pytest.mark.asyncio
     async def test_on_startup_finished(self, worker):
-        worker.maybe_start_blockdetection = Mock(name='maybe_start_block')
-        worker.maybe_start_blockdetection.return_value = done_future()
+        worker.maybe_start_blockdetection = AsyncMock(name='maybe_start_block')
         worker._on_startup_end_spinner = Mock(name='on_startup_end_spinner')
         await worker.on_startup_finished()
         worker.maybe_start_blockdetection.assert_called_once_with()
@@ -152,7 +151,7 @@ class test_Worker:
     async def test_on_first_start(self, worker):
         worker.change_workdir = Mock(name='change_workdir')
         worker.autodiscover = Mock(name='autodiscover')
-        worker.default_on_first_start = Mock(name='default_on_first_start')
+        worker.default_on_first_start = AsyncMock(name='on_first_start')
         await worker.on_first_start()
         worker.change_workdir.assert_called_once_with(worker.workdir)
         worker.autodiscover.assert_called_once_with()

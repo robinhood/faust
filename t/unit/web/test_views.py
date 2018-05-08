@@ -1,6 +1,6 @@
 from unittest.mock import Mock, call
 import pytest
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock
 from faust.web.views import Site, View
 
 
@@ -45,10 +45,9 @@ class test_View:
     async def test_dispatch(self, method, *, view):
         request = Mock(name='request')
         request.method = method
-        handler = Mock(name=method)
-        handler.return_value = done_future(result='foo')
+        handler = AsyncMock(name=method)
         view.methods[method.lower()] = handler
-        assert await view(request) == 'foo'
+        assert await view(request) is handler.coro()
         handler.assert_called_once_with(request)
 
     @pytest.mark.asyncio

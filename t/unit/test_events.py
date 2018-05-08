@@ -1,6 +1,6 @@
 from unittest.mock import Mock
 import pytest
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock
 from faust import Event
 
 
@@ -25,8 +25,7 @@ class test_Event:
     @pytest.mark.asyncio
     async def test_send(self, *, event):
         callback = Mock(name='callback')
-        event._send = Mock(name='event._send')
-        event._send.return_value = done_future()
+        event._send = AsyncMock(name='event._send')
         await event.send(
             channel='chan',
             key=event.key,
@@ -50,8 +49,7 @@ class test_Event:
     @pytest.mark.asyncio
     async def test_send__USE_EXISTING_KEY_VALUE(self, *, event):
         callback = Mock(name='callback')
-        event._send = Mock(name='event._send')
-        event._send.return_value = done_future()
+        event._send = AsyncMock(name='event._send')
         await event.send(
             channel='chan',
             partition=3,
@@ -73,8 +71,7 @@ class test_Event:
     @pytest.mark.asyncio
     async def test_forward(self, *, event):
         callback = Mock(name='callback')
-        event._send = Mock(name='event._send')
-        event._send.return_value = done_future()
+        event._send = AsyncMock(name='event._send')
         await event.forward(
             channel='chan',
             key=event.key,
@@ -98,8 +95,7 @@ class test_Event:
     @pytest.mark.asyncio
     async def test_forward__USE_EXISTING_KEY_VALUE(self, *, event):
         callback = Mock(name='callback')
-        event._send = Mock(name='event._send')
-        event._send.return_value = done_future()
+        event._send = AsyncMock(name='event._send')
         await event.forward(
             channel='chan',
             partition=3,

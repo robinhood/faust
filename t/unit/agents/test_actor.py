@@ -2,7 +2,7 @@ from unittest.mock import Mock
 import pytest
 from faust.agents.actor import Actor, AsyncIterableActor, AwaitableActor
 from faust.types import TP
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock
 
 
 class test_Actor:
@@ -54,8 +54,7 @@ class test_Actor:
     @pytest.mark.asyncio
     async def test_on_isolated_partition_revoked(self, *, actor):
         actor.cancel = Mock(name='cancel')
-        actor.stop = Mock(name='stop')
-        actor.stop.return_value = done_future()
+        actor.stop = AsyncMock(name='stop')
         await actor.on_isolated_partition_revoked(TP('foo', 0))
         actor.cancel.assert_called_once_with()
         actor.stop.assert_called_once_with()

@@ -1,5 +1,4 @@
 from typing import Any
-from unittest.mock import Mock
 import pytest
 from faust.types import TP
 from faust.sensors.monitor import (
@@ -7,7 +6,7 @@ from faust.sensors.monitor import (
     MonitorService,
     TableState,
 )
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock
 
 TP1 = TP('foo', 0)
 
@@ -270,8 +269,7 @@ class test_Monitor:
 
         i = 0
         mon.events_runtime = []
-        service.sleep = Mock(name='sleep')
-        service.sleep.return_value = done_future()
+        service.sleep = AsyncMock(name='sleep')
 
         def on_cleanup():
             nonlocal i

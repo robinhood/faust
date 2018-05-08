@@ -1,10 +1,10 @@
 import asyncio
-from unittest.mock import Mock
 import pytest
 from faust.transport.conductor import Conductor
 from faust.types import TP
 from mode import label, shortlabel
 from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -29,16 +29,19 @@ class test_Conductor:
 
     @pytest.mark.asyncio
     async def test_commit(self, *, con):
-        con.app = Mock(name='app')
-        con.app.consumer.commit.return_value = done_future()
+        con.app = Mock(
+            name='app',
+            consumer=Mock(
+                commit=AsyncMock(),
+            ),
+        )
         await con.commit({TP1})
 
         con.app.consumer.commit.assert_called_once_with({TP1})
 
     @pytest.mark.asyncio
     async def test_on_message(self, *, con):
-        cb = con._tp_to_callback[TP1] = Mock(name='callback')
-        cb.return_value = done_future()
+        cb = con._tp_to_callback[TP1] = AsyncMock(name='callback')
         message = Mock(name='message')
         message.tp = TP1
         await con.on_message(message)
@@ -61,8 +64,7 @@ class test_Conductor:
         topic2.acks = True
         topic2.topics = ['t2']
         topic2.internal = True
-        topic2.maybe_declare = Mock(name='maybe_declare')
-        topic2.maybe_declare.return_value = done_future()
+        topic2.maybe_declare = AsyncMock(name='maybe_declare')
         con._topics = {topic1, topic2}
 
         await con._update_indices()

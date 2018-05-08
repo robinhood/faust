@@ -2,7 +2,7 @@ import asyncio
 from copy import copy
 from unittest.mock import Mock
 from mode.utils.aiter import aiter, anext
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import maybe_forward
 import pytest
@@ -388,8 +388,7 @@ async def test_maybe_forward__when_event(app):
     s = new_stream(app)
     event = await get_event_from_value(s, 'foo')
     s.channel.send = Mock(name='channel.send')
-    event.forward = Mock(name='event.forward')
-    event.forward.return_value = done_future()
+    event.forward = AsyncMock(name='event.forward')
     await maybe_forward(event, s.channel)
     event.forward.assert_called_once_with(s.channel)
     s.channel.send.assert_not_called()
@@ -398,8 +397,7 @@ async def test_maybe_forward__when_event(app):
 @pytest.mark.asyncio
 async def test_maybe_forward__when_concrete_value(app):
     s = new_stream(app)
-    s.channel.send = Mock(name='channel.send')
-    s.channel.send.return_value = done_future()
+    s.channel.send = AsyncMock(name='channel.send')
     await maybe_forward('foo', s.channel)
     s.channel.send.assert_called_once_with(value='foo')
 

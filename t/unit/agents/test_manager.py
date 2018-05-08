@@ -1,19 +1,21 @@
 from unittest.mock import Mock
 import pytest
 from faust.types import TP
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock
 
 
 class test_AgentManager:
 
     def create_agent(self, name, topic_names=None):
-        agent = Mock(name=name)
-        agent.start.return_value = done_future()
-        agent.stop.return_value = done_future()
-        agent.restart.return_value = done_future()
-        agent.on_partitions_revoked.return_value = done_future()
-        agent.on_partitions_assigned.return_value = done_future()
-        agent.get_topic_names.return_value = topic_names
+        agent = Mock(
+            name=name,
+            start=AsyncMock(),
+            stop=AsyncMock(),
+            restart=AsyncMock(),
+            on_partitions_revoked=AsyncMock(),
+            on_partitions_assigned=AsyncMock(),
+            get_topic_names=Mock(return_value=topic_names),
+        )
         return agent
 
     @pytest.fixture()

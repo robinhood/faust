@@ -1,8 +1,7 @@
-from unittest.mock import Mock, call
 import pytest
 from faust.transport.consumer import Consumer, Fetcher, ProducerSendError
 from faust.types import TP
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock, call
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -16,11 +15,11 @@ class test_Fetcher:
 
     @pytest.mark.asyncio
     async def test_fetcher(self, *, fetcher, app):
-        app.consumer = Mock(name='consumer')
-        app.consumer._drain_messages.return_value = done_future()
-
+        app.consumer = Mock(
+            name='consumer',
+            _drain_messages=AsyncMock(),
+        )
         await fetcher._fetcher(fetcher)
-
         app.consumer._drain_messages.assert_called_once_with(fetcher)
 
 
@@ -115,8 +114,7 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_on_partitions_assigned(self, *, consumer):
-        consumer._on_partitions_assigned = Mock(name='opa')
-        consumer._on_partitions_assigned.return_value = done_future()
+        consumer._on_partitions_assigned = AsyncMock(name='opa')
         tps = {TP('foo', 0), TP('bar', 2)}
         await consumer.on_partitions_assigned(tps)
 
@@ -125,8 +123,7 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, consumer):
-        consumer._on_partitions_revoked = Mock(name='opr')
-        consumer._on_partitions_revoked.return_value = done_future()
+        consumer._on_partitions_revoked = AsyncMock(name='opr')
         tps = {TP('foo', 0), TP('bar', 2)}
         await consumer.on_partitions_revoked(tps)
 
@@ -173,17 +170,12 @@ class test_Consumer:
     @pytest.mark.asyncio
     async def test_wait_empty(self, *, consumer):
         consumer._unacked_messages = {Mock()}
-        consumer.commit = Mock(name='commit')
-
-        i = 0
 
         def on_commit():
-            nonlocal i
-            i += 1
-            if i > 10:
-                consumer._unacked_messages.clear()
-            return done_future()
-        consumer.commit.side_effect = on_commit
+            for _ in range(10):
+                yield
+            consumer._unacked_messages.clear()
+        consumer.commit = AsyncMock(name='commit', side_effect=on_commit)
 
         await consumer.wait_empty()
 
@@ -195,8 +187,7 @@ class test_Consumer:
         assert consumer._last_batch is None
 
         consumer.app.conf.stream_wait_empty = True
-        consumer.wait_empty = Mock(name='wait_empty')
-        consumer.wait_empty.return_value = done_future()
+        consumer.wait_empty = AsyncMock(name='wait_empty')
 
         await consumer.on_stop()
         consumer.wait_empty.assert_called_once_with()
@@ -206,8 +197,7 @@ class test_Consumer:
         consumer.app = Mock(name='app')
         oci = consumer.app.sensors.on_commit_initiated
         occ = consumer.app.sensors.on_commit_completed
-        consumer._commit_tps = Mock(name='_commit_tps')
-        consumer._commit_tps.return_value = done_future()
+        consumer._commit_tps = AsyncMock(name='_commit_tps')
         consumer._acked = {
             TP1: [1, 2, 3, 4, 5],
         }
@@ -221,10 +211,8 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_commit_tps(self, *, consumer):
-        consumer._handle_attached = Mock(name='_handle_attached')
-        consumer._handle_attached.return_value = done_future()
-        consumer._commit_offsets = Mock(name='_commit_offsets')
-        consumer._commit_offsets.return_value = done_future()
+        consumer._handle_attached = AsyncMock(name='_handle_attached')
+        consumer._commit_offsets = AsyncMock(name='_commit_offsets')
         consumer._filter_committable_offsets = Mock(name='filt')
         consumer._filter_committable_offsets.return_value = {
             TP1: 4,
@@ -245,8 +233,7 @@ class test_Consumer:
     async def test_commit_tps__ProducerSendError(self, *, consumer):
         consumer._handle_attached = Mock(name='_handle_attached')
         exc = consumer._handle_attached.side_effect = ProducerSendError()
-        consumer.crash = Mock(name='crash')
-        consumer.crash.return_value = done_future()
+        consumer.crash = AsyncMock(name='crash')
         consumer._filter_committable_offsets = Mock(name='filt')
         consumer._filter_committable_offsets.return_value = {
             TP1: 4,
@@ -277,21 +264,24 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_handle_attached(self, *, consumer):
-        consumer.app = Mock(name='app')
-        consumer.app._attachments.commit.return_value = done_future()
+        consumer.app = Mock(
+            name='app',
+            _attachments=Mock(
+                commit=AsyncMock(),
+            ),
+        )
         await consumer._handle_attached({
             TP1: 3003,
             TP2: 6006,
         })
-        consumer.app._attachments.commit.assert_has_calls([
+        consumer.app._attachments.commit.coro.assert_has_calls([
             call(TP1, 3003),
             call(TP2, 6006),
         ])
 
     @pytest.mark.asyncio
     async def test_commit_offsets(self, *, consumer):
-        consumer._commit = Mock(name='_commit')
-        consumer._commit.return_value = done_future()
+        consumer._commit = AsyncMock(name='_commit')
         await consumer._commit_offsets({
             TP1: 3003,
             TP2: 6006,
@@ -339,14 +329,12 @@ class test_Consumer:
 
     @pytest.mark.asyncio
     async def test_on_task_error(self, *, consumer):
-        consumer.commit = Mock(name='commit')
-        consumer.commit.return_value = done_future()
+        consumer.commit = AsyncMock(name='commit')
         await consumer.on_task_error(KeyError())
         consumer.commit.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_commit_handler(self, *, consumer):
-        consumer.sleep = Mock(name='sleep')
         i = 0
 
         def on_sleep(secs):
@@ -354,14 +342,12 @@ class test_Consumer:
             if i:
                 consumer._stopped.set()
             i += 1
-            return done_future()
 
-        consumer.sleep.side_effect = on_sleep
-        consumer.commit = Mock(name='commit')
-        consumer.commit.return_value = done_future()
+        consumer.sleep = AsyncMock(name='sleep', side_effect=on_sleep)
+        consumer.commit = AsyncMock(name='commit')
 
         await consumer._commit_handler(consumer)
-        consumer.sleep.assert_has_calls([
+        consumer.sleep.coro.assert_has_calls([
             call(consumer.commit_interval),
             call(consumer.commit_interval),
         ])

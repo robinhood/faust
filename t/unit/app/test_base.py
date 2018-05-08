@@ -1,5 +1,4 @@
 import re
-from unittest.mock import ANY, MagicMock, Mock, call, patch
 import faust
 from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
 from faust.assignor.leader_assignor import LeaderAssignor, LeaderAssignorT
@@ -9,7 +8,7 @@ from faust.serializers import codecs
 from faust.types.models import ModelT
 from mode import Service
 from mode.utils.compat import want_bytes
-from mode.utils.futures import done_future
+from mode.utils.mocks import ANY, AsyncMock, MagicMock, Mock, call, patch
 from yarl import URL
 import pytest
 
@@ -89,19 +88,26 @@ async def test_send_str(app):
 async def test_on_partitions_revoked(revoked, assignment, *, app):
     if assignment is None:
         assignment = revoked
-    app.topics = MagicMock(name='app.topics')
-    app.topics.on_partitions_revoked.return_value = done_future()
-    app.tables = Mock(name='app.tables')
-    app.tables.on_partitions_revoked.return_value = done_future()
-    app._fetcher = Mock(name='app._fetcher')
-    app._fetcher.stop.return_value = done_future()
-    app.consumer = Mock(name='app.consumer')
-    app.consumer.pause_partitions.return_value = done_future()
-    app.consumer.wait_empty.return_value = done_future()
+    app.topics = MagicMock(
+        name='app.topics',
+        on_partitions_revoked=AsyncMock(),
+    )
+    app.tables = Mock(
+        name='app.tables',
+        on_partitions_revoked=AsyncMock(),
+    )
+    app._fetcher = Mock(
+        name='app._fetcher',
+        stop=AsyncMock(),
+    )
+    app.consumer = Mock(
+        name='app.consumer',
+        pause_partitions=AsyncMock(),
+        wait_empty=AsyncMock(),
+    )
     app.flow_control = Mock(name='app.flow_control')
     app.agents = Mock(name='app.agents')
-    signal = app.on_partitions_revoked.connect(Mock(name='signal'))
-    signal.return_value = done_future()
+    signal = app.on_partitions_revoked.connect(AsyncMock(name='signal'))
 
     app.consumer.assignment.return_value = None
     app.conf.stream_wait_empty = False
@@ -134,21 +140,30 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
     {},
 ])
 async def test_on_partitions_assigned(assigned, *, app):
-    app.consumer = Mock(name='app.consumer')
-    app.consumer.verify_subscription.return_value = done_future()
-    app.consumer.pause_partitions.return_value = done_future()
-    app.agents = Mock(name='app.agents')
-    app.agents.on_partitions_assigned.return_value = done_future()
-    app.topics = MagicMock(name='app.topics')
-    app.topics.on_partitions_assigned.return_value = done_future()
-    app.topics.wait_for_subscriptions.return_value = done_future()
-    app.tables = Mock(name='app.tables')
-    app.tables.on_partitions_assigned.return_value = done_future()
-    app._fetcher = Mock(name='app._fetcher')
-    app._fetcher.restart.return_value = done_future()
+    app.consumer = Mock(
+        name='app.consumer',
+        verify_subscription=AsyncMock(),
+        pause_partitions=AsyncMock(),
+    )
+    app.agents = Mock(
+        name='app.agents',
+        on_partitions_assigned=AsyncMock(),
+    )
+    app.topics = MagicMock(
+        name='app.topics',
+        on_partitions_assigned=AsyncMock(),
+        wait_for_subscriptions=AsyncMock(),
+    )
+    app.tables = Mock(
+        name='app.tables',
+        on_partitions_assigned=AsyncMock(),
+    )
+    app._fetcher = Mock(
+        name='app._fetcher',
+        restart=AsyncMock(),
+    )
     app.flow_control = Mock(name='app.flow_control')
-    signal = app.on_partitions_assigned.connect(Mock(name='signal'))
-    signal.return_value = done_future()
+    signal = app.on_partitions_assigned.connect(AsyncMock(name='signal'))
 
     await app._on_partitions_assigned(assigned)
 
@@ -165,8 +180,7 @@ async def test_on_partitions_assigned(assigned, *, app):
 
     app.log = Mock(name='log')
     exc = app.log.info.side_effect = RuntimeError()
-    app.crash = Mock(name='crash')
-    app.crash.return_value = done_future()
+    app.crash = AsyncMock(name='crash')
     await app._on_partitions_assigned(assigned)
     app.crash.assert_called_with(exc)
 
@@ -198,8 +212,7 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_on_stop(self, *, app):
-        app._http_client = Mock(name='http_client')
-        app._http_client.close.return_value = done_future()
+        app._http_client = Mock(name='http_client', close=AsyncMock())
         await app.on_stop()
         app._http_client.close.assert_called_once_with()
         app._http_client = None
@@ -408,16 +421,14 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
-        app._service = Mock(name='_service')
-        app._service.maybe_start.return_value = done_future()
+        app._service = Mock(name='_service', maybe_start=AsyncMock())
         await app.start_client()
         assert app.client_only
         app._service.maybe_start.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_maybe_start_client(self, *, app):
-        app.start_client = Mock(name='start_client')
-        app.start_client.return_value = done_future()
+        app.start_client = AsyncMock(name='start_client')
         app._service = Mock(name='_service')
 
         app._service.started = True
@@ -430,8 +441,7 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_commit(self, *, app):
-        app.topics = Mock(name='topics')
-        app.topics.commit.return_value = done_future()
+        app.topics = Mock(name='topics', commit=AsyncMock())
         await app.commit({1})
         app.topics.commit.assert_called_with({1})
 

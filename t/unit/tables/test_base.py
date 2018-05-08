@@ -1,13 +1,12 @@
 import operator
 from copy import copy
-from unittest.mock import Mock, patch
 import pytest
 from faust import joins
 from faust import Record
 from faust.tables.base import Collection
 from faust.types import TP
 from mode import label, shortlabel
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock, patch
 
 TP1 = TP('foo', 0)
 
@@ -44,8 +43,7 @@ class test_Collection:
 
     @pytest.mark.asyncio
     async def test_init_on_recover(self, *, app):
-        on_recover = Mock(name='on_recover')
-        on_recover.return_value = done_future()
+        on_recover = AsyncMock(name='on_recover')
         t = MyTable(app, name='name', on_recover=on_recover)
         assert on_recover in t._recover_callbacks
         await t.call_recover_callbacks()
@@ -65,8 +63,10 @@ class test_Collection:
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, table):
-        table.changelog_topic = Mock(name='changelog_topic')
-        table.changelog_topic.maybe_declare.return_value = done_future()
+        table.changelog_topic = Mock(
+            name='changelog_topic',
+            maybe_declare=AsyncMock(),
+        )
         await table.on_start()
         table.changelog_topic.maybe_declare.assert_called_once_with()
 
@@ -88,9 +88,12 @@ class test_Collection:
 
     @pytest.mark.asyncio
     async def test_need_active_standby_for(self, *, table):
-        data = table._data = Mock(name='_data')
-        data.need_active_standby_for.return_value = done_future('foo')
-        assert await table.need_active_standby_for(TP1) == 'foo'
+        table._data = Mock(
+            name='_data',
+            need_active_standby_for=AsyncMock(),
+        )
+        assert (await table.need_active_standby_for(TP1) ==
+                table._data.need_active_standby_for.coro())
 
     def test_reset_state(self, *, table):
         data = table._data = Mock(name='_data')
@@ -132,13 +135,10 @@ class test_Collection:
 
         table._should_expire_keys.return_value = True
         table._del_old_keys = Mock(name='_del_old_keys')
-        table.sleep = Mock(name='sleep')
 
         def on_sleep(secs):
             table._stopped.set()
-            return done_future()
-
-        table.sleep.side_effect = on_sleep
+        table.sleep = AsyncMock(name='sleep', side_effect=on_sleep)
 
         await table._clean_data(table)
 
@@ -302,16 +302,20 @@ class test_Collection:
 
     @pytest.mark.asyncio
     async def test_on_partitions_assigned(self, *, table):
-        table._data = Mock(name='data')
-        table._data.on_partitions_assigned.return_value = done_future()
+        table._data = Mock(
+            name='data',
+            on_partitions_assigned=AsyncMock(),
+        )
         await table.on_partitions_assigned({TP1})
         table._data.on_partitions_assigned.assert_called_once_with(
             table, {TP1})
 
     @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, table):
-        table._data = Mock(name='data')
-        table._data.on_partitions_revoked.return_value = done_future()
+        table._data = Mock(
+            name='data',
+            on_partitions_revoked=AsyncMock(),
+        )
         await table.on_partitions_revoked({TP1})
         table._data.on_partitions_revoked.assert_called_once_with(table, {TP1})
 
@@ -320,7 +324,7 @@ class test_Collection:
         event = Mock(name='event')
         table._on_changelog_event = None
         await table.on_changelog_event(event)
-        table._on_changelog_event = Mock(return_value=done_future())
+        table._on_changelog_event = AsyncMock(name='callback')
         await table.on_changelog_event(event)
         table._on_changelog_event.assert_called_once_with(event)
 

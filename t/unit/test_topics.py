@@ -1,7 +1,6 @@
 import re
-from unittest.mock import Mock
 import pytest
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock
 
 
 class test_Topic:
@@ -31,8 +30,7 @@ class test_Topic:
     @pytest.mark.asyncio
     async def test_decode(self, *, topic, message):
         topic._compile_decode = Mock(name='_compile_decode')
-        decode = topic._compile_decode.return_value
-        decode.return_value = done_future()
+        decode = topic._compile_decode.return_value = AsyncMock()
 
         await topic.decode(message, propagate=True)
         topic._compile_decode.assert_called_once_with()
@@ -40,8 +38,7 @@ class test_Topic:
     @pytest.mark.asyncio
     async def test_put(self, *, topic):
         topic.is_iterator = True
-        topic.queue.put = Mock(name='queue')
-        topic.queue.put.return_value = done_future('foo')
+        topic.queue.put = AsyncMock(name='queue')
         event = Mock(name='event')
         await topic.put(event)
         topic.queue.put.assert_called_once_with(event)

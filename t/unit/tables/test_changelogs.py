@@ -1,9 +1,9 @@
-from unittest.mock import Mock
 import pytest
+from faust.channels import Channel
 from faust.tables.changelogs import ChangelogReader, StandbyReader, local_tps
 from faust.types import TP
 from mode import label
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -17,7 +17,11 @@ def table(*, app):
 
 @pytest.fixture
 def channel():
-    return Mock(name='channel')
+    return Mock(
+        name='channel',
+        autospec=Channel,
+        throw=AsyncMock(),
+    )
 
 
 class TypeEq:
@@ -47,7 +51,6 @@ class test_ChangelogReader:
 
     @pytest.mark.asyncio
     async def test_on_stop(self, *, channel, reader):
-        channel.throw.return_value = done_future()
         await reader.on_stop()
         channel.throw.assert_called_once_with(TypeEq(StopAsyncIteration))
         reader._stop_event.set()
@@ -55,14 +58,18 @@ class test_ChangelogReader:
 
     @pytest.mark.asyncio
     async def test_build_highwaters(self, *, app, reader):
-        app.consumer = Mock(name='consumer')
         highwaters = {
             TP1: 3003,
             TP2: 6006,
         }
         reader._highwaters = {'foo': 'moo'}
-        app.consumer.highwaters.return_value = done_future(highwaters)
+        app.consumer = Mock(
+            name='consumer',
+            highwaters=AsyncMock(return_value=highwaters),
+        )
+
         await reader._build_highwaters()
+
         assert reader._highwaters == {
             TP1: 3002,
             TP2: 6005,
@@ -95,28 +102,32 @@ class test_ChangelogReader:
 
     @pytest.mark.asyncio
     async def test_update_offsets(self, *, app, reader):
-        app.consumer = Mock(name='consumer')
         earliest = {
             TP1: 30,
             TP2: 0,
         }
+        app.consumer = Mock(
+            name='consumer',
+            earliest_offsets=AsyncMock(return_value=earliest),
+        )
         self.set_highwaters(reader, TP1, 1000, 31)
         self.set_highwaters(reader, TP2, 1001, 0)
-        app.consumer.earliest_offsets.return_value = done_future(earliest)
         await reader._update_offsets()
         assert reader.offsets == {TP1: 31, TP2: 0}
 
     @pytest.mark.asyncio
     async def test_seek_tps(self, *, app, reader):
-        app.consumer = Mock(name='consumer')
-        self.set_highwaters(reader, TP1, 3003, 2003)
-        self.set_highwaters(reader, TP2, 1001, 1)
-        app.consumer.seek.return_value = done_future()
 
         def on_position(tp):
-            return done_future(reader.offsets[tp])
-        app.consumer.position.side_effect = on_position
+            return reader.offsets[tp]
 
+        app.consumer = Mock(
+            name='consumer',
+            seek=AsyncMock(),
+            position=AsyncMock(side_effect=on_position),
+        )
+        self.set_highwaters(reader, TP1, 3003, 2003)
+        self.set_highwaters(reader, TP2, 1001, 1)
         await reader._seek_tps()
 
     def test_should_start_reading(self, *, reader):
@@ -154,9 +165,7 @@ class test_ChangelogReader:
     async def test_publish_stats(self, *, reader):
         def on_sleep(secs):
             reader._stopped.set()
-            return done_future()
-        reader.sleep = Mock(name='sleep')
-        reader.sleep.side_effect = on_sleep
+        reader.sleep = AsyncMock(name='sleep', side_effect=on_sleep)
         await reader._publish_stats(reader)
 
     def test_label(self, *, reader):
@@ -164,13 +173,14 @@ class test_ChangelogReader:
 
     @pytest.mark.asyncio
     async def test_local_tps(self, *, table):
-        table.need_active_standby_for = Mock(name='need_active_standby_for')
 
         def need_standby(tp):
-            if tp == TP1:
-                return done_future(True)
-            return done_future(False)
-        table.need_active_standby_for.side_effect = need_standby
+            return tp == TP1
+
+        table.need_active_standby_for = AsyncMock(
+            name='need_active_standby_for',
+            side_effect=need_standby,
+        )
 
         assert await local_tps(table, {TP1, TP2}) == {TP2}
 

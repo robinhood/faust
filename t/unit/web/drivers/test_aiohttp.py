@@ -1,8 +1,7 @@
 import asyncio
-from unittest.mock import Mock, patch
 import pytest
 from faust.web.drivers.aiohttp import ServerThread, Web
-from mode.utils.futures import done_future
+from mode.utils.mocks import AsyncMock, Mock, patch
 
 
 @pytest.fixture
@@ -22,8 +21,7 @@ class test_ServerThread:
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, thread):
-        thread.web.start_server = Mock(name='web.start_server')
-        thread.web.start_server.return_value = done_future()
+        thread.web.start_server = AsyncMock(name='web.start_server')
         thread._port_open = asyncio.Future()
         await thread.on_start()
 
@@ -42,8 +40,7 @@ class test_ServerThread:
 
     @pytest.mark.asyncio
     async def test_on_thread_start(self, *, thread):
-        thread.web = Mock(name='web')
-        thread.web.stop_server.return_value = done_future()
+        thread.web = Mock(name='web', stop_server=AsyncMock())
         await thread.on_thread_stop()
 
         thread.web.stop_server.assert_called_once_with(thread.loop)
@@ -84,27 +81,22 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_start_server(self, *, web):
-        loop = Mock(name='loop')
-        loop.create_server.return_value = done_future('foo')
+        loop = Mock(name='loop', create_server=AsyncMock())
         web._app = Mock(name='_app')
         await web.start_server(loop)
 
         web._app.make_handler.assert_called_once_with()
         assert web._handler is web._app.make_handler()
-        assert web._srv == 'foo'
+        assert web._srv is loop.create_server.coro()
         loop.create_server.asssert_called_once_with(
             web._handler, web.bind, web.port)
 
     @pytest.mark.asyncio
     async def test_stop_server(self, *, web):
-        web._stop_server = Mock(name='_stop_server')
-        web._stop_server.return_value = done_future()
-        web._shutdown_webapp = Mock(name='_shutdown_webapp')
-        web._shutdown_webapp.return_value = done_future()
-        web._shutdown_handler = Mock(name='_shutdown_handler')
-        web._shutdown_handler.return_value = done_future()
-        web._cleanup_app = Mock(name='_cleanup_app')
-        web._cleanup_app.return_value = done_future()
+        web._stop_server = AsyncMock(name='_stop_server')
+        web._shutdown_webapp = AsyncMock(name='_shutdown_webapp')
+        web._shutdown_handler = AsyncMock(name='_shutdown_handler')
+        web._cleanup_app = AsyncMock(name='_cleanup_app')
 
         await web.stop_server(Mock(name='loop'))
         web._stop_server.assert_called_once_with()
@@ -116,8 +108,7 @@ class test_Web:
     async def test__stop_server(self, *, web):
         web._srv = None
         await web._stop_server()
-        web._srv = Mock(name='_srv')
-        web._srv.wait_closed.return_value = done_future()
+        web._srv = Mock(name='_srv', wait_closed=AsyncMock())
         await web._stop_server()
         web._srv.close.assert_called_once_with()
         web._srv.wait_closed.assert_called_once_with()
@@ -126,8 +117,7 @@ class test_Web:
     async def test_shutdown_webapp(self, *, web):
         web._app = None
         await web._shutdown_webapp()
-        web._app = Mock(name='_app')
-        web._app.shutdown.return_value = done_future()
+        web._app = Mock(name='_app', shutdown=AsyncMock())
         await web._shutdown_webapp()
         web._app.shutdown.assert_called_once_with()
 
@@ -135,8 +125,7 @@ class test_Web:
     async def test_shutdown_handler(self, *, web):
         web._handler = None
         await web._shutdown_handler()
-        web._handler = Mock(name='_handler')
-        web._handler.shutdown.return_value = done_future()
+        web._handler = Mock(name='_handler', shutdown=AsyncMock())
         await web._shutdown_handler()
         web._handler.shutdown.assert_called_with(web.handler_shutdown_timeout)
 
@@ -144,7 +133,6 @@ class test_Web:
     async def test_cleanup_app(self, *, web):
         web._app = None
         await web._cleanup_app()
-        web._app = Mock(name='_app')
-        web._app.cleanup.return_value = done_future()
+        web._app = Mock(name='_app', cleanup=AsyncMock())
         await web._cleanup_app()
         web._app.cleanup.assert_called_once_with()
