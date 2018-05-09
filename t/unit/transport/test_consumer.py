@@ -249,7 +249,7 @@ class test_Consumer:
         consumer.crash.assert_called_once_with(exc)
 
     @pytest.mark.asyncio
-    async def test_commit_tps__no_commitable(slef, *, consumer):
+    async def test_commit_tps__no_commitable(self, *, consumer):
         consumer._filter_commitable_offsets = Mock(name='filt')
         consumer._filter_commitable_offsets.return_value = {}
         await consumer._commit_tps({TP1, TP2})
