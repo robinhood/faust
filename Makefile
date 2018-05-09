@@ -34,6 +34,14 @@ all: help
 help:
 	@echo "docs                 - Build documentation."
 	@echo "livedocs             - Start documentation live web server."
+	@echo "develop              - Start contributing to Faust"
+	@echo "  develop-hooks      - Install Git commit hooks (required)"
+	@echo "  reqs"              - Install requirements
+	@echo "  setup-develop      - Run setup.py develop"
+	@echo "cdevelop             - Like develop but installs C extensions"
+	@echo "  reqs-rocksdb       -   Install python-rocksdb (require rocksdb)"
+	@echo "  reqs-fast          -   Install C optimizations"
+	@echo "  reqs-uvloop        -   Install uvloop extension"
 	@echo "test-all             - Run tests for all supported python versions."
 	@echo "distcheck ---------- - Check distribution for problems."
 	@echo "  test               - Run unittests using current python."
@@ -197,3 +205,54 @@ clean-requirements:
 .PHONY:
 hooks:
 	$(PRE_COMMIT) install
+
+.PHONY:
+cdevelop: develop reqs-ext
+
+.PHONY:
+develop: reqs develop-hooks setup-develop
+
+.PHONY:
+develop-hooks: hooks
+
+.PHONY:
+reqs: reqs-default reqs-test reqs-dist reqs-ci reqs-debug
+
+.PHONY:
+reqs-default:
+	$(PIP) install -U -r requirements/default.txt
+
+.PHONY:
+reqs-test:
+	$(PIP) install -U -r requirements/test.txt
+
+.PHONY:
+reqs-dist:
+	$(PIP) install -U -r requirements/dist.txt
+
+.PHONY:
+reqs-ci:
+	$(PIP) install -U -r requirements/ci.txt
+
+.PHONY:
+reqs-debug:
+	$(PIP) install -U -r requirements/extras/debug.txt
+
+.PHONY:
+reqs-ext: reqs-rocksdb reqs-fast reqs-uvloop
+
+.PHONY:
+reqs-rocksdb:
+	pip install --no-cache -U -r requirements/extras/rocksdb.txt
+
+.PHONY:
+reqs-fast:
+	pip install --no-cache -U -r requirements/extras/fast.txt
+
+.PHONY:
+reqs-uvloop:
+	pip install --no-cache -U -r requirements/extras/uvloop.txt
+
+.PHONY:
+setup-develop:
+	$(PYTHON) setup.py develop
