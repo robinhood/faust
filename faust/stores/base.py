@@ -161,8 +161,12 @@ class SerializedStore(Store):
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
         for event in batch:
-            # keys/values are already JSON serialized in the message
-            self._set(event.message.key, event.message.value)
+            value = event.message.value
+            if value is None:
+                self._del(event.message.key)
+            else:
+                # keys/values are already JSON serialized in the message
+                self._set(event.message.key, event.message.value)
 
     def __getitem__(self, key: Any) -> Any:
         value = self._get(self._encode_key(key))

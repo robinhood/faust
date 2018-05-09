@@ -91,7 +91,6 @@ class MySerializedStore(SerializedStore):
         self.keep = {}
 
     def _get(self, key):
-        print('GETTING: %r' % (key,))
         return self.keep.get(key)
 
     def _set(self, key, value):
@@ -134,6 +133,16 @@ class test_SerializedStore:
         event.message.value = b'bar'
         store.apply_changelog_batch([event], to_key=Mock(), to_value=Mock())
         assert store.keep[b'foo'] == b'bar'
+
+    def test_apply_changelog_batch__delete_None_value(self, *, store):
+        self.test_apply_changelog_batch(store=store)
+        assert store.keep[b'foo'] == b'bar'
+        event = Mock(name='event', autospec=Event)
+        event.message.key = b'foo'
+        event.message.value = None
+        store.apply_changelog_batch([event], to_key=Mock(), to_value=Mock())
+        with pytest.raises(KeyError):
+            store.keep[b'foo']
 
     def test_setitem__getitem__delitem(self, *, store):
         store['foo'] = '303'

@@ -179,7 +179,10 @@ class Store(base.SerializedStore):
         batches = defaultdict(rocksdb.WriteBatch)
         for event in batch:
             msg = event.message
-            batches[msg.partition].put(msg.key, msg.value)
+            if msg.value is None:
+                batches[msg.partition].delete(msg.key)
+            else:
+                batches[msg.partition].put(msg.key, msg.value)
 
         for partition, batch in batches.items():
             self._db_for_partition(partition).write(batch)
