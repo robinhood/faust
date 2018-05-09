@@ -14,6 +14,7 @@ SPHINX2RST ?= sphinx2rst
 BUMPVERSION ?= bumpversion
 VULTURE ?= vulture
 VULTURE_MIN_CONFIDENCE=100
+PRE_COMMIT=pre-commit
 
 TESTDIR ?= t
 EXAMPLESDIR ?= examples
@@ -58,6 +59,7 @@ help:
 	@echo "bump                 - Bump patch version number."
 	@echo "bump-minor           - Bump minor version number."
 	@echo "bump-major           - Bump major version number."
+	@echo "hooks"               - Update pre-commit hooks
 	@echo "release              - Make PyPI release."
 
 clean: clean-docs clean-pyc clean-build
@@ -191,3 +193,7 @@ requirements:
 clean-requirements:
 	pip freeze | xargs pip uninstall -y
 	$(MAKE) requirements
+
+.PHONY:
+hooks:
+	$(PRE_COMMIT) install
