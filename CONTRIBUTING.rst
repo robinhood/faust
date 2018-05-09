@@ -340,6 +340,9 @@ Working on Features & Patches
 Forking and setting up the repository
 -------------------------------------
 
+Create your fork
+~~~~~~~~~~~~~~~~
+
 First you need to fork the Faust repository, a good introduction to this
 is in the GitHub Guide: `Fork a Repo`_.
 
@@ -371,12 +374,45 @@ commit notes. See `Rebasing merge commits in git`_.
 If you want to learn more about rebasing see the `Rebase`_
 section in the GitHub guides.
 
-If you need to work on a different branch than the one git calls ``master``, you can
-fetch and checkout a remote branch like this:
+Start Developing
+~~~~~~~~~~~~~~~~
+
+To start developing Faust you should install the requirements
+and setup the development environment so that Python uses the Faust
+development directory.
+
+To do so run:
 
 .. sourcecode:: console
 
-    $ git checkout --track -b 2.0-devel origin/2.0-devel
+    $ make develop
+
+
+If you want to install requirements manually you should at least install
+the git pre-commit hooks (the ``make develop`` command above automatically
+runs this as well):
+
+.. sourcecode:: console
+
+    $ make hooks
+
+
+If you also want to install C extensions, including the RocksDB bindings
+then you can use `make cdevelop` instead of `make develop`:
+
+.. sourcecode:: console
+
+    $ make cdevelop
+
+.. note::
+
+    If you need to work on a different branch than the
+    one git calls ``master``, you can
+    fetch and checkout a remote branch like this:
+
+    .. sourcecode:: console
+
+        $ git checkout --track -b 2.0-devel origin/2.0-devel
 
 .. _`Fork a Repo`: http://help.github.com/fork-a-repo/
 .. _`Rebasing merge commits in git`:
