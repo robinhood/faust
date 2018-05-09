@@ -1,6 +1,7 @@
 aiohttp>=2.3.9,<4.0.0
 aiokafka~=0.4.6
 click~=6.7
+click_completion>=0.3.1
 colorclass~=2.2
 mode~=1.12.4
 terminaltables~=3.1.0
