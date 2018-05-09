@@ -7,3 +7,8 @@ repos:
       language: system
       files: .*\.py$
       python_version: python3.6
+    - id: mypy
+      name: mypy
+      entry: mypy
+      language: system
+      files: ^faust.+?\.py$
