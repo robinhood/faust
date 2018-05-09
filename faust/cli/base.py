@@ -23,6 +23,8 @@ from typing import (
 )
 
 import click
+import click_completion
+from click import echo
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
 from mode.utils.compat import want_bytes
@@ -45,6 +47,8 @@ __all__ = [
     'find_app',
     'option',
 ]
+
+click_completion.init()
 
 argument = click.argument
 option = click.option
@@ -258,8 +262,15 @@ class _Group(click.Group):
 @click.group(cls=_Group)
 @_apply_options(builtin_options)
 @click.pass_context
-def cli(ctx: click.Context, app: str, quiet: bool, debug: bool, workdir: str,
-        datadir: str, json: bool, no_color: bool, loop: str) -> None:
+def cli(ctx: click.Context,
+        app: str,
+        quiet: bool,
+        debug: bool,
+        workdir: str,
+        datadir: str,
+        json: bool,
+        no_color: bool,
+        loop: str) -> None:
     """Faust command-line interface."""
     ctx.obj = {
         'app': app,
@@ -467,7 +478,7 @@ class Command(abc.ABC):
             option is enabled.
         """
         if not self.quiet:
-            print(*args, **kwargs)
+            echo(*args, **kwargs)
 
     def carp(self, s: Any, **kwargs: Any) -> None:
         """Print something to stdout (or use ``file=stderr`` kwargs).
@@ -489,6 +500,8 @@ class AppCommand(Command):
     abstract: ClassVar[bool] = True
 
     app: AppT
+
+    require_app = True
 
     #: The :term:`codec` used to serialize keys.
     #: Taken from instance parameters or :attr:`@key_serializer`.
@@ -553,14 +566,19 @@ class AppCommand(Command):
             prepare_app(self.app, origin)
         else:
             appstr = self.ctx.obj['app']
-            if not appstr:
-                raise self.UsageError('Need to specify app using -A parameter')
-            self.app = find_app(appstr)
-        self.key_serializer = key_serializer or self.app.conf.key_serializer
-        self.value_serializer = (value_serializer or
-                                 self.app.conf.value_serializer)
+            if appstr:
+                self.app = find_app(appstr)
+                conf = self.app.conf
+                key_serializer = key_serializer or conf.key_serializer
+                value_serializer = value_serializer or conf.value_serializer
+            else:
+                if self.require_app:
+                    raise self.UsageError(
+                        'Need to specify app using -A parameter')
         self.args = args
         self.kwargs = kwargs
+        self.key_serializer = key_serializer
+        self.value_serializer = value_serializer
 
     def to_key(self, typ: str, key: str) -> Any:
         """Convert command-line argument string to model (key).
