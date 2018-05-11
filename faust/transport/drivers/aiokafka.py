@@ -464,6 +464,7 @@ class Consumer(base.Consumer):
             return True
         except CommitFailedError as exc:
             self.log.exception(f'Committing raised exception: %r', exc)
+            await self.crash(exc)
             return False
         except IllegalStateError as exc:
             self.log.exception(f'Got exception: {exc}\n'
