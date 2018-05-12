@@ -127,6 +127,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
         Window,
     )
     from .worker import Worker                                # noqa: E402
+    from .utils import uuid
 
 __all__ = [
     'Agent',
@@ -157,6 +158,7 @@ __all__ = [
     'SlidingWindow',
     'Window',
     'Worker',
+    'uuid',
 ]
 
 # Lazy loading.
@@ -186,6 +188,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
         'Window',
     ],
     'faust.worker': ['Worker'],
+    'faust.utils': ['uuid'],
     'mode.services': ['Service', 'ServiceT'],
 }
 
