@@ -1,5 +1,6 @@
 """Registry of supported codecs (serializers, compressors, etc.)."""
 import sys
+from decimal import Decimal
 from typing import Any, Optional, Tuple, Type, cast
 
 from mode.utils.compat import want_bytes, want_str
@@ -105,6 +106,12 @@ class Registry(RegistryT):
     def _prepare_payload(self, typ: Optional[ModelArg], value: Any) -> Any:
         if typ is None:  # (autodetect)
             return self.Model._maybe_reconstruct(value)
+        elif typ is int:
+            return int(want_str(value))
+        elif typ is float:
+            return float(want_str(value))
+        elif typ is Decimal:
+            return Decimal(want_str(value))
         elif typ is str:
             return want_str(value)
         elif typ is bytes:
