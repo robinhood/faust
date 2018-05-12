@@ -251,6 +251,7 @@ class _Group(click.Group):
                      parent: click.Context = None,
                      **extra: Any) -> click.Context:
         ctx = super().make_context(info_name, args, **extra)
+        self._maybe_import_app()
         ctx.find_root().app = app
         return ctx
 
