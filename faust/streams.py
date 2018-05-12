@@ -104,8 +104,9 @@ class Stream(StreamT[T_co], Service):
     logger = logger
 
     _processors: MutableSequence[Processor] = None
-    _anext_started: bool = False
+    _anext_started = False
     _passive = False
+    _finalized = False
     _passive_started: asyncio.Event
 
     def __init__(self,
@@ -249,6 +250,7 @@ class Stream(StreamT[T_co], Service):
         return self.__class__(**{**self.info(), **kwargs})
 
     def _chain(self, **kwargs: Any) -> StreamT:
+        assert not self._finalized
         self._next = new_stream = self.clone(
             on_start=self.maybe_start,
             prev=self,
@@ -386,6 +388,12 @@ class Stream(StreamT[T_co], Service):
                         # then forwarded and consumed from topic 'bar'
                         print(value)
         """
+        if self._finalized:
+            # if agent restart we reuse the same stream object
+            # which already have done the stream.through()
+            # so on iteration we set the finalized flag
+            # and make this through() a noop.
+            return self
         if self.concurrency_index is not None:
             raise ImproperlyConfigured(
                 'Agent with concurrency>1 cannot use stream.through!')
@@ -515,6 +523,9 @@ class Stream(StreamT[T_co], Service):
                 async for event in s.group_by(get_key):
                     ...
         """
+        if self._finalized:
+            # see note in self.through()
+            return self
         channel: ChannelT
         if self.concurrency_index is not None:
             raise ImproperlyConfigured(
@@ -596,6 +607,9 @@ class Stream(StreamT[T_co], Service):
         # The resulting stream's `on_merge` callback can be used to
         # process values from all the combined streams, and e.g.
         # joins uses this to consolidate multiple values into one.
+        if self._finalized:
+            # see note in self.through()
+            return self
         stream = self._chain(combined=self.combined + list(nodes))
         for node in stream.combined:
             node.contribute_to_stream(stream)
@@ -664,6 +678,7 @@ class Stream(StreamT[T_co], Service):
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
     async def __aiter__(self) -> AsyncIterator:
+        self._finalized = True
         _inherit_context(loop=self.loop)
         await self.maybe_start()
         on_merge = self.on_merge
