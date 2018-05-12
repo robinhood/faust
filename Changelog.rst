@@ -12,6 +12,28 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.6:
+
+1.0.6
+=====
+:release-date: 2018-05-11 11:15 A.M PDT
+:release-by: Vineet Goel
+
+- **Requirements**:
+
+    + Now depends on Aiokafka 0.4.7.
+
+
+- **Table**: Delete keys whe raw value in changelog set to None
+
+    This was resulting in deleted keys still being present with value None
+    upon recovery.
+
+- **Transports**: Crash app on CommitFailedError thrown by :pypi:`aiokafka`.
+
+    App would get into a weird state upon a commit failed error thrown by the
+    consumer thread in the :pypi:`aiokafka` driver.
+
 .. _version-1.0.5:
 
 1.0.5
