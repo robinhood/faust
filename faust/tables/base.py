@@ -13,6 +13,7 @@ from typing import (
     MutableSet,
     Optional,
     Set,
+    Type,
     Union,
     cast,
     no_type_check,
@@ -24,6 +25,7 @@ from yarl import URL
 from faust import stores
 from faust import joins
 from faust.events import Event
+from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
 from faust.types import (
     AppT,
@@ -129,6 +131,14 @@ class Collection(Service, CollectionT):
         self._sensor_on_set = self.app.sensors.on_table_set
         self._sensor_on_del = self.app.sensors.on_table_del
 
+        if self.name:
+            self.app.tables.add(self)
+
+    def __set_name__(self, cls: Type, name: str) -> None:
+        if not self.name:
+            self.name = '.'.join([cls.__name__, name])
+            self.app.tables.add(self)
+
     def __hash__(self) -> int:
         # We have to override MutableMapping __hash__, so that this table
         # can be registered in the app.tables mapping.
@@ -157,6 +167,8 @@ class Collection(Service, CollectionT):
         return self._get_store()
 
     async def on_start(self) -> None:
+        if not self.name:
+            raise ImproperlyConfigured('Table missing name')
         await self.changelog_topic.maybe_declare()
 
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:

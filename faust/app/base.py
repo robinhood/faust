@@ -565,7 +565,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             **kwargs)
 
     def Table(self,
-              name: str,
+              name: str = None,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
@@ -593,15 +593,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         Table = (self.conf.Table
                  if self.finalized else symbol_by_name('faust:Table'))
-        table = self.tables.add(
-            Table(
-                self,
-                name=name,
-                default=default,
-                beacon=self.beacon,
-                partitions=partitions,
-                help=help,
-                **kwargs))
+        table = Table(
+            self,
+            name=name,
+            default=default,
+            beacon=self.beacon,
+            partitions=partitions,
+            help=help,
+            **kwargs)
         return table.using_window(window) if window else table
 
     def page(self, path: str, *,

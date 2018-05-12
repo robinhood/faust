@@ -185,7 +185,7 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def Table(self,
-              name: str,
+              name: str = None,
               *,
               default: Callable[[], Any] = None,
               window: WindowT = None,
