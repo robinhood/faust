@@ -27,6 +27,7 @@ from weakref import WeakSet, WeakValueDictionary
 from mode import (
     CrashingSupervisor,
     Service,
+    ServiceT,
     SupervisorStrategyT,
 )
 from mode.proxy import ServiceProxy
@@ -181,9 +182,15 @@ class AgentService(Service):
         return self._get_supervisor_strategy()(
             max_restarts=100.0,
             over=1.0,
+            replacement=self._replace_actor,
             loop=self.loop,
             beacon=self.beacon,
         )
+
+    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
+        aref = cast(ActorRefT, service)
+        return await self._start_one(
+            index, aref.active_partitions, aref.stream)
 
     def _get_supervisor_strategy(self) -> Type[SupervisorStrategyT]:
         SupervisorStrategy = self.agent.supervisor_strategy
