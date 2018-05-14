@@ -1,26 +1,31 @@
 """Agent manager."""
 from collections import defaultdict
-from typing import Dict, MutableMapping, MutableSet, Set
+from typing import Any, Dict, Iterable, MutableMapping, MutableSet, Set
 from weakref import WeakSet
+from mode import Service, ServiceT
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
 from faust.types import AgentManagerT, AgentT, AppT
 from faust.types.tuples import TP, tp_set_to_map
 
 
-class AgentManager(AgentManagerT, ManagedUserDict):
+class AgentManager(Service, AgentManagerT, ManagedUserDict):
     """Agent manager."""
 
     _by_topic: MutableMapping[str, MutableSet[AgentT]]
 
-    def __init__(self, app: AppT = None) -> None:
+    def __init__(self, app: AppT = None,
+                 **kwargs: Any) -> None:
+        Service.__init__(self, **kwargs)
         self.app = app
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
 
-    async def start(self) -> None:
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
+        return self.values()
+
+    async def on_start(self) -> None:
         self._update_topic_index()
-        [await agent.start() for agent in self.values()]
 
     def _update_topic_index(self) -> None:
         # keep mapping from topic name to set of agents.
@@ -29,9 +34,6 @@ class AgentManager(AgentManagerT, ManagedUserDict):
             for topic in agent.get_topic_names():
                 by_topic_index[topic].add(agent)
 
-    async def restart(self) -> None:
-        [await agent.restart() for agent in self.values()]
-
     def service_reset(self) -> None:
         [agent.service_reset() for agent in self.values()]
 
@@ -39,7 +41,7 @@ class AgentManager(AgentManagerT, ManagedUserDict):
         # Cancel first so _execute_task sees we are not stopped.
         self.cancel()
         # Then stop the agents
-        [await agent.stop() for agent in self.values()]
+        await super().stop()
 
     def cancel(self) -> None:
         [agent.cancel() for agent in self.values()]

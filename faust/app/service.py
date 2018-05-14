@@ -85,8 +85,8 @@ class AppService(Service):
                 [self.app._leader_assignor],
                 # Reply Consumer (ReplyConsumer)
                 [self.app._reply_consumer],
-                # Agents (app.agents)
-                self.app.agents.values(),
+                # AgentManager starts agents (app.agents)
+                [self.app.agents],
                 # Conductor (transport.Conductor))
                 [self.app.topics],
                 # Table Manager (app.TableManager)
