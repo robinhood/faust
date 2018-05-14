@@ -27,7 +27,6 @@ from weakref import WeakSet, WeakValueDictionary
 from mode import (
     CrashingSupervisor,
     Service,
-    ServiceT,
     SupervisorStrategyT,
 )
 from mode.proxy import ServiceProxy
@@ -159,11 +158,20 @@ class AgentService(Service):
         return await cast(Agent, self.agent)._start_task(
             index, active_partitions, stream, self.beacon)
 
+    async def _start_one_supervised(self,
+                                    index: int = None,
+                                    active_partitions: Set[TP] = None,
+                                    stream: StreamT = None) -> ActorT:
+        aref = await self._start_one(index, active_partitions, stream)
+        self.supervisor.add(aref)
+        await aref.maybe_start()
+        return aref
+
     async def _start_for_partitions(self,
                                     active_partitions: Set[TP]) -> ActorT:
         assert active_partitions
         self.log.info('Starting actor for partitions %s', active_partitions)
-        return await self._start_one(None, active_partitions)
+        return await self._start_one_supervised(None, active_partitions)
 
     async def on_start(self) -> None:
         self.supervisor = self._new_supervisor()
@@ -173,7 +181,6 @@ class AgentService(Service):
         return self._get_supervisor_strategy()(
             max_restarts=100.0,
             over=1.0,
-            replacement=self._replace_actor,
             loop=self.loop,
             beacon=self.beacon,
         )
@@ -200,11 +207,6 @@ class AgentService(Service):
             # and the actor we started may be assigned one of the partitions.
             active_partitions = self.agent._pending_active_partitions = set()
         return active_partitions
-
-    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
-        aref = cast(ActorRefT, service)
-        return await self._start_one(
-            index, aref.active_partitions, aref.stream)
 
     async def on_stop(self) -> None:
         # Agents iterate over infinite streams, so we cannot wait for it
