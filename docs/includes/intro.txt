@@ -12,15 +12,15 @@ Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as `Celery`_,
 `Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
 
-It does not use a DSL, instead it uses modern Python features
-to blend into normal Python code so that you can use existing
-tools such as NumPy, PyTorch, Pandas, NLTK, Django, Flask, SQLAlchemy,
-and all the other tools that you like in Python.
+It does not use a DSL, it's just Python!
+This means you can use all your favorite Python libraries
+when stream processing: NumPy, PyTorch, Pandas, NLTK, Django,
+Flask, SQLAlchemy, and all the other tools that you like in Python.
 
 Faust takes advantage of the new `async/await`_ syntax added recently
 to Python, and so requires Python 3.6 or later.
 
-Here's an example agent processing "order events":
+Here's an example processing a stream of incoming orders:
 
 .. sourcecode:: python
 
@@ -35,28 +35,30 @@ Here's an example agent processing "order events":
     @app.agent(value_type=Order)
     async def order(orders):
         async for order in orders:
+            # process infinite stream of orders.
             print(f'Order for {order.account_id}: {order.amount}')
-            # do something with order
 
 The Agent is a stream processor that can execute on
 many machines and CPU cores. You can think of it as similar
 to a Celery task, but radically different in that it can keep
 state between executing tasks.
 
-State can be in-memory, or it can be stored in "tables",
-which are named distributed key/value stores you can use as
-a regular Python dictionary.
+State can be in-memory, or it can be stored in "tables".
+Tables are like named distributed key/value stores you can use
+as regular Python dictionaries.
 
-Tables are partitioned by key and stored locally using `RocksDB`,
-a superfast embedded database library written in C++.
+Tables are stored locally on each machine using a superfast
+embedded database written in C++, called `RocksDB`_.
 
 For reliability we use a Kafka topic as "write-ahead-log".
-Whenever a key is changed we publish to the changelog,
-and standy nodes consume from this changelog to keep an exact replica
-of the data for instant recovery should any of the nodes fail.
+Whenever a key is changed we publish to the changelog.
+Standby nodes consume from this changelog to keep an exact replica
+of the data and enables instant recovery should any of the nodes fail.
 
-To the user a table is just a dictionary, for example you
-could count page views by URLs like this:
+To the user a table is just a dictionary, and failover happens
+automatically and in the background.
+
+You could count page views by URL:
 
 .. sourcecode:: python
 
@@ -71,10 +73,9 @@ could count page views by URLs like this:
         async for url, count in clicks.items():  # key, value
             counts[url] += int(count)
 
-The data sent to a Kafka topic is partitioned, and since we use the URL
-as a key in the "clicks" topic, that is how Kafka will shard the data
-in such a way that every count from the same URL delivers to the
-same Faust worker instance.
+The data sent to the Kafka topic is partitioned, which means
+the clicks will be sharded by URL in such a way that every count
+for the same URL will be delivered to the same Faust worker instance.
 
 The state stored in tables may also be "windowed" so you can keep track
 of "number of clicks from the last day," or
@@ -83,7 +84,7 @@ and sliding windows of time, and old windows can be expired to stop
 data from filling up.
 
 The data found in streams and tables can be anything: we support byte streams,
-Unicode, and manually deserialized data structures. Taking this
+Unicode, and serialized structures. Taking this
 further we have "Models" that use modern Python syntax to describe how
 keys and values are serialized and deserialized:
 
