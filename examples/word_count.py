@@ -29,7 +29,7 @@ async def shuffle_words(posts):
 async def count_words(words):
     """Count words from blog post article body."""
     async for word in words:
-        word_counts[word.word] += 1
+        word_counts[word] += 1
 
 
 @app.page('/count/')
