@@ -518,7 +518,6 @@ class Agent(AgentT, ServiceProxy):
             if self.should_stop:
                 raise
         except Exception as exc:
-            self.log.exception('Agent %r raised error: %r', aref, exc)
             if self._on_error is not None:
                 await self._on_error(self, exc)
 
