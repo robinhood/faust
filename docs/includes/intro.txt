@@ -1,17 +1,21 @@
-**Faust** is a Python library for writing streaming applications
-that are fault-tolerant and easy to use.
+**Faust** is a stream processing library, bringing the groundbreaking
+new ideas from `Kafka Streams`_ into Python.
 
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
+
+It's a powerful tool you can drop into any Python program
+to easily build traditionally complicated distributed systems
+that are high performance and fault tolerant.
 
 Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as `Celery`_,
 `Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
 
-Faust is heavily inspired by `Kafka Streams`_, but uses asynchronous generators
-instead of a DSL. This way it blends into Python code, so you can use
-NumPy, PyTorch, Pandas, NLTK, Django, Flask, SQLAlchemy, and all
-the other tools that you like in Python.
+It does not use a DSL, instead it uses modern Python features
+to blend into normal Python code so that you can use existing
+tools such as NumPy, PyTorch, Pandas, NLTK, Django, Flask, SQLAlchemy,
+and all the other tools that you like in Python.
 
 Faust takes advantage of the new `async/await`_ syntax added recently
 to Python, and so requires Python 3.6 or later.
@@ -20,50 +24,39 @@ Here's an example agent processing "order events":
 
 .. sourcecode:: python
 
-    # The application is our project.
-    # It's the core API of Faust and provides configuration.
     app = faust.App('myapp', broker='kafka://localhost')
 
-    # Models describe how keys and values in streams are serialized.
-    # They use the new static typing features of Python 3.6,
-    # and look a lot like Python dataclasses.
+    # Models describe how messages are serialized:
+    # {"account_id": "3fae-...", amount": 3}
     class Order(faust.Record):
         account_id: str
         amount: int
 
-    # The Agent is a stream processor that can execute on
-    # many machines, and have many instances running on each CPU core.
-    # This to help build high performance distributed applications
-    # for parallel processing.
-    #
-    # This agent below will process incoming orders from a Kafka topic,
-    # which is like a queue but keeps history, and can be partitioned
-    # for the purpose of sharding data across instances.
-    #
     @app.agent(value_type=Order)
     async def order(orders):
         async for order in orders:
             print(f'Order for {order.account_id}: {order.amount}')
             # do something with order
 
-This "agent" can execute on many machines at the same time so that you
-can distribute work across a cluster of worker instances.
+The Agent is a stream processor that can execute on
+many machines and CPU cores. You can think of it as similar
+to a Celery task, but radically different in that it can keep
+state between executing tasks.
 
-So what does the ``async`` stuff do for us anyway?
+State can be in-memory, or it can be stored in "tables",
+which are named distributed key/value stores you can use as
+a regular Python dictionary.
 
-The :keyword:`async for` expression enables you to perform web requests
-and other I/O as a side effect of processing the stream.
+Tables are partitioned by key and stored locally using `RocksDB`,
+a superfast embedded database library written in C++.
 
-The only external dependency required by Faust is `Apache Kafka`_. In the
-future, we hope to support more messaging systems.
+For reliability we use a Kafka topic as "write-ahead-log".
+Whenever a key is changed we publish to the changelog,
+and standy nodes consume from this changelog to keep an exact replica
+of the data for instant recovery should any of the nodes fail.
 
-Faust also lets you create "tables", which are like named distributed
-key/value stores. We store the data locally using `RocksDB`_ - an embedded
-database library written in C++, then publish changes to a Kafka topic for
-recovery (a write-ahead log).
-
-To the user, a table is just a dictionary so that you can do things like
-count page views by URL:
+To the user a table is just a dictionary, for example you
+could count page views by URLs like this:
 
 .. sourcecode:: python
 
