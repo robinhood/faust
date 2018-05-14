@@ -62,16 +62,17 @@ You could count page views by URL:
 
 .. sourcecode:: python
 
-    # data sent to 'clicks' topic with key="http://example.com" value="1"
-    click_topic = app.topic('clicks', key_type=str, value_type=str)
+    # data sent to 'clicks' topic sharded by URL key.
+    # e.g. key="http://example.com" value="1"
+    click_topic = app.topic('clicks', key_type=str, value_type=int)
 
     # default value for missing URL will be 0 with `default=int`
     counts = app.Table('click_counts', default=int)
 
     @app.agent(click_topic)
     async def count_click(clicks):
-        async for url, count in clicks.items():  # key, value
-            counts[url] += int(count)
+        async for url, count in clicks.items():
+            counts[url] += count
 
 The data sent to the Kafka topic is partitioned, which means
 the clicks will be sharded by URL in such a way that every count
@@ -83,12 +84,14 @@ of "number of clicks from the last day," or
 and sliding windows of time, and old windows can be expired to stop
 data from filling up.
 
-The data found in streams and tables can be anything: we support byte streams,
-Unicode, and serialized structures. Taking this
-further we have "Models" that use modern Python syntax to describe how
-keys and values are serialized and deserialized:
+Faust supports any type of stream data: bytes, Unicode and serialized
+structures, but also comes with "Models" that use modern Python
+syntax to describe how keys and values in streams are serialized:
 
 .. sourcecode:: python
+
+    # Order is a json serialized dictionary,
+    # having these fields:
 
     class Order(faust.Record):
         account_id: str
