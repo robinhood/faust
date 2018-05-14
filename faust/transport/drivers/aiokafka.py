@@ -282,10 +282,10 @@ class Consumer(base.Consumer):
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         _consumer = self._consumer
-        if _consumer._closed:
+        fetcher = _consumer._fetcher
+        if _consumer._closed or fetcher._closed:
             raise ConsumerStoppedError()
         active_partitions = self._get_active_partitions()
-        fetcher = _consumer._fetcher
         _next = next
 
         records: RecordMap = {}
