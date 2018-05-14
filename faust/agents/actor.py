@@ -1,6 +1,5 @@
 from typing import Any, AsyncIterator, Set
 from mode import Service
-from mode.utils.text import shorten_fqdn
 
 from faust.types import StreamT, TP
 from faust.types.agents import (
@@ -59,7 +58,13 @@ class Actor(ActorT, Service):
 
     @property
     def label(self) -> str:
-        return f'Agent*: {shorten_fqdn(self.agent.name)}'
+        s = self.agent._agent_label(name_suffix='*')
+        if self.stream.active_partitions:
+            partitions = {
+                tp.partition for tp in self.stream.active_partitions
+            }
+            s += f' isolated={partitions}'
+        return s
 
 
 class AsyncIterableActor(AsyncIterableActorT, Actor):
