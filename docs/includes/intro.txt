@@ -4,7 +4,7 @@ new ideas from `Kafka Streams`_ into Python.
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
 
-It's a powerful tool you can drop into any Python program
+It's a powerful library you can drop into any Python program
 to easily build traditionally complicated distributed systems
 that are high performance and fault tolerant.
 
@@ -15,10 +15,10 @@ sharing similarity with tools such as `Celery`_,
 It does not use a DSL, it's just Python!
 This means you can use all your favorite Python libraries
 when stream processing: NumPy, PyTorch, Pandas, NLTK, Django,
-Flask, SQLAlchemy, and all the other tools that you like in Python.
+Flask, SQLAlchemy, ++
 
-Faust takes advantage of the new `async/await`_ syntax added recently
-to Python, and so requires Python 3.6 or later.
+Faust requires Python 3.6 or later for the new `async/await`_ syntax,
+and variable type annotations.
 
 Here's an example processing a stream of incoming orders:
 
@@ -110,6 +110,9 @@ syntax to describe how keys and values in streams are serialized:
 Faust is statically typed, using the :pypi:`mypy` type checker,
 so you can take advantage of static types when writing applications.
 
+The Faust source code is small, well organized, and serves as a good
+resource for learning the implementation of `Kafka Streams`_.
+
 **Learn more about Faust in the** :ref:`introduction` **introduction page**
     to read more about Faust, system requirements, installation instructions,
     community resources, and more.
@@ -117,7 +120,7 @@ so you can take advantage of static types when writing applications.
 **or go directly to the** :ref:`quickstart` **tutorial**
     to see Faust in action by programming a streaming application.
 
-**then explore the** :ref:`User Guide <guide>`
+**then explore the** :ref:`User Guide <guide>
     for in-depth information organized by topic.
 
 .. _`Robinhood`: http://robinhood.com

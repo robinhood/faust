@@ -28,7 +28,7 @@ new ideas from `Kafka Streams`_ into Python.
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
 
-It's a powerful tool you can drop into any Python program
+It's a powerful library you can drop into any Python program
 to easily build traditionally complicated distributed systems
 that are high performance and fault tolerant.
 
@@ -39,10 +39,10 @@ sharing similarity with tools such as `Celery`_,
 It does not use a DSL, it's just Python!
 This means you can use all your favorite Python libraries
 when stream processing: NumPy, PyTorch, Pandas, NLTK, Django,
-Flask, SQLAlchemy, and all the other tools that you like in Python.
+Flask, SQLAlchemy, ++
 
-Faust takes advantage of the new `async/await`_ syntax added recently
-to Python, and so requires Python 3.6 or later.
+Faust requires Python 3.6 or later for the new `async/await`_ syntax,
+and variable type annotations.
 
 Here's an example processing a stream of incoming orders:
 
@@ -134,6 +134,9 @@ syntax to describe how keys and values in streams are serialized:
 Faust is statically typed, using the ``mypy`` type checker,
 so you can take advantage of static types when writing applications.
 
+The Faust source code is small, well organized, and serves as a good
+resource for learning the implementation of `Kafka Streams`_.
+
 **Learn more about Faust in the** `introduction`_ **introduction page**
     to read more about Faust, system requirements, installation instructions,
     community resources, and more.
@@ -141,7 +144,7 @@ so you can take advantage of static types when writing applications.
 **or go directly to the** `quickstart`_ **tutorial**
     to see Faust in action by programming a streaming application.
 
-**then explore the** `User Guide`_
+**then explore the** :ref:`User Guide <guide>
     for in-depth information organized by topic.
 
 .. _`Robinhood`: http://robinhood.com
@@ -159,8 +162,6 @@ so you can take advantage of static types when writing applications.
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
-
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Faust is...
 ===========
@@ -230,8 +231,6 @@ Faust is...
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
-
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Installation
 ============
@@ -344,8 +343,6 @@ You can install the latest snapshot of Faust using the following
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
-
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 FAQ
 ===
@@ -484,8 +481,6 @@ https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
-
 .. _getting-help:
 
 Getting Help
@@ -541,8 +536,6 @@ file in the top distribution directory for the full license text.
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
-
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Contributing
 ============
@@ -606,8 +599,6 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
-
 .. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/robinhood/faust
@@ -634,6 +625,4 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
-
-.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
