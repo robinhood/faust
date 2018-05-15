@@ -12,6 +12,46 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.7:
+
+1.0.7
+=====
+:release-date: 2018-05-14 4:53 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.12.5 <mode:version-1.12.5>`.
+
+- **App**: ``key_type`` and ``value_type`` can now be set to:
+
+    + :class:`int`:  key/value is number stored as string
+    + :class:`float`: key/value is floating point number stored as string.
+    + :class:`decimal.Decimal` key/value is decimal stored as string.
+
+- **Agent**: Fixed support for ``group_by``/``through`` after
+  change to reuse the same stream after agent crashing.
+
+- **Agent**: Fixed ``isolated_partitions=True`` after change in v1.0.3.
+
+    Initialization of the agent-by-topic index was in :ref:`version-1.0.3`
+    moved to the ``AgentManager.start`` method, but it turns out
+    ``AgentManager`` is a regular class, and not a service.
+
+    ``AgentManager`` is now a service responsible for
+    starting/stopping the agents required by the app.
+
+- **Agent**: Include active partitions in repr when
+  ``isolated_partitions=True``.
+
+- **Agent**: Removed extraneous 'agent crashed' exception in logs.
+
+- **CLI**: Fixed autodiscovery of commands when using ``faust -A app``.
+
+- **Consumer**: Appropriately handle closed fetcher.
+
+- New shortcut: :func:`faust.uuid` generates UUID4 ids as string.
+
 .. _version-1.0.6:
 
 1.0.6
