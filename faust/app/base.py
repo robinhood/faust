@@ -35,6 +35,7 @@ from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import, symbol_by_name
+from mode.utils.logging import flight_recorder
 from mode.utils.objects import cached_property
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
 from mode.utils.types.trees import NodeT
@@ -729,34 +730,47 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         Revoked means the partitions no longer exist, or they
         have been reassigned to a different node.
         """
-        try:
-            self.log.dev('ON PARTITIONS REVOKED')
-            await self.topics.on_partitions_revoked(revoked)
-            await self.tables.on_partitions_revoked(revoked)
-            await self._fetcher.stop()
-            assignment = self.consumer.assignment()
-            if assignment:
-                self.flow_control.suspend()
-                await self.consumer.pause_partitions(assignment)
-                # Every agent instance has an incoming buffer of messages
-                # (a asyncio.Queue) -- we clear those to make sure
-                # agents will not start processing them.
-                #
-                # This allows for large buffer sizes (stream_buffer_maxsize).
-                self.flow_control.clear()
+        with flight_recorder(self.log, timeout=60.0) as on_timeout:
+            try:
+                self.log.dev('ON PARTITIONS REVOKED')
+                on_timeout.info('topics.on_partitions_revoked()')
+                await self.topics.on_partitions_revoked(revoked)
+                on_timeout.info('tables.on_partitions_revoked()')
+                await self.tables.on_partitions_revoked(revoked)
+                on_timeout.info('fetcher.stop()')
+                await self._fetcher.stop()
+                assignment = self.consumer.assignment()
+                if assignment:
+                    on_timeout.info('flow_control.suspend()')
+                    self.flow_control.suspend()
+                    on_timeout.info('consumer.pause_partitions')
+                    await self.consumer.pause_partitions(assignment)
+                    # Every agent instance has an incoming buffer of messages
+                    # (a asyncio.Queue) -- we clear those to make sure
+                    # agents will not start processing them.
+                    #
+                    # This allows for large buffer sizes
+                    # (stream_buffer_maxsize).
+                    on_timeout.info('flow_control.clear()')
+                    self.flow_control.clear()
 
-                # even if we clear, some of the agent instances may have
-                # already started working on an event.
-                #
-                # we need to wait for them.
-                if self.conf.stream_wait_empty:
-                    await self.consumer.wait_empty()
-                await self.agents.on_partitions_revoked(revoked)
-            else:
-                self.log.dev('ON P. REVOKED NOT COMMITTING: ASSIGNMENT EMPTY')
-            await self.on_partitions_revoked.send(revoked)
-        except Exception as exc:
-            await self.crash(exc)
+                    # even if we clear, some of the agent instances may have
+                    # already started working on an event.
+                    #
+                    # we need to wait for them.
+                    if self.conf.stream_wait_empty:
+                        on_timeout.info('consumer.wait_empty()')
+                        await self.consumer.wait_empty()
+                    on_timeout.info('agents.on_partitions_revoked')
+                    await self.agents.on_partitions_revoked(revoked)
+                else:
+                    self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
+                on_timeout.info('+send signal: on_partitions_revoked')
+                await self.on_partitions_revoked.send(revoked)
+                on_timeout.info('-send signal: on_partitions_revoked')
+            except Exception as exc:
+                on_timeout.info('on partitions assigned crashed: %r', exc)
+                await self.crash(exc)
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
@@ -767,20 +781,33 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         assignment, so any tp no longer in the assigned' list will have
         been revoked.
         """
-        try:
-            await self.consumer.verify_subscription(assigned)
-            await self.agents.on_partitions_assigned(assigned)
-            # Wait for transport.Conductor to finish calling Consumer.subscribe
-            await self.topics.wait_for_subscriptions()
-            await self.consumer.pause_partitions(assigned)
-            await self._fetcher.restart()
-            self.log.info(f'Restarted fetcher')
-            await self.topics.on_partitions_assigned(assigned)
-            await self.tables.on_partitions_assigned(assigned)
-            await self.on_partitions_assigned.send(assigned)
-            self.flow_control.resume()
-        except Exception as exc:
-            await self.crash(exc)
+        with flight_recorder(self.log, timeout=60.0) as on_timeout:
+            try:
+                on_timeout.info('consumer.verify_subscription()')
+                await self.consumer.verify_subscription(assigned)
+                on_timeout.info('agents.on_partitions_assigned()')
+                await self.agents.on_partitions_assigned(assigned)
+                # Wait for transport.Conductor to finish
+                # calling Consumer.subscribe
+                on_timeout.info('topics.wait_for_subscriptions()')
+                await self.topics.wait_for_subscriptions()
+                on_timeout.info('consumer.pause_partitions()')
+                await self.consumer.pause_partitions(assigned)
+                on_timeout.info('fetcher.restart()')
+                await self._fetcher.restart()
+                self.log.info(f'Restarted fetcher')
+                on_timeout.info('topics.on_partitions_assigned()')
+                await self.topics.on_partitions_assigned(assigned)
+                on_timeout.info('tables.on_partitions_assigned()')
+                await self.tables.on_partitions_assigned(assigned)
+                on_timeout.info('+send signal: on_partitions_assigned')
+                await self.on_partitions_assigned.send(assigned)
+                on_timeout.info('-send signal: on_partitions_assigned')
+                on_timeout.info('flow_control.resume()')
+                self.flow_control.resume()
+            except Exception as exc:
+                on_timeout.info('on partitions assigned crashed: %r', exc)
+                await self.crash(exc)
 
     def _new_producer(self) -> ProducerT:
         return self.transport.create_producer(beacon=self.beacon)
