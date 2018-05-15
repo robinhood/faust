@@ -65,7 +65,7 @@ class Table(TableT, Collection, ManagedUserDict):
         self._sensor_on_set(self, key, value)
 
     def on_key_del(self, key: Any) -> None:
-        self._send_changelog(key, value=None)
+        self._send_changelog(key, value=None, value_serializer='raw')
         event = current_event()
         partition = event.message.partition
         self._maybe_del_key_ttl(key, partition)
