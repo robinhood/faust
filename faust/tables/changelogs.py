@@ -88,7 +88,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.log.info('Highwater for changelog partitions:\n%s', table)
 
     def _should_stop_reading(self) -> bool:
-        return self._highwaters == self.offsets
+        return not self._remaining_total()
 
     def _remaining(self) -> Counter[TP]:
         return self._highwaters - self.offsets
