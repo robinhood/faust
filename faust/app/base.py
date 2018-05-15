@@ -101,7 +101,10 @@ APP_REPR = """
 <{name}({c.id}): {c.broker} {s.state} agents({agents}) topics({topics})>
 """.strip()
 
-# Venusian decorator scan categories.
+# Venusian (pypi): This is used for "autodiscovery" of user code,
+# CLI commands, and much more.
+# Named after same concept from Django: the Django Admin autodiscover function
+# that finds custom admin configuration in ``app.admin.py`` modules.
 
 SCAN_AGENT = 'faust.agent'
 SCAN_COMMAND = 'faust.command'
@@ -219,6 +222,24 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         ServiceProxy.__init__(self)
 
     def _init_signals(self) -> None:
+        # Signals in Faust are the same as in Django, but asynchronous by
+        # default (:class:`mode.SyncSignal` is the normal ``def`` version)).
+        #
+        # Signals in Faust are usually local to the app instance::
+        #
+        #  @app.on_before_configured.connect  # <-- only sent by this app
+        #  def on_before_configured(self):
+        #    ...
+        #
+        # In Django signals are usually global, and an easter-egg
+        # provides this in Faust also::
+        #
+        #    V---- NOTE upper case A in App
+        #   @App.on_before_configured.connect  # <-- sent by ALL apps
+        #   def on_before_configured(app):
+        #
+        # Note: Signals are local-only, and cannot do anything to other
+        # processes or machines.
         self.on_before_configured = (
             self.on_before_configured.with_default_sender(self))
         self.on_configured = self.on_configured.with_default_sender(self)
@@ -231,6 +252,16 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.on_worker_init = self.on_worker_init.with_default_sender(self)
 
     def _init_fixups(self) -> MutableSequence[FixupT]:
+        # Returns list of "fixups"
+        # Fixups are small additional patches we apply when certain
+        # platforms or frameworks are present.
+        #
+        # One example is the Django fixup, responsible for Django integration
+        # whenever the DJANGO_SETTINGS_MODULE environment variable is
+        # set. See faust/fixups/django.py, it's not complicated - using
+        # setuptools entrypoints you can very easily create extensions that
+        # are automatically enabled by installing a PyPI package with
+        # `pip install myname`.
         return list(fixups(self))
 
     def config_from_object(self,
@@ -259,6 +290,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._configure(silent=silent)
 
     def finalize(self) -> None:
+        # Finalization signals that the application have been configured
+        # and is ready to use.
+
+        # If you access configuration before an explicit call to
+        # ``app.finalize()`` you will get an error.
+        # The ``app.main`` entrypoint and the ``faust -A app`` command
+        # both will automatically finalize the app for you.
         if not self.finalized:
             self.finalized = True
             id = self.conf.id
@@ -273,6 +311,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             await self._http_client.close()
 
     def worker_init(self) -> None:
+        # This init is called by the `faust worker` command.
         for fixup in self.fixups:
             fixup.on_worker_init()
         self.on_worker_init.send()
@@ -281,6 +320,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                  *extra_modules: str,
                  categories: Iterable[str] = SCAN_CATEGORIES,
                  ignore: Iterable[str] = SCAN_IGNORE) -> None:
+        # based on autodiscovery in Django,
+        # but finds @app.agent decorators, and so on.
         modules = set(self._discovery_modules())
         modules |= set(extra_modules)
         for fixup in self.fixups:
@@ -1023,15 +1064,32 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @cached_property
     def _leader_assignor(self) -> LeaderAssignorT:
+        """The leader assignor is a special Kafka partition assignor.
+
+        It's used to find the leader in a cluster of Faust worker nodes,
+        and enables the ``@app.timer(on_leader=True)`` feature that executes
+        exclusively on one node at a time. Excellent for things that would
+        traditionally require a lock/mutex."""
         return self.conf.LeaderAssignor(
             self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def router(self) -> RouterT:
+        """Find the node partitioned data belongs to.
+
+        The router helps us route web requests to the wanted Faust node.
+        If a topic is sharded by account_id, the router can send us to the
+        Faust worker responsible for any account.  Used by the
+        ``@app.table_route`` decorator.
+        """
         return self.conf.Router(self)
 
     @cached_property
     def serializers(self) -> RegistryT:
+        # Serializer registry.
+        # Many things such as key_serializer/value_serializer configures
+        # the serialized with a name.  The serializer registry lets you
+        # extend Faust with support for additional serialization formats.
         self.finalize()  # easiest way to autofinalize for topic.send
         return self.conf.Serializers(
             key_serializer=self.conf.key_serializer,

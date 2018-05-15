@@ -218,6 +218,14 @@ class Collection(Service, CollectionT):
         )
 
     def _on_changelog_sent(self, fut: FutureMessage) -> None:
+        # This is what keeps the offset in RocksDB so that at startup
+        # we know what offsets we already have data for in the database.
+        #
+        # Kafka Streams has a global ".checkpoint" file, but we store
+        # it in each individual RocksDB database file.
+        # Eevery partition in the table will have its own database file,
+        #  this is required as partitions can easily move from and to
+        #  machine as nodes die and recover.
         res: RecordMetadata = fut.result()
         self.data.set_persisted_offset(res.topic_partition, res.offset)
 
