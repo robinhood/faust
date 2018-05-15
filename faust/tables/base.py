@@ -203,7 +203,11 @@ class Collection(Service, CollectionT):
     def reset_state(self) -> None:
         self.data.reset_state()
 
-    def _send_changelog(self, key: Any, value: Any) -> None:
+    def _send_changelog(self,
+                        key: Any,
+                        value: Any,
+                        key_serializer='json',
+                        value_serializer='json') -> None:
         event = current_event()
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
@@ -212,8 +216,8 @@ class Collection(Service, CollectionT):
             key,
             value,
             partition=event.message.partition,
-            key_serializer='json',
-            value_serializer='json',
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
             callback=self._on_changelog_sent,
         )
 
