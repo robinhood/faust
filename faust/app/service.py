@@ -1,7 +1,17 @@
 import inspect
 import typing
 from itertools import chain
-from typing import Any, Awaitable, Callable, Iterable, List, Type, Union, cast
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Iterable,
+    List,
+    Optional,
+    Type,
+    Union,
+    cast,
+)
 from mode import Service, ServiceT
 from faust.exceptions import ImproperlyConfigured
 from faust.types import AppT
@@ -31,10 +41,11 @@ class AppService(Service):
     # To solve this we use ServiceProxy to split into App + AppService,
     # in a way such that Service.__init__ is called lazily when first needed.
 
-    _extra_service_instances: List[ServiceT] = None
+    _extra_service_instances: Optional[List[ServiceT]]
 
     def __init__(self, app: App, **kwargs: Any) -> None:
         self.app: App = app
+        self._extra_service_instances = None
         super().__init__(loop=self.app.loop, **kwargs)
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:

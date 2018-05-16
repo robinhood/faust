@@ -29,7 +29,7 @@ class TableState(KeywordReduce):
     """Represents the current state of a table."""
 
     #: The table this object records statistics for.
-    table: CollectionT = None
+    table: CollectionT
 
     #: Number of times a key has been retrieved from this table.
     keys_retrieved: int = 0
@@ -79,7 +79,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     max_send_latency_history: int = 0
 
     #: Mapping of tables
-    tables: MutableMapping[str, TableState] = None
+    tables: MutableMapping[str, TableState]
 
     #: Number of messages currently being processed.
     messages_active: int = 0
@@ -88,7 +88,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     messages_received_total: int = 0
 
     #: Count of messages received by topic
-    messages_received_by_topic: Counter[str] = None
+    messages_received_by_topic: Counter[str]
 
     #: Number of messages being processed this second.
     messages_s: int = 0
@@ -97,7 +97,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     messages_sent: int = 0
 
     #: Number of messages sent by topic.
-    messages_sent_by_topic: Counter[str] = None
+    messages_sent_by_topic: Counter[str]
 
     #: Number of events currently being processed.
     events_active: int = 0
@@ -109,25 +109,25 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     events_s: int = 0
 
     #: Count of events processed by stream
-    events_by_stream: Counter[str] = None
+    events_by_stream: Counter[str]
 
     #: Count of events processed by task
-    events_by_task: Counter[str] = None
+    events_by_task: Counter[str]
 
     #: Average event runtime over the last second.
-    events_runtime_avg: float = None
+    events_runtime_avg: float = 0.0
 
     #: List of run times used for averages
-    events_runtime: List[float] = None
+    events_runtime: List[float]
 
     #: List of commit latency values
-    commit_latency: List[float] = None
+    commit_latency: List[float]
 
     #: List of send latency values
-    send_latency: List[float] = None
+    send_latency: List[float]
 
     #: Counter of times a topics buffer was full
-    topic_buffer_full: Counter[TopicT] = None
+    topic_buffer_full: Counter[TopicT]
 
     def __init__(self,
                  *,
@@ -273,10 +273,12 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def on_message_out(self,
                        tp: TP,
                        offset: int,
-                       message: Message = None) -> None:
+                       message: Message) -> None:
         self.messages_active -= 1
-        message.time_out = self.time()
-        message.time_total = message.time_out - message.time_in
+        time_out = message.time_out = self.time()
+        time_in = message.time_in
+        if time_in is not None:
+            message.time_total = time_out - time_in
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
         self._table_or_create(table).keys_retrieved += 1

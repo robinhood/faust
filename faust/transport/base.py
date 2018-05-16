@@ -66,7 +66,7 @@ class Transport(TransportT):
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.url = URL(url)
         self.app = app
-        self.loop = loop
+        self.loop = loop or asyncio.get_event_loop()
 
     def create_consumer(self, callback: ConsumerCallback,
                         **kwargs: Any) -> ConsumerT:

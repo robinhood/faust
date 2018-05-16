@@ -33,6 +33,8 @@ def table(data: TableDataT,
         target = sys.stdout
     if tty is None:
         tty = isatty(target)
+    if tty is None:
+        tty = False
     return _get_best_table_type(tty)(data, title=title, **kwargs)
 
 

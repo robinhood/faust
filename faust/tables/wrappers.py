@@ -184,6 +184,8 @@ class WindowWrapper(WindowWrapperT):
 
     def get_timestamp(self, event: EventT = None) -> float:
         event = event or current_event()
+        if event is None:
+            raise TypeError('Operation outside of stream iteration')
         get_relative_timestamp = self.get_relative_timestamp
         if get_relative_timestamp:
             timestamp = get_relative_timestamp(event)
@@ -215,7 +217,8 @@ class WindowWrapper(WindowWrapperT):
     def __len__(self) -> int:
         return len(self.table)
 
-    def _relative_handler(self, relative_to: RelativeArg) -> RelativeHandler:
+    def _relative_handler(
+            self, relative_to: RelativeArg) -> Optional[RelativeHandler]:
         if relative_to is None:
             return None
         elif isinstance(relative_to, datetime):

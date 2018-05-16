@@ -13,7 +13,18 @@ import sys
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import Any, Dict, IO, Iterable, Mapping, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    IO,
+    Iterable,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import mode
 from kafka.structs import TopicPartition as _TopicPartition
@@ -148,16 +159,16 @@ class Worker(mode.Worker):
     workdir: Path
 
     #: Port to run the embedded web server on (defaults to 6066).
-    web_port: int
+    web_port: Optional[int]
 
     #: Host to bind web server port to (defaults to '0.0.0.0').
-    web_bind: str
+    web_bind: Optional[str]
 
     #: Class that starts our web server and serves the Faust website.
     Website: Type[_Website]
 
     #: Class that displays a terminal progress spinner (see :pypi:`progress`).
-    spinner: terminal.Spinner
+    spinner: Optional[terminal.Spinner]
 
     #: Set by signal to avoid printing an OK status.
     _shutdown_immediately: bool = False

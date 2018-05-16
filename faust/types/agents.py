@@ -12,6 +12,7 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
+    Optional,
     Set,
     Tuple,
     Type,
@@ -68,11 +69,11 @@ class ActorT(ServiceT, Generic[_T]):
     agent: 'AgentT'
     stream: StreamT
     it: _T
-    actor_task: asyncio.Task = None
-    active_partitions: Set[TP] = None
+    actor_task: Optional[asyncio.Task]
+    active_partitions: Optional[Set[TP]]
 
     #: If multiple instance are started for concurrency, this is its index.
-    index: int = None
+    index: Optional[int] = None
 
     @abc.abstractmethod
     def __init__(self, agent: 'AgentT', stream: StreamT, it: _T,
@@ -110,7 +111,7 @@ class AgentT(ServiceT):
     app: AppT
     concurrency: int
     help: str
-    supervisor_strategy: Type[SupervisorStrategyT]
+    supervisor_strategy: Optional[Type[SupervisorStrategyT]]
     isolated_partitions: bool
 
     @abc.abstractmethod
@@ -283,9 +284,9 @@ class AgentManagerT(ServiceT, MutableMapping[str, AgentT]):
 
 class AgentTestWrapperT(AgentT, AsyncIterable):
 
-    new_value_processed: asyncio.Condition = None
+    new_value_processed: asyncio.Condition
     original_channel: ChannelT
-    results: MutableMapping[int, Any] = None
+    results: MutableMapping[int, Any]
     sent_offset: int = 0
     processed_offset: int = 0
 

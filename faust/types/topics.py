@@ -27,24 +27,24 @@ class TopicT(ChannelT):
 
     #: or instead of ``topics``, a regular expression used
     #: to match topics we want to subscribe to.
-    pattern: Pattern
+    pattern: Optional[Pattern]
 
     #: Topic retention setting: expiry time in seconds
     #: for messages in the topic.
-    retention: Seconds
+    retention: Optional[Seconds]
 
     #: Flag that when enabled means the topic can be "compacted":
     #: if the topic is a log of key/value pairs, the broker can delete
     #: old values for the same key.
-    compacting: bool
+    compacting: Optional[bool]
 
-    deleting: bool
+    deleting: Optional[bool]
 
     #: Number of replicas for topic.
-    replicas: int
+    replicas: Optional[int]
 
     #: Additional configuration as a mapping.
-    config: Mapping[str, Any]
+    config: Optional[Mapping[str, Any]]
 
     #: Enable acks for this topic.
     acks: bool
@@ -52,6 +52,8 @@ class TopicT(ChannelT):
     #: Mark topic as internal: it's owned by us and we are allowed
     #: to create or delete the topic as necessary.
     internal: bool
+
+    active_partitions: Optional[Set[TP]]
 
     @abc.abstractmethod
     def __init__(self,
@@ -90,7 +92,7 @@ class TopicT(ChannelT):
 
     @property
     @abc.abstractmethod
-    def partitions(self) -> int:
+    def partitions(self) -> Optional[int]:
         ...
 
     @partitions.setter

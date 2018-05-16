@@ -33,7 +33,10 @@ class model(AppCommand):
         except KeyError:
             if '.' in name:
                 raise self._unknown_model(name)
-            lookup = '.'.join([self.app.conf.origin, name])
+            if self.app.conf.origin:
+                lookup = '.'.join([self.app.conf.origin, name])
+            else:
+                lookup = name
             try:
                 model = registry[lookup]
             except KeyError:

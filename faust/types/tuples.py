@@ -8,8 +8,10 @@ from typing import (
     Dict,
     MutableMapping,
     NamedTuple,
+    Optional,
     Set,
     Union,
+    cast,
 )
 
 from .codecs import CodecArg
@@ -53,16 +55,16 @@ class PendingMessage(NamedTuple):
     channel: ChannelT
     key: K
     value: V
-    partition: int
+    partition: Optional[int]
     key_serializer: CodecArg
     value_serializer: CodecArg
-    callback: MessageSentCallback
-    topic: str = None
-    offset: int = None
+    callback: Optional[MessageSentCallback]
+    topic: Optional[str] = None
+    offset: Optional[int] = None
 
     @property
     def tp(self) -> TP:
-        return TP(self.topic, self.partition)
+        return TP(cast(str, self.topic), cast(int, self.partition))
 
     def ack(self, consumer: ConsumerT) -> None:
         ...  # used as Event.message in testing
@@ -79,7 +81,7 @@ class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
         super().set_result(result)
 
 
-def _get_len(s: bytes) -> int:
+def _get_len(s: Optional[bytes]) -> int:
     return len(s) if s is not None and isinstance(s, bytes) else 0
 
 
@@ -112,9 +114,9 @@ class Message:
                  offset: int,
                  timestamp: float,
                  timestamp_type: str,
-                 key: bytes,
-                 value: bytes,
-                 checksum: bytes,
+                 key: Optional[bytes],
+                 value: Optional[bytes],
+                 checksum: Optional[bytes],
                  serialized_key_size: int = None,
                  serialized_value_size: int = None,
                  tp: TP = None,
@@ -126,9 +128,9 @@ class Message:
         self.offset: int = offset
         self.timestamp: float = timestamp
         self.timestamp_type: str = timestamp_type
-        self.key: bytes = key
-        self.value: bytes = value
-        self.checksum: bytes = checksum
+        self.key: Optional[bytes] = key
+        self.value: Optional[bytes] = value
+        self.checksum: Optional[bytes] = checksum
         self.serialized_key_size: int = (
             _get_len(key)
             if serialized_key_size is None else serialized_key_size)
@@ -140,12 +142,12 @@ class Message:
         self.tp = tp if tp is not None else TP(topic, partition)
 
         #: Monotonic timestamp of when the consumer received this message.
-        self.time_in: float = time_in
+        self.time_in: Optional[float] = time_in
         #: Monotonic timestamp of when the consumer acknowledged this message.
-        self.time_out: float = time_out
+        self.time_out: Optional[float] = time_out
         #: Total processing time (in seconds), or None if the event is
         #: still processing.
-        self.time_total: float = time_total
+        self.time_total: Optional[float] = time_total
         #: Monitor stores timing information for every stream
         #: processing this message here.  It's stored as::
         #:

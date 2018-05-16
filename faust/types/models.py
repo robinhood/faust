@@ -7,6 +7,7 @@ from typing import (
     FrozenSet,
     Mapping,
     NamedTuple,
+    Optional,
     Type,
     Union,
 )
@@ -49,40 +50,40 @@ class Converter(NamedTuple):
 
 
 class ModelOptions(abc.ABC):
-    serializer: CodecArg = None
-    namespace: str = None
+    serializer: Optional[CodecArg] = None
+    namespace: str
     include_metadata: bool = True
     allow_blessed_key: bool = False
     isodates: bool = False
 
     #: Index: Flattened view of __annotations__ in MRO order.
-    fields: Mapping[str, Type] = None
+    fields: Mapping[str, Type]
 
     #: Index: Set of required field names, for fast argument checking.
-    fieldset: FrozenSet[str] = None
+    fieldset: FrozenSet[str]
 
     #: Index: Positional argument index to field name.
     #: Used by Record.__init__ to map positional arguments to fields.
-    fieldpos: Mapping[int, str] = None
+    fieldpos: Mapping[int, str]
 
     #: Index: Set of optional field names, for fast argument checking.
-    optionalset: FrozenSet[str] = None
+    optionalset: FrozenSet[str]
 
     #: Index: Mapping of fields that are ModelT
-    models: Mapping[str, Type['ModelT']] = None
+    models: Mapping[str, Type['ModelT']]
 
     # Index: Set of field names that are ModelT and there concrete type
-    modelattrs: Mapping[str, Type] = None
+    modelattrs: Mapping[str, Optional[Type]]
 
     #: Index: Mapping of fields that are not builtin-types.
     #: E.g. datetime.
-    converse: Mapping[str, Converter] = None
+    converse: Mapping[str, Converter]
 
     #: Mapping of field names to default value.
-    defaults: Mapping[str, Any] = None  # noqa: E704 (flake8 bug)
+    defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
 
     #: Mapping of init field conversion callbacks.
-    initfield: Mapping[str, Callable[[Any], Any]] = None
+    initfield: Mapping[str, Callable[[Any], Any]]
 
 
 base = abc.ABC if abc_compatible_with_init_subclass else object
@@ -128,7 +129,7 @@ class FieldDescriptorT(abc.ABC):
     model: Type[ModelT]
     required: bool = True
     default: Any = None  # noqa: E704
-    parent: 'FieldDescriptorT' = None
+    parent: Optional['FieldDescriptorT']
 
     @abc.abstractmethod
     def __init__(self,

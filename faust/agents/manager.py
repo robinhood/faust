@@ -14,7 +14,7 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
 
     _by_topic: MutableMapping[str, MutableSet[AgentT]]
 
-    def __init__(self, app: AppT = None,
+    def __init__(self, app: AppT,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app

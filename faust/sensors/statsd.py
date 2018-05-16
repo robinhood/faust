@@ -86,7 +86,7 @@ class StatsdMonitor(Monitor):
     def on_message_out(self,
                        tp: TP,
                        offset: int,
-                       message: Message = None) -> None:
+                       message: Message) -> None:
         super().on_message_out(tp, offset, message)
         self.client.decr('messages_active', rate=self.rate)
 

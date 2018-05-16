@@ -1,6 +1,6 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
-from typing import Any, Callable, cast
+from typing import Any, Callable, Optional, cast
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
@@ -16,7 +16,7 @@ _bytes = bytes
 
 
 class ServerThread(ServiceThread):
-    _port_open: asyncio.Future = None
+    _port_open: Optional[asyncio.Future] = None
 
     def __init__(self, web: 'Web', **kwargs: Any) -> None:
         self.web = web
@@ -56,7 +56,7 @@ class Web(base.Web):
     handler_shutdown_timeout: float = 60.0
 
     #: We serve the web server in a separate thread (and separate event loop).
-    _thread: ServerThread = None
+    _thread: Optional[ServerThread] = None
 
     def __init__(self,
                  app: AppT,

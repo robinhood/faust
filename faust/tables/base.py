@@ -1,6 +1,7 @@
 """Base class Collection for Table and future data structures."""
 import abc
 from collections import defaultdict
+from datetime import datetime
 from heapq import heappop, heappush
 from typing import (
     Any,
@@ -29,6 +30,7 @@ from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
 from faust.types import (
     AppT,
+    CodecArg,
     EventT,
     FieldDescriptorT,
     FutureMessage,
@@ -57,14 +59,14 @@ class Collection(Service, CollectionT):
     """Base class for changelog-backed data structures stored in Kafka."""
 
     _store: URL
-    _changelog_topic: TopicT
+    _changelog_topic: Optional[TopicT]
     _partition_timestamp_keys: MutableMapping[tuple, MutableSet]
     _partition_timestamps: MutableMapping[int, List[float]]
     _partition_latest_timestamp: MutableMapping[int, float]
     _recover_callbacks: MutableSet[RecoverCallback]
-    _data: StoreT = None
-    _changelog_compacting: bool = True
-    _changelog_deleting: bool = None
+    _data: Optional[StoreT] = None
+    _changelog_compacting: Optional[bool] = True
+    _changelog_deleting: Optional[bool] = None
 
     @abc.abstractmethod
     def _has_key(self, key: Any) -> bool:  # pragma: no cover
@@ -102,16 +104,16 @@ class Collection(Service, CollectionT):
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.app = app
-        self.name = name
+        self.name = cast(str, name)  # set lazily so CAN BE NONE!
         self.default = default
         self._store = URL(store) if store else None
         self.key_type = key_type
         self.value_type = value_type
         self.partitions = partitions
         self.window = window
-        self.changelog_topic = changelog_topic
+        self._changelog_topic = changelog_topic
         self.extra_topic_configs = extra_topic_configs or {}
-        self.help = help
+        self.help = help or ''
         self._on_changelog_event = on_changelog_event
         self.recovery_buffer_size = recovery_buffer_size
         self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
@@ -159,7 +161,7 @@ class Collection(Service, CollectionT):
                     value_type=self.value_type,
                     loop=self.loop)
             self.add_dependency(self._data)
-        return self._data
+        return cast(StoreT, self._data)
 
     @property  # type: ignore
     @no_type_check  # XXX https://github.com/python/mypy/issues/4125
@@ -206,8 +208,8 @@ class Collection(Service, CollectionT):
     def _send_changelog(self,
                         key: Any,
                         value: Any,
-                        key_serializer='json',
-                        value_serializer='json') -> None:
+                        key_serializer: CodecArg = 'json',
+                        value_serializer: CodecArg = 'json') -> None:
         event = current_event()
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
@@ -242,7 +244,8 @@ class Collection(Service, CollectionT):
                 await self.sleep(self.app.conf.table_cleanup_interval)
 
     def _del_old_keys(self) -> None:
-        window = self.window
+        window = cast(WindowT, self.window)
+        assert window
         for partition, timestamps in self._partition_timestamps.items():
             while timestamps and window.stale(
                     timestamps[0],
@@ -272,7 +275,8 @@ class Collection(Service, CollectionT):
         _, window_range = key
         ts_keys = self._partition_timestamp_keys.get((partition,
                                                       window_range.end))
-        ts_keys.discard(key)
+        if ts_keys is not None:
+            ts_keys.discard(key)
 
     def _changelog_topic_name(self) -> str:
         return f'{self.app.conf.id}-{self.name}-changelog'
@@ -362,26 +366,33 @@ class Collection(Service, CollectionT):
             self._del_key((key, window_range))
 
     def _window_ranges(self, timestamp: float) -> Iterator[WindowRange]:
-        for window_range in self.window.ranges(timestamp):
+        window = cast(WindowT, self.window)
+        for window_range in window.ranges(timestamp):
             yield window_range
 
     def _relative_now(self, event: EventT = None) -> float:
         # get current timestampe
         event = event if event is not None else current_event()
+        if event is None:
+            raise RuntimeError('Outside of stream iteration')
         return self._partition_latest_timestamp[event.message.partition]
 
     def _relative_event(self, event: EventT = None) -> float:
         # get event timestamp
+        if event is None:
+            raise RuntimeError('Outside of stream iteration')
         return event.message.timestamp
 
     def _relative_field(self, field: FieldDescriptorT) -> RelativeHandler:
-        def to_value(event: EventT) -> float:
+        def to_value(event: EventT = None) -> Union[float, datetime]:
+            if event is None:
+                raise RuntimeError('Outside of stream iteration')
             return field.getattr(cast(ModelT, event.value))
 
         return to_value
 
     def _relative_timestamp(self, timestamp: float) -> RelativeHandler:
-        def handler(event: EventT) -> float:
+        def handler(event: EventT = None) -> Union[float, datetime]:
             return timestamp
 
         return handler
@@ -390,16 +401,20 @@ class Collection(Service, CollectionT):
         return self._windowed_timestamp(key, self._relative_now())
 
     def _windowed_timestamp(self, key: Any, timestamp: float) -> Any:
-        return self._get_key((key, self.window.current(timestamp)))
+        window = cast(WindowT, self.window)
+        return self._get_key((key, window.current(timestamp)))
 
     def _windowed_contains(self, key: Any, timestamp: float) -> bool:
-        return self._has_key((key, self.window.current(timestamp)))
+        window = cast(WindowT, self.window)
+        return self._has_key((key, window.current(timestamp)))
 
     def _windowed_delta(self, key: Any, d: Seconds,
                         event: EventT = None) -> Any:
-        return self._get_key((key,
-                              self.window.delta(
-                                  self._relative_event(event), d)))
+        window = cast(WindowT, self.window)
+        return self._get_key(
+            (key,
+             window.delta(self._relative_event(event), d)),
+        )
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         await self.data.on_partitions_assigned(self, assigned)

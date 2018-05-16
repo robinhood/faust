@@ -77,8 +77,8 @@ class Topic(Channel, TopicT):
         TypeError: if both `topics` and `pattern` is provided.
     """
 
-    _partitions: int = None
-    _pattern: Pattern = None
+    _partitions: Optional[int] = None
+    _pattern: Optional[Pattern] = None
 
     def __init__(self,
                  app: AppT,
@@ -103,7 +103,7 @@ class Topic(Channel, TopicT):
                  root: ChannelT = None,
                  active_partitions: Set[TP] = None,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.topics = topics
+        self.topics = topics or []
         super().__init__(
             app,
             key_type=key_type,
@@ -197,7 +197,7 @@ class Topic(Channel, TopicT):
         self._pattern = re.compile(pattern) if pattern else None
 
     @property
-    def partitions(self) -> int:
+    def partitions(self) -> Optional[int]:
         return self._partitions
 
     @partitions.setter

@@ -30,7 +30,7 @@ class RegistryT(abc.ABC):
     @abc.abstractmethod
     def loads_key(self,
                   typ: Optional[ModelArg],
-                  key: bytes,
+                  key: Optional[bytes],
                   *,
                   serializer: CodecArg = None) -> K:
         ...
@@ -38,7 +38,7 @@ class RegistryT(abc.ABC):
     @abc.abstractmethod
     def loads_value(self,
                     typ: Optional[ModelArg],
-                    value: bytes,
+                    value: Optional[bytes],
                     *,
                     serializer: CodecArg = None) -> Any:
         ...

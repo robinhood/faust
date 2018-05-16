@@ -41,8 +41,10 @@ class CaseInsensitiveChoice(click.Choice):
     def __init__(self, choices: Iterable[Any]) -> None:
         self.choices = [str(val).lower() for val in choices]
 
-    def convert(self, value: str, param: Optional[click.Parameter],
-                ctx: click.Context) -> Any:
+    def convert(self,
+                value: str,
+                param: Optional[click.Parameter],
+                ctx: Optional[click.Context]) -> Any:
         if value.lower() in self.choices:
             return value
         return super().convert(value, param, ctx)

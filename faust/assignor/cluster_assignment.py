@@ -1,5 +1,5 @@
 """Cluster assignement."""
-from typing import List, MutableMapping, Sequence, Set
+from typing import List, MutableMapping, Sequence, Set, cast
 from faust.models import Record
 from .client_assignment import (
     ClientAssignment,
@@ -18,8 +18,11 @@ class ClusterAssignment(Record,
                         namespace='@ClusterAssignment'):
     """Cluster assignment state."""
 
-    subscriptions: MutableMapping[str, Sequence[str]] = None
-    assignments: MutableMapping[str, ClientAssignment] = None
+    # These are optional, but should never be set to None
+    subscriptions: MutableMapping[str, Sequence[str]] = cast(
+        MutableMapping[str, Sequence[str]], None)
+    assignments: MutableMapping[str, ClientAssignment] = cast(
+        MutableMapping[str, ClientAssignment], None)
 
     def __post_init__(self) -> None:
         if self.subscriptions is None:

@@ -67,7 +67,7 @@ class _DBValueTuple(NamedTuple):
 class RocksDBOptions:
     """Options required to open a RocksDB database."""
 
-    max_open_files: int = DEFAULT_MAX_OPEN_FILES
+    max_open_files: Optional[int] = DEFAULT_MAX_OPEN_FILES
     write_buffer_size: int = 67108864
     max_write_buffer_number: int = 3
     target_file_size_base: int = 67108864
@@ -130,7 +130,7 @@ class Store(base.SerializedStore):
     #: Used to configure the RocksDB settings for table stores.
     options: RocksDBOptions
 
-    _dbs: MutableMapping[int, DB] = None
+    _dbs: MutableMapping[int, DB]
     _key_index: LRUCache[bytes, int]
 
     def __init__(self,
@@ -187,7 +187,7 @@ class Store(base.SerializedStore):
         for partition, batch in batches.items():
             self._db_for_partition(partition).write(batch)
 
-    def _set(self, key: bytes, value: bytes) -> None:
+    def _set(self, key: bytes, value: Optional[bytes]) -> None:
         event = current_event()
         assert event is not None
         partition = event.message.partition
@@ -205,7 +205,7 @@ class Store(base.SerializedStore):
     def _open_for_partition(self, partition: int) -> DB:
         return self.options.open(self.partition_path(partition))
 
-    def _get(self, key: bytes) -> bytes:
+    def _get(self, key: bytes) -> Optional[bytes]:
         dbvalue = self._get_bucket_for_key(key)
         if dbvalue is None:
             return None

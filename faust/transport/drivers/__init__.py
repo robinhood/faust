@@ -6,9 +6,7 @@ from faust.types import TransportT
 __all__ = ['by_name', 'by_url']
 
 TRANSPORTS: FactoryMapping[Type[TransportT]] = FactoryMapping(
-    ckafka='faust.transport.drivers.ckafka:Transport',
     aiokafka='faust.transport.drivers.aiokafka:Transport',
-    confluent='faust.transport.drivers.confluent:Transport',
     kafka='faust.transport.drivers.aiokafka:Transport',
     memory='faust.transport.drivers.memory:Transport',
 )

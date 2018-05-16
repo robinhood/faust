@@ -1,6 +1,6 @@
 import abc
 from datetime import timezone
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Optional
 
 from mode import Seconds
 
@@ -8,8 +8,8 @@ __all__ = ['WindowRange', 'WindowT']
 
 
 class WindowRange(NamedTuple):
-    start: float = None
-    end: float = None
+    start: float
+    end: float
 
     @classmethod
     def from_start(cls, start: float, size: float) -> 'WindowRange':
@@ -17,8 +17,8 @@ class WindowRange(NamedTuple):
 
 
 class WindowT(abc.ABC):
-    expires: float = None
-    tz: timezone = None
+    expires: Optional[float] = None
+    tz: Optional[timezone] = None
 
     @abc.abstractmethod
     def ranges(self, timestamp: float) -> List[WindowRange]:

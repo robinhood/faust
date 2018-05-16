@@ -34,7 +34,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 import re
 from datetime import datetime, timedelta, timezone, tzinfo
-from typing import Mapping, Pattern, cast
+from typing import Mapping, Match, Optional, Pattern, cast
 
 __all__ = ['parse']
 
@@ -46,6 +46,10 @@ RE_ISO8601: Pattern = re.compile(  # noqa
     r'(?P<timezone>Z|(([-+])([0-9]{2}):([0-9]{2})))?)?)?)?')
 RE_TIMEZONE: Pattern = re.compile(
     '(?P<prefix>[+-])(?P<hours>[0-9]{2}).(?P<minutes>[0-9]{2})')
+
+
+class InvalidTZ(Exception):
+    """Isoformat date does not have a valid timezone."""
 
 
 def parse(datestring: str) -> datetime:
@@ -69,8 +73,11 @@ def parse(datestring: str) -> datetime:
 def parse_tz(tz: str) -> tzinfo:
     if tz == 'Z':
         return timezone.utc
-    prefix, hours, minutes = RE_TIMEZONE.match(tz).groups()
-    return _apply_tz_prefix(prefix, int(hours), int(minutes))
+    match: Optional[Match] = RE_TIMEZONE.match(tz)
+    if match is not None:
+        prefix, hours, minutes = match.groups()
+        return _apply_tz_prefix(prefix, int(hours), int(minutes))
+    raise InvalidTZ(f'Missing or invalid timezone information: {tz!r}')
 
 
 def _apply_tz_prefix(prefix: str, hours: int, minutes: int) -> tzinfo:

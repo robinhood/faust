@@ -58,8 +58,10 @@ class send(AppCommand):
                   min_latency: float = 0.0,
                   max_latency: float = 0.0,
                   **kwargs: Any) -> Any:
-        key = self.to_key(key_type, key)
-        value = self.to_value(value_type, value)
+        if key is not None:
+            key = self.to_key(key_type, key)
+        if value is not None:
+            value = self.to_value(value_type, value)
         topic = self.to_topic(entity)
         for i in range(repeat):
             self.carp(f'k={key!r} v={value!r} -> {topic!r}...')

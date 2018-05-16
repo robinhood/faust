@@ -68,18 +68,21 @@ class Store(StoreT, Service):
         ...
 
     def _encode_key(self, key: Any) -> bytes:
-        return self.app.serializers.dumps_key(
+        key = self.app.serializers.dumps_key(
             self.key_type, key, serializer=self.key_serializer)
+        if key is None:
+            raise TypeError('Table key cannot be None')
+        return key
 
-    def _encode_value(self, value: Any) -> bytes:
+    def _encode_value(self, value: Any) -> Optional[bytes]:
         return self.app.serializers.dumps_value(
             self.value_type, value, serializer=self.value_serializer)
 
-    def _decode_key(self, key: bytes) -> Any:
+    def _decode_key(self, key: Optional[bytes]) -> Any:
         return self.app.serializers.loads_key(
             self.key_type, key, serializer=self.key_serializer)
 
-    def _decode_value(self, value: bytes) -> Any:
+    def _decode_value(self, value: Optional[bytes]) -> Any:
         return self.app.serializers.loads_value(
             self.value_type, value, serializer=self.value_serializer)
 
@@ -122,11 +125,13 @@ class SerializedStore(Store):
     """Base class for table storage drivers requiring serialization."""
 
     @abc.abstractmethod
-    def _get(self, key: bytes) -> bytes:  # pragma: no cover
+    def _get(self, key: bytes) -> Optional[bytes]:  # pragma: no cover
         ...
 
     @abc.abstractmethod
-    def _set(self, key: bytes, value: bytes) -> None:  # pragma: no cover
+    def _set(self,
+             key: bytes,
+             value: Optional[bytes]) -> None:  # pragma: no cover
         ...
 
     @abc.abstractmethod
@@ -161,12 +166,16 @@ class SerializedStore(Store):
                               to_key: Callable[[Any], Any],
                               to_value: Callable[[Any], Any]) -> None:
         for event in batch:
+            key = event.message.key
+            if key is None:
+                raise TypeError(
+                    f'Changelog entry is missing key: {event.message}')
             value = event.message.value
             if value is None:
-                self._del(event.message.key)
+                self._del(key)
             else:
                 # keys/values are already JSON serialized in the message
-                self._set(event.message.key, event.message.value)
+                self._set(key, value)
 
     def __getitem__(self, key: Any) -> Any:
         value = self._get(self._encode_key(key))

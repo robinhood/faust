@@ -138,7 +138,7 @@ def _from_generic_set(typ: Type, callback: _ReconFun, data: Set) -> Set:
     return {callback(typ, v) for v in data}
 
 
-def _to_model(typ: Type[ModelT], data: Any) -> ModelT:
+def _to_model(typ: Type[ModelT], data: Any) -> Optional[ModelT]:
     # called everytime something needs to be converted into a model.
     if data is not None and not isinstance(data, typ):
         model = typ.from_data(data, preferred_type=typ)

@@ -7,7 +7,16 @@ The stream will iterate over incoming events in the channel.
 """
 import asyncio
 import typing
-from typing import Any, Awaitable, Callable, Mapping, MutableSet, Set, cast
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Mapping,
+    MutableSet,
+    Optional,
+    Set,
+    cast,
+)
 from weakref import WeakSet
 
 from mode import Seconds, get_logger, want_seconds
@@ -58,14 +67,13 @@ class Channel(ChannelT):
     """
 
     app: AppT
-    key_type: ModelArg
-    value_type: ModelArg
-    loop: asyncio.AbstractEventLoop = None
+    key_type: Optional[ModelArg]
+    value_type: Optional[ModelArg]
     is_iterator: bool
 
-    _queue: ThrowableQueue = None
-    _root: 'Channel' = None
-    _subscribers: MutableSet['Channel'] = None
+    _queue: Optional[ThrowableQueue]
+    _root: Optional['Channel']
+    _subscribers: MutableSet['Channel']
 
     def __init__(self,
                  app: AppT,
@@ -205,9 +213,8 @@ class Channel(ChannelT):
             fut.message.key, fut.message.value,
             message=cast(Message, fut.message))
         await self.put(event)
-        return await self._finalize_message(fut,
-                                            RecordMetadata(
-                                                None, None, None, None))
+        return await self._finalize_message(
+            fut, RecordMetadata('topic', -1, TP('topic', -1), -1))
 
     async def _finalize_message(self, fut: FutureMessage,
                                 result: RecordMetadata) -> FutureMessage:
@@ -249,8 +256,7 @@ class Channel(ChannelT):
 
         return deliver
 
-    def _create_event(self, key: K, value: V,
-                      message: Message = None) -> EventT:
+    def _create_event(self, key: K, value: V, message: Message) -> EventT:
         return Event(self.app, key, value, message)
 
     async def put(self, value: Any) -> None:

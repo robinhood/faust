@@ -37,7 +37,7 @@ class SensorInterfaceT(abc.ABC):
     def on_message_out(self,
                        tp: TP,
                        offset: int,
-                       message: Message = None) -> None:
+                       message: Message) -> None:
         ...
 
     @abc.abstractmethod

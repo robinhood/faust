@@ -16,6 +16,7 @@ from typing import (
     Dict,
     List,
     Mapping,
+    Optional,
     Sequence,
     Tuple,
     Type,
@@ -176,7 +177,7 @@ def find_app(app: str,
     return prepare_app(val, app)
 
 
-def prepare_app(app: AppT, name: str) -> AppT:
+def prepare_app(app: AppT, name: Optional[str]) -> AppT:
     app.finalize()
     if app.conf.origin is None:
         app.conf.origin = name
@@ -188,7 +189,7 @@ def prepare_app(app: AppT, name: str) -> AppT:
     if main is not None and 'cProfile.py' in getattr(main, '__file__', ''):
         from ..models import registry
         registry.update({
-            app.conf.origin + k[8:]: v
+            (app.conf.origin or '') + k[8:]: v
             for k, v in registry.items()
             if k.startswith('cProfile.')
         })
@@ -328,11 +329,11 @@ class Command(abc.ABC):
     no_color: bool
 
     builtin_options: List = builtin_options
-    options: List = None
+    options: Optional[List] = None
 
-    args: Tuple = None
-    kwargs: Dict = None
-    prog_name: str = None
+    args: Tuple
+    kwargs: Dict
+    prog_name: str = ''
 
     @classmethod
     def as_click_command(cls) -> Callable:
@@ -408,7 +409,7 @@ class Command(abc.ABC):
                  data: terminal.TableDataT,
                  headers: Sequence[str] = None,
                  wrap_last_row: bool = True,
-                 title: str = None,
+                 title: str = '',
                  title_color: str = 'blue',
                  **kwargs: Any) -> str:
         """Create an ANSI representation of a table of two-row tuples.
@@ -422,7 +423,7 @@ class Command(abc.ABC):
             this returns json instead.
         """
         if self.json:
-            return self.dumps([dict(zip(headers, row)) for row in data])
+            return self._tabulate_json(data, headers=headers)
         if headers:
             data = [headers] + list(data)
         title = self.bold(self.color(title_color, title))
@@ -435,9 +436,16 @@ class Command(abc.ABC):
             ]
         return table.table
 
+    def _tabulate_json(self,
+                       data: terminal.TableDataT,
+                       headers: Sequence[str] = None) -> str:
+        if headers:
+            return json.dumps([dict(zip(headers, row)) for row in data])
+        return json.dumps(data)
+
     def table(self,
               data: terminal.TableDataT,
-              title: str = None,
+              title: str = '',
               **kwargs: Any) -> terminal.Table:
         """Format table data as ANSI/ASCII table."""
         return terminal.table(data, title=title, target=sys.stdout, **kwargs)
@@ -581,7 +589,7 @@ class AppCommand(Command):
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
 
-    def to_key(self, typ: str, key: str) -> Any:
+    def to_key(self, typ: Optional[str], key: str) -> Any:
         """Convert command-line argument string to model (key).
 
         Arguments:
@@ -595,7 +603,7 @@ class AppCommand(Command):
         """
         return self.to_model(typ, key, self.key_serializer)
 
-    def to_value(self, typ: str, value: str) -> Any:
+    def to_value(self, typ: Optional[str], value: str) -> Any:
         """Convert command-line argument string to model (value).
 
         Arguments:
@@ -610,7 +618,10 @@ class AppCommand(Command):
         """
         return self.to_model(typ, value, self.value_serializer)
 
-    def to_model(self, typ: str, value: str, serializer: CodecArg) -> Any:
+    def to_model(self,
+                 typ: Optional[str],
+                 value: str,
+                 serializer: CodecArg) -> Any:
         """Convert command-line argument to model.
 
         Generic version of :meth:`to_key`/:meth:`to_value`.
@@ -639,6 +650,8 @@ class AppCommand(Command):
         try:
             return symbol_by_name(attr)
         except ImportError as original_exc:
+            if not self.app.conf.origin:
+                raise
             root, _, _ = self.app.conf.origin.partition(':')
             try:
                 return symbol_by_name(f'{root}.models.{attr}')

@@ -173,52 +173,85 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     client_only = False
 
     #: Source of configuration: ``app.conf`` (when configured)
-    _conf: Settings = None
+    _conf: Optional[Settings] = None
 
     #: Original configuration source object.
     _config_source: Any = None
 
     # Default consumer instance.
-    _consumer: ConsumerT = None
+    _consumer: Optional[ConsumerT] = None
 
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
-    _assignor: PartitionAssignorT = None
+    _assignor: Optional[PartitionAssignorT] = None
 
     # Monitor is created on demand: use `.monitor` property.
-    _monitor: Monitor = None
+    _monitor: Optional[Monitor] = None
 
     # @app.task decorator adds asyncio tasks to be started
     # with the app here.
     _tasks: MutableSequence[TaskArg]
 
-    _http_client: HttpClientT = None
+    _http_client: Optional[HttpClientT] = None
 
-    _extra_services: List[ServiceT] = None
+    _extra_services: List[ServiceT]
 
     # See faust/app/_attached.py
-    _attachments: Attachments = None
+    _attachments: Attachments
 
     def __init__(self,
                  id: str,
                  *,
                  monitor: Monitor = None,
                  config_source: Any = None,
+                 loop: asyncio.AbstractEventLoop = None,
                  **options: Any) -> None:
+        # This is passed to the configuration in self.conf
         self._default_options = (id, options)
+
+        # The agent manager manages all agents.
         self.agents = AgentManager(self)
+
+        # Sensors monitor Faust using a standard sensor API.
         self.sensors = SensorDelegate(self)
+
+        # this is a local hack we use until we have proper
+        # transactions support in the Python Kafka Client
+        # and can have "exactly once" semantics.
         self._attachments = Attachments(self)
+
+        # "The Monitor" is a special sensor that provides detailed stats
+        # for the web server.
         self._monitor = monitor
+
+        # Any additional asyncio.Task's specified using @app.task decorator.
         self._tasks = []
-        self.on_startup_finished: Callable = None
+
+        # Called as soon as the a worker is fully operational.
+        self.on_startup_finished: Optional[Callable] = None
+
+        # Any additional web server views added using @app.page decorator.
         self.pages = []
+
+        # Any additional services added using the @app.service decorator.
         self._extra_services = []
+
+        # The configuration source object/module passed to ``config_by_object``
+        # for introspectio purposes.
         self._config_source = config_source
 
+        # create default sender for signals such as self.on_configured
         self._init_signals()
+
+        # initialize fixups (automatically applied extensions,
+        # such as Django integration).
         self.fixups = self._init_fixups()
+
+        self.loop = loop
+
+        # init the service proxy required to ensure of lazy loading
+        # of the service class (see faust/app/service.py).
         ServiceProxy.__init__(self)
 
     def _init_signals(self) -> None:
@@ -351,7 +384,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     cast(Callable[[], Iterator[str]], autodiscover)())
             else:
                 modules.extend(autodiscover)
-            modules.append(self.conf.origin)
+            if self.conf.origin:
+                modules.append(self.conf.origin)
         return modules
 
     def _new_scanner(self, *ignore: Pattern,
@@ -673,14 +707,16 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def command(self,
                 *options: Any,
-                base: Type[AppCommand] = None,
+                base: Optional[Type[AppCommand]] = None,
                 **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
         if options is None and base is None and kwargs is None:
             raise TypeError('Use parens in @app.command(), not @app.command.')
-        _base: Type[AppCommand] = base
-        if _base is None:
+        _base: Type[AppCommand]
+        if base is None:
             from faust.cli import base as cli_base
             _base = cli_base.AppCommand
+        else:
+            _base = base
 
         def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
             cmd = _base.from_handler(*options, **kwargs)(fun)
@@ -957,7 +993,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 'App configuration accessed before app.finalize()')
         if self._conf is None:
             self._configure()
-        return self._conf
+        return cast(Settings, self._conf)
 
     @conf.setter
     def conf(self, settings: Settings) -> None:

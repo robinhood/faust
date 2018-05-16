@@ -1,6 +1,15 @@
 """Class-based views."""
 import inspect
-from typing import Any, Awaitable, Callable, List, Mapping, Type, cast
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    cast,
+)
 
 from faust.types import AppT
 from faust.types.web import PageArg, ViewGetHandler
@@ -112,17 +121,17 @@ class Site:
     @classmethod
     def from_handler(cls, path: str, *,
                      base: Type[View] = None) -> CommandDecorator:
-        base = base if base is not None else View
+        view_base: Type[View] = base if base is not None else View
 
         def _decorator(fun: PageArg) -> Type[Site]:
-            view: Type[View] = None
+            view: Optional[Type[View]] = None
             if inspect.isclass(fun):
                 view = cast(Type[View], fun)
                 if not issubclass(view, View):
                     raise TypeError(
                         'When decorating class, it must be subclass of View')
             if view is None:
-                view = base.from_handler(cast(ViewGetHandler, fun))
+                view = view_base.from_handler(cast(ViewGetHandler, fun))
 
             return type('Site', (cls,), {
                 'views': {

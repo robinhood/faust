@@ -1,7 +1,14 @@
 """Agent replies: waiting for replies, sending them, etc."""
 import asyncio
 from collections import defaultdict
-from typing import Any, AsyncIterator, MutableMapping, MutableSet, NamedTuple
+from typing import (
+    Any,
+    AsyncIterator,
+    MutableMapping,
+    MutableSet,
+    NamedTuple,
+    Optional,
+)
 from weakref import WeakSet
 from mode import Service
 from faust.types import AppT, ChannelT, TopicT
@@ -36,7 +43,7 @@ class ReplyPromise(asyncio.Future):
         self.set_result(value)
 
 
-class BarrierState(ReplyPromise):
+class BarrierState(asyncio.Future):
     """State of pending/complete barrier.
 
     A barrier is a synchronization primitive that will wait until
@@ -61,7 +68,7 @@ class BarrierState(ReplyPromise):
     pending: MutableSet[ReplyPromise]
 
     def __init__(self, reply_to: str, **kwargs: Any) -> None:
-        super().__init__(reply_to=reply_to, correlation_id=None, **kwargs)
+        super().__init__(**kwargs)
         self.pending = set()
         loop: asyncio.AbstractEventLoop = self._loop  # type: ignore
         self._results = asyncio.Queue(maxsize=1000, loop=loop)
@@ -106,7 +113,7 @@ class ReplyConsumer(Service):
     """Consumer responsible for redelegation of replies received."""
 
     _waiting: MutableMapping[str, MutableSet[ReplyPromise]]
-    _fetchers: MutableMapping[str, asyncio.Future]
+    _fetchers: MutableMapping[str, Optional[asyncio.Future]]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app

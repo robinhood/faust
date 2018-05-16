@@ -25,7 +25,7 @@ from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 __version__ = '1.0.7'
 __author__ = 'Robinhood Markets'
-__contact__ = 'opensource@robinhood.com'
+__contact__ = 'contact@fauststream.com'
 __homepage__ = 'http://fauststream.com'
 __docformat__ = 'restructuredtext'
 
@@ -42,9 +42,13 @@ class version_info_t(NamedTuple):
 
 # bumpversion can only search for {current_version}
 # so we have to parse the version here.
-_temp = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__).groups()
+_match = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__)
+if _match is None:
+    raise RuntimeError('THIS IS A BROKEN RELEASE!')
+_temp = _match.groups()
 VERSION = version_info = version_info_t(
     int(_temp[0]), int(_temp[1]), int(_temp[2]), _temp[3] or '', '')
+del(_match)
 del(_temp)
 del(re)
 
@@ -221,7 +225,8 @@ class _module(ModuleType):
 
     def __getattr__(self, name: str) -> Any:
         if name in object_origins:
-            module = __import__(object_origins[name], None, None, [name])
+            module = __import__(  # type: ignore
+                object_origins[name], None, None, [name])
             for extra_name in all_by_module[module.__name__]:
                 setattr(self, extra_name, getattr(module, extra_name))
             return getattr(module, name)

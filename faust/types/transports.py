@@ -76,10 +76,10 @@ class ConsumerT(ServiceT):
     @abc.abstractmethod
     def __init__(self,
                  transport: 'TransportT',
+                 callback: ConsumerCallback,
+                 on_partitions_revoked: PartitionsRevokedCallback,
+                 on_partitions_assigned: PartitionsAssignedCallback,
                  *,
-                 callback: ConsumerCallback = None,
-                 on_partitions_revoked: PartitionsRevokedCallback = None,
-                 on_partitions_assigned: PartitionsAssignedCallback = None,
                  commit_interval: float = None,
                  loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:

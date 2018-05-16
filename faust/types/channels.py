@@ -1,7 +1,7 @@
 import abc
 import asyncio
 import typing
-from typing import Any, AsyncIterator, Awaitable, Set
+from typing import Any, AsyncIterator, Awaitable, Optional, Set
 
 from mode import Seconds
 from mode.utils.futures import stampede
@@ -34,11 +34,11 @@ else:
 
 class ChannelT(AsyncIterator):
     app: AppT
-    key_type: ModelArg
-    value_type: ModelArg
-    loop: asyncio.AbstractEventLoop = None
-    maxsize: int
-    active_partitions: Set[TP] = None
+    key_type: Optional[ModelArg]
+    value_type: Optional[ModelArg]
+    loop: Optional[asyncio.AbstractEventLoop]
+    maxsize: Optional[int]
+    active_partitions: Optional[Set[TP]]
 
     @abc.abstractmethod
     def __init__(self,

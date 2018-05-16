@@ -4,7 +4,7 @@ import logging
 import typing
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, List, Set, Type, Union
+from typing import Any, Callable, Iterable, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 from mode import Seconds, SupervisorStrategyT, want_seconds
@@ -180,10 +180,10 @@ class Settings(abc.ABC):
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
-    origin: str = None
+    origin: Optional[str]
     key_serializer: CodecArg = 'json'
     value_serializer: CodecArg = 'json'
-    reply_to: str = None
+    reply_to: str
     reply_to_prefix: str = REPLY_TO_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
@@ -193,40 +193,40 @@ class Settings(abc.ABC):
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
-    loghandlers: List[logging.StreamHandler] = None
+    loghandlers: List[logging.StreamHandler]
     producer_linger_ms: int = PRODUCER_LINGER_MS
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
-    producer_compression_type: str = PRODUCER_COMPRESSION_TYPE
+    producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
     worker_redirect_stdouts: bool = True
     worker_redirect_stdouts_level: Severity = 'WARN'
 
-    _id: str = None
-    _name: str = None
+    _id: str
+    _name: str
     _version: int = 1
-    _broker: URL = None
-    _store: URL = None
-    _canonical_url: URL = None
-    _datadir: Path = None
-    _tabledir: Path = None
-    _agent_supervisor: Type[SupervisorStrategyT] = None
+    _broker: URL
+    _store: URL
+    _canonical_url: URL
+    _datadir: Path
+    _tabledir: Path
+    _agent_supervisor: Type[SupervisorStrategyT]
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
-    _Agent: Type[AgentT] = None
-    _Stream: Type[StreamT] = None
-    _Table: Type[TableT] = None
-    _TableManager: Type[TableManagerT] = None
-    _Serializers: Type[RegistryT] = None
-    _Worker: Type[WorkerT] = None
-    _PartitionAssignor: Type[PartitionAssignorT] = None
-    _LeaderAssignor: Type[LeaderAssignorT] = None
-    _Router: Type[RouterT] = None
-    _Topic: Type[TopicT] = None
-    _HttpClient: Type[HttpClientT] = None
-    _Monitor: Type[SensorT] = None
+    _Agent: Type[AgentT]
+    _Stream: Type[StreamT]
+    _Table: Type[TableT]
+    _TableManager: Type[TableManagerT]
+    _Serializers: Type[RegistryT]
+    _Worker: Type[WorkerT]
+    _PartitionAssignor: Type[PartitionAssignorT]
+    _LeaderAssignor: Type[LeaderAssignorT]
+    _Router: Type[RouterT]
+    _Topic: Type[TopicT]
+    _HttpClient: Type[HttpClientT]
+    _Monitor: Type[SensorT]
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -301,10 +301,10 @@ class Settings(abc.ABC):
             self.autodiscover = autodiscover
         if broker_client_id is not None:
             self.broker_client_id = broker_client_id
-        self.canonical_url = canonical_url or self._canonical_url or ''
+        self.canonical_url = canonical_url or ''
         # datadir is a format string that can contain e.g. {conf.id}
-        self.datadir = datadir or self._datadir or DATADIR
-        self.tabledir = tabledir or self._tabledir or TABLEDIR
+        self.datadir = datadir or DATADIR
+        self.tabledir = tabledir or TABLEDIR
         self.broker_commit_interval = (
             broker_commit_interval or self._broker_commit_interval)
         self.broker_commit_livelock_soft_timeout = (
@@ -329,8 +329,7 @@ class Settings(abc.ABC):
             self.topic_partitions = topic_partitions
         if reply_create_topic is not None:
             self.reply_create_topic = reply_create_topic
-        if loghandlers is not None:
-            self.loghandlers = loghandlers
+        self.loghandlers = loghandlers if loghandlers is not None else []
         if stream_buffer_maxsize is not None:
             self.stream_buffer_maxsize = stream_buffer_maxsize
         if stream_wait_empty is not None:
@@ -363,31 +362,21 @@ class Settings(abc.ABC):
         if reply_expires is not None:
             self.reply_expires = reply_expires
 
-        self.agent_supervisor = (
-            agent_supervisor or
-            self._agent_supervisor or
-            AGENT_SUPERVISOR_TYPE)
+        self.agent_supervisor = agent_supervisor or AGENT_SUPERVISOR_TYPE
 
-        self.Agent = Agent or self._Agent or AGENT_TYPE
-        self.Stream = Stream or self._Stream or STREAM_TYPE
-        self.Table = Table or self._Table or TABLE_TYPE
-        self.Set = Set or self._Set or SET_TYPE
-        self.TableManager = (
-            TableManager or self._TableManager or TABLE_MANAGER_TYPE)
-        self.Serializers = Serializers or self._Serializers or REGISTRY_TYPE
-        self.Worker = Worker or self._Worker or WORKER_TYPE
-        self.PartitionAssignor = (
-            PartitionAssignor or
-            self._PartitionAssignor or
-            PARTITION_ASSIGNOR_TYPE)
-        self.LeaderAssignor = (
-            LeaderAssignor or
-            self._LeaderAssignor or
-            LEADER_ASSIGNOR_TYPE)
-        self.Router = Router or self._Router or ROUTER_TYPE
-        self.Topic = Topic or self._Topic or TOPIC_TYPE
-        self.HttpClient = HttpClient or self._HttpClient or HTTP_CLIENT_TYPE
-        self.Monitor = Monitor or self._Monitor or MONITOR_TYPE
+        self.Agent = Agent or AGENT_TYPE
+        self.Stream = Stream or STREAM_TYPE
+        self.Table = Table or TABLE_TYPE
+        self.Set = Set or SET_TYPE
+        self.TableManager = TableManager or TABLE_MANAGER_TYPE
+        self.Serializers = Serializers or REGISTRY_TYPE
+        self.Worker = Worker or WORKER_TYPE
+        self.PartitionAssignor = PartitionAssignor or PARTITION_ASSIGNOR_TYPE
+        self.LeaderAssignor = LeaderAssignor or LEADER_ASSIGNOR_TYPE
+        self.Router = Router or ROUTER_TYPE
+        self.Topic = Topic or TOPIC_TYPE
+        self.HttpClient = HttpClient or HTTP_CLIENT_TYPE
+        self.Monitor = Monitor or MONITOR_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
 
     def prepare_id(self, id: str) -> str:

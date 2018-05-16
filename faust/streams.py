@@ -30,7 +30,7 @@ from mode.utils.types.trees import NodeT
 
 from . import joins
 from .exceptions import ImproperlyConfigured
-from .types import AppT, EventT, K, Message, ModelArg, ModelT, TP, TopicT
+from .types import AppT, EventT, K, ModelArg, ModelT, TP, TopicT
 from .types.joins import JoinT
 from .types.models import FieldDescriptorT
 from .types.streams import (
@@ -59,13 +59,14 @@ try:  # pragma: no cover
 except ImportError:  # pragma: no cover
     from aiocontextvars import ContextVar, Context
 
-    def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
+    def _inherit_context(
+            *, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
         # see module: aiocontextvars.inherit
         # this is the backport of the contextvars module added in CPython 3.7.
         # it provides "thread-locals" for async generators, and asyncio.Task
         # will automatically call this stuff in 3.7, but not in 3.6 so we call
         # this when starting to iterate over the stream (Stream.__aiter__).
-        task = asyncio.Task.current_task(loop=loop)
+        task = asyncio.Task.current_task(loop=loop or asyncio.get_event_loop())
         # note: in actual CPython it's task._context, the aiocontextvars
         # backport is a backport of a previous version of the PEP: :pep:`560`
         task.ctx = Context(Context.current())  # type: ignore
@@ -92,7 +93,7 @@ async def maybe_forward(value: Any, channel: ChannelT) -> Any:
 
 class _LinkedListDirection(NamedTuple):
     attr: str
-    getter: Callable[[StreamT], StreamT]
+    getter: Callable[[StreamT], Optional[StreamT]]
 
 
 _LinkedListDirectionFwd = _LinkedListDirection('_next', lambda n: n._next)
@@ -103,16 +104,16 @@ class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
     logger = logger
 
-    _processors: MutableSequence[Processor] = None
+    _processors: MutableSequence[Processor]
     _anext_started = False
     _passive = False
     _finalized = False
     _passive_started: asyncio.Event
 
     def __init__(self,
-                 channel: AsyncIterator[T_co] = None,
+                 channel: AsyncIterator[T_co],
                  *,
-                 app: AppT = None,
+                 app: AppT,
                  processors: Iterable[Processor[T]] = None,
                  combined: List[JoinableT] = None,
                  on_start: Callable = None,
@@ -192,7 +193,7 @@ class Stream(StreamT[T_co], Service):
         return self._iter_ll(_LinkedListDirectionBwd)
 
     def _iter_ll(self, dir_: _LinkedListDirection) -> Iterator[StreamT]:
-        node: StreamT = self
+        node: Optional[StreamT] = self
         seen: Set[StreamT] = set()
         while node:
             if node in seen:
@@ -203,7 +204,8 @@ class Stream(StreamT[T_co], Service):
             node = dir_.getter(node)
 
     async def _send_to_outbox(self, value: T_contra) -> None:
-        await self.outbox.put(value)
+        if self.outbox is not None:
+            await self.outbox.put(value)
 
     def add_processor(self, processor: Processor[T]) -> None:
         """Add processor callback executed whenever a new event is received.
@@ -312,7 +314,7 @@ class Stream(StreamT[T_co], Service):
         buffer_consumed = asyncio.Event(loop=self.loop)
         timeout = want_seconds(within) if within else None
 
-        buffer_consuming: asyncio.Future = None
+        buffer_consuming: Optional[asyncio.Future] = None
 
         channel_it = aiter(self.channel)
 
@@ -327,7 +329,9 @@ class Stream(StreamT[T_co], Service):
                 finally:
                     buffer_consuming = None
             buffer_add(cast(T_co, value))
-            event_add(self.current_event)
+            event = self.current_event
+            if event is not None:
+                event_add(event)
             if buffer_size() >= max_:
                 # signal that the buffer is full and should be emptied.
                 buffer_full.set()
@@ -719,10 +723,6 @@ class Stream(StreamT[T_co], Service):
                 do_ack = self.enable_acks  # set to False to not ack event.
                 # wait for next message
                 value: Any = None
-                event: EventT = None
-                message: Message = None
-                tp: TP = None
-                offset: int = None
                 # we iterate until on_merge gives value.
                 while value is None:
                     # get message from channel
@@ -787,6 +787,9 @@ class Stream(StreamT[T_co], Service):
                     if do_ack and event is not None:
                         # This inlines self.ack
                         last_stream_to_ack = event.ack()
+                        message = event.message
+                        tp = event.message.tp
+                        offset = event.message.offset
                         on_stream_event_out(tp, offset, self, event)
                         if last_stream_to_ack:
                             on_message_out(tp, offset, message)

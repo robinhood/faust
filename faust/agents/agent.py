@@ -15,6 +15,7 @@ from typing import (
     MutableMapping,
     MutableSequence,
     MutableSet,
+    Optional,
     Set,
     Tuple,
     Type,
@@ -149,8 +150,8 @@ class AgentService(Service):
         super().__init__(**kwargs)
 
     async def _start_one(self,
-                         index: int = None,
-                         active_partitions: Set[TP] = None,
+                         index: Optional[int] = None,
+                         active_partitions: Optional[Set[TP]] = None,
                          stream: StreamT = None) -> ActorT:
         # an index of None means there's only one instance,
         # and `index is None` is used as a test by functions that
@@ -159,10 +160,11 @@ class AgentService(Service):
         return await cast(Agent, self.agent)._start_task(
             index, active_partitions, stream, self.beacon)
 
-    async def _start_one_supervised(self,
-                                    index: int = None,
-                                    active_partitions: Set[TP] = None,
-                                    stream: StreamT = None) -> ActorT:
+    async def _start_one_supervised(
+            self,
+            index: Optional[int] = None,
+            active_partitions: Optional[Set[TP]] = None,
+            stream: StreamT = None) -> ActorT:
         aref = await self._start_one(index, active_partitions, stream)
         self.supervisor.add(aref)
         await aref.maybe_start()
@@ -205,8 +207,8 @@ class AgentService(Service):
             self.supervisor.add(res)
         await self.supervisor.start()
 
-    def _get_active_partitions(self) -> Set[TP]:
-        active_partitions: Set[TP] = None
+    def _get_active_partitions(self) -> Optional[Set[TP]]:
+        active_partitions: Optional[Set[TP]] = None
         if self.agent.isolated_partitions:
             # when we start our first agent, we create the set of
             # partitions early, and save it in ._pending_active_partitions.
@@ -246,27 +248,27 @@ class Agent(AgentT, ServiceProxy):
     # channel is loaded lazily on .channel property access
     # to make sure configuration is not accessed when agent created
     # at module-scope.
-    _channel: ChannelT = None
-    _channel_arg: Union[str, ChannelT] = None
-    _channel_kwargs: Dict[str, Any] = None
-    _channel_iterator: AsyncIterator = None
-    _sinks: List[SinkT] = None
+    _channel: Optional[ChannelT] = None
+    _channel_arg: Optional[Union[str, ChannelT]]
+    _channel_kwargs: Dict[str, Any]
+    _channel_iterator: Optional[AsyncIterator] = None
+    _sinks: List[SinkT]
 
-    _actors: MutableSet[ActorRefT] = None
-    _actor_by_partition: MutableMapping[TP, ActorRefT] = None
+    _actors: MutableSet[ActorRefT]
+    _actor_by_partition: MutableMapping[TP, ActorRefT]
 
     #: This mutable set is used by the first agent we start,
     #: so that we can update its active_partitions later
     #: (in on_partitions_assigned, when we know what partitions we get).
-    _pending_active_partitions: Set[TP] = None
+    _pending_active_partitions: Optional[Set[TP]] = None
 
     _first_assignment_done: bool = False
 
     def __init__(self,
                  fun: AgentFun,
                  *,
+                 app: AppT,
                  name: str = None,
-                 app: AppT = None,
                  channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
@@ -292,9 +294,9 @@ class Agent(AgentT, ServiceProxy):
         self._channel_kwargs = kwargs
         self.concurrency = concurrency or 1
         self.isolated_partitions = isolated_partitions
-        self.help = help
+        self.help = help or ''
         self._sinks = list(sink) if sink is not None else []
-        self._on_error: AgentErrorHandler = on_error
+        self._on_error: Optional[AgentErrorHandler] = on_error
         self.supervisor_strategy = supervisor_strategy
         self._actors = WeakSet()
         self._actor_by_partition = WeakValueDictionary()
@@ -320,7 +322,7 @@ class Agent(AgentT, ServiceProxy):
     async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.log.dev('Partitions revoked')
         for tp in revoked:
-            aref: ActorRefT = self._actor_by_partition.pop(tp, None)
+            aref: Optional[ActorRefT] = self._actor_by_partition.pop(tp, None)
             if aref is not None:
                 await aref.on_isolated_partition_revoked(tp)
 
@@ -354,7 +356,7 @@ class Agent(AgentT, ServiceProxy):
             self._actor_by_partition[tp] = aref
         await aref.on_isolated_partition_assigned(tp)
 
-    async def _start_isolated(self, tp: TP) -> None:
+    async def _start_isolated(self, tp: TP) -> ActorT:
         return await self._service._start_for_partitions({tp})
 
     async def on_shared_partitions_revoked(self, revoked: Set[TP]) -> None:
@@ -488,8 +490,8 @@ class Agent(AgentT, ServiceProxy):
         return value
 
     async def _start_task(self,
-                          index: int,
-                          active_partitions: Set[TP] = None,
+                          index: Optional[int],
+                          active_partitions: Optional[Set[TP]] = None,
                           stream: StreamT = None,
                           beacon: NodeT = None) -> ActorRefT:
         # If the agent is an async function we simply start it,
@@ -541,15 +543,17 @@ class Agent(AgentT, ServiceProxy):
     async def _slurp(self, res: ActorRefT, it: AsyncIterator) -> None:
         # this is used when the agent returns an AsyncIterator,
         # and simply consumes that async iterator.
-        stream: StreamT = None
+        stream: Optional[StreamT] = None
         async for value in it:
             self.log.debug('%r yielded: %r', self.fun, value)
             if stream is None:
                 stream = res.stream.get_active_stream()
             event = stream.current_event
-            assert stream.current_event is not None
-            if isinstance(event.value, ReqRepRequest):
-                await self._reply(event.key, value, event.value)
+            if event is not None:
+                if isinstance(event.value, ReqRepRequest):
+                    await self._reply(event.key, value, event.value)
+            else:
+                raise TypeError('Stream has no current event')
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
@@ -617,6 +621,8 @@ class Agent(AgentT, ServiceProxy):
                     value: V = None,
                     reply_to: ReplyToArg = None,
                     correlation_id: str = None) -> ReqRepRequest:
+        if reply_to is None:
+            raise TypeError('Missing reply_to argument')
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
         return ReqRepRequest(
@@ -809,7 +815,7 @@ class Agent(AgentT, ServiceProxy):
 
 class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
 
-    _stream: StreamT = None
+    _stream: StreamT
 
     def __init__(self,
                  *args: Any,
@@ -818,7 +824,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
         super().__init__(*args, **kwargs)
         self.results = {}
         self.new_value_processed = asyncio.Condition(loop=self.loop)
-        self.original_channel = original_channel
+        self.original_channel = cast(ChannelT, original_channel)
         self.add_sink(self._on_value_processed)
         self._stream = self.channel.stream()
         self.sent_offset = 0
@@ -840,7 +846,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
     async def put(self,
                   value: V = None,
                   key: K = None,
-                  partition: int = None,
+                  partition: Optional[int] = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   *,
@@ -864,7 +870,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                    key: K,
                    value: V,
                    *,
-                   partition: int = 0,
+                   partition: Optional[int] = None,
                    offset: int = 0,
                    timestamp: float = None,
                    timestamp_type: str = 'unix') -> Message:
@@ -874,7 +880,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
             topic_name = '<internal>'
         return Message(
             topic=topic_name,
-            partition=partition,
+            partition=partition or 0,
             offset=offset,
             timestamp=timestamp or time(),
             timestamp_type=timestamp_type,

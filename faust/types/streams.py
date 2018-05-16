@@ -10,6 +10,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    Optional,
     Sequence,
     Set,
     Tuple,
@@ -92,19 +93,19 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
 
-    app: AppT = None
-    channel: AsyncIterator[T_co] = None
-    outbox: asyncio.Queue = None
-    join_strategy: JoinT = None
-    task_owner: asyncio.Task = None
-    current_event: EventT = None
-    active_partitions: Set[TP] = None
-    concurrency_index: int = None
+    app: AppT
+    channel: AsyncIterator[T_co]
+    outbox: Optional[asyncio.Queue] = None
+    join_strategy: Optional[JoinT] = None
+    task_owner: Optional[asyncio.Task] = None
+    current_event: Optional[EventT] = None
+    active_partitions: Optional[Set[TP]] = None
+    concurrency_index: Optional[int] = None
     enable_acks: bool = True
 
     # List of combined streams/tables after ret = (s1 & s2) combined them.
     # AFter this ret.combined == [s1, s2]
-    combined: List[JoinableT] = None
+    combined: List[JoinableT]
 
     # group_by, through, etc. sets this, and it means the
     # active stream (the one the agent would be reading from) can be found
@@ -113,8 +114,8 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     #    >>> while node._next:
     #    ...     node = node._next
     # which is also what .get_active_stream() gives
-    _next: 'StreamT' = None
-    _prev: 'StreamT' = None
+    _next: Optional['StreamT'] = None
+    _prev: Optional['StreamT'] = None
 
     @abc.abstractmethod
     def __init__(self,

@@ -122,52 +122,52 @@ class Consumer(Service, ConsumerT):
 
     #: Tuple of exception types that may be raised when the
     #: underlying consumer driver is stopped.
-    consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = None
+    consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = ()
 
     # Mapping of TP to list of acked offsets.
-    _acked: MutableMapping[TP, List[int]] = None
+    _acked: MutableMapping[TP, List[int]]
 
     #: Fast lookup to see if tp+offset was acked.
     _acked_index: MutableMapping[TP, Set[int]]
 
     #: Keeps track of the currently read offset in each TP
-    _read_offset: MutableMapping[TP, int]
+    _read_offset: MutableMapping[TP, Optional[int]]
 
     #: Keeps track of the currently commited offset in each TP.
-    _committed_offset: MutableMapping[TP, int] = None
+    _committed_offset: MutableMapping[TP, Optional[int]]
 
     #: The consumer.wait_empty() method will set this to be notified
     #: when something acks a message.
-    _waiting_for_ack: asyncio.Future = None
+    _waiting_for_ack: Optional[asyncio.Future] = None
 
     #: Used by .commit to ensure only one thread is comitting at a time.
     #: Other thread starting to commit while a commit is already active,
     #: will wait for the original request to finish, and do nothing.
-    _commit_fut: asyncio.Future = None
+    _commit_fut: Optional[asyncio.Future] = None
 
     #: Set of unacked messages: that is messages that we started processing
     #: and that we MUST attempt to complete processing of, before
     #: shutting down or resuming a rebalance.
-    _unacked_messages: MutableSet[Message] = None
+    _unacked_messages: MutableSet[Message]
 
     #: Time of last record batch received.
     #: Set only when not set, and reset by commit() so actually
     #: tracks how long it ago it was since we received a record that
     #: was never committed.
-    _last_batch: float = None
+    _last_batch: Optional[float]
 
     #: Time of when the consumer was started.
-    _time_start: float = None
+    _time_start: float
 
-    _commit_every: int = None
+    _commit_every: Optional[int]
     _n_acked: int = 0
 
     def __init__(self,
                  transport: TransportT,
+                 callback: ConsumerCallback,
+                 on_partitions_revoked: PartitionsRevokedCallback,
+                 on_partitions_assigned: PartitionsAssignedCallback,
                  *,
-                 callback: ConsumerCallback = None,
-                 on_partitions_revoked: PartitionsRevokedCallback = None,
-                 on_partitions_assigned: PartitionsAssignedCallback = None,
                  commit_interval: float = None,
                  commit_livelock_soft_timeout: float = None,
                  loop: asyncio.AbstractEventLoop = None,
@@ -192,6 +192,7 @@ class Consumer(Service, ConsumerT):
         self._unacked_messages = WeakSet()
         self._waiting_for_ack = None
         self._time_start = monotonic()
+        self._last_batch = None
         self.randomly_assigned_topics = set()
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 

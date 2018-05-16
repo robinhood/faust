@@ -57,11 +57,12 @@ class ConductorCompiler:  # pragma: no cover
 
         topic, partition = tp
         app = conductor.app
-        consumer: ConsumerT = None
+        consumer: ConsumerT = cast(ConsumerT, None)
         on_message_in = app.sensors.on_message_in
         on_topic_buffer_full = app.sensors.on_topic_buffer_full
-        unacked: Set[Message] = None
-        add_unacked: Callable[[Message], None] = None
+        unacked: Set[Message] = cast(Set[Message], None)
+        add_unacked: Callable[[Message], None] = cast(
+            Callable[[Message], None], None)
         acquire_flow_control: Callable = app.flow_control.acquire
         len_: Callable[[Any], int] = len
         acking_topics: Set[str] = conductor._acking_topics
@@ -95,8 +96,8 @@ class ConductorCompiler:  # pragma: no cover
                         # (we reset _last_batch to None in .commit())
                         consumer._last_batch = monotonic()
 
-                event: EventT = None
-                event_keyid: Tuple[K, V] = None
+                event: Optional[EventT] = None
+                event_keyid: Optional[Tuple[K, V]] = None
 
                 # forward message to all channels subscribing to this topic
 

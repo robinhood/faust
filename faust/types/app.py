@@ -10,6 +10,7 @@ from typing import (
     List,
     Mapping,
     MutableSequence,
+    Optional,
     Pattern,
     Set,
     Tuple,
@@ -94,7 +95,7 @@ class AppT(ServiceT):
                  monitor: Monitor,
                  config_source: Any = None,
                  **options: Any) -> None:
-        self.on_startup_finished: Callable = None
+        self.on_startup_finished: Optional[Callable] = None
 
     @abc.abstractmethod
     def config_from_object(self,
@@ -119,8 +120,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def discover(self,
                  *extra_modules: str,
-                 categories: Iterable[str] = None,
-                 ignore: Iterable[str] = None) -> None:
+                 categories: Iterable[str] = ('a', 'b', 'c'),
+                 ignore: Iterable[str] = ('foo', 'bar')) -> None:
         ...
 
     @abc.abstractmethod

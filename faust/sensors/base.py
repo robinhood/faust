@@ -44,7 +44,7 @@ class Sensor(SensorT, Service):
     def on_message_out(self,
                        tp: TP,
                        offset: int,
-                       message: Message = None) -> None:
+                       message: Message) -> None:
         """All streams finished processing message."""
         ...
 
@@ -122,7 +122,7 @@ class SensorDelegate(SensorDelegateT):
     def on_message_out(self,
                        tp: TP,
                        offset: int,
-                       message: Message = None) -> None:
+                       message: Message) -> None:
         for sensor in self._sensors:
             sensor.on_message_out(tp, offset, message)
 

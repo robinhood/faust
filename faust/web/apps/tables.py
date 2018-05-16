@@ -1,5 +1,5 @@
 """HTTP endpoint showing partition routing destinations."""
-from typing import Any, Mapping, Tuple
+from typing import Any, Mapping, Optional, Tuple, cast
 from faust import web
 from faust.app.router import SameNode
 from faust.models import Record
@@ -19,15 +19,18 @@ class TableView(web.View):
     def table_json(self, table: TableT, **kwargs: Any) -> Mapping:
         return TableInfo(table.name, table.help).asdict()
 
-    def get_table(self, name: str) -> Tuple[TableT, web.Response]:
+    def get_table(self, name: str) -> Tuple[TableT,
+                                            Optional[web.Response]]:
         try:
             return self.app.tables[name], None
         except KeyError:
-            return None, self.notfound('unknown table', name=name)
+            return (cast(TableT, None),
+                    self.notfound('unknown table', name=name))
 
-    def get_table_value(self,
-                        table: TableT,
-                        key: K) -> Tuple[Any, web.Response]:
+    def get_table_value(
+            self,
+            table: TableT,
+            key: K) -> Tuple[Optional[Any], Optional[web.Response]]:
         try:
             return table[key], None
         except KeyError:

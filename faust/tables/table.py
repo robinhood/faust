@@ -60,16 +60,24 @@ class Table(TableT, Collection, ManagedUserDict):
     def on_key_set(self, key: Any, value: Any) -> None:
         self._send_changelog(key, value)
         event = current_event()
-        partition = event.message.partition
-        self._maybe_set_key_ttl(key, partition)
-        self._sensor_on_set(self, key, value)
+        if event is not None:
+            partition = event.message.partition
+            self._maybe_set_key_ttl(key, partition)
+            self._sensor_on_set(self, key, value)
+        else:
+            raise TypeError(
+                'Setting table key from outside of stream iteration')
 
     def on_key_del(self, key: Any) -> None:
         self._send_changelog(key, value=None, value_serializer='raw')
         event = current_event()
-        partition = event.message.partition
-        self._maybe_del_key_ttl(key, partition)
-        self._sensor_on_del(self, key)
+        if event is not None:
+            partition = event.message.partition
+            self._maybe_del_key_ttl(key, partition)
+            self._sensor_on_del(self, key)
+        else:
+            raise TypeError(
+                'Deleting table key from outside of stream iteration')
 
     def as_ansitable(self,
                      *,

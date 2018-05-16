@@ -1,7 +1,7 @@
 """Tables (changelog stream)."""
 import asyncio
 from collections import defaultdict
-from typing import Any, List, MutableMapping, Set, cast
+from typing import Any, List, MutableMapping, Optional, Set, cast
 
 from mode import Service
 from mode.utils.aiter import aiter
@@ -39,9 +39,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _changelogs: MutableMapping[str, CollectionT]
     _table_offsets: Counter[TP]
     _standbys: MutableMapping[CollectionT, ChangelogReaderT]
-    _revivers: List[ChangelogReaderT] = None
-    _ongoing_recovery: asyncio.Future = None
-    _stop_recovery: asyncio.Event = None
+    _revivers: Optional[List[ChangelogReaderT]] = None
+    _ongoing_recovery: Optional[asyncio.Future] = None
     _recovery_started: asyncio.Event
     recovery_completed: asyncio.Event
 

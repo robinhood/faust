@@ -317,7 +317,9 @@ class Model(ModelT):
 
 
 def _is_concrete_model(typ: Type = None) -> bool:
-    return (inspect.isclass(typ) and issubclass(typ, ModelT) and
+    return (typ is not None and
+            inspect.isclass(typ) and
+            issubclass(typ, ModelT) and
             typ is not ModelT and
             not getattr(typ, '__is_abstract__', False))
 
@@ -377,7 +379,7 @@ class FieldDescriptor(FieldDescriptorT):
         self._copy_descriptors(self.type)
 
     def _copy_descriptors(self, typ: Type = None) -> None:
-        if _is_concrete_model(typ):
+        if typ is not None and _is_concrete_model(typ):
             typ._contribute_field_descriptors(self, typ._options, parent=self)
 
     def __get__(self, instance: Any, owner: Type) -> Any:
@@ -392,7 +394,7 @@ class FieldDescriptor(FieldDescriptorT):
         return attrgetter('.'.join(reversed(list(self._parents_path()))))(obj)
 
     def _parents_path(self) -> Iterable[str]:
-        node: FieldDescriptorT = self
+        node: Optional[FieldDescriptorT] = self
         while node:
             yield node.field
             node = node.parent

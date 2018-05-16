@@ -52,19 +52,24 @@ __all__ = [
 RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
-RelativeArg = Union[FieldDescriptorT, RelativeHandler, datetime, float]
+RelativeArg = Optional[Union[
+    FieldDescriptorT,
+    RelativeHandler,
+    datetime,
+    float,
+]]
 
 
 class CollectionT(ServiceT, JoinableT):
-    StateStore: ClassVar[Type[StoreT]] = None
+    StateStore: ClassVar[Optional[Type[StoreT]]] = None
 
     app: AppT
     name: str
     default: Any  # noqa: E704
-    key_type: ModelArg
-    value_type: ModelArg
-    partitions: int
-    window: WindowT = None
+    key_type: Optional[ModelArg]
+    value_type: Optional[ModelArg]
+    partitions: Optional[int]
+    window: Optional[WindowT]
     help: str
     recovery_buffer_size: int
     standby_buffer_size: int
@@ -158,11 +163,11 @@ class TableT(CollectionT, MutableMapping):
     @abc.abstractmethod
     def as_ansitable(self,
                      *,
-                     key: str = None,
-                     value: str = None,
+                     key: str = 'Key',
+                     value: str = 'Value',
                      sort: bool = False,
-                     sortkey: Callable[[Any], Any] = None,
-                     title: str = None) -> str:
+                     sortkey: Callable[[Any], Any] = lambda x: x,
+                     title: str = 'Title') -> str:
         ...
 
 
@@ -203,7 +208,7 @@ class ChangelogReaderT(ServiceT):
 class WindowSetT(MutableMapping):
     key: Any
     table: TableT
-    event: EventT = None
+    event: Optional[EventT]
 
     @abc.abstractmethod
     def __init__(self,
@@ -323,7 +328,7 @@ class WindowWrapperT(MutableMapping):
         ...
 
     @property
-    def get_relative_timestamp(self) -> RelativeHandler:
+    def get_relative_timestamp(self) -> Optional[RelativeHandler]:
         ...
 
     @get_relative_timestamp.setter

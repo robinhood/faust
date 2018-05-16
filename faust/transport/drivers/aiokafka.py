@@ -82,7 +82,7 @@ def _ensure_TP(tp: _TPTypes) -> TP:
 
 class _TopicBuffer(Iterator):
     _buffers: Dict[TP, Iterator[ConsumerRecord]]
-    _it = Iterator[ConsumerRecord]
+    _it: Optional[Iterator[ConsumerRecord]]
 
     def __init__(self) -> None:
         # note: this is a regular dict, but ordered on Python 3.6
@@ -90,7 +90,7 @@ class _TopicBuffer(Iterator):
         self._buffers = OrderedDict()
         # getmany calls next(_TopicBuffer), and does not call iter(),
         # so the first call to next caches an iterator.
-        self._it: Iterator[ConsumerRecord] = None
+        self._it = None
 
     def add(self, tp: TP, buffer: List[ConsumerRecord]) -> None:
         assert tp not in self._buffers
@@ -114,10 +114,12 @@ class _TopicBuffer(Iterator):
                 yield tp, item
 
     def __next__(self) -> Tuple[TP, ConsumerRecord]:
+        # Note: this method is not in normal iteration
+        # as __iter__ returns generator.
         it = self._it
         if it is None:
-            it = self._it = iter(self)  # type: ignore
-        return it.__next__()  # type: ignore
+            it = self._it = iter(self)
+        return it.__next__()
 
 
 class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
@@ -133,7 +135,8 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         consumer = cast(Consumer, self.consumer)
         _revoked = cast(Set[TP], set(revoked))
         # remove revoked partitions from active + paused tps.
-        consumer._active_partitions.difference_update(_revoked)
+        if consumer._active_partitions is not None:
+            consumer._active_partitions.difference_update(_revoked)
         consumer._paused_partitions.difference_update(_revoked)
         # start callback chain of assigned callbacks.
         await consumer.on_partitions_revoked(set(_revoked))
@@ -172,9 +175,9 @@ class Consumer(base.Consumer):
 
     _consumer: aiokafka.AIOKafkaConsumer
     _rebalance_listener: ConsumerRebalanceListener
-    _active_partitions: Set[_TopicPartition] = None
-    _paused_partitions: Set[_TopicPartition] = None
-    _partitions_lock: asyncio.Lock = None
+    _active_partitions: Optional[Set[_TopicPartition]]
+    _paused_partitions: Set[_TopicPartition]
+    _partitions_lock: asyncio.Lock
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -190,6 +193,7 @@ class Consumer(base.Consumer):
             self._consumer = self._create_client_consumer(app, transport)
         else:
             self._consumer = self._create_worker_consumer(app, transport)
+        self._active_partitions = None
         self._paused_partitions = set()
         self._partitions_lock = asyncio.Lock(loop=self.loop)
 

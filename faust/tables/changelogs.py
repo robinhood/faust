@@ -37,8 +37,8 @@ class ChangelogReader(Service, ChangelogReaderT):
     wait_for_shutdown = True
     shutdown_timeout = None
 
-    _highwaters: Counter[TP] = None
-    _stop_event: asyncio.Event = None
+    _highwaters: Counter[TP]
+    _stop_event: asyncio.Event
 
     def __init__(self,
                  table: CollectionT,

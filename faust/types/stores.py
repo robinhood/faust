@@ -34,8 +34,8 @@ class StoreT(ServiceT, MutableMapping):
     url: URL
     app: AppT
     table_name: str
-    key_type: ModelArg
-    value_type: ModelArg
+    key_type: Optional[ModelArg]
+    value_type: Optional[ModelArg]
     key_serializer: CodecArg
     value_serializer: CodecArg
 

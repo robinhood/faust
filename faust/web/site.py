@@ -43,10 +43,11 @@ class Website(Service):
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app = app
-        self.port = port
-        self.bind = bind
+        self.port = port or 6066
+        self.bind = bind or 'localhost'
         self.init_driver(driver, **kwargs)
-        self.init_pages(extra_pages)
+        if extra_pages:
+            self.init_pages(extra_pages)
         self.add_dependency(self.web)
 
     def init_driver(self, driver: Union[Type[Web], str],
