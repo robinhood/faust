@@ -124,7 +124,6 @@ Transports
     faust.transport.producer
     faust.transport.drivers
     faust.transport.drivers.aiokafka
-    faust.transport.drivers.ckafka
     faust.transport.drivers.memory
 
 Assignor
@@ -214,6 +213,7 @@ CLI
 
     faust.cli.agents
     faust.cli.base
+    faust.cli.completion
     faust.cli.faust
     faust.cli.model
     faust.cli.models

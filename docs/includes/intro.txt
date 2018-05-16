@@ -97,14 +97,15 @@ syntax to describe how keys and values in streams are serialized:
         account_id: str
         product_id: str
         price: float
-        amount: float = 1.0
+        quantity: float = 1.0
 
     orders_topic = app.topic('orders', key_type=str, value_type=Order)
 
     @app.agent(orders_topic)
     async def process_order(orders):
         async for order in orders:
-            total_price = order.price * order.amount
+            # process each order using regular Python
+            total_price = order.price * order.quantity
             await send_order_received_email(order.account_id, order)
 
 Faust is statically typed, using the :pypi:`mypy` type checker,

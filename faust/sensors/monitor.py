@@ -29,7 +29,9 @@ class TableState(KeywordReduce):
     """Represents the current state of a table."""
 
     #: The table this object records statistics for.
-    table: CollectionT
+    # the attribute here cannot be None, but need to exist on the
+    # class so that Sphinx finds it, so we cast the None to its type.
+    table: CollectionT = cast(CollectionT, None)
 
     #: Number of times a key has been retrieved from this table.
     keys_retrieved: int = 0
@@ -79,7 +81,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     max_send_latency_history: int = 0
 
     #: Mapping of tables
-    tables: MutableMapping[str, TableState]
+    tables: MutableMapping[str, TableState] = cast(
+        MutableMapping[str, TableState], None)
 
     #: Number of messages currently being processed.
     messages_active: int = 0
@@ -88,7 +91,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     messages_received_total: int = 0
 
     #: Count of messages received by topic
-    messages_received_by_topic: Counter[str]
+    messages_received_by_topic: Counter[str] = cast(Counter[str], None)
 
     #: Number of messages being processed this second.
     messages_s: int = 0
@@ -97,7 +100,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     messages_sent: int = 0
 
     #: Number of messages sent by topic.
-    messages_sent_by_topic: Counter[str]
+    messages_sent_by_topic: Counter[str] = cast(Counter[str], None)
 
     #: Number of events currently being processed.
     events_active: int = 0
@@ -109,25 +112,25 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     events_s: int = 0
 
     #: Count of events processed by stream
-    events_by_stream: Counter[str]
+    events_by_stream: Counter[str] = cast(Counter[str], None)
 
     #: Count of events processed by task
-    events_by_task: Counter[str]
+    events_by_task: Counter[str] = cast(Counter[str], None)
 
     #: Average event runtime over the last second.
     events_runtime_avg: float = 0.0
 
     #: List of run times used for averages
-    events_runtime: List[float]
+    events_runtime: List[float] = cast(List[float], None)
 
     #: List of commit latency values
-    commit_latency: List[float]
+    commit_latency: List[float] = cast(List[float], None)
 
     #: List of send latency values
-    send_latency: List[float]
+    send_latency: List[float] = cast(List[float], None)
 
     #: Counter of times a topics buffer was full
-    topic_buffer_full: Counter[TopicT]
+    topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
 
     def __init__(self,
                  *,

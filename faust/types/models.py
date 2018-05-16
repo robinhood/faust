@@ -10,6 +10,7 @@ from typing import (
     Optional,
     Type,
     Union,
+    cast,
 )
 from .codecs import CodecArg
 
@@ -56,34 +57,45 @@ class ModelOptions(abc.ABC):
     allow_blessed_key: bool = False
     isodates: bool = False
 
+    # If we set `attr = None` mypy will think the values can be None
+    # on the instance, but if we don't set it Sphinx will find
+    # that the attributes don't exist on the class.
+    # Very annoying - we could set .e.g `fields = {}` instead of None,
+    # but then we might accidentally forget to initialize it,
+    # so seems safer for it to be None.
+
     #: Index: Flattened view of __annotations__ in MRO order.
-    fields: Mapping[str, Type]
+    fields: Mapping[str, Type] = cast(Mapping[str, Type], None)
 
     #: Index: Set of required field names, for fast argument checking.
-    fieldset: FrozenSet[str]
+    fieldset: FrozenSet[str] = cast(FrozenSet[str], None)
 
     #: Index: Positional argument index to field name.
     #: Used by Record.__init__ to map positional arguments to fields.
-    fieldpos: Mapping[int, str]
+    fieldpos: Mapping[int, str] = cast(Mapping[int, str], None)
 
     #: Index: Set of optional field names, for fast argument checking.
-    optionalset: FrozenSet[str]
+    optionalset: FrozenSet[str] = cast(FrozenSet[str], None)
 
     #: Index: Mapping of fields that are ModelT
-    models: Mapping[str, Type['ModelT']]
+    models: Mapping[str, Type['ModelT']] = cast(
+        Mapping[str, Type['ModelT']], None)
 
     # Index: Set of field names that are ModelT and there concrete type
-    modelattrs: Mapping[str, Optional[Type]]
+    modelattrs: Mapping[str, Optional[Type]] = cast(
+        Mapping[str, Optional[Type]], None)
 
     #: Index: Mapping of fields that are not builtin-types.
     #: E.g. datetime.
-    converse: Mapping[str, Converter]
+    converse: Mapping[str, Converter] = cast(Mapping[str, Converter], None)
 
     #: Mapping of field names to default value.
-    defaults: Mapping[str, Any]  # noqa: E704 (flake8 bug)
+    defaults: Mapping[str, Any] = cast(  # noqa: E704 (flake8 bug)
+        Mapping[str, Any], None)
 
     #: Mapping of init field conversion callbacks.
-    initfield: Mapping[str, Callable[[Any], Any]]
+    initfield: Mapping[str, Callable[[Any], Any]] = cast(
+        Mapping[str, Callable[[Any], Any]], None)
 
 
 base = abc.ABC if abc_compatible_with_init_subclass else object

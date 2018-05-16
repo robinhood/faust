@@ -1,11 +1,11 @@
 =====================================================
- ``faust.transport.drivers.ckafka``
+ ``faust.cli.completion``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.transport.drivers.ckafka
+.. currentmodule:: faust.cli.completion
 
-.. automodule:: faust.transport.drivers.ckafka
+.. automodule:: faust.cli.completion
     :members:
     :undoc-members:
