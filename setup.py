@@ -33,29 +33,6 @@ from pathlib import Path  # noqa
 
 README = Path('README.rst')
 
-# -*- Classifiers -*-
-
-classes = """
-    Development Status :: 5 - Production/Stable
-    License :: OSI Approved :: BSD License
-    Programming Language :: Python
-    Programming Language :: Python :: 3 :: Only
-    Programming Language :: Python :: 3.6
-    Programming Language :: Python :: Implementation :: CPython
-    Programming Language :: Python :: Implementation :: PyPy
-    Programming Language :: Python :: Implementation :: Jython
-    Operating System :: POSIX
-    Operating System :: POSIX :: Linux
-    Operating System :: MacOS :: MacOS X
-    Operating System :: POSIX :: BSD
-    Operating System :: Microsoft :: Windows
-    Framework :: AsyncIO
-    Topic :: System :: Networking
-    Topic :: System :: Distributed Computing
-    Topic :: Software Development :: Object Brokering
-"""
-classifiers = [s.strip() for s in classes.split('\n') if s]
-
 # -*- Distribution Meta -*-
 
 re_meta = re.compile(r'__(\w+?)__\s*=\s*(.*)')
@@ -107,6 +84,7 @@ def _reqs(*f):
 def reqs(*f):
     return [req for subreq in _reqs(*f) for req in subreq]
 
+
 def extras(*p):
     """Parse requirement in the requirements/extras/ directory."""
     return reqs('extras', *p)
@@ -143,7 +121,9 @@ setup(
     url=meta['homepage'],
     platforms=['any'],
     license='BSD',
-    packages=find_packages(exclude=['ez_setup', 'tests', 'tests.*']),
+    packages=find_packages(exclude=['ez_setup', 't', 't.*']),
+    # PEP-561: https://www.python.org/dev/peps/pep-0561/
+    package_data={'mode': ['py.typed']},
     include_package_data=True,
     python_requires='>=3.6.0',
     keywords=[
@@ -158,11 +138,15 @@ setup(
     install_requires=install_requires,
     tests_require=reqs('test.txt'),
     extras_require=extras_require(),
-    classifiers=classifiers,
     long_description=long_description,
     entry_points={
         'console_scripts': [
             'faust = faust.cli.faust:cli',
         ],
+    },
+    project_urls={
+        'Bug Reports': 'https://github.com/robinhood/faust/issues',
+        'Source': 'https://github.com/robinhood/faust',
+        'Documentation': 'http://docs.fauststream.com',
     },
 )

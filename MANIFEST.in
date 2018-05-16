@@ -10,7 +10,7 @@ recursive-include artwork *
 recursive-include docs *
 recursive-include extra/*
 recursive-include examples *
-recursive-include faust *.py *.html
+recursive-include faust *.py *.html *.typed
 recursive-include requirements *.txt *.rst
 recursive-include t *.py
 
