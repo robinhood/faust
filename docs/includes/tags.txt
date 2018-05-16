@@ -1,4 +1,4 @@
-:Version: 1.0.7
+:Version: 1.0.10
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/robinhood/faust

@@ -12,6 +12,24 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.8:
+
+1.0.8
+=====
+:release-date: 2018-05-15 11:00 A.M PDT
+:release-by: Vineet Goel
+
+- **Tables**
+
+    + Fixes bug due to which we were serializing ``None`` values while
+      recording a key delete to the changelog. This was causing the deleted
+      keys to never be deleted from the changelog.
+    + We were earlier not persisting offsets of messages read during
+      changelog reading (or standby recovery). This would cause longer recovery
+      imes if recovery was ever interrupted.
+
+- **App**: Added flight recorder for consumer group rebalances for debugging.
+
 .. _version-1.0.7:
 
 1.0.7

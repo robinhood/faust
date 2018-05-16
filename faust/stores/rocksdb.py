@@ -177,7 +177,13 @@ class Store(base.SerializedStore):
                               to_value: Callable[[Any], Any]) -> None:
         batches: DefaultDict[int, rocksdb.WriteBatch]
         batches = defaultdict(rocksdb.WriteBatch)
+        tp_offsets = {}
         for event in batch:
+            tp, offset = event.message.tp, event.message.offset
+            tp_offsets[tp] = (
+                offset if tp not in tp_offsets
+                else max(offset, tp_offsets[tp])
+            )
             msg = event.message
             if msg.value is None:
                 batches[msg.partition].delete(msg.key)
@@ -186,6 +192,9 @@ class Store(base.SerializedStore):
 
         for partition, batch in batches.items():
             self._db_for_partition(partition).write(batch)
+
+        for tp, offset in tp_offsets.items():
+            self.set_persisted_offset(tp, offset)
 
     def _set(self, key: bytes, value: Optional[bytes]) -> None:
         event = current_event()

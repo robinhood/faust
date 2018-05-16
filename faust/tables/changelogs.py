@@ -88,7 +88,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         self.log.info('Highwater for changelog partitions:\n%s', table)
 
     def _should_stop_reading(self) -> bool:
-        return self._highwaters == self.offsets
+        return not self._remaining_total()
 
     def _remaining(self) -> Counter[TP]:
         return self._highwaters - self.offsets
@@ -215,7 +215,6 @@ class ChangelogReader(Service, ChangelogReaderT):
                 elif not remaining and can_log_done:
                     can_log_done = False
                     self.log.info('All up to date')
-                    break
         except StopAsyncIteration:
             self.log.info('Got stop iteration')
             pass
