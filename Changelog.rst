@@ -12,6 +12,25 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.9:
+
+1.0.9
+=====
+:release-date:
+:release-by:
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.13.0 <mode:version-1.13.0>`.
+
+- Mode now registers as a library having static type annotations.
+
+    This conforms to :pep:`561` -- a new specification that defines
+    how Python libraries register type stubs to make them available
+    for use with static analyzers like :pypi:`mypy` and :pypi:`pyre-check`.
+
+- **Typing**: Faust codebase now passes ``--strict-optional``.
+
 .. _version-1.0.8:
 
 1.0.8
@@ -26,7 +45,7 @@ please visit the :ref:`history` section.
       keys to never be deleted from the changelog.
     + We were earlier not persisting offsets of messages read during
       changelog reading (or standby recovery). This would cause longer recovery
-      imes if recovery was ever interrupted.
+      times if recovery was ever interrupted.
 
 - **App**: Added flight recorder for consumer group rebalances for debugging.
 
