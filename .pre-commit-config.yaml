@@ -9,6 +9,6 @@ repos:
       python_version: python3.6
     - id: mypy
       name: mypy
-      entry: mypy
+      entry: mypy --disallow-subclassing-any=False --warn-return-any=False
       language: system
       files: ^faust.+?\.py$
