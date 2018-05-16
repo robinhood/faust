@@ -7,8 +7,3 @@ repos:
       language: system
       files: .*\.py$
       python_version: python3.6
-    - id: mypy
-      name: mypy
-      entry: mypy --allow-subclassing-any --no-warn-return-any --allow-any-decorated
-      language: system
-      files: ^faust.+?\.py$
