@@ -105,6 +105,12 @@ BROKER_COMMIT_EVERY = 10_000
 #: Used as the default value for :setting:`broker_commit_interval`.
 BROKER_COMMIT_INTERVAL = 2.8
 
+#: Kafka consumer session timeout (``session_timeout_ms``).
+BROKER_SESSION_TIMEOUT = 60.0
+
+#: Kafka consumer heartbeat (``heartbeat_interval_ms``).
+BROKER_HEARTBEAT_INTERVAL = 6.0
+
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
 BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
@@ -180,7 +186,7 @@ class Settings(abc.ABC):
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
-    origin: Optional[str]
+    origin: Optional[str] = None
     key_serializer: CodecArg = 'json'
     value_serializer: CodecArg = 'json'
     reply_to: str
@@ -211,6 +217,8 @@ class Settings(abc.ABC):
     _datadir: Path
     _tabledir: Path
     _agent_supervisor: Type[SupervisorStrategyT]
+    _broker_session_timeout: float = BROKER_SESSION_TIMEOUT
+    _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
@@ -245,6 +253,8 @@ class Settings(abc.ABC):
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
+            broker_session_timeout: Seconds = None,
+            broker_heartbeat_interval: Seconds = None,
             broker_check_crcs: bool = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
@@ -295,8 +305,8 @@ class Settings(abc.ABC):
         self.id_format = id_format if id_format is not None else self.id_format
         self.origin = origin if origin is not None else self.origin
         self.id = id
-        self.broker = url or broker or self._broker or BROKER_URL
-        self.store = store or self._store or STORE_URL
+        self.broker = url or broker or BROKER_URL
+        self.store = store or STORE_URL
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
@@ -310,6 +320,11 @@ class Settings(abc.ABC):
         self.broker_commit_livelock_soft_timeout = (
             broker_commit_livelock_soft_timeout or
             self._broker_commit_livelock_soft_timeout)
+        if broker_session_timeout is not None:
+            self.broker_session_timeout = want_seconds(broker_session_timeout)
+        if broker_heartbeat_interval is not None:
+            self.broker_heartbeat_interval = want_seconds(
+                broker_heartbeat_interval)
         self.table_cleanup_interval = (
             table_cleanup_interval or self._table_cleanup_interval)
 
@@ -464,6 +479,22 @@ class Settings(abc.ABC):
     @tabledir.setter
     def tabledir(self, tabledir: Union[Path, str]) -> None:
         self._tabledir = self.prepare_tabledir(tabledir)
+
+    @property
+    def broker_session_timeout(self) -> float:
+        return self._broker_session_timeout
+
+    @broker_session_timeout.setter
+    def broker_session_timeout(self, value: Seconds) -> None:
+        self._broker_session_timeout = want_seconds(value)
+
+    @property
+    def broker_heartbeat_interval(self) -> float:
+        return self._broker_heartbeat_interval
+
+    @broker_heartbeat_interval.setter
+    def broker_heartbeat_interval(self, value: Seconds) -> None:
+        self._broker_heartbeat_interval = want_seconds(value)
 
     @property
     def broker_commit_interval(self) -> float:

@@ -217,11 +217,12 @@ class Consumer(base.Consumer):
             self,
             app: AppT,
             transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
+        conf = app.conf
         self._assignor = self.app.assignor
         return aiokafka.AIOKafkaConsumer(
             loop=self.loop,
-            client_id=app.conf.broker_client_id,
-            group_id=app.conf.id,
+            client_id=conf.broker_client_id,
+            group_id=conf.id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             partition_assignment_strategy=[self._assignor],
@@ -230,7 +231,9 @@ class Consumer(base.Consumer):
             max_poll_records=None,
             max_partition_fetch_bytes=1048576 * 4,
             fetch_max_wait_ms=1500,
-            check_crcs=app.conf.broker_check_crcs,
+            check_crcs=conf.broker_check_crcs,
+            session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
+            heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
         )
 
     def _create_client_consumer(

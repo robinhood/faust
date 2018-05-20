@@ -30,6 +30,9 @@ class test_settings:
         assert conf.datadir == conf.prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
+        assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
+        assert (conf.broker_heartbeat_interval ==
+                settings.BROKER_HEARTBEAT_INTERVAL)
         assert conf.broker_commit_interval == settings.BROKER_COMMIT_INTERVAL
         assert conf.broker_commit_every == settings.BROKER_COMMIT_EVERY
         assert (conf.broker_commit_livelock_soft_timeout ==
@@ -52,7 +55,7 @@ class test_settings:
         assert conf.table_standby_replicas == 1
         assert conf.topic_replication_factor == 1
         assert conf.topic_partitions == 8
-        assert conf.loghandlers is None
+        assert conf.loghandlers == []
         assert conf.version == 1
         assert conf.canonical_url is None
         assert conf.worker_redirect_stdouts
@@ -111,6 +114,8 @@ class test_settings:
                                  broker_client_id='client id',
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
+                                 broker_heartbeat_interval=101.13,
+                                 broker_session_timeout=30303.30,
                                  broker_commit_every=202,
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
@@ -142,6 +147,8 @@ class test_settings:
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
+            broker_session_timeout=broker_session_timeout,
+            broker_heartbeat_interval=broker_heartbeat_interval,
             broker_commit_every=broker_commit_every,
             broker_commit_interval=broker_commit_interval,
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
@@ -173,6 +180,8 @@ class test_settings:
             assert conf.tabledir == Path(str(tabledir))
         else:
             assert conf.tabledir.relative_to(conf.appdir) == Path(tabledir)
+        assert conf.broker_heartbeat_interval == broker_heartbeat_interval
+        assert conf.broker_session_timeout == broker_session_timeout
         assert conf.broker_commit_every == broker_commit_every
         assert conf.broker_commit_interval == broker_commit_interval
         assert (conf.broker_commit_livelock_soft_timeout ==
