@@ -986,6 +986,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 return {}
         return force_mapping(source)
 
+    @cached_property
+    def _service(self) -> ServiceT:
+        # We subclass from ServiceProxy and this delegates any ServiceT
+        # feature to this service (e.g. ``app.start()`` calls
+        # ``app._service.start()``.  See comment in ServiceProxy.
+        return AppService(self)
+
     @property
     def conf(self) -> Settings:
         if not self.finalized:
@@ -1025,13 +1032,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self._transport = transport
 
     @cached_property
-    def _service(self) -> ServiceT:
-        # We subclass from ServiceProxy and this delegates any ServiceT
-        # feature to this service (e.g. ``app.start()`` calls
-        # ``app._service.start()``.  See comment in ServiceProxy.
-        return AppService(self)
-
-    @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
         TableManager = (self.conf.TableManager if self.finalized else
@@ -1044,10 +1044,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @cached_property
     def topics(self) -> ConductorT:
-        """Topic manager.
+        """Topic Conductor.
 
         This is the mediator that moves messages fetched by the Consumer
-        into the correct Topic instances.
+        into the streams.
 
         It's also a set of registered topics by string topic name, so you
         can check if a topic is being consumed from by doing
@@ -1057,6 +1057,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @property
     def monitor(self) -> Monitor:
+        """Monitor keeps stats about what's going on inside the worker."""
         if self._monitor is None:
             self._monitor = cast(Monitor,
                                  self.conf.Monitor(
@@ -1069,32 +1070,36 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @cached_property
     def _fetcher(self) -> ServiceT:
+        """Fetcher helps Kafka Consumer retrieve records in topics."""
         return self.transport.Fetcher(self, loop=self.loop, beacon=self.beacon)
 
     @cached_property
     def _reply_consumer(self) -> ReplyConsumer:
+        """Kafka Consumer that consumes agent replies."""
         return ReplyConsumer(self, loop=self.loop, beacon=self.beacon)
-
-    @property
-    def label(self) -> str:
-        return f'{self.shortlabel}: {self.conf.id}@{self.conf.broker}'
-
-    @property
-    def shortlabel(self) -> str:
-        return type(self).__name__
 
     @cached_property
     def flow_control(self) -> FlowControlEvent:
+        """Internal flow control.
+
+        This object controls flow into stream queues,
+        and can also clear all buffers.
+        """
         return FlowControlEvent(loop=self.loop)
 
     @property
     def http_client(self) -> HttpClientT:
+        """HTTP Client Session."""
         if self._http_client is None:
             self._http_client = self.conf.HttpClient()
         return self._http_client
 
     @cached_property
     def assignor(self) -> PartitionAssignorT:
+        """Partition Assignor.
+
+        Responsible for partition assignment.
+        """
         return self.conf.PartitionAssignor(
             self, replicas=self.conf.table_standby_replicas)
 
@@ -1124,10 +1129,19 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def serializers(self) -> RegistryT:
         # Serializer registry.
         # Many things such as key_serializer/value_serializer configures
-        # the serialized with a name.  The serializer registry lets you
-        # extend Faust with support for additional serialization formats.
+        # the serializer by name (e.g. "json"). The serializer registry
+        # lets you extend Faust with support for additional
+        # serialization formats.
         self.finalize()  # easiest way to autofinalize for topic.send
         return self.conf.Serializers(
             key_serializer=self.conf.key_serializer,
             value_serializer=self.conf.value_serializer,
         )
+
+    @property
+    def label(self) -> str:
+        return f'{self.shortlabel}: {self.conf.id}@{self.conf.broker}'
+
+    @property
+    def shortlabel(self) -> str:
+        return type(self).__name__
