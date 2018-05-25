@@ -90,7 +90,7 @@ class Fence(AsyncContextManager, ContextManager):
         me: asyncio.Task = asyncio.Task.current_task(loop=self.loop)
         if self._locked:
             raise self.raising(
-                'Coroutine {me} tried to break fence owned by {self.owner}')
+                f'Coroutine {me} tried to break fence owned by {self.owner}')
         self._locked = True
         self.owner = me
 

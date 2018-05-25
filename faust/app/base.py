@@ -813,12 +813,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
+                on_timeout.info('fetcher.stop()')
+                await self._fetcher.stop()
                 on_timeout.info('topics.on_partitions_revoked()')
                 await self.topics.on_partitions_revoked(revoked)
                 on_timeout.info('tables.on_partitions_revoked()')
                 await self.tables.on_partitions_revoked(revoked)
-                on_timeout.info('fetcher.stop()')
-                await self._fetcher.stop()
                 # Reset fetcher service state so that we can restart it
                 # in TableManager table recovery.
                 self._fetcher.service_reset()
