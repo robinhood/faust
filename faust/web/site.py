@@ -46,8 +46,7 @@ class Website(Service):
         self.port = port or 6066
         self.bind = bind or 'localhost'
         self.init_driver(driver, **kwargs)
-        if extra_pages:
-            self.init_pages(extra_pages)
+        self.init_pages(extra_pages or [])
         self.add_dependency(self.web)
 
     def init_driver(self, driver: Union[Type[Web], str],
@@ -64,4 +63,5 @@ class Website(Service):
         app = self.app
         pages = list(self.pages) + list(app.pages) + list(extra_pages or [])
         for prefix, page in pages:
+            print('ENABLING PAGE FOR PREFIX %r: %r' % (prefix, page))
             page(app).enable(self.web, prefix=prefix)
