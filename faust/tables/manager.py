@@ -263,24 +263,30 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 # stopped. This is expected. Ideally the revivers should stop
                 # almost immediately upon receiving a stop()
                 if self._revivers:
+                    self.log.info('Waiting for %s revivers to complete',
+                                  len(self._revivers))
                     await asyncio.wait(
                         [reviver.stop() for reviver in self._revivers])
-                self.log.info('Waiting for ongoing recovery to finish')
-                try:
+                if self._ongoing_recovery is not None:
+                    self.log.info('Waiting for ongoing recovery to finish')
                     await self.wait_for_stopped(self._ongoing_recovery)
-                except TypeError:
-                    self.log.exception(f'Ongoing recovery is not awaitable: '
-                                       f'{self._ongoing_recovery}')
-                    raise
                 self.log.info('Ongoing recovery halted')
             self._ongoing_recovery = None
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        on_timeout = self.app._on_revoked_timeout
+        on_timeout.info('+TABLES: maybe_abort_ongoing_recovery')
         await self._maybe_abort_ongoing_recovery()
+        on_timeout.info('+TABLES: STOP STANDBYS')
         await self._stop_standbys()
+        on_timeout.info(
+            f'+TABLES: call table.on_..._revoked {len(self.values())}')
         for table in self.values():
+            on_timeout.info(f'+TABLE.on_partitions_revoked(): {table!r}')
             await table.on_partitions_revoked(revoked)
+        on_timeout.info(
+            f'-TABLES: call table.on_..._revoked {len(self.values())}')
 
     @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:

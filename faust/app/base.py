@@ -200,6 +200,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # See faust/app/_attached.py
     _attachments: Attachments
 
+    _on_revoked_timeout = None
+
     def __init__(self,
                  id: str,
                  *,
@@ -808,6 +810,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         have been reassigned to a different node.
         """
         with flight_recorder(self.log, timeout=60.0) as on_timeout:
+            self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
                 on_timeout.info('topics.on_partitions_revoked()')
@@ -848,6 +851,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)
                 await self.crash(exc)
+            finally:
+                self._on_revoked_timeout = None
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
