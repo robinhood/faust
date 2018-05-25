@@ -1,10 +1,12 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
+from types import TracebackType
 from typing import (
     Any,
     AsyncIterator,
     Awaitable,
     ClassVar,
+    ContextManager,
     Dict,
     Iterable,
     Iterator,
@@ -38,7 +40,7 @@ from kafka.errors import (
     for_code,
 )
 from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
-from mode.utils.compat import OrderedDict
+from mode.utils.compat import AsyncContextManager, OrderedDict
 from mode.utils.futures import StampedeWrapper
 from yarl import URL
 
@@ -66,6 +68,54 @@ TopicIndexMap = MutableMapping[str, '_TopicBuffer']
 _TPTypes = Union[TP, _TopicPartition]
 
 logger = get_logger(__name__)
+
+
+class Fence(AsyncContextManager, ContextManager):
+    # like a mutex, but crashing if two coroutines acquire it at the same
+    # time. This makes it more of an assertion, in that we think it will
+    # NEVER happen, but if we are wrong we want it to crash.
+
+    _locked: bool = False
+    owner: Optional[asyncio.Task] = None
+    raising: Type[BaseException] = RuntimeError
+    loop: Optional[asyncio.AbstractEventLoop] = None
+
+    def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
+        self.loop = loop
+
+    def locked(self) -> bool:
+        return self._locked
+
+    def acquire(self) -> None:
+        me: asyncio.Task = asyncio.Task.current_task(loop=self.loop)
+        if self._locked:
+            raise self.raising(
+                'Coroutine {me} tried to break fence owned by {self.owner}')
+        self._locked = True
+        self.owner = me
+
+    def release(self) -> None:
+        self._locked, self.owner = False, None
+
+    async def __aenter__(self) -> 'Fence':
+        self.acquire()
+        return self
+
+    async def __aexit__(self,
+                        _exc_type: Type[BaseException] = None,
+                        _exc_val: BaseException = None,
+                        _exc_tb: TracebackType = None) -> Optional[bool]:
+        self.release()
+
+    def __enter__(self) -> 'Fence':
+        self.acquire()
+        return self
+
+    def __exit__(self,
+                 _exc_type: Type[BaseException] = None,
+                 _exc_val: BaseException = None,
+                 _exc_tb: TracebackType = None) -> Optional[bool]:
+        self.release()
 
 
 def server_list(url: URL, default_port: int) -> str:
@@ -177,7 +227,7 @@ class Consumer(base.Consumer):
     _rebalance_listener: ConsumerRebalanceListener
     _active_partitions: Optional[Set[_TopicPartition]]
     _paused_partitions: Set[_TopicPartition]
-    _partitions_lock: asyncio.Lock
+    _partitions_lock: Fence
     fetch_timeout: float = 10.0
     wait_for_shutdown = True
 
@@ -195,7 +245,7 @@ class Consumer(base.Consumer):
             self._consumer = self._create_worker_consumer(app, transport)
         self._active_partitions = None
         self._paused_partitions = set()
-        self._partitions_lock = asyncio.Lock(loop=self.loop)
+        self._partitions_lock = Fence(loop=self.loop)
 
     async def on_restart(self) -> None:
         self.on_init()
@@ -288,6 +338,7 @@ class Consumer(base.Consumer):
 
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+        # Implementation for the Fetcher service.
         _consumer = self._consumer
         fetcher = _consumer._fetcher
         if _consumer._closed or fetcher._closed:
@@ -296,7 +347,9 @@ class Consumer(base.Consumer):
         _next = next
 
         records: RecordMap = {}
-        async with self._partitions_lock:
+        # This lock is acquired by pause_partitions/resume_partitions,
+        # but those should never be called when the Fetcher is running.
+        with self._partitions_lock:
             if active_partitions:
                 # Fetch records only if active partitions to avoid the risk of
                 # fetching all partitions in the beginning when none of the
@@ -480,22 +533,16 @@ class Consumer(base.Consumer):
             return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        self.log.info(f'Waiting for lock to pause partitions')
-        async with self._partitions_lock:
-            self.log.info(f'Acquired lock to pause partitions')
+        with self._partitions_lock:
             tpset = set(tps)
             self._get_active_partitions().difference_update(tpset)
             self._paused_partitions.update(tpset)
-        self.log.info(f'Released pause partitions lock')
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        self.log.info(f'Waiting for lock to resume partitions')
-        async with self._partitions_lock:
-            self.log.info(f'Acquired lock to resume partitions')
+        with self._partitions_lock:
             tpset = set(tps)
             self._get_active_partitions().update(tps)
             self._paused_partitions.difference_update(tpset)
-        self.log.info(f'Released resume partitions lock')
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)

@@ -819,6 +819,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 await self.tables.on_partitions_revoked(revoked)
                 on_timeout.info('fetcher.stop()')
                 await self._fetcher.stop()
+                # Reset fetcher service state so that we can restart it
+                # in TableManager table recovery.
+                self._fetcher.service_reset()
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
@@ -875,9 +878,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 await self.topics.wait_for_subscriptions()
                 on_timeout.info('consumer.pause_partitions()')
                 await self.consumer.pause_partitions(assigned)
-                on_timeout.info('fetcher.restart()')
-                await self._fetcher.restart()
-                self.log.info(f'Restarted fetcher')
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
                 on_timeout.info('tables.on_partitions_assigned()')

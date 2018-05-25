@@ -106,10 +106,10 @@ BROKER_COMMIT_EVERY = 10_000
 BROKER_COMMIT_INTERVAL = 2.8
 
 #: Kafka consumer session timeout (``session_timeout_ms``).
-BROKER_SESSION_TIMEOUT = 60.0
+BROKER_SESSION_TIMEOUT = 30.0
 
 #: Kafka consumer heartbeat (``heartbeat_interval_ms``).
-BROKER_HEARTBEAT_INTERVAL = 6.0
+BROKER_HEARTBEAT_INTERVAL = 3.0
 
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.

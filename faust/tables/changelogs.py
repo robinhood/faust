@@ -64,11 +64,6 @@ class ChangelogReader(Service, ChangelogReaderT):
     def _buffer_size(self) -> int:
         return self.table.recovery_buffer_size
 
-    async def on_stop(self) -> None:
-        # Stop reading changelog
-        if not self._stop_event.is_set():
-            await self.channel.throw(StopAsyncIteration())
-
     async def _build_highwaters(self) -> None:
         consumer = self.app.consumer
         tps = self.tps
@@ -156,9 +151,7 @@ class ChangelogReader(Service, ChangelogReaderT):
                           self._remaining_stats)
             await self.sleep(self.stats_interval)
 
-    @Service.task
-    @Service.transitions_to(CHANGELOG_STARTING)
-    async def _read(self) -> None:
+    async def on_start(self) -> None:
         consumer = self.app.consumer
         await consumer.pause_partitions(self.tps)
         await self._build_highwaters()
@@ -178,6 +171,12 @@ class ChangelogReader(Service, ChangelogReaderT):
 
         await self._seek_tps()
         await consumer.resume_partitions(self.tps)
+
+    @Service.task
+    @Service.transitions_to(CHANGELOG_STARTING)
+    async def _read(self) -> None:
+        if self.should_stop or self._shutdown.is_set():
+            return
         # We don't want to log when there are zero records,
         # but we still slurp the stream so that we subscribe
         # to the changelog topic etc.
@@ -192,9 +191,18 @@ class ChangelogReader(Service, ChangelogReaderT):
         finally:
             self.diag.unset_flag(CHANGELOG_READING)
             self._done_reading()
-            assignment = self.app.consumer.assignment()
-            await self.app.consumer.pause_partitions(
-                {tp for tp in self.tps if tp in assignment})
+
+    async def on_stop(self) -> None:
+        # Pause all our topic partitions,
+        # to make sure we don't fetch any more records from them.
+        assignment = self.app.consumer.assignment()
+        await self.app.consumer.pause_partitions(
+            {tp for tp in self.tps if tp in assignment})
+
+        # Tell _read coroutine iterating over the changelog channel
+        # that they should stop iterating.
+        if not self._stop_event.is_set():
+            await self.channel.throw(StopAsyncIteration())
 
     async def _slurp_stream(self) -> None:
         buf: List[EventT] = []

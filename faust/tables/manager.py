@@ -185,6 +185,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for reviver in table_revivers:
             await reviver.start()
             self.log.info('Started restoring: %s', reviver.label)
+        await self.app._fetcher.start()
         self.log.info('Waiting for restore to finish...')
         await asyncio.gather(
             *[r.wait_done_reading() for r in table_revivers],
@@ -194,6 +195,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for reviver in table_revivers:
             self._sync_offsets(reviver)
         self.log.info('Done reading from changelog topics')
+        await self.app._fetcher.stop()
+        self.app._fetcher.service_reset()
         for reviver in table_revivers:
             await reviver.stop()
             self.log.info('Stopped restoring: %s', reviver.label)
@@ -251,6 +254,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 tp for tp in assigned
                 if not self._is_changelog_tp(tp)
             })
+            # finally start the fetcher
+            await self.app._fetcher.start()
+            self.log.info('Worker ready')
         else:
             self.log.info('Recovery interrupted')
         self._revivers = None
