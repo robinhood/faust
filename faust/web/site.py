@@ -63,5 +63,4 @@ class Website(Service):
         app = self.app
         pages = list(self.pages) + list(app.pages) + list(extra_pages or [])
         for prefix, page in pages:
-            print('ENABLING PAGE FOR PREFIX %r: %r' % (prefix, page))
             page(app).enable(self.web, prefix=prefix)
