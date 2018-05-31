@@ -12,16 +12,23 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
-.. _version-1.0.9:
+.. _version-1.0.11:
 
-1.0.9
-=====
-:release-date:
-:release-by:
+1.0.11
+======
+:release-date: 2018-05-31  16:41 P.M PDT
+:release-by: Ask Solem
 
 - **Requirements**
 
     + Now depends on :ref:`Mode 1.13.0 <mode:version-1.13.0>`.
+
+    + Now depends on :pypi:`robinhood-aiokafka`
+
+        We have forked :pypi:`aiokafka` to fix some issues.
+
+- Now handles missing topics automatically, so you don't have to restart
+  the worker the first time when topics are missing.
 
 - Mode now registers as a library having static type annotations.
 
@@ -30,6 +37,35 @@ please visit the :ref:`history` section.
     for use with static analyzers like :pypi:`mypy` and :pypi:`pyre-check`.
 
 - **Typing**: Faust codebase now passes ``--strict-optional``.
+
+- **Settings**: Added new settings
+
+    - :setting:`broker_heartbeat_interval`
+    - :setting:`broker_session_timeout`
+
+- **Aiokafka**: Removes need for consumer partitions lock: this fixes
+                rare deadlock.
+
+- **Worker**: Worker no longer hangs for few minutes when there is an error.
+
+
+.. _version-1.0.10:
+
+1.0.10
+======
+:release-date: 2018-05-15  16:02 P.M PDT
+:release-by: Vineet Goel
+
+- **Worker**: Stop reading changelog when no remaining messages.
+
+.. _version-1.0.9:
+
+1.0.9
+=====
+:release-date: 2018-05-15  15:42 P.M PDT
+:release-by: Vineet Goel
+
+- **Worker**: Do not stop reading standby updates.
 
 .. _version-1.0.8:
 
