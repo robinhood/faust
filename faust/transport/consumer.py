@@ -475,8 +475,6 @@ class Consumer(Service, ConsumerT):
             raise
         finally:
             unset_flag(flag_consumer_fetching)
-            self.set_shutdown()
-            fetcher.set_shutdown()
 
     @property
     def unacked(self) -> Set[Message]:

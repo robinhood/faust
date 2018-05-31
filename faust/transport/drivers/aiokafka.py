@@ -229,7 +229,6 @@ class Consumer(base.Consumer):
     _paused_partitions: Set[_TopicPartition]
     _partitions_lock: Fence
     fetch_timeout: float = 10.0
-    wait_for_shutdown = True
 
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = (
         ConsumerStoppedError,
@@ -471,7 +470,8 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await self.commit()
         await self._consumer.stop()
-        cast(Transport, self.transport)._topic_waiters.clear()
+        transport = cast(Transport, self.transport)
+        transport._topic_waiters.clear()
 
     async def perform_seek(self) -> None:
         await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
