@@ -468,6 +468,7 @@ class Consumer(base.Consumer):
         return OffsetAndMetadata(offset, meta)
 
     async def on_stop(self) -> None:
+        await super().on_stop()  # wait_empty
         await self.commit()
         await self._consumer.stop()
         transport = cast(Transport, self.transport)
