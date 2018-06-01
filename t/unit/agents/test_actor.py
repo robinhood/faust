@@ -19,7 +19,9 @@ class test_Actor:
 
     @pytest.fixture()
     def stream(self):
-        return Mock(name='stream')
+        stream = Mock(name='stream')
+        stream.active_partitions = None
+        return stream
 
     @pytest.fixture()
     def it(self):

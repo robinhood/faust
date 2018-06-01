@@ -44,6 +44,7 @@ class test_AppService:
         ])
         expected_components.extend(list(app.agents.values()))
         expected_components.extend([
+            app.agents,
             app.topics,
             app.tables,
             app._fetcher,

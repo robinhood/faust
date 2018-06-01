@@ -48,10 +48,12 @@ class test_AgentService:
 
     @pytest.mark.asyncio
     async def test_start_for_partitions(self, *, service):
-        service._start_one = AsyncMock(name='_start_one')
+        service._start_one_supervised = AsyncMock(name='_start_one')
+        s = service._start_one_supervised.return_value = Mock(name='service')
+        s.maybe_start = AsyncMock(name='service.maybe_start')
         tps = {TP('foo', 3)}
         await service._start_for_partitions(tps)
-        service._start_one.assert_called_once_with(None, tps)
+        service._start_one_supervised.assert_called_once_with(None, tps)
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, service):

@@ -201,7 +201,6 @@ async def test_on_partitions_assigned(assigned, *, app):
     app.agents.on_partitions_assigned.assert_called_once_with(assigned)
     app.topics.wait_for_subscriptions.assert_called_once_with()
     app.consumer.pause_partitions.assert_called_once_with(assigned)
-    app._fetcher.restart.assert_called_once_with()
     app.topics.on_partitions_assigned.assert_called_once_with(assigned)
     app.tables.on_partitions_assigned.assert_called_once_with(assigned)
     app.flow_control.resume.assert_called_once_with()
@@ -209,10 +208,7 @@ async def test_on_partitions_assigned(assigned, *, app):
         app, assigned, signal=app.on_partitions_assigned)
 
     app.log = Mock(name='log', autospec=CompositeLogger)
-    exc = app.log.info.side_effect = RuntimeError()
-    app.crash = AsyncMock(name='crash')
     await app._on_partitions_assigned(assigned)
-    app.crash.assert_called_with(exc)
 
 
 class test_App:

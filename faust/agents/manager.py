@@ -1,8 +1,8 @@
 """Agent manager."""
 from collections import defaultdict
-from typing import Any, Dict, Iterable, MutableMapping, MutableSet, Set
+from typing import Any, Dict, MutableMapping, MutableSet, Set
 from weakref import WeakSet
-from mode import Service, ServiceT
+from mode import Service
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
 from faust.types import AgentManagerT, AgentT, AppT
@@ -21,11 +21,10 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
 
-    def on_init_dependencies(self) -> Iterable[ServiceT]:
-        return self.values()
-
     async def on_start(self) -> None:
         self._update_topic_index()
+        for agent in self.values():
+            await agent.maybe_start()
 
     def _update_topic_index(self) -> None:
         # keep mapping from topic name to set of agents.
@@ -42,6 +41,10 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
         self.cancel()
         # Then stop the agents
         await super().stop()
+
+    async def on_stop(self) -> None:
+        for agent in self.values():
+            await agent.stop()
 
     def cancel(self) -> None:
         [agent.cancel() for agent in self.values()]

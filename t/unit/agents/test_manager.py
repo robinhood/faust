@@ -1,5 +1,4 @@
 import pytest
-from faust.agents import Agent
 from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
 
@@ -9,8 +8,7 @@ class test_AgentManager:
     def create_agent(self, name, topic_names=None):
         agent = Mock(
             name=name,
-            autospec=Agent,
-            start=AsyncMock(),
+            maybe_start=AsyncMock(),
             stop=AsyncMock(),
             restart=AsyncMock(),
             on_partitions_revoked=AsyncMock(),
@@ -21,7 +19,8 @@ class test_AgentManager:
 
     @pytest.fixture()
     def agents(self, *, app):
-        return app.agents
+        agents = app.agents
+        return agents
 
     @pytest.fixture()
     def agent1(self):
@@ -46,13 +45,13 @@ class test_AgentManager:
     async def test_start(self, *, many):
         await many.start()
         for agent in many.values():
-            agent.start.assert_called_once_with()
+            agent.maybe_start.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_restart(self, *, many):
         await many.restart()
         for agent in many.values():
-            agent.restart.assert_called_once_with()
+            agent.stop.assert_called_once_with()
 
     def test_service_reset(self, *, many):
         many.service_reset()
@@ -64,7 +63,6 @@ class test_AgentManager:
         await many.stop()
         for agent in many.values():
             agent.cancel.assert_called_once_with()
-            agent.stop.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, many, agent1, agent2):
