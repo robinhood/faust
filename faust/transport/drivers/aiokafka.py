@@ -597,7 +597,14 @@ class Producer(base.Producer):
             max_batch_size=self.max_batch_size,
             max_request_size=self.max_request_size,
             compression_type=self.compression_type,
+            on_irrecoverable_error=self._on_irrecoverable_error,
         )
+
+    async def _on_irrecoverable_error(self, exc: BaseException) -> None:
+        consumer = self.transport.app.consumer
+        if consumer is not None:
+            await consumer.crash(exc)
+        await self.crash(exc)
 
     async def on_restart(self) -> None:
         self.on_init()

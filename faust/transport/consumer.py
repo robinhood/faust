@@ -260,6 +260,7 @@ class Consumer(Service, ConsumerT):
                 remaining = [(m.refcount, m) for m in self._unacked_messages]
                 self.log.warn(f'Waiting for {remaining}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
+            self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
             await self.commit()
             if not self._unacked_messages:
@@ -337,7 +338,6 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_COMMITTING)
     async def force_commit(self, topics: TPorTopicSet = None) -> bool:
-        # Only one coroutine can commit at a time.
         sensor_state = self.app.sensors.on_commit_initiated(self)
 
         # Go over the ack list in each topic/partition
@@ -371,7 +371,22 @@ class Consumer(Service, ConsumerT):
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
         for tp, offset in commit_offsets.items():
-            await cast(App, self.app)._attachments.commit(tp, offset)
+            app = cast(App, self.app)
+            attachments = app._attachments
+            producer = app.producer
+            # Start publishing the messages and return a list of pending
+            # futures.
+            pending = await attachments.publish_for_tp_offset(tp, offset)
+            # then we wait for either
+            #  1) all the attached messages to be published, or
+            #  2) the producer crashing
+            #
+            # If the producer crashes we will not be able to send any messages
+            # and it only crashes when there's an irrecoverable error.
+            #
+            # If we cannot commit it means the events will be processed again,
+            # so conforms to at-least-once semantics.
+            await producer.wait_many(pending)
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''

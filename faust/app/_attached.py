@@ -123,19 +123,22 @@ class Attachments:
         return fut
 
     async def commit(self, tp: TP, offset: int) -> None:
+        await asyncio.wait(
+            await self.publish_for_tp_offset(tp, offset),
+            return_when=asyncio.ALL_COMPLETED,
+            loop=self.app.loop,
+        )
+
+    async def publish_for_tp_offset(
+            self, tp: TP, offset: int) -> List[Awaitable[RecordMetadata]]:
         # publish pending messages attached to this TP+offset
 
         # make shallow copy to allow concurrent modifications (append)
         attached = list(self._attachments_for(tp, offset))
-        if attached:
-            await asyncio.wait(
-                [
-                    await fut.message.channel.publish_message(fut, wait=False)
-                    for fut in attached
-                ],
-                return_when=asyncio.ALL_COMPLETED,
-                loop=self.app.loop,
-            )
+        return [
+            await fut.message.channel.publish_message(fut, wait=False)
+            for fut in attached
+        ]
 
     def _attachments_for(self, tp: TP,
                          commit_offset: int) -> Iterator[FutureMessage]:
