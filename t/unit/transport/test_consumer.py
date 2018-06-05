@@ -5,7 +5,8 @@ from faust.tables.manager import TableManager
 from faust.transport.consumer import Consumer, Fetcher, ProducerSendError
 from faust.transport.conductor import Conductor
 from faust.types import Message, TP
-from mode.utils.mocks import AsyncMock, Mock, call
+from mode import Service
+from mode.utils.mocks import ANY, AsyncMock, Mock, call
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -274,17 +275,23 @@ class test_Consumer:
             autospec=App,
             _attachments=Mock(
                 autospec=Attachments,
-                commit=AsyncMock(),
+                publish_for_tp_offset=AsyncMock(),
+            ),
+            producer=Mock(
+                autospec=Service,
+                wait_many=AsyncMock(),
             ),
         )
         await consumer._handle_attached({
             TP1: 3003,
             TP2: 6006,
         })
-        consumer.app._attachments.commit.coro.assert_has_calls([
+        consumer.app._attachments.publish_for_tp_offset.coro.assert_has_calls([
             call(TP1, 3003),
             call(TP2, 6006),
         ])
+
+        consumer.app.producer.wait_many.coro.assert_called_with(ANY)
 
     @pytest.mark.asyncio
     async def test_commit_offsets(self, *, consumer):
