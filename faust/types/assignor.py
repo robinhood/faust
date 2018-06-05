@@ -3,6 +3,7 @@ import typing
 from typing import List, MutableMapping, Set
 
 from mode import ServiceT
+from yarl import URL
 
 from .tuples import TP
 
@@ -48,7 +49,7 @@ class PartitionAssignorT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def key_store(self, topic: str, key: bytes) -> str:
+    def key_store(self, topic: str, key: bytes) -> URL:
         ...
 
     @abc.abstractmethod

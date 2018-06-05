@@ -458,7 +458,7 @@ class Settings(abc.ABC):
 
     @canonical_url.setter
     def canonical_url(self, canonical_url: Union[URL, str]) -> None:
-        self._canonical_url = URL(canonical_url) if canonical_url else None
+        self._canonical_url = URL(canonical_url)
 
     @property
     def datadir(self) -> Path:

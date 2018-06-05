@@ -78,10 +78,10 @@ class Fence(AsyncContextManager, ContextManager):
     _locked: bool = False
     owner: Optional[asyncio.Task] = None
     raising: Type[BaseException] = RuntimeError
-    loop: Optional[asyncio.AbstractEventLoop] = None
+    loop: asyncio.AbstractEventLoop
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
-        self.loop = loop
+        self.loop = loop or asyncio.get_event_loop()
 
     def locked(self) -> bool:
         return self._locked
@@ -104,7 +104,7 @@ class Fence(AsyncContextManager, ContextManager):
     async def __aexit__(self,
                         _exc_type: Type[BaseException] = None,
                         _exc_val: BaseException = None,
-                        _exc_tb: TracebackType = None) -> Optional[bool]:
+                        _exc_tb: TracebackType = None) -> None:
         self.release()
 
     def __enter__(self) -> 'Fence':
@@ -114,7 +114,7 @@ class Fence(AsyncContextManager, ContextManager):
     def __exit__(self,
                  _exc_type: Type[BaseException] = None,
                  _exc_val: BaseException = None,
-                 _exc_tb: TracebackType = None) -> Optional[bool]:
+                 _exc_tb: TracebackType = None) -> None:
         self.release()
 
 

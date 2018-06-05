@@ -19,7 +19,7 @@ class Router(RouterT):
         self.app = app
         self._assignor = self.app.assignor
 
-    def key_store(self, table_name: str, key: K) -> str:
+    def key_store(self, table_name: str, key: K) -> URL:
         table = self._get_table(table_name)
         topic = self._get_table_topic(table)
         k = self._get_serialized_key(table, key)
@@ -47,7 +47,7 @@ class Router(RouterT):
     async def route_req(self, table_name: str, key: K, web: Web,
                         request: Request) -> Response:
         app = self.app
-        dest_url = app.router.key_store(table_name, key)
+        dest_url: URL = app.router.key_store(table_name, key)
         dest_ident = (host, port) = self._urlident(dest_url)
         if dest_ident == self._urlident(app.conf.canonical_url):
             raise SameNode()
@@ -58,6 +58,6 @@ class Router(RouterT):
 
     def _urlident(self, url: URL) -> Tuple[str, int]:
         return (
-            url.host if url.scheme else url.path,
+            (url.host if url.scheme else url.path) or '',
             int(url.port or 80),
         )

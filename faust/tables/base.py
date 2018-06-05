@@ -56,7 +56,7 @@ TABLE_CLEANING = 'CLEANING'
 class Collection(Service, CollectionT):
     """Base class for changelog-backed data structures stored in Kafka."""
 
-    _store: URL
+    _store: Optional[URL]
     _changelog_topic: Optional[TopicT]
     _partition_timestamp_keys: MutableMapping[tuple, MutableSet]
     _partition_timestamps: MutableMapping[int, List[float]]

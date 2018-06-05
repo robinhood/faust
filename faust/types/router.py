@@ -2,6 +2,8 @@
 import abc
 import typing
 
+from yarl import URL
+
 from .assignor import HostToPartitionMap
 from .core import K
 from . import web
@@ -22,7 +24,7 @@ class RouterT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def key_store(self, table_name: str, key: K) -> str:
+    def key_store(self, table_name: str, key: K) -> URL:
         ...
 
     @abc.abstractmethod

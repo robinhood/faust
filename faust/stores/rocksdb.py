@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     DefaultDict,
+    Dict,
     Iterable,
     Iterator,
     Mapping,
@@ -177,7 +178,7 @@ class Store(base.SerializedStore):
                               to_value: Callable[[Any], Any]) -> None:
         batches: DefaultDict[int, rocksdb.WriteBatch]
         batches = defaultdict(rocksdb.WriteBatch)
-        tp_offsets = {}
+        tp_offsets: Dict[TP, int] = {}
         for event in batch:
             tp, offset = event.message.tp, event.message.offset
             tp_offsets[tp] = (
