@@ -501,10 +501,12 @@ class Consumer(base.Consumer):
             commitable: Dict[TP, OffsetAndMetadata] = {}
             revoked: Dict[TP, OffsetAndMetadata] = {}
             commitable_offsets: Dict[TP, int] = {}
-            for tp, (offset, meta) in offsets.items():
+            skew = self.app.conf.broker_commit_offset_skew
+            for tp, (raw_offset, meta) in offsets.items():
+                offset = raw_offset + skew
                 offset_and_metadata = self._new_offsetandmetadata(offset, meta)
                 if tp in assignment:
-                    commitable_offsets[tp] = offset
+                    commitable_offsets[tp] = offset + skew
                     commitable[tp] = offset_and_metadata
                 else:
                     revoked[tp] = offset_and_metadata
@@ -557,11 +559,14 @@ class Consumer(base.Consumer):
         ))
 
     async def seek(self, partition: TP, offset: int) -> None:
-        self.log.dev('SEEK %r -> %r', partition, offset)
+        given_offset = offset
+        skew = self.app.conf.broker_commit_offset_skew
+        offset = offset + skew
+        self.log.dev('SEEK %r -> %r', partition, given_offset)
         # reset livelock detection
         self._last_batch = None
         # set new read offset so we will reread messages
-        self._read_offset[_ensure_TP(partition)] = offset
+        self._read_offset[_ensure_TP(partition)] = given_offset
         self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
