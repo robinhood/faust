@@ -8,7 +8,7 @@
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 1.0.11
+:Version: 1.0.12
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/robinhood/faust
