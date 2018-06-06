@@ -57,7 +57,7 @@ class test_settings:
         assert conf.topic_partitions == 8
         assert conf.loghandlers == []
         assert conf.version == 1
-        assert conf.canonical_url is None
+        assert conf.canonical_url == URL('')
         assert conf.worker_redirect_stdouts
         assert conf.worker_redirect_stdouts_level == 'WARN'
 
