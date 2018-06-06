@@ -12,6 +12,20 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.12:
+
+1.0.12
+======
+:release-date: 2018-06-06 1:34 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.14.1 <mode:version-1.14.1>`.
+
+- **Worker**: Producer crashing no longer causes the consumer to hang
+  at shutdown while trying to publish attached messages.
+
 .. _version-1.0.11:
 
 1.0.11
