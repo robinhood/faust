@@ -16,7 +16,6 @@ Quickstart
 """
 import asyncio
 import random
-from collections import Counter
 from datetime import datetime, timezone
 from itertools import count
 import faust
@@ -31,46 +30,29 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'faust-withdrawals4',
+    'faust-withdrawals29',
     broker='kafka://127.0.0.1:9092',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=4,
-    worker_redirect_stdouts=False,
 )
-withdrawals_topic = app.topic('withdrawals99', value_type=Withdrawal)
-foo_topic = app.topic('withdrawals5', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals129', value_type=Withdrawal)
+foo_topic = app.topic('withdrawalz129', value_type=Withdrawal)
 
-counts = Counter()
-previous_count = None
+withdrawal_counts = app.Table('withdrawal-counts', default=int)
 
 
 @app.agent(withdrawals_topic, isolated_partitions=True)
 async def track_user_withdrawal(withdrawals):
     i = 0
     async for _withdrawal in withdrawals:  # noqa
+        print(_withdrawal)
         event = withdrawals.current_event
         assert event.message.tp in withdrawals.active_partitions
-        print('GOT WITHDRAWAL FOR %r' % (event.message.tp,))
         i += 1
-        counts[event.message.tp] += 1
-        if not i % 2:
-            print('RAISING FOR PARTITION: %r' % (
-                withdrawals.active_partitions,))
+        withdrawal_counts[_withdrawal.user] += 1
+        if not i % 3:
             raise KeyError('OH NO')
-
-
-@app.timer(3.0)
-async def verify():
-    global previous_count
-    if previous_count is None:
-        previous_count = Counter()
-        previous_count.update(counts)
-    else:
-        from pprint import pprint
-        pprint(dict(counts))
-        from time import sleep
-        sleep(2)
 
 
 @app.command(
