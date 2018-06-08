@@ -103,6 +103,7 @@ class Fetcher(Service):
     app: AppT
 
     logger = logger
+    wait_for_shutdown = True
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
@@ -110,7 +111,10 @@ class Fetcher(Service):
 
     @Service.task
     async def _fetcher(self) -> None:
-        await cast(Consumer, self.app.consumer)._drain_messages(self)
+        try:
+            await cast(Consumer, self.app.consumer)._drain_messages(self)
+        finally:
+            self.set_shutdown()
 
 
 class Consumer(Service, ConsumerT):
