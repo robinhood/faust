@@ -178,7 +178,6 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.events_runtime = [] if events_runtime is None else events_runtime
         self.topic_buffer_full = Counter()
         self.time: Callable[[], float] = monotonic
-        Service.__init__(self, **kwargs)
 
     def asdict(self) -> Mapping:
         return {
