@@ -816,10 +816,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 self.log.dev('ON PARTITIONS REVOKED')
                 on_timeout.info('fetcher.stop()')
                 await self._fetcher.stop()
-                on_timeout.info('topics.on_partitions_revoked()')
-                await self.topics.on_partitions_revoked(revoked)
-                on_timeout.info('tables.on_partitions_revoked()')
-                await self.tables.on_partitions_revoked(revoked)
                 # Reset fetcher service state so that we can restart it
                 # in TableManager table recovery.
                 self._fetcher.service_reset()
@@ -849,6 +845,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     await self.agents.on_partitions_revoked(revoked)
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
+                on_timeout.info('topics.on_partitions_revoked()')
+                await self.topics.on_partitions_revoked(revoked)
+                on_timeout.info('tables.on_partitions_revoked()')
+                await self.tables.on_partitions_revoked(revoked)
                 on_timeout.info('+send signal: on_partitions_revoked')
                 await self.on_partitions_revoked.send(revoked)
                 on_timeout.info('-send signal: on_partitions_revoked')
