@@ -127,7 +127,7 @@ resource for learning the implementation of `Kafka Streams`_.
 **or go directly to the** :ref:`quickstart` **tutorial**
     to see Faust in action by programming a streaming application.
 
-**then explore the** :ref:`User Guide <guide>
+**then explore the** :ref:`User Guide <guide>`
     for in-depth information organized by topic.
 
 .. _`Robinhood`: http://robinhood.com
