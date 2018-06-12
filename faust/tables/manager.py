@@ -171,6 +171,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._update_channels()
 
     async def on_stop(self) -> None:
+        await self.app._fetcher.stop()
         await self._maybe_abort_ongoing_recovery()
         await self._stop_standbys()
         for table in self.values():
