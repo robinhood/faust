@@ -102,8 +102,6 @@ class AppService(Service):
                 [self.app.topics],
                 # Table Manager (app.TableManager)
                 [self.app.tables],
-                # Fetcher (transport.Fetcher)
-                [self.app._fetcher],
             ),
         )
 
