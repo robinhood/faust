@@ -414,6 +414,19 @@ not advanced (only when processing messages).
 
 Automatically check the CRC32 of the records consumed.
 
+.. setting:: broker_heartbeat_interval
+
+``broker_heartbeat_interval``
+-----------------------------
+
+:type: :class:`int`
+:default ``3.0`` (three seconds).
+
+How often we send heartbeats to the broker, and also how often
+we expect to receive heartbeats from the broker.
+
+If any of these time out, you should increase this setting.
+
 .. _settings-producer:
 
 Advanced Producer Settings
