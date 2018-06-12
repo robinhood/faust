@@ -40,19 +40,35 @@ withdrawals_topic = app.topic('withdrawals129', value_type=Withdrawal)
 foo_topic = app.topic('withdrawalz129', value_type=Withdrawal)
 
 withdrawal_counts = app.Table('withdrawal-counts', default=int)
+seen_events = 0
 
 
 @app.agent(withdrawals_topic, isolated_partitions=True)
 async def track_user_withdrawal(withdrawals):
+    global seen_events
     i = 0
     async for _withdrawal in withdrawals:  # noqa
-        print(_withdrawal)
         event = withdrawals.current_event
         assert event.message.tp in withdrawals.active_partitions
         i += 1
+        seen_events += 1
         withdrawal_counts[_withdrawal.user] += 1
-        if not i % 3:
-            raise KeyError('OH NO')
+        # Uncomment to raise exceptions during processing
+        # to test agents restarting.
+        #  if not i % 3:
+        #      raise KeyError('OH NO')
+
+
+@app.task
+async def report_progress(app):
+    prev_count = 0
+    while not app.should_stop:
+        await app._service.sleep(5.0)
+        if seen_events <= prev_count:
+            print(f'Not progressing: was {prev_count} now {seen_events}')
+        else:
+            print(f'Progressing: was {prev_count} now {seen_events}')
+        prev_count = seen_events
 
 
 @app.command(
