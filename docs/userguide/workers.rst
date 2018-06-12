@@ -16,8 +16,9 @@ Starting the worker
 .. sidebar:: Daemonizing
 
     You probably want to use a daemonization tool to start
-    the worker in the background. See :ref:`daemonizing` for help
-    starting the worker as a daemon using popular service managers.
+    the worker in the background. Use systemd, supervisord or
+    any of the tools you usually use to start services.
+    We hope to have a detailed guide for each of these soon.
 
 If you have defined a Faust app in the module ``proj.py``:
 
