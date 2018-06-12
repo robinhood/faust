@@ -12,6 +12,43 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.13:
+
+1.0.13
+======
+:release-date: 2018-06-12 2:10 P.M PDT
+:release-by: Ask Solem
+
+- **Worker**: The Kafka fetcher service was taking too long to shutdown
+  on rebalance.
+
+    If this takes longer than the session timeout, it triggers another
+    rebalance, and if it happens repeatedly this will cause the cluster
+    to be in a state of constant rebalancing.
+
+    Now we use future cancellation to stop the service as fast as possible.
+
+- **Worker**: Fetcher was accidentally started too early.
+
+    This didn't lead to any problems that we know of, but made the start a bit
+    slower than it needs to.
+
+- **Worker**: Fixed race condition where partitions were paused while fetching
+  from them.
+
+- **Worker**: Fixed theoretical race condition hang if web server started and
+  stopped in quick succession.
+
+- **Statsd**: The statsd monitor prematurely initialized the event loop
+  on module import.
+
+    We had a fix for this, but somehow forgot to remove the "hardcoded
+    super" that was set to call: ``Service.__init__(self, **kwargs)``.
+
+    The class is not even a subclass of Service anymore, and we are lucky it
+    manifests merely when doing something drastic, like py.test,
+    recursively importing all modules in a directory.
+
 .. _version-1.0.12:
 
 1.0.12
