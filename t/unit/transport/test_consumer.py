@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 from faust import App
 from faust.app._attached import Attachments
@@ -25,6 +26,8 @@ class test_Fetcher:
             autospec=Consumer,
             _drain_messages=AsyncMock(),
         )
+        # some weird pytest-asyncio thing
+        fetcher.loop = asyncio.get_event_loop()
         await fetcher._fetcher(fetcher)
         app.consumer._drain_messages.assert_called_once_with(fetcher)
 

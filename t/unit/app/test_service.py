@@ -47,7 +47,6 @@ class test_AppService:
             app.agents,
             app.topics,
             app.tables,
-            app._fetcher,
         ])
         assert components == expected_components
 
