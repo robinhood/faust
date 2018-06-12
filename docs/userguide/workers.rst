@@ -80,24 +80,24 @@ again by another worker.
 
 .. admonition:: Starting subprocesses
 
-For Faust applications that start subprocesses as a side
-effect of processsing the stream, you should know that the "double-fork"
-problem on Unix means that the worker will not be able to reap its children
-when killed using the :sig:`KILL` signal.
+    For Faust applications that start subprocesses as a side
+    effect of processsing the stream, you should know that the "double-fork"
+    problem on Unix means that the worker will not be able to reap its children
+    when killed using the :sig:`KILL` signal.
 
-To kill the worker and any child processes, this command usually does
-the trick:
+    To kill the worker and any child processes, this command usually does
+    the trick:
 
-.. sourcecode:: console
+    .. sourcecode:: console
 
-    $ pkill -9 -f 'faust'
+        $ pkill -9 -f 'faust'
 
-If you don't have the :command:`pkill` command on your system, you can use the slightly
-longer version:
+    If you don't have the :command:`pkill` command on your system, you can use the slightly
+    longer version:
 
-.. code-block:: console
+    .. code-block:: console
 
-    $ ps auxww | grep 'faust' | awk '{print $2}' | xargs kill -9
+        $ ps auxww | grep 'faust' | awk '{print $2}' | xargs kill -9
 
 .. _worker-restarting:
 

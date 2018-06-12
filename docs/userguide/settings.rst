@@ -399,7 +399,7 @@ How often we commit messages that have been fully processed (:term:`acked`).
 ---------------------------------------
 
 :type: class:`float`, :class:`~datetime.timedelta`
-:default: ``300.0`` (five minutes).
+:default: ``300.0`` (five minutes)
 
 How long time it takes before we warn that the Kafka commit offset has
 not advanced (only when processing messages).
@@ -407,7 +407,7 @@ not advanced (only when processing messages).
 .. setting:: broker_check_crcs
 
 ``broker_check_crcs``
---------------------------
+---------------------
 
 :type: :class:`bool`
 :default: :const:`True`
@@ -420,7 +420,7 @@ Automatically check the CRC32 of the records consumed.
 -----------------------------
 
 :type: :class:`int`
-:default ``3.0`` (three seconds).
+:default: ``3.0`` (three seconds)
 
 How often we send heartbeats to the broker, and also how often
 we expect to receive heartbeats from the broker.
@@ -433,7 +433,7 @@ If any of these time out, you should increase this setting.
 --------------------------
 
 :type: :class:`int`
-:default: ``30.0`` (thirty seconds).
+:default: ``30.0`` (thirty seconds)
 
 How long to wait for a node to finish rebalancing before the broker
 will consider it dysfunctional and remove it from the cluster.
