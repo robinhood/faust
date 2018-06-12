@@ -15,6 +15,7 @@ BUMPVERSION ?= bumpversion
 VULTURE ?= vulture
 VULTURE_MIN_CONFIDENCE=100
 PRE_COMMIT=pre-commit
+DMYPY=dmypy
 
 TESTDIR ?= t
 EXAMPLESDIR ?= examples
@@ -190,7 +191,7 @@ distcheck: lint test clean
 dist: readme contrib clean-dist build
 
 typecheck:
-	$(PYTHON) -m $(MYPY) -p $(PROJ)
+	$(DMYPY) run -- -p $(PROJ)
 
 .PHONY: requirements
 requirements:
