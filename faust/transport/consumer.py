@@ -103,16 +103,31 @@ class Fetcher(Service):
     app: AppT
 
     logger = logger
-    wait_for_shutdown = True
+    _drainer: Optional[asyncio.Future] = None
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         super().__init__(**kwargs)
 
+    async def on_stop(self) -> None:
+        if self._drainer is not None and not self._drainer.done():
+            self._drainer.cancel()
+            try:
+                await self._drainer
+            except asyncio.CancelledError:
+                pass
+
     @Service.task
     async def _fetcher(self) -> None:
         try:
-            await cast(Consumer, self.app.consumer)._drain_messages(self)
+            consumer = cast(Consumer, self.app.consumer)
+            self._drainer = asyncio.ensure_future(
+                consumer._drain_messages(self),
+                loop=self.loop,
+            )
+            await self._drainer
+        except asyncio.CancelledError:
+            pass
         finally:
             self.set_shutdown()
 
