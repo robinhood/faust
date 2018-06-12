@@ -145,7 +145,7 @@ PRODUCER_MAX_REQUEST_SIZE = 1_000_000
 #: Compression is of full batches of data, so the efficacy of batching
 #: will also impact the compression ratio (more batching means better
 #: compression). Default: None.
-PRODUCER_COMPRESSION_TYPE = None
+PRODUCER_COMPRESSION_TYPE: Optional[str] = None
 
 #: The number of acknowledgments the producer requires the leader to have
 #: received before considering a request complete. This controls the
