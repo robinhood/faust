@@ -71,6 +71,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self[table.name] = table
         return table
 
+    async def on_start(self) -> None:
+        await self.sleep(1.0)
+        await self._update_channels()
+
     @Service.transitions_to(TABLEMAN_UPDATE)
     async def _update_channels(self) -> None:
         for table in self.values():
@@ -86,13 +90,38 @@ class TableManager(Service, TableManagerT, FastUserDict):
             if tp.topic in self._changelogs
         })
 
-    def _sync_persisted_offsets(self, table: CollectionT,
-                                tps: Set[TP]) -> None:
-        for tp in tps:
-            persisted_offset = table.persisted_offset(tp)
-            if persisted_offset is not None:
-                curr_offset = self._table_offsets.get(tp, -1)
-                self._table_offsets[tp] = max(curr_offset, persisted_offset)
+    async def on_stop(self) -> None:
+        await self.app._fetcher.stop()
+        await self._maybe_abort_ongoing_recovery()
+        await self._stop_standbys()
+        for table in self.values():
+            await table.stop()
+
+    async def _maybe_abort_ongoing_recovery(self) -> None:
+        if self._ongoing_recovery is not None:
+            self.log.info('Aborting ongoing recovery to start over')
+            if not self._ongoing_recovery.done():
+                # TableManager.stop() will now block until all revivers are
+                # stopped. This is expected. Ideally the revivers should stop
+                # almost immediately upon receiving a stop()
+                if self._revivers:
+                    self.log.info('Waiting for %s revivers to complete',
+                                  len(self._revivers))
+                    await asyncio.wait(
+                        [reviver.stop() for reviver in self._revivers])
+                if self._ongoing_recovery is not None:
+                    self.log.info('Waiting for ongoing recovery to finish')
+                    await self.wait_for_stopped(self._ongoing_recovery)
+                self.log.info('Ongoing recovery halted')
+            self._ongoing_recovery = None
+
+    @Service.transitions_to(TABLEMAN_STOP_STANDBYS)
+    async def _stop_standbys(self) -> None:
+        for standby in self._standbys.values():
+            self.log.info('Stopping standby for tps: %s', standby.tps)
+            await standby.stop()
+            self._sync_offsets(standby)
+        self._standbys = {}
 
     def _sync_offsets(self, reader: ChangelogReaderT) -> None:
         table = terminal.logtable(
@@ -113,49 +142,65 @@ class TableManager(Service, TableManagerT, FastUserDict):
         )
         self.log.info('After syncing:\n%s', table)
 
-    @Service.transitions_to(TABLEMAN_STOP_STANDBYS)
-    async def _stop_standbys(self) -> None:
-        for standby in self._standbys.values():
-            self.log.info('Stopping standby for tps: %s', standby.tps)
-            await standby.stop()
-            self._sync_offsets(standby)
-        self._standbys = {}
+    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        on_timeout = self.app._on_revoked_timeout
+        on_timeout.info('+TABLES: maybe_abort_ongoing_recovery')
+        await self._maybe_abort_ongoing_recovery()
+        on_timeout.info('+TABLES: STOP STANDBYS')
+        await self._stop_standbys()
+        on_timeout.info(
+            f'+TABLES: call table.on_..._revoked {len(self.values())}')
+        for table in self.values():
+            on_timeout.info(f'+TABLE.on_partitions_revoked(): {table!r}')
+            await table.on_partitions_revoked(revoked)
+        on_timeout.info(
+            f'-TABLES: call table.on_..._revoked {len(self.values())}')
 
-    def _group_table_tps(self, tps: Set[TP]) -> CollectionTps:
-        table_tps: CollectionTps = defaultdict(set)
-        for tp in tps:
-            if self._is_changelog_tp(tp):
-                table_tps[self._changelogs[tp.topic]].add(tp)
-        return table_tps
+    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        await self._start_recovery(assigned)
 
-    @Service.transitions_to(TABLEMAN_START_STANDBYS)
-    async def _start_standbys(self, tps: Set[TP]) -> None:
-        self.log.info('Attempting to start standbys')
-        assert not self._standbys
-        table_standby_tps = self._group_table_tps(tps)
-        offsets = self._table_offsets
-        for table, table_tps in table_standby_tps.items():
-            self.log.info('Starting standbys for tps: %s', tps)
-            self._sync_persisted_offsets(table, table_tps)
-            tp_offsets: Counter[TP] = Counter({
-                tp: offsets[tp]
-                for tp in table_tps if tp in offsets
+    async def _start_recovery(self, assigned: Set[TP]) -> None:
+        assert self._ongoing_recovery is None and self._revivers is None
+        self._ongoing_recovery = self.add_future(self._recover(assigned))
+        self.log.info('Triggered recovery in background')
+
+    async def _recover(self, assigned: Set[TP]) -> None:
+        standby_tps = self.app.assignor.assigned_standbys()
+        # for table in self.values():
+        #     standby_tps = await local_tps(table, standby_tps)
+        assigned_tps = self.app.assignor.assigned_actives()
+        assert set(assigned_tps).issubset(assigned)
+        self.log.info('New assignments found')
+        # This needs to happen in background and be aborted midway
+        await self._on_recovery_started()
+        for table in self.values():
+            await table.on_partitions_assigned(assigned)
+        did_recover = await self._recover_changelogs(assigned_tps)
+
+        if did_recover and not self._stopped.is_set():
+            self.log.info('Restore complete!')
+            # This needs to happen if all goes well
+            callback_coros = [
+                table.call_recover_callbacks() for table in self.values()
+            ]
+            if callback_coros:
+                await asyncio.wait(callback_coros)
+            await self.app.consumer.perform_seek()
+            await self._start_standbys(standby_tps)
+            self.log.info('New assignments handled')
+            await self._on_recovery_completed()
+            await self.app.consumer.resume_partitions({
+                tp for tp in assigned
+                if not self._is_changelog_tp(tp)
             })
-            channel = self._channels[table]
-            standby = StandbyReader(
-                table,
-                channel,
-                self.app,
-                table_tps,
-                tp_offsets,
-                loop=self.loop,
-                beacon=self.beacon,
-            )
-            self._standbys[table] = standby
-            await standby.start()
-
-    def _is_changelog_tp(self, tp: TP) -> bool:
-        return tp.topic in self.changelog_topics
+            # finally start the fetcher
+            await self.app._fetcher.start()
+            self.log.info('Worker ready')
+        else:
+            self.log.info('Recovery interrupted')
+        self._revivers = None
 
     async def _on_recovery_started(self) -> None:
         self._recovery_started.set()
@@ -165,17 +210,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for table in self.values():
             await table.maybe_start()
         self.recovery_completed.set()
-
-    async def on_start(self) -> None:
-        await self.sleep(1.0)
-        await self._update_channels()
-
-    async def on_stop(self) -> None:
-        await self.app._fetcher.stop()
-        await self._maybe_abort_ongoing_recovery()
-        await self._stop_standbys()
-        for table in self.values():
-            await table.stop()
 
     @Service.transitions_to(TABLEMAN_RECOVER)
     async def _recover_changelogs(self, tps: Set[TP]) -> bool:
@@ -226,77 +260,46 @@ class TableManager(Service, TableManagerT, FastUserDict):
             beacon=self.beacon,
         )
 
-    async def _recover(self, assigned: Set[TP]) -> None:
-        standby_tps = self.app.assignor.assigned_standbys()
-        # for table in self.values():
-        #     standby_tps = await local_tps(table, standby_tps)
-        assigned_tps = self.app.assignor.assigned_actives()
-        assert set(assigned_tps).issubset(assigned)
-        self.log.info('New assignments found')
-        # This needs to happen in background and be aborted midway
-        await self._on_recovery_started()
-        for table in self.values():
-            await table.on_partitions_assigned(assigned)
-        did_recover = await self._recover_changelogs(assigned_tps)
+    def _sync_persisted_offsets(self, table: CollectionT,
+                                tps: Set[TP]) -> None:
+        for tp in tps:
+            persisted_offset = table.persisted_offset(tp)
+            if persisted_offset is not None:
+                curr_offset = self._table_offsets.get(tp, -1)
+                self._table_offsets[tp] = max(curr_offset, persisted_offset)
 
-        if did_recover and not self._stopped.is_set():
-            self.log.info('Restore complete!')
-            # This needs to happen if all goes well
-            callback_coros = [
-                table.call_recover_callbacks() for table in self.values()
-            ]
-            if callback_coros:
-                await asyncio.wait(callback_coros)
-            await self.app.consumer.perform_seek()
-            await self._start_standbys(standby_tps)
-            self.log.info('New assignments handled')
-            await self._on_recovery_completed()
-            await self.app.consumer.resume_partitions({
-                tp for tp in assigned
-                if not self._is_changelog_tp(tp)
+    @Service.transitions_to(TABLEMAN_START_STANDBYS)
+    async def _start_standbys(self, tps: Set[TP]) -> None:
+        self.log.info('Attempting to start standbys')
+        assert not self._standbys
+        table_standby_tps = self._group_table_tps(tps)
+        offsets = self._table_offsets
+        for table, table_tps in table_standby_tps.items():
+            self.log.info('Starting standbys for tps: %s', tps)
+            self._sync_persisted_offsets(table, table_tps)
+            tp_offsets: Counter[TP] = Counter({
+                tp: offsets[tp]
+                for tp in table_tps if tp in offsets
             })
-            # finally start the fetcher
-            await self.app._fetcher.start()
-            self.log.info('Worker ready')
-        else:
-            self.log.info('Recovery interrupted')
-        self._revivers = None
+            channel = self._channels[table]
+            standby = StandbyReader(
+                table,
+                channel,
+                self.app,
+                table_tps,
+                tp_offsets,
+                loop=self.loop,
+                beacon=self.beacon,
+            )
+            self._standbys[table] = standby
+            await standby.start()
 
-    async def _maybe_abort_ongoing_recovery(self) -> None:
-        if self._ongoing_recovery is not None:
-            self.log.info('Aborting ongoing recovery to start over')
-            if not self._ongoing_recovery.done():
-                # TableManager.stop() will now block until all revivers are
-                # stopped. This is expected. Ideally the revivers should stop
-                # almost immediately upon receiving a stop()
-                if self._revivers:
-                    self.log.info('Waiting for %s revivers to complete',
-                                  len(self._revivers))
-                    await asyncio.wait(
-                        [reviver.stop() for reviver in self._revivers])
-                if self._ongoing_recovery is not None:
-                    self.log.info('Waiting for ongoing recovery to finish')
-                    await self.wait_for_stopped(self._ongoing_recovery)
-                self.log.info('Ongoing recovery halted')
-            self._ongoing_recovery = None
+    def _group_table_tps(self, tps: Set[TP]) -> CollectionTps:
+        table_tps: CollectionTps = defaultdict(set)
+        for tp in tps:
+            if self._is_changelog_tp(tp):
+                table_tps[self._changelogs[tp.topic]].add(tp)
+        return table_tps
 
-    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        on_timeout = self.app._on_revoked_timeout
-        on_timeout.info('+TABLES: maybe_abort_ongoing_recovery')
-        await self._maybe_abort_ongoing_recovery()
-        on_timeout.info('+TABLES: STOP STANDBYS')
-        await self._stop_standbys()
-        on_timeout.info(
-            f'+TABLES: call table.on_..._revoked {len(self.values())}')
-        for table in self.values():
-            on_timeout.info(f'+TABLE.on_partitions_revoked(): {table!r}')
-            await table.on_partitions_revoked(revoked)
-        on_timeout.info(
-            f'-TABLES: call table.on_..._revoked {len(self.values())}')
-
-    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        assert self._ongoing_recovery is None and self._revivers is None
-        self._ongoing_recovery = self.add_future(self._recover(assigned))
-        self.log.info('Triggered recovery in background')
+    def _is_changelog_tp(self, tp: TP) -> bool:
+        return tp.topic in self.changelog_topics
