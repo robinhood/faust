@@ -165,7 +165,6 @@ async def test_on_partitions_assigned(assigned, *, app):
     app.consumer = Mock(
         name='app.consumer',
         autospec=Consumer,
-        verify_subscription=AsyncMock(),
         pause_partitions=AsyncMock(),
     )
     app.agents = Mock(
@@ -197,7 +196,6 @@ async def test_on_partitions_assigned(assigned, *, app):
 
     await app._on_partitions_assigned(assigned)
 
-    app.consumer.verify_subscription.assert_called_once_with(assigned)
     app.agents.on_partitions_assigned.assert_called_once_with(assigned)
     app.topics.wait_for_subscriptions.assert_called_once_with()
     app.consumer.pause_partitions.assert_called_once_with(assigned)

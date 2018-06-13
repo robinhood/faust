@@ -450,17 +450,6 @@ class Consumer(base.Consumer):
             entry.add(tp, messages)
         return topic_index
 
-    async def verify_subscription(self, assigned: Set[TP]) -> None:
-        subscription = (
-            self._consumer.subscription() - self.randomly_assigned_topics)
-        assigned_topics = {t for t, p in assigned}
-        missing = subscription - assigned_topics
-        if missing:
-            self.log.error(
-                f'Subscribed but not assigned to topics: {missing}.'
-                f'Please restart the worker in a bit, '
-                f'maybe topics not created yet')
-
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return cast(TP, _TopicPartition(topic, partition))
 

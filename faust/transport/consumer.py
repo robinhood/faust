@@ -237,9 +237,6 @@ class Consumer(Service, ConsumerT):
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self._on_partitions_revoked(revoked)
 
-    async def verify_subscription(self, assigned: Set[TP]) -> None:
-        ...
-
     def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.  This is called by transport.Conductor,

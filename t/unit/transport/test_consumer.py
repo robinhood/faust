@@ -139,10 +139,6 @@ class test_Consumer:
         consumer._on_partitions_revoked.assert_called_once_with(
             tps)
 
-    @pytest.mark.asyncio
-    async def test_verify_subscription(self, *, consumer):
-        await consumer.verify_subscription({TP('foo', 303)})
-
     def test_track_message(self, *, consumer, message):
         consumer._on_message_in = Mock(name='omin')
         consumer.track_message(message)

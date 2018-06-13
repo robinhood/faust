@@ -105,10 +105,6 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def verify_subscription(self, assigned: Set[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
     @no_type_check
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:

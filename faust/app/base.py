@@ -869,8 +869,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         with flight_recorder(self.log, timeout=60.0) as on_timeout:
             try:
-                on_timeout.info('consumer.verify_subscription()')
-                await self.consumer.verify_subscription(assigned)
                 on_timeout.info('agents.on_partitions_assigned()')
                 await self.agents.on_partitions_assigned(assigned)
                 # Wait for transport.Conductor to finish
