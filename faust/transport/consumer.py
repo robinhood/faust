@@ -402,7 +402,8 @@ class Consumer(Service, ConsumerT):
             #
             # If we cannot commit it means the events will be processed again,
             # so conforms to at-least-once semantics.
-            await producer.wait_many(pending)
+            if pending:
+                await producer.wait_many(pending)
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''
