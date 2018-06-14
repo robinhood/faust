@@ -87,12 +87,22 @@ class Fence(AsyncContextManager, ContextManager):
         return self._locked
 
     def acquire(self) -> None:
-        me: asyncio.Task = asyncio.Task.current_task(loop=self.loop)
+        me: asyncio.Task = self._get_current_task()
+        self._raise_if_locked(me)
+        self._locked = True
+        self.owner = me
+
+    def _get_current_task(self) -> asyncio.Task:
+        return asyncio.Task.current_task(loop=self.loop)
+
+    def raise_if_locked(self) -> None:
+        me: asyncio.Task = self._get_current_task()
+        self._raise_if_locked(me)
+
+    def _raise_if_locked(self, me: asyncio.Task) -> None:
         if self._locked:
             raise self.raising(
                 f'Coroutine {me} tried to break fence owned by {self.owner}')
-        self._locked = True
-        self.owner = me
 
     def release(self) -> None:
         self._locked, self.owner = False, None
@@ -523,16 +533,16 @@ class Consumer(base.Consumer):
             return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        with self._partitions_lock:
-            tpset = set(tps)
-            self._get_active_partitions().difference_update(tpset)
-            self._paused_partitions.update(tpset)
+        self._partitions_lock.raise_if_locked()
+        tpset = set(tps)
+        self._get_active_partitions().difference_update(tpset)
+        self._paused_partitions.update(tpset)
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        with self._partitions_lock:
-            tpset = set(tps)
-            self._get_active_partitions().update(tps)
-            self._paused_partitions.difference_update(tpset)
+        self._partitions_lock.raise_if_locked()
+        tpset = set(tps)
+        self._get_active_partitions().update(tps)
+        self._paused_partitions.difference_update(tpset)
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
