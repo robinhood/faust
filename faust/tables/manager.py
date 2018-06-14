@@ -107,11 +107,18 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if self._revivers:
                     self.log.info('Waiting for %s revivers to complete',
                                   len(self._revivers))
-                    await asyncio.wait(
-                        [reviver.stop() for reviver in self._revivers])
-                if self._ongoing_recovery is not None:
-                    self.log.info('Waiting for ongoing recovery to finish')
-                    await self.wait_for_stopped(self._ongoing_recovery)
+                    for reviver in self._revivers:
+                        reviver.set_shutdown()
+                    try:
+                        await asyncio.wait(
+                            [reviver.stop() for reviver in self._revivers])
+                    except asyncio.CancelledError:
+                        pass
+                    self._revivers = None
+                ongoing = self._ongoing_recovery
+                if ongoing is not None and not ongoing.done():
+                    self.log.info('Waiting for ongoing recovery to stop')
+                    ongoing.cancel()
                 self.log.info('Ongoing recovery halted')
             self._ongoing_recovery = None
 
@@ -119,6 +126,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _stop_standbys(self) -> None:
         for standby in self._standbys.values():
             self.log.info('Stopping standby for tps: %s', standby.tps)
+            standby.set_shutdown()
             try:
                 await standby.stop()
             except asyncio.CancelledError:
@@ -165,7 +173,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self._start_recovery(assigned)
 
     async def _start_recovery(self, assigned: Set[TP]) -> None:
-        assert self._ongoing_recovery is None and self._revivers is None
+        assert self._ongoing_recovery is None
+        assert self._revivers is None
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')
 
@@ -238,6 +247,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for reviver in table_revivers:
             await reviver.stop()
             self.log.info('Stopped restoring: %s', reviver.label)
+        self._revivers = None
         self.log.info('Stopped restoring')
         return all(reviver.recovered() for reviver in table_revivers)
 
