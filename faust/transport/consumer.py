@@ -112,10 +112,6 @@ class Fetcher(Service):
     async def on_stop(self) -> None:
         if self._drainer is not None and not self._drainer.done():
             self._drainer.cancel()
-            try:
-                await self._drainer
-            except asyncio.CancelledError:
-                pass
 
     @Service.task
     async def _fetcher(self) -> None:
