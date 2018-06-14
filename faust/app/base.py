@@ -815,10 +815,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
                 on_timeout.info('fetcher.stop()')
-                await self._fetcher.stop()
-                # Reset fetcher service state so that we can restart it
-                # in TableManager table recovery.
-                self._fetcher.service_reset()
+                await self._stop_fetcher()
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
@@ -858,6 +855,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             finally:
                 self._on_revoked_timeout = None
 
+    async def _stop_fetcher(self) -> None:
+        await self._fetcher.stop()
+        # Reset fetcher service state so that we can restart it
+        # in TableManager table recovery.
+        self._fetcher.service_reset()
+
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
 
@@ -869,6 +872,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         with flight_recorder(self.log, timeout=60.0) as on_timeout:
             try:
+                on_timeout.info('fetcher.stop()')
+                await self._stop_fetcher()
                 on_timeout.info('agents.on_partitions_assigned()')
                 await self.agents.on_partitions_assigned(assigned)
                 # Wait for transport.Conductor to finish
