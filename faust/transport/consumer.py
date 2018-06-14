@@ -508,6 +508,9 @@ class Consumer(Service, ConsumerT):
         finally:
             unset_flag(flag_consumer_fetching)
 
+    def close(self) -> None:
+        ...
+
     @property
     def unacked(self) -> Set[Message]:
         return cast(Set[Message], self._unacked_messages)

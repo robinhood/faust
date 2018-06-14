@@ -576,6 +576,9 @@ class Consumer(base.Consumer):
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         return await self._consumer.end_offsets(partitions)
 
+    def close(self) -> None:
+        self._consumer._coordinator.set_close()
+
 
 class Producer(base.Producer):
     """Kafka producer using :pypi:`aiokafka`."""

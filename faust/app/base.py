@@ -811,7 +811,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         have been reassigned to a different node.
         """
         if self.should_stop:
-            return await self._on_rebalance_when_stopped()
+            return self._on_rebalance_when_stopped()
         with flight_recorder(self.log, timeout=60.0) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
@@ -863,8 +863,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         # in TableManager table recovery.
         self._fetcher.service_reset()
 
-    async def _on_rebalance_when_stopped(self) -> None:
-        await self.consumer.stop()
+    def _on_rebalance_when_stopped(self) -> None:
+        self.consumer.close()
         raise asyncio.CancelledError()
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
@@ -877,7 +877,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         been revoked.
         """
         if self.should_stop:
-            return await self._on_rebalance_when_stopped()
+            return self._on_rebalance_when_stopped()
         with flight_recorder(self.log, timeout=60.0) as on_timeout:
             try:
                 on_timeout.info('fetcher.stop()')
