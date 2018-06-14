@@ -819,6 +819,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 self.log.dev('ON PARTITIONS REVOKED')
                 on_timeout.info('fetcher.stop()')
                 await self._stop_fetcher()
+                on_timeout.info('tables.stop_standbys()')
+                await self.tables._stop_standbys()
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
