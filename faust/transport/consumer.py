@@ -324,6 +324,21 @@ class Consumer(Service, ConsumerT):
         Arguments:
             topics: Set containing topics and/or TopicPartitions to commit.
         """
+        if await self.maybe_wait_for_commit_to_finish():
+            # original commit finished, return False as we did not commit
+            return False
+
+        self._commit_fut = asyncio.Future(loop=self.loop)
+        try:
+            return await self.force_commit(topics)
+        finally:
+            # set commit_fut to None so that next call will commit.
+            fut, self._commit_fut = self._commit_fut, None
+            # notify followers that the commit is done.
+            if fut is not None and not fut.done():
+                fut.set_result(None)
+
+    async def maybe_wait_for_commit_to_finish(self) -> bool:
         # Only one coroutine allowed to commit at a time,
         # and other coroutines should wait for the original commit to finish
         # then do nothing.
@@ -335,18 +350,8 @@ class Consumer(Service, ConsumerT):
                 # if future is cancelled we have to start new commit
                 pass
             else:
-                # original commit finished, return False as we did not commit
-                return False
-
-        self._commit_fut = asyncio.Future(loop=self.loop)
-        try:
-            return await self.force_commit(topics)
-        finally:
-            # set commit_fut to None so that next call will commit.
-            fut, self._commit_fut = self._commit_fut, None
-            # notify followers that the commit is done.
-            if fut is not None and not fut.done():
-                fut.set_result(None)
+                return True
+        return False
 
     @Service.transitions_to(CONSUMER_COMMITTING)
     async def force_commit(self, topics: TPorTopicSet = None) -> bool:
