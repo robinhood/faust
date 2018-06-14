@@ -812,7 +812,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         if self.should_stop:
             return self._on_rebalance_when_stopped()
-        with flight_recorder(self.log, timeout=60.0) as on_timeout:
+        session_timeout = self.conf.broker_session_timeout
+        with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
@@ -878,7 +879,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         if self.should_stop:
             return self._on_rebalance_when_stopped()
-        with flight_recorder(self.log, timeout=60.0) as on_timeout:
+        session_timeout = self.conf.broker_session_timeout
+        with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             try:
                 on_timeout.info('fetcher.stop()')
                 await self._stop_fetcher()
