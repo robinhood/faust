@@ -119,7 +119,10 @@ class TableManager(Service, TableManagerT, FastUserDict):
     async def _stop_standbys(self) -> None:
         for standby in self._standbys.values():
             self.log.info('Stopping standby for tps: %s', standby.tps)
-            await standby.stop()
+            try:
+                await standby.stop()
+            except asyncio.CancelledError:
+                pass
             self._sync_offsets(standby)
         self._standbys = {}
 
