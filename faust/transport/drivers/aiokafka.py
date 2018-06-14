@@ -579,6 +579,7 @@ class Consumer(base.Consumer):
         return await self._consumer.end_offsets(partitions)
 
     def close(self) -> None:
+        self._consumer.set_close()
         self._consumer._coordinator.set_close()
 
 
