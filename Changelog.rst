@@ -12,6 +12,43 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.14:
+
+1.0.14
+======
+:release-date: 2018-06-13 5:58 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.11
+
+- **Worker**: :pypi:`aiokafka`'s heartbeat thread would sometimes keep the
+  worker alive even though the worker was trying to shutdown.
+
+    An error could have happened many hours ago causing the worker to crash
+    and attempt a shutdown, but then the heartbeat thread kept the worker
+    from terminating.
+
+    Now the rebalance will check if the worker is stopped and then
+    appropriately stop the heartbeat thread.
+
+- **Worker**: Fixed error that caused rebalancing to hang:
+  ``"ValueError: Set of coroutines/Futures is empty."``.
+
+- **Worker**: Fixed error "Coroutine x tried to break fence owned by y"
+
+    This was added as an assertion to see if multiple threads would use the
+    variable at the same time.
+
+- **Worker**: Removed logged error "not assigned to topics" now that we
+  automatically recover from non-existing topics.
+
+- **Tables**: Ignore :exc:`asyncio.CancelledError` while stopping standbys.
+
+- **Distribution**: Added scripts to help stress test rebalancing
+  in :file:`t/misc/scripts/rebalance`.
+
 .. _version-1.0.13:
 
 1.0.13
