@@ -868,7 +868,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def _on_rebalance_when_stopped(self) -> None:
         self.consumer.close()
-        raise asyncio.CancelledError()
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
