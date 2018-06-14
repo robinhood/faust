@@ -523,6 +523,8 @@ class Consumer(base.Consumer):
             self._last_batch = None
             return True
         except CommitFailedError as exc:
+            if 'already rebalanced' in str(exc):
+                return False
             self.log.exception(f'Committing raised exception: %r', exc)
             await self.crash(exc)
             return False
