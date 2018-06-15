@@ -119,6 +119,11 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 if ongoing is not None and not ongoing.done():
                     self.log.info('Waiting for ongoing recovery to stop')
                     ongoing.cancel()
+                    try:
+                        await ongoing
+                    except asyncio.CancelledError:
+                        pass
+
                 self.log.info('Ongoing recovery halted')
             self._ongoing_recovery = None
 
