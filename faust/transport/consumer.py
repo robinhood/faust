@@ -119,7 +119,6 @@ class Fetcher(Service):
                     # Task is cancelled right before coro stops.
                     pass
                 except asyncio.CancelledError:
-                    print('FETCHER WAS CANCELLED')
                     break
                 except asyncio.TimeoutError:
                     self.log.warn('Fetcher is ignoring cancel or slow :(')
