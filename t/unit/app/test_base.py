@@ -109,6 +109,7 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
         name='app.tables',
         autospec=TableManager,
         on_partitions_revoked=AsyncMock(),
+        _stop_standbys=AsyncMock(),  # XXX should not use internal method
     )
     app._fetcher = Mock(
         name='app._fetcher',
@@ -187,6 +188,7 @@ async def test_on_partitions_assigned(assigned, *, app):
         name='app._fetcher',
         autospec=Fetcher,
         restart=AsyncMock(),
+        stop=AsyncMock(),
     )
     app.flow_control = Mock(
         name='app.flow_control',
