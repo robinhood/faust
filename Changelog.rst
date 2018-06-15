@@ -12,6 +12,24 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.15:
+
+1.0.15
+======
+:release-date: 2018-06-14 7:36 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.12
+
+- **Worker**: Fixed problem where worker does not recover after macbook
+  sleeping and waking up.
+
+- **Worker**: Fixed crash that could lead to rebalancing loop.
+
+- **Worker**: Removed some noisy errors that weren't really errors.
+
 .. _version-1.0.14:
 
 1.0.14
