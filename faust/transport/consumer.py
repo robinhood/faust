@@ -112,6 +112,19 @@ class Fetcher(Service):
     async def on_stop(self) -> None:
         if self._drainer is not None and not self._drainer.done():
             self._drainer.cancel()
+            while True:
+                try:
+                    await asyncio.wait_for(self._drainer, timeout=1.0)
+                except StopIteration:
+                    # Task is cancelled right before coro stops.
+                    pass
+                except asyncio.CancelledError:
+                    print('FETCHER WAS CANCELLED')
+                    break
+                except asyncio.TimeoutError:
+                    self.log.warn('Fetcher is ignoring cancel or slow :(')
+                else:
+                    break
 
     @Service.task
     async def _fetcher(self) -> None:
