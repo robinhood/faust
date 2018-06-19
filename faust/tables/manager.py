@@ -179,7 +179,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def _start_recovery(self, assigned: Set[TP]) -> None:
         assert self._ongoing_recovery is None
-        assert self._revivers is None
+        assert not self._revivers
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')
 
