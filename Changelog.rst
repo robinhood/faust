@@ -12,6 +12,23 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.16:
+
+1.0.16
+======
+:release-date: 2018-06-19 3:46 P.M PDT
+:release-by: Ask Solem
+
+- **Worker**: :pypi:`aiokafka` create topic request default timeout now set
+              to 20 seconds (previously it was accidentally set to 1000
+              seconds).
+
+- **Worker**: Fixes crash from :exc:`AssertionError` where ``table._revivers``
+              is an empty list.
+
+- **Distribution**: Adds
+  :file:`t/misc/scripts/rebalance/killer-always-same-node.sh`.
+
 .. _version-1.0.15:
 
 1.0.15
