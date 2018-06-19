@@ -79,6 +79,7 @@ class Fence(AsyncContextManager, ContextManager):
     owner: Optional[asyncio.Task] = None
     raising: Type[BaseException] = RuntimeError
     loop: asyncio.AbstractEventLoop
+    tb: str = None
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
@@ -91,6 +92,8 @@ class Fence(AsyncContextManager, ContextManager):
         self._raise_if_locked(me)
         self._locked = True
         self.owner = me
+        import traceback
+        self.tb = traceback.format_stack()
 
     def _get_current_task(self) -> asyncio.Task:
         return asyncio.Task.current_task(loop=self.loop)
@@ -102,7 +105,8 @@ class Fence(AsyncContextManager, ContextManager):
     def _raise_if_locked(self, me: asyncio.Task) -> None:
         if self._locked:
             raise self.raising(
-                f'Coroutine {me} tried to break fence owned by {self.owner}')
+                f'Coroutine {me} tried to break fence owned by {self.owner}'
+                f' {self.tb}')
 
     def release(self) -> None:
         self._locked, self.owner = False, None
