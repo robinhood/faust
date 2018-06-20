@@ -776,7 +776,6 @@ class Transport(base.Transport):
             )
             async with async_timeout(timeout, loop=self.loop):
                 response = await client.send(node_id, request)
-            owner.log.info(f'-Sleep context')
             assert len(response.topic_error_codes), 'Single topic requested.'
 
             _, code, reason = response.topic_error_codes[0]
