@@ -23,6 +23,7 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
+import async_timeout
 from aiokafka.errors import (
     CommitFailedError,
     ConsumerStoppedError,
@@ -34,7 +35,6 @@ from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from async_timeout import timeout as async_timeout
 from kafka.errors import (
     NotControllerError,
     TopicAlreadyExistsError as TopicExistsError,
@@ -774,7 +774,7 @@ class Transport(base.Transport):
                 timeout,
                 False,
             )
-            async with async_timeout(timeout, loop=self.loop):
+            async with async_timeout.timeout(timeout, loop=self.loop):
                 response = await client.send(node_id, request)
             assert len(response.topic_error_codes), 'Single topic requested.'
 
