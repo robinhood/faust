@@ -2,7 +2,6 @@
 import asyncio
 import typing
 from collections import defaultdict
-from time import monotonic
 from typing import (
     Any,
     Callable,
@@ -20,15 +19,7 @@ from mode import Service, get_logger
 from mode.utils.futures import notify
 
 from faust.exceptions import KeyDecodeError, ValueDecodeError
-from faust.types import (
-    AppT,
-    ConsumerT,
-    EventT,
-    K,
-    Message,
-    TP,
-    V,
-)
+from faust.types import AppT, EventT, K, Message, TP, V
 from faust.types.topics import TopicT
 from faust.types.transports import ConductorT, ConsumerCallback, TPorTopicSet
 from faust.types.tuples import tp_set_to_map
@@ -57,24 +48,11 @@ class ConductorCompiler:  # pragma: no cover
 
         topic, partition = tp
         app = conductor.app
-        consumer: ConsumerT = cast(ConsumerT, None)
-        on_message_in = app.sensors.on_message_in
         on_topic_buffer_full = app.sensors.on_topic_buffer_full
-        unacked: Set[Message] = cast(Set[Message], None)
-        add_unacked: Callable[[Message], None] = cast(
-            Callable[[Message], None], None)
         acquire_flow_control: Callable = app.flow_control.acquire
         len_: Callable[[Any], int] = len
-        acking_topics: Set[str] = conductor._acking_topics
 
         async def on_message(message: Message) -> None:
-            nonlocal consumer, unacked, add_unacked
-            if consumer is None:
-                # localize consumer related attributes on first message
-                # as the consumer is lazy.
-                consumer = app.consumer
-                unacked = consumer._unacked_messages
-                add_unacked = unacked.add
             # when a message is received we find all channels
             # that subscribe to this message
             await acquire_flow_control()
@@ -84,18 +62,6 @@ class ConductorCompiler:  # pragma: no cover
                 # immediately, so that nothing will get a chance to decref to
                 # zero before we've had the chance to pass it to all channels
                 message.incref(channels_n)
-                if topic in acking_topics:
-                    # This inlines Consumer.track_message(message)
-                    add_unacked(message)
-                    on_message_in(message.tp, message.offset, message)
-                    # XXX ugh this should be in the consumer somehow
-                    if consumer._last_batch is None:
-                        # set last_batch received timestamp if not already set.
-                        # the commit livelock monitor uses this to check
-                        # how long between receiving a message to we commit it
-                        # (we reset _last_batch to None in .commit())
-                        consumer._last_batch = monotonic()
-
                 event: Optional[EventT] = None
                 event_keyid: Optional[Tuple[K, V]] = None
 

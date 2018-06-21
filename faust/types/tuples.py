@@ -104,6 +104,7 @@ class Message:
         'time_out',
         'time_total',
         'tp',
+        'tracked',
         'stream_meta',
         '__weakref__',
     )
@@ -140,6 +141,7 @@ class Message:
         self.acked: bool = False
         self.refcount: int = 0
         self.tp = tp if tp is not None else TP(topic, partition)
+        self.tracked: bool = False
 
         #: Monotonic timestamp of when the consumer received this message.
         self.time_in: Optional[float] = time_in
