@@ -12,6 +12,32 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.17:
+
+1.0.17
+======
+:release-date: 2016-06-21 3:15 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.13
+
+- We now raise an error if the official :pypi:`aiokafka` or
+  :pypi:`kafka-python` is installed.
+
+    Faust depends on a fork of :pypi:`aiokafka` and can not be installed
+    with the official versions of :pypi:`aiokafka` and :pypi:`kafka-python`.
+
+    If you have those in requirements, please remove them from your
+    virtual env and remove them from requirements.
+
+- **Worker**: Fixes hanging in wait_empty.
+
+    This should also make rebalances faster.
+
+- **Worker**: Adds timeout on topic creation.
+
 .. _version-1.0.16:
 
 1.0.16
