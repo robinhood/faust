@@ -12,11 +12,21 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.18:
+
+1.0.18
+======
+:release-date: 2018-06-21 3:53 P.M PDT
+:release-by: Ask Solem
+
+- **Worker**: Fixed ``KeyError: TopicPartition(topic='...', partition=x)``
+  occurring during rebalance.
+
 .. _version-1.0.17:
 
 1.0.17
 ======
-:release-date: 2016-06-21 3:15 P.M PDT
+:release-date: 2018-06-21 3:15 P.M PDT
 :release-by: Ask Solem
 
 - **Requirements**
