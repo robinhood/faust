@@ -327,7 +327,7 @@ class Topic(Channel, TopicT):
             serializer=value_serializer or self.value_serializer)
 
     def on_stop_iteration(self) -> None:
-        self.app.topics.discard(self)
+        pass
 
     @stampede
     async def maybe_declare(self) -> None:
