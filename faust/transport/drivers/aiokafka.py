@@ -23,6 +23,7 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
+import async_timeout
 from aiokafka.errors import (
     CommitFailedError,
     ConsumerStoppedError,
@@ -777,7 +778,8 @@ class Transport(base.Transport):
                 timeout,
                 False,
             )
-            response = await client.send(node_id, request)
+            async with async_timeout.timeout(timeout, loop=self.loop):
+                response = await client.send(node_id, request)
             assert len(response.topic_error_codes), 'Single topic requested.'
 
             _, code, reason = response.topic_error_codes[0]
