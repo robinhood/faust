@@ -54,6 +54,10 @@ from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
+if not hasattr(aiokafka, '__robinhood__'):
+    raise RuntimeError(
+        'Please install robinhood-aiokafka, not aiokafka')
+
 # This is what we get from aiokafka getmany()
 # A mapping of TP to buffer-list of records.
 RecordMap = Mapping[TP, List[ConsumerRecord]]
