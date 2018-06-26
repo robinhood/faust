@@ -27,6 +27,7 @@ from typing import (
 from mode import Seconds, Service, get_logger, want_seconds
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import maybe_async, notify
+from mode.utils.objects import cached_property
 from mode.utils.types.trees import NodeT
 
 from . import joins
@@ -863,10 +864,25 @@ class Stream(StreamT[T_co], Service):
             return reprlib.repr(self.combined)
         return reprlib.repr(self.channel)
 
-    def _repr_channel(self) -> str:
-        return reprlib.repr(self.channel)
-
     @property
     def label(self) -> str:
         # used as textual description in graphs
         return f'{type(self).__name__}: {self._repr_channel()}'
+
+    def _repr_channel(self) -> str:
+        return reprlib.repr(self.channel)
+
+    @cached_property
+    def shortlabel(self) -> str:
+        # used for shortlabel(stream), which is used by statsd to generate ids
+        # note: str(channel) returns topic name when it's a topic, so
+        # this will be:
+        #    "Channel: <ANON>", for channel or
+        #    "Topic: withdrawals", for a topic.
+        # statsd then uses that as part of the id.
+        return f'Stream: {self._human_channel()}'
+
+    def _human_channel(self) -> str:
+        if self.combined:
+            return '&'.join(s._human_channel() for s in self.combined)
+        return f'{type(self.channel).__name__}: {self.channel}'
