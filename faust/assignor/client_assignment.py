@@ -30,7 +30,7 @@ class CopartitionedAssignment:
         if not self.actives.isdisjoint(self.standbys):
             raise ValueError('Actives and Standbys are disjoint')
 
-    def make_standbys_disjoin(self) -> None:
+    def make_standbys_disjoint(self) -> None:
         self.standbys.difference_update(self.actives)
 
     def num_assigned(self, active: bool) -> int:
@@ -135,7 +135,7 @@ class ClientAssignment(Record,
         try:
             assignment.validate()
         except ValueError:
-            assignment.make_standbys_disjoin()
+            assignment.make_standbys_disjoint()
         return assignment
 
     def _colocated_partitions(
