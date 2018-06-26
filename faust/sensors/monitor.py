@@ -179,6 +179,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.topic_buffer_full = Counter()
         self.time: Callable[[], float] = monotonic
 
+        self.metric_counts = Counter()
+
     def asdict(self) -> Mapping:
         return {
             'messages_active': self.messages_active,
@@ -199,6 +201,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             },
+            'metric_counts': self.metric_counts,
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -312,6 +315,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     def on_send_completed(self, producer: ProducerT, state: Any) -> None:
         self.send_latency.append(self.time() - cast(float, state))
+
+    def count(self, metric_name: str, count: int = 1) -> None:
+        self.metric_counts[metric_name] += count
 
     @cached_property
     def _service(self) -> ServiceT:
