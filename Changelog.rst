@@ -12,6 +12,17 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.19:
+
+1.0.19
+======
+:release-date: 2018-06-25 6:40 P.M PDT
+:release-by: Vineet Goel
+
+- **Assignor**: Fixed crash if initial state of assignment is invalid. This
+  was causing the following error: ``ValueError('Actives and Standbys are
+  disjoint',).`` during partition assignment.
+
 .. _version-1.0.18:
 
 1.0.18

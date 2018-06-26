@@ -28,7 +28,7 @@ class CopartitionedAssignment:
 
     def validate(self) -> None:
         if not self.actives.isdisjoint(self.standbys):
-            raise ValueError('Actives and Standbys are disjoint')
+            self.standbys.difference_update(self.actives)
 
     def num_assigned(self, active: bool) -> int:
         return len(self.get_assigned_partitions(active))
