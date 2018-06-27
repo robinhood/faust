@@ -15,12 +15,17 @@ Quickstart
     $ ./examples/stress.py produce
 """
 import asyncio
+import logging
 import os
 import random
 from datetime import datetime, timezone
 from itertools import count
+from typing import List
 import faust
 from faust.cli import option
+from raven import Client
+from raven.handlers.logging import SentryHandler
+from raven_aiohttp import AioHttpTransport
 
 
 class Withdrawal(faust.Record, isodates=True, serializer='json'):
@@ -30,12 +35,30 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
     date: datetime = None
 
 
+def generate_handlers() -> List[SentryHandler]:
+    handlers = []
+    dsn = os.environ.get('SENTRY_DSN')
+    if dsn:
+        client = Client(
+            dsn=dsn,
+            include_paths=[__name__.split('.', 1)[0]],
+            transport=AioHttpTransport,
+            disable_existing_loggers=False,
+        )
+        handler = SentryHandler(client)
+        handler.setLevel(logging.WARNING)
+        handler.propagate = 0
+        handlers.append(handler)
+    return handlers
+
+
 app = faust.App(
     'faust-withdrawals29',
     broker=os.environ.get('STRESS_BROKER', 'kafka://127.0.0.1:9092'),
     store=os.environ.get('STRESS_STORE', 'rocksdb://'),
     origin='t.stress',
     topic_partitions=4,
+    loghandlers=generate_handlers(),
 )
 withdrawals_topic = app.topic('withdrawals129', value_type=Withdrawal)
 foo_topic = app.topic('withdrawalz129', value_type=Withdrawal)
