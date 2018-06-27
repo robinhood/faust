@@ -12,7 +12,7 @@ recursive-include extra/*
 recursive-include examples *
 recursive-include faust *.py *.html *.typed
 recursive-include requirements *.txt *.rst
-recursive-include t *.py
+recursive-include t *.py *.sh
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
