@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from itertools import count
 import faust
 from faust.cli import option
+from mode import CrashingSupervisor
 
 
 class Withdrawal(faust.Record, isodates=True, serializer='json'):
@@ -44,7 +45,9 @@ foo_topic = app.topic('withdrawalz129', value_type=Withdrawal)
 seen_events = 0
 
 
-@app.agent(withdrawals_topic, isolated_partitions=False)
+@app.agent(withdrawals_topic,
+           isolated_partitions=False,
+           supervisor_strategy=CrashingSupervisor)
 async def track_user_withdrawal(withdrawals):
     global seen_events
     i = 0
@@ -53,8 +56,8 @@ async def track_user_withdrawal(withdrawals):
         seen_events += 1
         # Uncomment to raise exceptions during processing
         # to test agents restarting.
-        # if not i % 3:
-        #    raise KeyError('OH NO')
+        if not i % 100:
+            raise KeyError('OH NO')
 
 
 @app.task
