@@ -134,6 +134,10 @@ class StatsdMonitor(Monitor):
             self._time(monotonic() - cast(float, state)),
             rate=self.rate)
 
+    def count(self, metric_name: str, count: int = 1) -> None:
+        super().count(metric_name, count=count)
+        self.client.incr(metric_name, count=count, rate=self.rate)
+
     def _normalize(self, name: str,
                    *,
                    pattern: Pattern = RE_NORMALIZE,

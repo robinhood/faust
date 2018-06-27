@@ -12,6 +12,18 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.20:
+
+1.0.20
+======
+:release-date: 2018-06-26 2:35 P.M PDT
+:release-by: Vineet Goel
+
+- **Monitor**: Added ``Monitor.count`` to add arbitrary metrics to app monitor.
+
+- **Statsd Monitor**: Normalize agent metrics by removing memory address to
+  avoid spamming statsd with thousands of unique metrics per agent.
+
 .. _version-1.0.19:
 
 1.0.19
