@@ -53,15 +53,14 @@ def generate_handlers() -> List[SentryHandler]:
 
 
 app = faust.App(
-    'faust-withdrawals29',
+    'faust-withdrawals30',
     broker=os.environ.get('STRESS_BROKER', 'kafka://127.0.0.1:9092'),
     store=os.environ.get('STRESS_STORE', 'rocksdb://'),
     origin='t.stress',
-    topic_partitions=4,
+    topic_partitions=os.environ.get('STRESS_PARTITIONS', 4),
     loghandlers=generate_handlers(),
 )
-withdrawals_topic = app.topic('withdrawals129', value_type=Withdrawal)
-foo_topic = app.topic('withdrawalz129', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals130', value_type=Withdrawal)
 
 # withdrawal_counts = app.Table('withdrawal-counts', default=int)
 seen_events = 0
