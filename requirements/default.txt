@@ -1,6 +1,6 @@
 async-timeout~=3.0
 aiohttp>=2.3.9,<4.0.0
-robinhood-aiokafka~=0.4.13
+robinhood-aiokafka~=0.4.14
 click~=6.7
 click_completion>=0.3.1
 colorclass~=2.2

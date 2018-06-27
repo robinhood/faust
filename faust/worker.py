@@ -27,7 +27,7 @@ from typing import (
 )
 
 import mode
-from kafka.structs import TopicPartition as _TopicPartition
+from rhkafka.structs import TopicPartition as _TopicPartition
 from mode import ServiceT, get_logger
 from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import formatter

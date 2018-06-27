@@ -35,7 +35,7 @@ from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from kafka.errors import (
+from rhkafka.errors import (
     NotControllerError,
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
