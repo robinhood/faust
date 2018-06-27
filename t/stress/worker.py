@@ -47,7 +47,7 @@ def generate_handlers() -> List[SentryHandler]:
         )
         handler = SentryHandler(client)
         handler.setLevel(logging.WARNING)
-        handler.propagate = 0
+        handler.propagate = False
         handlers.append(handler)
     return handlers
 
