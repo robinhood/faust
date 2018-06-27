@@ -29,7 +29,7 @@ def loghandlers() -> List[SentryHandler]:
             disable_existing_loggers=False,
         )
         handler = SentryHandler(client)
-        handler.setLevel(logging.WARNING)
+        handler.setLevel(logging.ERROR)
         handler.propagate = False
         handlers.append(handler)
     return handlers
