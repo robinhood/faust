@@ -4,7 +4,7 @@ new ideas from `Kafka Streams`_ into Python.
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
 
-It's a powerful library you can drop into any Python program
+It's a library you can drop into any Python program
 to easily build traditionally complicated distributed systems
 that are high performance and fault tolerant.
 
