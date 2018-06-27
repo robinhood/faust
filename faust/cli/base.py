@@ -228,21 +228,33 @@ class _Group(click.Group):
         # This is not necessary when using app.main(), since that always
         # imports the app module before creating the cli() object:
         #   $ python example/myapp.py --help
+        workdir = self._extract_param(argv, '-W', '--workdir')
+        if workdir:
+            os.chdir(Path(workdir).absolute())
+        appstr = self._extract_param(argv, '-A', '--app')
+        if appstr is not None:
+            find_app(appstr)
+
+    def _extract_param(self,
+                       argv: Sequence[str],
+                       shortopt: str,
+                       longopt: str) -> str:
         for i, arg in enumerate(argv):
-            if arg == '-A':
+            if arg == shortopt:
                 try:
-                    find_app(argv[i + 1])
+                    return argv[i + 1]
                 except IndexError:
-                    raise click.UsageError('Missing argument for -A')
-            elif arg.startswith('--app'):
+                    raise click.UsageError(f'Missing argument for {shortopt}')
+            elif arg.startswith(longopt):
                 if '=' in arg:
                     _, _, value = arg.partition('=')
-                    find_app(value)
+                    return value
                 else:
                     try:
-                        find_app(argv[i + 1])
+                        return argv[i + 1]
                     except IndexError:
-                        raise click.UsageError('Missing argument for --app')
+                        raise click.UsageError(
+                            f'Missing argument for {longopt}')
 
     @no_type_check  # mypy bugs out on this
     def make_context(self,
