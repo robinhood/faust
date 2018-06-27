@@ -12,6 +12,23 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.21:
+
+1.0.21
+======
+:release-date: 2018-06-27 1:43 P.M PDT
+:release-by: Ask Solem
+
+.. warning::
+
+    This changes the package name of ``kafka`` to ``rhkafka``.
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.14
+
+    + Now depends on :ref:`Mode 1.15.0 <mode:version-1.15.0>`.
+
 .. _version-1.0.20:
 
 1.0.20
