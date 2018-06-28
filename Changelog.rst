@@ -12,6 +12,18 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.22:
+
+1.0.22
+======
+:release-date: 2018-06-27 5:35 P.M PDT
+:release-by: Vineet Goel
+
+- **aiokafka**: Timeout for topic creation now wraps entire topic creation.
+  Earlier this timeout was for each individual request.
+
+- **testing**: Added stress testing suite.
+
 .. _version-1.0.21:
 
 1.0.21
