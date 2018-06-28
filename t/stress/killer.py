@@ -7,6 +7,10 @@ from typing import List, NamedTuple
 import envoy
 from mode import Service, Worker
 
+# Periods describe how often we sleep between killing workers.
+# Some times we terminate them gracefully, other times we have bursts
+# of aggressively killing -9 the process.
+
 
 class Period(NamedTuple):
     count: int
@@ -16,30 +20,33 @@ class Period(NamedTuple):
 
 
 periods = [
-    # for 100 times kill -TERM/-INT between every 1 and 30 seconds.
-    # upper bound: 50 minutes
+    # kill -TERM/-INT between every 1 and 30 seconds.
+    # This period lasts for at least half a minute, but never for more
+    # than 50 minutes.
     Period(
         count=100,
         signals=[signal.SIGTERM, signal.SIGINT],
         min_latency=1.0,
         max_latency=30.0,
     ),
-    # for 50 times kill -TERM between every 5 and 100 seconds.
-    # upper bound: 85 minutes
+    # kill -TERM between every 5 and 100 seconds.
+    # lasts for at least 4.1 minutes, at most 83 minutes.
     Period(
         count=50,
         signals=[signal.SIGTERM],
         min_latency=5.0,
         max_latency=100.0,
     ),
-    # for 30 times kill -KILL between every 0.1s and 1.0 second.
-    # upper bound: 30 seconds
+    # super fast burst of kill -9 (between every 0.1s and 1.0 second).
+    # lasts for at most 30 seconds.
     Period(
         count=30,
         signals=[signal.SIGKILL],
         min_latency=0.1,
         max_latency=1.0,
     ),
+    # we repeat here forever, (see iter_periods()) below.)
+    # --
 ]
 
 
