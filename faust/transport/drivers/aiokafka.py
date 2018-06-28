@@ -324,7 +324,7 @@ class Consumer(base.Consumer):
                            replication: int,
                            *,
                            config: Mapping[str, Any] = None,
-                           timeout: Seconds = 20.0,
+                           timeout: Seconds = 30.0,
                            retention: Seconds = None,
                            compacting: bool = None,
                            deleting: bool = None,
@@ -751,7 +751,7 @@ class Transport(base.Transport):
                                    replication: int,
                                    *,
                                    config: Mapping[str, Any] = None,
-                                   timeout: int = 20000,
+                                   timeout: int = 30000,
                                    retention: int = None,
                                    compacting: bool = None,
                                    deleting: bool = None,
@@ -769,33 +769,40 @@ class Transport(base.Transport):
         # hit the controller
         nodes = [broker.nodeId for broker in client.cluster.brokers()]
         owner.log.info(f'Nodes: {nodes}')
-        for node_id in nodes:
-            if node_id is None:
-                raise RuntimeError('Not connected to Kafka broker')
+        async with async_timeout.timeout(timeout, loop=self.loop):
+            for node_id in nodes:
+                if node_id is None:
+                    raise RuntimeError('Not connected to Kafka broker')
 
-            request = CreateTopicsRequest[protocol_version](
-                [(topic, partitions, replication, [], list(config.items()))],
-                timeout,
-                False,
-            )
-            async with async_timeout.timeout(timeout, loop=self.loop):
+                request = CreateTopicsRequest[protocol_version](
+                    [(topic, partitions, replication, [],
+                      list(config.items()))],
+                    timeout,
+                    False,
+                )
+                owner.log.info(f'-Sending request to {node_id}')
                 response = await client.send(node_id, request)
-            assert len(response.topic_error_codes), 'Single topic requested.'
+                owner.log.info(f'+Sent request to {node_id}')
+                assert (
+                    len(response.topic_error_codes),
+                    'Single topic requested.',
+                )
 
-            _, code, reason = response.topic_error_codes[0]
+                _, code, reason = response.topic_error_codes[0]
 
-            if code != 0:
-                if not ensure_created and code == TopicExistsError.errno:
-                    owner.log.debug(
-                        f'Topic {topic} exists, skipping creation.')
-                    return
-                elif code == NotControllerError.errno:
-                    owner.log.debug(f'Broker: {node_id} is not controller.')
-                    continue
+                if code != 0:
+                    if not ensure_created and code == TopicExistsError.errno:
+                        owner.log.debug(
+                            f'Topic {topic} exists, skipping creation.')
+                        return
+                    elif code == NotControllerError.errno:
+                        owner.log.debug(
+                            f'Broker: {node_id} is not controller.')
+                        continue
+                    else:
+                        raise for_code(code)(
+                            f'Cannot create topic: {topic} ({code}): {reason}')
                 else:
-                    raise for_code(code)(
-                        f'Cannot create topic: {topic} ({code}): {reason}')
-            else:
-                owner.log.info(f'Topic {topic} created.')
-                return
-        raise Exception(f'No controller found among brokers: {nodes}')
+                    owner.log.info(f'Topic {topic} created.')
+                    return
+            raise Exception(f'No controller found among brokers: {nodes}')
