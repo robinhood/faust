@@ -7,9 +7,9 @@ from typing import List, NamedTuple
 import envoy
 from mode import Service, Worker
 
-# Periods describe how often we sleep between killing workers.
+# Periods describe how often we sleep between signalling workers.
 # Some times we terminate them gracefully, other times we have bursts
-# of aggressively killing -9 the process.
+# of abruptly terminating the process with `kill -9`.
 
 
 class Period(NamedTuple):
@@ -20,7 +20,7 @@ class Period(NamedTuple):
 
 
 periods = [
-    # kill -TERM/-INT between every 1 and 30 seconds.
+    # Signal -TERM/-INT between every 1 and 30 seconds.
     # This period lasts for at least half a minute, but never for more
     # than 50 minutes.
     Period(
@@ -29,7 +29,7 @@ periods = [
         min_latency=1.0,
         max_latency=30.0,
     ),
-    # kill -TERM between every 5 and 100 seconds.
+    # Signal -TERM between every 5 and 100 seconds.
     # lasts for at least 4.1 minutes, at most 83 minutes.
     Period(
         count=50,
@@ -37,8 +37,9 @@ periods = [
         min_latency=5.0,
         max_latency=100.0,
     ),
-    # super fast burst of kill -9 (between every 0.1s and 1.0 second).
+    # super fast burst of signal -9 (between every 0.1s and 1.0 second).
     # lasts for at most 30 seconds.
+    # This emulates what happens in production sometimes
     Period(
         count=30,
         signals=[signal.SIGKILL],
@@ -68,13 +69,13 @@ class Killer(Service):
             print(f'Sleeping for {secs} seconds...')
             await self.sleep(secs)
             sig = random.choice(period.signals)
-            print(f'Killing all workers on this box with {sig!r}')
+            print(f'Signalling all workers on this box with {sig!r}')
             r = envoy.run(f'pkill -{int(sig)} Faust:Worker')
             if r.status_code:
                 if r.std_err.strip():
                     print(f'ERROR from pkill: {r.std_err}')
                 else:
-                    print('No processes running, nothing to kill!')
+                    print('No processes running, nothing to signal!')
 
 
 if __name__ == '__main__':
