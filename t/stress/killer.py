@@ -7,68 +7,67 @@ from typing import List, NamedTuple
 import envoy
 from mode import Service, Worker
 
-# Periods describe how often we sleep between signalling workers.
-# Some times we terminate them gracefully, other times we have bursts
-# of abruptly terminating the process with `kill -9`.
 
-
-class Period(NamedTuple):
-    count: int
+class Span(NamedTuple):
+    length: int
     signals: List[int]
-    min_latency: float
-    max_latency: float
+    min_sleep: float
+    max_sleep: float
+
+    def seconds_to_sleep(self):
+        return random.uniform(self.min_sleep, self.max_sleep)
 
 
-periods = [
-    # Signal -TERM/-INT between every 1 and 30 seconds.
-    # This period lasts for at least half a minute, but never for more
-    # than 50 minutes.
-    Period(
-        count=100,
-        signals=[signal.SIGTERM, signal.SIGINT],
-        min_latency=1.0,
-        max_latency=30.0,
-    ),
-    # Signal -TERM between every 5 and 100 seconds.
-    # lasts for at least 4.1 minutes, at most 83 minutes.
-    Period(
-        count=50,
-        signals=[signal.SIGTERM],
-        min_latency=5.0,
-        max_latency=100.0,
-    ),
-    # super fast burst of signal -9 (between every 0.1s and 1.0 second).
-    # lasts for at most 30 seconds.
-    # This emulates what happens in production sometimes
-    Period(
-        count=30,
-        signals=[signal.SIGKILL],
-        min_latency=0.1,
-        max_latency=1.0,
-    ),
-    # we repeat here forever, (see iter_periods()) below.)
-    # --
-]
+class Chaos(Service):
 
+    schedule = [
+        # Signal -TERM/-INT between every 1 and 30 seconds.
+        # This period lasts for at least half a minute, but never for more
+        # than 50 minutes.
+        Span(
+            100,  # hundred times sleep between random(1, 30) seconds.
+            signals=[signal.SIGTERM, signal.SIGINT],
+            min_sleep=1.0,
+            max_sleep=30.0,
+        ),
+        # Signal -TERM between every 5 and 100 seconds.
+        # lasts for at least 4.1 minutes, at most 83 minutes.
+        Span(
+            50,  # fifty times sleep between random(5, 100) seconds.
+            signals=[signal.SIGTERM],
+            min_sleep=5.0,
+            max_sleep=100.0,
+        ),
+        # super fast burst of signal -9 (between every 0.1s and 1.0 second).
+        # lasts for at most 30 seconds.
+        # This emulates what happens in production sometimes when the OOM
+        # killer is activated.
+        Span(
+            30,  # for thirty times sleep between random(0.1, 1.0) seconds.
+            signals=[signal.SIGKILL],
+            min_sleep=0.1,
+            max_sleep=1.0,
+        ),
+        # we repeat here forever, (see iterate_over_scheduled_time()) below.)
+        # --
+    ]
 
-def iter_periods():
-    for period in cycle(periods):
-        for _ in range(period.count):
-            yield period
-
-
-class Killer(Service):
+    def iterate_over_scheduled_time(self):
+        for period in cycle(self.schedule):
+            for _ in range(period.length):
+                yield period
 
     @Service.task
-    async def _killing(self):
-        print('STARTING')
-        it = iter_periods()
-        while not self.should_stop:
-            period = next(it)
-            secs = random.uniform(period.min_latency, period.max_latency)
-            print(f'Sleeping for {secs} seconds...')
+    async def _runs_in_background(self):
+        self.log.info('I\'m your local friendly chaos monkey tester')
+        self.log.info('Starting signal dispatcher.')
+        for current_span in self.iterate_over_scheduled_time():
+            if self.should_stop:
+                return
+            secs = current_span.seconds_to_sleep()
+            print(f'Signal dispatcher sleeping for {secs} seconds...')
             await self.sleep(secs)
-            sig = random.choice(period.signals)
+            sig = random.choice(current_span.signals)
             print(f'Signalling all workers on this box with {sig!r}')
             r = envoy.run(f'pkill -{int(sig)} Faust:Worker')
             if r.status_code:
@@ -79,4 +78,4 @@ class Killer(Service):
 
 
 if __name__ == '__main__':
-    Worker(Killer(), loglevel='INFO').execute_from_commandline()
+    Worker(Chaos(), loglevel='INFO').execute_from_commandline()
