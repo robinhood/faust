@@ -19,7 +19,7 @@ def install_produce_command(app) -> None:
         """Produce example events."""
         prods = {aiter(p(max_messages)) for p in app.stress_producers}
         i = 0
-        while prods:
+        while not app.should_stop:
             to_remove: Set[Any] = set()
             for producer in prods:
                 i += 1
@@ -35,8 +35,10 @@ def install_produce_command(app) -> None:
                     # with latency, print every 10 messages
                     if not i % 10:
                         self.say(f'+SEND {i}')
-                if max_latency:
-                    await asyncio.sleep(random.uniform(0, max_latency))
+            if not prods:
+                await asyncio.sleep(1.0)
+            if max_latency:
+                await asyncio.sleep(random.uniform(0, max_latency))
             for producer in to_remove:
                 prods.discard(producer)
         print('No more producers - exiting', file=sys.stderr)
