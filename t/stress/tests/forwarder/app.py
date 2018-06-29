@@ -5,6 +5,7 @@ app = create_stress_app(
     name='f-stress-forwarder',
     origin='t.stress.tests.forwarder',
     stream_buffer_maxsize=1,
+    stream_wait_empty=False,
     broker_commit_every=100,
     broker_commit_interval=1.0,
 )
