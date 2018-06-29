@@ -4,6 +4,9 @@ from ...models import Withdrawal
 app = create_stress_app(
     name='f-stress-forwarder',
     origin='t.stress.tests.forwarder',
+    stream_buffer_maxsize=10,
+    broker_commit_every=100,
+    broker_commit_interval=1.0,
 )
 
 withdrawals_topic = app.topic('f-stress-withdrawals', value_type=Withdrawal)
