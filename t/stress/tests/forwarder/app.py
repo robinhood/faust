@@ -26,7 +26,7 @@ async def receiver(forwarded_stream):
 @app.agent(withdrawals_topic)
 async def withdrawal_forwarder(withdrawals):
     async for withdrawal in withdrawals:  # noqa
-        await receiver.send(withdrawal)
+        await receiver.send(value=withdrawal)
 
 
 @app.task
