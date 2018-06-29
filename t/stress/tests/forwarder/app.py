@@ -2,7 +2,7 @@ from ...app import create_stress_app
 from ...models import Withdrawal
 
 app = create_stress_app(
-    name='f-stress-forwarder',
+    name='f-stress-fwd',
     origin='t.stress.tests.forwarder',
     stream_buffer_maxsize=1,
     stream_wait_empty=False,
@@ -15,7 +15,7 @@ seen_events = 0
 
 
 @app.agent()
-async def receiver(forwarded_stream):
+async def receive(forwarded_stream):
     global seen_events
     total = 0
     async for withdrawal in forwarded_stream:
@@ -26,7 +26,7 @@ async def receiver(forwarded_stream):
 @app.agent(withdrawals_topic)
 async def withdrawal_forwarder(withdrawals):
     async for withdrawal in withdrawals:  # noqa
-        await receiver.send(value=withdrawal)
+        await receive.send(value=withdrawal)
 
 
 @app.task
