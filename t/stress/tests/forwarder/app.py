@@ -1,3 +1,5 @@
+import asyncio
+import random
 from faust import Stream
 from ...app import create_stress_app
 
@@ -8,16 +10,21 @@ app = create_stress_app(
     broker_commit_every=100,
 )
 
-counter_sent = 0
 counter_received = 0
 
 
-@app.timer(0.1, on_leader=True)
-async def monotonic_counter() -> None:
+@app.task
+async def on_leader_send_monotonic_counter(max_latency=0.01) -> None:
     # Leader node sends incrementing numbers to a topic
-    global counter_sent
-    await forward.send(value=counter_sent)
-    counter_sent += 1
+    counter_sent = 0
+
+    while not app.should_stop:
+        if app.is_leader():
+            await forward.send(value=counter_sent)
+            counter_sent += 1
+            await asyncio.sleep(random.uniform(0, max_latency))
+        else:
+            await asyncio.sleep(1)
 
 
 @app.agent(value_type=int)
