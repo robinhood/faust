@@ -14,7 +14,7 @@ counter_received = 0
 
 
 @app.task
-async def on_leader_send_monotonic_counter(max_latency=0.01) -> None:
+async def on_leader_send_monotonic_counter(app, max_latency=0.01) -> None:
     # Leader node sends incrementing numbers to a topic
     counter_sent = 0
 
