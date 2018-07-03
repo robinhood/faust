@@ -83,7 +83,7 @@ class Fence(AsyncContextManager, ContextManager):
     owner: Optional[asyncio.Task] = None
     raising: Type[BaseException] = RuntimeError
     loop: asyncio.AbstractEventLoop
-    tb: str = None
+    tb: str = ''
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
@@ -97,7 +97,7 @@ class Fence(AsyncContextManager, ContextManager):
         self._locked = True
         self.owner = me
         import traceback
-        self.tb = traceback.format_stack()
+        self.tb = '\n'.join(traceback.format_stack())
 
     def _get_current_task(self) -> asyncio.Task:
         return asyncio.Task.current_task(loop=self.loop)
