@@ -89,6 +89,8 @@ else:
 
 __all__ = ['Consumer', 'Fetcher']
 
+# These flags are used for Service.diag, tracking what the consumer
+# service is currently doing.
 CONSUMER_FETCHING = 'FETCHING'
 CONSUMER_PARTITIONS_REVOKED = 'PARTITIONS_REVOKED'
 CONSUMER_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
