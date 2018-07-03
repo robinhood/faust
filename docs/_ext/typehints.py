@@ -1,7 +1,12 @@
 import inspect
-from typing import Any, AnyStr, GenericMeta, TypeVar, get_type_hints
+from typing import Any, AnyStr, TypeVar, get_type_hints
 from sphinx.ext.autodoc import formatargspec
 from sphinx.util.inspect import getargspec
+
+try:
+    from typing import GenericMeta  # Py3.7
+except ImportError:
+    from typing import Generic as GenericMeta  # Py3.7
 
 
 def format_annotation(annotation):
