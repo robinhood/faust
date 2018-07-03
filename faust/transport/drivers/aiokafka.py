@@ -23,7 +23,6 @@ from typing import (
 
 import aiokafka
 import aiokafka.abc
-import async_timeout
 from aiokafka.errors import (
     CommitFailedError,
     ConsumerStoppedError,
@@ -769,37 +768,43 @@ class Transport(base.Transport):
         # hit the controller
         nodes = [broker.nodeId for broker in client.cluster.brokers()]
         owner.log.info(f'Nodes: {nodes}')
-        async with async_timeout.timeout(timeout, loop=self.loop):
-            for node_id in nodes:
-                if node_id is None:
-                    raise RuntimeError('Not connected to Kafka broker')
+        for node_id in nodes:
+            if node_id is None:
+                raise RuntimeError('Not connected to Kafka broker')
 
-                request = CreateTopicsRequest[protocol_version](
-                    [(topic, partitions, replication, [],
-                      list(config.items()))],
-                    timeout,
-                    False,
-                )
-                owner.log.info(f'-Sending request to {node_id}')
-                response = await client.send(node_id, request)
-                owner.log.info(f'+Sent request to {node_id}')
-                assert len(response.topic_error_codes), 'single topic'
+            request = CreateTopicsRequest[protocol_version](
+                [(topic, partitions, replication, [], list(config.items()))],
+                timeout,
+                False,
+            )
+            owner.log.info(f'-Sending request to {node_id}')
+            wait_result = await owner.wait(
+                client.send(node_id, request),
+                timeout=timeout,
+            )
+            if wait_result.stopped:
+                owner.log.info(f'Shutting down - skipping creation.')
+                return
+            response = wait_result.result
 
-                _, code, reason = response.topic_error_codes[0]
+            owner.log.info(f'+Sent request to {node_id}')
+            assert len(response.topic_error_codes), 'single topic'
 
-                if code != 0:
-                    if not ensure_created and code == TopicExistsError.errno:
-                        owner.log.debug(
-                            f'Topic {topic} exists, skipping creation.')
-                        return
-                    elif code == NotControllerError.errno:
-                        owner.log.debug(
-                            f'Broker: {node_id} is not controller.')
-                        continue
-                    else:
-                        raise for_code(code)(
-                            f'Cannot create topic: {topic} ({code}): {reason}')
-                else:
-                    owner.log.info(f'Topic {topic} created.')
+            _, code, reason = response.topic_error_codes[0]
+
+            if code != 0:
+                if not ensure_created and code == TopicExistsError.errno:
+                    owner.log.debug(
+                        f'Topic {topic} exists, skipping creation.')
                     return
-            raise Exception(f'No controller found among brokers: {nodes}')
+                elif code == NotControllerError.errno:
+                    owner.log.debug(
+                        f'Broker: {node_id} is not controller.')
+                    continue
+                else:
+                    raise for_code(code)(
+                        f'Cannot create topic: {topic} ({code}): {reason}')
+            else:
+                owner.log.info(f'Topic {topic} created.')
+                return
+        raise Exception(f'No controller found among brokers: {nodes}')

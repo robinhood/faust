@@ -1,4 +1,3 @@
-async-timeout~=3.0
 aiohttp>=2.3.9,<4.0.0
 robinhood-aiokafka~=0.4.15
 click~=6.7
