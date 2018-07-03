@@ -132,6 +132,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     #: Counter of times a topics buffer was full
     topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
 
+    #: Arbitrary counts added by apps
+    metric_counts: Counter[str] = cast(Counter[str], None)
+
     def __init__(self,
                  *,
                  max_avg_history: int = MAX_AVG_HISTORY,
@@ -201,7 +204,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             },
-            'metric_counts': self.metric_counts,
+            'metric_counts': self._metric_counts_dict(),
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -215,6 +218,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def _topic_buffer_full_dict(self) -> MutableMapping[str, int]:
         return {label(topic): count
                 for topic, count in self.topic_buffer_full.items()}
+
+    def _metric_counts_dict(self) -> MutableMapping[str, int]:
+        return {key: count for key, count in self.metric_counts.items()}
 
     def _cleanup(self) -> None:
         self._cleanup_max_avg_history()
