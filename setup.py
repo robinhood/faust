@@ -123,7 +123,7 @@ setup(
     license='BSD',
     packages=find_packages(exclude=['ez_setup', 't', 't.*']),
     # PEP-561: https://www.python.org/dev/peps/pep-0561/
-    package_data={'mode': ['py.typed']},
+    package_data={'faust': ['py.typed']},
     include_package_data=True,
     python_requires='>=3.6.0',
     keywords=[
