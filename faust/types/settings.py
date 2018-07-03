@@ -128,6 +128,15 @@ REPLY_EXPIRES = want_seconds(timedelta(days=1))
 #: Max number of messages channels/streams/topics can "prefetch".
 STREAM_BUFFER_MAXSIZE = 4096
 
+#: We buffer up sending messages until the
+#: source topic offset related to that processsing is committed.
+#: This means when we do commit, we may have buffered up a LOT of messages
+#: so commit frequently.
+#:
+#: This setting is deprecated and will be removed once transaction support
+#: is added in a later version.
+STREAM_PUBLISH_ON_COMMIT = True
+
 #: Minimum time to batch before sending out messages from the producer.
 #: Used as the default value for :setting:`linger_ms`.
 PRODUCER_LINGER_MS = 0
@@ -196,6 +205,7 @@ class Settings(abc.ABC):
     stream_wait_empty: bool = True
     stream_ack_cancelled_tasks: bool = False
     stream_ack_exceptions: bool = True
+    stream_publish_on_commit: bool = STREAM_PUBLISH_ON_COMMIT
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
@@ -279,6 +289,7 @@ class Settings(abc.ABC):
             stream_wait_empty: bool = None,
             stream_ack_cancelled_tasks: bool = None,
             stream_ack_exceptions: bool = None,
+            stream_publish_on_commit: bool = None,
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
             producer_acks: int = None,
@@ -353,6 +364,8 @@ class Settings(abc.ABC):
             self.stream_ack_cancelled_tasks = stream_ack_cancelled_tasks
         if stream_ack_exceptions is not None:
             self.stream_ack_exceptions = stream_ack_exceptions
+        if stream_publish_on_commit is not None:
+            self.stream_publish_on_commit = stream_publish_on_commit
         if producer_linger_ms is not None:
             self.producer_linger_ms = producer_linger_ms
         if producer_max_batch_size is not None:
