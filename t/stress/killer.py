@@ -65,16 +65,16 @@ class Chaos(Service):
             if self.should_stop:
                 return
             secs = current_span.seconds_to_sleep()
-            print(f'Signal dispatcher sleeping for {secs} seconds...')
+            self.log.info('Signal dispatcher sleeping for %r seconds...', secs)
             await self.sleep(secs)
             sig = random.choice(current_span.signals)
-            print(f'Signalling all workers on this box with {sig!r}')
+            self.log.warn('Signalling all workers on this box with %r', sig)
             r = envoy.run(f'pkill -{int(sig)} Faust:Worker')
             if r.status_code:
                 if r.std_err.strip():
-                    print(f'ERROR from pkill: {r.std_err}')
+                    self.log.error('ERROR from pkill: %r', r.std_err)
                 else:
-                    print('No processes running, nothing to signal!')
+                    self.log.info('No processes running, nothing to signal!')
 
 
 if __name__ == '__main__':
