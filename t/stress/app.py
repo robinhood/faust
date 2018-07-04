@@ -9,6 +9,9 @@ from . import producer
 STATUS_OK = 'OK'
 STATUS_SLOW = 'SLOW'
 STATUS_STALL = 'STALL'
+STATUS_UNASSIGNED = 'UNASSIGNED'
+
+OK_STATUSES = {STATUS_OK, STATUS_UNASSIGNED}
 
 __all__ = ['ProducerFun', 'StressApp', 'create_stress_app']
 
@@ -23,6 +26,8 @@ class StressApp(faust.App):
     #: and report_progress background thread updates it as tests fail.
     faults: int = 0
 
+    unassigned: bool = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stress_producers = []
@@ -34,6 +39,8 @@ class StressApp(faust.App):
 
 
 def faults_to_human_status(app):
+    if app.unassigned:
+        return STATUS_UNASSIGNED
     if app.faults > 6:
         return STATUS_STALL
     elif app.faults > 3:
@@ -60,6 +67,10 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
         while not app.should_stop:
             severity = app.log.info
             await app._service.sleep(5.0)
+            if not app.consumer.assignment():
+                app.unassigned = True
+                continue
+            app.unassigned = False
             if app.count_received_events <= prev_count:
                 app.faults += 1
                 if app.faults > 6:
@@ -90,7 +101,7 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
             async with client.get(f'http://{host}:{port}/test/status/') as r:
                 content = await r.json()
                 status = content['status']
-                color = 'green' if status == STATUS_OK else 'red'
+                color = 'green' if status in OK_STATUSES else 'red'
                 print(f'{description}{self.color(color, status)}')
 
     return app
