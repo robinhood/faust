@@ -306,7 +306,7 @@ def cli(ctx: click.Context,
         # WARNING: Note that the faust.app module *MUST not* have
         # been imported before setting the envvar.
         os.environ['F_DATADIR'] = datadir
-    if not no_color and not terminal.isatty(sys.stdout):
+    if not no_color and terminal.isatty(sys.stdout):
         enable_all_colors()
     else:
         disable_all_colors()
