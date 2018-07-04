@@ -1,5 +1,6 @@
 from typing import Any, Callable, Iterator, List
 import faust
+from faust.cli import option
 from faust.types import RecordMetadata
 from faust.web import Request, Response, Web
 from . import config
@@ -79,10 +80,13 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
             {'status': faults_to_human_status(app), 'faults': app.faults},
         )
 
-    @app.command()
-    async def status(self):
+    @app.command(
+        option('--host', type=str, default='localhost'),
+        option('--port', type=int, default=6066),
+    )
+    async def status(self, host: str, port: int):
         async with app.http_client as client:
-            async with client.get('http://localhost:6066/test/status/') as r:
+            async with client.get(f'http://{host}:{port}/test/status/') as r:
                 content = await r.json()
                 status = content['status']
                 if status == STATUS_OK:
