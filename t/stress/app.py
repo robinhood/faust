@@ -83,15 +83,14 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
     @app.command(
         option('--host', type=str, default='localhost'),
         option('--port', type=int, default=6066),
+        option('--description', type=str, default=''),
     )
-    async def status(self, host: str, port: int):
+    async def status(self, host: str, port: int, description: str):
         async with app.http_client as client:
             async with client.get(f'http://{host}:{port}/test/status/') as r:
                 content = await r.json()
                 status = content['status']
-                if status == STATUS_OK:
-                    print(self.color('green', status))
-                else:
-                    print(self.color('red', status))
+                color = 'green' if status == STATUS_OK else 'red'
+                print(f'{description}{self.color(color, status)}')
 
     return app
