@@ -10,8 +10,10 @@ STATUS_OK = 'OK'
 STATUS_SLOW = 'SLOW'
 STATUS_STALL = 'STALL'
 STATUS_UNASSIGNED = 'UNASSIGNED'
+STATUS_REBALANCING = 'REBALANCING'
 
 OK_STATUSES = {STATUS_OK, STATUS_UNASSIGNED}
+MAYBE_STATUSES = {STATUS_REBALANCING}
 
 __all__ = ['ProducerFun', 'StressApp', 'create_stress_app']
 
@@ -39,6 +41,8 @@ class StressApp(faust.App):
 
 
 def faults_to_human_status(app):
+    if app.rebalancing:
+        return STATUS_REBALANCING
     if app.unassigned:
         return STATUS_UNASSIGNED
     if app.faults > 6:
@@ -69,6 +73,8 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
             await app._service.sleep(5.0)
             if not app.consumer.assignment():
                 app.unassigned = True
+                continue
+            elif app.rebalancing:
                 continue
             app.unassigned = False
             if app.count_received_events <= prev_count:
@@ -101,7 +107,12 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
             async with client.get(f'http://{host}:{port}/test/status/') as r:
                 content = await r.json()
                 status = content['status']
-                color = 'green' if status in OK_STATUSES else 'red'
+                if status in OK_STATUSES:
+                    color = 'green'
+                elif status in MAYBE_STATUSES:
+                    color = 'yellow'
+                else:
+                    color = 'red'
                 print(f'{description}{self.color(color, status)}')
 
     return app
