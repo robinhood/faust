@@ -121,11 +121,7 @@ class SystemChecks(SystemChecksT, Service):
         app = self.app
         while not self.should_stop:
             await self.sleep(CHECK_FREQUENCY)
-            if not app.consumer.assignment():
-                app.unassigned = True
+            if app.rebalancing or app.unassigned:
                 continue
-            elif app.rebalancing:
-                continue
-            app.unassigned = False
             for system_check in self.checks.values():
                 system_check.check(app)

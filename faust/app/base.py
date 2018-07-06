@@ -881,6 +881,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         if self.should_stop:
             return self._on_rebalance_when_stopped()
         session_timeout = self.conf.broker_session_timeout
+        self.unassigned = not assigned
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             try:
                 on_timeout.info('fetcher.stop()')

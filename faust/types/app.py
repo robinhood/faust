@@ -79,7 +79,7 @@ class AppT(ServiceT):
     rebalancing: bool = False
 
     #: Set to true if the assignment is empty
-    #: (Note requires the monitor to be active).
+    # This flag is set by App._on_partitions_assigned
     unassigned: bool = False
 
     on_configured: SyncSignal[Settings] = SyncSignal()
