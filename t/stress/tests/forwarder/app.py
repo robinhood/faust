@@ -6,10 +6,11 @@ from faust.sensors import checks
 from ...app import create_stress_app
 
 counter_received = 0
-found_duplicate = 0
+found_duplicates = 0
 
 app = create_stress_app(
     name='f-stress-dedupe',
+    version=2,
     origin='t.stress.tests.forwarder',
     stream_wait_empty=False,
     broker_commit_every=100,
@@ -24,7 +25,7 @@ app.add_system_check(
 app.add_system_check(
     checks.Stationary(
         'duplicates',
-        get_value=lambda: found_duplicate,
+        get_value=lambda: found_duplicates,
     ),
 )
 
@@ -73,7 +74,8 @@ async def check(forwarded_numbers: Stream[int]) -> None:
             if number > 0:
                 # consider 0 as the service being restarted.
                 if number <= previous_number:
-                    app.log.error('Found duplicate number: %r', number)
+                    app.log.error('Found duplicate number in %r: %r',
+                                  event.message.tp, number)
                     found_duplicates += 1
         value_by_partition[partition] = number
         counter_received += 1
