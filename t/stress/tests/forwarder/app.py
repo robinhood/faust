@@ -10,7 +10,7 @@ found_duplicates = 0
 
 app = create_stress_app(
     name='f-stress-dedupe',
-    version=3,
+    version=4,
     origin='t.stress.tests.forwarder',
     stream_wait_empty=False,
     broker_commit_every=100,
@@ -43,7 +43,7 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
         if app.is_leader():
             for partition in range(partitions):
                 current_value = partitions_sent_counter.get(partition, 0)
-                await process.send(value=current_value, partition=partition)
+                await check.send(value=current_value, partition=partition)
                 partitions_sent_counter[partition] += 1
             await asyncio.sleep(random.uniform(0, max_latency))
         else:
