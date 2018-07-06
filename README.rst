@@ -22,20 +22,15 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-**Faust** is a stream processing library, bringing the groundbreaking
+**Faust** is a stream processing library,
 new ideas from `Kafka Streams`_ into Python.
 
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
 
-It's a library you can drop into any Python program
-to easily build traditionally complicated distributed systems
-that are high performance and fault tolerant.
-
 Faust provides both *stream processing* and *event processing*,
 sharing similarity with tools such as
 `Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_/`Flink`_,
-and `Celery`_.
 
 It does not use a DSL, it's just Python!
 This means you can use all your favorite Python libraries
@@ -63,15 +58,13 @@ Here's an example processing a stream of incoming orders:
             # process infinite stream of orders.
             print(f'Order for {order.account_id}: {order.amount}')
 
-The Agent is a "stream processor"  and you can start this program
-on multiple machines to create a distributed system.
-You can think of agents like Celery tasks that can persist state
-between invocations.
-to tasks in  task queue (Celery), but that it reads a stream of eventsY
-and can]]]]]]k
-state between executing tasks.
+The Agent decorator defines a "stream processor" that essentially
+consumes from a Kafka topic and does something for every event it receives.
 
-State can be in-memory, or it can be stored in "tables".
+The agent is an ``async def`` function, so can also perform
+other operations asynchronously, such as doing web requests.
+
+This system can also persist state, with "tables".
 Tables are like named distributed key/value stores you can use
 as regular Python dictionaries.
 
