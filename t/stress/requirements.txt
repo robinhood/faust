@@ -1,3 +1,4 @@
 raven>=6.7.0
 raven-aiohttp>=0.7.0
 envoy
+setproctitle
