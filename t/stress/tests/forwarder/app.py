@@ -6,9 +6,10 @@ from faust.sensors import checks
 from ...app import create_stress_app
 
 counter_received = 0
+found_duplicate = 0
 
 app = create_stress_app(
-    name='f-stress-duplication',
+    name='f-stress-dedupe',
     origin='t.stress.tests.forwarder',
     stream_wait_empty=False,
     broker_commit_every=100,
@@ -18,6 +19,12 @@ app.add_system_check(
     checks.Increasing(
         'counter_received',
         get_value=lambda: counter_received,
+    ),
+)
+app.add_system_check(
+    checks.Stationary(
+        'duplicates',
+        get_value=lambda: found_duplicate,
     ),
 )
 
@@ -35,7 +42,7 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
         if app.is_leader():
             for partition in range(partitions):
                 current_value = partitions_sent_counter.get(partition, 0)
-                await forward.send(value=current_value, partition=partition)
+                await process.send(value=current_value, partition=partition)
                 partitions_sent_counter[partition] += 1
             await asyncio.sleep(random.uniform(0, max_latency))
         else:
@@ -43,17 +50,18 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
 
 
 @app.agent(value_type=int)
-async def forward(numbers: Stream[int]) -> None:
+async def process(numbers: Stream[int]) -> None:
     # Next agent reads from topic and forwards numbers to another agent
     async for number in numbers:
-        await receive.send(value=number)
+        await check.send(value=number)
 
 
 @app.agent(value_type=int)
-async def receive(forwarded_numbers: Stream[int]) -> None:
+async def check(forwarded_numbers: Stream[int]) -> None:
     # last agent recveices number and verifies numbers are always increasing.
     # (repeating or decreasing numbers are evidence of duplicates).
     global counter_received
+    global found_duplicates
     value_by_partition = Counter()
     async for event in forwarded_numbers.events():
         number = event.value
@@ -64,6 +72,8 @@ async def receive(forwarded_numbers: Stream[int]) -> None:
         if previous_number is not None:
             if number > 0:
                 # consider 0 as the service being restarted.
-                assert number > previous_number
+                if number <= previous_number:
+                    app.log.error('Found duplicate number: %r', number)
+                    found_duplicates += 1
         value_by_partition[partition] = number
         counter_received += 1

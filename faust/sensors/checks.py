@@ -10,11 +10,12 @@ if typing.TYPE_CHECKING:
 else:
     class AppT: ...  # noqa
 
-__all__ = ['Check', 'Increasing', 'SystemChecks']
+__all__ = ['Check', 'Condition', 'Increasing', 'SystemChecks']
 
 CHECK_FREQUENCY = 5.0
 
 STATE_OK = 'OK'
+STATE_FAIL = 'FAIL'
 STATE_SLOW = 'SLOW'
 STATE_STALL = 'STALL'
 STATE_UNASSIGNED = 'UNASSIGNED'
@@ -25,10 +26,13 @@ MAYBE_STATES = {STATE_REBALANCING}
 
 
 class Check(SystemCheckT[T]):
+    description: str = ''
+    negate_description: str = ''
 
     state_to_severity = {
         STATE_SLOW: logging.WARNING,
         STATE_STALL: logging.ERROR,
+        STATE_FAIL: logging.CRITICAL,
     }
 
     faults_to_state = [
@@ -71,17 +75,27 @@ class Check(SystemCheckT[T]):
                 self.faults += 1
                 self.state = self.get_state_for_faults(self.faults)
                 severity = self.state_to_severity.get(self.state, logging.INFO)
-                app.log.log(severity,
-                            '%s:%s not progressing (x%s): was %s now %s',
-                            app.conf.id, self.name,
-                            self.faults, prev_value, current_value)
+                self.on_failed_log(severity, app, prev_value, current_value)
             else:
                 self.faults = 0
                 self.state = STATE_OK
-                app.log.info('%s:%s progressing: was %s now %s',
-                             app.conf.id, self.name, prev_value,
-                             current_value)
+                self.on_ok_log(app, prev_value, current_value)
         self.prev_value = current_value
+
+    def on_failed_log(self,
+                      severity: int,
+                      app: AppT,
+                      prev_value: T,
+                      current_value: T) -> None:
+        app.log.log(severity,
+                    '%s:%s not %s (x%s): was %s now %s',
+                    app.conf.id, self.name, self.negate_description,
+                    self.faults, prev_value, current_value)
+
+    def on_ok_log(self, app: AppT, prev_value: T, current_value: T) -> None:
+        app.log.info('%s:%s %s: was %s now %s',
+                     app.conf.id, self.name, self.description,
+                     prev_value, current_value)
 
     def get_state_for_faults(self, faults: int) -> str:
         for level, state in self.faults_to_state:
@@ -100,6 +114,32 @@ class Check(SystemCheckT[T]):
 
 class Increasing(Check[T]):
     default_operator = operator.le
+    description = 'increasing'
+    negate_description = 'not increasing'
+
+
+def _transitioned_to_false(previous: bool, current: bool) -> bool:
+    return not current
+
+
+class Condition(Check[bool]):
+    description = 'functional'
+    negate_description = 'nonfunctional'
+
+    default_operator = _transitioned_to_false
+
+    faults_to_state = [
+        (1, STATE_FAIL),
+        (0, STATE_OK),
+    ]
+
+
+class Stationary(Check[T]):
+    """Monitors a value that should stand still, i.e, not going up or down."""
+    description = 'functional'
+    negate_description = 'increasing'
+
+    default_operator = operator.eq
 
 
 class SystemChecks(SystemChecksT, Service):
