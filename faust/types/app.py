@@ -69,9 +69,18 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
+    #: Set to true when the app is finalized (can read configuration).
     finalized: bool = False
+
+    #: Set to true when the app has read configuration.
     configured: bool = False
+
+    #: Set to true if the worker is currently rebalancing.
     rebalancing: bool = False
+
+    #: Set to true if the assignment is empty
+    #: (Note requires the monitor to be active).
+    unassigned: bool = False
 
     on_configured: SyncSignal[Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()

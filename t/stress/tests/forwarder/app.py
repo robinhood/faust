@@ -1,7 +1,11 @@
 import asyncio
 import random
 from faust import Stream
+from faust.sensors import checks
 from ...app import create_stress_app
+
+counter_sent = 0
+counter_received = 0
 
 app = create_stress_app(
     name='f-stress-duplicates',
@@ -10,10 +14,24 @@ app = create_stress_app(
     broker_commit_every=100,
 )
 
+app.add_system_check(
+    checks.Increasing(
+        'counter_sent',
+        get_value=lambda: counter_sent,
+    ),
+)
+app.add_system_check(
+    checks.Increasing(
+        'counter_received',
+        get_value=lambda: counter_received,
+    ),
+)
+
 
 @app.task
 async def on_leader_send_monotonic_counter(app, max_latency=0.01) -> None:
     # Leader node sends incrementing numbers to a topic
+    global counter_sent
     counter_sent = 0
 
     while not app.should_stop:
@@ -36,6 +54,7 @@ async def forward(numbers: Stream[int]) -> None:
 async def receive(forwarded_numbers: Stream[int]) -> None:
     # last agent recveices number and verifies numbers are always increasing.
     # (repeating or decreasing numbers are evidence of duplicates).
+    global counter_received
     previous_number = None
     async for number in forwarded_numbers:
         assert isinstance(number, int)
@@ -43,4 +62,4 @@ async def receive(forwarded_numbers: Stream[int]) -> None:
             if number > 0:
                 # consider 0 as the service being restarted.
                 assert number > previous_number
-        app.count_received_events += 1
+        counter_received += 1

@@ -1,19 +1,13 @@
 from typing import Any, Callable, Iterator, List
+from mode.utils.objects import cached_property
 import faust
 from faust.cli import option
+from faust.sensors import checks
 from faust.types import RecordMetadata
+from faust.types.sensors import SystemCheckT, SystemChecksT
 from faust.web import Request, Response, Web
 from . import config
 from . import producer
-
-STATUS_OK = 'OK'
-STATUS_SLOW = 'SLOW'
-STATUS_STALL = 'STALL'
-STATUS_UNASSIGNED = 'UNASSIGNED'
-STATUS_REBALANCING = 'REBALANCING'
-
-OK_STATUSES = {STATUS_OK, STATUS_UNASSIGNED}
-MAYBE_STATUSES = {STATUS_REBALANCING}
 
 __all__ = ['ProducerFun', 'StressApp', 'create_stress_app']
 
@@ -35,22 +29,25 @@ class StressApp(faust.App):
         self.stress_producers = []
         self.count_received_events = 0
 
+    async def on_start(self) -> None:
+        self.system_checks.add(
+            checks.Increasing(
+                'events_total',
+                get_value=lambda: self.monitor.events_total,
+            ),
+        )
+        await self.add_runtime_dependency(self.system_checks)
+
+    def add_system_check(self, check: SystemCheckT) -> None:
+        self.system_checks.add(check)
+
     def register_stress_producer(self, fun: ProducerFun):
         self.stress_producers.append(fun)
         return fun
 
-
-def faults_to_human_status(app):
-    if app.rebalancing:
-        return STATUS_REBALANCING
-    if app.unassigned:
-        return STATUS_UNASSIGNED
-    if app.faults > 6:
-        return STATUS_STALL
-    elif app.faults > 3:
-        return STATUS_SLOW
-    else:
-        return STATUS_OK
+    @cached_property
+    def system_checks(self) -> SystemChecksT:
+        return checks.SystemChecks(self)
 
 
 def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
@@ -65,37 +62,14 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
         **kwargs)
     producer.install_produce_command(app)
 
-    @app.task
-    async def report_progress(app):
-        prev_count = 0
-        while not app.should_stop:
-            severity = app.log.info
-            await app._service.sleep(5.0)
-            if not app.consumer.assignment():
-                app.unassigned = True
-                continue
-            elif app.rebalancing:
-                continue
-            app.unassigned = False
-            if app.count_received_events <= prev_count:
-                app.faults += 1
-                if app.faults > 6:
-                    severity = app.log.error
-                elif app.faults > 3:
-                    severity = app.log.warn
-                severity(f'{app.conf.id} not progressing (x{app.faults}): '
-                         f'was {prev_count} now {app.count_received_events}')
-            else:
-                app.faults = 0
-                severity(f'{app.conf.id} progressing: '
-                         f'was {prev_count} now {app.count_received_events}')
-            prev_count = app.count_received_events
-
     @app.page('/test/status/')
     async def get_status(web: Web, request: Request) -> Response:
-        return web.json(
-            {'status': faults_to_human_status(app), 'faults': app.faults},
-        )
+        return web.json({
+            'status': {
+                check.name: check.asdict()
+                for check in app.system_checks.checks.values()
+            },
+        })
 
     @app.command(
         option('--host', type=str, default='localhost'),
@@ -107,12 +81,10 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
             async with client.get(f'http://{host}:{port}/test/status/') as r:
                 content = await r.json()
                 status = content['status']
-                if status in OK_STATUSES:
-                    color = 'green'
-                elif status in MAYBE_STATUSES:
-                    color = 'yellow'
-                else:
-                    color = 'red'
-                print(f'{description}{self.color(color, status)}')
+                for check_name, info in status.items():
+                    state = info['state']
+                    color = info['color']
+                    print(f'{description} {check_name}: '
+                          f'{self.color(color, state)}')
 
     return app
