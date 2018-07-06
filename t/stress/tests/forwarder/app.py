@@ -4,7 +4,6 @@ from faust import Stream
 from faust.sensors import checks
 from ...app import create_stress_app
 
-counter_sent = 0
 counter_received = 0
 
 app = create_stress_app(
@@ -16,12 +15,6 @@ app = create_stress_app(
 
 app.add_system_check(
     checks.Increasing(
-        'counter_sent',
-        get_value=lambda: counter_sent,
-    ),
-)
-app.add_system_check(
-    checks.Increasing(
         'counter_received',
         get_value=lambda: counter_received,
     ),
@@ -31,7 +24,6 @@ app.add_system_check(
 @app.task
 async def on_leader_send_monotonic_counter(app, max_latency=0.01) -> None:
     # Leader node sends incrementing numbers to a topic
-    global counter_sent
     counter_sent = 0
 
     while not app.should_stop:
