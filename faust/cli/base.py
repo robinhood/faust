@@ -238,7 +238,7 @@ class _Group(click.Group):
     def _extract_param(self,
                        argv: Sequence[str],
                        shortopt: str,
-                       longopt: str) -> str:
+                       longopt: str) -> Optional[str]:
         for i, arg in enumerate(argv):
             if arg == shortopt:
                 try:
@@ -255,6 +255,7 @@ class _Group(click.Group):
                     except IndexError:
                         raise click.UsageError(
                             f'Missing argument for {longopt}')
+        return None
 
     @no_type_check  # mypy bugs out on this
     def make_context(self,
