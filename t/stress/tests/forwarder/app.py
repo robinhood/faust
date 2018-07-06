@@ -54,12 +54,16 @@ async def receive(forwarded_numbers: Stream[int]) -> None:
     # last agent recveices number and verifies numbers are always increasing.
     # (repeating or decreasing numbers are evidence of duplicates).
     global counter_received
-    previous_number = None
-    async for number in forwarded_numbers:
+    value_by_partition = Counter()
+    async for event in forwarded_numbers.events():
+        number = event.value
         assert isinstance(number, int)
+        partition = event.message.partition
+        assert isinstance(partition, int)
+        previous_number = value_by_partition.get(partition, None)
         if previous_number is not None:
             if number > 0:
                 # consider 0 as the service being restarted.
                 assert number > previous_number
-        previous_number = number
+        value_by_partition[partition] = number
         counter_received += 1
