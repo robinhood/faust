@@ -54,4 +54,5 @@ async def receive(forwarded_numbers: Stream[int]) -> None:
             if number > 0:
                 # consider 0 as the service being restarted.
                 assert number > previous_number
+        previous_number = number
         counter_received += 1
