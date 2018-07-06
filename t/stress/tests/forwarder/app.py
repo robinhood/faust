@@ -10,7 +10,7 @@ found_duplicates = 0
 
 app = create_stress_app(
     name='f-stress-dedupe',
-    version=2,
+    version=3,
     origin='t.stress.tests.forwarder',
     stream_wait_empty=False,
     broker_commit_every=100,
@@ -53,8 +53,8 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
 @app.agent(value_type=int)
 async def process(numbers: Stream[int]) -> None:
     # Next agent reads from topic and forwards numbers to another agent
-    async for number in numbers:
-        await check.send(value=number)
+    async for event in numbers.events():
+        await check.send(value=event.value, partition=event.message.partition)
 
 
 @app.agent(value_type=int)
