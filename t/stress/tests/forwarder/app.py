@@ -1,7 +1,7 @@
 import random
 from collections import Counter
 from faust import Stream
-from ... import reporting
+from ...reports import checks
 from ...app import create_stress_app
 
 counter_received = 0
@@ -16,13 +16,13 @@ app = create_stress_app(
 )
 
 app.add_system_check(
-    reporting.Increasing(
+    checks.Increasing(
         'counter_received',
         get_value=lambda: counter_received,
     ),
 )
 app.add_system_check(
-    reporting.Stationary(
+    checks.Stationary(
         'duplicates',
         get_value=lambda: found_duplicates,
     ),

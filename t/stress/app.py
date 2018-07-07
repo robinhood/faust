@@ -27,9 +27,9 @@ class StressApp(faust.App):
         self.count_received_events = 0
 
     async def on_start(self) -> None:
-        from . import reporting
+        from .reports import checks
         self.system_checks.add(
-            reporting.Increasing(
+            checks.Increasing(
                 'events_total',
                 get_value=lambda: self.monitor.events_total,
             ),
