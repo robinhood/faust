@@ -139,7 +139,7 @@ class Stationary(Check[T]):
     description = 'functional'
     negate_description = 'increasing'
 
-    default_operator = operator.eq
+    default_operator = operator.ne
 
 
 class SystemChecks(SystemChecksT, Service):
