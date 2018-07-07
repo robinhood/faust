@@ -1,13 +1,10 @@
 from typing import Any, Callable, Iterator, List
 from mode.utils.objects import cached_property
 import faust
-from faust.cli import option
-from faust.sensors import checks
 from faust.types import RecordMetadata
-from faust.types.sensors import SystemCheckT, SystemChecksT
-from faust.web import Request, Response, Web
 from . import config
 from . import producer
+from .reports.checks import Check, SystemChecks
 
 __all__ = ['ProducerFun', 'StressApp', 'create_stress_app']
 
@@ -30,15 +27,16 @@ class StressApp(faust.App):
         self.count_received_events = 0
 
     async def on_start(self) -> None:
+        from . import reporting
         self.system_checks.add(
-            checks.Increasing(
+            reporting.Increasing(
                 'events_total',
                 get_value=lambda: self.monitor.events_total,
             ),
         )
         await self.add_runtime_dependency(self.system_checks)
 
-    def add_system_check(self, check: SystemCheckT) -> None:
+    def add_system_check(self, check: Check) -> None:
         self.system_checks.add(check)
 
     def register_stress_producer(self, fun: ProducerFun):
@@ -46,12 +44,12 @@ class StressApp(faust.App):
         return fun
 
     @cached_property
-    def system_checks(self) -> SystemChecksT:
-        return checks.SystemChecks(self)
+    def system_checks(self) -> SystemChecks:
+        return SystemChecks(self)
 
 
-def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
-    app = StressApp(
+def create_app(name, origin, base=faust.App, **kwargs: Any) -> faust.App:
+    return base(
         name,
         origin=origin,
         broker=config.broker,
@@ -60,31 +58,9 @@ def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
         loghandlers=config.loghandlers(),
         autodiscover=True,
         **kwargs)
+
+
+def create_stress_app(name, origin, **kwargs: Any) -> StressApp:
+    app = create_app(name, origin, base=StressApp, **kwargs)
     producer.install_produce_command(app)
-
-    @app.page('/test/status/')
-    async def get_status(web: Web, request: Request) -> Response:
-        return web.json({
-            'status': {
-                check.name: check.asdict()
-                for check in app.system_checks.checks.values()
-            },
-        })
-
-    @app.command(
-        option('--host', type=str, default='localhost'),
-        option('--port', type=int, default=6066),
-        option('--description', type=str, default=''),
-    )
-    async def status(self, host: str, port: int, description: str):
-        async with app.http_client as client:
-            async with client.get(f'http://{host}:{port}/test/status/') as r:
-                content = await r.json()
-                status = content['status']
-                for check_name, info in status.items():
-                    state = info['state']
-                    color = info['color']
-                    print(f'{description} {check_name}: '
-                          f'{self.color(color, state)}')
-
     return app

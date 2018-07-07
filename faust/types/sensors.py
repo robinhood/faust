@@ -1,18 +1,6 @@
 import abc
 import typing
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Generic,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    TypeVar,
-    cast,
-)
+from typing import Any, Iterable
 
 from mode import ServiceT
 
@@ -28,9 +16,7 @@ if typing.TYPE_CHECKING:
 else:
     class AppT: ...  # noqa
 
-__all__ = ['SensorInterfaceT', 'SensorT', 'SensorDelegateT', 'SystemCheckT']
-
-T = TypeVar('T')
+__all__ = ['SensorInterfaceT', 'SensorT', 'SensorDelegateT']
 
 
 class SensorInterfaceT(abc.ABC):
@@ -104,40 +90,4 @@ class SensorDelegateT(SensorInterfaceT, Iterable):
 
     @abc.abstractmethod
     def remove(self, sensor: SensorT) -> None:
-        ...
-
-
-class SystemCheckT(Generic[T]):
-    name: str
-    faults: int
-    prev_value: Optional[T]
-    state: str
-
-    state_to_severity: ClassVar[Mapping[str, int]] = {}
-    faults_to_state: ClassVar[List[Tuple[int, str]]] = []
-
-    def __init__(self,
-                 name: str,
-                 get_value: Callable[[], T] = None,
-                 operator: Callable[[T, T], bool] = None) -> None:
-        self._get_value: Callable[[], T] = cast(
-            Callable[[], T], get_value)
-        self.operator: Callable[[T, T], bool] = cast(
-            Callable[[T, T], bool], operator)
-        self.default_operator: Callable[[T, T], bool] = cast(
-            Callable[[T, T], bool], operator)
-
-    @abc.abstractmethod
-    def get_value(self) -> T:
-        ...
-
-    @abc.abstractmethod
-    def check(self, app: AppT) -> None:
-        ...
-
-
-class SystemChecksT(ServiceT):
-
-    @abc.abstractmethod
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
         ...

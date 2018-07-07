@@ -1,7 +1,7 @@
 import random
 from collections import Counter
 from faust import Stream
-from faust.sensors import checks
+from ... import reporting
 from ...app import create_stress_app
 
 counter_received = 0
@@ -16,19 +16,18 @@ app = create_stress_app(
 )
 
 app.add_system_check(
-    checks.Increasing(
+    reporting.Increasing(
         'counter_received',
         get_value=lambda: counter_received,
     ),
 )
 app.add_system_check(
-    checks.Stationary(
+    reporting.Stationary(
         'duplicates',
         get_value=lambda: found_duplicates,
     ),
 )
 
-partitions = 100
 partitions_sent_counter = Counter()
 
 
@@ -43,7 +42,7 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
             partitions_sent_counter.clear()
             await app._service.sleep(5)
         if app.is_leader():
-            for partition in range(partitions):
+            for partition in range(app.conf.topic_partitions):
                 if app.rebalancing:
                     break
                 current_value = partitions_sent_counter.get(partition, 0)
