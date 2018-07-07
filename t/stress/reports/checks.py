@@ -62,6 +62,14 @@ class Check:
             return self._get_value()
         raise NotImplementedError()
 
+    async def on_rebalancing(self, app: AppT):
+        self.state = states.REBALANCING
+        await send_update(app, self.to_representation(app, logging.INFO))
+
+    async def on_unassigned(self, app: AppT):
+        self.state = states.UNASSIGNED
+        await send_update(app, self.to_representation(app, logging.INFO))
+
     async def check(self, app: AppT) -> None:
         current_value: Any = self.get_value()
         prev_value = self.prev_value
@@ -163,7 +171,12 @@ class SystemChecks(Service):
         app = self.app
         while not self.should_stop:
             await self.sleep(CHECK_FREQUENCY)
-            if app.rebalancing or app.unassigned:
-                continue
-            for system_check in self.checks.values():
-                await system_check.check(app)
+            if app.rebalancing:
+                for system_check in self.checks.values():
+                    await system_check.report_rebalancing(app)
+            elif app.unassigned:
+                for system_check in self.checks.values():
+                    await system_check.report_unassigned(app)
+            else:
+                for system_check in self.checks.values():
+                    await system_check.check(app)
