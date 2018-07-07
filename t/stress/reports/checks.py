@@ -173,10 +173,10 @@ class SystemChecks(Service):
             await self.sleep(CHECK_FREQUENCY)
             if app.rebalancing:
                 for system_check in self.checks.values():
-                    await system_check.report_rebalancing(app)
+                    await system_check.on_rebalancing(app)
             elif app.unassigned:
                 for system_check in self.checks.values():
-                    await system_check.report_unassigned(app)
+                    await system_check.on_unassigned(app)
             else:
                 for system_check in self.checks.values():
                     await system_check.check(app)
