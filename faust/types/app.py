@@ -38,7 +38,7 @@ from .tables import CollectionT, TableManagerT, TableT
 from .topics import ChannelT, TopicT
 from .transports import ConductorT, ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
-from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View
+from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View, Web
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -261,6 +261,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def Worker(self, **kwargs: Any) -> WorkerT:
+        ...
+
+    @abc.abstractmethod
+    def on_webserver_init(self, web: Web) -> None:
         ...
 
     @property

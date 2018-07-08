@@ -53,7 +53,7 @@ from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import venusian
-from faust.web.views import Request, Response, Site, View
+from faust.web.views import Request, Response, Site, View, Web
 
 from faust.types.app import AppT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
@@ -941,6 +941,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def Worker(self, **kwargs: Any) -> WorkerT:
         return self.conf.Worker(self, **kwargs)
+
+    def on_webserver_init(self, web: Web) -> None:
+        ...
 
     def _create_directories(self) -> None:
         self.conf.datadir.mkdir(exist_ok=True)
