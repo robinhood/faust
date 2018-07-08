@@ -1,3 +1,5 @@
+import faust
+from . import assets
 from .models import Status
 
 TOPIC_NAME = 'f-systemcheck'
@@ -11,9 +13,16 @@ async def send_update(app, status: Status):
     return await get_reporting_topic(app).send(value=status)
 
 
-def get_reporting_app():
+class DashboardApp(faust.App):
+
+    def on_webserver_init(self, web):
+        web.add_static('/assets/', assets.get_path())
+
+
+def get_reporting_app() -> DashboardApp:
     from ..app import create_app
     return create_app(
         'f-stress-systemcheck',
+        base=DashboardApp,
         origin='t.stress.reports',
     )
