@@ -16,7 +16,7 @@ async def send_update(app, status: Status):
 class DashboardApp(faust.App):
 
     def on_webserver_init(self, web):
-        web.add_static('/assets/', assets.get_path())
+        web.add_static('/dashboard/assets/', assets.get_path())
 
 
 def get_reporting_app() -> DashboardApp:

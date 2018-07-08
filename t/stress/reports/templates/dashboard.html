@@ -1,0 +1,202 @@
+<!doctype html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7" lang=""> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8" lang=""> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9" lang=""> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang=""> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Faust Stress - Dashboard</title>
+    <meta name="description" content="Faust Stress - Dashboard">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="apple-touch-icon" href="apple-icon.png">
+    <link rel="shortcut icon" href="favicon.ico">
+
+    <link rel="stylesheet" href="assets/css/normalize.css">
+    <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/css/font-awesome.min.css">
+    <link rel="stylesheet" href="assets/css/themify-icons.css">
+    <link rel="stylesheet" href="assets/css/flag-icon.min.css">
+    <link rel="stylesheet" href="assets/css/cs-skin-elastic.css">
+    <!-- <link rel="stylesheet" href="assets/css/bootstrap-select.less"> -->
+    <link rel="stylesheet" href="assets/scss/style.css">
+    <link href="assets/css/lib/vector-map/jqvmap.min.css" rel="stylesheet">
+
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,600,700,800' rel='stylesheet' type='text/css'>
+
+    <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/html5shiv/3.7.3/html5shiv.min.js"></script> -->
+
+</head>
+<body>
+
+
+    <!-- Right Panel -->
+
+    <div id="right-panel" class="right-panel">
+
+        <div class="breadcrumbs">
+            <div class="col-sm-4">
+                <div class="page-header float-left">
+                    <div class="page-title">
+                        <h1>Faust Stress</h1>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-8">
+                <div class="page-header float-right">
+                    <div class="page-title">
+                        <ol class="breadcrumb text-right">
+                            <li class="active">- d a s h b o a r d -</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content mt-3">
+
+            <div class="col-xl-6 col-lg-10">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="stat-widget-one">
+                            <div class="stat-icon dib"><i class="ti-layout-grid2 text-warning border-warning"></i></div>
+                            <div class="stat-content dib">
+                                <div class="stat-text">Total Workers</div>
+                                <div class="stat-digit">{{ total_workers }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                    <div class="row">
+                        <div class="col-lg-10">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h4 class="mb-3">Seen States</h4>
+                                    <div class="flot-container">
+                                        <div id="flot-pie" class="flot-pie-container"></div>
+                                    </div>
+                                </div>
+                            </div><!-- /# card -->
+                        </div><!-- /# column -->
+                    </div><!-- /# row -->
+
+            <div class="animated fadeIn">
+                <div class="row">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong class="card-title">Test Status</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                              <thead>
+                                <tr>
+                                  <th scope="col">App</th>
+                                  <th scope="col">Host</th>
+                                  <th scope="col">Test</th>
+                                  <th scope="col">State</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                          {% for appid, categories in report.items() %}
+                             {% for category, hosts in categories.items() %}
+                                 {% for host, summary in hosts.items() %}
+                                 <tr>
+                                     <td>{{ appid }}</td>
+                                     <td>{{ host }}</td>
+                                     <td>{{ category }}</td>
+                                     <td>
+                                         <font color="{{ summary['color'] }}"
+                                         >{{ summary['state'] }}</font>
+                                     </td>
+                                 </tr>
+                                 {% endfor %}
+                             {% endfor %}
+                          {% endfor %}
+                      </tbody>
+                  </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
+
+        </div> <!-- .content -->
+    </div><!-- /#right-panel -->
+
+
+    <script src="assets/js/vendor/jquery-2.1.4.min.js"></script>
+    <script src="assets/js/popper.min.js"></script>
+    <script src="assets/js/plugins.js"></script>
+    <script src="assets/js/main.js"></script>
+
+    <!--  flot-chart js -->
+    <script src="assets/js/lib/flot-chart/excanvas.min.js"></script>
+    <script src="assets/js/lib/flot-chart/jquery.flot.js"></script>
+    <script src="assets/js/lib/flot-chart/jquery.flot.pie.js"></script>
+    <script src="assets/js/lib/flot-chart/jquery.flot.time.js"></script>
+    <script src="assets/js/lib/flot-chart/jquery.flot.stack.js"></script>
+    <script src="assets/js/lib/flot-chart/jquery.flot.resize.js"></script>
+    <script src="assets/js/lib/flot-chart/jquery.flot.crosshair.js"></script>
+    <script src="assets/js/lib/flot-chart/curvedLines.js"></script>
+    <script src="assets/js/lib/flot-chart/flot-tooltip/jquery.flot.tooltip.min.js"></script>
+
+    <script>
+
+    (function($){
+
+        "use strict"; // Start of use strict
+
+    var SufeeAdmin = {
+
+    pieFlot: function(){
+
+        var data = [
+            {% for data in state_counts %}
+                {
+                    label: "{{ data['name'] }}",
+                    data: {{ data['count'] }},
+                    color: "{{ data['color'] }}"
+                },
+            {% endfor %}
+        ];
+
+        var plotObj = $.plot( $( "#flot-pie" ), data, {
+            series: {
+                pie: {
+                    show: true,
+                    radius: 1,
+                    label: {
+                        show: false,
+
+                    }
+                }
+            },
+            grid: {
+                hoverable: true
+            },
+            tooltip: {
+                show: true,
+                content: "%p.0%, %s, n=%n", // show percentages, rounding to 2 decimal places
+                shifts: {
+                    x: 20,
+                    y: 0
+                },
+                defaultTheme: false
+            }
+        } );
+    },
+
+    };
+
+    $(document).ready(function() {
+        SufeeAdmin.pieFlot();
+    });
+
+})(jQuery);
+    </script>
+
+</body>
+</html>
