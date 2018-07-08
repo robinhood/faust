@@ -11,7 +11,8 @@ from .models import Status
 CHECK_FREQUENCY = 5.0
 
 
-class Check:
+# Note: Check is a serviceproxy since Service.state already exists.
+class Check(Service):
     description: str = ''
 
     state_to_severity = {
@@ -29,7 +30,8 @@ class Check:
     def __init__(self,
                  name: str,
                  get_value: Callable[[], Any] = None,
-                 operator: Callable[[Any, Any], bool] = None) -> None:
+                 operator: Callable[[Any, Any], bool] = None,
+                 **kwargs: Any):
         self.name = name
         self._get_value = cast(Callable[[], Any], get_value)
         if operator is None:
@@ -37,7 +39,10 @@ class Check:
         self.operator = operator
         self.faults = 0
         self.prev_value = None
-        self.state = states.OK
+        self.status = states.OK
+        self.interval_skew = 0.0
+        self.app = None
+        super().__init__(**kwargs)
 
     def to_representation(self, app, severity) -> Status:
         return Status(
@@ -46,13 +51,13 @@ class Check:
             category=self.name,
             color=self.color,
             count=self.faults,
-            state=self.state,
+            state=self.status,
             severity=logging.getLevelName(severity),
         )
 
     def asdict(self) -> Mapping[str, Any]:
         return {
-            'state': self.state,
+            'state': self.status,
             'color': self.color,
             'faults': self.faults,
         }
@@ -63,11 +68,11 @@ class Check:
         raise NotImplementedError()
 
     async def on_rebalancing(self, app: AppT):
-        self.state = states.REBALANCING
+        self.status = states.REBALANCING
         await send_update(app, self.to_representation(app, logging.INFO))
 
     async def on_unassigned(self, app: AppT):
-        self.state = states.UNASSIGNED
+        self.status = states.UNASSIGNED
         await send_update(app, self.to_representation(app, logging.INFO))
 
     async def check(self, app: AppT) -> None:
@@ -77,13 +82,14 @@ class Check:
         if prev_value is not None:
             if self.operator(current_value, prev_value):
                 self.faults += 1
-                self.state = self.get_state_for_faults(self.faults)
-                severity = self.state_to_severity.get(self.state, logging.INFO)
+                self.status = self.get_state_for_faults(self.faults)
+                severity = self.state_to_severity.get(
+                    self.status, logging.INFO)
                 await self.on_failed_log(
                     severity, app, prev_value, current_value)
             else:
                 self.faults = 0
-                self.state = states.OK
+                self.status = states.OK
                 await self.on_ok_log(app, prev_value, current_value)
         self.prev_value = current_value
 
@@ -115,11 +121,23 @@ class Check:
 
     @property
     def color(self) -> str:
-        if self.state in states.OK_STATES:
+        if self.status in states.OK_STATES:
             return 'green'
-        elif self.state in states.MAYBE_STATES:
+        elif self.status in states.MAYBE_STATES:
             return 'yellow'
         return 'red'
+
+    @Service.task
+    async def _run_check(self) -> None:
+        app = self.app
+        while not self.should_stop:
+            await self.sleep(CHECK_FREQUENCY)
+            if app.rebalancing:
+                await self.on_rebalancing(app)
+            elif app.unassigned:
+                await self.on_unassigned(app)
+            else:
+                await self.check(app)
 
 
 class Increasing(Check):
@@ -154,29 +172,21 @@ class Stationary(Check):
 
 class SystemChecks(Service):
     checks: MutableMapping[str, Check]
+    current_skew = 0.0
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         self.checks = {}
         Service.__init__(self, **kwargs)
 
+    def on_init_dependencies(self):
+        return self.checks.values()
+
     def add(self, check: Check) -> None:
         self.checks[check.name] = check
+        self.current_skew += 0.2
+        check.interval_skew = self.current_skew
+        check.app = self.app
 
     def remove(self, name: str) -> None:
         self.checks.pop(name, None)
-
-    @Service.task
-    async def _system_check(self) -> None:
-        app = self.app
-        while not self.should_stop:
-            await self.sleep(CHECK_FREQUENCY)
-            if app.rebalancing:
-                for system_check in self.checks.values():
-                    await system_check.on_rebalancing(app)
-            elif app.unassigned:
-                for system_check in self.checks.values():
-                    await system_check.on_unassigned(app)
-            else:
-                for system_check in self.checks.values():
-                    await system_check.check(app)
