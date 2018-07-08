@@ -1,6 +1,7 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
-from typing import Any, Callable, Optional, cast
+from pathlib import Path
+from typing import Any, Callable, Optional, Union, cast
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
@@ -99,6 +100,12 @@ class Web(base.Web):
 
     def route(self, pattern: str, handler: Callable) -> None:
         self._app.router.add_route('*', pattern, handler)
+
+    def add_static(self,
+                   prefix: str,
+                   path: Union[Path, str],
+                   **kwargs: Any) -> None:
+        self._app.router.add_static(prefix, str(path), **kwargs)
 
     async def on_start(self) -> None:
         self._thread = ServerThread(self, loop=self.loop, beacon=self.beacon)
