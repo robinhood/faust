@@ -92,12 +92,13 @@ async def check(forwarded_numbers: Stream[int]) -> None:
                     app.log.error('Found duplicate number in %r: %r',
                                   event.message.tp, number)
                     found_duplicates += 1
-                if number != previous_number + 1:
-                    # the number should also be exactly one up from the last
-                    # otherwise we may have dropped a number.
-                    app.log.error(
-                        'Found sequence gap for tp %r: this=%r previous=%r',
-                        event.message.tp, number, previous_number)
-                    found_gaps += 1
+                else:
+                    if number != previous_number + 1:
+                        # the number should always be exactly one up from the
+                        # last, otherwise we dropped a number.
+                        app.log.error(
+                            'Sequence gap for tp %r: this=%r previous=%r',
+                            event.message.tp, number, previous_number)
+                        found_gaps += 1
         value_by_partition[partition] = number
         counter_received += 1
