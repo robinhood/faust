@@ -5,20 +5,37 @@ from contextlib import suppress
 from sphinx_celery import conf
 
 if sys.version_info >= (3, 7):
-    from sphinx.ext import autodoc
     # Fixes bug in Sphinx 1.7.5 under CPython 3.7
 
-    orig = autodoc.Documenter.process_doc
+    # -- RuntimeError: generator raised StopIteration
+    from sphinx.ext import autodoc
+
+    orig_process_doc = autodoc.Documenter.process_doc
 
     class Documenter(autodoc.Documenter):
 
         def process_doc(self, docstrings):
             try:
-                for line in orig(self, docstrings):
+                for line in orig_process_doc(self, docstrings):
                     yield line
             except (StopIteration, RuntimeError):
                 return
     autodoc.Documenter.process_doc = Documenter.process_doc
+
+    # -- ForwardRef has no attribute __origin__
+
+    from typing import ForwardRef
+    from sphinx.util import inspect
+
+    orig_format = inspect.Signature.format_annotation_new
+
+    class Signature(inspect.Signature):
+
+        def format_annotation_new(self, annotation):
+            if isinstance(annotation, ForwardRef):
+                return annotation.__forward_arg__
+            return orig_format(self, annotation)
+    inspect.Signature.format_annotation_new = Signature.format_annotation_new
 
 extensions = []  # set by build_config
 sys.path.append('.')
