@@ -4,6 +4,22 @@ import sys
 from contextlib import suppress
 from sphinx_celery import conf
 
+if sys.version_info >= (3, 7):
+    from sphinx.ext import autodoc
+    # Fixes bug in Sphinx 1.7.5 under CPython 3.7
+
+    orig = autodoc.Documenter.process_doc
+
+    class Documenter(autodoc.Documenter):
+
+        def process_doc(self, docstrings):
+            try:
+                for line in orig(self, docstrings):
+                    yield line
+            except (StopIteration, RuntimeError):
+                return
+    autodoc.Documenter.process_doc = Documenter.process_doc
+
 extensions = []  # set by build_config
 sys.path.append('.')
 
@@ -76,10 +92,9 @@ html_sidebars = {
         'navigation.html',
         'relations.html',
         'searchbox.html',
-    ]
+    ],
 }
 html_theme_options = {
-    #'logo': 'logo.png',
     'description': 'A library for building streaming applications in Python.',
     'github_banner': True,
     'travis_button': True,
