@@ -57,6 +57,7 @@ class Website(Service):
             port=self.port,
             bind=self.bind,
             **kwargs)
+        self.app.on_webserver_init(self.web)
 
     def init_pages(self,
                    extra_pages: Sequence[Tuple[str, Type[Site]]]) -> None:

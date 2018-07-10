@@ -1,4 +1,5 @@
 import abc
+import typing
 from typing import Any, Iterable
 
 from mode import ServiceT
@@ -10,7 +11,12 @@ from .topics import TopicT
 from .transports import ConsumerT, ProducerT
 from .tuples import Message, TP
 
-__all__ = ['SensorInterfaceT', 'SensorT']
+if typing.TYPE_CHECKING:
+    from .app import AppT
+else:
+    class AppT: ...  # noqa
+
+__all__ = ['SensorInterfaceT', 'SensorT', 'SensorDelegateT']
 
 
 class SensorInterfaceT(abc.ABC):

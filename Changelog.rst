@@ -12,6 +12,217 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.22:
+
+1.0.22
+======
+:release-date: 2018-06-27 5:35 P.M PDT
+:release-by: Vineet Goel
+
+- **aiokafka**: Timeout for topic creation now wraps entire topic creation.
+  Earlier this timeout was for each individual request.
+
+- **testing**: Added stress testing suite.
+
+.. _version-1.0.21:
+
+1.0.21
+======
+:release-date: 2018-06-27 1:43 P.M PDT
+:release-by: Ask Solem
+
+.. warning::
+
+    This changes the package name of ``kafka`` to ``rhkafka``.
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.14
+
+    + Now depends on :ref:`Mode 1.15.0 <mode:version-1.15.0>`.
+
+.. _version-1.0.20:
+
+1.0.20
+======
+:release-date: 2018-06-26 2:35 P.M PDT
+:release-by: Vineet Goel
+
+- **Monitor**: Added ``Monitor.count`` to add arbitrary metrics to app monitor.
+
+- **Statsd Monitor**: Normalize agent metrics by removing memory address to
+  avoid spamming statsd with thousands of unique metrics per agent.
+
+.. _version-1.0.19:
+
+1.0.19
+======
+:release-date: 2018-06-25 6:40 P.M PDT
+:release-by: Vineet Goel
+
+- **Assignor**: Fixed crash if initial state of assignment is invalid. This
+  was causing the following error: ``ValueError('Actives and Standbys are
+  disjoint',).`` during partition assignment.
+
+.. _version-1.0.18:
+
+1.0.18
+======
+:release-date: 2018-06-21 3:53 P.M PDT
+:release-by: Ask Solem
+
+- **Worker**: Fixed ``KeyError: TopicPartition(topic='...', partition=x)``
+  occurring during rebalance.
+
+.. _version-1.0.17:
+
+1.0.17
+======
+:release-date: 2018-06-21 3:15 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.13
+
+- We now raise an error if the official :pypi:`aiokafka` or
+  :pypi:`kafka-python` is installed.
+
+    Faust depends on a fork of :pypi:`aiokafka` and can not be installed
+    with the official versions of :pypi:`aiokafka` and :pypi:`kafka-python`.
+
+    If you have those in requirements, please remove them from your
+    virtual env and remove them from requirements.
+
+- **Worker**: Fixes hanging in wait_empty.
+
+    This should also make rebalances faster.
+
+- **Worker**: Adds timeout on topic creation.
+
+.. _version-1.0.16:
+
+1.0.16
+======
+:release-date: 2018-06-19 3:46 P.M PDT
+:release-by: Ask Solem
+
+- **Worker**: :pypi:`aiokafka` create topic request default timeout now set
+              to 20 seconds (previously it was accidentally set to 1000
+              seconds).
+
+- **Worker**: Fixes crash from :exc:`AssertionError` where ``table._revivers``
+              is an empty list.
+
+- **Distribution**: Adds
+  :file:`t/misc/scripts/rebalance/killer-always-same-node.sh`.
+
+.. _version-1.0.15:
+
+1.0.15
+======
+:release-date: 2018-06-14 7:36 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.12
+
+- **Worker**: Fixed problem where worker does not recover after macbook
+  sleeping and waking up.
+
+- **Worker**: Fixed crash that could lead to rebalancing loop.
+
+- **Worker**: Removed some noisy errors that weren't really errors.
+
+.. _version-1.0.14:
+
+1.0.14
+======
+:release-date: 2018-06-13 5:58 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.11
+
+- **Worker**: :pypi:`aiokafka`'s heartbeat thread would sometimes keep the
+  worker alive even though the worker was trying to shutdown.
+
+    An error could have happened many hours ago causing the worker to crash
+    and attempt a shutdown, but then the heartbeat thread kept the worker
+    from terminating.
+
+    Now the rebalance will check if the worker is stopped and then
+    appropriately stop the heartbeat thread.
+
+- **Worker**: Fixed error that caused rebalancing to hang:
+  ``"ValueError: Set of coroutines/Futures is empty."``.
+
+- **Worker**: Fixed error "Coroutine x tried to break fence owned by y"
+
+    This was added as an assertion to see if multiple threads would use the
+    variable at the same time.
+
+- **Worker**: Removed logged error "not assigned to topics" now that we
+  automatically recover from non-existing topics.
+
+- **Tables**: Ignore :exc:`asyncio.CancelledError` while stopping standbys.
+
+- **Distribution**: Added scripts to help stress test rebalancing
+  in :file:`t/misc/scripts/rebalance`.
+
+.. _version-1.0.13:
+
+1.0.13
+======
+:release-date: 2018-06-12 2:10 P.M PDT
+:release-by: Ask Solem
+
+- **Worker**: The Kafka fetcher service was taking too long to shutdown
+  on rebalance.
+
+    If this takes longer than the session timeout, it triggers another
+    rebalance, and if it happens repeatedly this will cause the cluster
+    to be in a state of constant rebalancing.
+
+    Now we use future cancellation to stop the service as fast as possible.
+
+- **Worker**: Fetcher was accidentally started too early.
+
+    This didn't lead to any problems that we know of, but made the start a bit
+    slower than it needs to.
+
+- **Worker**: Fixed race condition where partitions were paused while fetching
+  from them.
+
+- **Worker**: Fixed theoretical race condition hang if web server started and
+  stopped in quick succession.
+
+- **Statsd**: The statsd monitor prematurely initialized the event loop
+  on module import.
+
+    We had a fix for this, but somehow forgot to remove the "hardcoded
+    super" that was set to call: ``Service.__init__(self, **kwargs)``.
+
+    The class is not even a subclass of Service anymore, and we are lucky it
+    manifests merely when doing something drastic, like py.test,
+    recursively importing all modules in a directory.
+
+.. _version-1.0.12:
+
+1.0.12
+======
+:release-date: 2018-06-06 1:34 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.14.1 <mode:version-1.14.1>`.
+
+- **Worker**: Producer crashing no longer causes the consumer to hang
+  at shutdown while trying to publish attached messages.
+
 .. _version-1.0.11:
 
 1.0.11

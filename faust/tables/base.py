@@ -448,3 +448,6 @@ class Collection(Service, CollectionT):
 
     def _to_value(self, v: Any) -> Any:
         return v
+
+    def _human_channel(self) -> str:
+        return f'{type(self.__name__)}: {self.name}'

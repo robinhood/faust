@@ -132,6 +132,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     #: Counter of times a topics buffer was full
     topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
 
+    #: Arbitrary counts added by apps
+    metric_counts: Counter[str] = cast(Counter[str], None)
+
     def __init__(self,
                  *,
                  max_avg_history: int = MAX_AVG_HISTORY,
@@ -178,7 +181,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.events_runtime = [] if events_runtime is None else events_runtime
         self.topic_buffer_full = Counter()
         self.time: Callable[[], float] = monotonic
-        Service.__init__(self, **kwargs)
+
+        self.metric_counts = Counter()
 
     def asdict(self) -> Mapping:
         return {
@@ -200,6 +204,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
             },
+            'metric_counts': self._metric_counts_dict(),
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -213,6 +218,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def _topic_buffer_full_dict(self) -> MutableMapping[str, int]:
         return {label(topic): count
                 for topic, count in self.topic_buffer_full.items()}
+
+    def _metric_counts_dict(self) -> MutableMapping[str, int]:
+        return {key: count for key, count in self.metric_counts.items()}
 
     def _cleanup(self) -> None:
         self._cleanup_max_avg_history()
@@ -313,6 +321,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     def on_send_completed(self, producer: ProducerT, state: Any) -> None:
         self.send_latency.append(self.time() - cast(float, state))
+
+    def count(self, metric_name: str, count: int = 1) -> None:
+        self.metric_counts[metric_name] += count
 
     @cached_property
     def _service(self) -> ServiceT:

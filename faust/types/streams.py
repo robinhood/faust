@@ -90,6 +90,10 @@ class JoinableT(abc.ABC):
     async def remove_from_stream(self, stream: 'StreamT') -> None:
         ...
 
+    @abc.abstractmethod
+    def _human_channel(self) -> str:
+        ...
+
 
 class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
 

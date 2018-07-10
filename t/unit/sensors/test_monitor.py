@@ -102,6 +102,7 @@ class test_Monitor:
             'commit_latency': mon.commit_latency,
             'send_latency': mon.send_latency,
             'topic_buffer_full': mon._topic_buffer_full_dict(),
+            'metric_counts': mon._metric_counts_dict(),
             'tables': {
                 name: table.asdict() for name, table in mon.tables.items()
             },

@@ -4,6 +4,7 @@ import reprlib
 import typing
 import weakref
 from asyncio import CancelledError
+from time import monotonic
 from typing import (
     Any,
     AsyncIterable,
@@ -26,11 +27,12 @@ from typing import (
 from mode import Seconds, Service, get_logger, want_seconds
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import maybe_async, notify
+from mode.utils.objects import cached_property
 from mode.utils.types.trees import NodeT
 
 from . import joins
 from .exceptions import ImproperlyConfigured
-from .types import AppT, EventT, K, ModelArg, ModelT, TP, TopicT
+from .types import AppT, ConsumerT, EventT, K, ModelArg, ModelT, TP, TopicT
 from .types.joins import JoinT
 from .types.models import FieldDescriptorT
 from .types.streams import (
@@ -43,6 +45,7 @@ from .types.streams import (
     T_contra,
 )
 from .types.topics import ChannelT
+from .types.tuples import Message
 
 __all__ = [
     'Stream',
@@ -718,6 +721,12 @@ class Stream(StreamT[T_co], Service):
         ack_exceptions = self.app.conf.stream_ack_exceptions
         ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
 
+        consumer: ConsumerT = self.app.consumer
+        unacked: Set[Message] = consumer._unacked_messages
+        add_unacked: Callable[[Message], None] = unacked.add
+        acking_topics: Set[str] = self.app.topics._acking_topics
+        on_message_in = self.app.sensors.on_message_in
+
         try:
             while not self.should_stop:
                 do_ack = self.enable_acks  # set to False to not ack event.
@@ -744,8 +753,23 @@ class Stream(StreamT[T_co], Service):
                     if isinstance(channel_value, event_cls):
                         event = channel_value
                         message = event.message
+                        topic = message.topic
                         tp = message.tp
                         offset = message.offset
+
+                        if topic in acking_topics and not message.tracked:
+                            message.tracked = True
+                            # This inlines Consumer.track_message(message)
+                            add_unacked(message)
+                            on_message_in(message.tp, message.offset, message)
+                            # XXX ugh this should be in the consumer somehow
+                            if consumer._last_batch is None:
+                                # set last_batch received timestamp if not
+                                # already set. The commit livelock monitor
+                                # uses this to check how long between
+                                # receiving a message to we commit it
+                                # (we reset _last_batch to None in .commit()).
+                                consumer._last_batch = monotonic()
 
                         # call Sensors
                         on_stream_event_in(tp, offset, self, event)
@@ -840,10 +864,25 @@ class Stream(StreamT[T_co], Service):
             return reprlib.repr(self.combined)
         return reprlib.repr(self.channel)
 
-    def _repr_channel(self) -> str:
-        return reprlib.repr(self.channel)
-
     @property
     def label(self) -> str:
         # used as textual description in graphs
         return f'{type(self).__name__}: {self._repr_channel()}'
+
+    def _repr_channel(self) -> str:
+        return reprlib.repr(self.channel)
+
+    @cached_property
+    def shortlabel(self) -> str:
+        # used for shortlabel(stream), which is used by statsd to generate ids
+        # note: str(channel) returns topic name when it's a topic, so
+        # this will be:
+        #    "Channel: <ANON>", for channel or
+        #    "Topic: withdrawals", for a topic.
+        # statsd then uses that as part of the id.
+        return f'Stream: {self._human_channel()}'
+
+    def _human_channel(self) -> str:
+        if self.combined:
+            return '&'.join(s._human_channel() for s in self.combined)
+        return f'{type(self.channel).__name__}: {self.channel}'

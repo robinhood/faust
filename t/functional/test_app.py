@@ -44,6 +44,8 @@ class test_settings:
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
+        assert (conf.stream_publish_on_commit ==
+                settings.STREAM_PUBLISH_ON_COMMIT)
         assert conf.stream_wait_empty
         assert not conf.stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions
@@ -135,6 +137,7 @@ class test_settings:
                                  stream_wait_empty=False,
                                  stream_ack_cancelled_tasks=True,
                                  stream_ack_exceptions=False,
+                                 stream_publish_on_commit=False,
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  **kwargs) -> App:
@@ -169,6 +172,7 @@ class test_settings:
             stream_wait_empty=stream_wait_empty,
             stream_ack_cancelled_tasks=stream_ack_cancelled_tasks,
             stream_ack_exceptions=stream_ack_exceptions,
+            stream_publish_on_commit=stream_publish_on_commit,
             worker_redirect_stdouts=worker_redirect_stdouts,
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
         )
@@ -203,6 +207,7 @@ class test_settings:
         assert conf.stream_wait_empty == stream_wait_empty
         assert conf.stream_ack_cancelled_tasks == stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions == stream_ack_exceptions
+        assert conf.stream_publish_on_commit == stream_publish_on_commit
         assert conf.worker_redirect_stdouts == worker_redirect_stdouts
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)

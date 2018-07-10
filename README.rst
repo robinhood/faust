@@ -8,7 +8,7 @@
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 1.0.11
+:Version: 1.0.22
 :Web: http://fauststream.com
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/robinhood/faust
@@ -22,19 +22,15 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-**Faust** is a stream processing library, bringing the groundbreaking
-new ideas from `Kafka Streams`_ into Python.
+**Faust** is a stream processing library, porting the ideas from `Kafka
+Streams`to Python.
 
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
 
-It's a powerful library you can drop into any Python program
-to easily build traditionally complicated distributed systems
-that are high performance and fault tolerant.
-
 Faust provides both *stream processing* and *event processing*,
-sharing similarity with tools such as `Celery`_,
-`Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_, and `Flink`_.
+sharing similarity with tools such as
+`Kafka Streams`_, `Apache Spark`_/`Storm`_/`Samza`_/`Flink`_,
 
 It does not use a DSL, it's just Python!
 This means you can use all your favorite Python libraries
@@ -62,17 +58,25 @@ Here's an example processing a stream of incoming orders:
             # process infinite stream of orders.
             print(f'Order for {order.account_id}: {order.amount}')
 
-The Agent is a stream processor that can execute on
-many machines and CPU cores. You can think of it as similar
-to a Celery task, but radically different in that it can keep
-state between executing tasks.
+The Agent decorator defines a "stream processor" that essentially
+consumes from a Kafka topic and does something for every event it receives.
 
-State can be in-memory, or it can be stored in "tables".
-Tables are like named distributed key/value stores you can use
+The agent is an ``async def`` function, so can also perform
+other operations asynchronously, such as web requests.
+
+This system can persist state, acting like a database.
+Tables are named distributed key/value stores you can use
 as regular Python dictionaries.
 
 Tables are stored locally on each machine using a superfast
 embedded database written in C++, called `RocksDB`_.
+
+Tables can also store aggregate counts that are optionally "windowed"
+so you can keep track
+of "number of clicks from the last day," or
+"number of clicks in the last hour." for example. Like Kafka Streams,
+we support tumbling, hopping and sliding windows of time, and old windows
+can be expired to stop data from filling up.
 
 For reliability we use a Kafka topic as "write-ahead-log".
 Whenever a key is changed we publish to the changelog.
@@ -82,7 +86,7 @@ of the data and enables instant recovery should any of the nodes fail.
 To the user a table is just a dictionary, and failover happens
 automatically and in the background.
 
-You could count page views by URL:
+You can count page views by URL:
 
 .. sourcecode:: python
 
@@ -102,11 +106,6 @@ The data sent to the Kafka topic is partitioned, which means
 the clicks will be sharded by URL in such a way that every count
 for the same URL will be delivered to the same Faust worker instance.
 
-The state stored in tables may also be "windowed" so you can keep track
-of "number of clicks from the last day," or
-"number of clicks in the last hour.". We support tumbling, hopping
-and sliding windows of time, and old windows can be expired to stop
-data from filling up.
 
 Faust supports any type of stream data: bytes, Unicode and serialized
 structures, but also comes with "Models" that use modern Python
@@ -121,14 +120,15 @@ syntax to describe how keys and values in streams are serialized:
         account_id: str
         product_id: str
         price: float
-        amount: float = 1.0
+        quantity: float = 1.0
 
     orders_topic = app.topic('orders', key_type=str, value_type=Order)
 
     @app.agent(orders_topic)
     async def process_order(orders):
         async for order in orders:
-            total_price = order.price * order.amount
+            # process each order using regular Python
+            total_price = order.price * order.quantity
             await send_order_received_email(order.account_id, order)
 
 Faust is statically typed, using the ``mypy`` type checker,
@@ -144,7 +144,7 @@ resource for learning the implementation of `Kafka Streams`_.
 **or go directly to the** `quickstart`_ **tutorial**
     to see Faust in action by programming a streaming application.
 
-**then explore the** :ref:`User Guide <guide>
+**then explore the** `User Guide`_
     for in-depth information organized by topic.
 
 .. _`Robinhood`: http://robinhood.com
@@ -162,6 +162,8 @@ resource for learning the implementation of `Kafka Streams`_.
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Faust is...
 ===========
@@ -231,6 +233,8 @@ Faust is...
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Installation
 ============
@@ -343,6 +347,8 @@ You can install the latest snapshot of Faust using the following
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 FAQ
 ===
@@ -481,6 +487,8 @@ https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
+
 .. _getting-help:
 
 Getting Help
@@ -536,6 +544,8 @@ file in the top distribution directory for the full license text.
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 
 Contributing
 ============
@@ -599,6 +609,8 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
 
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
+
 .. |build-status| image:: https://secure.travis-ci.org/robinhood/faust.png?branch=master
     :alt: Build status
     :target: https://travis-ci.org/robinhood/faust
@@ -625,4 +637,6 @@ version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 .. _`introduction`: http://docs.fauststream.com/en/latest/introduction.html
 
 .. _`quickstart`: http://docs.fauststream.com/en/latest/playbooks/quickstart.html
+
+.. _`User Guide`: http://docs.fauststream.com/en/latest/userguide/index.html
 

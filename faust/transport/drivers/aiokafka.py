@@ -34,7 +34,7 @@ from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from kafka.errors import (
+from rhkafka.errors import (
     NotControllerError,
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
@@ -53,6 +53,10 @@ from faust.utils import terminal
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
+
+if not hasattr(aiokafka, '__robinhood__'):
+    raise RuntimeError(
+        'Please install robinhood-aiokafka, not aiokafka')
 
 # This is what we get from aiokafka getmany()
 # A mapping of TP to buffer-list of records.
@@ -79,6 +83,7 @@ class Fence(AsyncContextManager, ContextManager):
     owner: Optional[asyncio.Task] = None
     raising: Type[BaseException] = RuntimeError
     loop: asyncio.AbstractEventLoop
+    tb: str = ''
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
         self.loop = loop or asyncio.get_event_loop()
@@ -87,12 +92,25 @@ class Fence(AsyncContextManager, ContextManager):
         return self._locked
 
     def acquire(self) -> None:
-        me: asyncio.Task = asyncio.Task.current_task(loop=self.loop)
-        if self._locked:
-            raise self.raising(
-                f'Coroutine {me} tried to break fence owned by {self.owner}')
+        me: asyncio.Task = self._get_current_task()
+        self._raise_if_locked(me)
         self._locked = True
         self.owner = me
+        import traceback
+        self.tb = '\n'.join(traceback.format_stack())
+
+    def _get_current_task(self) -> asyncio.Task:
+        return asyncio.Task.current_task(loop=self.loop)
+
+    def raise_if_locked(self) -> None:
+        me: asyncio.Task = self._get_current_task()
+        self._raise_if_locked(me)
+
+    def _raise_if_locked(self, me: asyncio.Task) -> None:
+        if self._locked:
+            raise self.raising(
+                f'Coroutine {me} tried to break fence owned by {self.owner}'
+                f' {self.tb}')
 
     def release(self) -> None:
         self._locked, self.owner = False, None
@@ -305,7 +323,7 @@ class Consumer(base.Consumer):
                            replication: int,
                            *,
                            config: Mapping[str, Any] = None,
-                           timeout: Seconds = 1000.0,
+                           timeout: Seconds = 30.0,
                            retention: Seconds = None,
                            compacting: bool = None,
                            deleting: bool = None,
@@ -450,17 +468,6 @@ class Consumer(base.Consumer):
             entry.add(tp, messages)
         return topic_index
 
-    async def verify_subscription(self, assigned: Set[TP]) -> None:
-        subscription = (
-            self._consumer.subscription() - self.randomly_assigned_topics)
-        assigned_topics = {t for t, p in assigned}
-        missing = subscription - assigned_topics
-        if missing:
-            self.log.error(
-                f'Subscribed but not assigned to topics: {missing}.'
-                f'Please restart the worker in a bit, '
-                f'maybe topics not created yet')
-
     def _new_topicpartition(self, topic: str, partition: int) -> TP:
         return cast(TP, _TopicPartition(topic, partition))
 
@@ -526,6 +533,8 @@ class Consumer(base.Consumer):
             self._last_batch = None
             return True
         except CommitFailedError as exc:
+            if 'already rebalanced' in str(exc):
+                return False
             self.log.exception(f'Committing raised exception: %r', exc)
             await self.crash(exc)
             return False
@@ -536,16 +545,16 @@ class Consumer(base.Consumer):
             return False
 
     async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        with self._partitions_lock:
-            tpset = set(tps)
-            self._get_active_partitions().difference_update(tpset)
-            self._paused_partitions.update(tpset)
+        self._partitions_lock.raise_if_locked()
+        tpset = set(tps)
+        self._get_active_partitions().difference_update(tpset)
+        self._paused_partitions.update(tpset)
 
     async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        with self._partitions_lock:
-            tpset = set(tps)
-            self._get_active_partitions().update(tps)
-            self._paused_partitions.difference_update(tpset)
+        self._partitions_lock.raise_if_locked()
+        tpset = set(tps)
+        self._get_active_partitions().update(tps)
+        self._paused_partitions.difference_update(tpset)
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self._consumer.position(tp)
@@ -581,6 +590,10 @@ class Consumer(base.Consumer):
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
         return await self._consumer.end_offsets(partitions)
+
+    def close(self) -> None:
+        self._consumer.set_close()
+        self._consumer._coordinator.set_close()
 
 
 class Producer(base.Producer):
@@ -620,7 +633,7 @@ class Producer(base.Producer):
                            replication: int,
                            *,
                            config: Mapping[str, Any] = None,
-                           timeout: Seconds = 1000.0,
+                           timeout: Seconds = 20.0,
                            retention: Seconds = None,
                            compacting: bool = None,
                            deleting: bool = None,
@@ -742,7 +755,7 @@ class Transport(base.Transport):
                                    replication: int,
                                    *,
                                    config: Mapping[str, Any] = None,
-                                   timeout: int = 10000,
+                                   timeout: int = 30000,
                                    retention: int = None,
                                    compacting: bool = None,
                                    deleting: bool = None,
@@ -769,8 +782,18 @@ class Transport(base.Transport):
                 timeout,
                 False,
             )
-            response = await client.send(node_id, request)
-            assert len(response.topic_error_codes), 'Single topic requested.'
+            owner.log.info(f'-Sending request to {node_id}')
+            wait_result = await owner.wait(
+                client.send(node_id, request),
+                timeout=timeout,
+            )
+            if wait_result.stopped:
+                owner.log.info(f'Shutting down - skipping creation.')
+                return
+            response = wait_result.result
+
+            owner.log.info(f'+Sent request to {node_id}')
+            assert len(response.topic_error_codes), 'single topic'
 
             _, code, reason = response.topic_error_codes[0]
 
@@ -780,7 +803,8 @@ class Transport(base.Transport):
                         f'Topic {topic} exists, skipping creation.')
                     return
                 elif code == NotControllerError.errno:
-                    owner.log.debug(f'Broker: {node_id} is not controller.')
+                    owner.log.debug(
+                        f'Broker: {node_id} is not controller.')
                     continue
                 else:
                     raise for_code(code)(

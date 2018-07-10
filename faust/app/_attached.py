@@ -57,7 +57,7 @@ class Attachments:
     def __init__(self, app: AppT) -> None:
         self.app = app
         self._pending = defaultdict(list)
-        self.enabled = True
+        self.enabled = False
 
     async def maybe_put(self,
                         channel: Union[ChannelT, str],

@@ -1,5 +1,6 @@
 """Base interface for Web server and views."""
-from typing import Any, Callable, MutableMapping
+from pathlib import Path
+from typing import Any, Callable, MutableMapping, Union
 from mode import Service
 from yarl import URL
 from faust.cli._env import WEB_BIND, WEB_PORT
@@ -53,6 +54,12 @@ class Web(Service):
         ...
 
     def route(self, pattern: str, handler: Callable) -> None:
+        ...
+
+    def add_static(self,
+                   prefix: str,
+                   path: Union[Path, str],
+                   **kwargs: Any) -> None:
         ...
 
     @property

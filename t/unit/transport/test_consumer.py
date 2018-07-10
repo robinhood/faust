@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 from faust import App
 from faust.app._attached import Attachments
@@ -25,6 +26,8 @@ class test_Fetcher:
             autospec=Consumer,
             _drain_messages=AsyncMock(),
         )
+        # some weird pytest-asyncio thing
+        fetcher.loop = asyncio.get_event_loop()
         await fetcher._fetcher(fetcher)
         app.consumer._drain_messages.assert_called_once_with(fetcher)
 
@@ -135,10 +138,6 @@ class test_Consumer:
 
         consumer._on_partitions_revoked.assert_called_once_with(
             tps)
-
-    @pytest.mark.asyncio
-    async def test_verify_subscription(self, *, consumer):
-        await consumer.verify_subscription({TP('foo', 303)})
 
     def test_track_message(self, *, consumer, message):
         consumer._on_message_in = Mock(name='omin')

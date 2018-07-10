@@ -13,8 +13,9 @@ MYPY ?= mypy
 SPHINX2RST ?= sphinx2rst
 BUMPVERSION ?= bumpversion
 VULTURE ?= vulture
-VULTURE_MIN_CONFIDENCE=100
-PRE_COMMIT=pre-commit
+VULTURE_MIN_CONFIDENCE ?= 100
+PRE_COMMIT ?= pre-commit
+DMYPY ?= dmypy
 
 TESTDIR ?= t
 EXAMPLESDIR ?= examples
@@ -190,7 +191,7 @@ distcheck: lint test clean
 dist: readme contrib clean-dist build
 
 typecheck:
-	$(PYTHON) -m $(MYPY) -p $(PROJ)
+	$(MYPY) -p $(PROJ)
 
 .PHONY: requirements
 requirements:

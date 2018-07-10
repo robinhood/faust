@@ -27,7 +27,7 @@ from typing import (
 )
 
 import mode
-from kafka.structs import TopicPartition as _TopicPartition
+from rhkafka.structs import TopicPartition as _TopicPartition
 from mode import ServiceT, get_logger
 from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import formatter
@@ -127,7 +127,6 @@ class Worker(mode.Worker):
         loglevel (Union[str, int]): Level to use for logging, can be string
             (one of: CRIT|ERROR|WARN|INFO|DEBUG), or integer.
         logfile (Union[str, IO]): Name of file or a stream to log to.
-        logformat (str): Format to use when logging messages.
         stdout (IO): Standard out stream.
         stderr (IO): Standard err stream.
         blocking_timeout (float): When :attr:`debug` is enabled this
@@ -181,7 +180,6 @@ class Worker(mode.Worker):
                  quiet: bool = False,
                  loglevel: Union[str, int] = None,
                  logfile: Union[str, IO] = None,
-                 logformat: str = None,
                  stdout: IO = sys.stdout,
                  stderr: IO = sys.stderr,
                  blocking_timeout: float = BLOCKING_TIMEOUT,
@@ -206,7 +204,6 @@ class Worker(mode.Worker):
             quiet=quiet,
             loglevel=loglevel,
             logfile=logfile,
-            logformat=logformat,
             loghandlers=app.conf.loghandlers,
             stdout=stdout,
             stderr=stderr,

@@ -109,6 +109,7 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
         name='app.tables',
         autospec=TableManager,
         on_partitions_revoked=AsyncMock(),
+        _stop_standbys=AsyncMock(),  # XXX should not use internal method
     )
     app._fetcher = Mock(
         name='app._fetcher',
@@ -165,7 +166,6 @@ async def test_on_partitions_assigned(assigned, *, app):
     app.consumer = Mock(
         name='app.consumer',
         autospec=Consumer,
-        verify_subscription=AsyncMock(),
         pause_partitions=AsyncMock(),
     )
     app.agents = Mock(
@@ -188,6 +188,7 @@ async def test_on_partitions_assigned(assigned, *, app):
         name='app._fetcher',
         autospec=Fetcher,
         restart=AsyncMock(),
+        stop=AsyncMock(),
     )
     app.flow_control = Mock(
         name='app.flow_control',
@@ -197,7 +198,6 @@ async def test_on_partitions_assigned(assigned, *, app):
 
     await app._on_partitions_assigned(assigned)
 
-    app.consumer.verify_subscription.assert_called_once_with(assigned)
     app.agents.on_partitions_assigned.assert_called_once_with(assigned)
     app.topics.wait_for_subscriptions.assert_called_once_with()
     app.consumer.pause_partitions.assert_called_once_with(assigned)

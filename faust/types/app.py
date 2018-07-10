@@ -38,7 +38,7 @@ from .tables import CollectionT, TableManagerT, TableT
 from .topics import ChannelT, TopicT
 from .transports import ConductorT, ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
-from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View
+from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View, Web
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -69,9 +69,18 @@ class AppT(ServiceT):
         :class:`faust.App`.
     """
 
+    #: Set to true when the app is finalized (can read configuration).
     finalized: bool = False
+
+    #: Set to true when the app has read configuration.
     configured: bool = False
+
+    #: Set to true if the worker is currently rebalancing.
     rebalancing: bool = False
+
+    #: Set to true if the assignment is empty
+    # This flag is set by App._on_partitions_assigned
+    unassigned: bool = False
 
     on_configured: SyncSignal[Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()
@@ -252,6 +261,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def Worker(self, **kwargs: Any) -> WorkerT:
+        ...
+
+    @abc.abstractmethod
+    def on_webserver_init(self, web: Web) -> None:
         ...
 
     @property

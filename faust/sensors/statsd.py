@@ -1,9 +1,9 @@
 """Monitor using Statsd."""
+import re
 import typing
 from time import monotonic
-from typing import Any, cast
+from typing import Any, Pattern, cast
 
-from mode import label
 from mode.utils.objects import cached_property
 
 from faust.exceptions import ImproperlyConfigured
@@ -23,6 +23,15 @@ else:
     class StatsClient: ...  # noqa
 
 __all__ = ['StatsdMonitor']
+
+# This regular expression is used to generate stream ids in Statsd.
+# It converts for example
+#    "Stream: <Topic: withdrawals>"
+# -> "Stream_Topic_withdrawals"
+#
+# See StatsdMonitor._normalize()
+RE_NORMALIZE = re.compile(r'[\<\>:\s]+')
+RE_NORMALIZE_SUBSTITUTION = '_'
 
 
 class StatsdMonitor(Monitor):
@@ -67,12 +76,15 @@ class StatsdMonitor(Monitor):
         super().on_stream_event_in(tp, offset, stream, event)
         self.client.incr('events', rate=self.rate)
         self.client.incr(
-            f'stream.{self._sanitize(label(stream))}.events', rate=self.rate)
-        self.client.incr(
-            f'task.{self._sanitize(label(stream.task_owner))}.events',
+            f'stream.{self._stream_label(stream)}.events',
             rate=self.rate,
         )
         self.client.incr('events_active', rate=self.rate)
+
+    def _stream_label(self, stream: StreamT) -> str:
+        return self._normalize(
+            stream.shortlabel.lstrip('Stream:'),
+        ).strip('_').lower()
 
     def on_stream_event_out(self, tp: TP, offset: int, stream: StreamT,
                             event: EventT) -> None:
@@ -92,18 +104,15 @@ class StatsdMonitor(Monitor):
 
     def on_table_get(self, table: CollectionT, key: Any) -> None:
         super().on_table_get(table, key)
-        self.client.incr(
-            'table.{}.keys_retrieved'.format(table.name), rate=self.rate)
+        self.client.incr(f'table.{table.name}.keys_retrieved', rate=self.rate)
 
     def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         super().on_table_set(table, key, value)
-        self.client.incr(
-            'table.{}.keys_updated'.format(table.name), rate=self.rate)
+        self.client.incr(f'table.{table.name}.keys_updated', rate=self.rate)
 
     def on_table_del(self, table: CollectionT, key: Any) -> None:
         super().on_table_del(table, key)
-        self.client.incr(
-            'table.{}.keys_deleted'.format(table.name), rate=self.rate)
+        self.client.incr(f'table.{table.name}.keys_deleted', rate=self.rate)
 
     def on_commit_completed(self, consumer: ConsumerT, state: Any) -> None:
         super().on_commit_completed(consumer, state)
@@ -125,11 +134,15 @@ class StatsdMonitor(Monitor):
             self._time(monotonic() - cast(float, state)),
             rate=self.rate)
 
-    def _sanitize(self, name: str) -> str:
-        name = name.replace('<', '')
-        name = name.replace('>', '')
-        name = name.replace(' ', '')
-        return name.replace(':', '-')
+    def count(self, metric_name: str, count: int = 1) -> None:
+        super().count(metric_name, count=count)
+        self.client.incr(metric_name, count=count, rate=self.rate)
+
+    def _normalize(self, name: str,
+                   *,
+                   pattern: Pattern = RE_NORMALIZE,
+                   substitution: str = RE_NORMALIZE_SUBSTITUTION) -> str:
+        return pattern.sub(substitution, name)
 
     def _time(self, time: float) -> float:
         return time * 1000.

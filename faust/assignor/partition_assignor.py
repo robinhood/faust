@@ -2,9 +2,9 @@
 from collections import defaultdict
 from typing import Iterable, List, MutableMapping, Sequence, Set, cast
 
-from kafka.cluster import ClusterMetadata
-from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
-from kafka.coordinator.protocol import (
+from rhkafka.cluster import ClusterMetadata
+from rhkafka.coordinator.assignors.abstract import AbstractPartitionAssignor
+from rhkafka.coordinator.protocol import (
     ConsumerProtocolMemberAssignment,
     ConsumerProtocolMemberMetadata,
 )

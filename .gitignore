@@ -36,3 +36,4 @@ htmlcov/
 .checkpoint
 .python-version
 .pyre/
+.dmypy.json

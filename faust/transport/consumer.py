@@ -89,6 +89,8 @@ else:
 
 __all__ = ['Consumer', 'Fetcher']
 
+# These flags are used for Service.diag, tracking what the consumer
+# service is currently doing.
 CONSUMER_FETCHING = 'FETCHING'
 CONSUMER_PARTITIONS_REVOKED = 'PARTITIONS_REVOKED'
 CONSUMER_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
@@ -103,14 +105,41 @@ class Fetcher(Service):
     app: AppT
 
     logger = logger
+    _drainer: Optional[asyncio.Future] = None
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         super().__init__(**kwargs)
 
+    async def on_stop(self) -> None:
+        if self._drainer is not None and not self._drainer.done():
+            self._drainer.cancel()
+            while True:
+                try:
+                    await asyncio.wait_for(self._drainer, timeout=1.0)
+                except StopIteration:
+                    # Task is cancelled right before coro stops.
+                    pass
+                except asyncio.CancelledError:
+                    break
+                except asyncio.TimeoutError:
+                    self.log.warn('Fetcher is ignoring cancel or slow :(')
+                else:
+                    break
+
     @Service.task
     async def _fetcher(self) -> None:
-        await cast(Consumer, self.app.consumer)._drain_messages(self)
+        try:
+            consumer = cast(Consumer, self.app.consumer)
+            self._drainer = asyncio.ensure_future(
+                consumer._drain_messages(self),
+                loop=self.loop,
+            )
+            await self._drainer
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self.set_shutdown()
 
 
 class Consumer(Service, ConsumerT):
@@ -218,9 +247,6 @@ class Consumer(Service, ConsumerT):
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         await self._on_partitions_revoked(revoked)
 
-    async def verify_subscription(self, assigned: Set[TP]) -> None:
-        ...
-
     def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
         # shutdown.  This is called by transport.Conductor,
@@ -312,6 +338,21 @@ class Consumer(Service, ConsumerT):
         Arguments:
             topics: Set containing topics and/or TopicPartitions to commit.
         """
+        if await self.maybe_wait_for_commit_to_finish():
+            # original commit finished, return False as we did not commit
+            return False
+
+        self._commit_fut = asyncio.Future(loop=self.loop)
+        try:
+            return await self.force_commit(topics)
+        finally:
+            # set commit_fut to None so that next call will commit.
+            fut, self._commit_fut = self._commit_fut, None
+            # notify followers that the commit is done.
+            if fut is not None and not fut.done():
+                fut.set_result(None)
+
+    async def maybe_wait_for_commit_to_finish(self) -> bool:
         # Only one coroutine allowed to commit at a time,
         # and other coroutines should wait for the original commit to finish
         # then do nothing.
@@ -323,18 +364,8 @@ class Consumer(Service, ConsumerT):
                 # if future is cancelled we have to start new commit
                 pass
             else:
-                # original commit finished, return False as we did not commit
-                return False
-
-        self._commit_fut = asyncio.Future(loop=self.loop)
-        try:
-            return await self.force_commit(topics)
-        finally:
-            # set commit_fut to None so that next call will commit.
-            fut, self._commit_fut = self._commit_fut, None
-            # notify followers that the commit is done.
-            if fut is not None and not fut.done():
-                fut.set_result(None)
+                return True
+        return False
 
     @Service.transitions_to(CONSUMER_COMMITTING)
     async def force_commit(self, topics: TPorTopicSet = None) -> bool:
@@ -386,7 +417,8 @@ class Consumer(Service, ConsumerT):
             #
             # If we cannot commit it means the events will be processed again,
             # so conforms to at-least-once semantics.
-            await producer.wait_many(pending)
+            if pending:
+                await producer.wait_many(pending)
 
     async def _commit_offsets(self, commit_offsets: Mapping[TP, int]) -> bool:
         meta = ''
@@ -490,6 +522,9 @@ class Consumer(Service, ConsumerT):
             raise
         finally:
             unset_flag(flag_consumer_fetching)
+
+    def close(self) -> None:
+        ...
 
     @property
     def unacked(self) -> Set[Message]:

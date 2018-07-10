@@ -53,7 +53,7 @@ from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import venusian
-from faust.web.views import Request, Response, Site, View
+from faust.web.views import Request, Response, Site, View, Web
 
 from faust.types.app import AppT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
@@ -810,19 +810,17 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         Revoked means the partitions no longer exist, or they
         have been reassigned to a different node.
         """
-        with flight_recorder(self.log, timeout=60.0) as on_timeout:
+        if self.should_stop:
+            return self._on_rebalance_when_stopped()
+        session_timeout = self.conf.broker_session_timeout
+        with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
                 on_timeout.info('fetcher.stop()')
-                await self._fetcher.stop()
-                on_timeout.info('topics.on_partitions_revoked()')
-                await self.topics.on_partitions_revoked(revoked)
-                on_timeout.info('tables.on_partitions_revoked()')
-                await self.tables.on_partitions_revoked(revoked)
-                # Reset fetcher service state so that we can restart it
-                # in TableManager table recovery.
-                self._fetcher.service_reset()
+                await self._stop_fetcher()
+                on_timeout.info('tables.stop_standbys()')
+                await self.tables._stop_standbys()
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
@@ -849,6 +847,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     await self.agents.on_partitions_revoked(revoked)
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
+                on_timeout.info('topics.on_partitions_revoked()')
+                await self.topics.on_partitions_revoked(revoked)
+                on_timeout.info('tables.on_partitions_revoked()')
+                await self.tables.on_partitions_revoked(revoked)
                 on_timeout.info('+send signal: on_partitions_revoked')
                 await self.on_partitions_revoked.send(revoked)
                 on_timeout.info('-send signal: on_partitions_revoked')
@@ -857,6 +859,15 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 await self.crash(exc)
             finally:
                 self._on_revoked_timeout = None
+
+    async def _stop_fetcher(self) -> None:
+        await self._fetcher.stop()
+        # Reset fetcher service state so that we can restart it
+        # in TableManager table recovery.
+        self._fetcher.service_reset()
+
+    def _on_rebalance_when_stopped(self) -> None:
+        self.consumer.close()
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
@@ -867,10 +878,14 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         assignment, so any tp no longer in the assigned' list will have
         been revoked.
         """
-        with flight_recorder(self.log, timeout=60.0) as on_timeout:
+        if self.should_stop:
+            return self._on_rebalance_when_stopped()
+        session_timeout = self.conf.broker_session_timeout
+        self.unassigned = not assigned
+        with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             try:
-                on_timeout.info('consumer.verify_subscription()')
-                await self.consumer.verify_subscription(assigned)
+                on_timeout.info('fetcher.stop()')
+                await self._stop_fetcher()
                 on_timeout.info('agents.on_partitions_assigned()')
                 await self.agents.on_partitions_assigned(assigned)
                 # Wait for transport.Conductor to finish
@@ -926,6 +941,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def Worker(self, **kwargs: Any) -> WorkerT:
         return self.conf.Worker(self, **kwargs)
+
+    def on_webserver_init(self, web: Web) -> None:
+        ...
 
     def _create_directories(self) -> None:
         self.conf.datadir.mkdir(exist_ok=True)
