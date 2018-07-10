@@ -1,7 +1,6 @@
 import inspect
 from typing import Any, AnyStr, TypeVar, get_type_hints
-from sphinx.ext.autodoc import formatargspec
-from sphinx.util.inspect import getargspec
+from sphinx.util.inspect import Signature
 
 try:
     from typing import GenericMeta  # Py3.7
@@ -103,16 +102,15 @@ def process_signature(app, what: str, name: str, obj, options,
         if what in ('class', 'exception'):
             obj = getattr(obj, '__init__')
 
+        bound_method = what in ('method', 'class', 'exception')
         obj = inspect.unwrap(obj)
         try:
-            argspec = getargspec(obj)
+            sig = Signature(obj, bound_method=bound_method)
         except (TypeError, ValueError):
             return
 
-        if what in ('method', 'class', 'exception') and argspec.args:
-            del argspec.args[0]
-
-        return formatargspec(obj, *argspec[:-1]), None
+        formatted_args = sig.format_args()
+        return formatted_args, None
 
 
 def process_docstring(app, what, name, obj, options, lines):
