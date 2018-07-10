@@ -22,8 +22,8 @@
     # as a library w/ asyncio & static typing.
     import faust
 
-**Faust** is a stream processing library, porting the ideas from `Kafka
-Streams`to Python.
+**Faust** is a stream processing library, porting the ideas from
+`Kafka Streams`_ to Python.
 
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
