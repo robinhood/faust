@@ -50,7 +50,7 @@ embedded database written in C++, called `RocksDB`_.
 Tables can also store aggregate counts that are optionally "windowed"
 so you can keep track
 of "number of clicks from the last day," or
-"number of clicks in the last hour." for example. Like Kafka Streams,
+"number of clicks in the last hour." for example. Like `Kafka Streams`_,
 we support tumbling, hopping and sliding windows of time, and old windows
 can be expired to stop data from filling up.
 
