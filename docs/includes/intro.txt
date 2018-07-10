@@ -1,5 +1,5 @@
-**Faust** is a stream processing library,
-new ideas from `Kafka Streams`_ into Python.
+**Faust** is a stream processing library, porting the ideas from `Kafka
+Streams`to Python.
 
 It is used at `Robinhood`_ to build high performance distributed systems
 and real-time data pipelines that process billions of events every day.
@@ -38,10 +38,10 @@ The Agent decorator defines a "stream processor" that essentially
 consumes from a Kafka topic and does something for every event it receives.
 
 The agent is an ``async def`` function, so can also perform
-other operations asynchronously, such as doing web requests.
+other operations asynchronously, such as web requests.
 
-This system can also persist state, with "tables".
-Tables are like named distributed key/value stores you can use
+This system can persist state, acting like a database.
+Tables are named distributed key/value stores you can use
 as regular Python dictionaries.
 
 Tables are stored locally on each machine using a superfast
