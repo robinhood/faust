@@ -627,6 +627,20 @@ If your agent processors are not idempotent you may want to set this flag to
 :const:`True`, so that once processing an event started, it will not
 process that event again.
 
+.. setting:: stream_publish_on_commit
+
+``stream_publish_on_commit``
+----------------------------
+:type: :class:`bool`
+:default: :const:`False`
+
+We buffer up sending messages until the
+source topic offset related to that processsing is committed.
+This means when we do commit, we may have buffered up a LOT of messages
+so commit frequently.
+
+This setting will be removed once transaction support is added in a later version.
+
 .. _settings-worker:
 
 Advanced Worker Settings
