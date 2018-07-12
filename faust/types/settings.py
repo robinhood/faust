@@ -202,7 +202,7 @@ class Settings(abc.ABC):
     reply_to_prefix: str = REPLY_TO_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
-    stream_wait_empty: bool = True
+    stream_wait_empty: bool = False
     stream_ack_cancelled_tasks: bool = False
     stream_ack_exceptions: bool = True
     stream_publish_on_commit: bool = STREAM_PUBLISH_ON_COMMIT

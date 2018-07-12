@@ -12,6 +12,37 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.23:
+
+1.0.23
+======
+:release-date: 2018-07-12 5:00 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.16
+
+- Now compatible with Python 3.7.
+
+- Setting :setting:`stream_wait_empty` is now disabled by default (Issue #117).
+
+- Documentation build now compatible with Python 3.7.
+
+    - Fixed ``ForwardRef has no attribute __origin__`` error.
+
+    - Fixed ``DeprecatedInSphinx2.0`` warnings.
+
+- **Web**: Adds ``app.on_webserver_init(web)`` callback for ability to serve static
+  files using ``web.add_static``.
+
+- **Web**: Adds web.add_static(prefix, fs_path)
+
+- **Worker**: New ``App.unassigned`` attribute is now set if the worker
+  does not have any assigned partitions.
+
+- **CLI*: Console colors was disabled by default.
+
 .. _version-1.0.22:
 
 1.0.22

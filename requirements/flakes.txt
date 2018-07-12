@@ -10,3 +10,4 @@ flake8-mock
 flake8-pyi
 flake8-tuple
 flake8>=2.5.4
+pycodestyle<2.4.0

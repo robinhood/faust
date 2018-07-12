@@ -44,7 +44,7 @@ class test_settings:
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
-        assert conf.stream_wait_empty
+        assert not conf.stream_wait_empty
         assert not conf.stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions
 
@@ -131,7 +131,7 @@ class test_settings:
                                  reply_create_topic=True,
                                  reply_expires=90.9,
                                  stream_buffer_maxsize=101,
-                                 stream_wait_empty=False,
+                                 stream_wait_empty=True,
                                  stream_ack_cancelled_tasks=True,
                                  stream_ack_exceptions=False,
                                  stream_publish_on_commit=False,
