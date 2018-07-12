@@ -100,7 +100,7 @@ class Check(Service):
                             current_value: Any) -> None:
         await send_update(app, self.to_representation(app, severity))
         app.log.log(severity,
-                    '%s:%s not %s (x%s): was %s now %s',
+                    '%s:%s %s (x%s): was %s now %s',
                     app.conf.id, self.name, self.negate_description,
                     self.faults, prev_value, current_value)
 
@@ -138,6 +138,10 @@ class Check(Service):
                 await self.on_unassigned(app)
             else:
                 await self.check(app)
+
+    @property
+    def label(self) -> str:
+        return f'{type(self).__name__}: {self.name}'
 
 
 class Increasing(Check):
