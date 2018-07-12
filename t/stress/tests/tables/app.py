@@ -41,7 +41,7 @@ table = app.Table('counted', key_type=int, value_type=int)
 
 
 @app.task
-async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
+async def on_leader_send_monotonic_counter(app, max_latency=0.01) -> None:
     # Leader node sends incrementing numbers to a topic
 
     partitions_sent_counter.clear()
