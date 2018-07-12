@@ -39,6 +39,8 @@ Contributors
 +---------------------+---------------------------------------+
 | Jamshed Vesuna      | <jamshed@robinhood.com>               |
 +---------------------+---------------------------------------+
+| Jaren Glover        | <jaren@robinhood.com>                 |
++---------------------+---------------------------------------+
 | Jerry Li            | <jerry.li@robinhood.com>              |
 +---------------------+---------------------------------------+
 | Prithvi Narasimhan  | <narasimhan.prithvi@gmail.com>        |
