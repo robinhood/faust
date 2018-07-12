@@ -18,19 +18,19 @@ app = create_stress_app(
 
 app.add_system_check(
     checks.Increasing(
-        'keys_set',
+        'keys_processed',
         get_value=lambda: keys_set,
     ),
 )
 app.add_system_check(
     checks.Stationary(
-        'table-duplicates',
+        'table-found-double-count',
         get_value=lambda: found_duplicates,
     ),
 )
 app.add_system_check(
     checks.Stationary(
-        'table-gaps',
+        'table-found-missing-update',
         get_value=lambda: found_gaps,
     ),
 )
