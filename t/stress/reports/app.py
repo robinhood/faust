@@ -1,5 +1,4 @@
 import faust
-from . import assets
 from .models import Status
 
 TOPIC_NAME = 'f-systemcheck'
@@ -16,6 +15,7 @@ async def send_update(app, status: Status):
 class DashboardApp(faust.App):
 
     def on_webserver_init(self, web):
+        from . import assets
         web.add_static('/dashboard/assets/', assets.get_path())
 
 
