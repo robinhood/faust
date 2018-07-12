@@ -20,11 +20,7 @@ Directory Layout
 - ``faustapp/``
 
     This is a Django App that defines the Faust app used by the project,
-    and it also configures Faust from the Django settings.
-
-    The ``faustapp/__main__.py`` module ensures the package is executable
-    with ``python -m faustapp`` and is a shortcut to running ``faust -A
-    faustapp``.
+    and it also configures Faust using Django settings.
 
     This faustapp is also installed by setup.py as the ``proj-faust`` program,
     and can be used to start a Faust worker for your Django project by doing::
@@ -34,5 +30,4 @@ Directory Layout
 
 - ``accounts/``
 
-    This is an example Django App that defines an Account model, and some
-    Faust agents that work on that model.
+    This is an example Django App with stream processors.
