@@ -1,7 +1,7 @@
 import logging
 import operator
 import socket
-from typing import Any, Callable, Mapping, MutableMapping, cast
+from typing import Any, Callable, Mapping, MutableMapping, Optional, cast
 from mode import Service
 from faust.types import AppT
 from . import states
@@ -15,6 +15,11 @@ CHECK_FREQUENCY = 5.0
 class Check(Service):
     description: str = ''
 
+    # This can be used to format the "current value" in error logs.
+    # If not set it will just use ``repr(value)``.
+    prev_value_repr: Optional[str] = None
+    current_value_repr: Optional[str] = None
+
     state_to_severity = {
         states.SLOW: logging.WARNING,
         states.STALL: logging.ERROR,
@@ -26,6 +31,8 @@ class Check(Service):
         (3, states.SLOW),
         (0, states.OK),
     ]
+
+    default_operator = None
 
     def __init__(self,
                  name: str,
@@ -79,18 +86,28 @@ class Check(Service):
         current_value: Any = self.get_value()
         prev_value = self.prev_value
         severity = app.log.info
-        if prev_value is not None:
-            if self.operator(current_value, prev_value):
-                self.faults += 1
-                self.status = self.get_state_for_faults(self.faults)
-                severity = self.state_to_severity.get(
-                    self.status, logging.INFO)
-                await self.on_failed_log(
-                    severity, app, prev_value, current_value)
-            else:
-                self.faults = 0
-                self.status = states.OK
-                await self.on_ok_log(app, prev_value, current_value)
+        try:
+            if prev_value is not None:
+                if self.compare(prev_value, current_value):
+                    self.faults += 1
+                    self.status = self.get_state_for_faults(self.faults)
+                    severity = self.state_to_severity.get(
+                        self.status, logging.INFO)
+                    await self.on_failed_log(
+                        severity, app, prev_value, current_value)
+                else:
+                    self.faults = 0
+                    self.status = states.OK
+                    await self.on_ok_log(app, prev_value, current_value)
+            self.store_previous_value(current_value)
+        except Exception as exc:
+            print('ERROR: %r' % (exc,))
+            raise
+
+    def compare(self, prev_value: Any, current_value: Any):
+        return self.operator(current_value, prev_value)
+
+    def store_previous_value(self, current_value):
         self.prev_value = current_value
 
     async def on_failed_log(self,
@@ -99,10 +116,17 @@ class Check(Service):
                             prev_value: Any,
                             current_value: Any) -> None:
         await send_update(app, self.to_representation(app, severity))
+        prev_value_repr = self.prev_value_repr
+        current_value_repr = self.current_value_repr
+        if current_value_repr is None:
+            current_value_repr = repr(current_value)
+        if prev_value_repr is None:
+            prev_value_repr = repr(prev_value)
+
         app.log.log(severity,
                     '%s:%s %s (x%s): was %s now %s',
                     app.conf.id, self.name, self.negate_description,
-                    self.faults, prev_value, current_value)
+                    self.faults, prev_value_repr, current_value_repr)
 
     async def on_ok_log(self,
                         app: AppT,
@@ -129,15 +153,19 @@ class Check(Service):
 
     @Service.task
     async def _run_check(self) -> None:
-        app = self.app
-        while not self.should_stop:
-            await self.sleep(CHECK_FREQUENCY)
-            if app.rebalancing:
-                await self.on_rebalancing(app)
-            elif app.unassigned:
-                await self.on_unassigned(app)
-            else:
-                await self.check(app)
+        try:
+            app = self.app
+            while not self.should_stop:
+                await self.sleep(CHECK_FREQUENCY)
+                if app.rebalancing:
+                    await self.on_rebalancing(app)
+                elif app.unassigned:
+                    await self.on_unassigned(app)
+                else:
+                    await self.check(app)
+        except Exception as exc:
+            print('RUN CHECK RAISED: %r' % (exc,))
+            raise
 
     @property
     def label(self) -> str:

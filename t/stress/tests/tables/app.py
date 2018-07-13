@@ -1,5 +1,6 @@
 import random
 from collections import Counter
+from copy import copy
 from faust import Stream
 from ...reports import checks
 from ...app import create_stress_app
@@ -10,17 +11,48 @@ found_gaps = 0
 
 app = create_stress_app(
     name='f-stress-tables',
-    version=5,
+    version=6,
     origin='t.stress.tests.tables',
     stream_wait_empty=False,
     broker_commit_every=100,
 )
 
+processed_by_partition = Counter()
+
+
+class PartitionsNotStarved(checks.Check):
+    description = 'fine'
+    negate_description = 'starved'
+
+    def compare(self, prev_value, current_value):
+        # takes two collections.Counter as argument
+        assert prev_value is not current_value
+
+        # yeah, this is a hack, but we don't want to have 100 threads
+        # checking this, and no time to make this better as of now. [ask]
+        differing = {}
+        for partition, prev_number in prev_value.items():
+            current_number = current_value[partition]
+            if current_value[partition] <= prev_number:
+                differing[partition] = (prev_number, current_number)
+
+        if differing:
+            self.prev_value_repr = self.current_value_repr
+            self.current_value_repr = repr(differing)
+            if len(differing) == len(current_value):
+                self.current_value_repr = 'all partitions starved'
+
+        return bool(differing)
+
+    def get_value(self):
+        return processed_by_partition
+
+    def store_previous_value(self, current_value):
+        self.prev_value = copy(current_value)
+
+
 app.add_system_check(
-    checks.Increasing(
-        'keys_processed',
-        get_value=lambda: keys_set,
-    ),
+    PartitionsNotStarved('starved-partitions'),
 )
 app.add_system_check(
     checks.Stationary(
@@ -69,6 +101,14 @@ async def process(numbers: Stream[int]) -> None:
     global keys_set
     global found_duplicates
     global found_gaps
+
+    # This is a stream of numbers where every partition count from 1 to
+    # infinity.
+
+    # If we have processed this stream correctly
+    #   - there shouldn't be any duplicate numbers
+    #   - there shouldn't be any missing numbers.
+
     async for event in numbers.events():
         number = event.value
         assert isinstance(number, int)
@@ -76,21 +116,28 @@ async def process(numbers: Stream[int]) -> None:
         previous_number = table.get(partition)
         if previous_number is not None:
             if number > 0:
-                # consider 0 as the service being restarted.
+                # 0 is fine, means leader restarted.
 
                 if number <= previous_number:
-                    # number should be larger than the previous number.
-                    # if that's not true it means we have a duplicate.
+                    # Remember, the key is the partition.
+                    # So the previous value set for any partition,
+                    # should always be the same as the previous value in the
+                    # topic.
+                    #
+                    # if number is less than previous number, it means
+                    # we have missed counting one (the sequence counts
+                    # WITH THE OFFSET after all!)
+                    # if the number is less than we have a problem.
                     app.log.error('Found duplicate number in %r: %r',
                                   event.message.tp, number)
                     found_duplicates += 1
                 else:
                     if number != previous_number + 1:
-                        # the number should always be exactly one up from the
-                        # last, otherwise we dropped a number.
+                        # number should always be one up from the last,
+                        # otherwise we dropped a number.
                         app.log.error(
                             'Sequence gap for tp %r: this=%r previous=%r',
                             event.message.tp, number, previous_number)
                         found_gaps += 1
         table[partition] = number
-        keys_set += 1
+        processed_by_partition[partition] += 1
