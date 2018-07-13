@@ -12,11 +12,25 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.24:
+
+1.0.24
+======
+:release-date: 2018-07-12 6:54 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.17
+
+        This fixed an issue where the consumer would be left hanging
+        without a connection to Kafka.
+
 .. _version-1.0.23:
 
 1.0.23
 ======
-:release-date: 2018-07-12 5:00 P.M PDT
+:release-date: 2018-07-11 5:00 P.M PDT
 :release-by: Ask Solem
 
 - **Requirements**
