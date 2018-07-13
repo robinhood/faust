@@ -1,6 +1,7 @@
 import logging
 import operator
 import socket
+from contextlib import contextmanager
 from typing import Any, Callable, Mapping, MutableMapping, Optional, cast
 from mode import Service
 from faust.types import AppT
@@ -82,6 +83,10 @@ class Check(Service):
         self.status = states.UNASSIGNED
         await send_update(app, self.to_representation(app, logging.INFO))
 
+    async def on_paused(self, app: AppT):
+        self.status = states.PAUSED
+        await send_update(app, self.to_representation(app, logging.INFO))
+
     async def check(self, app: AppT) -> None:
         current_value: Any = self.get_value()
         prev_value = self.prev_value
@@ -157,7 +162,9 @@ class Check(Service):
             app = self.app
             while not self.should_stop:
                 await self.sleep(CHECK_FREQUENCY)
-                if app.rebalancing:
+                if app.system_checks.paused:
+                    await self.on_paused(app)
+                elif app.rebalancing:
                     await self.on_rebalancing(app)
                 elif app.unassigned:
                     await self.on_unassigned(app)
@@ -205,6 +212,7 @@ class Stationary(Check):
 class SystemChecks(Service):
     checks: MutableMapping[str, Check]
     current_skew = 0.0
+    paused: bool = False
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
@@ -213,6 +221,14 @@ class SystemChecks(Service):
 
     def on_init_dependencies(self):
         return self.checks.values()
+
+    @contextmanager
+    def pause(self):
+        self.paused = True
+        try:
+            yield
+        finally:
+            self.paused = False
 
     def add(self, check: Check) -> None:
         self.checks[check.name] = check

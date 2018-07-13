@@ -17,6 +17,7 @@ app = create_stress_app(
     broker_commit_every=100,
 )
 
+processed_total = 0
 processed_by_partition = Counter()
 
 
@@ -101,6 +102,7 @@ async def process(numbers: Stream[int]) -> None:
     global keys_set
     global found_duplicates
     global found_gaps
+    global processed_total
 
     # This is a stream of numbers where every partition count from 1 to
     # infinity.
@@ -114,6 +116,11 @@ async def process(numbers: Stream[int]) -> None:
         assert isinstance(number, int)
         partition = event.message.partition
         previous_number = table.get(partition)
+        if processed_total and not processed_total % 30_000:
+            with app.system_checks.pause():
+                print('Pausing stream to fill topics')
+                await app._service.sleep(100.0)
+
         if previous_number is not None:
             if number > 0:
                 # 0 is fine, means leader restarted.
@@ -141,3 +148,4 @@ async def process(numbers: Stream[int]) -> None:
                         found_gaps += 1
         table[partition] = number
         processed_by_partition[partition] += 1
+        processed_total += 1
