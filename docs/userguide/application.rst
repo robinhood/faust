@@ -31,7 +31,7 @@ web views, CLI commands and more.
 
 To create one you need to provide
 a name for the application (the id), a message broker, and a driver to use for
-table storage:
+table storage (optional)
 
 .. sourcecode:: pycon
 
@@ -90,8 +90,8 @@ things out, but for large tables, it can take hours to recover after
 a restart, so you should never use it in production.
 
 `RocksDB`_ recovers tables in seconds or less, is embedded and don't require
-a server or additional infrastructure. It also stores them in the file system
-so tables can exceed the size of available memory.
+a server or additional infrastructure. It also stores them on the file system
+in such a way that tables can exceed the size of available memory.
 
 .. _`RocksDB`: http://rocksdb.org/
 

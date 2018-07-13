@@ -19,6 +19,7 @@ color_for_state = {
     states.STALL: '#1909E5',
     states.UNASSIGNED: '#003f3c',
     states.REBALANCING: '#005f3c',
+    states.PAUSED: '#003f3c',
 }
 
 
