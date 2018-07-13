@@ -214,6 +214,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             })
             # finally start the fetcher
             await self.app._fetcher.start()
+            self.app.rebalancing = False
             self.log.info('Worker ready')
         else:
             self.log.info('Recovery interrupted')

@@ -227,10 +227,7 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
         consumer._last_batch = None
-        try:
-            await consumer.on_partitions_assigned(_assigned)
-        finally:
-            consumer.app.rebalancing = False
+        await consumer.on_partitions_assigned(_assigned)
 
 
 class Consumer(base.Consumer):
