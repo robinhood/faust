@@ -10,7 +10,7 @@ __all__ = ['models']
 
 
 class models(AppCommand):
-    """List all available models as tabulated list."""
+    """List all available models as a tabulated list."""
 
     title = 'Models'
     headers = ['name', 'help']
