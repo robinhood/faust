@@ -12,6 +12,21 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.25:
+
+1.0.25
+======
+:release-date: 2018-07-27 12:43 P.M PDT
+:release-by: Ask Solem
+
+- :setting:`stream_publish_on_commit` accidentally disabled by default.
+
+    This made the rate of producing much slower, as the default buffering
+    settings are not optimized.
+
+- The ``App.rebalancing`` flag is now reset after the tables have
+  recovered.
+
 .. _version-1.0.24:
 
 1.0.24
