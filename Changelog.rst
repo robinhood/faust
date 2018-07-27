@@ -55,7 +55,7 @@ please visit the :ref:`history` section.
 - **Worker**: New ``App.unassigned`` attribute is now set if the worker
   does not have any assigned partitions.
 
-- **CLI*: Console colors was disabled by default.
+- **CLI**: Console colors was disabled by default.
 
 .. _version-1.0.22:
 
