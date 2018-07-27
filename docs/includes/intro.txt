@@ -59,8 +59,9 @@ Whenever a key is changed we publish to the changelog.
 Standby nodes consume from this changelog to keep an exact replica
 of the data and enables instant recovery should any of the nodes fail.
 
-To the user a table is just a dictionary, and failover happens
-automatically and in the background.
+To the user a table is just a dictionary, but data is persisted between
+restarts and replicated across nodes so on failover other nodes can take over
+automatically.
 
 You can count page views by URL:
 
