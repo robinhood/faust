@@ -7,7 +7,7 @@ from typing import (
     MutableMapping, NamedTuple, Union, cast,
 )
 
-from mode.utils.objects import Unordered
+from mode.utils.objects import Unordered, cached_property
 
 from faust.streams import current_event
 from faust.types import AppT, ChannelT, CodecArg, K, RecordMetadata, TP, V
@@ -57,7 +57,10 @@ class Attachments:
     def __init__(self, app: AppT) -> None:
         self.app = app
         self._pending = defaultdict(list)
-        self.enabled = False
+
+    @cached_property
+    def enabled(self) -> bool:
+        return self.app.conf.stream_publish_on_commit
 
     async def maybe_put(self,
                         channel: Union[ChannelT, str],
