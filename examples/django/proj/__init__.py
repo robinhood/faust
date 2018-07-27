@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Example Django project using Faust."""
-# :copyright: (c) 2017-2018, Robinhood Markets
+# :copyright: (c) 2017-2018, Robinhood Markets, Inc.
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
 
@@ -12,7 +12,7 @@ import re
 from typing import NamedTuple
 
 __version__ = '0.9.3'
-__author__ = 'Robinhood Markets'
+__author__ = 'Robinhood Markets, Inc.'
 __contact__ = 'opensource@robinhood.com'
 __homepage__ = 'http://fauststream.com'
 __docformat__ = 'restructuredtext'

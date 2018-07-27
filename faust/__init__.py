@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Python Stream processing."""
-# :copyright: (c) 2017-2018, Robinhood Markets
+# :copyright: (c) 2017-2018, Robinhood Markets, Inc.
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
 
@@ -24,7 +24,7 @@ import typing
 from typing import Any, Mapping, NamedTuple, Optional, Sequence, Tuple
 
 __version__ = '1.0.24'
-__author__ = 'Robinhood Markets'
+__author__ = 'Robinhood Markets, Inc.'
 __contact__ = 'contact@fauststream.com'
 __homepage__ = 'http://fauststream.com'
 __docformat__ = 'restructuredtext'
