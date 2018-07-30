@@ -1,6 +1,6 @@
 """Program ``faust models`` used to list models available."""
 from operator import attrgetter
-from typing import Sequence, Type
+from typing import Any, Callable, Sequence, Type, cast
 import click
 from faust.models import registry
 from faust.types import ModelT
@@ -29,8 +29,9 @@ class models(AppCommand):
             ))
 
     def models(self, builtins: bool) -> Sequence[Type[ModelT]]:
+        sortkey = cast(Callable[[Type[ModelT]], Any], self.sortkey)
         return [
-            model for model in sorted(registry.values(), key=self.sortkey)
+            model for model in sorted(registry.values(), key=sortkey)
             if not model._options.namespace.startswith('@') or builtins
         ]
 

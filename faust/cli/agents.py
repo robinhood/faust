@@ -1,6 +1,6 @@
 """Program ``faust agents`` used to list agents."""
 from operator import attrgetter
-from typing import Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, Type, cast
 import click
 from faust.types import AgentT
 from .base import AppCommand
@@ -30,9 +30,10 @@ class agents(AppCommand):
             ))
 
     def agents(self, *, local: bool = False) -> Sequence[AgentT]:
+        sortkey = cast(Callable[[Type[AgentT]], Any], self.sortkey)
         return [
             agent
-            for agent in sorted(self.app.agents.values(), key=self.sortkey)
+            for agent in sorted(self.app.agents.values(), key=sortkey)
             if self._maybe_topic(agent) or local
         ]
 
