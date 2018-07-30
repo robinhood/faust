@@ -66,7 +66,7 @@ class test_AgentManager:
 
     @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, many, agent1, agent2):
-        many._update_topic_index()
+        many.update_topic_index()
         await many.on_partitions_revoked({
             TP('t1', 0),
             TP('t1', 1),
@@ -90,7 +90,7 @@ class test_AgentManager:
 
     @pytest.mark.asyncio
     async def test_on_partitions_assigned(self, *, many, agent1, agent2):
-        many._update_topic_index()
+        many.update_topic_index()
         await many.on_partitions_assigned({
             TP('t1', 0),
             TP('t1', 1),
@@ -113,7 +113,7 @@ class test_AgentManager:
         })
 
     def test_update_topic_index(self, *, many, agent1, agent2):
-        many._update_topic_index()
+        many.update_topic_index()
         assert set(many._by_topic['t1']) == {agent1, agent2}
         assert set(many._by_topic['t2']) == {agent2}
         assert set(many._by_topic['t3']) == {agent2}
