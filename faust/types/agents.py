@@ -254,26 +254,6 @@ class AgentManagerT(ServiceT, MutableMapping[str, AgentT]):
     app: AppT
 
     @abc.abstractmethod
-    async def start(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def restart(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    def service_reset(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def stop(self) -> None:
-        ...
-
-    @abc.abstractmethod
-    def cancel(self) -> None:
-        ...
-
-    @abc.abstractmethod
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
