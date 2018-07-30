@@ -774,7 +774,6 @@ class Transport(base.Transport):
                 timeout,
                 False,
             )
-            owner.log.info(f'-Sending request to {node_id}')
             wait_result = await owner.wait(
                 client.send(node_id, request),
                 timeout=timeout,
@@ -784,7 +783,6 @@ class Transport(base.Transport):
                 return
             response = wait_result.result
 
-            owner.log.info(f'+Sent request to {node_id}')
             assert len(response.topic_error_codes), 'single topic'
 
             _, code, reason = response.topic_error_codes[0]
