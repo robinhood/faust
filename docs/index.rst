@@ -55,3 +55,6 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+.. figure:: images/banner-alt1.png
+    :align: left
+
