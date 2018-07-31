@@ -12,6 +12,15 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.26:
+
+1.0.26
+======
+:release-date: 2018-07-30 08:00 P.M PDT
+:release-by: Ask Solem
+
+- Public release.
+
 .. _version-1.0.25:
 
 1.0.25
