@@ -18,9 +18,6 @@ matrix:
     - python: "3.6.5"
       env: TOXENV=configcheck
       os: linux
-    - python: "3.6.0"
-      env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y USE_PYENV=y
-      os: linux
     - python: "3.6.1"
       env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y USE_PYENV=y
       os: linux
