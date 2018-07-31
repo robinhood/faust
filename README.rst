@@ -9,7 +9,7 @@
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
 :Version: 1.0.26
-:Web: http://fauststream.com
+:Web: http://faust.readthedocs.io/
 :Download: http://pypi.python.org/pypi/faust
 :Source: http://github.com/robinhood/faust
 :Keywords: distributed, stream, async, processing, data, queue
