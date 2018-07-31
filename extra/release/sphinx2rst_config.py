@@ -1,4 +1,4 @@
-REFBASE = 'http://docs.fauststream.com/en/latest'
+REFBASE = 'http://faust.readthedocs.io/en/latest'
 REFS = {
     'mailing-list':
         'https://groups.google.com/group/faust-users',
