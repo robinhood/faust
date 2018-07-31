@@ -12,11 +12,22 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.27:
+
+1.0.27
+======
+:release-date: 2018-07-30 04:00 P.M PDT
+:release-by: Ask Solem
+
+- No code changes
+
+- Fixed links to documentation in README.rst
+
 .. _version-1.0.26:
 
 1.0.26
 ======
-:release-date: 2018-07-30 08:00 P.M PDT
+:release-date: 2018-07-30 08:00 A.M PDT
 :release-by: Ask Solem
 
 - Public release.
