@@ -147,6 +147,6 @@ setup(
     project_urls={
         'Bug Reports': 'https://github.com/robinhood/faust/issues',
         'Source': 'https://github.com/robinhood/faust',
-        'Documentation': 'http://docs.fauststream.com',
+        'Documentation': 'https://faust.readthedocs.io/',
     },
 )
