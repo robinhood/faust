@@ -1,0 +1,14 @@
+channels:
+    - conda-forge
+name: py36
+dependencies:
+    - pip
+    - python=3.6
+    - setuptools
+    - wheel
+    - pip:
+        - Sphinx
+        - sphinx_celery
+        - sphinxcontrib-asyncio
+        - sphinx-autodoc-annotation
+        - alabaster
