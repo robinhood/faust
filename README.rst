@@ -176,8 +176,7 @@ Faust is...
     the rest is just Python, so If you know Python you can already use Faust to do
     stream processing, and it can integrate with just about anything.
 
-    Here's one of the easier applications you can make
-    
+    Here's one of the easier applications you can make:
     .. sourcecode:: python
 
         import faust
@@ -562,7 +561,7 @@ Be sure to also read the `Contributing to Faust`_ section in the
 documentation.
 
 .. _`Contributing to Faust`:
-    http://docs.fauststream.com/en/master/contributing.html
+    https://faust.readthedocs.io/en/latest/contributing.html
 
 Code of Conduct
 ===============
