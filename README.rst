@@ -177,7 +177,6 @@ Faust is...
     stream processing, and it can integrate with just about anything.
 
     Here's one of the easier applications you can make:
-
     .. sourcecode:: python
 
         import faust
