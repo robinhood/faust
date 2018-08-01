@@ -119,11 +119,11 @@ html_theme_options = {
     'github_user': 'robinhood',
     'pre_bg': '#4c4c4c',
     'github_repo': 'faust',
+    'github_type': 'star',
 }
 templates_path = ['_templates']
 
 autodoc_member_order = 'bysource'
-theme_github_type = 'star'
 
 pygments_style = 'monokai'
 
