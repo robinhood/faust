@@ -123,6 +123,7 @@ html_theme_options = {
 templates_path = ['_templates']
 
 autodoc_member_order = 'bysource'
+theme_github_type = 'star'
 
 pygments_style = 'monokai'
 
