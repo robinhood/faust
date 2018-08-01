@@ -45,7 +45,7 @@ globals().update(conf.build_config(
     project='Faust',
     # version_dev='2.0',
     # version_stable='1.4',
-    canonical_url='http://docs.fauststream.com',
+    canonical_url='http://faust.readthedocs.io',
     webdomain='',
     github_project='robinhood/faust',
     copyright='2017-2018',
