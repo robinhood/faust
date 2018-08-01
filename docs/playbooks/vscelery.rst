@@ -53,7 +53,7 @@ The Celery task above can be rewritten in Faust like this:
 
     @app.command
     async def produce():
-        await add.send(value=AddOperation(x, y))
+        await add.send(value=AddOperation(2, 2))
 
     if __name__ == '__main__':
         app.main()
