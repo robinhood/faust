@@ -796,7 +796,7 @@ Packages
 :CI: http://travis-ci.org/#!/robinhood/faust
 :Windows-CI: https://ci.appveyor.com/project/ask/faust
 :PyPI: :pypi:`faust`
-:docs: http://faust.readthedocs.io
+:docs: https://faust.readthedocs.io
 
 ``Mode``
 --------
