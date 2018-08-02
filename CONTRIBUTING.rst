@@ -838,7 +838,7 @@ Packages
 :CI: http://travis-ci.org/#!/robinhood/faust
 :Windows-CI: https://ci.appveyor.com/project/ask/faust
 :PyPI: ``faust``
-:docs: http://docs.fauststream.com
+:docs: http://faust.readthedocs.io
 
 ``Mode``
 --------
@@ -911,7 +911,7 @@ following:
 
 .. _`mailing-list`: https://groups.google.com/group/faust-users
 
-.. _`slack-channel`: http://docs.fauststream.com/en/latest/getting-started/resources.html#slack-channel
+.. _`slack-channel`: http://faust.readthedocs.io/en/latest/getting-started/resources.html#slack-channel
 
-.. _`report an issue`: http://docs.fauststream.com/en/latest/contributing.html#reporting-bugs
+.. _`report an issue`: http://faust.readthedocs.io/en/latest/contributing.html#reporting-bugs
 

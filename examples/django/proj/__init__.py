@@ -14,7 +14,7 @@ from typing import NamedTuple
 __version__ = '0.9.3'
 __author__ = 'Robinhood Markets, Inc.'
 __contact__ = 'opensource@robinhood.com'
-__homepage__ = 'http://fauststream.com'
+__homepage__ = 'http://faust.readthedocs.io'
 __docformat__ = 'restructuredtext'
 
 # -eof meta-
