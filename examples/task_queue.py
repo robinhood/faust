@@ -1,14 +1,6 @@
 """Celery-like task queue implemented using Faust."""
 import asyncio
-from typing import (
-    Any,
-    AsyncIterator,
-    Awaitable,
-    Callable,
-    Mapping,
-    MutableMapping,
-    Sequence,
-)
+from typing import Any, Awaitable, Callable, Mapping, MutableMapping, Sequence
 from itertools import count
 import faust
 from mode.utils.objects import qualname
