@@ -1,4 +1,17 @@
-"""Celery-like task queue implemented using Faust."""
+"""
+Celery-like task queue implemented using Faust.
+
+this example comes with a background thread that
+sends a task every second.
+
+after starting Kafka locally, you can run the example:
+
+.. sourcecode:: console
+
+    $ python examples/task_queue.py worker -l info
+    
+You can also see stats about the worker by visiting http://localhost:6066
+"""
 import asyncio
 from typing import Any, Awaitable, Callable, Mapping, MutableMapping, Sequence
 from itertools import count
