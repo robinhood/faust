@@ -12,9 +12,8 @@ After starting Kafka locally, you can run the example:
 
 You can also see stats about the worker by visiting http://localhost:6066.
 """
-import asyncio
+import random
 from typing import Any, Awaitable, Callable, Mapping, MutableMapping, Sequence
-from itertools import count
 import faust
 from mode.utils.objects import qualname
 
@@ -99,13 +98,9 @@ async def add(x: int, y: int) -> int:
     return x + y
 
 
-@app.task
+@app.timer(1.0)
 async def _send_tasks() -> None:
-    for i in count():
-        if app.should_stop:
-            return
-        await add.delay(i, i)
-        await asyncio.sleep(1)
+    await add.delay(random.randint(0, 100), random.randint(0, 100))
 
 
 if __name__ == '__main__':
