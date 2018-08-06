@@ -20,7 +20,7 @@ Slack
 
 Come chat with us on Slack:
 
-https://fauststream.slack.com
+https://join.slack.com/t/fauststream/signup
 
 Resources
 =========
