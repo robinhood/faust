@@ -560,7 +560,7 @@ Be sure to also read the `Contributing to Faust`_ section in the
 documentation.
 
 .. _`Contributing to Faust`:
-    http://faust.readthedocs.io/en/master/contributing.html
+    http://faust.readthedocs.io/en/latest/contributing.html
 
 Code of Conduct
 ===============
