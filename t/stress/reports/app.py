@@ -1,4 +1,6 @@
+import socket
 import faust
+from . import states
 from .models import Status
 
 TOPIC_NAME = 'f-systemcheck'
@@ -10,6 +12,57 @@ def get_reporting_topic(app):
 
 async def send_update(app, status: Status):
     return await get_reporting_topic(app).send(value=status)
+
+
+async def send_simple_good_status(app, category: str,
+                                  state: str = states.OK,
+                                  color: str = 'green',
+                                  count: int = 1,
+                                  severity: str = 'INFO') -> None:
+    status = Status(
+        app_id=app.conf.id,
+        hostname=socket.gethostname(),
+        category=category,
+        state=state,
+        color=color,
+        count=count,
+        severity=severity,
+
+    )
+    await send_update(app, status)
+
+
+async def send_simple_bad_status(app, category: str,
+                                 state: str = states.STALL,
+                                 color: str = 'red',
+                                 count: int = 1,
+                                 severity: str = 'CRIT') -> None:
+    status = Status(
+        app_id=app.conf.id,
+        hostname=socket.gethostname(),
+        category=category,
+        state=state,
+        color=color,
+        count=count,
+        severity=severity,
+
+    )
+    await send_update(app, status)
+
+
+class SimpleCheck:
+
+    def __init__(self, category: str) -> None:
+        self.category: str = category
+        self.failed: int = 0
+
+    async def send_ok(self, app) -> None:
+        self.failed = 0
+        await send_simple_good_status(app, self.category)
+
+    async def send_fail(self, app) -> None:
+        self.failed += 1
+        await send_simple_bad_status(app, self.category, count=self.failed)
 
 
 class DashboardApp(faust.App):

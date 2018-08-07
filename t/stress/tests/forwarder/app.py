@@ -2,6 +2,7 @@ import random
 from collections import Counter
 from faust import Stream
 from ...reports import checks
+from ...reports.app import SimpleCheck
 from ...app import create_stress_app
 
 counter_received = 0
@@ -35,6 +36,9 @@ app.add_system_check(
     ),
 )
 
+
+leader_sending = SimpleCheck('leader-sending')
+
 partitions_sent_counter = Counter()
 
 
@@ -49,6 +53,7 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
             partitions_sent_counter.clear()
             await app._service.sleep(5)
         if app.is_leader():
+            await leader_sending.send_ok(app)
             for partition in range(app.conf.topic_partitions):
                 if app.rebalancing:
                     break
