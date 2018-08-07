@@ -3,6 +3,7 @@ from ...models import Withdrawal, generate_withdrawals
 
 app = create_stress_app(
     name='f-stress-simple',
+    version=7,
     origin='t.stress.tests.simple',
 )
 

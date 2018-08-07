@@ -11,7 +11,7 @@ found_gaps = 0
 
 app = create_stress_app(
     name='f-stress-tables',
-    version=6,
+    version=7,
     origin='t.stress.tests.tables',
     stream_wait_empty=False,
     broker_commit_every=100,
