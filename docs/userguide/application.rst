@@ -405,6 +405,11 @@ Table Arguments
     How often we flush changelog records during recovery.  Default
     is :const:`None` (always).
 
++ ``on_changelog_event``: :class:`Callable[[EventT], Awaitable[None]]`
+
+    A callback called for every changelog event during recovery and while
+    keeping table standbys in sync.
+
 ``app.Set()`` -- Define a new Set-based table
 ---------------------------------------------
 
