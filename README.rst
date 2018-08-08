@@ -512,7 +512,7 @@ Slack
 
 Come chat with us on Slack:
 
-https://join.slack.com/t/fauststream/signup
+https://join.slack.com/t/fauststream/shared_invite/enQtNDEzMTIyMTUyNzU2LTRkM2Q2ODkwZTk5MzczNmUxOGU0NWYxNzA2YzYwNTAyZmRiOTRmMzkyMDk0ODY2MjIzOTg2NGI0ODlmNTYxNTc
 
 Resources
 =========
