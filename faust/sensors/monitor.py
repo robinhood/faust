@@ -25,8 +25,8 @@ MAX_COMMIT_LATENCY_HISTORY = 30
 MAX_SEND_LATENCY_HISTORY = 30
 
 TPOffsetMapping = MutableMapping[TP, int]
-PartitionOffsetMapping = Mapping[int, int]
-TPOffsetDict = Mapping[str, PartitionOffsetMapping]
+PartitionOffsetMapping = MutableMapping[int, int]
+TPOffsetDict = MutableMapping[str, PartitionOffsetMapping]
 
 
 class TableState(KeywordReduce):
@@ -253,7 +253,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     @classmethod
     def _tp_offsets_as_dict(cls, tp_offsets: TPOffsetMapping) -> TPOffsetDict:
-        topic_partition_offsets = {}
+        topic_partition_offsets: TPOffsetDict = {}
         for tp, offset in tp_offsets.items():
             partition_offsets = topic_partition_offsets.get(tp.topic, {})
             partition_offsets[tp.partition] = offset

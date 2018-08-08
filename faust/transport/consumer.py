@@ -189,7 +189,7 @@ class Consumer(Service, ConsumerT):
     _time_start: float
 
     # How often to poll and track log end offsets.
-    _end_offset_monitor_interval: int
+    _end_offset_monitor_interval: float
 
     _commit_every: Optional[int]
     _n_acked: int = 0
