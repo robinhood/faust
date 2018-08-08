@@ -188,8 +188,8 @@ class Consumer(Service, ConsumerT):
     #: Time of when the consumer was started.
     _time_start: float
 
-    # How often to poll and track highwaters
-    _highwater_monitor_interval: int
+    # How often to poll and track log end offsets.
+    _end_offset_monitor_interval: int
 
     _commit_every: Optional[int]
     _n_acked: int = 0
@@ -225,7 +225,7 @@ class Consumer(Service, ConsumerT):
         self._waiting_for_ack = None
         self._time_start = monotonic()
         self._last_batch = None
-        self._highwater_monitor_interval = self.commit_interval * 2
+        self._end_offset_monitor_interval = self.commit_interval * 2
         self.randomly_assigned_topics = set()
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 
@@ -535,11 +535,11 @@ class Consumer(Service, ConsumerT):
         return cast(Set[Message], self._unacked_messages)
 
     @Service.task
-    async def record_highwaters(self) -> None:
-        interval = self._highwater_monitor_interval
+    async def record_end_offsets(self) -> None:
+        interval = self._end_offset_monitor_interval
         while not self.should_stop:
             partitions = self.assignment()
             if partitions:
-                highwaters = await self.highwaters(*partitions)
-                self.app.monitor.track_tp_highwater(highwaters)
+                end_offsets = await self.highwaters(*partitions)
+                self.app.monitor.track_tp_end_offsets(end_offsets)
             await self.sleep(interval)

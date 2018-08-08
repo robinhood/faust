@@ -145,8 +145,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     #: Last read offsets by TopicPartition
     tp_read_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
 
-    #: Last seen highwaters by TopicPartition
-    tp_highwaters: TP_OFFSETS = cast(TP_OFFSETS, None)
+    #: Log end offsets by TopicPartition
+    tp_end_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
 
     def __init__(self,
                  *,
@@ -199,7 +199,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
         self.tp_committed_offsets = {}
         self.tp_read_offsets = {}
-        self.tp_highwaters = {}
+        self.tp_end_offsets = {}
 
     def asdict(self) -> Mapping:
         return {
@@ -224,7 +224,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             'metric_counts': self._metric_counts_dict(),
             'topic_committed_offsets': self._tp_committed_offsets_dict(),
             'topic_read_offsets': self._tp_read_offsets_dict(),
-            'topic_highwaters': self._tp_highwaters_dict(),
+            'topic_end_offsets': self._tp_end_offsets_dict(),
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -248,8 +248,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def _tp_read_offsets_dict(self) -> TP_OFFSETS_DICT:
         return self._tp_offsets_as_dic(self.tp_read_offsets)
 
-    def _tp_highwaters_dict(self) -> TP_OFFSETS_DICT:
-        return self._tp_offsets_as_dic(self.tp_highwaters)
+    def _tp_end_offsets_dict(self) -> TP_OFFSETS_DICT:
+        return self._tp_offsets_as_dic(self.tp_end_offsets)
 
     @classmethod
     def _tp_offsets_as_dic(cls,
@@ -373,11 +373,11 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
             if offset is not None
         })
 
-    def track_tp_highwater(self, tp_highwaters: Mapping[TP, int]) -> None:
-        self.tp_highwaters.update({
-            tp: highwater
-            for tp, highwater in tp_highwaters.items()
-            if highwater is not None
+    def track_tp_end_offsets(self, tp_end_offsets: Mapping[TP, int]) -> None:
+        self.tp_end_offsets.update({
+            tp: end_offset
+            for tp, end_offset in tp_end_offsets.items()
+            if end_offset is not None
         })
 
     @cached_property
