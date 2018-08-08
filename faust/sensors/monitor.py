@@ -24,6 +24,10 @@ MAX_AVG_HISTORY = 100
 MAX_COMMIT_LATENCY_HISTORY = 30
 MAX_SEND_LATENCY_HISTORY = 30
 
+TP_OFFSETS = MutableMapping[TP, int]
+PARTITION_OFFSETS_DICT = Mapping[int, int]
+TP_OFFSETS_DICT = Mapping[str, PARTITION_OFFSETS_DICT]
+
 
 class TableState(KeywordReduce):
     """Represents the current state of a table."""
@@ -135,6 +139,15 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     #: Arbitrary counts added by apps
     metric_counts: Counter[str] = cast(Counter[str], None)
 
+    #: Last committed offsets by TopicPartition
+    tp_committed_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
+
+    #: Last read offsets by TopicPartition
+    tp_read_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
+
+    #: Last seen highwaters by TopicPartition
+    tp_highwaters: TP_OFFSETS = cast(TP_OFFSETS, None)
+
     def __init__(self,
                  *,
                  max_avg_history: int = MAX_AVG_HISTORY,
@@ -184,6 +197,10 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
         self.metric_counts = Counter()
 
+        self.tp_committed_offsets = {}
+        self.tp_read_offsets = {}
+        self.tp_highwaters = {}
+
     def asdict(self) -> Mapping:
         return {
             'messages_active': self.messages_active,
@@ -205,6 +222,9 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
                 name: table.asdict() for name, table in self.tables.items()
             },
             'metric_counts': self._metric_counts_dict(),
+            'topic_committed_offsets': self._tp_committed_offsets_dict(),
+            'topic_read_offsets': self._tp_read_offsets_dict(),
+            'topic_highwaters': self._tp_highwaters_dict(),
         }
 
     def _events_by_stream_dict(self) -> MutableMapping[str, int]:
@@ -221,6 +241,26 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     def _metric_counts_dict(self) -> MutableMapping[str, int]:
         return {key: count for key, count in self.metric_counts.items()}
+
+    def _tp_committed_offsets_dict(self) -> TP_OFFSETS_DICT:
+        return self._tp_offsets_as_dic(self.tp_committed_offsets)
+
+    def _tp_read_offsets_dict(self) -> TP_OFFSETS_DICT:
+        return self._tp_offsets_as_dic(self.tp_read_offsets)
+
+    def _tp_highwaters_dict(self) -> TP_OFFSETS_DICT:
+        return self._tp_offsets_as_dic(self.tp_highwaters)
+
+    @classmethod
+    def _tp_offsets_as_dic(cls,
+                           tp_offsets: TP_OFFSETS,
+                           ) -> Mapping[str, Mapping[int, int]]:
+        topic_partition_offsets = {}
+        for tp, offset in tp_offsets.items():
+            partition_offsets = topic_partition_offsets.get(tp.topic, {})
+            partition_offsets[tp.partition] = offset
+            topic_partition_offsets[tp.topic] = partition_offsets
+        return topic_partition_offsets
 
     def _cleanup(self) -> None:
         self._cleanup_max_avg_history()
@@ -251,6 +291,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.messages_received_total += 1
         self.messages_active += 1
         self.messages_received_by_topic[tp.topic] += 1
+        self.tp_read_offsets[tp] = offset
         message.time_in = self.time()
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
@@ -324,6 +365,20 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     def count(self, metric_name: str, count: int = 1) -> None:
         self.metric_counts[metric_name] += count
+
+    def on_tp_commit(self, tp_offsets: Mapping[TP, int]) -> None:
+        self.tp_committed_offsets.update({
+            tp: offset
+            for tp, offset in tp_offsets.items()
+            if offset is not None
+        })
+
+    def track_tp_highwater(self, tp_highwaters: Mapping[TP, int]) -> None:
+        self.tp_highwaters.update({
+            tp: highwater
+            for tp, highwater in tp_highwaters.items()
+            if highwater is not None
+        })
 
     @cached_property
     def _service(self) -> ServiceT:

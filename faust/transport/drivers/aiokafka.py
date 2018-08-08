@@ -525,6 +525,7 @@ class Consumer(base.Consumer):
                 await self._consumer.commit(commitable)
                 on_timeout.info('-aiokafka._consumer.commit()')
             self._committed_offset.update(commitable_offsets)
+            self.app.monitor.on_tp_commit(commitable_offsets)
             self._last_batch = None
             return True
         except CommitFailedError as exc:

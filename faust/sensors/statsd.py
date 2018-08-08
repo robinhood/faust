@@ -2,7 +2,7 @@
 import re
 import typing
 from time import monotonic
-from typing import Any, Pattern, cast
+from typing import Any, Mapping, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -70,6 +70,7 @@ class StatsdMonitor(Monitor):
         self.client.incr('messages_received', rate=self.rate)
         self.client.incr('messages_active', rate=self.rate)
         self.client.incr(f'topic.{tp.topic}.messages_received', rate=self.rate)
+        self.client.gauge(f'read.{tp.topic}.{tp.partition}', offset)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
                            event: EventT) -> None:
@@ -137,6 +138,18 @@ class StatsdMonitor(Monitor):
     def count(self, metric_name: str, count: int = 1) -> None:
         super().count(metric_name, count=count)
         self.client.incr(metric_name, count=count, rate=self.rate)
+
+    def on_tp_commit(self, tp_offsets: Mapping[TP, int]) -> None:
+        super().on_tp_commit(tp_offsets)
+        for tp, offset in tp_offsets.items():
+            metric_name = f'committed.{tp.topic}.{tp.partition}'
+            self.client.gauge(metric_name, offset)
+
+    def track_tp_highwater(self, tp_highwaters: Mapping[TP, int]) -> None:
+        super().on_tp_commit(tp_highwaters)
+        for tp, highwater in tp_highwaters.items():
+            metric_name = f'highwater.{tp.topic}.{tp.partition}'
+            self.client.gauge(metric_name, highwater)
 
     def _normalize(self, name: str,
                    *,
