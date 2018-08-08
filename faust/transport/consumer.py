@@ -538,8 +538,8 @@ class Consumer(Service, ConsumerT):
     async def record_end_offsets(self) -> None:
         interval = self._end_offset_monitor_interval
         while not self.should_stop:
+            await self.sleep(interval)
             partitions = self.assignment()
             if partitions:
                 end_offsets = await self.highwaters(*partitions)
                 self.app.monitor.track_tp_end_offsets(end_offsets)
-            await self.sleep(interval)

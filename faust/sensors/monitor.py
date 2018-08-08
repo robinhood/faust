@@ -24,9 +24,9 @@ MAX_AVG_HISTORY = 100
 MAX_COMMIT_LATENCY_HISTORY = 30
 MAX_SEND_LATENCY_HISTORY = 30
 
-TP_OFFSETS = MutableMapping[TP, int]
-PARTITION_OFFSETS_DICT = Mapping[int, int]
-TP_OFFSETS_DICT = Mapping[str, PARTITION_OFFSETS_DICT]
+TPOffsetMapping = MutableMapping[TP, int]
+PartitionOffsetMapping = Mapping[int, int]
+TPOffsetDict = Mapping[str, PartitionOffsetMapping]
 
 
 class TableState(KeywordReduce):
@@ -140,13 +140,13 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     metric_counts: Counter[str] = cast(Counter[str], None)
 
     #: Last committed offsets by TopicPartition
-    tp_committed_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
+    tp_committed_offsets: TPOffsetMapping = cast(TPOffsetMapping, None)
 
     #: Last read offsets by TopicPartition
-    tp_read_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
+    tp_read_offsets: TPOffsetMapping = cast(TPOffsetMapping, None)
 
     #: Log end offsets by TopicPartition
-    tp_end_offsets: TP_OFFSETS = cast(TP_OFFSETS, None)
+    tp_end_offsets: TPOffsetMapping = cast(TPOffsetMapping, None)
 
     def __init__(self,
                  *,
@@ -242,19 +242,17 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def _metric_counts_dict(self) -> MutableMapping[str, int]:
         return {key: count for key, count in self.metric_counts.items()}
 
-    def _tp_committed_offsets_dict(self) -> TP_OFFSETS_DICT:
-        return self._tp_offsets_as_dic(self.tp_committed_offsets)
+    def _tp_committed_offsets_dict(self) -> TPOffsetDict:
+        return self._tp_offsets_as_dict(self.tp_committed_offsets)
 
-    def _tp_read_offsets_dict(self) -> TP_OFFSETS_DICT:
-        return self._tp_offsets_as_dic(self.tp_read_offsets)
+    def _tp_read_offsets_dict(self) -> TPOffsetDict:
+        return self._tp_offsets_as_dict(self.tp_read_offsets)
 
-    def _tp_end_offsets_dict(self) -> TP_OFFSETS_DICT:
-        return self._tp_offsets_as_dic(self.tp_end_offsets)
+    def _tp_end_offsets_dict(self) -> TPOffsetDict:
+        return self._tp_offsets_as_dict(self.tp_end_offsets)
 
     @classmethod
-    def _tp_offsets_as_dic(cls,
-                           tp_offsets: TP_OFFSETS,
-                           ) -> Mapping[str, Mapping[int, int]]:
+    def _tp_offsets_as_dict(cls, tp_offsets: TPOffsetMapping) -> TPOffsetDict:
         topic_partition_offsets = {}
         for tp, offset in tp_offsets.items():
             partition_offsets = topic_partition_offsets.get(tp.topic, {})

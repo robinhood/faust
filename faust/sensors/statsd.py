@@ -70,7 +70,7 @@ class StatsdMonitor(Monitor):
         self.client.incr('messages_received', rate=self.rate)
         self.client.incr('messages_active', rate=self.rate)
         self.client.incr(f'topic.{tp.topic}.messages_received', rate=self.rate)
-        self.client.gauge(f'read.{tp.topic}.{tp.partition}', offset)
+        self.client.gauge(f'read_offset.{tp.topic}.{tp.partition}', offset)
 
     def on_stream_event_in(self, tp: TP, offset: int, stream: StreamT,
                            event: EventT) -> None:
@@ -142,7 +142,7 @@ class StatsdMonitor(Monitor):
     def on_tp_commit(self, tp_offsets: Mapping[TP, int]) -> None:
         super().on_tp_commit(tp_offsets)
         for tp, offset in tp_offsets.items():
-            metric_name = f'committed.{tp.topic}.{tp.partition}'
+            metric_name = f'committed_offset.{tp.topic}.{tp.partition}'
             self.client.gauge(metric_name, offset)
 
     def track_tp_end_offsets(self, tp_end_offsets: Mapping[TP, int]) -> None:
