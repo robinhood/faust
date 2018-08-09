@@ -61,7 +61,7 @@ What can it do?
         order_count_by_account = app.Table('order_count', default=int)
 
         @app.agent(orders_kafka_topic)
-        async def process(order: faust.Stream[Order]) -> None:
+        async def process(orders: faust.Stream[Order]) -> None:
             async for order in orders.group_by(Order.account_id):
                 order_count_by_account[order.account_id] += 1
 
