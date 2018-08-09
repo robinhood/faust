@@ -12,6 +12,22 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.28:
+
+1.0.28
+======
+:release-date: 2018-08-08 11:25 P.M PDT
+:release-by: Vineet Goel
+
+- **Monitor**: Adds consumer stats such as last read offsets, last committed
+  offsets and log end offsets to the monitor. Also added to the StatsdMonitor.
+
+- **aiokafka**: Changes how topics are created to make it more efficient. We
+  now are smarter about finding kafka cluster controller instead of trial and
+  error.
+
+- **Documentation**: Fixed links to Slack and other minor fixes.
+
 .. _version-1.0.27:
 
 1.0.27
