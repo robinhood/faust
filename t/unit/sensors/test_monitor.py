@@ -106,6 +106,9 @@ class test_Monitor:
             'tables': {
                 name: table.asdict() for name, table in mon.tables.items()
             },
+            'topic_committed_offsets': {},
+            'topic_read_offsets': {},
+            'topic_end_offsets': {},
         }
 
     def test_cleanup(self, *, mon):
@@ -154,12 +157,14 @@ class test_Monitor:
 
     def test_on_message_in(self, *, message, mon, time):
         for i in range(1, 11):
-            mon.on_message_in(TP1, 3 + i, message)
+            offset = 3 + i
+            mon.on_message_in(TP1, offset, message)
 
             assert mon.messages_received_total == i
             assert mon.messages_active == i
             assert mon.messages_received_by_topic[TP1.topic] == i
             assert message.time_in is time()
+            assert mon.tp_read_offsets[TP1] == offset
 
     def test_on_stream_event_in(self, *, event, mon, stream, time):
         for i in range(1, 11):
@@ -270,6 +275,30 @@ class test_Monitor:
             **state.asdict(),
             'table': table,
         }
+
+    def test_on_tp_commit(self, *, mon):
+        topic = "foo"
+        for offset in range(20):
+            partitions = list(range(4))
+            tps = {TP(topic=topic, partition=p) for p in partitions}
+            commit_offsets = {tp: offset for tp in tps}
+            mon.on_tp_commit(commit_offsets)
+            assert all(mon.tp_committed_offsets[tp] == commit_offsets[tp]
+                       for tp in tps)
+            offsets_dict = mon.asdict()["topic_committed_offsets"][topic]
+            assert all(offsets_dict[p] == offset for p in partitions)
+
+    def test_track_tp_end_offsets(self, *, mon):
+        topic = "foo"
+        for offset in range(20):
+            partitions = list(range(4))
+            tps = {TP(topic=topic, partition=p) for p in partitions}
+            log_end_offsets = {tp: offset for tp in tps}
+            mon.track_tp_end_offsets(log_end_offsets)
+            assert all(mon.tp_end_offsets[tp] == log_end_offsets[tp]
+                       for tp in tps)
+            offsets_dict = mon.asdict()["topic_end_offsets"][topic]
+            assert all(offsets_dict[p] == offset for p in partitions)
 
     @pytest.mark.asyncio
     async def test_service_sampler(self, *, mon):

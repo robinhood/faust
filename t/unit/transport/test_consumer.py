@@ -365,3 +365,22 @@ class test_Consumer:
             call(consumer.commit_interval),
         ])
         consumer.commit.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_record_end_offsets(self, *, consumer):
+
+        def on_sleep(secs):
+            consumer._stopped.set()
+
+        assignment = {TP1, TP2}
+        highwaters = {TP1: 12, TP2: 23}
+        consumer.sleep = AsyncMock(name='sleep', side_effect=on_sleep)
+        consumer.highwaters = AsyncMock(name='highwaters',
+                                        return_value=highwaters)
+        consumer.assignment = Mock(name='assignment', return_value=assignment)
+
+        await consumer.record_end_offsets(consumer)
+        consumer.sleep.coro.assert_called_once_with(
+            consumer._end_offset_monitor_interval)
+        consumer.highwaters.assert_called_once_with(*assignment)
+        assert consumer.app.monitor.tp_end_offsets == highwaters
