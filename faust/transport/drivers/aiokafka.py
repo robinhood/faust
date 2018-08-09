@@ -39,6 +39,7 @@ from rhkafka.errors import (
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
 )
+from rhkafka.protocol.metadata import MetadataRequest_v1
 from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
 from mode.utils.compat import AsyncContextManager, OrderedDict
 from mode.utils.futures import StampedeWrapper
@@ -740,6 +741,26 @@ class Transport(base.Transport):
             self._topic_waiters.pop(topic, None)
             raise
 
+    async def _get_controller_node(self,
+                                   owner: Service,
+                                   client: aiokafka.AIOKafkaClient,
+                                   timeout: int = 30000) -> Optional[int]:
+        nodes = [broker.nodeId for broker in client.cluster.brokers()]
+        for node_id in nodes:
+            if node_id is None:
+                raise RuntimeError('Not connected to Kafka Broker')
+            request = MetadataRequest_v1([])
+            wait_result = await owner.wait(
+                client.send(node_id, request),
+                timeout=timeout,
+            )
+            if wait_result.stopped:
+                owner.log.info(f'Shutting down - skipping creation.')
+                return
+            response = wait_result.result
+            return response.controller_id
+        raise Exception(f'Controller node not found')
+
     async def _really_create_topic(self,
                                    owner: Service,
                                    client: aiokafka.AIOKafkaClient,
@@ -759,48 +780,45 @@ class Transport(base.Transport):
         config = self._topic_config(retention, compacting, deleting)
         config.update(extra_configs)
 
-        # Create topic request needs to be sent to the kafka cluster controller
-        # Since aiokafka client doesn't currently support MetadataRequest
-        # version 1, client.controller will always be None. Hence we cycle
-        # through all brokers if we get Error 41 (not controller) until we
-        # hit the controller
-        nodes = [broker.nodeId for broker in client.cluster.brokers()]
-        owner.log.info(f'Nodes: {nodes}')
-        for node_id in nodes:
-            if node_id is None:
-                raise RuntimeError('Not connected to Kafka broker')
+        controlled_node = await self._get_controller_node(owner, client,
+                                                          timeout=timeout)
+        owner.log.info(f'Found controller: {controlled_node}')
 
-            request = CreateTopicsRequest[protocol_version](
-                [(topic, partitions, replication, [], list(config.items()))],
-                timeout,
-                False,
-            )
-            wait_result = await owner.wait(
-                client.send(node_id, request),
-                timeout=timeout,
-            )
-            if wait_result.stopped:
-                owner.log.info(f'Shutting down - skipping creation.')
+        if controlled_node is None:
+            if owner.should_stop:
+                owner.log.info(f'Shutting down hence controller not found')
                 return
-            response = wait_result.result
-
-            assert len(response.topic_error_codes), 'single topic'
-
-            _, code, reason = response.topic_error_codes[0]
-
-            if code != 0:
-                if not ensure_created and code == TopicExistsError.errno:
-                    owner.log.debug(
-                        f'Topic {topic} exists, skipping creation.')
-                    return
-                elif code == NotControllerError.errno:
-                    owner.log.debug(
-                        f'Broker: {node_id} is not controller.')
-                    continue
-                else:
-                    raise for_code(code)(
-                        f'Cannot create topic: {topic} ({code}): {reason}')
             else:
-                owner.log.info(f'Topic {topic} created.')
+                raise Exception(f'Controller node is None')
+
+        request = CreateTopicsRequest[protocol_version](
+            [(topic, partitions, replication, [], list(config.items()))],
+            timeout,
+            False,
+        )
+        wait_result = await owner.wait(
+            client.send(controlled_node, request),
+            timeout=timeout,
+        )
+        if wait_result.stopped:
+            owner.log.info(f'Shutting down - skipping creation.')
+            return
+        response = wait_result.result
+
+        assert len(response.topic_error_codes), 'single topic'
+
+        _, code, reason = response.topic_error_codes[0]
+
+        if code != 0:
+            if not ensure_created and code == TopicExistsError.errno:
+                owner.log.debug(
+                    f'Topic {topic} exists, skipping creation.')
                 return
-        raise Exception(f'No controller found among brokers: {nodes}')
+            elif code == NotControllerError.errno:
+                raise RuntimeError(f'Invalid controller: {controlled_node}')
+            else:
+                raise for_code(code)(
+                    f'Cannot create topic: {topic} ({code}): {reason}')
+        else:
+            owner.log.info(f'Topic {topic} created.')
+            return

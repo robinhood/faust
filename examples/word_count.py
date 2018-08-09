@@ -43,6 +43,8 @@ async def get_count(web, request):
 
 @app.task
 async def sender():
+    await posts_topic.maybe_declare()
+
     for word in WORDS:
         for _ in range(1000):
             await shuffle_words.send(value=word)
