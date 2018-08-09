@@ -2,7 +2,7 @@
 import re
 import typing
 from time import monotonic
-from typing import Any, Mapping, Pattern, cast
+from typing import Any, Pattern, cast
 
 from mode.utils.objects import cached_property
 
