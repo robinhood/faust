@@ -144,7 +144,7 @@
                           <tbody>
                           {% for appid, hostnames in errors.items() %}
                              {% for hostname, errors in hostnames.items() %}
-                                 {% for error in errors.items() %}
+                                 {% for error in errors %}
                                  <tr>
                                      <td>{{ appid }}</td>
                                      <td>{{ hostname }}</td>
