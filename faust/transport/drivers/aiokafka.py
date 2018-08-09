@@ -775,6 +775,11 @@ class Transport(base.Transport):
                                    deleting: bool = None,
                                    ensure_created: bool = False) -> None:
         owner.log.info(f'Creating topic {topic}')
+
+        if topic in client.cluster.topics():
+            owner.log.debug(f'Topic {topic} exists, skipping creation.')
+            return
+
         protocol_version = 1
         extra_configs = config or {}
         config = self._topic_config(retention, compacting, deleting)
