@@ -756,7 +756,7 @@ class Transport(base.Transport):
             )
             if wait_result.stopped:
                 owner.log.info(f'Shutting down - skipping creation.')
-                return
+                return None
             response = wait_result.result
             return response.controller_id
         raise Exception(f'Controller node not found')
