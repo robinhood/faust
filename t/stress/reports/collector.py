@@ -39,8 +39,8 @@ async def process_report(reports):
 
 
 @app.agent(error_topic)
-async def process_error(errors):
-    async for error in errors:
+async def process_error(stream):
+    async for error in stream:
         errors[error.app_id][error.hostname].append(error)
 
 

@@ -143,8 +143,8 @@
                           </thead>
                           <tbody>
                           {% for appid, hostnames in errors.items() %}
-                             {% for hostname, errors in hostnames.items() %}
-                                 {% for error in errors %}
+                             {% for hostname, error_list in hostnames.items() %}
+                                 {% for error in error_list %}
                                  <tr>
                                      <td>{{ appid }}</td>
                                      <td>{{ hostname }}</td>
