@@ -10,7 +10,7 @@ from faust.exceptions import ImproperlyConfigured
 from faust.types import CollectionT, EventT, Message, StreamT, TP
 from faust.types.transports import ConsumerT, ProducerT
 
-from .monitor import Monitor
+from .monitor import Monitor, TPOffsetMapping
 
 try:
     import statsd
@@ -139,13 +139,13 @@ class StatsdMonitor(Monitor):
         super().count(metric_name, count=count)
         self.client.incr(metric_name, count=count, rate=self.rate)
 
-    def on_tp_commit(self, tp_offsets: Mapping[TP, int]) -> None:
+    def on_tp_commit(self, tp_offsets: TPOffsetMapping) -> None:
         super().on_tp_commit(tp_offsets)
         for tp, offset in tp_offsets.items():
             metric_name = f'committed_offset.{tp.topic}.{tp.partition}'
             self.client.gauge(metric_name, offset)
 
-    def track_tp_end_offsets(self, tp_end_offsets: Mapping[TP, int]) -> None:
+    def track_tp_end_offsets(self, tp_end_offsets: TPOffsetMapping) -> None:
         super().on_tp_commit(tp_end_offsets)
         for tp, end_offset in tp_end_offsets.items():
             metric_name = f'end_offset.{tp.topic}.{tp.partition}'

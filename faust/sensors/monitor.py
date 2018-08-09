@@ -255,7 +255,7 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def _tp_offsets_as_dict(cls, tp_offsets: TPOffsetMapping) -> TPOffsetDict:
         topic_partition_offsets: TPOffsetDict = {}
         for tp, offset in tp_offsets.items():
-            partition_offsets = topic_partition_offsets.get(tp.topic, {})
+            partition_offsets = topic_partition_offsets.get(tp.topic) or {}
             partition_offsets[tp.partition] = offset
             topic_partition_offsets[tp.topic] = partition_offsets
         return topic_partition_offsets
@@ -364,19 +364,11 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def count(self, metric_name: str, count: int = 1) -> None:
         self.metric_counts[metric_name] += count
 
-    def on_tp_commit(self, tp_offsets: Mapping[TP, int]) -> None:
-        self.tp_committed_offsets.update({
-            tp: offset
-            for tp, offset in tp_offsets.items()
-            if offset is not None
-        })
+    def on_tp_commit(self, tp_offsets: TPOffsetMapping) -> None:
+        self.tp_committed_offsets.update(tp_offsets)
 
-    def track_tp_end_offsets(self, tp_end_offsets: Mapping[TP, int]) -> None:
-        self.tp_end_offsets.update({
-            tp: end_offset
-            for tp, end_offset in tp_end_offsets.items()
-            if end_offset is not None
-        })
+    def track_tp_end_offsets(self, tp_end_offsets: TPOffsetMapping) -> None:
+        self.tp_end_offsets.update(tp_end_offsets)
 
     @cached_property
     def _service(self) -> ServiceT:
