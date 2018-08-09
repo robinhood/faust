@@ -785,11 +785,11 @@ class Transport(base.Transport):
         config = self._topic_config(retention, compacting, deleting)
         config.update(extra_configs)
 
-        controlled_node = await self._get_controller_node(owner, client,
+        controller_node = await self._get_controller_node(owner, client,
                                                           timeout=timeout)
-        owner.log.info(f'Found controller: {controlled_node}')
+        owner.log.info(f'Found controller: {controller_node}')
 
-        if controlled_node is None:
+        if controller_node is None:
             if owner.should_stop:
                 owner.log.info(f'Shutting down hence controller not found')
                 return
@@ -802,7 +802,7 @@ class Transport(base.Transport):
             False,
         )
         wait_result = await owner.wait(
-            client.send(controlled_node, request),
+            client.send(controller_node, request),
             timeout=timeout,
         )
         if wait_result.stopped:
@@ -820,7 +820,7 @@ class Transport(base.Transport):
                     f'Topic {topic} exists, skipping creation.')
                 return
             elif code == NotControllerError.errno:
-                raise RuntimeError(f'Invalid controller: {controlled_node}')
+                raise RuntimeError(f'Invalid controller: {controller_node}')
             else:
                 raise for_code(code)(
                     f'Cannot create topic: {topic} ({code}): {reason}')
