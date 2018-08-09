@@ -1,5 +1,40 @@
 import faust
 
+__all__ = ['Error', 'Status']
+
+
+class Error(faust.Record):
+
+    #: Message (the actual formatted log message).
+    message: str
+
+    #: Format (sent to logging, e.g. 'the %s for %s did %r'
+    format: str   # noqa
+
+    hostname: str = None
+
+    #: Traceback (if any)
+    traceback: str = None
+
+    #: Name of the origin logger.
+    logger: str = None
+
+    #: Path to the file logging this.
+    filename: str = None
+
+    #: Name of module logging this.
+    module: str = None
+
+    #: Line number
+    lineno: int = None
+
+    #: Logging severity
+    severity: str = 'ERROR'
+
+    timestamp: float = None
+
+    app_id: str = None
+
 
 class Status(faust.Record):
 

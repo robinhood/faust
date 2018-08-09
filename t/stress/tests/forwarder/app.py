@@ -13,7 +13,6 @@ app = create_stress_app(
     name='f-stress-dedupe',
     version=7,
     origin='t.stress.tests.forwarder',
-    stream_wait_empty=False,
     broker_commit_every=100,
 )
 

@@ -1,16 +1,19 @@
 from collections import Counter, defaultdict
 from . import states
-from .app import get_reporting_app, get_reporting_topic
+from .app import get_error_topic, get_reporting_app, get_reporting_topic
 from .web import env
 
 app = get_reporting_app()
 
+error_topic = get_error_topic(app)
 reporting_topic = get_reporting_topic(app)
 
 report_index = {}
 report_by_category = defaultdict(lambda: defaultdict(dict))
 unique_servers = set()
 state_counts = Counter()
+
+errors = defaultdict(lambda: defaultdict(list))
 
 color_for_state = {
     states.OK: '#007BFF',
@@ -35,12 +38,19 @@ async def process_report(reports):
         state_counts[r.state] += 1
 
 
+@app.agent(error_topic)
+async def process_error(errors):
+    async for error in errors:
+        errors[error.app_id][error.hostname].append(error)
+
+
 @app.page('/dashboard/')
 async def dashboard(web, request, template_name='dashboard.html'):
     template = env.get_template(template_name)
     return web.html(template.render({
         'total_workers': len(unique_servers),
         'report': report_by_category,
+        'errors': errors,
         'state_counts': [
             {
                 'name': state,

@@ -1,13 +1,18 @@
 import socket
 import faust
 from . import states
-from .models import Status
+from .models import Error, Status
 
-TOPIC_NAME = 'f-systemcheck'
+REPORT_TOPIC_NAME = 'f-systemcheck'
+ERRORS_TOPIC_NAME = 'f-errors'
 
 
 def get_reporting_topic(app):
-    return app.topic(TOPIC_NAME, value_type=Status)
+    return app.topic(REPORT_TOPIC_NAME, value_type=Status)
+
+
+def get_error_topic(app):
+    return app.topic(ERRORS_TOPIC_NAME, value_type=Error)
 
 
 async def send_update(app, status: Status):

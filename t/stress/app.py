@@ -5,6 +5,7 @@ from faust.types import RecordMetadata
 from . import config
 from . import producer
 from .reports.checks import Check, SystemChecks
+from .reports.logging import LogHandler, LogPusher
 
 __all__ = ['ProducerFun', 'StressApp', 'create_stress_app']
 
@@ -22,6 +23,8 @@ class StressApp(faust.App):
     unassigned: bool = False
 
     def __init__(self, *args, **kwargs):
+        loghandler = LogHandler(self)
+        kwargs['loghandlers'] = [loghandler]
         super().__init__(*args, **kwargs)
         self.stress_producers = []
         self.count_received_events = 0
@@ -35,6 +38,7 @@ class StressApp(faust.App):
             ),
         )
         await self.add_runtime_dependency(self.system_checks)
+        await self.add_runtime_dependency(self.logpusher)
 
     def add_system_check(self, check: Check) -> None:
         self.system_checks.add(check)
@@ -46,6 +50,10 @@ class StressApp(faust.App):
     @cached_property
     def system_checks(self) -> SystemChecks:
         return SystemChecks(self)
+
+    @cached_property
+    def logpusher(self) -> LogPusher:
+        return LogPusher(self)
 
 
 def create_app(name, origin, base=faust.App, **kwargs: Any) -> faust.App:

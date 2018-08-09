@@ -131,7 +131,8 @@ class Check(Service):
         app.log.log(severity,
                     '%s:%s %s (x%s): was %s now %s',
                     app.conf.id, self.name, self.negate_description,
-                    self.faults, prev_value_repr, current_value_repr)
+                    self.faults, prev_value_repr, current_value_repr,
+                    extra={'no_alert': True})
 
     async def on_ok_log(self,
                         app: AppT,
@@ -140,7 +141,8 @@ class Check(Service):
         await send_update(app, self.to_representation(app, logging.INFO))
         app.log.info('%s:%s %s: was %s now %s',
                      app.conf.id, self.name, self.description,
-                     prev_value, current_value)
+                     prev_value, current_value,
+                     extra={'no_alert': True})
 
     def get_state_for_faults(self, faults: int) -> str:
         for level, state in self.faults_to_state:

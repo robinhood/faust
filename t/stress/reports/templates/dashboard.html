@@ -123,6 +123,45 @@
             </div>
             </div>
 
+            <div class="animated fadeIn">
+                <div class="row">
+                <div class="col-lg-10">
+                    <div class="card">
+                        <div class="card-header">
+                            <strong class="card-title">Errors</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                              <thead>
+                                <tr>
+                                  <th scope="col">App</th>
+                                  <th scope="col">Host</th>
+                                  <th scope="col">Logger</th>
+                                  <th scope="col">Severity</th>
+                                  <th scope="col">Message</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                          {% for appid, hostnames in errors.items() %}
+                             {% for hostname, errors in hostnames.items() %}
+                                 {% for error in errors.items() %}
+                                 <tr>
+                                     <td>{{ appid }}</td>
+                                     <td>{{ hostname }}</td>
+                                     <td>{{ error.logger }}</td>
+                                     <td>{{ error.severity }}</td>
+                                     <td><code>{{ error.message }}</code></td>
+                                 </tr>
+                                 {% endfor %}
+                             {% endfor %}
+                          {% endfor %}
+                      </tbody>
+                  </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            </div>
         </div> <!-- .content -->
     </div><!-- /#right-panel -->
 
