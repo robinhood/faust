@@ -30,13 +30,13 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 
 app = faust.App(
-    'faust-withdrawals4',
+    'faust-withdrawals',
     broker='kafka://127.0.0.1:9092',
     store='rocksdb://',
     origin='examples.withdrawals',
-    topic_partitions=4,
+    topic_partitions=8,
 )
-withdrawals_topic = app.topic('withdrawals4', value_type=Withdrawal)
+withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
 user_to_total = app.Table(
     'user_to_total', default=int,
