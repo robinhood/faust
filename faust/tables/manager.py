@@ -239,11 +239,26 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await reviver.start()
             self.log.info('Started restoring: %s', reviver.label)
         await self.app._fetcher.start()
-        self.log.info('Waiting for restore to finish...')
-        await asyncio.gather(
-            *[r.wait_done_reading() for r in table_revivers],
-            loop=self.loop,
-        )
+
+        # XXX [asksol] This used to call:
+        # asyncio.gather(*[r.wait_done_reading() for r in table_revivers]
+        # But on Python 3.7 this hangs forever with 99% CPU.
+        # Is this a bug in asyncio?
+        # wait_done_reading simply waits for r._stop_event.wait()
+
+        # As a workaround we don't wait for asyncio.Events that are
+        # already done.
+        pending_revivers = [
+            r for r in table_revivers
+            if not r._stop_event.is_set()
+        ]
+        if pending_revivers:
+            self.log.info('Waiting for restore to finish...')
+            await asyncio.gather(
+                *[r._stop_event.wait() for r in pending_revivers],
+                loop=self.loop,
+            )
+
         self.log.info('Done reading all changelogs')
         for reviver in table_revivers:
             self._sync_offsets(reviver)

@@ -60,6 +60,9 @@ class ChangelogReader(Service, ChangelogReaderT):
         self._highwaters = Counter()
         self._stop_event = asyncio.Event(loop=self.loop)
 
+    def _repr_info(self) -> str:
+        return f'{self.table!r} {self._stop_event!r}'
+
     @property
     def _buffer_size(self) -> int:
         return self.table.recovery_buffer_size
@@ -121,6 +124,7 @@ class ChangelogReader(Service, ChangelogReaderT):
         return self._highwaters != self.offsets
 
     async def wait_done_reading(self) -> None:
+        # XXX [asksol] This method is unused, see note in tables/manager.py
         await self._stop_event.wait()
 
     def _done_reading(self) -> None:

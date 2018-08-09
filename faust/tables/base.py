@@ -451,3 +451,6 @@ class Collection(Service, CollectionT):
 
     def _human_channel(self) -> str:
         return f'{type(self.__name__)}: {self.name}'
+
+    def _repr_info(self) -> str:
+        return self.name
