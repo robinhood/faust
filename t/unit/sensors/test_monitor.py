@@ -289,16 +289,12 @@ class test_Monitor:
             assert all(offsets_dict[p] == offset for p in partitions)
 
     def test_track_tp_end_offsets(self, *, mon):
-        topic = "foo"
+        tp = TP(topic="foo", partition=2)
         for offset in range(20):
-            partitions = list(range(4))
-            tps = {TP(topic=topic, partition=p) for p in partitions}
-            log_end_offsets = {tp: offset for tp in tps}
-            mon.track_tp_end_offsets(log_end_offsets)
-            assert all(mon.tp_end_offsets[tp] == log_end_offsets[tp]
-                       for tp in tps)
-            offsets_dict = mon.asdict()["topic_end_offsets"][topic]
-            assert all(offsets_dict[p] == offset for p in partitions)
+            mon.track_tp_end_offset(tp, offset)
+            assert mon.tp_end_offsets[tp] == offset
+            offsets_dict = mon.asdict()["topic_end_offsets"][tp.topic]
+            assert offsets_dict[tp.partition] == offset
 
     @pytest.mark.asyncio
     async def test_service_sampler(self, *, mon):

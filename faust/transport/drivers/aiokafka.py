@@ -436,6 +436,8 @@ class Consumer(base.Consumer):
                     to_remove.add(topic)
                     continue
                 tp, record = item  # type: ignore
+                highwater_mark = self._consumer.highwater(tp)
+                self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                 yield tp, create_message(
                     record.topic,
                     record.partition,
