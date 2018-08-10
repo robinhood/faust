@@ -12,6 +12,29 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.29:
+
+1.0.29
+======
+:release-date: 2018-08-10 5:00 P.M PDT
+:release-by: TBA
+
+- **Requirements**
+
+    + Now depends on :pypi:`robinhood-aiokafka` 0.4.18
+
+        The coordination routine now ensures the program stops
+        when receiving a :exc:`aiokafka.errors.UnknownError` from the
+        Kafka broker. This leaves recovery up to the supervisor.
+
+- **Table**: Fixed hanging at startup/rebalance on Python 3.7 (Issue #134).
+
+    Workaround for :mod:`asyncio` bug seemingly introduced in Python 3.7,
+    that left the worker hanging at startup when attempting to recover
+    a table without any data.
+
+- **Monitor**: More efficient updating of highwater metrics (Issue #139).
+
 .. _version-1.0.28:
 
 1.0.28
