@@ -145,11 +145,10 @@ class StatsdMonitor(Monitor):
             metric_name = f'committed_offset.{tp.topic}.{tp.partition}'
             self.client.gauge(metric_name, offset)
 
-    def track_tp_end_offsets(self, tp_end_offsets: TPOffsetMapping) -> None:
-        super().on_tp_commit(tp_end_offsets)
-        for tp, end_offset in tp_end_offsets.items():
-            metric_name = f'end_offset.{tp.topic}.{tp.partition}'
-            self.client.gauge(metric_name, end_offset)
+    def track_tp_end_offset(self, tp: TP, offset: int) -> None:
+        super().track_tp_end_offset(tp, offset)
+        metric_name = f'end_offset.{tp.topic}.{tp.partition}'
+        self.client.gauge(metric_name, offset)
 
     def _normalize(self, name: str,
                    *,
