@@ -533,13 +533,3 @@ class Consumer(Service, ConsumerT):
     @property
     def unacked(self) -> Set[Message]:
         return cast(Set[Message], self._unacked_messages)
-
-    @Service.task
-    async def record_end_offsets(self) -> None:
-        interval = self._end_offset_monitor_interval
-        while not self.should_stop:
-            await self.sleep(interval)
-            partitions = self.assignment()
-            if partitions:
-                end_offsets = await self.highwaters(*partitions)
-                self.app.monitor.track_tp_end_offsets(end_offsets)

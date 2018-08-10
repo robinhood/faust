@@ -367,8 +367,8 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
     def on_tp_commit(self, tp_offsets: TPOffsetMapping) -> None:
         self.tp_committed_offsets.update(tp_offsets)
 
-    def track_tp_end_offsets(self, tp_end_offsets: TPOffsetMapping) -> None:
-        self.tp_end_offsets.update(tp_end_offsets)
+    def track_tp_end_offset(self, tp: TP, offset: int) -> None:
+        self.tp_end_offsets[tp] = offset
 
     @cached_property
     def _service(self) -> ServiceT:
