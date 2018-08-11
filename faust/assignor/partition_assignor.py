@@ -273,7 +273,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     @property
     def version(self) -> int:
-        return 2
+        return 3
 
     def assigned_standbys(self) -> Set[TP]:
         return {
