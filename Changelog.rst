@@ -17,7 +17,7 @@ please visit the :ref:`history` section.
 1.0.29
 ======
 :release-date: 2018-08-10 5:00 P.M PDT
-:release-by: TBA
+:release-by: Vineet Goel
 
 - **Requirements**
 
@@ -34,6 +34,10 @@ please visit the :ref:`history` section.
     a table without any data.
 
 - **Monitor**: More efficient updating of highwater metrics (Issue #139).
+
+- **Partition Assignor**: The assignor now compresses the metadata being
+  passed around to all application instances for efficiency and to avoid
+  extreme cases where the metadata is too big.
 
 .. _version-1.0.28:
 
