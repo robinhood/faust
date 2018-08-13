@@ -195,6 +195,7 @@ class Record(Model, abstract=True):
             stop=Record,
             skip_classvar=True,
             alias_types=ALIAS_FIELD_TYPES,
+            localns={cls.__name__: cls},
         )
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)

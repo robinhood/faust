@@ -706,3 +706,19 @@ DATETIME1 = datetime(2012, 6, 5, 13, 33, 0)
 ])
 def test_parse_iso8601(input, expected):
     assert Account._parse_iso8601(None, input) == expected
+
+
+def test_list_field_refers_to_self():
+
+    class X(Record):
+        id: int
+        xs: List['X']
+
+    x = X(1, [X(2, [X(3, [])])])
+
+    as_json = x.dumps(serializer='json')
+    loads = X.loads(as_json, default_serializer='json')
+    assert loads == x
+
+    assert isinstance(loads.xs[0], X)
+    assert isinstance(loads.xs[0].xs[0], X)
