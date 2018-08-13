@@ -1,4 +1,5 @@
 """Partition assignor."""
+import zlib
 from collections import defaultdict
 from typing import Iterable, List, MutableMapping, Sequence, Set, cast
 
@@ -104,7 +105,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     def on_assignment(
             self, assignment: ConsumerProtocolMemberMetadata) -> None:
         metadata = cast(ClientMetadata,
-                        ClientMetadata.loads(assignment.user_data))
+                        ClientMetadata.loads(
+                            self._decompress(assignment.user_data)))
         self._assignment = metadata.assignment
         self._active_tps = self._assignment.active_tps
         self._standby_tps = self._assignment.standby_tps
@@ -229,14 +231,24 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                 self.version,
                 sorted(
                     assignment.kafka_protocol_assignment(self._table_manager)),
-                ClientMetadata(
-                    assignment=assignment,
-                    url=self._member_urls[client],
-                    changelog_distribution=cl_distribution,
-                ).dumps(),
+                self._compress(
+                    ClientMetadata(
+                        assignment=assignment,
+                        url=self._member_urls[client],
+                        changelog_distribution=cl_distribution,
+                    ).dumps(),
+                ),
             )
             for client, assignment in assignments.items()
         }
+
+    @classmethod
+    def _compress(cls, raw: bytes) -> bytes:
+        return zlib.compress(raw)
+
+    @classmethod
+    def _decompress(cls, compressed: bytes) -> bytes:
+        return zlib.decompress(compressed)
 
     @classmethod
     def _topics_filtered(cls, assignment: TopicToPartitionMap,
@@ -261,7 +273,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     @property
     def version(self) -> int:
-        return 2
+        return 3
 
     def assigned_standbys(self) -> Set[TP]:
         return {
