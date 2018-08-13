@@ -722,3 +722,20 @@ def test_list_field_refers_to_self():
 
     assert isinstance(loads.xs[0], X)
     assert isinstance(loads.xs[0].xs[0], X)
+
+
+def test_optional_modelfield():
+
+    class X(Record):
+        id: int
+
+    class Y(Record):
+        x: Optional[X] = None
+
+    y = Y(X(30))
+
+    as_json = y.dumps(serializer='json')
+    loads = Y.loads(as_json, default_serializer='json')
+    assert loads == y
+
+    assert isinstance(loads.x, X)

@@ -16,7 +16,11 @@ from typing import (
     cast,
 )
 
-from mode.utils.objects import annotations, guess_concrete_type
+from mode.utils.objects import (
+    annotations,
+    guess_concrete_type,
+    remove_optional,
+)
 
 from faust.types.models import (
     Converter,
@@ -87,6 +91,7 @@ def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
     except TypeError:
         pass
     try:
+        cls = remove_optional(cls)
         return issubclass(cls, ModelT), concrete_type
     except TypeError:  # typing.Any cannot be used with subclass
         return False, None
@@ -140,6 +145,7 @@ def _from_generic_set(typ: Type, callback: _ReconFun, data: Set) -> Set:
 
 def _to_model(typ: Type[ModelT], data: Any) -> Optional[ModelT]:
     # called everytime something needs to be converted into a model.
+    typ = remove_optional(typ)
     if data is not None and not isinstance(data, typ):
         model = typ.from_data(data, preferred_type=typ)
         return model if model is not None else data
