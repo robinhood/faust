@@ -379,7 +379,8 @@ class Record(Model, abstract=True):
         if is_model:
             generic = modelattrs[field]
             if generic is list or generic is tuple:
-                return f'[v.to_representation() for v in self.{field}]'
+                return (f'[v.to_representation() for v in self.{field}] '
+                        f'if self.{field} is not None else None')
             elif generic is set:
                 return f'self.{field}'
             elif generic is dict:
