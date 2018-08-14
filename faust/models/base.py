@@ -193,10 +193,10 @@ class Model(ModelT):
     def __init_subclass__(cls,
                           serializer: str = None,
                           namespace: str = None,
-                          include_metadata: bool = True,
-                          isodates: bool = False,
+                          include_metadata: bool = None,
+                          isodates: bool = None,
                           abstract: bool = False,
-                          allow_blessed_key: bool = False,
+                          allow_blessed_key: bool = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -220,10 +220,10 @@ class Model(ModelT):
     def _init_subclass(cls,
                        serializer: str = None,
                        namespace: str = None,
-                       include_metadata: bool = True,
-                       isodates: bool = False,
+                       include_metadata: bool = None,
+                       isodates: bool = None,
                        abstract: bool = False,
-                       allow_blessed_key: bool = False) -> None:
+                       allow_blessed_key: bool = None) -> None:
         if abstract:
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
@@ -239,15 +239,22 @@ class Model(ModelT):
             custom_options = None
         else:
             delattr(cls, 'Options')
-        options = ModelOptions()
+        options = getattr(cls, '_options', None)
+        if options is None:
+            options = ModelOptions()
+        else:
+            options = options.clone_defaults()
         if custom_options:
             options.__dict__.update(custom_options.__dict__)
         if serializer is not None:
             options.serializer = serializer
-        options.include_metadata = include_metadata
+        if include_metadata is not None:
+            options.include_metadata = include_metadata
+        if isodates is not None:
+            options.isodates = isodates
+        if allow_blessed_key is not None:
+            options.allow_blessed_key = allow_blessed_key
         options.namespace = namespace or canoname(cls)
-        options.isodates = isodates
-        options.allow_blessed_key = allow_blessed_key
 
         # Add introspection capabilities
         cls._contribute_to_options(options)

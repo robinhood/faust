@@ -739,3 +739,23 @@ def test_optional_modelfield():
     assert loads == y
 
     assert isinstance(loads.x, X)
+
+
+@pytest.mark.parametrize('flag,expected_default', [
+    ('isodates', False),
+    ('include_metadata', True),
+    ('allow_blessed_key', False),
+])
+def test_subclass_inherit_flags(flag, expected_default):
+
+    class BaseX(Record):
+        x: datetime
+
+    X = type('X', (BaseX,), {}, **{flag: not expected_default})
+    Y = type('Y', (X,), {})
+    Z = type('Z', (Y,), {}, **{flag: expected_default})
+
+    assert getattr(BaseX._options, flag) is expected_default
+    assert getattr(X._options, flag) is not expected_default
+    assert getattr(Y._options, flag) is not expected_default
+    assert getattr(Z._options, flag) is expected_default

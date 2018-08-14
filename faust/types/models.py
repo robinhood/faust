@@ -57,6 +57,15 @@ class ModelOptions(abc.ABC):
     allow_blessed_key: bool = False
     isodates: bool = False
 
+    def clone_defaults(self) -> 'ModelOptions':
+        new_options = type(self)()
+        new_options.serializer = self.serializer
+        new_options.namespace = self.namespace
+        new_options.include_metadata = self.include_metadata
+        new_options.allow_blessed_key = self.allow_blessed_key
+        new_options.isodates = self.isodates
+        return new_options
+
     # If we set `attr = None` mypy will think the values can be None
     # on the instance, but if we don't set it Sphinx will find
     # that the attributes don't exist on the class.
