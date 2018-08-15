@@ -582,7 +582,7 @@ class Agent(AgentT, ServiceProxy):
                    *,
                    key: K = None,
                    partition: int = None) -> None:
-        await self.send(key, value, partition=partition)
+        await self.send(key=key, value=value, partition=partition)
 
     async def ask(self,
                   value: V = None,
@@ -613,7 +613,12 @@ class Agent(AgentT, ServiceProxy):
                          correlation_id: str = None,
                          force: bool = False) -> ReplyPromise:
         req = self._create_req(key, value, reply_to, correlation_id)
-        await self.channel.send(key, req, partition, force=force)
+        await self.channel.send(
+            key=key,
+            value=req,
+            partition=partition,
+            force=force,
+        )
         return ReplyPromise(req.reply_to, req.correlation_id)
 
     def _create_req(self,
@@ -632,13 +637,13 @@ class Agent(AgentT, ServiceProxy):
         )
 
     async def send(self,
+                   *,
                    key: K = None,
                    value: V = None,
                    partition: int = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
-                   *,
                    reply_to: ReplyToArg = None,
                    correlation_id: str = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
@@ -646,11 +651,11 @@ class Agent(AgentT, ServiceProxy):
         if reply_to:
             value = self._create_req(key, value, reply_to, correlation_id)
         return await self.channel.send(
-            key,
-            value,
-            partition,
-            key_serializer,
-            value_serializer,
+            key=key,
+            value=value,
+            partition=partition,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
             force=force,
         )
 

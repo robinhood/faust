@@ -146,6 +146,7 @@ class Channel(ChannelT):
         raise NotImplementedError('Channels are unnamed topics')
 
     async def send(self,
+                   *,
                    key: K = None,
                    value: V = None,
                    partition: int = None,
