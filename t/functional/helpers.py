@@ -34,7 +34,7 @@ def message(key=None, value=None,
         partition=partition,
         offset=offset,
         timestamp=time(),
-        timestamp_type='epoch',
+        timestamp_type=0,
         checksum=checksum,
     )
 

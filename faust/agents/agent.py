@@ -873,7 +873,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                    partition: Optional[int] = None,
                    offset: int = 0,
                    timestamp: float = None,
-                   timestamp_type: str = 'unix') -> Message:
+                   timestamp_type: int = 0) -> Message:
         try:
             topic_name = self._get_strtopic(self.original_channel)
         except ValueError:

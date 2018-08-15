@@ -195,7 +195,7 @@ class Transport(base.Transport):
             partition=partition,
             offset=0,
             timestamp=time(),
-            timestamp_type='unix',
+            timestamp_type=0,
             key=key,
             value=value,
             checksum=None,

@@ -114,7 +114,7 @@ class Message:
                  partition: int,
                  offset: int,
                  timestamp: float,
-                 timestamp_type: str,
+                 timestamp_type: int,
                  key: Optional[bytes],
                  value: Optional[bytes],
                  checksum: Optional[bytes],
@@ -128,7 +128,7 @@ class Message:
         self.partition: int = partition
         self.offset: int = offset
         self.timestamp: float = timestamp
-        self.timestamp_type: str = timestamp_type
+        self.timestamp_type: int = timestamp_type
         self.key: Optional[bytes] = key
         self.value: Optional[bytes] = value
         self.checksum: Optional[bytes] = checksum

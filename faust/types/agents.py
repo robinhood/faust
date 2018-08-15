@@ -298,7 +298,7 @@ class AgentTestWrapperT(AgentT, AsyncIterable):
                    partition: int = 0,
                    offset: int = 0,
                    timestamp: float = None,
-                   timestamp_type: str = 'unix') -> Message:
+                   timestamp_type: int = 0) -> Message:
         ...
 
     @abc.abstractmethod
