@@ -12,6 +12,60 @@ please visit the :ref:`history` section.
     :local:
     :depth: 1
 
+.. _version-1.0.30:
+
+1.0.30
+======
+:release-date: 2018-08-15 3:17 P.M PDT
+:release-by: Ask Solem
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.15.1 <mode:version-1.15.1>`.
+
+- **Typing**: :attr:`faust.types.Message.timestamp_type` is now the correct
+              :class:`int`, previously it was string by message.
+
+- **Models**: Records can now have recursive fields.
+
+    For example a tree structure model having a field that refers back to
+    itself:
+
+    .. sourcecode:: python
+
+        class Node(faust.Record):
+            data: Any
+            children: List['Node']
+
+- **Models**: A field of type ``List[Model]`` no longer raises an exception
+              if the value provided is :const:`None`.
+
+- **Models**: Adds support for ``--strict-optional``-style fields.
+
+    Previously the following would work:
+
+    .. sourcecode:: python
+
+        class Order(Record):
+            account: Account = None
+
+    The account is considered optional from a typing point of view, but only
+    if the :pypi:`mypy` option ``--strict-optional`` is disabled.
+
+    Now that ``--strict-optional`` is enabled by default in :pypi:`mypy`,
+    this version adds support for fields such as:
+
+    .. sourcecode:: python
+
+        class Order(Record):
+            account: Optional[Account] = None
+            history: Optional[List[OrderStatus]]
+
+- **Models**: Class options such as ``isodates``/``include_metadata``/etc. are
+              now inherited from parent class.
+
+- **Stream**: Fixed :exc:`NameError` when pushing non-Event value into stream.
+
 .. _version-1.0.29:
 
 1.0.29
