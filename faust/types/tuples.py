@@ -1,4 +1,5 @@
 import asyncio
+from time import time
 import typing
 from collections import defaultdict
 from typing import (
@@ -11,7 +12,6 @@ from typing import (
     Optional,
     Set,
     Union,
-    cast,
 )
 
 from .codecs import CodecArg
@@ -27,6 +27,7 @@ else:
     class ConsumerT: ...  # noqa
 
 __all__ = [
+    'ConsumerMessage',
     'FutureMessage',
     'Message',
     'MessageSentCallback',
@@ -62,12 +63,23 @@ class PendingMessage(NamedTuple):
     topic: Optional[str] = None
     offset: Optional[int] = None
 
-    @property
-    def tp(self) -> TP:
-        return TP(cast(str, self.topic), cast(int, self.partition))
-
-    def ack(self, consumer: ConsumerT) -> None:
-        ...  # used as Event.message in testing
+    def as_message(self) -> 'Message':
+        # In-memory channel.send uses this to convert
+        # PendingMessage to Message.
+        topic = self.topic
+        partition = self.partition or 0
+        tp = TP(topic, partition)
+        return Message(
+            topic,
+            partition,
+            -1,
+            timestamp=time(),
+            timestamp_type=0,
+            key=self.key,
+            value=self.value,
+            checksum=None,
+            tp=tp,
+        )
 
 
 class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
@@ -109,6 +121,8 @@ class Message:
         '__weakref__',
     )
 
+    use_tracking: bool = False
+
     def __init__(self,
                  topic: str,
                  partition: int,
@@ -141,7 +155,7 @@ class Message:
         self.acked: bool = False
         self.refcount: int = 0
         self.tp = tp if tp is not None else TP(topic, partition)
-        self.tracked: bool = False
+        self.tracked: bool = not self.use_tracking
 
         #: Monotonic timestamp of when the consumer received this message.
         self.time_in: Optional[float] = time_in
@@ -162,10 +176,15 @@ class Message:
 
     def ack(self, consumer: ConsumerT, n: int = 1) -> bool:
         if not self.acked:
-            # if no more references, mark offset as safe-to-commit in Consumer.
+            # if no more references, mark offset as safe-to-commit in
+            # Consumer.
             if not self.decref(n):
-                return consumer.ack(self)
+                return self.on_final_ack(consumer)
         return False
+
+    def on_final_ack(self, consumer: ConsumerT):
+        self.acked = True
+        return True
 
     def incref(self, n: int = 1) -> None:
         self.refcount += n
@@ -192,6 +211,15 @@ class Message:
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self.tp} offset={self.offset}>'
+
+
+class ConsumerMessage(Message):
+    """Message type used by Kafka Consumer."""
+
+    use_tracking = True
+
+    def on_final_ack(self, consumer: ConsumerT):
+        return consumer.ack(self)
 
 
 def tp_set_to_map(tps: Set[TP]) -> MutableMapping[str, Set[TP]]:

@@ -27,6 +27,7 @@ from .transports import (
     TransportT,
 )
 from .tuples import (
+    ConsumerMessage,
     FutureMessage,
     Message,
     MessageSentCallback,
@@ -97,6 +98,7 @@ __all__ = [
     'TransportT',
 
     # types.tuples
+    'ConsumerMessage',
     'FutureMessage',
     'Message',
     'MessageSentCallback',

@@ -48,7 +48,7 @@ from yarl import URL
 from faust.exceptions import ProducerSendError
 from faust.transport import base
 from faust.transport.consumer import CONSUMER_SEEKING
-from faust.types import AppT, Message, RecordMetadata, TP
+from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 from faust.utils import terminal
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
@@ -376,7 +376,7 @@ class Consumer(base.Consumer):
             else:
                 # We should still release to the event loop
                 await self.sleep(0)
-        create_message = Message  # localize
+        create_message = ConsumerMessage  # localize
 
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,

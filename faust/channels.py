@@ -216,7 +216,7 @@ class Channel(ChannelT):
                               wait: bool = True) -> Awaitable[RecordMetadata]:
         event = self._create_event(
             fut.message.key, fut.message.value,
-            message=cast(Message, fut.message))
+            message=fut.message.as_message())
         await self.put(event)
         return await self._finalize_message(
             fut, RecordMetadata('topic', -1, TP('topic', -1), -1))
