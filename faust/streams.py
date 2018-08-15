@@ -729,6 +729,7 @@ class Stream(StreamT[T_co], Service):
 
         try:
             while not self.should_stop:
+                event = None
                 do_ack = self.enable_acks  # set to False to not ack event.
                 # wait for next message
                 value: Any = None
