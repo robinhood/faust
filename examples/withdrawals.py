@@ -36,6 +36,7 @@ app = faust.App(
     origin='examples.withdrawals',
     topic_partitions=8,
 )
+app.producer_only = True
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
 user_to_total = app.Table(

@@ -101,7 +101,7 @@ def extras_require():
 if README.exists():
     long_description = README.read_text(encoding='utf-8')
 else:
-    long_description = 'See http://pypi.python.org/pypi/{}'.format(NAME)
+    long_description = 'See http://pypi.org/project/{}'.format(NAME)
 
 # -*- Install Requires -*-
 
