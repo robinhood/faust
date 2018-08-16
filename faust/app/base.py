@@ -172,6 +172,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     #: operate as an RPC client (producer and simple reply consumer).
     client_only = False
 
+    #: Set this to True if app should run without consumer/tables.
+    producer_only = False
+
     #: Source of configuration: ``app.conf`` (when configured)
     _conf: Optional[Settings] = None
 

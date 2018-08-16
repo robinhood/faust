@@ -52,10 +52,17 @@ class AppService(Service):
         # Client-Only: Boots up enough services to be able to
         # produce to topics and receive replies from topics.
         # XXX Need better way to do RPC
+        if self.app.producer_only:
+            return self._components_producer_only()
         if self.app.client_only:
             return self._components_client()
         # Server: Starts everything.
         return self._components_server()
+
+    def _components_producer_only(self) -> Iterable[ServiceT]:
+        return cast(Iterable[ServiceT], (
+            self.app.producer,
+        ))
 
     def _components_client(self) -> Iterable[ServiceT]:
         # Returns the components started when running in Client-Only mode.
@@ -137,7 +144,9 @@ class AppService(Service):
             await self.app.on_started()
 
     async def wait_for_table_recovery_completed(self) -> None:
-        return await self.wait_for_stopped(self.app.tables.recovery_completed)
+        if not self.app.producer_only and not self.app.client_only:
+            return await self.wait_for_stopped(
+                self.app.tables.recovery_completed)
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:
