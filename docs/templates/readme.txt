@@ -59,12 +59,12 @@ documentation.
 
 .. |wheel| image:: https://img.shields.io/pypi/wheel/faust.svg
     :alt: faust can be installed via wheel
-    :target: http://pypi.python.org/pypi/faust/
+    :target: http://pypi.org/project/faust/
 
 .. |pyversion| image:: https://img.shields.io/pypi/pyversions/faust.svg
     :alt: Supported Python versions.
-    :target: http://pypi.python.org/pypi/faust/
+    :target: http://pypi.org/project/faust/
 
 .. |pyimp| image:: https://img.shields.io/pypi/implementation/faust.svg
     :alt: Support Python implementations.
-    :target: http://pypi.python.org/pypi/faust/
+    :target: http://pypi.org/project/faust/
