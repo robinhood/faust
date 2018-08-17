@@ -43,8 +43,8 @@ sys.path.append('.')
 globals().update(conf.build_config(
     'faust', __file__,
     project='Faust',
-    # version_dev='2.0',
-    # version_stable='1.4',
+    version_dev='1.1',
+    version_stable='1.0',
     canonical_url='http://faust.readthedocs.io',
     webdomain='',
     github_project='robinhood/faust',
