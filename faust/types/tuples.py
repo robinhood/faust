@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Set,
     Union,
+    cast,
 )
 
 from .codecs import CodecArg
@@ -63,23 +64,26 @@ class PendingMessage(NamedTuple):
     topic: Optional[str] = None
     offset: Optional[int] = None
 
-    def as_message(self) -> 'Message':
-        # In-memory channel.send uses this to convert
-        # PendingMessage to Message.
-        topic = self.topic
-        partition = self.partition or 0
-        tp = TP(topic, partition)
-        return Message(
-            topic,
-            partition,
-            -1,
-            timestamp=time(),
-            timestamp_type=0,
-            key=self.key,
-            value=self.value,
-            checksum=None,
-            tp=tp,
-        )
+
+def _PendingMessage_to_Message(p: PendingMessage) -> 'Message':
+    # CPython3.6.0 does not support methods on NamedTuple [ask]
+
+    # In-memory channel.send uses this to convert
+    # PendingMessage to Message.
+    topic = cast(str, p.topic)
+    partition = cast(int, p.partition) or 0
+    tp = TP(topic, partition)
+    return Message(
+        topic,
+        partition,
+        -1,
+        timestamp=time(),
+        timestamp_type=0,
+        key=p.key,
+        value=p.value,
+        checksum=None,
+        tp=tp,
+    )
 
 
 class FutureMessage(asyncio.Future, Awaitable[RecordMetadata]):
@@ -182,7 +186,7 @@ class Message:
                 return self.on_final_ack(consumer)
         return False
 
-    def on_final_ack(self, consumer: ConsumerT):
+    def on_final_ack(self, consumer: ConsumerT) -> bool:
         self.acked = True
         return True
 
@@ -218,7 +222,7 @@ class ConsumerMessage(Message):
 
     use_tracking = True
 
-    def on_final_ack(self, consumer: ConsumerT):
+    def on_final_ack(self, consumer: ConsumerT) -> bool:
         return consumer.ack(self)
 
 
