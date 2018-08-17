@@ -779,12 +779,12 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         else:
             chan = channel
         return await chan.send(
-            key,
-            value,
-            partition,
-            key_serializer,
-            value_serializer,
-            callback,
+            key=key,
+            value=value,
+            partition=partition,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            callback=callback,
         )
 
     @stampede

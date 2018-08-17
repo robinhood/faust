@@ -68,6 +68,7 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     async def send(self,
+                   *,
                    key: K = None,
                    value: V = None,
                    partition: int = None,

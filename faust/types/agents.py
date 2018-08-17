@@ -179,12 +179,12 @@ class AgentT(ServiceT):
 
     @abc.abstractmethod
     async def send(self,
+                   *,
                    key: K = None,
                    value: V = None,
                    partition: int = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
-                   *,
                    reply_to: ReplyToArg = None,
                    correlation_id: str = None) -> Awaitable[RecordMetadata]:
         ...
