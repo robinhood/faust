@@ -536,7 +536,8 @@ class test_Agent:
     async def test_cast(self, *, agent):
         agent.send = AsyncMock(name='send')
         await agent.cast('value', key='key', partition=303)
-        agent.send.assert_called_once_with('key', 'value', partition=303)
+        agent.send.assert_called_once_with(
+            key='key', value='value', partition=303)
 
     @pytest.mark.asyncio
     async def test_ask(self, *, agent):
@@ -587,7 +588,7 @@ class test_Agent:
         agent._create_req.assert_called_once_with(
             'key', 'value', 'reply_to', 'correlation_id')
         agent.channel.send.assert_called_once_with(
-            'key', agent._create_req(), 303, force=True)
+            key='key', value=agent._create_req(), partition=303, force=True)
 
         assert res.reply_to == agent._create_req().reply_to
         assert res.correlation_id == agent._create_req().correlation_id
@@ -632,11 +633,11 @@ class test_Agent:
         )
 
         agent.channel.send.assert_called_once_with(
-            b'key',
-            agent._create_req(),
-            303,
-            'raw',
-            'raw',
+            key=b'key',
+            value=agent._create_req(),
+            partition=303,
+            key_serializer='raw',
+            value_serializer='raw',
             force=True,
         )
 
@@ -667,11 +668,11 @@ class test_Agent:
         agent._create_req.assert_not_called()
 
         agent.channel.send.assert_called_once_with(
-            b'key',
-            b'value',
-            303,
-            'raw',
-            'raw',
+            key=b'key',
+            value=b'value',
+            partition=303,
+            key_serializer='raw',
+            value_serializer='raw',
             force=True,
         )
 
