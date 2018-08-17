@@ -154,6 +154,28 @@ Argument {old!r} is deprecated and scheduled for removal in Faust 1.0.
 Please use {new!r} instead.
 """
 
+# @app.task decorator may be called in several ways:
+#
+# 1) Without parens:
+#    @app.task
+#    async def foo():
+#
+# 2) With parens:
+#   @app.task()
+#
+# 3) With parens and arguments
+#   @app.task(on_leader=True)
+#
+# This means @app.task is a multi-level wrapper that attempts to do the
+# right thing based on how it's used.
+#
+# That's just life with Python decorators, all the frameworks do it,
+# but we have to additionally type it.
+TaskDecoratorRet = Union[
+    Callable[[TaskArg], TaskArg],
+    TaskArg,
+]
+
 
 class App(AppT, ServiceProxy, ServiceCallbacks):
     """Faust Application.
@@ -195,7 +217,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     # @app.task decorator adds asyncio tasks to be started
     # with the app here.
-    _tasks: MutableSequence[TaskArg]
+    _tasks: MutableSequence[Callable[[], Awaitable]]
 
     _http_client: Optional[HttpClientT] = None
 
@@ -544,8 +566,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def task(self,
              fun: TaskArg = None,
              *,
-             on_leader: bool = False) -> Union[Callable[[TaskArg], TaskArg],
-                                               TaskArg]:
+             on_leader: bool = False) -> TaskDecoratorRet:
         """Define an async def function to be started with the app.
 
         This is like :meth:`timer` but a one-shot task only
@@ -566,26 +587,28 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> async def on_startup():
             ...     print('STARTING UP')
         """
-
         def _inner(fun: TaskArg) -> TaskArg:
-            app = self
-
-            @wraps(fun)
-            async def _wrapped() -> None:
-                should_run = app.is_leader() if on_leader else True
-                if should_run:
-                    # pass app only if decorated function takes an argument
-                    if inspect.signature(fun).parameters:
-                        task = cast(Callable[[AppT], Awaitable], fun)
-                        return await task(app)
-                    else:
-                        task = cast(Callable[[], Awaitable], fun)
-                        return await task()
-
-            venusian.attach(_wrapped, category=SCAN_TASK)
-            self._tasks.append(_wrapped)
-            return _wrapped
+            return self._task(fun, on_leader=on_leader)
         return _inner(fun) if fun is not None else _inner
+
+    def _task(self, fun: TaskArg, on_leader: bool = False) -> TaskArg:
+        app = self
+
+        @wraps(fun)
+        async def _wrapped() -> None:
+            should_run = app.is_leader() if on_leader else True
+            if should_run:
+                # pass app only if decorated function takes an argument
+                if inspect.signature(fun).parameters:
+                    task_takes_app = cast(Callable[[AppT], Awaitable], fun)
+                    return await task_takes_app(app)
+                else:
+                    task = cast(Callable[[], Awaitable], fun)
+                    return await task()
+
+        venusian.attach(_wrapped, category=SCAN_TASK)
+        self._tasks.append(_wrapped)
+        return _wrapped
 
     def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
         """Define an async def function to be run at periodic intervals.
@@ -623,7 +646,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     if should_run:
                         await fun(*args)  # type: ignore
 
-            return around_timer
+            # If you call @app.task without parents the return value is:
+            #    Callable[[TaskArg], TaskArg]
+            # but we always call @app.task() - with parens, so return value is
+            # always TaskArg.
+            return cast(TaskArg, around_timer)
 
         return _inner
 
