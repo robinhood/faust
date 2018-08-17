@@ -120,7 +120,7 @@ class test_AppService:
         def t1():
             return t1_mock()
 
-        def t2(self):
+        def t2():
             return t2_mock(self)
 
         s.app._tasks = [t1, t2]
@@ -128,8 +128,11 @@ class test_AppService:
 
         s.add_future.assert_has_calls([
             call(t1()),
-            call(t2(app)),
+            call(t2()),
         ])
+
+        t1_mock.assert_called_with()
+        t2_mock.assert_called_with(self)
 
     @pytest.mark.asyncio
     async def test_on_started_init_extra_services(self, *, s, app):
