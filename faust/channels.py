@@ -193,6 +193,10 @@ class Channel(ChannelT):
                 value_serializer=value_serializer,
                 partition=partition,
                 callback=callback,
+                # Python 3.6.0: NamedTuple doesn't support optional fields
+                # [ask]
+                topic=None,
+                offset=None,
             ),
         )
 
