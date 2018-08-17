@@ -196,7 +196,7 @@ class Settings(abc.ABC):
     broker_check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
     origin: Optional[str] = None
-    key_serializer: CodecArg = 'json'
+    key_serializer: CodecArg = 'raw'
     value_serializer: CodecArg = 'json'
     reply_to: str
     reply_to_prefix: str = REPLY_TO_PREFIX

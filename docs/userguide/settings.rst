@@ -284,7 +284,7 @@ Serialization Settings
 ------------------
 
 :type: ``Union[str, Codec]``
-:default: ``"json"``
+:default: ``"raw"``
 
 Serializer used for keys by default when no serializer is specified, or a
 model is not being used.
