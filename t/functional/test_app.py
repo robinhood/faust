@@ -50,7 +50,7 @@ class test_settings:
 
         assert not conf.autodiscover
         assert conf.origin is None
-        assert conf.key_serializer == 'json'
+        assert conf.key_serializer == 'raw'
         assert conf.value_serializer == 'json'
         assert conf.reply_to is not None
         assert not conf.reply_create_topic

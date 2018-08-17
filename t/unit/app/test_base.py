@@ -64,11 +64,11 @@ async def test_send(
     expected_sender = app.producer.send_and_wait
     if key is not None:
         if isinstance(key, str):
-            # Default serializer is json, and str should be serialized
+            # Default serializer is raw, and str should be serialized
             # (note that a bytes key will be left alone.
-            key_serializer = 'json'
+            key_serializer = 'raw'
         if isinstance(key, ModelT):
-            expected_key = key.dumps(serializer='json')
+            expected_key = key.dumps(serializer='raw')
         elif key_serializer:
             expected_key = codecs.dumps(key_serializer, key)
         else:
