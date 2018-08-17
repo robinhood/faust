@@ -6,6 +6,7 @@ Everything starts here.
 """
 import asyncio
 import importlib
+import inspect
 import re
 import typing
 import warnings
@@ -540,7 +541,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             except Exception as exc:
                 self.log.exception('Consumer error callback raised: %r', exc)
 
-    def task(self, fun: TaskArg) -> TaskArg:
+    def task(self,
+             fun: TaskArg = None,
+             *,
+             on_leader: bool = False) -> Union[Callable[[TaskArg], TaskArg],
+                                               TaskArg]:
         """Define an async def function to be started with the app.
 
         This is like :meth:`timer` but a one-shot task only
@@ -561,9 +566,26 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> async def on_startup():
             ...     print('STARTING UP')
         """
-        venusian.attach(fun, category=SCAN_TASK)
-        self._tasks.append(fun)
-        return fun
+
+        def _inner(fun: TaskArg) -> TaskArg:
+            app = self
+
+            @wraps(fun)
+            async def _wrapped() -> None:
+                should_run = app.is_leader() if on_leader else True
+                if should_run:
+                    # pass app only if decorated function takes an argument
+                    if inspect.signature(fun).parameters:
+                        task = cast(Callable[[AppT], Awaitable], fun)
+                        return await task(app)
+                    else:
+                        task = cast(Callable[[], Awaitable], fun)
+                        return await task()
+
+            venusian.attach(_wrapped, category=SCAN_TASK)
+            self._tasks.append(_wrapped)
+            return _wrapped
+        return _inner(fun) if fun is not None else _inner
 
     def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
         """Define an async def function to be run at periodic intervals.

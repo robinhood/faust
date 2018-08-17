@@ -1,20 +1,10 @@
 import inspect
 import typing
 from itertools import chain
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Iterable,
-    List,
-    Optional,
-    Type,
-    Union,
-    cast,
-)
+from typing import Any, Iterable, List, Optional, Type, Union, cast
+
 from mode import Service, ServiceT
 from faust.exceptions import ImproperlyConfigured
-from faust.types import AppT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from .base import App
@@ -150,13 +140,7 @@ class AppService(Service):
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:
-            # pass app if decorated function takes argument
-            target: Any
-            if inspect.signature(task).parameters:
-                target = cast(Callable[[AppT], Awaitable], task)(self.app)
-            else:
-                target = cast(Callable[[], Awaitable], task)()
-            self.add_future(target)
+            self.add_future(task())
 
     async def on_started_init_extra_services(self) -> None:
         if self._extra_service_instances is None:
