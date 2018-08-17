@@ -47,6 +47,21 @@ country_to_total = app.Table(
 ).tumbling(10.0, expires=10.0).relative_to_stream()
 
 
+@app.task
+async def task1(app):
+    print(f'RUNNING TASK1: {app}')
+
+
+@app.task()
+async def task2():
+    print('RUNNING TASK2')
+
+
+@app.task(on_leader=True)
+async def task3():
+    print('RUNNING TASK3 - AM THE LEADER')
+
+
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
