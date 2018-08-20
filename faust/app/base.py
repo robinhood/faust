@@ -480,7 +480,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 *,
                 key_type: ModelArg = None,
                 value_type: ModelArg = None,
-                maxsize: int = 1,
+                maxsize: int = None,
                 loop: asyncio.AbstractEventLoop = None) -> ChannelT:
         """Create new channel.
 
