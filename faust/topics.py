@@ -21,6 +21,8 @@ from mode.utils.queues import ThrowableQueue
 
 from .channels import Channel
 from .exceptions import KeyDecodeError, ValueDecodeError
+from .events import Event
+from .streams import current_event
 from .types import (
     AppT,
     CodecArg,
@@ -28,6 +30,7 @@ from .types import (
     FutureMessage,
     K,
     Message,
+    MessageSentCallback,
     ModelArg,
     PendingMessage,
     RecordMetadata,
@@ -125,6 +128,37 @@ class Topic(Channel, TopicT):
         self.internal = internal
         self.active_partitions = active_partitions
         self.config = config or {}
+
+    async def send(self,
+                   *,
+                   key: K = None,
+                   value: V = None,
+                   partition: int = None,
+                   key_serializer: CodecArg = None,
+                   value_serializer: CodecArg = None,
+                   callback: MessageSentCallback = None,
+                   force: bool = False) -> Awaitable[RecordMetadata]:
+        """Send message to topic."""
+        if self.app._attachments.enabled and not force:
+            event = current_event()
+            if event is not None:
+                return cast(Event, event)._attach(
+                    self,
+                    key,
+                    value,
+                    partition=partition,
+                    key_serializer=key_serializer,
+                    value_serializer=value_serializer,
+                    callback=callback,
+                )
+        return await self._send_now(
+            key,
+            value,
+            partition=partition,
+            key_serializer=key_serializer,
+            value_serializer=value_serializer,
+            callback=callback,
+        )
 
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:

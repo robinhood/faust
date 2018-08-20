@@ -24,7 +24,6 @@ from mode.utils.futures import maybe_async, stampede
 from mode.utils.queues import ThrowableQueue
 
 from .events import Event
-from .streams import current_event
 from .types import (
     AppT,
     ChannelT,
@@ -156,18 +155,6 @@ class Channel(ChannelT):
                    callback: MessageSentCallback = None,
                    force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to channel."""
-        if self.app._attachments.enabled and not force:
-            event = current_event()
-            if event is not None:
-                return cast(Event, event)._attach(
-                    self,
-                    key,
-                    value,
-                    partition=partition,
-                    key_serializer=key_serializer,
-                    value_serializer=value_serializer,
-                    callback=callback,
-                )
         return await self._send_now(
             key,
             value,
