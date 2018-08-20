@@ -20,41 +20,41 @@ please visit the :ref:`history` section.
 Important Notes
 ---------------
 
-    - **API**: Agent/Channel.send now requires keyword-only arguments only
+- **API**: Agent/Channel.send now requires keyword-only arguments only
 
-        Users often make the mistake of doing:
+    Users often make the mistake of doing:
+
+    .. sourcecode:: python
+
+        channel.send(x)
+
+    and expect that to send ``x`` as the value.
+
+    But the signature is ``(key, value, ...)``, so it ends up being
+    ``channel.send(key=x, value=None)``.
+
+    Fixing this will come in two parts:
+
+    1) Faust 1.1 (this change): Make them keyword-only arguments
+
+        This will make it an error if the names of arguments are not
+        specified:
 
         .. sourcecode:: python
 
-            channel.send(x)
+            channel.send(key, value)
 
-        and expect that to send ``x`` as the value.
+        Needs to be changed to:
 
-        But the signature is ``(key, value, ...)``, so it ends up being
-        ``channel.send(key=x, value=None)``.
+        .. sourcecode:: python
 
-        Fixing this will come in two parts:
+            channel.send(key=key, value=value)
 
-        1) Faust 1.1 (this change): Make them keyword-only arguments
+    2) Faust 1.2: We will change the signature
+        to ``channel.send(value, key=key, ...)``
 
-            This will make it an error if the names of arguments are not
-            specified:
-
-            .. sourcecode:: python
-
-                channel.send(key, value)
-
-            Needs to be changed to:
-
-            .. sourcecode:: python
-
-                channel.send(key=key, value=value)
-
-        2) Faust 1.2: We will change the signature
-           to ``channel.send(value, key=key, ...)``
-
-            At this stage all existing code will have changed to using
-            keyword-only arguments.
+        At this stage all existing code will have changed to using
+        keyword-only arguments.
 
 - **App**: The default key serializer is now ``raw`` (Issue #142).
 
@@ -75,6 +75,8 @@ Important Notes
 
 News
 ----
+
+- Now works with CPython 3.6.0.
 
 - **App**: ``@app.task`` decorator now accepts ``on_leader``
            argument (Issue #131).
@@ -103,3 +105,30 @@ News
 
     If set the worker will start the app without
     consumer/tables/agents/topics.
+
+- **Channel**: In-memory channels were not working as expected.
+
+    + ``Channel.send(key=key, value=value)`` now works as expected.
+
+    + ``app.channel()`` accidentally set the maxsize to 1 by default,
+      creating a deadlock.
+
+    + ``Channel.send()`` now disregards the :setting:`stream_publish_on_commit`
+      setting.
+
+Project
+-------
+
+- **CI**: The following Python versions have been added to the build matrix:
+
+    + CPython 3.7.0
+
+    + CPython 3.6.6
+
+    + CPython 3.6.0
+
+- **Git**:
+
+    + All the version tags have been cleaned up to follow the format ``v1.2.3``.
+
+    + New active maintenance branches: ``1.0`` and ``1.1``.
