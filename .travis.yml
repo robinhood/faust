@@ -6,18 +6,22 @@ env:
   - PYTHONUNBUFFERED=yes
 matrix:
   include:
-  - python: 3.6.5
+  - python: 3.7.0
     env: TOXENV=flake8
     os: linux
-  - python: 3.6.5
+    dist: xenial
+  - python: 3.7.0
     env: TOXENV=typecheck
     os: linux
-  - python: 3.6.5
+    dist: xenial
+  - python: 3.7.0
     env: TOXENV=apicheck
     os: linux
-  - python: 3.6.5
+    dist: xenial
+  - python: 3.7.0
     env: TOXENV=configcheck
     os: linux
+    dist: xenial
   - python: 3.6.0
     env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y USE_PYENV=y
     os: linux
