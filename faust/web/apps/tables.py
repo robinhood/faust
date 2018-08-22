@@ -60,9 +60,7 @@ class TableList(TableView):
 class TableDetail(TableView):
     """Get details for table by name."""
 
-    async def get(self, request: web.Request) -> web.Response:
-        # FIXME request.match_info is an attribute of aiohttp.Request
-        name = request.match_info['name']
+    async def get(self, request: web.Request, name: str) -> web.Response:
         table, error = self.get_table(name)
         if error is not None:
             return error
@@ -76,9 +74,10 @@ class TableKeyDetail(TableView):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    async def get(self, request: web.Request) -> web.Response:
-        name = request.match_info['name']
-        key = request.match_info['key']
+    async def get(self,
+                  request: web.Request,
+                  name: str,
+                  key: str) -> web.Response:
         router = self.app.router
         try:
             return await router.route_req(name, key, self.web, request)

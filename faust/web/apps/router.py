@@ -19,19 +19,18 @@ class TableList(web.View):
 class TableDetail(web.View):
     """List route for specific table."""
 
-    async def get(self, request: web.Request) -> web.Response:
-        # FIXME request.match_info is an attribute of aiohttp.Request
-        table_name = request.match_info['name']
+    async def get(self, request: web.Request, name: str) -> web.Response:
         router = self.app.router
-        return self.json(router.table_metadata(table_name))
+        return self.json(router.table_metadata(name))
 
 
 @blueprint.route('/{name}/{key}/', name='key-detail')
 class TableKeyDetail(web.View):
     """List information about key."""
 
-    async def get(self, request: web.Request) -> web.Response:
-        table_name = request.match_info['name']
-        key = request.match_info['key']
+    async def get(self,
+                  request: web.Request,
+                  name: str,
+                  key: str) -> web.Response:
         router = self.app.router
-        return self.json(str(router.key_store(table_name, key)))
+        return self.json(str(router.key_store(name, key)))

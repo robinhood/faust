@@ -45,6 +45,7 @@ class test_View:
     async def test_dispatch(self, method, *, view):
         request = Mock(name='request', autospec=Request)
         request.method = method
+        request.match_info = {}
         handler = AsyncMock(name=method)
         view.methods[method.lower()] = handler
         assert await view(request) is handler.coro()

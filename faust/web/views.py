@@ -9,6 +9,7 @@ from typing import (
     Optional,
     Type,
     cast,
+    no_type_check,
 )
 
 from faust.types import AppT
@@ -54,20 +55,30 @@ class View:
 
     async def dispatch(self, request: Any) -> Any:
         method = request.method.lower()
-        return await self.methods[method](cast(Request, request))
+        kwargs = request.match_info or {}  # XXX Aiohttp specific
 
+        # we cast here since some subclasses take extra parameters
+        # from the URL route (match_info).
+        method = cast(Callable[..., Awaitable[Response]], self.methods[method])
+        return await method(cast(Request, request), **kwargs)
+
+    @no_type_check  # subclasses change signature based on route match_info
     async def get(self, request: Request) -> Any:
         ...
 
+    @no_type_check  # subclasses change signature based on route match_info
     async def post(self, request: Request) -> Any:
         ...
 
+    @no_type_check  # subclasses change signature based on route match_info
     async def put(self, request: Request) -> Any:
         ...
 
+    @no_type_check  # subclasses change signature based on route match_info
     async def patch(self, request: Request) -> Any:
         ...
 
+    @no_type_check  # subclasses change signature based on route match_info
     async def delete(self, request: Request) -> Any:
         ...
 
