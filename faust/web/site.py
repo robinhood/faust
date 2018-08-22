@@ -4,7 +4,7 @@ from typing import Any, Sequence, Tuple, Type, Union
 from mode import Service
 
 from faust.types import AppT
-from faust.types.web import BlueprintT
+from faust.types.web import BlueprintT, View
 
 from . import drivers
 from .apps import graph
@@ -12,7 +12,6 @@ from .apps import router
 from .apps import stats
 from .apps import tables
 from .base import Web
-from .views import Site
 
 __all__ = ['Website']
 
@@ -40,7 +39,7 @@ class Website(Service):
                  port: int = None,
                  bind: str = None,
                  driver: Union[Type[Web], str] = DEFAULT_DRIVER,
-                 extra_pages: Sequence[Tuple[str, Type[Site]]] = None,
+                 extra_pages: Sequence[Tuple[str, Type[View]]] = None,
                  **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.app = app
@@ -63,9 +62,9 @@ class Website(Service):
             blueprint.init_webserver(self.web)
 
     def init_pages(self,
-                   extra_pages: Sequence[Tuple[str, Type[Site]]]) -> None:
+                   extra_pages: Sequence[Tuple[str, Type[View]]]) -> None:
         app = self.app
         for prefix, blueprint in self.blueprints:
             blueprint.register(app, url_prefix=prefix)
         for prefix, page in list(app.pages) + list(extra_pages or []):
-            page(app).enable(self.web, prefix=prefix)
+            self.web.add_view(page, prefix=prefix)

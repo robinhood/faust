@@ -1,31 +1,20 @@
 """Class-based views."""
-import inspect
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    List,
-    Mapping,
-    Optional,
-    Type,
-    cast,
-    no_type_check,
-)
+from typing import Any, Awaitable, Callable, Mapping, Type, cast, no_type_check
 
 from faust.types import AppT
-from faust.types.web import PageArg, ViewGetHandler
+from faust.types.web import ViewGetHandler
 
 from .base import Request, Response, Web
 
-__all__ = ['View', 'Site']
-
-CommandDecorator = Callable[[PageArg], Type['Site']]
+__all__ = ['View']
 
 _bytes = bytes   # need alias for method named `bytes`
 
 
 class View:
     """View (HTTP endpoint)."""
+    view_name: str
+    view_path: str
 
     methods: Mapping[str, Callable[[Request], Awaitable]]
 
@@ -108,54 +97,3 @@ class View:
 
     def error(self, status: int, reason: str, **kwargs: Any) -> Response:
         return self.json({'error': reason, **kwargs}, status=status)
-
-
-class Site:
-    """Collection of HTTP endpoints (views)."""
-
-    views: Mapping[str, Type[View]]
-    names: Mapping[str, str]
-
-    def __init__(self, app: AppT) -> None:
-        self.app = app
-
-    def enable(self, web: Web, *, prefix: str = '') -> List[View]:
-        return [
-            self._route(web, view_cls, prefix + pattern)
-            for pattern, view_cls in self.views.items()
-        ]
-
-    def _route(self, web: Web, view_cls: Type[View], pattern: str) -> View:
-        view = view_cls(self.app, web)
-        web.route(pattern, view)
-        return view
-
-    @classmethod
-    def from_handler(cls, path: str, *,
-                     base: Type[View] = None,
-                     name: str = None) -> CommandDecorator:
-        view_base: Type[View] = base if base is not None else View
-
-        def _decorator(fun: PageArg) -> Type[Site]:
-            view: Optional[Type[View]] = None
-            if inspect.isclass(fun):
-                view = cast(Type[View], fun)
-                if not issubclass(view, View):
-                    raise TypeError(
-                        'When decorating class, it must be subclass of View')
-            if view is None:
-                view = view_base.from_handler(cast(ViewGetHandler, fun))
-
-            _name = name or fun.__name__
-
-            return type('Site', (cls,), {
-                'views': {
-                    path: view,
-                },
-                'names': {
-                    _name: path,
-                },
-                '__module__': fun.__module__,
-            })
-
-        return _decorator

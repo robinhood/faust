@@ -54,7 +54,7 @@ from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import venusian
-from faust.web.views import Request, Response, Site, View, Web
+from faust.web.views import Request, Response, View, Web
 
 from faust.types.app import AppT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
@@ -741,12 +741,23 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     def page(self, path: str, *,
              base: Type[View] = View,
-             name: str = None) -> Callable[[PageArg], Type[Site]]:
-        def _decorator(fun: PageArg) -> Type[Site]:
-            site = Site.from_handler(path, base=base, name=name)(fun)
-            self.pages.append(('', site))
-            venusian.attach(site, category=SCAN_PAGE)
-            return site
+             name: str = None) -> Callable[[PageArg], Type[View]]:
+        view_base: Type[View] = base if base is not None else View
+
+        def _decorator(fun: PageArg) -> Type[View]:
+            view: Optional[Type[View]] = None
+            if inspect.isclass(fun):
+                view = cast(Type[View], fun)
+                if not issubclass(view, View):
+                    raise TypeError(
+                        'When decorating class, it must be subclass of View')
+            if view is None:
+                view = view_base.from_handler(cast(ViewGetHandler, fun))
+            view.view_name = name or view.__name__
+            view.view_path = path
+            self.pages.append(('', view))
+            venusian.attach(view, category=SCAN_PAGE)
+            return view
 
         return _decorator
 

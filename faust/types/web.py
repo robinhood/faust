@@ -8,19 +8,17 @@ from aiohttp.client import ClientSession
 if typing.TYPE_CHECKING:
     from faust.types.app import AppT
     from faust.web.base import Request, Response, Web
-    from faust.web.views import Site, View
+    from faust.web.views import View
 else:
     class AppT: ...           # noqa
     class Request: ...        # noqa
     class Response: ...       # noqa
     class Web: ...            # noqa
-    class Site: ...           # noqa
     class View: ...           # noqa
 
 __all__ = [
     'Request',
     'Response',
-    'Site',
     'View',
     'ViewGetHandler',
     'RoutedViewGetHandler',

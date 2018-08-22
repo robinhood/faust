@@ -1,10 +1,11 @@
 """Base interface for Web server and views."""
 from pathlib import Path
-from typing import Any, Callable, MutableMapping, Union
+from typing import Any, Callable, MutableMapping, Type, Union
 from mode import Service
 from yarl import URL
 from faust.cli._env import WEB_BIND, WEB_PORT
 from faust.types import AppT
+from faust.types.web import View
 
 __all__ = ['Request', 'Response', 'Web']
 
@@ -25,6 +26,9 @@ class Web(Service):
 
     driver_version: str
 
+    views: MutableMapping[str, View]
+    reverse_names: MutableMapping[str, str]
+
     def __init__(self,
                  app: AppT,
                  *,
@@ -34,7 +38,17 @@ class Web(Service):
         self.app = app
         self.port = port or WEB_PORT
         self.bind = bind or WEB_BIND
+        self.views = {}
+        self.reverse_names = {}
         super().__init__(**kwargs)
+
+    def add_view(self, view_cls: Type[View], *, prefix: str = '') -> View:
+        view: View = view_cls(self.app, self)
+        path = prefix + view.view_path
+        self.route(path, view)
+        self.views[path] = view
+        self.reverse_names[view.view_name] = path
+        return view
 
     def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> Response:

@@ -1,6 +1,6 @@
 from .base import Request, Response, Web
 from .blueprints import Blueprint
-from .views import Site, View
+from .views import View
 
 __all__ = [
     'Request',
@@ -8,5 +8,4 @@ __all__ = [
     'Web',
     'Blueprint',
     'View',
-    'Site',
 ]
