@@ -103,6 +103,7 @@ class Site:
     """Collection of HTTP endpoints (views)."""
 
     views: Mapping[str, Type[View]]
+    names: Mapping[str, str]
 
     def __init__(self, app: AppT) -> None:
         self.app = app
@@ -120,7 +121,8 @@ class Site:
 
     @classmethod
     def from_handler(cls, path: str, *,
-                     base: Type[View] = None) -> CommandDecorator:
+                     base: Type[View] = None,
+                     name: str = None) -> CommandDecorator:
         view_base: Type[View] = base if base is not None else View
 
         def _decorator(fun: PageArg) -> Type[Site]:
@@ -133,9 +135,14 @@ class Site:
             if view is None:
                 view = view_base.from_handler(cast(ViewGetHandler, fun))
 
+            _name = name or fun.__name__
+
             return type('Site', (cls,), {
                 'views': {
                     path: view,
+                },
+                'names': {
+                    _name: path,
                 },
                 '__module__': fun.__module__,
             })

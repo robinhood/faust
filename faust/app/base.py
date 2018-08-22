@@ -735,9 +735,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         return table.using_window(window) if window else table
 
     def page(self, path: str, *,
-             base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
+             base: Type[View] = View,
+             name: str = None) -> Callable[[PageArg], Type[Site]]:
         def _decorator(fun: PageArg) -> Type[Site]:
-            site = Site.from_handler(path, base=base)(fun)
+            site = Site.from_handler(path, base=base, name=name)(fun)
             self.pages.append(('', site))
             venusian.attach(site, category=SCAN_PAGE)
             return site

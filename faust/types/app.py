@@ -206,7 +206,8 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def page(self, path: str, *,
-             base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
+             base: Type[View] = View,
+             name: str = None) -> Callable[[PageArg], Type[Site]]:
         ...
 
     @abc.abstractmethod

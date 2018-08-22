@@ -5,7 +5,16 @@ from faust.app.router import SameNode
 from faust.models import Record
 from faust.types import K, TableT
 
-__all__ = ['TableView', 'TableList', 'TableDetail', 'TableKeyDetail']
+__all__ = [
+    'TableView',
+    'TableList',
+    'TableDetail',
+    'TableKeyDetail',
+    'blueprint',
+]
+
+
+blueprint = web.Blueprint('tables')
 
 
 class TableInfo(Record, serializer='json', namespace='@TableInfo'):
@@ -38,6 +47,7 @@ class TableView(web.View):
                 'key not found', table=table.name, key=key)
 
 
+@blueprint.route('/', name='list')
 class TableList(TableView):
     """List available table names."""
 
@@ -46,6 +56,7 @@ class TableList(TableView):
             [self.table_json(table) for table in self.app.tables.values()])
 
 
+@blueprint.route('/{name}/', name='detail')
 class TableDetail(TableView):
     """Get details for table by name."""
 
@@ -58,6 +69,7 @@ class TableDetail(TableView):
         return self.json(self.table_json(table))
 
 
+@blueprint.route('/{name}/{key}/', name='key-detail')
 class TableKeyDetail(TableView):
     """List information about key."""
 
@@ -78,13 +90,3 @@ class TableKeyDetail(TableView):
             if error is not None:
                 return error
             return self.json(value)
-
-
-class Site(web.Site):
-    """Router views."""
-
-    views = {
-        '/': TableList,
-        '/{name}/': TableDetail,
-        '/{name}/{key}/': TableKeyDetail,
-    }

@@ -4,6 +4,7 @@ from typing import Any, Sequence, Tuple, Type, Union
 from mode import Service
 
 from faust.types import AppT
+from faust.types.web import BlueprintT
 
 from . import drivers
 from .apps import graph
@@ -26,11 +27,11 @@ class Website(Service):
     port: int
     bind: str
 
-    pages: Sequence[Tuple[str, Type[Site]]] = [
-        ('/graph', graph.Site),
-        ('', stats.Site),
-        ('/router', router.Site),
-        ('/table', tables.Site),
+    blueprints: Sequence[Tuple[str, BlueprintT]] = [
+        ('/graph', graph.blueprint),
+        ('', stats.blueprint),
+        ('/router', router.blueprint),
+        ('/table', tables.blueprint),
     ]
 
     def __init__(self,
@@ -62,6 +63,7 @@ class Website(Service):
     def init_pages(self,
                    extra_pages: Sequence[Tuple[str, Type[Site]]]) -> None:
         app = self.app
-        pages = list(self.pages) + list(app.pages) + list(extra_pages or [])
-        for prefix, page in pages:
+        for prefix, blueprint in self.blueprints:
+            blueprint.register(app, url_prefix=prefix)
+        for prefix, page in list(app.pages) + list(extra_pages or []):
             page(app).enable(self.web, prefix=prefix)
