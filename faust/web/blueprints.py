@@ -1,8 +1,14 @@
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Type, Union
+import typing
+from typing import List, NamedTuple, Optional, Type, Union, cast
 
 from faust.types import AppT
-from faust.types.web import BlueprintT, PageArg, RouteDecoratorRet, View
+from faust.types.web import BlueprintT, PageArg, RouteDecoratorRet, View, Web
+
+if typing.TYPE_CHECKING:
+    from faust.app import App
+else:
+    class App: ...  # noqa
 
 __all__ = ['Blueprint']
 
@@ -34,6 +40,14 @@ class Blueprint(BlueprintT):
         self.routes = []
         self.static_routes = []
 
+    def clone(self, url_prefix: Optional[str] = None) -> BlueprintT:
+        if url_prefix is None:
+            url_prefix = self.url_prefix
+        bp = type(self)(name=self.name, url_prefix=url_prefix)
+        bp.routes = self.routes  # XXX Do not modify!!!
+        bp.static_routes = self.static_routes
+        return bp
+
     def route(self,
               uri: str,
               *,
@@ -61,13 +75,16 @@ class Blueprint(BlueprintT):
                  url_prefix: Optional[str] = None) -> None:
         url_prefix = url_prefix or self.url_prefix
 
-        # Routes
+        # Apply routes
         for route in self.routes:
             self._apply_route(app, route, url_prefix)
 
-        # Static Routes
-        for static_route in self.static_routes:
-            self._apply_static_route(app, static_route, url_prefix)
+        # Keep reference to blueprint on app,
+        # so that it will call Blueprint.init_webserver when time
+        # comes to add any @static paths.
+        cast(App, app)._blueprints[self.name] = self.clone(
+            url_prefix=url_prefix,
+        )
 
     def _apply_route(self,
                      app: AppT,
@@ -78,9 +95,17 @@ class Blueprint(BlueprintT):
         app.page(path=uri[1:] if uri.startswith('//') else uri,
                  name=route.name)(route.handler)
 
+    def init_webserver(self, web: Web) -> None:
+        for route in self.static_routes:
+            self._apply_static_route(web, route, self.url_prefix)
+        self.on_webserver_init(web)
+
+    def on_webserver_init(self, web: Web) -> None:
+        ...
+
     def _apply_static_route(self,
-                            app: AppT,
+                            web: Web,
                             route: FutureStaticRoute,
                             url_prefix: Optional[str]) -> None:
         uri = url_prefix + route.uri if url_prefix else route.uri
-        app.static(uri, route.file_or_directory, name=route.name)
+        web.add_static(uri, route.file_or_directory)

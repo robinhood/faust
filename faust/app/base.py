@@ -76,6 +76,7 @@ from faust.types.transports import (
 )
 from faust.types.tuples import MessageSentCallback, RecordMetadata, TP
 from faust.types.web import (
+    BlueprintT,
     HttpClientT,
     PageArg,
     RoutedViewGetHandler,
@@ -223,6 +224,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     _extra_services: List[ServiceT]
 
+    _blueprints: MutableMapping[str, BlueprintT]
+
     # See faust/app/_attached.py
     _attachments: Attachments
 
@@ -261,6 +264,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
         # Any additional web server views added using @app.page decorator.
         self.pages = []
+        # currently used to add blueprint static paths
+        self._blueprints = {}
 
         # Any additional services added using the @app.service decorator.
         self._extra_services = []

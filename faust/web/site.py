@@ -59,6 +59,8 @@ class Website(Service):
             bind=self.bind,
             **kwargs)
         self.app.on_webserver_init(self.web)
+        for blueprint in self.app._blueprints.values():
+            blueprint.init_webserver(self.web)
 
     def init_pages(self,
                    extra_pages: Sequence[Tuple[str, Type[Site]]]) -> None:
