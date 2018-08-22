@@ -200,6 +200,7 @@ Web
     faust.web.apps.router
     faust.web.apps.stats
     faust.web.base
+    faust.web.blueprints
     faust.web.drivers
     faust.web.drivers.aiohttp
     faust.web.site
