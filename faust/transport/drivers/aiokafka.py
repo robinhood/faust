@@ -299,6 +299,8 @@ class Consumer(base.Consumer):
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
+            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
+            ssl_context=conf.ssl_context,
         )
 
     def _create_client_consumer(
@@ -313,6 +315,8 @@ class Consumer(base.Consumer):
             enable_auto_commit=True,
             auto_offset_reset='earliest',
             check_crcs=app.conf.broker_check_crcs,
+            security_protocol="SSL" if app.conf.ssl_context else "PLAINTEXT",
+            ssl_context=app.conf.ssl_context,
         )
 
     async def create_topic(self,
@@ -601,17 +605,20 @@ class Producer(base.Producer):
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
+        conf = transport.app.conf
         self._producer = aiokafka.AIOKafkaProducer(
             loop=self.loop,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
-            client_id=transport.app.conf.broker_client_id,
+            client_id=conf.broker_client_id,
             acks=self.acks,
             linger_ms=self.linger_ms,
             max_batch_size=self.max_batch_size,
             max_request_size=self.max_request_size,
             compression_type=self.compression_type,
             on_irrecoverable_error=self._on_irrecoverable_error,
+            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
+            ssl_context=conf.ssl_context,
         )
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:

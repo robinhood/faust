@@ -53,6 +53,30 @@ the semi-comma:
 
     aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
+.. setting:: ssl_context
+
+``ssl_context``
+---------------
+
+:type: ``ssl.SSLContext``
+:default: ``None``
+
+Provide an SSL context for the Kafka broker connections.
+
+Allows Faust to use a secure SSL/TLS connection for the Kafka connections
+and enabling certificate-based authentication.
+
+Providing the ``ssl_context`` parameter automatically switches all Kafka
+connections from ``PLAINTEXT`` to ``SSL``.
+
+.. sourcecode:: text
+
+    import ssl
+
+    ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile="ca.pem")
+    ssl_context.load_cert_chain("client.cert", keyfile="client.key")
+    app = faust.App(..., ssl_context=ssl_context)
+
 .. setting:: store
 
 ``store``
