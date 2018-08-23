@@ -47,6 +47,7 @@ class Website(Service):
         self.bind = bind or 'localhost'
         self.init_driver(driver, **kwargs)
         self.init_pages(extra_pages or [])
+        self.init_webserver()
         self.add_dependency(self.web)
 
     def init_driver(self, driver: Union[Type[Web], str],
@@ -57,9 +58,6 @@ class Website(Service):
             port=self.port,
             bind=self.bind,
             **kwargs)
-        self.app.on_webserver_init(self.web)
-        for blueprint in self.app._blueprints.values():
-            blueprint.init_webserver(self.web)
 
     def init_pages(self,
                    extra_pages: Sequence[Tuple[str, Type[View]]]) -> None:
@@ -68,3 +66,10 @@ class Website(Service):
             blueprint.register(app, url_prefix=prefix)
         for prefix, page in list(app.pages) + list(extra_pages or []):
             self.web.add_view(page, prefix=prefix)
+
+    def init_webserver(self) -> None:
+        self.app.on_webserver_init(self.web)
+        for _, blueprint in self.blueprints:
+            blueprint.init_webserver(self.web)
+        for blueprint in self.app._blueprints.values():
+            blueprint.init_webserver(self.web)

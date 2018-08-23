@@ -1,6 +1,7 @@
 """Base interface for Web server and views."""
 from pathlib import Path
 from typing import Any, Callable, MutableMapping, Type, Union
+from urllib.parse import quote
 from mode import Service
 from yarl import URL
 from faust.cli._env import WEB_BIND, WEB_PORT
@@ -49,6 +50,23 @@ class Web(Service):
         self.views[path] = view
         self.reverse_names[view.view_name] = path
         return view
+
+    def url_for(self, view_name: str, **kwargs: Any) -> str:
+        """Get URL by view name
+
+        If the provided view name has associated URL parameters,
+        those need to be passed in as kwargs, or a :exc:`TypeError`
+        will be raised.
+        """
+        try:
+            path = self.reverse_names[view_name]
+        except KeyError:
+            raise KeyError(f'No view with name {view_name!r} found')
+        return path.format(**{
+            k: self._quote_for_url(str(v)) for k, v in kwargs.items()})
+
+    def _quote_for_url(self, value: str) -> str:
+        return quote(value, safe='')  # disable '/' being safe by default
 
     def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> Response:

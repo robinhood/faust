@@ -29,6 +29,7 @@ class FutureStaticRoute(NamedTuple):
 class Blueprint(BlueprintT):
     routes: List[FutureRoute]
     static_routes: List[FutureStaticRoute]
+    view_name_separator: str = ':'
 
     def __init__(self,
                  name: str,
@@ -92,8 +93,13 @@ class Blueprint(BlueprintT):
                      url_prefix: Optional[str]) -> None:
         uri = url_prefix + route.uri if url_prefix else route.uri
 
-        app.page(path=uri[1:] if uri.startswith('//') else uri,
-                 name=route.name)(route.handler)
+        app.page(
+            path=uri[1:] if uri.startswith('//') else uri,
+            name=self._view_name(route.name),
+        )(route.handler)
+
+    def _view_name(self, name: str) -> str:
+        return self.view_name_separator.join([self.name, name])
 
     def init_webserver(self, web: Web) -> None:
         for route in self.static_routes:
