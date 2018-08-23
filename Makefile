@@ -189,7 +189,7 @@ typecheck:
 .PHONY: requirements
 requirements:
 	$(PIP) install --upgrade pip;\
-	for f in `ls requirements/` ; do $(PIP) install -r requirements/$$f ; done
+	for f in `ls requirements/`; do if [[ $$f =~ \.txt$$ ]]; then $(PIP) install -r requirements/$$f; fi; done
 
 .PHONY: clean-requirements
 clean-requirements:
