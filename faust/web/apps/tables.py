@@ -5,7 +5,16 @@ from faust.app.router import SameNode
 from faust.models import Record
 from faust.types import K, TableT
 
-__all__ = ['TableView', 'TableList', 'TableDetail', 'TableKeyDetail']
+__all__ = [
+    'TableView',
+    'TableList',
+    'TableDetail',
+    'TableKeyDetail',
+    'blueprint',
+]
+
+
+blueprint = web.Blueprint('tables')
 
 
 class TableInfo(Record, serializer='json', namespace='@TableInfo'):
@@ -38,6 +47,7 @@ class TableView(web.View):
                 'key not found', table=table.name, key=key)
 
 
+@blueprint.route('/', name='list')
 class TableList(TableView):
     """List available table names."""
 
@@ -46,27 +56,28 @@ class TableList(TableView):
             [self.table_json(table) for table in self.app.tables.values()])
 
 
+@blueprint.route('/{name}/', name='detail')
 class TableDetail(TableView):
     """Get details for table by name."""
 
-    async def get(self, request: web.Request) -> web.Response:
-        # FIXME request.match_info is an attribute of aiohttp.Request
-        name = request.match_info['name']
+    async def get(self, request: web.Request, name: str) -> web.Response:
         table, error = self.get_table(name)
         if error is not None:
             return error
         return self.json(self.table_json(table))
 
 
+@blueprint.route('/{name}/{key}/', name='key-detail')
 class TableKeyDetail(TableView):
     """List information about key."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    async def get(self, request: web.Request) -> web.Response:
-        name = request.match_info['name']
-        key = request.match_info['key']
+    async def get(self,
+                  request: web.Request,
+                  name: str,
+                  key: str) -> web.Response:
         router = self.app.router
         try:
             return await router.route_req(name, key, self.web, request)
@@ -78,13 +89,3 @@ class TableKeyDetail(TableView):
             if error is not None:
                 return error
             return self.json(value)
-
-
-class Site(web.Site):
-    """Router views."""
-
-    views = {
-        '/': TableList,
-        '/{name}/': TableDetail,
-        '/{name}/{key}/': TableKeyDetail,
-    }

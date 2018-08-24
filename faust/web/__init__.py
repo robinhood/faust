@@ -1,10 +1,11 @@
 from .base import Request, Response, Web
-from .views import Site, View
+from .blueprints import Blueprint
+from .views import View
 
 __all__ = [
     'Request',
     'Response',
     'Web',
+    'Blueprint',
     'View',
-    'Site',
 ]

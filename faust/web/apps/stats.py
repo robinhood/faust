@@ -4,11 +4,15 @@ from typing import List, MutableMapping, Set
 from faust import web
 from faust.types.tuples import TP
 
-__all__ = ['Assignment', 'Stats', 'Site']
+__all__ = ['Assignment', 'Stats', 'blueprint']
 
 TPMap = MutableMapping[str, List[int]]
 
 
+blueprint = web.Blueprint('monitor')
+
+
+@blueprint.route('/', name='index')
 class Stats(web.View):
     """Monitor statistics."""
 
@@ -18,6 +22,7 @@ class Stats(web.View):
              for i, s in enumerate(self.app.sensors)})
 
 
+@blueprint.route('/assignment/', name='assignment')
 class Assignment(web.View):
     """Cluster assignment information."""
 
@@ -34,12 +39,3 @@ class Assignment(web.View):
             'actives': self._topic_grouped(assignor.assigned_actives()),
             'standbys': self._topic_grouped(assignor.assigned_standbys()),
         })
-
-
-class Site(web.Site):
-    """Statistics views."""
-
-    views = {
-        '/': Stats,
-        '/assignment/': Assignment,
-    }

@@ -1,7 +1,6 @@
 import pytest
-from mode.utils.mocks import AsyncMock, Mock, call
-from faust.web.base import Request, Web
-from faust.web.views import Site, View
+from mode.utils.mocks import AsyncMock, Mock
+from faust.web import Request, View, Web
 
 
 @View.from_handler
@@ -45,6 +44,7 @@ class test_View:
     async def test_dispatch(self, method, *, view):
         request = Mock(name='request', autospec=Request)
         request.method = method
+        request.match_info = {}
         handler = AsyncMock(name=method)
         view.methods[method.lower()] = handler
         assert await view(request) is handler.coro()
@@ -126,43 +126,3 @@ class test_View:
         web.json.assert_called_once_with(
             {'error': 'Not Found', 'arg': 'bharg'}, status=404)
         assert response is web.json()
-
-
-class test_Site:
-
-    @Site.from_handler('/foo')
-    def fun_view(self, request):
-        return self, request
-
-    @Site.from_handler('/bar')
-    class ViewCls(View):
-
-        async def get(self, request):
-            return self, request
-
-    @pytest.fixture()
-    def fun_site(self, app):
-        return self.fun_view(app)
-
-    @pytest.fixture()
-    def cls_site(self, app):
-        return self.ViewCls(app)
-
-    def test_constructor(self, cls_site, fun_site, app):
-        assert cls_site.app is app
-        assert fun_site.app is app
-
-    def test_enable(self, cls_site):
-        web = Mock(name='web', autospec=Web)
-        view = next(iter(cls_site.views.values()))
-        assert view
-        views = cls_site.enable(web, prefix='/xxx')
-        web.route.assert_has_calls([
-            call('/xxx/bar', views[0]),
-        ])
-
-    def test_from_handler__not_a_view(self):
-        with pytest.raises(TypeError):
-            class X:
-                pass
-            Site.from_handler('/x')(X)

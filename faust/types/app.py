@@ -38,7 +38,7 @@ from .tables import CollectionT, TableManagerT, TableT
 from .topics import ChannelT, TopicT
 from .transports import ConductorT, ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
-from .web import HttpClientT, PageArg, RoutedViewGetHandler, Site, View, Web
+from .web import HttpClientT, PageArg, RoutedViewGetHandler, View, Web
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -93,7 +93,7 @@ class AppT(ServiceT):
 
     agents: AgentManagerT
     sensors: SensorDelegateT
-    pages: List[Tuple[str, Type[Site]]]
+    pages: List[Tuple[str, Type[View]]]
 
     fixups: MutableSequence[FixupT]
 
@@ -206,7 +206,8 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def page(self, path: str, *,
-             base: Type[View] = View) -> Callable[[PageArg], Type[Site]]:
+             base: Type[View] = View,
+             name: str = None) -> Callable[[PageArg], Type[View]]:
         ...
 
     @abc.abstractmethod
