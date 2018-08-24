@@ -62,8 +62,9 @@ class Web(Service):
             path = self.reverse_names[view_name]
         except KeyError:
             raise KeyError(f'No view with name {view_name!r} found')
-        return path.format(**{
-            k: self._quote_for_url(str(v)) for k, v in kwargs.items()})
+        else:
+            return path.format(**{
+                k: self._quote_for_url(str(v)) for k, v in kwargs.items()})
 
     def _quote_for_url(self, value: str) -> str:
         return quote(value, safe='')  # disable '/' being safe by default
