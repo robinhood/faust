@@ -58,7 +58,16 @@ class BlueprintT(abc.ABC):
                name: Optional[str] = None) -> None:
         ...
 
+    @abc.abstractmethod
     def register(self, app: AppT,
                  *,
                  url_prefix: Optional[str] = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def init_webserver(self, web: Web) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_webserver_init(self, web: Web) -> None:
         ...

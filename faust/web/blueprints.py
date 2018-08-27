@@ -15,7 +15,7 @@ __all__ = ['Blueprint']
 
 class FutureRoute(NamedTuple):
     uri: str
-    name: Optional[str]
+    name: str
     handler: PageArg
     base: Type[View]
 
@@ -69,7 +69,7 @@ class Blueprint(BlueprintT):
               name: Optional[str] = None,
               base: Type[View] = View) -> RouteDecoratorRet:
         def _inner(handler: PageArg) -> PageArg:
-            route = FutureRoute(uri, name, handler, base)
+            route = FutureRoute(uri, name or handler.__name__, handler, base)
             self.routes.append(route)
             return handler
         return _inner
