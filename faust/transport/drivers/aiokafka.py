@@ -438,11 +438,12 @@ class Consumer(base.Consumer):
                 tp, record = item  # type: ignore
                 highwater_mark = self._consumer.highwater(tp)
                 self.app.monitor.track_tp_end_offset(tp, highwater_mark)
+                timestamp_s = record.timestamp / 1000.0 if record.timestamp is not None else None
                 yield tp, create_message(
                     record.topic,
                     record.partition,
                     record.offset,
-                    record.timestamp / 1000.0,
+                    timestamp_s,
                     record.timestamp_type,
                     record.key,
                     record.value,
