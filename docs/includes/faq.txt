@@ -130,3 +130,9 @@ I get a maximum number of open files exceeded error by RocksDB when running a Fa
 You may need to increase the limit for the maximum number of open files. The
 following post explains how to do so on OS X:
 https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
+
+
+What kafka versions faust supports?
+---------------------------------------
+
+Faust supports kafka with version >= 0.10.
