@@ -1,6 +1,7 @@
 import pytest
 from mode.utils.mocks import AsyncMock, Mock
 from faust.web import Request, View, Web
+from faust.web.exceptions import MethodNotAllowed
 
 
 @View.from_handler
@@ -58,28 +59,28 @@ class test_View:
     @pytest.mark.asyncio
     async def test_interface_get(self, app, web):
         view = View(app, web)
-        assert await view.get(
-            Mock(name='request', autospec=Request)) is None
+        with pytest.raises(MethodNotAllowed):
+            await view.get(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
     async def test_interface_post(self, view):
-        assert await view.post(
-            Mock(name='request', autospec=Request)) is None
+        with pytest.raises(MethodNotAllowed):
+            await view.post(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
     async def test_interface_put(self, view):
-        assert await view.put(
-            Mock(name='request', autospec=Request)) is None
+        with pytest.raises(MethodNotAllowed):
+            await view.put(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
     async def test_interface_patch(self, view):
-        assert await view.patch(
-            Mock(name='request', autospec=Request)) is None
+        with pytest.raises(MethodNotAllowed):
+            await view.patch(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
     async def test_interface_delete(self, view):
-        assert await view.delete(
-            Mock(name='request', autospec=Request)) is None
+        with pytest.raises(MethodNotAllowed):
+            await view.delete(Mock(name='request', autospec=Request))
 
     def test_text(self, view, web):
         response = view.text('foo', content_type='app/json', status=101)

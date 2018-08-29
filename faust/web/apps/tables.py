@@ -1,9 +1,9 @@
 """HTTP endpoint showing partition routing destinations."""
-from typing import Any, Mapping, Optional, Tuple, cast
+from typing import Any, Mapping
 from faust import web
 from faust.app.router import SameNode
 from faust.models import Record
-from faust.types import K, TableT
+from faust.types import K, TableT, V
 
 __all__ = [
     'TableView',
@@ -28,23 +28,17 @@ class TableView(web.View):
     def table_json(self, table: TableT, **kwargs: Any) -> Mapping:
         return TableInfo(table.name, table.help).asdict()
 
-    def get_table(self, name: str) -> Tuple[TableT,
-                                            Optional[web.Response]]:
+    def get_table_or_404(self, name: str) -> TableT:
         try:
-            return self.app.tables[name], None
+            return self.app.tables[name]
         except KeyError:
-            return (cast(TableT, None),
-                    self.notfound('unknown table', name=name))
+            raise self.NotFound('unknown table', name=name)
 
-    def get_table_value(
-            self,
-            table: TableT,
-            key: K) -> Tuple[Optional[Any], Optional[web.Response]]:
+    def get_table_value_or_404(self, table: TableT, key: K) -> V:
         try:
-            return table[key], None
+            return table[key]
         except KeyError:
-            return None, self.notfound(
-                'key not found', table=table.name, key=key)
+            raise self.NotFound(f'key not found', key=key, table=table.name)
 
 
 @blueprint.route('/', name='list')
@@ -61,9 +55,7 @@ class TableDetail(TableView):
     """Get details for table by name."""
 
     async def get(self, request: web.Request, name: str) -> web.Response:
-        table, error = self.get_table(name)
-        if error is not None:
-            return error
+        table = self.get_table_or_404(name)
         return self.json(self.table_json(table))
 
 
@@ -82,10 +74,6 @@ class TableKeyDetail(TableView):
         try:
             return await router.route_req(name, key, self.web, request)
         except SameNode:
-            table, error = self.get_table(name)
-            if error is not None:
-                return error
-            value, error = self.get_table_value(table, key)
-            if error is not None:
-                return error
+            table = self.get_table_or_404(name)
+            value = self.get_table_value_or_404(table, key)
             return self.json(value)

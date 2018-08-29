@@ -1,10 +1,21 @@
 """Class-based views."""
-from typing import Any, Awaitable, Callable, Mapping, Type, cast, no_type_check
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Mapping,
+    Type,
+    cast,
+    no_type_check,
+)
 
 from faust.types import AppT
 from faust.types.web import ViewGetHandler
 
+from . import exceptions
 from .base import Request, Response, Web
+from .exceptions import WebError
 
 __all__ = ['View']
 
@@ -13,6 +24,13 @@ _bytes = bytes   # need alias for method named `bytes`
 
 class View:
     """View (HTTP endpoint)."""
+    ServerError: ClassVar[Type[WebError]] = exceptions.ServerError
+    ValidationError: ClassVar[Type[WebError]] = exceptions.ValidationError
+    ParseError: ClassVar[Type[WebError]] = exceptions.ParseError
+    NotAuthenticated: ClassVar[Type[WebError]] = exceptions.NotAuthenticated
+    PermissionDenied: ClassVar[Type[WebError]] = exceptions.PermissionDenied
+    NotFound: ClassVar[Type[WebError]] = exceptions.NotFound
+
     view_name: str
     view_path: str
 
@@ -49,27 +67,36 @@ class View:
         # we cast here since some subclasses take extra parameters
         # from the URL route (match_info).
         method = cast(Callable[..., Awaitable[Response]], self.methods[method])
-        return await method(cast(Request, request), **kwargs)
+
+        try:
+            return await method(cast(Request, request), **kwargs)
+        except WebError as exc:
+            return await self.on_request_error(request, exc)
+
+    async def on_request_error(self,
+                               request: Request,
+                               exc: WebError) -> Response:
+        return self.error(exc.code, exc.detail, **exc.extra_context)
 
     @no_type_check  # subclasses change signature based on route match_info
     async def get(self, request: Request) -> Any:
-        ...
+        raise exceptions.MethodNotAllowed('Method GET not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def post(self, request: Request) -> Any:
-        ...
+        raise exceptions.MethodNotAllowed('Method POST not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def put(self, request: Request) -> Any:
-        ...
+        raise exceptions.MethodNotAllowed('Method PUT not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def patch(self, request: Request) -> Any:
-        ...
+        raise exceptions.MethodNotAllowed('Method PATCH not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
     async def delete(self, request: Request) -> Any:
-        ...
+        raise exceptions.MethodNotAllowed('Method DELETE not allowed.')
 
     def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> Response:
@@ -93,6 +120,7 @@ class View:
         return handler
 
     def notfound(self, reason: str = 'Not Found', **kwargs: Any) -> Response:
+        # Deprecated: Use raise NotFound() instead.
         return self.error(404, reason, **kwargs)
 
     def error(self, status: int, reason: str, **kwargs: Any) -> Response:
