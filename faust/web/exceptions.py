@@ -36,11 +36,12 @@ class WebError(FaustError):
 
 class ServerError(WebError):
     code = http.HTTPStatus.INTERNAL_SERVER_ERROR
+    detail = 'Internal server error.'
 
 
 class ValidationError(WebError):
     code = http.HTTPStatus.BAD_REQUEST
-    detail: str = 'Invalid input.'
+    detail = 'Invalid input.'
 
 
 class ParseError(WebError):
