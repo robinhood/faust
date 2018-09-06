@@ -1,5 +1,6 @@
 import abc
 from datetime import datetime
+from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 from faust import Record
 from faust.utils import json
@@ -69,6 +70,34 @@ class SetOfDate(Record, isodates=True):
 
 class MapOfDate(Record, isodates=True):
     dates: Mapping[int, datetime]
+
+
+class IsDecimal(Record, decimals=True):
+    number: Decimal
+
+
+class ListOfDecimal(Record, decimals=True):
+    numbers: List[Decimal]
+
+
+class OptionalListOfDecimal(Record, decimals=True):
+    numbers: List[Decimal] = None
+
+
+class OptionalListOfDecimal2(Record, decimals=True):
+    numbers: Optional[List[Decimal]]
+
+
+class TupleOfDecimal(Record, decimals=True):
+    numbers: Tuple[Decimal]
+
+
+class SetOfDecimal(Record, decimals=True):
+    numbers: Set[Decimal]
+
+
+class MapOfDecimal(Record, decimals=True):
+    numbers: Mapping[int, Decimal]
 
 
 def test_parameters():
@@ -164,6 +193,30 @@ def test_isodates():
         dates={n1, n2}).dumps()).dates == {n1, n2}
     assert MapOfDate.loads(MapOfDate(
         dates={101: n1, 202: n2}).dumps()).dates == {101: n1, 202: n2}
+
+
+def test_decimals():
+    n1 = Decimal('1.31341324')
+    assert IsDecimal.loads(IsDecimal(number=n1).dumps()).number == n1
+    n2 = Decimal('3.41569')
+    assert ListOfDecimal.loads(ListOfDecimal(
+        numbers=[n1, n2]).dumps()).numbers == [n1, n2]
+    assert OptionalListOfDecimal.loads(OptionalListOfDecimal(
+        numbers=None).dumps()).numbers is None
+    assert OptionalListOfDecimal.loads(OptionalListOfDecimal(
+        numbers=[n2, n1]).dumps()).numbers == [n2, n1]
+    assert OptionalListOfDecimal2.loads(OptionalListOfDecimal2(
+        numbers=None).dumps()).numbers is None
+    assert OptionalListOfDecimal2.loads(OptionalListOfDecimal2(
+        numbers=[n1, n2]).dumps()).numbers == [n1, n2]
+    assert TupleOfDecimal.loads(TupleOfDecimal(
+        numbers=(n1, n2)).dumps()).numbers == (n1, n2)
+    assert TupleOfDecimal.loads(TupleOfDecimal(
+        numbers=(n2,)).dumps()).numbers == (n2,)
+    assert SetOfDecimal.loads(SetOfDecimal(
+        numbers={n1, n2}).dumps()).numbers == {n1, n2}
+    assert MapOfDecimal.loads(MapOfDecimal(
+        numbers={101: n1, 202: n2}).dumps()).numbers == {101: n1, 202: n2}
 
 
 def test_constructor():

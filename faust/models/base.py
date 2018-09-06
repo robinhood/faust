@@ -197,6 +197,7 @@ class Model(ModelT):
                           isodates: bool = None,
                           abstract: bool = False,
                           allow_blessed_key: bool = None,
+                          decimals: bool = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -214,6 +215,7 @@ class Model(ModelT):
             isodates,
             abstract,
             allow_blessed_key,
+            decimals,
         )
 
     @classmethod
@@ -223,7 +225,8 @@ class Model(ModelT):
                        include_metadata: bool = None,
                        isodates: bool = None,
                        abstract: bool = False,
-                       allow_blessed_key: bool = None) -> None:
+                       allow_blessed_key: bool = None,
+                       decimals: bool = None) -> None:
         if abstract:
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
@@ -252,6 +255,8 @@ class Model(ModelT):
             options.include_metadata = include_metadata
         if isodates is not None:
             options.isodates = isodates
+        if decimals is not None:
+            options.decimals = decimals
         if allow_blessed_key is not None:
             options.allow_blessed_key = allow_blessed_key
         options.namespace = namespace or canoname(cls)

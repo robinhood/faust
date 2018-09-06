@@ -1,5 +1,6 @@
 """Record - Dictionary Model."""
 from datetime import datetime
+from decimal import Decimal
 from functools import partial
 from typing import (
     Any,
@@ -30,12 +31,14 @@ from faust.types.models import (
 )
 from faust.utils import codegen
 from faust.utils import iso8601
+from faust.utils.json import str_to_decimal
 
 from .base import FieldDescriptor, Model
 
 __all__ = ['Record']
 
-DATE_TYPES = (datetime,)
+DATE_TYPES: Tuple[Type, ...] = (datetime,)
+DECIMAL_TYPES: Tuple[Type, ...] = (Decimal,)
 
 ALIAS_FIELD_TYPES = {
     dict: Dict,
@@ -97,7 +100,7 @@ def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
         return False, None
 
 
-def _is_date(cls: Type, *, types: Tuple[Type, ...] = DATE_TYPES) -> bool:
+def _is_concretely(types: Tuple[Type, ...], cls: Type) -> bool:
     try:
         # Check for List[int], Mapping[int, int], etc.
         _, cls = guess_concrete_type(cls)
@@ -107,6 +110,14 @@ def _is_date(cls: Type, *, types: Tuple[Type, ...] = DATE_TYPES) -> bool:
         return issubclass(cls, types)
     except TypeError:
         return False
+
+
+def _is_date(cls: Type, *, types: Tuple[Type, ...] = DATE_TYPES) -> bool:
+    return _is_concretely(types, cls)
+
+
+def _is_decimal(cls: Type, *, types: Tuple[Type, ...] = DECIMAL_TYPES) -> bool:
+    return _is_concretely(types, cls)
 
 
 def _field_callback(typ: Type, callback: _ReconFun) -> Any:
@@ -207,6 +218,7 @@ class Record(Model, abstract=True):
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
         is_date = _is_date
+        is_decimal = _is_decimal
 
         # extract all default values, but only for actual fields.
         options.defaults = {
@@ -232,11 +244,17 @@ class Record(Model, abstract=True):
         # e.g. List[datetime]
         options.converse = {}
         if options.isodates:
-            options.converse = {
+            options.converse.update({
                 field: Converter(typ, cls._parse_iso8601)
                 for field, typ in fields.items()
                 if field not in modelattrs and is_date(typ)
-            }
+            })
+        if options.decimals:
+            options.converse.update({
+                field: Converter(typ, cls._parse_decimal)
+                for field, typ in fields.items()
+                if field not in modelattrs and is_decimal(typ)
+            })
 
     @classmethod
     def _contribute_methods(cls) -> None:
@@ -252,6 +270,14 @@ class Record(Model, abstract=True):
         if isinstance(data, datetime):
             return data
         return iso8601.parse(data)
+
+    @staticmethod
+    def _parse_decimal(typ: Type, data: Any) -> Optional[Decimal]:
+        if data is None:
+            return None
+        if isinstance(data, Decimal):
+            return data
+        return str_to_decimal(cast(str, data))
 
     @classmethod
     def _contribute_field_descriptors(cls,

@@ -56,6 +56,7 @@ class ModelOptions(abc.ABC):
     include_metadata: bool = True
     allow_blessed_key: bool = False
     isodates: bool = False
+    decimals: bool = False
 
     def clone_defaults(self) -> 'ModelOptions':
         new_options = type(self)()
@@ -64,6 +65,7 @@ class ModelOptions(abc.ABC):
         new_options.include_metadata = self.include_metadata
         new_options.allow_blessed_key = self.allow_blessed_key
         new_options.isodates = self.isodates
+        new_options.decimals = self.decimals
         return new_options
 
     # If we set `attr = None` mypy will think the values can be None
