@@ -212,7 +212,7 @@ KStream
 
         @app.agent(transfer_topic)
         async def task(transfers):
-            async transfer for transfers in transfers:
+            async for transfer in transfers:
                 buffer.add(transfer.amount)
 
         @app.timer(interval=1.0)

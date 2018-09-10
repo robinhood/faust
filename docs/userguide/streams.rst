@@ -488,6 +488,7 @@ You can also specify the destination topic as a string:
 
     # [...]
     async for value in stream.through('foo'):
+        ...
 
 
 Through is especially useful if you need to convert the number of partitions

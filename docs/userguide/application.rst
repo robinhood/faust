@@ -63,7 +63,7 @@ without changing them.
 
 Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
 
-.. sourcecode:: python
+.. sourcecode:: pycon
 
     >>> app = faust.App(
     ...     'myid',
@@ -288,7 +288,7 @@ The default argument is passed in as a callable, and in our example
 calling ``int()`` returns the number zero, so whenever a key is missing
 in the table, it's added with a value of zero:
 
-.. sourcecode:: python
+.. sourcecode:: pycon
 
     >>> table['missing']
     0
@@ -721,7 +721,7 @@ for the :program:`faust` command-line program:
 .. sourcecode:: python
 
     # examples/command.py
-    impor faust
+    import faust
 
     app = faust.App('example-subcommand')
 
@@ -1104,7 +1104,7 @@ want to embed a Faust application, starting the app have several possible entryp
                 loop = asyncio.get_event_loop()
                 worker = Worker(app, loop=loop)
                 try:
-                    loop.run_until_complete(start_worker(worker)
+                    loop.run_until_complete(start_worker(worker))
                 finally:
                     worker.stop_and_shutdown_loop()
 

@@ -382,6 +382,8 @@ that manually iterates over the joined stream:
     def mystream():
         async for event in (topic1.stream() & topic2.stream()).join(...):
             # process merged event
+            ...
+
 
 .. seealso::
 
