@@ -111,7 +111,8 @@ likely to be processed by different worker processes:
 
 .. sourcecode:: python
 
-    withdrawals_topic = app.topic('withdrawals', key_type=str, value_type=Withdrawal)
+    withdrawals_topic = app.topic('withdrawals', key_type=str,
+                                  value_type=Withdrawal)
 
     user_to_total = app.Table('user_to_total', default=int)
     country_to_total = app.Table(

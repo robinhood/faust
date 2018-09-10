@@ -863,7 +863,7 @@ then you must connect to the signal of the class (``App``):
 
     @faust.App.on_partitions_revoked.connect
     async def on_partitions_revoked(app: AppT,
-                                     revoked: Set[TP], **kwargs) -> None:
+                                    revoked: Set[TP], **kwargs) -> None:
         ...
 
 

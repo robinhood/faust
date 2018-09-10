@@ -7,7 +7,7 @@ or what it's used for.
 A record (faust.models.record) is a model type that serialize into
 dictionaries, so the model describe the fields, and their types:
 
-.. sourcecode:: python
+.. sourcecode:: pycon
 
     >>> class Point(Record):
     ...    x: int

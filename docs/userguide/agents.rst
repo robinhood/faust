@@ -367,7 +367,7 @@ unless you know what you're doing:
     async def mystream(stream):
         # XXX This is not proper use of an agent, as it performs a join.
         # It works fine as long as you don't expect to be able to use
-        #``agent.ask``, ``agent.map`` and similar
+        # ``agent.ask``, ``agent.map`` and similar
         # methods that wait for a reply.
         async for event in (stream & topic2.stream()).join(...):
             ...
