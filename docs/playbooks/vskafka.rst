@@ -182,7 +182,6 @@ KStream
 
     .. sourcecode:: python
 
-        import asyncio
         import faust
 
         # Useless example collecting transfer events

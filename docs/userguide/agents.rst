@@ -39,7 +39,8 @@ between available agent instances in the cluster.
 
         import faust
 
-        app = faust.App('example',  broker='kafka://localhost:9092')
+        app = faust.App('example', broker='kafka://localhost:9092')
+
 
         @app.agent()
         async def myagent(stream):
