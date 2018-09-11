@@ -64,10 +64,19 @@ class test_AppService:
 
     @pytest.mark.asyncio
     async def test_on_first_start__no_agents_raises_error(self, *, s):
-        s.app = Mock(name='app', autospec=App)
+        s.app = Mock(
+            name='app',
+            autospec=App,
+            on_first_start=AsyncMock(),
+            producer_only=False,
+        )
         s.app.agents = {}
         with pytest.raises(ImproperlyConfigured):
             await s.on_first_start()
+
+        # but producer_only no agents is fine
+        s.app.producer_only = True
+        await s.on_first_start()
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, s):
