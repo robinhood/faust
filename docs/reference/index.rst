@@ -203,6 +203,7 @@ Web
     faust.web.blueprints
     faust.web.drivers
     faust.web.drivers.aiohttp
+    faust.web.exceptions
     faust.web.site
     faust.web.views
 
