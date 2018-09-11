@@ -103,7 +103,7 @@ class AppService(Service):
         )
 
     async def on_first_start(self) -> None:
-        if not self.app.agents:
+        if not self.app.agents and not self.app.producer_only:
             # XXX I can imagine use cases where an app is useful
             #     without agents, but use this as more of an assertion
             #     to make sure agents are registered correctly. [ask]
