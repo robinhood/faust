@@ -513,7 +513,7 @@ class Stream(StreamT[T_co], Service):
 
                 async def get_key(withdrawal):
                     return await aiohttp.get(
-                        f'http://e.com/resolve_account/{withdrawal.account_id}'
+                        f'http://e.com/resolve_account/{withdrawal.account_id}')
 
                 async for event in s.group_by(get_key):
                     ...

@@ -31,14 +31,14 @@ A record is a model of the dictionary type, and describes keys and values.
 When using JSON as the serialization format, the Point model above
 serializes as:
 
-.. sourcecode:: python
+.. sourcecode:: pycon
 
     >>> Point(x=10, y=100).dumps()
     {"x": 10, "y": 100}
 
 A different serializer can be provided as an argument to ``.dumps``:
 
-.. sourcecode:: python
+.. sourcecode:: pycon
 
     >>> Point(x=10, y=100).dumps('pickle')  # pickle + Base64
     b'gAN9cQAoWAEAAAB4cQFLClgBAAAAeXECS2RYBwAAAF9fZmF1c3RxA31xBFg
@@ -84,7 +84,7 @@ by specifying a ``serializer`` argument when creating the model class:
 
 .. sourcecode:: python
 
-    class MyRecord(Record, serializer='json')
+    class MyRecord(Record, serializer='json'):
         ...
 
 Codecs can also be combined, so they consist of multiple encoding and decoding
@@ -272,7 +272,7 @@ Records can also have other records as fields:
 
 To manually serialize a record use its ``.dumps()`` method:
 
-.. sourcecode:: python
+.. sourcecode:: pycon
 
     >>> json = transfer.dumps()
 

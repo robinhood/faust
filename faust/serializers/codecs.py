@@ -107,9 +107,9 @@ package and should look like the following example:
 
 .. sourcecode:: python
 
-    import setuptools
+    from setuptools import setup, find_packages
 
-    setuptools.setup(
+    setup(
         name='faust-msgpack',
         version='1.0.0',
         description='Faust msgpack serialization support',

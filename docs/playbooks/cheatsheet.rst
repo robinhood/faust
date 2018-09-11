@@ -6,8 +6,6 @@
 
     .. sourcecode:: python
 
-        import faust
-
         orders_topic = app.topic('orders', value_serializer='json')
 
         @app.agent(orders_topic)

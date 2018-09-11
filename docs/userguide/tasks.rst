@@ -171,7 +171,7 @@ We define our table, and an agent reading from the stream to populate the table:
 
     posts_topic = app.topic('posts', value_type=str)
     word_counts = app.Table('word_counts', default=int,
-                             help='Keep count of words (str to int).')
+                            help='Keep count of words (str to int).')
 
 
     class Word(faust.Record):

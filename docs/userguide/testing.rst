@@ -134,7 +134,7 @@ first test ``foo`` with ``bar`` mocked, then in a different test do ``bar``:
     def mock_coro(return_value=None, **kwargs):
         """Create mock coroutine function."""
         async def wrapped(*args, **kwargs):
-             return return_value
+            return return_value
         return Mock(wraps=wrapped, **kwargs)
 
     @pytest.mark.asyncio()
