@@ -75,6 +75,7 @@ Sensors
 
     faust.sensors
     faust.sensors.base
+    faust.sensors.datadog
     faust.sensors.monitor
     faust.sensors.statsd
 
