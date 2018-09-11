@@ -166,6 +166,8 @@ Extensions
 +--------------+-------------+--------------------------------------------------+
 | rocksdb      | 5.0         | ``pip install faust[rocksdb]``                   |
 +--------------+-------------+--------------------------------------------------+
+| datadog      | 0.20.0      | ``pip install faust[datadog]``                   |
++--------------+-------------+--------------------------------------------------+
 | statsd       | 3.2.1       | ``pip install faust[statsd]``                    |
 +--------------+-------------+--------------------------------------------------+
 | uvloop       | 0.8.1       | ``pip install faust[uvloop]``                    |
@@ -188,7 +190,7 @@ Extensions
 
     .. sourcecode:: console
 
-        $ pip install faust[uvloop,fast,rocksdb,statsd]
+        $ pip install faust[uvloop,fast,rocksdb,datadog]
 
 .. admonition:: RocksDB On MacOS Sierra
 

@@ -288,6 +288,9 @@ Optimization
 Sensors
 ~~~~~~~
 
+:``faust[datadog]``:
+    for using the Datadog Faust monitor.
+
 :``faust[statsd]``:
     for using the Statsd Faust monitor.
 

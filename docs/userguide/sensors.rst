@@ -27,10 +27,11 @@ as they go through the worker, the latency of publishing messages,
 the latency of committing Kafka offsets, and so on.
 
 The web server uses this monitor to present graphs and statistics about
-your instance, and there's also a version of the monitor available that
-forwards statistics to `StatsD`_.
+your instance, and there's also a versions of the monitor available that
+forwards statistics to `StatsD`_, and `Datadog`_.
 
 .. _`StatsD`: https://github.com/etsy/statsd
+.. _`Datadog`: https://www.datadoghq.com
 
 .. _sensor-monitor:
 

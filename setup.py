@@ -14,6 +14,7 @@ from setuptools import find_packages, setup
 NAME = 'faust'
 EXTENSIONS = {
     'ckafka',
+    'datadog',
     'debug',
     'fast',
     'rocksdb',

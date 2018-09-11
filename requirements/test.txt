@@ -9,3 +9,4 @@ pytest-random-order>=0.5.4
 pytest-xdist>=1.20
 pytest~=3.0
 -r extras/statsd.txt
+-r extras/datadog.txt
