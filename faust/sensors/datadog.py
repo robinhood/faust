@@ -1,6 +1,5 @@
 """Monitor using datadog."""
 import re
-from datadog.dogstatsd import DogStatsd
 from time import monotonic
 from typing import Any, Dict, Optional, Pattern, cast
 
@@ -13,10 +12,12 @@ from faust.types.transports import ConsumerT, ProducerT
 
 try:
     import datadog
+    from datadog.dogstatsd import DogStatsd
 except ImportError:
     datadog = None
+    class DogStatsD: ...  # noqa
 
-__all__ = ['DatadogStatsMonitor']
+__all__ = ['DatadogMonitor']
 
 # This regular expression is used to generate stream ids in Statsd.
 # It converts for example
@@ -39,7 +40,11 @@ class DatadogStatsClient:
                  prefix: str = 'faust-app',
                  rate: float = 1.0,
                  **kwargs: Any) -> None:
-        self.client = DogStatsd(host=host, port=port, namespace=prefix, **kwargs)
+        self.client = DogStatsd(
+            host=host,
+            port=port,
+            namespace=prefix,
+            **kwargs)
         self.rate = rate
         self.sanitize_re = re.compile("[^0-9a-zA-Z_]")
         self.re_substitution = "_"
@@ -49,7 +54,7 @@ class DatadogStatsClient:
             metric,
             value=value,
             tags=self._encode_labels(labels),
-            sample_rate=self.rate
+            sample_rate=self.rate,
         )
 
     def increment(self, metric, value=1, labels=None):
@@ -57,7 +62,7 @@ class DatadogStatsClient:
             metric,
             value=value,
             tags=self._encode_labels(labels),
-            sample_rate=self.rate
+            sample_rate=self.rate,
         )
 
     def incr(self, metric, count=1):
@@ -69,7 +74,7 @@ class DatadogStatsClient:
             metric,
             value=value,
             tags=self._encode_labels(labels),
-            sample_rate=self.rate
+            sample_rate=self.rate,
         )
 
     def decr(self, metric, count=1.0):
@@ -81,7 +86,7 @@ class DatadogStatsClient:
             metric,
             value=value,
             tags=self._encode_labels(labels),
-            sample_rate=self.rate
+            sample_rate=self.rate,
         )
 
     def timed(self, metric=None, labels=None, use_ms=None):
@@ -89,7 +94,7 @@ class DatadogStatsClient:
             metric=metric,
             tags=self._encode_labels(labels),
             sample_rate=self.rate,
-            use_ms=use_ms
+            use_ms=use_ms,
         )
 
     def histogram(self, metric, value, labels=None):
@@ -97,7 +102,7 @@ class DatadogStatsClient:
             metric,
             value=value,
             tags=self._encode_labels(labels),
-            sample_rate=self.rate
+            sample_rate=self.rate,
         )
 
     def _encode_labels(self, labels):
@@ -108,7 +113,7 @@ class DatadogStatsClient:
                 for k, v in labels.items()] if labels else None
 
 
-class DatadogStatsMonitor(Monitor):
+class DatadogMonitor(Monitor):
     """Datadog Faust Sensor.
 
     This sensor, records statistics to datadog agents along
@@ -131,7 +136,7 @@ class DatadogStatsMonitor(Monitor):
         self.rate = rate
         if datadog is None:
             raise ImproperlyConfigured(
-                'DatadogStatsMonitor requires `pip install datadog`.')
+                f'{type(self).__name__} requires `pip install datadog`.')
         super().__init__(**kwargs)
 
     def _new_datadog_stats_client(self) -> DatadogStatsClient:
@@ -160,7 +165,7 @@ class DatadogStatsMonitor(Monitor):
         self.client.timing(
             'events_runtime',
             self._time(self.events_runtime[-1]),
-            labels=labels
+            labels=labels,
         )
 
     def on_message_out(self,
@@ -175,14 +180,14 @@ class DatadogStatsMonitor(Monitor):
         super().on_table_get(table, key)
         self.client.increment(
             'table_keys_retrieved',
-            labels=self._format_label(table=table)
+            labels=self._format_label(table=table),
         )
 
     def on_table_set(self, table: CollectionT, key: Any, value: Any) -> None:
         super().on_table_set(table, key, value)
         self.client.increment(
             'table_keys_updated',
-            labels=self._format_label(table=table)
+            labels=self._format_label(table=table),
         )
 
     def on_table_del(self, table: CollectionT, key: Any) -> None:
@@ -203,7 +208,7 @@ class DatadogStatsMonitor(Monitor):
                           keysize: int, valsize: int) -> Any:
         self.client.increment(
             'topic_messages_sent',
-            labels={'topic': topic}
+            labels={'topic': topic},
         )
         return super().on_send_initiated(producer, topic, keysize, valsize)
 
@@ -212,7 +217,7 @@ class DatadogStatsMonitor(Monitor):
         self.client.increment('messages_sent')
         self.client.timing(
             'send_latency',
-            self._time(monotonic() - cast(float, state))
+            self._time(monotonic() - cast(float, state)),
         )
 
     def count(self, metric_name: str, count: int = 1) -> None:
@@ -222,7 +227,8 @@ class DatadogStatsMonitor(Monitor):
     def on_tp_commit(self, tp_offsets: TPOffsetMapping) -> None:
         super().on_tp_commit(tp_offsets)
         for tp, offset in tp_offsets.items():
-            self.client.gauge('committed_offset', offset, labels=self._format_label(tp))
+            self.client.gauge('committed_offset', offset,
+                              labels=self._format_label(tp))
 
     def track_tp_end_offset(self, tp: TP, offset: int) -> None:
         super().track_tp_end_offset(tp, offset)
@@ -237,29 +243,31 @@ class DatadogStatsMonitor(Monitor):
     def _time(self, time: float) -> float:
         return time * 1000.
 
+    def _format_label(self, tp: Optional[TP]=None,
+                      stream: Optional[StreamT]=None,
+                      table: Optional[CollectionT]=None) -> Dict:
+        labels = {}
+        if tp is not None:
+            labels.update(self._format_tp_label(tp))
+        if stream is not None:
+            labels.update(self._format_stream_label(stream))
+        if table is not None:
+            labels.update(self._format_table_label(table))
+        return labels
+
+    def _format_tp_label(self, tp: TP) -> Dict:
+        return {'topic': tp.topic, 'partition': tp.partition}
+
+    def _format_stream_label(self, stream: StreamT) -> Dict:
+        return {'stream': self._stream_label(stream)}
+
     def _stream_label(self, stream: StreamT) -> str:
         return self._normalize(
             stream.shortlabel.lstrip('Stream:'),
         ).strip('_').lower()
 
-    def _format_label(self, tp: Optional[TP]=None,
-                      stream: Optional[StreamT]=None,
-                      table: Optional[CollectionT]=None) -> Dict:
-        labels = dict()
-        if tp is not None:
-            labels.update({
-                'topic': tp.topic,
-                'partition': tp.partition,
-            })
-        if stream is not None:
-            labels.update({
-                'stream': self._stream_label(stream),
-            })
-        if table is not None:
-            labels.update({
-                'table': table.name,
-            })
-        return labels
+    def _format_table_label(self, table: CollectionT) -> Dict:
+        return {'table': table.name}
 
     @cached_property
     def client(self) -> DatadogStatsClient:
