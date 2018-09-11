@@ -1,7 +1,7 @@
 """Monitor using datadog."""
 import re
 from time import monotonic
-from typing import Any, Dict, Optional, Pattern, cast
+from typing import Any, Dict, List, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -49,7 +49,7 @@ class DatadogStatsClient:
         self.sanitize_re = re.compile("[^0-9a-zA-Z_]")
         self.re_substitution = "_"
 
-    def gauge(self, metric, value, labels=None):
+    def gauge(self, metric: str, value: float, labels: Dict = None) -> None:
         self.client.gauge(
             metric,
             value=value,
@@ -57,7 +57,10 @@ class DatadogStatsClient:
             sample_rate=self.rate,
         )
 
-    def increment(self, metric, value=1, labels=None):
+    def increment(self,
+                  metric: str,
+                  value: float = 1.0,
+                  labels: Dict = None) -> None:
         self.client.increment(
             metric,
             value=value,
@@ -65,11 +68,14 @@ class DatadogStatsClient:
             sample_rate=self.rate,
         )
 
-    def incr(self, metric, count=1):
-        """ Statsd compatibility. """
-        return self.increment(metric, value=count)
+    def incr(self, metric: str, count: int = 1) -> None:
+        """Statsd compatibility."""
+        self.increment(metric, value=count)
 
-    def decrement(self, metric, value=1.0, labels=None):
+    def decrement(self,
+                  metric: str,
+                  value: float = 1.0,
+                  labels: Dict = None) -> float:
         return self.client.decrement(
             metric,
             value=value,
@@ -77,11 +83,11 @@ class DatadogStatsClient:
             sample_rate=self.rate,
         )
 
-    def decr(self, metric, count=1.0):
-        """ Statsd compatibility. """
-        return self.decrement(metric, value=count)
+    def decr(self, metric: str, count: float = 1.0) -> None:
+        """Statsd compatibility."""
+        self.decrement(metric, value=count)
 
-    def timing(self, metric, value, labels=None):
+    def timing(self, metric: str, value: float, labels: Dict = None) -> None:
         self.client.timing(
             metric,
             value=value,
@@ -89,7 +95,10 @@ class DatadogStatsClient:
             sample_rate=self.rate,
         )
 
-    def timed(self, metric=None, labels=None, use_ms=None):
+    def timed(self,
+              metric: str = None,
+              labels: Dict = None,
+              use_ms: bool = None) -> float:
         return self.client.timed(
             metric=metric,
             tags=self._encode_labels(labels),
@@ -97,7 +106,8 @@ class DatadogStatsClient:
             use_ms=use_ms,
         )
 
-    def histogram(self, metric, value, labels=None):
+    def histogram(self, metric: str, value: float,
+                  labels: Dict = None) -> None:
         self.client.histogram(
             metric,
             value=value,
@@ -105,8 +115,8 @@ class DatadogStatsClient:
             sample_rate=self.rate,
         )
 
-    def _encode_labels(self, labels):
-        def sanitize(s):
+    def _encode_labels(self, labels: Optional[Dict]) -> Optional[List[str]]:
+        def sanitize(s: str) -> str:
             return self.sanitize_re.sub(self.re_substitution, str(s))
 
         return [f"{sanitize(k)}:{sanitize(v)}"
