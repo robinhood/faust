@@ -1,6 +1,7 @@
 import abc
 import inspect
 import logging
+import ssl
 import typing
 from datetime import timedelta
 from pathlib import Path
@@ -206,6 +207,7 @@ class Settings(abc.ABC):
     stream_ack_cancelled_tasks: bool = False
     stream_ack_exceptions: bool = True
     stream_publish_on_commit: bool = STREAM_PUBLISH_ON_COMMIT
+    ssl_context: Optional[ssl.SSLContext] = None
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
@@ -285,6 +287,7 @@ class Settings(abc.ABC):
             reply_to_prefix: str = None,
             reply_create_topic: bool = None,
             reply_expires: Seconds = None,
+            ssl_context: ssl.SSLContext = None,
             stream_buffer_maxsize: int = None,
             stream_wait_empty: bool = None,
             stream_ack_cancelled_tasks: bool = None,
@@ -317,6 +320,7 @@ class Settings(abc.ABC):
         self.origin = origin if origin is not None else self.origin
         self.id = id
         self.broker = url or broker or BROKER_URL
+        self.ssl_context = ssl_context
         self.store = store or STORE_URL
         if autodiscover is not None:
             self.autodiscover = autodiscover
