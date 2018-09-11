@@ -350,10 +350,11 @@ class Record(Model, abstract=True):
         rest = [
             'if kwargs and __strict__:',
             '    from mode.utils.text import pluralize',
-            '    raise TypeError("{} got unexpected {}: {}".format(',
-            '        type(self).__name__,',
-            '        pluralize(len(kwargs), "argument"),',
-            '        ", ".join(sorted(kwargs))))',
+            '    message = "{} got unexpected {}: {}".format(',
+            '        self.__class__.__name__,',
+            '        pluralize(kwargs.__len__(), "argument"),',
+            '        ", ".join(map(str, sorted(kwargs))))',
+            '    raise TypeError(message)',
             'self.__dict__.update(kwargs)',
         ]
 
