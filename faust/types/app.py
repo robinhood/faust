@@ -320,6 +320,10 @@ class AppT(ServiceT):
     def http_client(self) -> HttpClientT:
         ...
 
+    @http_client.setter
+    def http_client(self, client: HttpClientT) -> None:
+        ...
+
     @property
     @abc.abstractmethod
     def assignor(self) -> PartitionAssignorT:

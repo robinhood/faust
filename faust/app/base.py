@@ -1187,6 +1187,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._http_client = self.conf.HttpClient()
         return self._http_client
 
+    @http_client.setter
+    def http_client(self, client: HttpClientT) -> None:
+        self._http_client = client
+
     @cached_property
     def assignor(self) -> PartitionAssignorT:
         """Partition Assignor.
