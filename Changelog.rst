@@ -13,14 +13,14 @@ please visit the :ref:`history` section.
 1.1.0
 =====
 :release-date: TBA
-:release-by:
+:release-by: Ask Solem (:github_user:`ask`)
 
 .. _v110-important-notes:
 
 Important Notes
 ---------------
 
-- **API**: Agent/Channel.send now requires keyword-only arguments only
+- **API**: Agent/Channel.send now support keyword-only arguments only
 
     Users often make the mistake of doing:
 
@@ -69,14 +69,46 @@ Important Notes
 
         app = faust.App('myapp', ..., key_serializer='json')
 
-    Contributed by Allison Wang.
+    Contributed by Allison Wang (:github_user:`allisonwang`)
 
 .. _v110-news:
 
 News
 ----
 
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.16.0 <mode:version-1.16.0>`.
+
 - Now works with CPython 3.6.0.
+
+- **Models**: Record: Now supports `decimals` option to convert string
+  decimals back to Decimal
+
+    This can be used for any model to enable "Decimal-fields":
+
+    .. code-block:: python
+
+        class Fundamentals(faust.Record, decimals=True):
+            open: Decimal
+            high: Decimal
+            low: Decimal
+            volume: Decimal
+
+    When serialized this model will use string for decimal fields
+    (the javascript float type cannot be used without losing precision, it
+    is a float after all), but when deserializing Faust will reconstruct
+    them as Decimal objects from that string.
+
+- **App**: New :setting:`ssl_context` adds authentication support to Kafka.
+
+    Contributed by Mika Eloranta (:github_user:`melor`).
+
+- **Monitor**: New `Datadog`_ monitor (Issue #160)
+
+    Contributed by Allison Wang (:github_user:`allisonwang`).
+
+    .. _`Datadog`: http://datadoghq.com
 
 - **App**: ``@app.task`` decorator now accepts ``on_leader``
            argument (Issue #131).
@@ -106,6 +138,8 @@ News
     If set the worker will start the app without
     consumer/tables/agents/topics.
 
+- **App**: ``app.http_client`` property is now read-write.
+
 - **Channel**: In-memory channels were not working as expected.
 
     + ``Channel.send(key=key, value=value)`` now works as expected.
@@ -115,6 +149,110 @@ News
 
     + ``Channel.send()`` now disregards the :setting:`stream_publish_on_commit`
       setting.
+
+- **Transport**: :pypi:`aiokafka`: Support timestampless messages
+
+    Fixes error when data sent with old Kafka broker not supporting
+    timestamps:
+
+    .. code-block:: text
+
+        [2018-08-27 08:00:49,262: ERROR]: [^--Consumer]: Drain messages raised:
+            TypeError("unsupported operand type(s) for /: 'NoneType' and 'float'",)
+        Traceback (most recent call last):
+        File "faust/transport/consumer.py", line 497, in _drain_messages
+            async for tp, message in ait:
+        File "faust/transport/drivers/aiokafka.py", line 449, in getmany
+            record.timestamp / 1000.0,
+        TypeError: unsupported operand type(s) for /: 'NoneType' and 'float'
+
+    Contributed by Mika Eloranta (:github_user:`melor`).
+
+- **Distribution**: ``pip install faust`` no longer installs the examples
+  direcrtory.
+
+    Fix contributed by Michael Seifert (:github_user:`seifertm`)
+
+- **Web**: Adds exception handling to views.
+
+    A view can now bail out early via `raise self.NotFound()` for example.
+
+- **Web**: Support reverse lookup from view name via ``url_for``
+
+    .. sourcecode:: python
+
+        web.url_for(view_name, **params)
+
+- **Web**: Adds support for Flask-like "blueprints"
+
+    Blueprint is basically just a description of a reusable app
+    that you can add to your web application.
+
+    Blueprints are commonly used in most Flask-like web frameworks,
+    but Flask blueprints are not compatible with e.g. Sanic blueprints.
+
+    The Faust blueprint is not directly compatible with any of them,
+    but that should be fine.
+
+    To define a blueprint:
+
+    .. sourcecode:: python
+
+        from faust import web
+
+        blueprint = web.Blueprint('user')
+
+        @blueprint.route('/', name='list')
+        class UserListView(web.View):
+
+            async def get(self, request: web.Request) -> web.Response:
+                return self.json({'hello': 'world'})
+
+        @blueprint.route('/{username}/', name='detail')
+        class UserDetailView(web.View):
+
+            async def get(self, request: web.Request) -> web.Response:
+                name = request.match_info['username']
+                return self.json({'hello': name})
+
+            async def post(self, request: web.Request) -> web.Response:
+                ...
+
+            async def delete(self, request: web.Request) -> web.Response:
+                ...
+
+    Then to add the blueprint to a Faust app you register it:
+
+    .. sourcecode:: python
+
+        blueprint.register(app, url_prefix='/users/')
+
+    .. note::
+
+        You can also create views from functions (in this case it will only
+        support GET):
+
+        .. sourcecode:: python
+
+            @blueprint.route('/', name='index')
+            async def hello(self, request):
+                return self.text('Hello world')
+
+    .. admonition:: Why?
+
+        Asyncio web frameworks are moving quickly, and we want to be able
+        to quickly experiment with different backend drivers.
+
+        Blueprints is a tiny abstraction that fit well into the already
+        small web abstraction that we do have.
+
+    - Documentation and examples improvements by
+
+        + Tom Forbes (:github_user:`orf`).
+        + Matthew Grossman (:github_user:`matthewgrossman`)
+        + Denis Kataev (:github_user:`kataev`)
+        + Allison Wang (:github_user:`allisonwang`)
+        + Huyuumi (:github_user:`diplozoon`)
 
 Project
 -------
