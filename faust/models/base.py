@@ -44,7 +44,12 @@ from typing import (
 from mode.utils.objects import canoname
 
 from faust.serializers.codecs import CodecArg, dumps, loads
-from faust.types.models import FieldDescriptorT, ModelOptions, ModelT
+from faust.types.models import (
+    CoercionMapping,
+    FieldDescriptorT,
+    ModelOptions,
+    ModelT,
+)
 
 __all__ = ['Model', 'FieldDescriptor', 'registry']
 
@@ -198,6 +203,7 @@ class Model(ModelT):
                           abstract: bool = False,
                           allow_blessed_key: bool = None,
                           decimals: bool = None,
+                          coercions: CoercionMapping = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -226,7 +232,8 @@ class Model(ModelT):
                        isodates: bool = None,
                        abstract: bool = False,
                        allow_blessed_key: bool = None,
-                       decimals: bool = None) -> None:
+                       decimals: bool = None,
+                       coercions: CoercionMapping = None) -> None:
         if abstract:
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
@@ -245,10 +252,13 @@ class Model(ModelT):
         options = getattr(cls, '_options', None)
         if options is None:
             options = ModelOptions()
+            options.coercions = {}
         else:
             options = options.clone_defaults()
         if custom_options:
             options.__dict__.update(custom_options.__dict__)
+        if coercions is not None:
+            options.coercions.update(coercions)
         if serializer is not None:
             options.serializer = serializer
         if include_metadata is not None:

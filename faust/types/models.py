@@ -6,8 +6,10 @@ from typing import (
     ClassVar,
     FrozenSet,
     Mapping,
+    MutableMapping,
     NamedTuple,
     Optional,
+    Tuple,
     Type,
     Union,
     cast,
@@ -15,14 +17,14 @@ from typing import (
 from .codecs import CodecArg
 
 __all__ = [
-    'Converter',
+    'CoercionHandler',
+    'FieldDescriptorT',
+    'IsInstanceArgT',
     'ModelArg',
     'ModelOptions',
     'ModelT',
-    'FieldDescriptorT',
+    'TypeCoerce',
 ]
-
-ModelArg = Union[Type['ModelT'], Type[bytes], Type[str]]
 
 # Workaround for https://bugs.python.org/issue29581
 try:
@@ -44,10 +46,15 @@ except TypeError:
 else:
     abc_compatible_with_init_subclass = True
 
+ModelArg = Union[Type['ModelT'], Type[bytes], Type[str]]
+IsInstanceArgT = Union[Type, Tuple[Type, ...]]
+CoercionHandler = Callable[[Any], Any]
+CoercionMapping = MutableMapping[IsInstanceArgT, CoercionHandler]
 
-class Converter(NamedTuple):
+
+class TypeCoerce(NamedTuple):
     target: Type
-    handler: Callable[[Type, Any], Any]
+    handler: CoercionHandler
 
 
 class ModelOptions(abc.ABC):
@@ -57,6 +64,7 @@ class ModelOptions(abc.ABC):
     allow_blessed_key: bool = False
     isodates: bool = False
     decimals: bool = False
+    coercions: CoercionMapping = cast(CoercionMapping, None)
 
     def clone_defaults(self) -> 'ModelOptions':
         new_options = type(self)()
@@ -66,6 +74,7 @@ class ModelOptions(abc.ABC):
         new_options.allow_blessed_key = self.allow_blessed_key
         new_options.isodates = self.isodates
         new_options.decimals = self.decimals
+        new_options.coercions = dict(self.coercions)
         return new_options
 
     # If we set `attr = None` mypy will think the values can be None
@@ -96,17 +105,18 @@ class ModelOptions(abc.ABC):
     modelattrs: Mapping[str, Optional[Type]] = cast(
         Mapping[str, Optional[Type]], None)
 
-    #: Index: Mapping of fields that are not builtin-types.
-    #: E.g. datetime.
-    converse: Mapping[str, Converter] = cast(Mapping[str, Converter], None)
+    #: Index: Mapping of fields that need to be coerced.
+    #: Key is the name of the field, value is the coercion handler function.
+    field_coerce: Mapping[str, TypeCoerce] = cast(
+        Mapping[str, TypeCoerce], None)
 
     #: Mapping of field names to default value.
     defaults: Mapping[str, Any] = cast(  # noqa: E704 (flake8 bug)
         Mapping[str, Any], None)
 
     #: Mapping of init field conversion callbacks.
-    initfield: Mapping[str, Callable[[Any], Any]] = cast(
-        Mapping[str, Callable[[Any], Any]], None)
+    initfield: Mapping[str, CoercionHandler] = cast(
+        Mapping[str, CoercionHandler], None)
 
 
 base = abc.ABC if abc_compatible_with_init_subclass else object

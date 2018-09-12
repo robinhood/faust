@@ -333,8 +333,6 @@ of username to account:
 .. sourcecode:: python
 
     from typing import Mapping
-    import faust
-
     class DOA(faust.Record):
         accounts: Mapping[str, Account]
 
@@ -347,8 +345,11 @@ mapping or list type, so stick to what is listed in the table for your
 Faust version.
 
 
-Automatic conversion of datetimes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Coercion
+~~~~~~~~
+
+Automatic coercion of datetimes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Faust automatically serializes :class:`~datetime.datetime` fields to
 ISO-8601 text format but will not automatically deserialize ISO-8601 strings
@@ -368,6 +369,57 @@ deserialized:
     class Account(faust.Record, isodates=True, serializer='json'):
         date_joined: datetime
 
+Automatic coercion of decimals
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Similar to datetimes, json does not have a suitable high precision
+decimal field type.
+
+You can enable the ``decimals=True`` option to coerce string decimal
+values back into Python :class:`decimal.Decimal` objects.
+
+.. sourcecode:: python
+
+    from decimal import Decimal
+    import faust
+
+    class Order(faust.Record, decimals=True, serializer='json'):
+        price: Decimal
+        quantity: Decimal
+
+
+Custom coercions
+^^^^^^^^^^^^^^^^
+
+You can add custom coercion rules to your model classes
+using the ``coercions`` options.  This must be a mapping from, either a tuple
+of types or a single type, to a function/class/callable used to convert it.
+
+Here's an example converting strings back to UUID objects:
+
+.. sourcecode:: python
+
+    from uuid import UUID
+    import faust
+
+    class Account(faust.Record, coercions={UUID: UUID}):
+        id: UUID
+
+You'd get tired writing this out for every class, so why not make
+an abstract model subclass:
+
+.. sourcecode:: python
+
+    from uuid import UUID
+    import faust
+
+    class UUIDAwareRecord(faust.Record,
+                          abstract=True,
+                          coercions={UUID: UUID}):
+        ...
+
+    class Account(UUIDAwareRecord):
+        id: UUID
 
 Subclassing models: Abstract model classes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -468,7 +520,13 @@ Serialization/Deserialization
     .. autoattribute:: models
         :noindex:
 
-    .. autoattribute:: converse
+    .. autoattribute:: decimals
+        :noindex:
+
+    .. autoattribute:: isodates
+        :noindex:
+
+    .. autoattribute:: coercions
         :noindex:
 
     .. autoattribute:: defaults

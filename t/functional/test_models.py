@@ -72,34 +72,6 @@ class MapOfDate(Record, isodates=True):
     dates: Mapping[int, datetime]
 
 
-class IsDecimal(Record, decimals=True):
-    number: Decimal
-
-
-class ListOfDecimal(Record, decimals=True):
-    numbers: List[Decimal]
-
-
-class OptionalListOfDecimal(Record, decimals=True):
-    numbers: List[Decimal] = None
-
-
-class OptionalListOfDecimal2(Record, decimals=True):
-    numbers: Optional[List[Decimal]]
-
-
-class TupleOfDecimal(Record, decimals=True):
-    numbers: Tuple[Decimal]
-
-
-class SetOfDecimal(Record, decimals=True):
-    numbers: Set[Decimal]
-
-
-class MapOfDecimal(Record, decimals=True):
-    numbers: Mapping[int, Decimal]
-
-
 def test_parameters():
     account = Account('id', 'name', True)
     assert account.id == 'id'
@@ -196,6 +168,28 @@ def test_isodates():
 
 
 def test_decimals():
+
+    class IsDecimal(Record, decimals=True):
+        number: Decimal
+
+    class ListOfDecimal(Record, decimals=True):
+        numbers: List[Decimal]
+
+    class OptionalListOfDecimal(Record, decimals=True):
+        numbers: List[Decimal] = None
+
+    class OptionalListOfDecimal2(Record, decimals=True):
+        numbers: Optional[List[Decimal]]
+
+    class TupleOfDecimal(Record, decimals=True):
+        numbers: Tuple[Decimal]
+
+    class SetOfDecimal(Record, decimals=True):
+        numbers: Set[Decimal]
+
+    class MapOfDecimal(Record, decimals=True):
+        numbers: Mapping[int, Decimal]
+
     n1 = Decimal('1.31341324')
     assert IsDecimal.loads(IsDecimal(number=n1).dumps()).number == n1
     n2 = Decimal('3.41569')
@@ -217,6 +211,63 @@ def test_decimals():
         numbers={n1, n2}).dumps()).numbers == {n1, n2}
     assert MapOfDecimal.loads(MapOfDecimal(
         numbers={101: n1, 202: n2}).dumps()).numbers == {101: n1, 202: n2}
+
+
+def test_custom_coercion():
+
+    class Foo:
+
+        def __init__(self, value: int):
+            self.value: int = value
+
+        def __json__(self):
+            return self.value
+
+    class CanFooModel(Record, abstract=True, coercions={Foo: Foo}):
+        ...
+
+    class IsFoo(CanFooModel):
+        foo: Foo
+
+    class ListOfFoo(CanFooModel):
+        foos: List[Foo]
+
+    class OptionalListOfFoo(CanFooModel):
+        foos: List[Foo] = None
+
+    class OptionalListOfFoo2(CanFooModel):
+        foos: Optional[List[Foo]]
+
+    class TupleOfFoo(CanFooModel):
+        foos: Tuple[Foo]
+
+    class SetOfFoo(CanFooModel):
+        foos: Set[Foo]
+
+    class MapOfFoo(CanFooModel):
+        foos: Mapping[int, Foo]
+
+    n1 = Foo(101)
+    assert IsFoo.loads(IsFoo(foo=n1).dumps()).foo == n1
+    n2 = Foo(202)
+    assert ListOfFoo.loads(ListOfFoo(
+        foos=[n1, n2]).dumps()).foos == [n1, n2]
+    assert OptionalListOfFoo.loads(OptionalListOfFoo(
+        foos=None).dumps()).foos is None
+    assert OptionalListOfFoo.loads(OptionalListOfFoo(
+        foos=[n2, n1]).dumps()).foos == [n2, n1]
+    assert OptionalListOfFoo2.loads(OptionalListOfFoo2(
+        foos=None).dumps()).foos is None
+    assert OptionalListOfFoo2.loads(OptionalListOfFoo2(
+        foos=[n1, n2]).dumps()).foos == [n1, n2]
+    assert TupleOfFoo.loads(TupleOfFoo(
+        foos=(n1, n2)).dumps()).foos == (n1, n2)
+    assert TupleOfFoo.loads(TupleOfFoo(
+        foos=(n2,)).dumps()).foos == (n2,)
+    assert SetOfFoo.loads(SetOfFoo(
+        foos={n1, n2}).dumps()).foos == {n1, n2}
+    assert MapOfFoo.loads(MapOfFoo(
+        foos={101: n1, 202: n2}).dumps()).foos == {101: n1, 202: n2}
 
 
 def test_constructor():
@@ -758,7 +809,7 @@ DATETIME1 = datetime(2012, 6, 5, 13, 33, 0)
 
 ])
 def test_parse_iso8601(input, expected):
-    assert Account._parse_iso8601(None, input) == expected
+    assert Account._parse_iso8601(input) == expected
 
 
 def test_list_field_refers_to_self():

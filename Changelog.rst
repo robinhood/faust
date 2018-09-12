@@ -100,6 +100,61 @@ News
     is a float after all), but when deserializing Faust will reconstruct
     them as Decimal objects from that string.
 
+- **Model**: Records now support custom coercion handlers.
+
+    Coercion converts one type into another, for example from string to
+    :class:`~datetime.datettime`, or int/string to :class:`~decimal.Decimal`.
+
+    In models this means conversion from the serialized form back into
+    a corresponding Python type.
+
+    To define a model where all :class:`~uuid.UUID` fields are serialized
+    to string, but then converted back to :class:`~uuid.UUID` objects
+    when deserialized, do this:
+
+    .. sourcecode:: python
+
+        from uuid import UUID
+        import faust
+
+        class Account(faust.Record, coercions={UUID: UUID}):
+            id: UUID
+
+    .. admonition:: What about non-json serializable types?
+
+        The use of UUID in this example leaves one important detail
+        out: json doesn't support this type so how can models serialize it?
+
+        The Faust JSON serializer adds support for UUID objects by default,
+        but if you have a custom class you would need to add that capability
+        by adding a ``__json__`` handler:
+
+        .. sourcecode:: python
+
+            class MyType:
+
+                def __init__(self, value: str):
+                    self.value = value
+
+                def __json__(self):
+                    return self.value
+
+    You'd get tired writing this out for every class, so why not make
+    an abstract model subclass:
+
+    .. sourcecode:: python
+
+        from uuid import UUID
+        import faust
+
+        class UUIDAwareRecord(faust.Record,
+                              abstract=True,
+                              coercions={UUID: UUID}):
+            ...
+
+        class Account(UUIDAwareRecord):
+            id: UUID
+
 - **App**: New :setting:`ssl_context` adds authentication support to Kafka.
 
     Contributed by Mika Eloranta (:github_user:`melor`).

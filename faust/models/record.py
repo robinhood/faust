@@ -24,10 +24,11 @@ from mode.utils.objects import (
 )
 
 from faust.types.models import (
-    Converter,
     FieldDescriptorT,
+    IsInstanceArgT,
     ModelOptions,
     ModelT,
+    TypeCoerce,
 )
 from faust.utils import codegen
 from faust.utils import iso8601
@@ -37,8 +38,8 @@ from .base import FieldDescriptor, Model
 
 __all__ = ['Record']
 
-DATE_TYPES: Tuple[Type, ...] = (datetime,)
-DECIMAL_TYPES: Tuple[Type, ...] = (Decimal,)
+DATE_TYPES: IsInstanceArgT = (datetime,)
+DECIMAL_TYPES: IsInstanceArgT = (Decimal,)
 
 ALIAS_FIELD_TYPES = {
     dict: Dict,
@@ -100,7 +101,7 @@ def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
         return False, None
 
 
-def _is_concretely(types: Tuple[Type, ...], cls: Type) -> bool:
+def _is_concretely(types: IsInstanceArgT, cls: Type) -> bool:
     try:
         # Check for List[int], Mapping[int, int], etc.
         _, cls = guess_concrete_type(cls)
@@ -110,14 +111,6 @@ def _is_concretely(types: Tuple[Type, ...], cls: Type) -> bool:
         return issubclass(cls, types)
     except TypeError:
         return False
-
-
-def _is_date(cls: Type, *, types: Tuple[Type, ...] = DATE_TYPES) -> bool:
-    return _is_concretely(types, cls)
-
-
-def _is_decimal(cls: Type, *, types: Tuple[Type, ...] = DECIMAL_TYPES) -> bool:
-    return _is_concretely(types, cls)
 
 
 def _field_callback(typ: Type, callback: _ReconFun) -> Any:
@@ -217,8 +210,7 @@ class Record(Model, abstract=True):
         options.fields = cast(Mapping, fields)
         options.fieldset = frozenset(fields)
         options.fieldpos = {i: k for i, k in enumerate(fields.keys())}
-        is_date = _is_date
-        is_decimal = _is_decimal
+        is_concretely = _is_concretely
 
         # extract all default values, but only for actual fields.
         options.defaults = {
@@ -240,20 +232,22 @@ class Record(Model, abstract=True):
                 # Create mapping of model fields to concrete types if available
                 modelattrs[field] = concrete_type
 
-        # extract all fields that are not built-in types,
-        # e.g. List[datetime]
-        options.converse = {}
+        # extract all fields that we want to coerce to a different type
+        # (decimals=True, isodates=True, coercions={MyClass: converter})
+        # Then move them to options.field_coerce, which is what the
+        # model.__init__ method uses to coerce any fields that need to
+        # be coerced.
+        options.field_coerce = {}
         if options.isodates:
-            options.converse.update({
-                field: Converter(typ, cls._parse_iso8601)
-                for field, typ in fields.items()
-                if field not in modelattrs and is_date(typ)
-            })
+            options.coercions.setdefault(DATE_TYPES, cls._parse_iso8601)
         if options.decimals:
-            options.converse.update({
-                field: Converter(typ, cls._parse_decimal)
+            options.coercions.setdefault(DECIMAL_TYPES, cls._parse_decimal)
+
+        for coerce_types, coerce_handler in options.coercions.items():
+            options.field_coerce.update({
+                field: TypeCoerce(typ, coerce_handler)
                 for field, typ in fields.items()
-                if field not in modelattrs and is_decimal(typ)
+                if field not in modelattrs and is_concretely(coerce_types, typ)
             })
 
     @classmethod
@@ -264,7 +258,7 @@ class Record(Model, abstract=True):
         cls.asdict.faust_generated = True
 
     @staticmethod
-    def _parse_iso8601(typ: Type, data: Any) -> Optional[datetime]:
+    def _parse_iso8601(data: Any) -> Optional[datetime]:
         if data is None:
             return None
         if isinstance(data, datetime):
@@ -272,7 +266,7 @@ class Record(Model, abstract=True):
         return iso8601.parse(data)
 
     @staticmethod
-    def _parse_decimal(typ: Type, data: Any) -> Optional[Decimal]:
+    def _parse_decimal(data: Any) -> Optional[Decimal]:
         if data is None:
             return None
         if isinstance(data, Decimal):
@@ -317,7 +311,7 @@ class Record(Model, abstract=True):
         fields = cls._options.fieldpos
         optional = cls._options.optionalset
         models = cls._options.models
-        converse = cls._options.converse
+        field_coerce = cls._options.field_coerce
         initfield = cls._options.initfield = {}
         has_post_init = hasattr(cls, '__post_init__')
         required = []
@@ -325,14 +319,20 @@ class Record(Model, abstract=True):
         setters = []
         for field in fields.values():
             model = models.get(field)
-            conv = converse.get(field)
+            coerce = field_coerce.get(field)
             fieldval = f'{field}'
             if model is not None:
                 initfield[field] = _field_callback(model, _to_model)
                 assert initfield[field] is not None
                 fieldval = f'self._init_field("{field}", {field})'
-            if conv is not None:
-                initfield[field] = _field_callback(*conv)
+            if coerce is not None:
+                coerce_type, coerce_handler = coerce
+                # Model reconstruction require two-arguments: typ, val.
+                # Regular coercion callbacks just takes one argument, so
+                # need to create an intermediate function to fix that.
+                coerce_callback: _ReconFun = lambda typ, v: coerce_handler(v)
+                initfield[field] = _field_callback(
+                    coerce_type, coerce_callback)
                 assert initfield[field] is not None
                 fieldval = f'self._init_field("{field}", {field})'
             if field in optional:
