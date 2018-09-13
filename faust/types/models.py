@@ -136,7 +136,8 @@ class ModelT(base):  # type: ignore
     @classmethod
     @abc.abstractmethod
     def loads(cls, s: bytes, *,
-              default_serializer: CodecArg = None) -> 'ModelT':
+              default_serializer: CodecArg = None,  # XXX use serializer
+              serializer: CodecArg = None) -> 'ModelT':
         ...
 
     @abc.abstractmethod

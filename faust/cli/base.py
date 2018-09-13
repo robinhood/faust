@@ -658,8 +658,7 @@ class AppCommand(Command):
         """
         if typ:
             model: ModelT = self.import_relative_to_app(typ)
-            return model.loads(
-                want_bytes(value), default_serializer=serializer)
+            return model.loads(want_bytes(value), serializer=serializer)
         return want_bytes(value)
 
     def import_relative_to_app(self, attr: str) -> Any:

@@ -569,7 +569,7 @@ def test_default_no_blessed_key():
     y = Y(x)
 
     data = Y.dumps(y, serializer='json')
-    y2 = Y.loads(data, default_serializer='json')
+    y2 = Y.loads(data, serializer='json')
     assert isinstance(y2.x, X)
 
 
@@ -593,7 +593,7 @@ def test_default_multiple_levels_no_blessed_key():
         last_name='Costanza',
         address=Address('US'),
     ))
-    s = event.loads(event.dumps(serializer='json'), default_serializer='json')
+    s = event.loads(event.dumps(serializer='json'), serializer='json')
     assert isinstance(s.account, Account)
     assert isinstance(s.account.address, Address)
 
@@ -821,7 +821,7 @@ def test_list_field_refers_to_self():
     x = X(1, [X(2, [X(3, [])])])
 
     as_json = x.dumps(serializer='json')
-    loads = X.loads(as_json, default_serializer='json')
+    loads = X.loads(as_json, serializer='json')
     assert loads == x
 
     assert isinstance(loads.xs[0], X)
@@ -839,7 +839,7 @@ def test_optional_modelfield():
     y = Y(X(30))
 
     as_json = y.dumps(serializer='json')
-    loads = Y.loads(as_json, default_serializer='json')
+    loads = Y.loads(as_json, serializer='json')
     assert loads == y
 
     assert isinstance(loads.x, X)

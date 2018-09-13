@@ -29,6 +29,7 @@ values can be described as models.
 """
 import abc
 import inspect
+import warnings
 from operator import attrgetter
 from typing import (
     Any,
@@ -182,17 +183,20 @@ class Model(ModelT):
         return model.from_data(data) if model else data
 
     @classmethod
-    def loads(cls, s: bytes, *, default_serializer: CodecArg = None) -> ModelT:
+    def loads(cls, s: bytes, *,
+              default_serializer: CodecArg = None,  # XXX use serializer
+              serializer: CodecArg = None) -> ModelT:
         """Deserialize model object from bytes.
 
-        Arguments:
-            default_serializer (CodecArg): Default serializer to use
+        Keyword Arguments:
+            serializer (CodecArg): Default serializer to use
                 if no custom serializer was set for this model subclass.
-            **kwargs: Additional attributes to set on the model object.
-                Note, these are regarded as defaults, and any fields also
-                present in the message takes precedence.
         """
-        data = loads(cls._options.serializer or default_serializer, s)
+        if default_serializer is not None:
+            warnings.warn(DeprecationWarning(
+                'default_serializer deprecated, use: serializer'))
+        ser = cls._options.serializer or serializer or default_serializer
+        data = loads(ser, s)
         return cls.from_data(data)
 
     def __init_subclass__(cls,
