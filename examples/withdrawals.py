@@ -98,7 +98,4 @@ def generate_withdrawals(n: int = None):
 
 
 if __name__ == '__main__':
-    import sys
-    if len(sys.argv) < 2:
-        sys.argv.extend(['worker', '-l', 'info'])
     app.main()
