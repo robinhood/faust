@@ -80,6 +80,27 @@ News
 
     + Now depends on :ref:`Mode 1.17.0 <mode:version-1.17.0>`.
 
+    - No longer depends on :pypi:`click_completion`
+
+        If you want to use the shell completion command,
+        you now have to install that dependency locally first:
+
+        .. sourcecode:: console
+
+            $ ./examples/withdrawals.py completion
+            Usage: withdrawals.py completion [OPTIONS]
+
+            Error: Missing required dependency, but this is easy to fix.
+            Run `pip install click_completion` from your virtualenv
+            and try again!
+
+        Installing :pypi:`click_completion`:
+
+        .. sourcecode:: console
+
+            $ pip install click_completion
+            [...]
+
 - Now works with CPython 3.6.0.
 
 - **Models**: Record: Now supports `decimals` option to convert string

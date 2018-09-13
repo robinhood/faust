@@ -24,7 +24,6 @@ from typing import (
 )
 
 import click
-import click_completion
 from click import echo
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode.utils import text
@@ -37,6 +36,13 @@ from faust.utils import terminal
 
 from ._env import DATADIR, DEBUG, WORKDIR
 
+try:
+    import click_completion
+except ImportError:
+    click_completion = None
+else:
+    click_completion.init()
+
 __all__ = [
     'AppCommand',
     'Command',
@@ -48,8 +54,6 @@ __all__ = [
     'find_app',
     'option',
 ]
-
-click_completion.init()
 
 argument = click.argument
 option = click.option

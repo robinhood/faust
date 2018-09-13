@@ -1,7 +1,13 @@
 import os
 from pathlib import Path
-import click_completion
 from .base import AppCommand
+
+try:
+    import click_completion
+except ImportError:
+    click_completion = None  # noqa
+else:
+    click_completion.init()
 
 
 class completion(AppCommand):
@@ -10,6 +16,11 @@ class completion(AppCommand):
     require_app = False
 
     async def run(self) -> None:
+        if click_completion is None:
+            raise self.UsageError(
+                'Missing required dependency, but this is easy to fix.\n'
+                'Run `pip install click_completion` from your virtualenv\n'
+                'and try again!')
         self.say(click_completion.get_code(shell=self.shell()))
 
     def shell(self) -> str:
