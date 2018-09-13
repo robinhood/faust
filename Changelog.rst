@@ -71,16 +71,7 @@ Important Notes
 
     Contributed by Allison Wang (:github_user:`allisonwang`)
 
-.. _v110-news:
-
-News
-----
-
-- **Requirements**
-
-    + Now depends on :ref:`Mode 1.17.0 <mode:version-1.17.0>`.
-
-    - No longer depends on :pypi:`click_completion`
+- No longer depends on :pypi:`click_completion`
 
         If you want to use the shell completion command,
         you now have to install that dependency locally first:
@@ -100,6 +91,17 @@ News
 
             $ pip install click_completion
             [...]
+
+.. _v110-news:
+
+News
+----
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.17.0 <mode:version-1.17.0>`.
+
+    + No longer depends on :pypi:`click_completion`
 
 - Now works with CPython 3.6.0.
 

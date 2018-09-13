@@ -19,7 +19,7 @@ from typing import (
 
 from mode.utils.objects import (
     annotations,
-    guess_concrete_type,
+    guess_polymorphic_type,
     remove_optional,
 )
 
@@ -62,41 +62,42 @@ _ReconFun = Callable[[Type, Any], Any]
 #    x: List[OtherModel]
 #    y: Mapping[KeyModel, ValueModel]
 #
-# in the source code we refer to a concrete type, in the example above
-# the concrete type for x would be `list`, and the concrete type
+# in the source code we refer to a polymorphic type, in the example above
+# the polymorphic type for x would be `list`, and the polymorphic type
 # for y would be `dict`.
 
-__concrete_type_cache: Dict[Type, Tuple[Type, Type]] = {}
+__polymorphic_type_cache: Dict[Type, Tuple[Type, Type]] = {}
 
 
-def _concrete_type(typ: Type) -> Tuple[Type, Type]:
+def _polymorphic_type(typ: Type) -> Tuple[Type, Type]:
     try:
-        concrete_type, cls = __concrete_type_cache[typ]
+        polymorphic_type, cls = __polymorphic_type_cache[typ]
     except KeyError:
         try:
-            val = guess_concrete_type(typ)
+            val = guess_polymorphic_type(typ)
         except TypeError:
             val = (TypeError, None)
-        __concrete_type_cache[typ] = val
+        __polymorphic_type_cache[typ] = val
         return val
-    if concrete_type is TypeError:
+    if polymorphic_type is TypeError:
         raise TypeError()
-    return concrete_type, cls
+    return polymorphic_type, cls
 
 
 def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
-    # Returns (is_model, concrete_type).
-    #  concrete type (if available) will be list if it's a list, dict if dict,
-    #  etc, then that means it's a List[ModelType], Dict[ModelType] etc, so
+    # Returns (is_model, polymorphic_type).
+    # polymorphic type (if available) will be list if it's a list,
+    # dict if dict, etc, then that means it's a List[ModelType],
+    # Dict[ModelType] etc, so
     # we have to deserialize them as such.
-    concrete_type = None
+    polymorphic_type = None
     try:
-        concrete_type, cls = guess_concrete_type(cls)
+        polymorphic_type, cls = guess_polymorphic_type(cls)
     except TypeError:
         pass
     try:
         cls = remove_optional(cls)
-        return issubclass(cls, ModelT), concrete_type
+        return issubclass(cls, ModelT), polymorphic_type
     except TypeError:  # typing.Any cannot be used with subclass
         return False, None
 
@@ -104,7 +105,7 @@ def _is_model(cls: Type) -> Tuple[bool, Optional[Type]]:
 def _is_concretely(types: IsInstanceArgT, cls: Type) -> bool:
     try:
         # Check for List[int], Mapping[int, int], etc.
-        _, cls = guess_concrete_type(cls)
+        _, cls = guess_polymorphic_type(cls)
     except TypeError:
         pass
     try:
@@ -115,7 +116,7 @@ def _is_concretely(types: IsInstanceArgT, cls: Type) -> bool:
 
 def _field_callback(typ: Type, callback: _ReconFun) -> Any:
     try:
-        generic, subtyp = _concrete_type(typ)
+        generic, subtyp = _polymorphic_type(typ)
     except TypeError:
         pass
     else:
@@ -225,12 +226,13 @@ class Record(Model, abstract=True):
         modelattrs = options.modelattrs = {}
 
         for field, typ in fields.items():
-            is_model, concrete_type = _is_model(typ)
+            is_model, polymorphic_type = _is_model(typ)
             if is_model:
                 # Extract all model fields
                 options.models[field] = typ
-                # Create mapping of model fields to concrete types if available
-                modelattrs[field] = concrete_type
+                # Create mapping of model fields to polymorphic types if
+                # available
+                modelattrs[field] = polymorphic_type
 
         # extract all fields that we want to coerce to a different type
         # (decimals=True, isodates=True, coercions={MyClass: converter})

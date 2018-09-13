@@ -496,14 +496,14 @@ class test_too_many_arguments_raises_TypeError():
     assert reason == '__init__() takes 3 positional arguments but 4 were given'
 
 
-def test_fields_with_way_too_much_of_a_concrete_type__dict():
+def test_fields_with_concrete_polymorphic_type__dict():
 
     class X(Record, isodates=True):
         foo: int
         details: dict
 
 
-def test_fields_with_way_too_much_of_a_concrete_type__dict_optional():
+def test_fields_with_concrete_polymorphic_type__dict_optional():
 
     class X(Record, isodates=True):
         username: str
@@ -513,28 +513,28 @@ def test_fields_with_way_too_much_of_a_concrete_type__dict_optional():
         details: dict = None
 
 
-def test_fields_with_way_too_much_of_a_concrete_type__tuple():
+def test_fields_with_concrete_polymorphic_type__tuple():
 
     class X(Record, isodates=True):
         foo: int
         details: tuple
 
 
-def test_fields_with_way_too_much_of_a_concrete_type__list():
+def test_fields_with_concrete_polymorphic_type__list():
 
     class X(Record, isodates=True):
         foo: int
         details: list
 
 
-def test_fields_with_way_too_much_of_a_concrete_type__set():
+def test_fields_with_concrete_polymorphic_type__set():
 
     class X(Record, isodates=True):
         foo: int
         details: set
 
 
-def test_fields_with_way_too_much_of_a_concrete_type__frozenset():
+def test_fields_with_concrete_polymorphic_type__frozenset():
 
     class X(Record, isodates=True):
         foo: int
