@@ -99,7 +99,7 @@ News
 
 - **Requirements**
 
-    + Now depends on :ref:`Mode 1.17.0 <mode:version-1.17.0>`.
+    + Now depends on :ref:`Mode 1.17.1 <mode:version-1.17.1>`.
 
     + No longer depends on :pypi:`click_completion`
 
