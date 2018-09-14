@@ -226,6 +226,7 @@ class Model(ModelT):
             abstract,
             allow_blessed_key,
             decimals,
+            coercions,
         )
 
     @classmethod
@@ -238,12 +239,6 @@ class Model(ModelT):
                        allow_blessed_key: bool = None,
                        decimals: bool = None,
                        coercions: CoercionMapping = None) -> None:
-        if abstract:
-            # Custom base classes can set this to skip class initialization.
-            cls.__is_abstract__ = True
-            return
-        cls.__is_abstract__ = False
-
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='json', namespace='com.vandelay.X'):
         #        ...
@@ -273,7 +268,15 @@ class Model(ModelT):
             options.decimals = decimals
         if allow_blessed_key is not None:
             options.allow_blessed_key = allow_blessed_key
+
         options.namespace = namespace or canoname(cls)
+
+        if abstract:
+            # Custom base classes can set this to skip class initialization.
+            cls.__is_abstract__ = True
+            cls._options = options
+            return
+        cls.__is_abstract__ = False
 
         # Add introspection capabilities
         cls._contribute_to_options(options)
@@ -292,6 +295,12 @@ class Model(ModelT):
         cls._model_init = cls._BUILD_init()
         if '__init__' not in cls.__dict__:
             cls.__init__ = cls._model_init
+        cls._model_hash = cls._BUILD_hash()
+        if '__hash__' not in cls.__dict__:
+            cls.__hash__ = cls._model_hash
+        cls._model_eq = cls._BUILD_eq()
+        if '__eq__' not in cls.__dict__:
+            cls.__eq__ = cls._model_eq
 
     @classmethod
     @abc.abstractmethod
@@ -315,6 +324,16 @@ class Model(ModelT):
     @classmethod
     @abc.abstractmethod
     def _BUILD_init(cls) -> Callable[[], None]:  # pragma: no cover
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _BUILD_hash(cls) -> Callable[[], None]:  # pragma: no cover
+        ...
+
+    @classmethod
+    @abc.abstractmethod
+    def _BUILD_eq(cls) -> Callable[[], None]:  # pragma: no cover
         ...
 
     @abc.abstractmethod

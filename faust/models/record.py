@@ -20,10 +20,12 @@ from typing import (
 from mode.utils.objects import (
     annotations,
     guess_polymorphic_type,
+    is_optional,
     remove_optional,
 )
 
 from faust.types.models import (
+    CoercionHandler,
     FieldDescriptorT,
     IsInstanceArgT,
     ModelOptions,
@@ -220,7 +222,6 @@ class Record(Model, abstract=True):
             if k in fields and not (
                 isinstance(v, FieldDescriptor) and v.required)
         }
-        options.optionalset = frozenset(options.defaults)
 
         options.models = {}
         modelattrs = options.modelattrs = {}
@@ -233,6 +234,12 @@ class Record(Model, abstract=True):
                 # Create mapping of model fields to polymorphic types if
                 # available
                 modelattrs[field] = polymorphic_type
+            if is_optional(typ):
+                # Optional[X] also needs to be added to defaults mapping.
+                options.defaults.setdefault(field, None)
+
+        # Create frozenset index of default fields.
+        options.optionalset = frozenset(options.defaults)
 
         # extract all fields that we want to coerce to a different type
         # (decimals=True, isodates=True, coercions={MyClass: converter})
@@ -241,9 +248,9 @@ class Record(Model, abstract=True):
         # be coerced.
         options.field_coerce = {}
         if options.isodates:
-            options.coercions.setdefault(DATE_TYPES, cls._parse_iso8601)
+            options.coercions.setdefault(DATE_TYPES, iso8601.parse)
         if options.decimals:
-            options.coercions.setdefault(DECIMAL_TYPES, cls._parse_decimal)
+            options.coercions.setdefault(DECIMAL_TYPES, str_to_decimal)
 
         for coerce_types, coerce_handler in options.coercions.items():
             options.field_coerce.update({
@@ -260,20 +267,14 @@ class Record(Model, abstract=True):
         cls.asdict.faust_generated = True
 
     @staticmethod
-    def _parse_iso8601(data: Any) -> Optional[datetime]:
-        if data is None:
+    def _init_maybe_coerce(coerce: CoercionHandler,
+                           typ: Type,
+                           value: Any) -> Any:
+        if value is None:
             return None
-        if isinstance(data, datetime):
-            return data
-        return iso8601.parse(data)
-
-    @staticmethod
-    def _parse_decimal(data: Any) -> Optional[Decimal]:
-        if data is None:
-            return None
-        if isinstance(data, Decimal):
-            return data
-        return str_to_decimal(cast(str, data))
+        if isinstance(value, typ):
+            return value
+        return coerce(value)
 
     @classmethod
     def _contribute_field_descriptors(cls,
@@ -332,9 +333,9 @@ class Record(Model, abstract=True):
                 # Model reconstruction require two-arguments: typ, val.
                 # Regular coercion callbacks just takes one argument, so
                 # need to create an intermediate function to fix that.
-                coerce_callback: _ReconFun = lambda typ, v: coerce_handler(v)
                 initfield[field] = _field_callback(
-                    coerce_type, coerce_callback)
+                    coerce_type,
+                    partial(cls._init_maybe_coerce, coerce_handler))
                 assert initfield[field] is not None
                 fieldval = f'self._init_field("{field}", {field})'
             if field in optional:
@@ -371,6 +372,18 @@ class Record(Model, abstract=True):
             globals=globals(),
             locals=locals(),
         )
+
+    @classmethod
+    def _BUILD_hash(cls) -> Callable[[], None]:
+        return codegen.HashMethod(list(cls._options.fields),
+                                  globals=globals(),
+                                  locals=locals())
+
+    @classmethod
+    def _BUILD_eq(cls) -> Callable[[], None]:
+        return codegen.EqMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
 
     def _init_field(self, field: str, value: Any) -> Any:
         return self._options.initfield[field](value)
@@ -460,11 +473,17 @@ class Record(Model, abstract=True):
             )
         return False
 
-    def __ne__(self, other: Any) -> bool:
-        return not self.__eq__(other)
+    def __lt__(self, other: 'Record') -> bool:
+        return hash(self) < hash(other)
 
-    def __hash__(self) -> int:
-        return object.__hash__(self)
+    def __le__(self, other: 'Record') -> bool:
+        return hash(self) <= hash(other)
+
+    def __gt__(self, other: 'Record') -> bool:
+        return hash(self) > hash(other)
+
+    def __ge__(self, other: 'Record') -> bool:
+        return hash(self) >= hash(other)
 
 
 def _kvrepr(d: Mapping[str, Any], *, sep: str = ', ') -> str:

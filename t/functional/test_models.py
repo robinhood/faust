@@ -2,9 +2,15 @@ import abc
 from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
-from faust import Record
+import faust
+from faust.utils import iso8601
 from faust.utils import json
 import pytest
+
+
+class Record(faust.Record, serializer='json'):
+    # make sure all models in this test uses json as the serializer.
+    ...
 
 
 class Account(Record):
@@ -42,34 +48,6 @@ class User(Record):
     id: str
     username: str
     account: Account
-
-
-class Date(Record, isodates=True):
-    date: datetime
-
-
-class ListOfDate(Record, isodates=True):
-    dates: List[datetime]
-
-
-class OptionalListOfDate(Record, isodates=True):
-    dates: List[datetime] = None
-
-
-class OptionalListOfDate2(Record, isodates=True):
-    dates: Optional[List[datetime]]
-
-
-class TupleOfDate(Record, isodates=True):
-    dates: Tuple[datetime]
-
-
-class SetOfDate(Record, isodates=True):
-    dates: Set[datetime]
-
-
-class MapOfDate(Record, isodates=True):
-    dates: Mapping[int, datetime]
 
 
 def test_parameters():
@@ -144,6 +122,28 @@ def test_parameters_with_custom_init_and_super():
 
 
 def test_isodates():
+
+    class Date(Record, isodates=True):
+        date: datetime
+
+    class TupleOfDate(Record, isodates=True):
+        dates: Tuple[datetime]
+
+    class SetOfDate(Record, isodates=True):
+        dates: Set[datetime]
+
+    class MapOfDate(Record, isodates=True):
+        dates: Mapping[int, datetime]
+
+    class ListOfDate(Record, isodates=True):
+        dates: List[datetime]
+
+    class OptionalListOfDate(Record, isodates=True):
+        dates: List[datetime] = None
+
+    class OptionalListOfDate2(Record, isodates=True):
+        dates: Optional[List[datetime]]
+
     n1 = datetime.utcnow()
     assert Date.loads(Date(date=n1).dumps()).date == n1
     n2 = datetime.utcnow()
@@ -164,31 +164,31 @@ def test_isodates():
     assert SetOfDate.loads(SetOfDate(
         dates={n1, n2}).dumps()).dates == {n1, n2}
     assert MapOfDate.loads(MapOfDate(
-        dates={101: n1, 202: n2}).dumps()).dates == {101: n1, 202: n2}
+        dates={'A': n1, 'B': n2}).dumps()).dates == {'A': n1, 'B': n2}
 
 
 def test_decimals():
 
-    class IsDecimal(Record, decimals=True):
+    class IsDecimal(Record, decimals=True, serializer='json'):
         number: Decimal
 
-    class ListOfDecimal(Record, decimals=True):
+    class ListOfDecimal(Record, decimals=True, serializer='json'):
         numbers: List[Decimal]
 
-    class OptionalListOfDecimal(Record, decimals=True):
+    class OptionalListOfDecimal(Record, decimals=True, serializer='json'):
         numbers: List[Decimal] = None
 
-    class OptionalListOfDecimal2(Record, decimals=True):
+    class OptionalListOfDecimal2(Record, decimals=True, serializer='json'):
         numbers: Optional[List[Decimal]]
 
-    class TupleOfDecimal(Record, decimals=True):
+    class TupleOfDecimal(Record, decimals=True, serializer='json'):
         numbers: Tuple[Decimal]
 
-    class SetOfDecimal(Record, decimals=True):
+    class SetOfDecimal(Record, decimals=True, serializer='json'):
         numbers: Set[Decimal]
 
-    class MapOfDecimal(Record, decimals=True):
-        numbers: Mapping[int, Decimal]
+    class MapOfDecimal(Record, decimals=True, serializer='json'):
+        numbers: Mapping[str, Decimal]
 
     n1 = Decimal('1.31341324')
     assert IsDecimal.loads(IsDecimal(number=n1).dumps()).number == n1
@@ -210,7 +210,7 @@ def test_decimals():
     assert SetOfDecimal.loads(SetOfDecimal(
         numbers={n1, n2}).dumps()).numbers == {n1, n2}
     assert MapOfDecimal.loads(MapOfDecimal(
-        numbers={101: n1, 202: n2}).dumps()).numbers == {101: n1, 202: n2}
+        numbers={'A': n1, 'B': n2}).dumps()).numbers == {'A': n1, 'B': n2}
 
 
 def test_custom_coercion():
@@ -218,21 +218,33 @@ def test_custom_coercion():
     class Foo:
 
         def __init__(self, value: int):
+            assert isinstance(value, int)
             self.value: int = value
+
+        def __eq__(self, other):
+            if other.__class__ is self.__class__:
+                return other.value == self.value
+            return NotImplemented
+
+        def __hash__(self):
+            return hash(self.value)
 
         def __json__(self):
             return self.value
 
-    class CanFooModel(Record, abstract=True, coercions={Foo: Foo}):
+    class CanFooModel(Record,
+                      abstract=True,
+                      coercions={Foo: Foo},
+                      serializer='json'):
         ...
 
-    class IsFoo(CanFooModel):
+    class IsFoo(CanFooModel, serializer='json'):
         foo: Foo
 
-    class ListOfFoo(CanFooModel):
+    class ListOfFoo(CanFooModel, serializer='json'):
         foos: List[Foo]
 
-    class OptionalListOfFoo(CanFooModel):
+    class OptionalListOfFoo(CanFooModel, serializer='json'):
         foos: List[Foo] = None
 
     class OptionalListOfFoo2(CanFooModel):
@@ -245,7 +257,7 @@ def test_custom_coercion():
         foos: Set[Foo]
 
     class MapOfFoo(CanFooModel):
-        foos: Mapping[int, Foo]
+        foos: Mapping[str, Foo]
 
     n1 = Foo(101)
     assert IsFoo.loads(IsFoo(foo=n1).dumps()).foo == n1
@@ -267,7 +279,7 @@ def test_custom_coercion():
     assert SetOfFoo.loads(SetOfFoo(
         foos={n1, n2}).dumps()).foos == {n1, n2}
     assert MapOfFoo.loads(MapOfFoo(
-        foos={101: n1, 202: n2}).dumps()).foos == {101: n1, 202: n2}
+        foos={'A': n1, 'B': n2}).dumps()).foos == {'A': n1, 'B': n2}
 
 
 def test_constructor():
@@ -291,8 +303,13 @@ def test_submodels():
 
     assert AccountList.loads(AccountList(
         accounts=[a1, a2, a3]).dumps()).accounts == [a1, a2, a3]
-    assert AccountSet.loads(AccountSet(
-        accounts={a1, a2, a3}).dumps()).accounts == {a1, a2, a3}
+
+    expected_set = {a1, a2, a3}
+    acc1 = AccountSet.loads(AccountSet(accounts={a1, a2, a3}).dumps()).accounts
+    assert isinstance(acc1, set)
+    assert len(acc1) == len(expected_set)
+    for acc in acc1:
+        assert acc in expected_set
     assert AccountMap.loads(AccountMap(
         accounts={'a': a1, 'b': a2, 'c': a3}).dumps()).accounts == {
         'a': a1,
@@ -308,8 +325,8 @@ def test_submodels_forward_reference():
 
     assert AccountList.loads(FREFAccountList(
         accounts=[a1, a2, a3]).dumps()).accounts == [a1, a2, a3]
-    assert AccountSet.loads(FREFAccountSet(
-        accounts={a1, a2, a3}).dumps()).accounts == {a1, a2, a3}
+    assert sorted(AccountSet.loads(FREFAccountSet(
+        accounts={a1, a2, a3}).dumps()).accounts) == sorted({a1, a2, a3})
     assert AccountMap.loads(FREFAccountMap(
         accounts={'a': a1, 'b': a2, 'c': a3}).dumps()).accounts == {
         'a': a1,
@@ -809,7 +826,8 @@ DATETIME1 = datetime(2012, 6, 5, 13, 33, 0)
 
 ])
 def test_parse_iso8601(input, expected):
-    assert Account._parse_iso8601(input) == expected
+    assert Record._init_maybe_coerce(
+        iso8601.parse, datetime, input) == expected
 
 
 def test_list_field_refers_to_self():
