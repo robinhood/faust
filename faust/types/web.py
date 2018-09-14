@@ -28,7 +28,7 @@ __all__ = [
     'BlueprintT',
 ]
 
-ViewGetHandler = Callable[[View, Request], Awaitable[Response]]
+ViewGetHandler = Callable[..., Awaitable[Response]]
 RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
 RouteDecoratorRet = Callable[[PageArg], PageArg]

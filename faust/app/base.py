@@ -155,6 +155,11 @@ Argument {old!r} is deprecated and scheduled for removal in Faust 1.0.
 Please use {new!r} instead.
 """
 
+W_DEPRECATED_SHARD_PARAM = """\
+The second argument to `@table_route` is deprecated,
+please use the `query_param` keyword argument instead.
+"""
+
 # @app.task decorator may be called in several ways:
 #
 # 1) Without parens:
@@ -762,16 +767,30 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         return _decorator
 
     def table_route(self, table: CollectionT,
-                    shard_param: str) -> RoutedViewGetHandler:
+                    shard_param: str = None,
+                    *,
+                    query_param: str = None,
+                    match_info: str = None) -> RoutedViewGetHandler:
         def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
+            if shard_param is not None:
+                warnings.warn(DeprecationWarning(W_DEPRECATED_SHARD_PARAM))
+                if query_param:
+                    raise TypeError(
+                        'Cannot specify shard_param and query_param')
+
             @wraps(fun)
-            async def get(view: View, request: Request) -> Response:
-                key = request.query[shard_param]
+            async def get(view: View, request: Request,
+                          *args: Any, **kwargs: Any) -> Response:
+                _query_param = query_param or shard_param
+                if match_info:
+                    key = request.match_info[match_info]
+                elif _query_param:
+                    key = request.query[_query_param]
                 try:
                     return await self.router.route_req(table.name, key,
                                                        view.web, request)
                 except SameNode:
-                    return await fun(view, request)
+                    return await fun(view, request, *args, **kwargs)
 
             return get
 

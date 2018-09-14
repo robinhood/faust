@@ -32,10 +32,9 @@ async def count_words(words):
         word_counts[word] += 1
 
 
-@app.page('/count/')
-@app.table_route(table=word_counts, shard_param='word')
-async def get_count(web, request):
-    word = request.query['word']
+@app.page('/count/{word}/')
+@app.table_route(table=word_counts, match_info='word')
+async def get_count(web, request, word):
     return web.json({
         word: word_counts[word],
     })

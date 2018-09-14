@@ -222,13 +222,13 @@ News
 
     + ``Channel.send(key=key, value=value)`` now works as expected.
 
-    + ``app.channel()`` accidentally set the maxsize to 1 by default,
+    + ``app.channel()`` accidentally set the ``maxsize`` to 1 by default,
       creating a deadlock.
 
     + ``Channel.send()`` now disregards the :setting:`stream_publish_on_commit`
       setting.
 
-- **Transport**: :pypi:`aiokafka`: Support timestampless messages
+- **Transport**: :pypi:`aiokafka`: Support timestamp-less messages
 
     Fixes error when data sent with old Kafka broker not supporting
     timestamps:
@@ -254,6 +254,22 @@ News
 - **Web**: Adds exception handling to views.
 
     A view can now bail out early via `raise self.NotFound()` for example.
+
+- **Web**: ``@table_route`` decorator now supports taking key from
+  the URL path.
+
+    This is now used in the :file:`examples/word_count.py` example
+    to add an endpoint ``/count/{word}/`` that routes to the correct
+    worker with that count:
+
+    .. sourcecode:: python
+
+        @app.page('/word/{word}/count/')
+        @table_route(table=word_counts, match_info='word')
+        async def get_count(web, request, word):
+            return web.json({
+                word: word_counts[word]
+            })
 
 - **Web**: Support reverse lookup from view name via ``url_for``
 

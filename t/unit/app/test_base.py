@@ -442,7 +442,7 @@ class test_App:
     def test_table_route(self, *, app):
         table = app.Table('foo')
 
-        @app.table_route(table, 'q')
+        @app.table_route(table, query_param='q')
         async def view(self, request):
             ...
 

@@ -212,7 +212,10 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def table_route(self, table: CollectionT,
-                    shard_param: str) -> RoutedViewGetHandler:
+                    shard_param: str = None,
+                    *,
+                    query_param: str = None,
+                    match_info: str = None) -> RoutedViewGetHandler:
         ...
 
     @abc.abstractmethod
