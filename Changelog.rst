@@ -12,7 +12,7 @@ please visit the :ref:`history` section.
 
 1.1.0
 =====
-:release-date: TBA
+:release-date: 2018-09-14 1:07 P.M PDT
 :release-by: Ask Solem (:github_user:`ask`)
 
 .. _v110-important-notes:
