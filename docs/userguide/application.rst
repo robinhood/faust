@@ -1178,9 +1178,215 @@ start a full Faust worker:
 
     await app.start_client()
 
+.. _project-layout:
+
+Projects and Directory Layout
+=============================
+
+Faust is a library; it does not mandate any specific directory layout
+and integrates with any existing framework or project conventions.
+
+That said, new projects written from scratch using Faust will want some
+guidance on how to organize, so we include this as a suggestion in the
+documentation.
+
+.. _project-layout-standalone:
+
+Small/Standalone Projects
+-------------------------
+
+You can create a small Faust service with no supporting directories at all,
+we refer to this as a "standalone module": a module that contains everything
+it needs to run a full service.
+
+The Faust distribution comes with several standalone examples,
+such as `examples/word_count.py`.
+
+.. _project-layout-large:
+
+Medium/Large Projects
+---------------------
+
+Projects need more organization as they grow larger,
+so we convert the standalone module into a directory layout:
+
+.. sourcecode:: text
+
+    + proj/
+      - __main__.py
+      - app.py
+      + users/
+        - agents.py
+        -   commands.py
+        -   models.py
+        -   views.py
+      + orders/
+        -   agents.py
+        -   models.py
+        -   views.py
+
+Problem: Autodiscovery
+~~~~~~~~~~~~~~~~~~~~~~
+
+Now we have many `@app.agent`/`@app.timer`'/`@app.command` decorators,
+and models spread across a nested directory. These have to be imported by
+the program to be registered and used.
+
+Enter the :setting:`autodiscover` setting:
+
+.. sourcecode:: python
+
+    # proj/app.py
+    import faust
+
+    app = faust.App(
+        'proj',
+        version=1,
+        autodiscover=True,
+        origin='proj'   # imported name for this project (import proj -> "proj")
+    )
+
+    def main() -> None:
+        app.main()
+
+Using the :setting:`autodiscover`  and setting it to :const:`True` means
+it will traverse the directory of the origin module to find agents, timers,
+tasks, commands and web views, etc.
+
+If you want more careful control you can specify a list of modules to traverse instead:
+
+.. sourcecode:: python
+
+    app = faust.App(
+        'proj',
+        version=1,
+        autodiscover=['proj.users', 'proj.orders'],
+        origin='proj'
+    )
+
+.. admonition:: Autodiscovery when using Django
+
+    When using `autodiscover=True` in a Django project,
+    only the apps listed in ``INSTALLED_APPS`` will be traversed.
+
+    See also :ref:`project-layout-django`.
+
+Problem: Entrypoint
+~~~~~~~~~~~~~~~~~~~
+
+The :file:`proj/__main__.py` module can act as the entrypoint for this
+project:
+
+.. sourcecode:: python
+
+    # proj/__main__.py
+    from proj.app import app
+    app.main()
+
+After creating this module you can now start a worker by doing:
+
+.. sourcecode:: python
+
+    python -m proj worker -l info
+
+Now you're probably thinking, "I'm too lazy to type python dash em all the
+time", but don't worry: take it one step further by using
+setuptools to install a command-line program for your project.
+
+1) Create a :file:`setup.py` for your project.
+
+    This step is not needed if you already have one.
+
+    You can read lots about creating your :file:`setup.py` in the
+    :pypi:`setuptools` documentation here:
+    https://setuptools.readthedocs.io/en/latest/setuptools.html#developer-s-guide
+
+    A minimum example that will work well enough:
+
+    .. sourcecode::
+
+        #!/usr/bin/env python
+        from setuptools import find_packages, setup
+
+        setup(
+            name='proj',
+            version='1.0.0',
+            description='Use Faust to blah blah blah',
+            author='Ola Normann',
+            author_email='ola.normann@example.com',
+            url='http://proj.example.com',
+            platforms=['any'],
+            license='Proprietary',
+            packages=find_packages(exclude=['tests', 'tests.*']),
+            include_package_data=True,
+            zip_safe=False,
+            install_requires=['faust'],
+            python_requires='~=3.6',
+        )
+
+    For inspiration you can also look to the `setup.py` files in the
+    :pypi:`faust` and :pypi:`mode` source code distributions.
+
+2) Add the command as a setuptools entrypoint.
+
+    To your :file:`setup.py` add the following argument:
+
+    .. sourcecode::
+
+        setup(
+            ...,
+            entry_points={
+                'console_scripts': [
+                    'proj = proj.app:main',
+                ],
+            },
+        )
+
+    This essentially defines that the ``proj`` program runs `from proj.app
+    import main`
+
+3) Install your package using setup.py or :program:`pip`.
+
+    When developing your project locally you should use ``setup.py develop``
+    to use the source code directory as a Python package:
+
+    .. sourcecode:: console
+
+        $ python setup.py develop
+
+    You can now run the `proj` command you added to :file:`setup.py` in step
+    two:
+
+    .. sourcecode:: console
+
+        $ proj worker -l info
+
+    Why use ``develop``? You can use ``python setup.py install``, but then
+    you have to run that every time you make modifications to the source
+    files.
+
+Another upside to using ``setup.py`` is that you can distribute your projects
+as ``pip install``-able packages.
+
+
+.. _project-layout-django:
+
+Django Projects
+---------------
+
+Django has their own conventions for directory layout, but your Django
+reusable apps will want some way to import your Faust app.
+
+We believe the best place to define the Faust app in a Django project, is in
+a dedicated reusable app. See the ``faustapp`` app in the
+:file:`examples/django` directory in the Faust source code distribution.
+
+.. _app-misc:
 
 Miscellaneous
 =============
+
+.. _app-misc-app_rationale:
 
 Why use applications?
 ---------------------
@@ -1198,7 +1404,6 @@ you often end up monkey patching to change how something works.
 
 The application keeps the library flexible to changes, and allows
 for many applications to coexist in the same process space.
-
 
 Reference
 =========
