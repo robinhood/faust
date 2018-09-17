@@ -1216,7 +1216,7 @@ so we convert the standalone module into a directory layout:
       - __main__.py
       - app.py
       + users/
-        - agents.py
+        -   agents.py
         -   commands.py
         -   models.py
         -   views.py
