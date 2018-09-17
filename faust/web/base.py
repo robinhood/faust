@@ -45,7 +45,7 @@ class Web(Service):
 
     def add_view(self, view_cls: Type[View], *, prefix: str = '') -> View:
         view: View = view_cls(self.app, self)
-        path = prefix + view.view_path
+        path = prefix.rstrip('/') + '/' + view.view_path.lstrip('/')
         self.route(path, view)
         self.views[path] = view
         self.reverse_names[view.view_name] = path

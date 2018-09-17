@@ -105,7 +105,10 @@ class Blueprint(BlueprintT):
                      app: AppT,
                      route: FutureRoute,
                      url_prefix: Optional[str]) -> None:
-        uri = url_prefix + route.uri if url_prefix else route.uri
+        if url_prefix:
+            uri = url_prefix.rstrip('/') + '/' + route.uri.lstrip('/')
+        else:
+            uri = route.uri
 
         app.page(
             path=uri[1:] if uri.startswith('//') else uri,
