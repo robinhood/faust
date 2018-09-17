@@ -12,12 +12,20 @@ please visit the :ref:`history` section.
 
 1.1.1
 =====
-:release-date: 2018-09-17 2:57 P.M PDT
+:release-date: 2018-09-17 4:06 P.M PDT
 :release-by: Ask Solem (:github_user:`ask`)
 
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.17.2 <mode:version-1.17.2>`.
 
 - **Web**: Blueprint registered to app with URL prefix would end up
-           wrong having double-slash.
+           having double-slash.
+
+- **Documentation**: Added :ref:`project layout suggestions <project-layout>`
+                     to the application user guide.
+
+- **Types**: annotations now passing checks on :pypi:`mypy` 0.630.
 
 .. _version-1.1.0:
 
