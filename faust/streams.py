@@ -60,7 +60,7 @@ try:  # pragma: no cover
     def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 except ImportError:  # pragma: no cover
-    from aiocontextvars import ContextVar, Context
+    from aiocontextvars import ContextVar, Context  # type: ignore
 
     def _inherit_context(
             *, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
@@ -82,7 +82,7 @@ _current_event = ContextVar('current_event')
 
 def current_event() -> Optional[EventT]:
     """Return the event currently being processed, or None."""
-    eventref = _current_event.get(None)
+    eventref = _current_event.get(None)  # type: ignore
     return eventref() if eventref is not None else None
 
 
