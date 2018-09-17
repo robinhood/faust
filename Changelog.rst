@@ -8,6 +8,17 @@ This document contain change notes for bugfix releases in
 the Faust 1.1 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.1.1:
+
+1.1.1
+=====
+:release-date: 2018-09-17 2:57 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+
+- **Web**: Blueprint registered to app with URL prefix would end up
+           wrong having double-slash.
+
 .. _version-1.1.0:
 
 1.1.0
