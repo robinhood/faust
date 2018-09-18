@@ -1303,7 +1303,7 @@ setuptools to install a command-line program for your project.
 
     A minimum example that will work well enough:
 
-    .. sourcecode::
+    .. sourcecode:: python
 
         #!/usr/bin/env python
         from setuptools import find_packages, setup
@@ -1331,7 +1331,7 @@ setuptools to install a command-line program for your project.
 
     To your :file:`setup.py` add the following argument:
 
-    .. sourcecode::
+    .. sourcecode:: python
 
         setup(
             ...,
