@@ -44,7 +44,12 @@ class test_AgentService:
         tps = {TP('foo', 0)}
         await service._start_one(index=index, active_partitions=tps)
         agent._start_task.assert_called_once_with(
-            expected_index, tps, None, service.beacon)
+            index=expected_index,
+            active_partitions=tps,
+            stream=None,
+            channel=None,
+            beacon=service.beacon,
+        )
 
     @pytest.mark.asyncio
     async def test_start_for_partitions(self, *, service):
@@ -98,8 +103,13 @@ class test_AgentService:
         )
         await service._on_start_supervisor()
 
+        aref = service._start_one.coro.return_value
+
         service._start_one.coro.assert_has_calls([
-            call(i, service._get_active_partitions()) for i in range(10)
+            call(index=i,
+                 channel=aref.stream.channel if i else None,
+                 active_partitions=service._get_active_partitions())
+            for i in range(10)
         ])
         service.supervisor.add.assert_has_calls([
             call(service._start_one.coro()) for i in range(10)
@@ -120,9 +130,10 @@ class test_AgentService:
         assert (await service._replace_actor(aref, 101) ==
                 service._start_one.coro())
         service._start_one.assert_called_once_with(
-            101,
-            aref.active_partitions,
-            aref.stream,
+            index=101,
+            active_partitions=aref.active_partitions,
+            stream=aref.stream,
+            channel=aref.stream.channel,
         )
 
     @pytest.mark.asyncio
