@@ -1213,17 +1213,28 @@ so we convert the standalone module into a directory layout:
 .. sourcecode:: text
 
     + proj/
-      - __main__.py
-      - app.py
-      + users/
-        -   agents.py
-        -   commands.py
-        -   models.py
-        -   views.py
-      + orders/
-        -   agents.py
-        -   models.py
-        -   views.py
+        - setup.py
+        - MANIFEST.in
+        - README.rst
+        - setup.cfg
+
+        + proj/
+            - __init__.py
+            - __main__.py
+            - app.py
+
+            + users/
+            -   __init__.py
+            -   agents.py
+            -   commands.py
+            -   models.py
+            -   views.py
+
+            + orders/
+                -   __init__.py
+                -   agents.py
+                -   models.py
+                -   views.py
 
 Problem: Autodiscovery
 ~~~~~~~~~~~~~~~~~~~~~~
