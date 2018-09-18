@@ -150,22 +150,33 @@ class AgentService(Service):
         super().__init__(**kwargs)
 
     async def _start_one(self,
+                         *,
                          index: Optional[int] = None,
                          active_partitions: Optional[Set[TP]] = None,
-                         stream: StreamT = None) -> ActorT:
+                         stream: StreamT = None,
+                         channel: ChannelT = None) -> ActorT:
         # an index of None means there's only one instance,
         # and `index is None` is used as a test by functions that
         # disallows concurrency.
         index = index if self.agent.concurrency > 1 else None
         return await cast(Agent, self.agent)._start_task(
-            index, active_partitions, stream, self.beacon)
+            index=index,
+            active_partitions=active_partitions,
+            stream=stream,
+            channel=channel,
+            beacon=self.beacon,
+        )
 
     async def _start_one_supervised(
             self,
             index: Optional[int] = None,
             active_partitions: Optional[Set[TP]] = None,
             stream: StreamT = None) -> ActorT:
-        aref = await self._start_one(index, active_partitions, stream)
+        aref = await self._start_one(
+            index=index,
+            active_partitions=active_partitions,
+            stream=stream,
+        )
         self.supervisor.add(aref)
         await aref.maybe_start()
         return aref
@@ -192,7 +203,11 @@ class AgentService(Service):
     async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
         aref = cast(ActorRefT, service)
         return await self._start_one(
-            index, aref.active_partitions, aref.stream)
+            index=index,
+            active_partitions=aref.active_partitions,
+            stream=aref.stream,
+            channel=cast(ChannelT, aref.stream.channel),
+        )
 
     def _get_supervisor_strategy(self) -> Type[SupervisorStrategyT]:
         SupervisorStrategy = self.agent.supervisor_strategy
@@ -202,8 +217,18 @@ class AgentService(Service):
 
     async def _on_start_supervisor(self) -> None:
         active_partitions = self._get_active_partitions()
+        channel: ChannelT = cast(ChannelT, None)
         for i in range(self.agent.concurrency):
-            res = await self._start_one(i, active_partitions)
+            res = await self._start_one(
+                index=i,
+                active_partitions=active_partitions,
+                channel=channel,
+            )
+            if channel is None:
+                # First concurrency actor creates channel,
+                # then we reuse it for --concurrency=n.
+                # This way they share the same queue.
+                channel = res.stream.channel
             self.supervisor.add(res)
         await self.supervisor.start()
 
@@ -419,7 +444,8 @@ class Agent(AgentT, ServiceProxy):
     def __call__(self, *,
                  index: int = None,
                  active_partitions: Set[TP] = None,
-                 stream: StreamT = None) -> ActorRefT:
+                 stream: StreamT = None,
+                 channel: ChannelT = None) -> ActorRefT:
         # The agent function can be reused by other agents/tasks.
         # For example:
         #
@@ -439,6 +465,7 @@ class Agent(AgentT, ServiceProxy):
         # function is an `async def` function that yields)
         if stream is None:
             stream = self.stream(
+                channel=channel,
                 concurrency_index=index,
                 active_partitions=active_partitions,
             )
@@ -467,13 +494,15 @@ class Agent(AgentT, ServiceProxy):
         if sink not in self._sinks:
             self._sinks.append(sink)
 
-    def stream(self, active_partitions: Set[TP] = None,
+    def stream(self,
+               channel: ChannelT = None,
+               active_partitions: Set[TP] = None,
                **kwargs: Any) -> StreamT:
-        channel = self.channel_iterator
-        channel = cast(TopicT, channel).clone(
-            is_iterator=False,
-            active_partitions=active_partitions,
-        )
+        if channel is None:
+            channel = cast(TopicT, self.channel_iterator).clone(
+                is_iterator=False,
+                active_partitions=active_partitions,
+            )
         if active_partitions is not None:
             assert channel.active_partitions == active_partitions
         s = self.app.stream(
@@ -490,9 +519,11 @@ class Agent(AgentT, ServiceProxy):
         return value
 
     async def _start_task(self,
+                          *,
                           index: Optional[int],
                           active_partitions: Optional[Set[TP]] = None,
                           stream: StreamT = None,
+                          channel: ChannelT = None,
                           beacon: NodeT = None) -> ActorRefT:
         # If the agent is an async function we simply start it,
         # if it returns an AsyncIterable/AsyncGenerator we start a task
@@ -501,6 +532,7 @@ class Agent(AgentT, ServiceProxy):
             index=index,
             active_partitions=active_partitions,
             stream=stream,
+            channel=channel,
         )
         return await self._prepare_actor(actor, beacon)
 
