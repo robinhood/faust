@@ -125,7 +125,7 @@ HTTP Verbs: ``GET``/``POST``/``PUT``/``DELETE``
 Specify a :class:`faust.web.View` class when you need to handle HTTP
 verbs other than ``GET``:
 
-... sourcecode:: python
+.. sourcecode:: python
 
     from faust.web import Request, Response, View
 
