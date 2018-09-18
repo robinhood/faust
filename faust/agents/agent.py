@@ -849,6 +849,10 @@ class Agent(AgentT, ServiceProxy):
         s += f'{shorten_fqdn(qualname(self.fun))}'
         return s
 
+    @property
+    def shortlabel(self) -> str:
+        return self._agent_label()
+
 
 class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
 

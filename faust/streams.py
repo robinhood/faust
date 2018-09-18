@@ -106,6 +106,7 @@ _LinkedListDirectionBwd = _LinkedListDirection('_prev', lambda n: n._prev)
 class Stream(StreamT[T_co], Service):
     """A stream: async iterator processing events in channels/topics."""
     logger = logger
+    mundane_level = 'debug'
 
     _processors: MutableSequence[Processor]
     _anext_started = False
