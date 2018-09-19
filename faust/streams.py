@@ -687,7 +687,8 @@ class Stream(StreamT[T_co], Service):
 
     async def __aiter__(self) -> AsyncIterator:
         self._finalized = True
-        _inherit_context(loop=self.loop)
+        loop = self.loop
+        _inherit_context(loop=loop)
         await self.maybe_start()
         on_merge = self.on_merge
         on_stream_event_out = self._on_stream_event_out
@@ -727,6 +728,7 @@ class Stream(StreamT[T_co], Service):
         add_unacked: Callable[[Message], None] = unacked.add
         acking_topics: Set[str] = self.app.topics._acking_topics
         on_message_in = self.app.sensors.on_message_in
+        sleep = asyncio.sleep
 
         try:
             while not self.should_stop:
@@ -736,6 +738,7 @@ class Stream(StreamT[T_co], Service):
                 value: Any = None
                 # we iterate until on_merge gives value.
                 while value is None:
+                    await sleep(0, loop=loop)
                     # get message from channel
                     # This inlines ThrowableQueue.get for performance:
                     # We selectively call `await Q.put`/`Q.put_nowait`,
