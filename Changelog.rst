@@ -12,7 +12,7 @@ please visit the :ref:`history` section.
 
 1.1.2
 =====
-:release-date: 2018-09-19 2:30 P.M PDT
+:release-date: 2018-09-19 4:31 P.M PDT
 :release-by: Ask Solem (:github_user:`ask`)
 
 - **Requirements**
@@ -25,7 +25,7 @@ please visit the :ref:`history` section.
     channels, when they should share the same channel.
 
     The only tests verifying this was using mocks, so we've added
-    a new functional test in ``t/functional/test_agents`` to be
+    a new functional test in ``t/functional/agents`` to be
     sure it won't happen again.
 
     This test also demonstrated a case of starvation when using concurrency:
