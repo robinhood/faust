@@ -8,6 +8,39 @@ This document contain change notes for bugfix releases in
 the Faust 1.1 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.1.2:
+
+1.1.2
+=====
+:release-date: 2018-09-19 2:30 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.17.3 <mode:version-1.17.3>`.
+
+- **Agent**: Agents having concurrency=n was executing events n times.
+
+    An unrelated change caused these additional actors to have separate
+    channels, when they should share the same channel.
+
+    The only tests verifying this was using mocks, so we've added
+    a new functional test in ``t/functional/test_agents`` to be
+    sure it won't happen again.
+
+    This test also demonstrated a case of starvation when using concurrency:
+    a single concurrency slot could starve others from doing work.
+    To fix this a ``sleep(0)`` was added to ``Stream.__aiter__``,
+    this could improve performance in general for workers with many agents.
+
+    Huge thanks to Zhy on the Faust slack channel for testing and
+    identifying this issue.
+
+- **Agent**: Less logging noise when using ``concurrency``.
+
+    This removes the additionally emitted "Starting..."/"Stopping..." logs,
+    especially noisy with ``@app.agent(concurrency=1000)``.
+
 .. _version-1.1.1:
 
 1.1.1
