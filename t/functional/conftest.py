@@ -22,7 +22,12 @@ class LoggingMarks(NamedTuple):
 @pytest.yield_fixture()
 def logging(request):
     marks = request.node.get_marker('logging')
-    options = LoggingMarks(**(marks.kwargs or {}) if marks else {})
+    options = LoggingMarks(**{
+        **{'logfile': None,
+           'loglevel': 'info',
+           'logging_config': None},
+        **((marks.kwargs or {}) if marks else {}),
+    })
     _logging._acquireLock()
     try:
         prev_state = copy(_logging.Logger.manager.loggerDict)
