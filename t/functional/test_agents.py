@@ -179,7 +179,7 @@ class AgentTestCase(Service):
             # Wait for first message to be processed
             await self.wait(self.agent_started_processing, timeout=10.0)
 
-            # send 99 more messages
+            # send the rest of the messages
             for i in range(1, self.num_messages):
                 await self.put(tp, key=str(i).encode(), value=str(i).encode())
 
