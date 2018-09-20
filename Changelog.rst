@@ -12,7 +12,7 @@ please visit the :ref:`history` section.
 
 1.1.2
 =====
-:release-date: 2018-09-19 4:31 P.M PDT
+:release-date: 2018-09-19 5:09 P.M PDT
 :release-by: Ask Solem (:github_user:`ask`)
 
 - **Requirements**
