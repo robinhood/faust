@@ -12,6 +12,8 @@ please visit the :ref:`history` section.
 
 1.1.3
 =====
+:release-date: 2018-09-21 4:23 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
 
 - **Producer**: Producing messages is now 8x to 20x faster.
 
