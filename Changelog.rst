@@ -8,6 +8,93 @@ This document contain change notes for bugfix releases in
 the Faust 1.1 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.1.3:
+
+1.1.3
+=====
+
+- **Producer**: Producing messages is now 8x to 20x faster.
+
+- **Stream**: The :setting:`stream_publish_on_commit` setting
+              is now disabled by default.
+
+    Some agents produce data into topics: they forward data after processing
+    or modify tables requiring changelog events to be sent.
+
+    Kafka's at-least-once delivery guarantee means we will never lose
+    a message, and we can be certain any event sent to the source topic
+    will be processed.  It also means any source event can be processed
+    multiple times.
+
+    If the source event is processed many times and part of the agents
+    processing includes forwarding that event, or producing a new kind of
+    event, then that will also happen as many times as the source event
+    is reprocessed.
+
+    The :setting:`stream_publish_on_commit` setting attempts to minimize
+    the chances of duplicate messages being produced, by buffering
+    up any events sent in the agent and holding on to it until the offset
+    of the source event is committed.
+
+    Here's an agent forwarding values to another topic:
+
+    .. sourcecode:: python
+
+        @app.agent(source_topic)
+        async def forward(stream):
+            async for value in stream:
+                await destination_topic.send(value=value)
+
+    If we execute this with :setting:`stream_publish_on_commit` enabled,
+    then the send operation will be delayed until we have committed the
+    offset for the source event.
+
+    This works well when we commit often, but completely falls apart
+    if the buffer grows too large and we have too much to do
+    during commit.
+
+    The commit operation works like this (in pseudocode) when
+    :setting:`stream_publish_on_commit` is enabled:
+
+    .. sourcecode:: python
+
+        async def commit(self):
+            committable_offsets: Dict[TopicPartition, int] = ...
+            # Operation A (send buffered messages related to source offsets)
+            for tp, offset in committable_offsets.items():
+                send_messages_buffered_up_until_offset(tp, offset)
+            # Operation B (actually tell Kafka the new offsets)
+            consumer.commit(committable_offsets)
+
+    This is not an atomic operation - the worker could crash
+    between completing Operation A and Operation B.
+    If there are 1000 messages to send, it could send 500 of them then crash
+    without committing.
+
+    In this case we end up with 500 duplicate messages
+    when the source offsets are reprocessed.  Is this safer than producing
+    one and one, and committing fast? Probably not.
+
+    That said, if you make sure the buffer never grows too large
+    then you can take advantage of this setting to actually reduce the number
+    of duplicate messages sent when a source topic is reprocessed.
+
+    If you want to experiment with this, tweak the
+    :setting:`broker_commit_every` and
+    :setting:`broker_commit_interval` settings:
+
+    .. sourcecode:: python
+
+        app = faust.App('name',
+                        broker_commit_every=100,
+                        broker_commit_interval=1.0,
+                        stream_publish_on_commit=True)
+
+    The good news is that Kafka transactions are on the horizon.
+    As soon as we have support in a Python client, we can perform
+    this atomically, and without the overhead of buffering up messages until
+    commit time.
+
 .. _version-1.1.2:
 
 1.1.2
