@@ -658,10 +658,11 @@ process that event again.
 :type: :class:`bool`
 :default: :const:`False`
 
-We buffer up sending messages until the
+If enabled we buffer up sending messages until the
 source topic offset related to that processsing is committed.
 This means when we do commit, we may have buffered up a LOT of messages
-so commit frequently.
+so commit needs to happen frequently (make sure to decrease
+:setting:`broker_commit_every`).
 
 This setting will be removed once transaction support is added in a later version.
 

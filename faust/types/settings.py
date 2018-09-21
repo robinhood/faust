@@ -136,7 +136,7 @@ STREAM_BUFFER_MAXSIZE = 4096
 #:
 #: This setting is deprecated and will be removed once transaction support
 #: is added in a later version.
-STREAM_PUBLISH_ON_COMMIT = True
+STREAM_PUBLISH_ON_COMMIT = False
 
 #: Minimum time to batch before sending out messages from the producer.
 #: Used as the default value for :setting:`linger_ms`.
