@@ -61,7 +61,7 @@ async def test_send(
     await app.send(topic, key, event, key_serializer=key_serializer)
     # do it twice so producer_started is also True
     await app.send(topic, key, event, key_serializer=key_serializer)
-    expected_sender = app.producer.send_and_wait
+    expected_sender = app.producer.send
     if key is not None:
         if isinstance(key, str):
             # Default serializer is raw, and str should be serialized
