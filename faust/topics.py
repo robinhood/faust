@@ -308,7 +308,7 @@ class Topic(Channel, TopicT):
         return await self.app.maybe_start_producer()
 
     async def publish_message(self, fut: FutureMessage,
-                              wait: bool = True) -> Awaitable[RecordMetadata]:
+                              wait: bool = False) -> Awaitable[RecordMetadata]:
         app = self.app
         message: PendingMessage = fut.message
         if isinstance(message.channel, str):
