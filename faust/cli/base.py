@@ -3,6 +3,7 @@ import abc
 import asyncio
 import inspect
 import os
+import signal
 import sys
 from functools import wraps
 from pathlib import Path
@@ -408,6 +409,10 @@ class Command(abc.ABC):
         self.args = args
         self.kwargs = kwargs
         self.prog_name = self.ctx.find_root().command_path
+        self.signal_handlers = {
+            signal.SIGINT: self.on_sigint,
+            signal.SIGTERM: self.on_sigterm,
+        }
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
@@ -418,9 +423,24 @@ class Command(abc.ABC):
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
+        self.install_signal_handlers(loop)
         args = self.args + args
         kwargs = {**self.kwargs, **kwargs}
         return loop.run_until_complete(self.run(*args, **kwargs))
+
+    def install_signal_handlers(self,
+                                loop: asyncio.AbstractEventLoop) -> None:
+        for signum, handler in self.signal_handlers.items():
+            loop.add_signal_handler(signum, handler)
+
+    def on_sigint(self) -> None:
+        self.on_signal_default_handler(signal.SIGINT)
+
+    def on_sigterm(self) -> None:
+        self.on_signal_default_handler(signal.SIGTERM)
+
+    def on_signal_default_handler(self, signal: int) -> None:
+        raise KeyboardInterrupt()
 
     def tabulate(self,
                  data: terminal.TableDataT,
