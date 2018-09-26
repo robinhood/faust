@@ -25,7 +25,6 @@ They are lazy and need to be registered to an app to be activated:
                       user_id: str) -> web.Response:
             return web.json(...)
 
-
 At this point the views are realized and can be used
 from Python code, but the cached ``get`` method handlers
 cannot be called yet.
@@ -143,6 +142,8 @@ class FutureCache(CacheT):
                  **kwargs: Any) -> None:
         self.blueprint = blueprint
         self.timeout = timeout
+        if key_prefix is None:
+            key_prefix = blueprint.name
         self.key_prefix = key_prefix
         self.backend = backend
         self._cache_for_app = {}
