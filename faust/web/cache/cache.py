@@ -76,9 +76,12 @@ class Cache(CacheT):
 
     async def get_view(self,
                        key: str, view: web.View) -> Optional[web.Response]:
-        payload = await self.backend.get(key)
-        if payload is not None:
-            return view.bytes_to_response(payload)
+        try:
+            payload = await self.backend.get(key)
+            if payload is not None:
+                return view.bytes_to_response(payload)
+        except self.backend.Unavailable:
+            return None
         return None
 
     async def set_view(self,
@@ -86,11 +89,14 @@ class Cache(CacheT):
                        view: web.View,
                        response: web.Response,
                        timeout: Seconds) -> None:
-        return await self.backend.set(
-            key,
-            view.response_to_bytes(response),
-            want_seconds(timeout if timeout is not None else self.timeout),
-        )
+        try:
+            return await self.backend.set(
+                key,
+                view.response_to_bytes(response),
+                want_seconds(timeout if timeout is not None else self.timeout),
+            )
+        except self.backend.Unavailable:
+            pass
 
     def can_cache_request(self, request: web.Request) -> bool:
         return request.method.upper() in self.cache_allowed_methods

@@ -218,7 +218,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
-    # Cache is created on demoand: use `.cache` property.
+    # Cache is created on demand: use `.cache` property.
     _cache: Optional[CacheBackendT] = None
 
     _assignor: Optional[PartitionAssignorT] = None
