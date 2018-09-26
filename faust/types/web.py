@@ -1,9 +1,11 @@
 import abc
 import typing
 from pathlib import Path
-from typing import Awaitable, Callable, Optional, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Type, Union
 
 from aiohttp.client import ClientSession
+from mode import Seconds, ServiceT
+from yarl import URL
 
 if typing.TYPE_CHECKING:
     from faust.types.app import AppT
@@ -25,6 +27,8 @@ __all__ = [
     'PageArg',
     'HttpClientT',
     'Web',
+    'CacheBackendT',
+    'CacheT',
     'BlueprintT',
 ]
 
@@ -38,9 +42,59 @@ class HttpClientT(ClientSession):
     ...
 
 
+class CacheBackendT(ServiceT):
+
+    @abc.abstractmethod
+    def __init__(self,
+                 app: AppT,
+                 url: Union[URL, str] = 'memory://',
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def get(self, key: str) -> Optional[bytes]:
+        ...
+
+    @abc.abstractmethod
+    async def set(self, key: str, value: bytes, timeout: float) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def delete(self, key: str) -> None:
+        ...
+
+
+class CacheT(abc.ABC):
+
+    timeout: Seconds
+    key_prefix: str
+
+    @abc.abstractmethod
+    def __init__(self,
+                 timeout: Seconds = None,
+                 key_prefix: str = '',
+                 backend: Union[Type[CacheBackendT], str] = None,
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def view(self,
+             timeout: Seconds = None,
+             key_prefix: str = None,
+             **kwargs: Any) -> Callable[[Callable], Callable]:
+        ...
+
+
 class BlueprintT(abc.ABC):
     name: str
     url_prefix: Optional[str]
+
+    @abc.abstractmethod
+    def cache(self,
+              timeout: Seconds = None,
+              key_prefix: str = '',
+              backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
+        ...
 
     @abc.abstractmethod
     def route(self,

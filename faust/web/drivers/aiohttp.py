@@ -1,17 +1,23 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
+from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, cast
+from typing import Any, Callable, ClassVar, Optional, Tuple, Union, cast
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
 from mode.threads import ServiceThread
+from mode.utils.compat import want_str
 from mode.utils.futures import notify
 
 from faust.types import AppT
 from faust.web import base
 
 __all__ = ['Web']
+
+CONTENT_SEPARATOR: bytes = b'\r\n\r\n'
+HEADER_SEPARATOR: bytes = b'\r\n'
+HEADER_KEY_VALUE_SEPARATOR: bytes = b': '
 
 _bytes = bytes
 
@@ -60,6 +66,10 @@ class Web(base.Web):
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[ServerThread] = None
 
+    content_separator: ClassVar[bytes] = CONTENT_SEPARATOR
+    header_separator: ClassVar[bytes] = HEADER_SEPARATOR
+    header_key_value_separator: ClassVar[bytes] = HEADER_KEY_VALUE_SEPARATOR
+
     def __init__(self,
                  app: AppT,
                  *,
@@ -106,6 +116,40 @@ class Web(base.Web):
                    path: Union[Path, str],
                    **kwargs: Any) -> None:
         self._app.router.add_static(prefix, str(path), **kwargs)
+
+    def bytes_to_response(self, s: _bytes) -> base.Response:
+        status_code, _, payload = s.partition(self.content_separator)
+        headers, _, body = payload.partition(self.content_separator)
+
+        response = Response(
+            body=body,
+            status=HTTPStatus(int(status_code)),
+            headers=dict(self._splitheader(h) for h in headers.splitlines()),
+        )
+        return cast(base.Response, response)
+
+    def _splitheader(self, header: _bytes) -> Tuple[str, str]:
+        key, value = header.split(self.header_key_value_separator, 1)
+        return want_str(key.strip()), want_str(value.strip())
+
+    def response_to_bytes(self, response: base.Response) -> _bytes:
+        resp = cast(Response, response)
+        return self.content_separator.join([
+            str(resp.status).encode(),
+            self.content_separator.join([
+                self._headers_serialize(resp),
+                resp.body,
+            ]),
+        ])
+
+    def _headers_serialize(self, response: Response) -> _bytes:
+        return self.header_separator.join(
+            self.header_key_value_separator.join([
+                k if isinstance(k, _bytes) else k.encode('ascii'),
+                v if isinstance(v, _bytes) else v.encode('latin-1'),
+            ])
+            for k, v in response.headers.items()
+        )
 
     async def on_start(self) -> None:
         self._thread = ServerThread(self, loop=self.loop, beacon=self.beacon)

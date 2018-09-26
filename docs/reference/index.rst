@@ -202,6 +202,13 @@ Web
     faust.web.apps.stats
     faust.web.base
     faust.web.blueprints
+    faust.web.cache
+    faust.web.cache.backends
+    faust.web.cache.backends.base
+    faust.web.cache.backends.memory
+    faust.web.cache.backends.redis
+    faust.web.cache.cache
+    faust.web.cache.exceptions
     faust.web.drivers
     faust.web.drivers.aiohttp
     faust.web.exceptions

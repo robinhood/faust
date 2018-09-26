@@ -17,6 +17,7 @@ EXTENSIONS = {
     'datadog',
     'debug',
     'fast',
+    'redis',
     'rocksdb',
     'setproctitle',
     'statsd',

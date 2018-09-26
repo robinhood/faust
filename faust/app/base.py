@@ -54,6 +54,7 @@ from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import venusian
+from faust.web.cache import backends as cache_backends
 from faust.web.views import Request, Response, View, Web
 
 from faust.types.app import AppT, TaskArg
@@ -77,6 +78,7 @@ from faust.types.transports import (
 from faust.types.tuples import MessageSentCallback, RecordMetadata, TP
 from faust.types.web import (
     BlueprintT,
+    CacheBackendT,
     HttpClientT,
     PageArg,
     RoutedViewGetHandler,
@@ -215,6 +217,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
+
+    # Cache is created on demoand: use `.cache` property.
+    _cache: Optional[CacheBackendT] = None
 
     _assignor: Optional[PartitionAssignorT] = None
 
@@ -1013,6 +1018,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         return transport.by_url(self.conf.broker)(
             self.conf.broker, self, loop=self.loop)
 
+    def _new_cache_backend(self) -> CacheBackendT:
+        return cache_backends.by_url(self.conf.cache)(
+            self, self.conf.cache, loop=self.loop)
+
     def FlowControlQueue(
             self,
             maxsize: int = None,
@@ -1142,6 +1151,16 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @transport.setter
     def transport(self, transport: TransportT) -> None:
         self._transport = transport
+
+    @property
+    def cache(self) -> CacheBackendT:
+        if self._cache is None:
+            self._cache = self._new_cache_backend()
+        return self._cache
+
+    @cache.setter
+    def cache(self, cache: CacheBackendT) -> None:
+        self._cache = cache
 
     @cached_property
     def tables(self) -> TableManagerT:

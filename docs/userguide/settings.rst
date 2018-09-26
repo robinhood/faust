@@ -93,6 +93,17 @@ not use the ``memory://`` store in production.
 In production, a persistent table store, such as ``rocksdb://`` is
 preferred.
 
+.. setting:: cache
+
+``cache``
+---------
+
+:type: ``str``
+:default: ``memory://``
+
+Optional backend used for memcached-style caching.
+URL can be: ``redis://host``, ``rediscluster://host``, or ``memory://``.
+
 .. setting:: autodiscover
 
 ``autodiscover``

@@ -1,4 +1,5 @@
 """Base interface for Web server and views."""
+import abc
 from pathlib import Path
 from typing import Any, Callable, MutableMapping, Type, Union
 from urllib.parse import quote
@@ -15,6 +16,16 @@ _bytes = bytes
 
 class Response:
     """Web server response and status."""
+
+    @property
+    @abc.abstractmethod
+    def status(self) -> int:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def body(self) -> _bytes:
+        ...
 
 
 class Web(Service):
@@ -84,6 +95,12 @@ class Web(Service):
               *,
               content_type: str = None,
               status: int = 200) -> Response:
+        ...
+
+    def bytes_to_response(self, s: _bytes) -> Response:
+        ...
+
+    def response_to_bytes(self, response: Response) -> _bytes:
         ...
 
     def route(self, pattern: str, handler: Callable) -> None:

@@ -52,6 +52,7 @@ class AppService(Service):
     def _components_producer_only(self) -> Iterable[ServiceT]:
         return cast(Iterable[ServiceT], (
             self.app.producer,
+            self.app.cache,
         ))
 
     def _components_client(self) -> Iterable[ServiceT]:
@@ -89,6 +90,8 @@ class AppService(Service):
                 [self.app.producer],
                 # Consumer: always stop after Conductor
                 [self.app.consumer],
+                # Optional cache backend.
+                [self.app.cache],
                 # Leader Assignor (assignor.LeaderAssignor)
                 [self.app._leader_assignor],
                 # Reply Consumer (ReplyConsumer)

@@ -43,6 +43,8 @@ BROKER_URL = 'kafka://localhost:9092'
 #: Table storage URL, used as default for :setting:`store`.
 STORE_URL = 'memory://'
 
+#: Cache storage URL, used as default for setting:`cache`.
+CACHE_URL = 'memory://'
 
 #: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
@@ -225,6 +227,7 @@ class Settings(abc.ABC):
     _version: int = 1
     _broker: URL
     _store: URL
+    _cache: URL
     _canonical_url: URL
     _datadir: Path
     _tabledir: Path
@@ -270,6 +273,7 @@ class Settings(abc.ABC):
             broker_check_crcs: bool = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
+            cache: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
@@ -322,6 +326,7 @@ class Settings(abc.ABC):
         self.broker = url or broker or BROKER_URL
         self.ssl_context = ssl_context
         self.store = store or STORE_URL
+        self.cache = cache or CACHE_URL
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
@@ -468,6 +473,14 @@ class Settings(abc.ABC):
     @store.setter
     def store(self, store: Union[URL, str]) -> None:
         self._store = URL(store)
+
+    @property
+    def cache(self) -> URL:
+        return self._cache
+
+    @cache.setter
+    def cache(self, cache: Union[URL, str]) -> None:
+        self._cache = URL(cache)
 
     @property
     def canonical_url(self) -> URL:

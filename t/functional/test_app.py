@@ -27,6 +27,7 @@ class test_settings:
         conf = app.conf
         assert conf.broker == URL(settings.BROKER_URL)
         assert conf.store == URL(settings.STORE_URL)
+        assert conf.cache == URL(settings.CACHE_URL)
         assert conf.datadir == conf.prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
@@ -94,6 +95,10 @@ class test_settings:
         app = self.assert_config_equivalent(store=URL('moo://'))
         assert isinstance(app.conf.store, URL)
 
+    def test_cache_as_URL(self):
+        app = self.assert_config_equivalent(cache=URL('moo://'))
+        assert isinstance(app.conf.cache, URL)
+
     def test_datadir_as_Path(self):
         app = self.assert_config_equivalent(datadir=Path('/etc/moo'))
         assert isinstance(app.conf.datadir, Path)
@@ -110,6 +115,7 @@ class test_settings:
                                  version=303,
                                  broker='foo://',
                                  store='bar://',
+                                 cache='baz://',
                                  autodiscover=True,
                                  origin='faust',
                                  canonical_url='http://example.com/',
@@ -144,6 +150,7 @@ class test_settings:
             version=version,
             broker=broker,
             store=store,
+            cache=cache,
             autodiscover=autodiscover,
             origin=origin,
             canonical_url=canonical_url,
@@ -176,6 +183,7 @@ class test_settings:
         assert conf.id == app.conf.prepare_id(id)
         assert conf.broker == URL(str(broker))
         assert conf.store == URL(str(store))
+        assert conf.cache == URL(str(cache))
         assert conf.autodiscover == autodiscover
         assert conf.canonical_url == URL(str(canonical_url))
         assert conf.broker_client_id == broker_client_id

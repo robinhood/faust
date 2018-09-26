@@ -115,6 +115,12 @@ class View:
               status: int = 200) -> Response:
         return self.web.bytes(value, content_type=content_type, status=status)
 
+    def bytes_to_response(self, s: _bytes) -> Response:
+        return self.web.bytes_to_response(s)
+
+    def response_to_bytes(self, response: Response) -> _bytes:
+        return self.web.response_to_bytes(response)
+
     def route(self, pattern: str, handler: Callable) -> Any:
         self.web.route(pattern, handler)
         return handler

@@ -25,7 +25,7 @@ command-line by using brackets. Separate multiple bundles using the comma:
 
     $ pip install "faust[rocksdb]"
 
-    $ pip install "faust[rocksdb,uvloop,fast]"
+    $ pip install "faust[rocksdb,uvloop,fast,redis]"
 
 The following bundles are available:
 
@@ -39,6 +39,12 @@ Stores
 
 
 .. _`RocksDB`: http://rocksdb.org
+
+Caching
+~~~~~~~
+
+:``faust[redis]``:
+    for using `Redis_` as a simple caching backend (memcache-style).
 
 Optimization
 ~~~~~~~~~~~~

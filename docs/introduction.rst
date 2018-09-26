@@ -190,7 +190,7 @@ Extensions
 
     .. sourcecode:: console
 
-        $ pip install faust[uvloop,fast,rocksdb,datadog]
+        $ pip install faust[uvloop,fast,rocksdb,datadog,redis]
 
 .. admonition:: RocksDB On MacOS Sierra
 

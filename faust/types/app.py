@@ -38,7 +38,14 @@ from .tables import CollectionT, TableManagerT, TableT
 from .topics import ChannelT, TopicT
 from .transports import ConductorT, ConsumerT, ProducerT, TransportT
 from .tuples import MessageSentCallback, RecordMetadata, TP
-from .web import HttpClientT, PageArg, RoutedViewGetHandler, View, Web
+from .web import (
+    CacheBackendT,
+    HttpClientT,
+    PageArg,
+    RoutedViewGetHandler,
+    View,
+    Web,
+)
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
@@ -282,6 +289,19 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def transport(self) -> TransportT:
+        ...
+
+    @transport.setter
+    def transport(self, transport: TransportT) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def cache(self) -> CacheBackendT:
+        ...
+
+    @cache.setter
+    def cache(self, cache: CacheBackendT) -> None:
         ...
 
     @property
