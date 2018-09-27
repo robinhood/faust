@@ -5,7 +5,7 @@ from mode.utils.mocks import AsyncMock, Mock
 
 
 @pytest.fixture
-def app():
+def app(event_loop):
     instance = faust.App('testid')
     instance.producer = Mock(
         name='producer',
