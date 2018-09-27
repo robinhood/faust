@@ -23,8 +23,12 @@ else:
 
 
 class CacheBackend(base.CacheBackend):
-    _client: Optional[RedisClientT] = None
+    connect_timeout: float
+    stream_timeout: float
+    max_connections: int
+    max_connections_per_node: int
 
+    _client: Optional[RedisClientT] = None
     _client_by_scheme: ClassVar[Mapping[str, Type[RedisClientT]]] = {}
 
     if aredis is not None:
@@ -53,6 +57,8 @@ class CacheBackend(base.CacheBackend):
                  app: AppT,
                  url: Union[URL, str],
                  *,
+                 connect_timeout: float = None,
+                 stream_timeout: float = None,
                  max_connections: int = None,
                  max_connections_per_node: int = None,
                  **kwargs: Any) -> None:
@@ -86,27 +92,52 @@ class CacheBackend(base.CacheBackend):
         await self.client.ping()
 
     def _new_client(self) -> RedisClientT:
-        url = self.url
+        return self._client_from_url_and_query(self.url, **self.url.query)
+
+    def _client_from_url_and_query(
+            self,
+            url: URL,
+            *,
+            connect_timeout: str = None,
+            stream_timeout: str = None,
+            max_connections: str = None,
+            max_connections_per_node: str = None,
+            **kwargs: Any) -> RedisClientT:
         Client = self._client_by_scheme[url.scheme]
         return Client(
             host=url.host,
             port=url.port,
-            max_connections=int(
-                url.query.get('max_connections') or
-                self.max_connections,
-            ),
-            max_connections_per_node=int(
-                url.query.get('max_connections_per_node') or
-                self.max_connections_per_node,
-            ),
-        )
-        return aredis.StrictRedisCluster(
-            host=self.host,
-            port=self.port,
-            max_connections=self.max_connections,
-            max_connections_per_node=self.max_connections_per_node,
+            db=self._db_from_path(url.path),
+            password=url.password,
+            connect_timeout=self._float_from_str(
+                connect_timeout, self.connect_timeout),
+            stream_timeout=self._float_from_str(
+                stream_timeout, self.stream_timeout),
+            max_connections=self._int_from_str(
+                max_connections, self.max_connections),
+            max_connections_per_node=self._int_from_str(
+                max_connections_per_node, self.max_connections_per_node),
             skip_full_coverage_check=True,
         )
+
+    def _int_from_str(self,
+                      val: str = None,
+                      default: int = None) -> Optional[int]:
+        return int(val) if val else default
+
+    def _float_from_str(self,
+                        val: str = None,
+                        default: float = None) -> Optional[float]:
+        return float(val) if val else default
+
+    def _db_from_path(self, path: str) -> int:
+        if not path or path == '/':
+            return 0  # default db
+        try:
+            return int(path.strip('/'))
+        except ValueError:
+            raise ValueError(
+                f'Database is int between 0 and limit - 1, not {path!r}')
 
     @cached_property
     def client(self) -> RedisClientT:
