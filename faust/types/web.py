@@ -68,11 +68,12 @@ class CacheT(abc.ABC):
 
     timeout: Seconds
     key_prefix: str
+    backend: Optional[Union[Type[CacheBackendT], str]]
 
     @abc.abstractmethod
     def __init__(self,
                  timeout: Seconds = None,
-                 key_prefix: str = '',
+                 key_prefix: str = None,
                  backend: Union[Type[CacheBackendT], str] = None,
                  **kwargs: Any) -> None:
         ...
@@ -82,10 +83,6 @@ class CacheT(abc.ABC):
              timeout: Seconds = None,
              key_prefix: str = None,
              **kwargs: Any) -> Callable[[Callable], Callable]:
-        ...
-
-    @abc.abstractmethod
-    def resolve(self, app: AppT) -> 'CacheT':
         ...
 
 

@@ -3,8 +3,6 @@ from itertools import count
 import pytest
 import faust
 from faust.web import Blueprint, View
-from faust.web.blueprints import FutureCache
-from faust.web.cache import Cache
 
 DEFAULT_TIMEOUT = 361.363
 VIEW_B_TIMEOUT = 64.3
@@ -29,8 +27,7 @@ class ACachedView(View):
         return await self._next_response(request)
 
     async def _next_response(self, request):
-        app_cache = cache.resolve(self.app)
-        cache_key = app_cache.key_for_request(request, None, request.method)
+        cache_key = cache.key_for_request(request, None, request.method)
         return self.json(ResponseModel(
             key=cache_key,
             value=next(self.counter),
@@ -50,13 +47,8 @@ class CCachedView(ACachedView):
     ...
 
 
-def test_aaa_blueprint():
-    assert isinstance(cache, FutureCache)
-
-
 @pytest.mark.asyncio
 async def test_cached_view(*, app, bp, site, web_client, web):
-    assert isinstance(cache.resolve(app), Cache)
     client = await web_client(site.web._app)
     urlA = web.url_for('test:a')
     urlB = web.url_for('test:b')

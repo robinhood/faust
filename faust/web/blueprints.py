@@ -54,8 +54,6 @@ Blueprints can be registered to multiple apps at the same time.
 import typing
 from pathlib import Path
 from typing import (
-    Any,
-    Dict,
     List,
     NamedTuple,
     Optional,
@@ -77,7 +75,7 @@ from faust.types.web import (
     Web,
 )
 
-from .cache import BaseCache, Cache
+from .cache import Cache
 
 if typing.TYPE_CHECKING:
     from faust.app import App
@@ -85,47 +83,6 @@ else:
     class App: ...  # noqa
 
 __all__ = ['Blueprint']
-
-
-class FutureCache(BaseCache):
-
-    blueprint: BlueprintT
-
-    # Every app must have separate faust.web.Cache instance.
-    # It's fine to cache this as apps are normally global
-    # and exists until the process dies.
-    _cache_for_app: Dict[AppT, CacheT]
-
-    def __init__(self,
-                 timeout: Seconds = None,
-                 key_prefix: str = None,
-                 backend: Union[Type[CacheBackendT], str] = None,
-                 *,
-                 blueprint: BlueprintT,
-                 **kwargs: Any) -> None:
-        self.blueprint = blueprint
-        self.timeout = timeout
-        if key_prefix is not None:
-            self.key_prefix = key_prefix
-        else:
-            self.key_prefix = blueprint.name
-        self.backend = backend
-        self._cache_for_app = {}
-
-    def resolve(self, app: AppT) -> CacheT:
-        try:
-            return self._cache_for_app[app]
-        except KeyError:
-            cache = self._cache_for_app[app] = self._resolve(app)
-            return cache
-
-    def _resolve(self, app: AppT) -> CacheT:
-        return Cache(
-            timeout=self.timeout,
-            key_prefix=self.key_prefix,
-            backend=self.backend,
-            app=app,
-        )
 
 
 class FutureRoute(NamedTuple):
@@ -182,7 +139,9 @@ class Blueprint(BlueprintT):
               timeout: Seconds = None,
               key_prefix: str = None,
               backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
-        return FutureCache(timeout, key_prefix, backend, blueprint=self)
+        if key_prefix is None:
+            key_prefix = self.name
+        return Cache(timeout, key_prefix, backend)
 
     def route(self,
               uri: str,
