@@ -12,6 +12,7 @@ from mode.utils.futures import notify
 
 from faust.types import AppT
 from faust.web import base
+from faust.utils import json as _json
 
 __all__ = ['Web']
 
@@ -94,7 +95,7 @@ class Web(base.Web):
         return self.text(value, status=status, content_type='text/html')
 
     def json(self, value: Any, *, status: int = 200) -> Any:
-        return json_response(value, status=status)
+        return json_response(value, status=status, dumps=_json.dumps)
 
     def bytes(self,
               value: _bytes,
