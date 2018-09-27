@@ -56,6 +56,10 @@ class View:
             'delete': self.delete,
             'put': self.put,
         }
+        self.__post_init__()
+
+    def __post_init__(self) -> None:
+        ...
 
     async def __call__(self, request: Any) -> Any:
         return await self.dispatch(request)
