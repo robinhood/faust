@@ -1,4 +1,5 @@
 import hashlib
+from contextlib import suppress
 from functools import wraps
 from typing import Any, Callable, ClassVar, List, Optional, Type, Union, cast
 from urllib.parse import quote
@@ -73,29 +74,28 @@ class Cache(CacheT):
 
     async def get_view(self,
                        key: str, view: View) -> Optional[Response]:
-        backend = cast(CacheBackendT, self.backend or view.app.cache)
-        try:
+        backend = self._view_backend(view)
+        with suppress(backend.Unavailable):
             payload = await backend.get(key)
             if payload is not None:
                 return view.bytes_to_response(payload)
-        except backend.Unavailable:
-            return None
         return None
+
+    def _view_backend(self, view: View) -> CacheBackendT:
+        return cast(CacheBackendT, self.backend or view.app.cache)
 
     async def set_view(self,
                        key: str,
                        view: View,
                        response: Response,
                        timeout: Seconds) -> None:
-        backend = cast(CacheBackendT, self.backend or view.app.cache)
-        try:
+        backend = self._view_backend(view)
+        with suppress(backend.Unavailable):
             return await backend.set(
                 key,
                 view.response_to_bytes(response),
                 want_seconds(timeout if timeout is not None else self.timeout),
             )
-        except backend.Unavailable:
-            pass
 
     def can_cache_request(self, request: Request) -> bool:
         return request.method.upper() in self.cache_allowed_methods
