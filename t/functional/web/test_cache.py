@@ -54,36 +54,6 @@ def test_aaa_blueprint():
     assert isinstance(cache, FutureCache)
 
 
-async def model_response(response, *,
-                         expected_status: int = 200,
-                         expected_content_type: str = 'application/json',
-                         model=ResponseModel):
-    assert response.status == 200
-    assert response.content_type == expected_content_type
-    return model.from_data(await response.json())
-
-
-async def model_value(response, **kwargs):
-    return (await model_response(response, **kwargs)).value
-
-
-@pytest.fixture()
-def bp(app):
-    blueprint.register(app, url_prefix='/test/')
-
-
-def _cache_keys(app):
-    return app.cache._data
-
-
-def _expiry_timeouts(app):
-    return app.cache._expires
-
-
-def _time_index(app):
-    return app.cache._time_index
-
-
 @pytest.mark.asyncio
 async def test_cached_view(*, app, bp, site, web_client, web):
     assert isinstance(cache.resolve(app), Cache)
@@ -131,3 +101,33 @@ async def test_cached_view(*, app, bp, site, web_client, web):
     # C should still be at 0
     assert await model_value(await client.get(urlC)) == 0
     assert await model_value(await client.get(urlC)) == 0
+
+
+async def model_response(response, *,
+                         expected_status: int = 200,
+                         expected_content_type: str = 'application/json',
+                         model=ResponseModel):
+    assert response.status == 200
+    assert response.content_type == expected_content_type
+    return model.from_data(await response.json())
+
+
+async def model_value(response, **kwargs):
+    return (await model_response(response, **kwargs)).value
+
+
+@pytest.fixture()
+def bp(app):
+    blueprint.register(app, url_prefix='/test/')
+
+
+def _cache_keys(app):
+    return app.cache._data
+
+
+def _expiry_timeouts(app):
+    return app.cache._expires
+
+
+def _time_index(app):
+    return app.cache._time_index
