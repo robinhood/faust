@@ -7,19 +7,24 @@ from mode.utils.times import Seconds, want_seconds
 from mode.utils.logging import get_logger
 from mode.utils.objects import cached_property
 
-from faust import web
+from faust.exceptions import ImproperlyConfigured
 from faust.types import AppT
-from faust.types.web import CacheBackendT, CacheT
+from faust.types.web import (
+    CacheBackendT,
+    CacheT,
+    Request,
+    Response,
+    View,
+)
 
 logger = get_logger(__name__)
 
 IDENT: str = 'faustweb.cache.view'
 
 
-class Cache(CacheT):
+class BaseCache(CacheT):
     ident: ClassVar[str] = IDENT
 
-    app: AppT
     timeout: Seconds
     key_prefix: str
     cache_allowed_methods = frozenset({'GET', 'HEAD'})
@@ -28,10 +33,7 @@ class Cache(CacheT):
                  timeout: Seconds = None,
                  key_prefix: str = '',
                  backend: Union[Type[CacheBackendT], str] = None,
-                 *,
-                 app: AppT,
                  **kwargs: Any) -> None:
-        self.app = app
         self.timeout = timeout
         self.key_prefix = key_prefix or ''
         self._backend = backend
@@ -44,20 +46,21 @@ class Cache(CacheT):
         def _inner(fun: Callable) -> Callable:
 
             @wraps(fun)
-            async def cached(view: web.View, request: web.Request,
-                             *args: Any, **kwargs: Any) -> web.Response:
+            async def cached(view: View, request: Request,
+                             *args: Any, **kwargs: Any) -> Response:
                 key: Optional[str] = None
-                if self.can_cache_request(request):
-                    key = self.key_for_request(request, key_prefix, 'GET')
+                cache = cast('Cache', self.resolve(view.app))
+                if cache.can_cache_request(request):
+                    key = cache.key_for_request(request, key_prefix, 'GET')
 
                 if key is not None:
-                    response = await self.get_view(key, view)
+                    response = await cache.get_view(key, view)
                     if response is not None:
                         logger.info('Found cached response for %r', key)
                         return response
                     if request.method.upper() == 'HEAD':
-                        response = await self.get_view(
-                            self.key_for_request(request, key_prefix, 'HEAD'),
+                        response = await cache.get_view(
+                            cache.key_for_request(request, key_prefix, 'HEAD'),
                             view)
                         if response is not None:
                             logger.info('Found cached HEAD response for %r',
@@ -69,13 +72,13 @@ class Cache(CacheT):
 
                 if key is not None and view_response.status == 200:
                     logger.info('Saving cache for key %r', key)
-                    await self.set_view(key, view, view_response, timeout)
+                    await cache.set_view(key, view, view_response, timeout)
                 return view_response
             return cached
         return _inner
 
     async def get_view(self,
-                       key: str, view: web.View) -> Optional[web.Response]:
+                       key: str, view: View) -> Optional[Response]:
         try:
             payload = await self.backend.get(key)
             if payload is not None:
@@ -86,8 +89,8 @@ class Cache(CacheT):
 
     async def set_view(self,
                        key: str,
-                       view: web.View,
-                       response: web.Response,
+                       view: View,
+                       response: Response,
                        timeout: Seconds) -> None:
         try:
             return await self.backend.set(
@@ -98,11 +101,11 @@ class Cache(CacheT):
         except self.backend.Unavailable:
             pass
 
-    def can_cache_request(self, request: web.Request) -> bool:
+    def can_cache_request(self, request: Request) -> bool:
         return request.method.upper() in self.cache_allowed_methods
 
     def key_for_request(self,
-                        request: web.Request,
+                        request: Request,
                         prefix: str = None,
                         method: str = None) -> str:
         actual_method: str = request.method if method is None else method
@@ -111,7 +114,7 @@ class Cache(CacheT):
         return self.build_key(request, actual_method, prefix, [])
 
     def build_key(self,
-                  request: web.Request,
+                  request: Request,
                   method: str,
                   prefix: str,
                   headers: List[str]) -> str:
@@ -120,6 +123,29 @@ class Cache(CacheT):
         url = hashlib.md5(
             iri_to_uri(str(request.url)).encode('ascii')).hexdigest()
         return f'{self.ident}.{prefix}.{method}.{url}.{context}'
+
+    def resolve(self, app: AppT) -> CacheT:
+        return self
+
+    @cached_property
+    def backend(self) -> CacheBackendT:
+        if self._backend is None:
+            raise ImproperlyConfigured(f'Cache {self} does not have backend')
+        return cast(CacheBackendT, self._backend)
+
+
+class Cache(BaseCache):
+    app: AppT
+
+    def __init__(self,
+                 timeout: Seconds = None,
+                 key_prefix: str = '',
+                 backend: Union[Type[CacheBackendT], str] = None,
+                 *,
+                 app: AppT,
+                 **kwargs: Any) -> None:
+        self.app = app
+        super().__init__(timeout, key_prefix, backend, **kwargs)
 
     @cached_property
     def backend(self) -> CacheBackendT:

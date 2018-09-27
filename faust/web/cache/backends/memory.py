@@ -21,7 +21,7 @@ class CacheBackend(base.CacheBackend):
             expires = self._expires[key]
             now = monotonic()
             if now - self._time_index[key] > expires:
-                self._delete(key)
+                await self._delete(key)
                 return None
             self._time_index[key] = now
             return self._data[key]

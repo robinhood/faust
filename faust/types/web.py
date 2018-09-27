@@ -84,6 +84,10 @@ class CacheT(abc.ABC):
              **kwargs: Any) -> Callable[[Callable], Callable]:
         ...
 
+    @abc.abstractmethod
+    def resolve(self, app: AppT) -> 'CacheT':
+        ...
+
 
 class BlueprintT(abc.ABC):
     name: str
@@ -92,7 +96,7 @@ class BlueprintT(abc.ABC):
     @abc.abstractmethod
     def cache(self,
               timeout: Seconds = None,
-              key_prefix: str = '',
+              key_prefix: str = None,
               backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
         ...
 

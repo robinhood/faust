@@ -6,9 +6,26 @@ from typing import Dict, IO, NamedTuple, Union
 from mode.utils.logging import setup_logging
 
 
+class AppMarks(NamedTuple):
+    name: str = 'funtest'
+    store: str = 'memory://'
+    cache: str = 'memory://'
+
+
 @pytest.fixture()
-def app():
-    app = faust.App('funtest', store='memory://')
+def app(event_loop, request):
+    marks = request.node.get_marker('app')
+    options = AppMarks(**{
+        **{'name': 'funtest',
+           'store': 'memory://',
+           'cache': 'memory://'},
+        **((marks.kwargs or {}) if marks else {}),
+    })
+    app = faust.App(
+        options.name,
+        store=options.store,
+        cache=options.cache,
+    )
     app.finalize()
     return app
 

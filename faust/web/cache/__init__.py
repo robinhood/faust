@@ -1,3 +1,3 @@
-from .cache import Cache
+from .cache import BaseCache, Cache
 
-__all__ = ['Cache']
+__all__ = ['BaseCache', 'Cache']

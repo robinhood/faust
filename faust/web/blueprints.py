@@ -51,12 +51,10 @@ is ``/user/{user_id}/``.
 
 Blueprints can be registered to multiple apps at the same time.
 """
-import abc
 import typing
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     NamedTuple,
@@ -66,7 +64,6 @@ from typing import (
     cast,
 )
 
-from mode.utils.objects import iter_mro_reversed
 from mode.utils.times import Seconds
 
 from faust.types import AppT
@@ -80,6 +77,8 @@ from faust.types.web import (
     Web,
 )
 
+from .cache import BaseCache, Cache
+
 if typing.TYPE_CHECKING:
     from faust.app import App
 else:
@@ -88,43 +87,7 @@ else:
 __all__ = ['Blueprint']
 
 
-class ResolveMe:
-    # signifies a promise that needs to be unwrapped
-
-    @abc.abstractmethod
-    def resolve(self, app: AppT, view: Type[View]) -> Any:
-        ...
-
-
-class FutureCachedView(ResolveMe):
-    # Unresolved @cache.view decorator
-
-    def __init__(self,
-                 fun: Callable,
-                 cache: 'FutureCache',
-                 timeout: Optional[Seconds],
-                 key_prefix: Optional[str],
-                 options: Dict[str, Any]) -> None:
-        self.fun: Callable = fun
-        self.cache: 'FutureCache' = cache
-        self.timeout: Optional[Seconds] = timeout
-        self.key_prefix: Optional[str] = key_prefix
-        self.options: Dict[str, Any] = options
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.fun(*args, **kwargs)
-
-    def resolve(self, app: AppT, view: Type[View]) -> Any:
-        # Calls real cache.view(decorated_fun)
-        # and return value is stored as the actual atttribute on
-        # the resolved view.
-        return self.cache.resolve(app).view(
-            timeout=self.timeout,
-            key_prefix=self.key_prefix,
-            **self.options)(self.fun)
-
-
-class FutureCache(CacheT):
+class FutureCache(BaseCache):
 
     blueprint: BlueprintT
 
@@ -135,26 +98,19 @@ class FutureCache(CacheT):
 
     def __init__(self,
                  timeout: Seconds = None,
-                 key_prefix: str = '',
+                 key_prefix: str = None,
                  backend: Union[Type[CacheBackendT], str] = None,
                  *,
                  blueprint: BlueprintT,
                  **kwargs: Any) -> None:
         self.blueprint = blueprint
         self.timeout = timeout
-        if key_prefix is None:
-            key_prefix = blueprint.name
-        self.key_prefix = key_prefix
+        if key_prefix is not None:
+            self.key_prefix = key_prefix
+        else:
+            self.key_prefix = blueprint.name
         self.backend = backend
         self._cache_for_app = {}
-
-    def view(self,
-             timeout: Seconds = None,
-             key_prefix: str = None,
-             **kwargs: Any) -> Callable[[Callable], Callable]:
-        def _inner(fun: Callable) -> Callable:
-            return FutureCachedView(fun, self, timeout, key_prefix, kwargs)
-        return _inner
 
     def resolve(self, app: AppT) -> CacheT:
         try:
@@ -164,7 +120,6 @@ class FutureCache(CacheT):
             return cache
 
     def _resolve(self, app: AppT) -> CacheT:
-        from faust.web.cache import Cache
         return Cache(
             timeout=self.timeout,
             key_prefix=self.key_prefix,
@@ -225,7 +180,7 @@ class Blueprint(BlueprintT):
 
     def cache(self,
               timeout: Seconds = None,
-              key_prefix: str = '',
+              key_prefix: str = None,
               backend: Union[Type[CacheBackendT], str] = None) -> CacheT:
         return FutureCache(timeout, key_prefix, backend, blueprint=self)
 
@@ -278,23 +233,10 @@ class Blueprint(BlueprintT):
 
         # Create the actual view on the app (using app.page)
 
-        view: Type[View] = app.page(
+        app.page(
             path=uri[1:] if uri.startswith('//') else uri,
             name=self._view_name(route.name),
         )(route.handler)
-
-        # Resolve any ResolveMe attributes set on the view.
-        self._resolve_page_futures(app, view)
-
-    def _resolve_page_futures(self, app: AppT, view: Type[View]) -> None:
-        from faust import web  # View in this module is just a type
-        for subcls in iter_mro_reversed(view, stop=web.View):
-            resolved = {}
-            for key, value in vars(subcls).items():
-                if isinstance(value, ResolveMe):
-                    resolved[key] = value.resolve(app, view)
-            for key, value in resolved.items():
-                setattr(subcls, key, value)
 
     def _view_name(self, name: str) -> str:
         return self.view_name_separator.join([self.name, name])
