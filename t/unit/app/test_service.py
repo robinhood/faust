@@ -39,6 +39,7 @@ class test_AppService:
         expected_components.extend([
             app.producer,
             app.consumer,
+            app.cache,
             app._leader_assignor,
             app._reply_consumer,
         ])
