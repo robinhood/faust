@@ -1,6 +1,6 @@
 import socket
 import typing
-from typing import Any, ClassVar, Mapping, Optional, Type, Union
+from typing import Any, Mapping, Optional, Type, Union
 
 from mode.utils.compat import want_bytes
 from mode.utils.objects import cached_property
@@ -29,7 +29,7 @@ class CacheBackend(base.CacheBackend):
     max_connections_per_node: int
 
     _client: Optional[RedisClientT] = None
-    _client_by_scheme: ClassVar[Mapping[str, Type[RedisClientT]]] = {}
+    _client_by_scheme: Mapping[str, Type[RedisClientT]]
 
     if aredis is not None:
         operational_errors = (
@@ -48,11 +48,6 @@ class CacheBackend(base.CacheBackend):
             aredis.exceptions.AuthenticationError,
         )
 
-        _client_by_scheme = {
-            'redis': aredis.StrictRedis,
-            'rediscluster': aredis.StrictRedisCluster,
-        }
-
     def __init__(self,
                  app: AppT,
                  url: Union[URL, str],
@@ -63,10 +58,19 @@ class CacheBackend(base.CacheBackend):
                  max_connections_per_node: int = None,
                  **kwargs: Any) -> None:
         super().__init__(app, url, **kwargs)
-        if max_connections is not None:
-            self.max_connections = max_connections
-        if max_connections_per_node is not None:
-            self.max_connections_per_node = max_connections_per_node
+        self.connect_timeout = connect_timeout
+        self.stream_timeout = stream_timeout
+        self.max_connections = max_connections
+        self.max_connections_per_node = max_connections_per_node
+        self._client_by_scheme = self._init_schemes()
+
+    def _init_schemes(self) -> Mapping[str, Type[RedisClientT]]:
+        if aredis is not None:
+            return {
+                'redis': aredis.StrictRedis,
+                'rediscluster': aredis.StrictRedisCluster,
+            }
+        return {}
 
     async def _get(self, key: str) -> Optional[bytes]:
         value: Optional[bytes] = await self.client.get(key)

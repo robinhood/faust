@@ -53,14 +53,7 @@ Blueprints can be registered to multiple apps at the same time.
 """
 import typing
 from pathlib import Path
-from typing import (
-    List,
-    NamedTuple,
-    Optional,
-    Type,
-    Union,
-    cast,
-)
+from typing import List, NamedTuple, Optional, Type, Union, cast
 
 from mode.utils.times import Seconds
 

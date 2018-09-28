@@ -3,7 +3,9 @@ import logging as _logging
 import pytest
 from copy import copy
 from typing import Dict, IO, NamedTuple, Union
+from faust.web.cache.backends.memory import CacheStorage
 from mode.utils.logging import setup_logging
+from mode.utils.mocks import AsyncMock, Mock
 
 
 class AppMarks(NamedTuple):
@@ -65,3 +67,26 @@ def logging(request):
             _logging.root.handlers = prev_handlers
         finally:
             _logging._releaseLock()
+
+
+@pytest.fixture()
+def mocked_redis(*, event_loop, monkeypatch):
+    import aredis
+
+    storage = CacheStorage()
+
+    client_cls = Mock(
+        name='StrictRedis',
+        return_value=Mock(
+            autospec=aredis.StrictRedis,
+            ping=AsyncMock(),
+            get=AsyncMock(side_effect=storage.get),
+            set=AsyncMock(side_effect=storage.set),
+            setex=AsyncMock(side_effect=storage.setex),
+            delete=AsyncMock(side_effect=storage.delete),
+            ttl=AsyncMock(side_effect=storage.ttl),
+        ),
+    )
+    client_cls.storage = storage
+    monkeypatch.setattr('aredis.StrictRedis', client_cls)
+    return client_cls
