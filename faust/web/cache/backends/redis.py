@@ -23,10 +23,10 @@ else:
 
 
 class CacheBackend(base.CacheBackend):
-    connect_timeout: float
-    stream_timeout: float
-    max_connections: int
-    max_connections_per_node: int
+    connect_timeout: Optional[float]
+    stream_timeout: Optional[float]
+    max_connections: Optional[int]
+    max_connections_per_node: Optional[int]
 
     _client: Optional[RedisClientT] = None
     _client_by_scheme: Mapping[str, Type[RedisClientT]]
