@@ -2,6 +2,7 @@
 import abc
 import asyncio
 import inspect
+import io
 import os
 import signal
 import sys
@@ -15,12 +16,14 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
+    IO,
     List,
     Mapping,
     Optional,
     Sequence,
     Tuple,
     Type,
+    Union,
     no_type_check,
 )
 
@@ -268,10 +271,17 @@ class _Group(click.Group):
                      args: str,
                      app: AppT = None,
                      parent: click.Context = None,
+                     stdout: IO = None,
+                     stderr: IO = None,
+                     side_effects: bool = True,
                      **extra: Any) -> click.Context:
         ctx = super().make_context(info_name, args, **extra)
         self._maybe_import_app()
-        ctx.find_root().app = app
+        root = ctx.find_root()
+        root.app = app
+        root.stdout = stdout
+        root.stderr = stderr
+        root.side_effects = side_effects
         return ctx
 
 
@@ -283,7 +293,7 @@ class _Group(click.Group):
 @_apply_options(builtin_options)
 @click.pass_context
 def cli(ctx: click.Context,
-        app: str,
+        app: Union[AppT, str],
         quiet: bool,
         debug: bool,
         workdir: str,
@@ -302,22 +312,24 @@ def cli(ctx: click.Context,
         'no_color': no_color,
         'loop': loop,
     }
-    if workdir:
-        os.environ['F_WORKDIR'] = workdir
-        # XXX I'm not sure this is the best place to chdir [ask]
-        os.chdir(Path(workdir).absolute())
-    if datadir:
-        # This is the only way we can set the datadir for App.__init__,
-        # so that default values will have the right path prefix.
-        # WARNING: Note that the faust.app module *MUST not* have
-        # been imported before setting the envvar.
-        os.environ['F_DATADIR'] = datadir
-    if not no_color and terminal.isatty(sys.stdout):
-        enable_all_colors()
-    else:
-        disable_all_colors()
-    if json:
-        disable_all_colors()
+    root = ctx.find_root()
+    if root.side_effects:
+        if workdir:
+            os.environ['F_WORKDIR'] = workdir
+            # XXX I'm not sure this is the best place to chdir [ask]
+            os.chdir(Path(workdir).absolute())
+        if datadir:
+            # This is the only way we can set the datadir for App.__init__,
+            # so that default values will have the right path prefix.
+            # WARNING: Note that the faust.app module *MUST not* have
+            # been imported before setting the envvar.
+            os.environ['F_DATADIR'] = datadir
+        if not no_color and terminal.isatty(sys.stdout):
+            enable_all_colors()
+        else:
+            disable_all_colors()
+        if json:
+            disable_all_colors()
 
 
 class Command(abc.ABC):
@@ -345,6 +357,9 @@ class Command(abc.ABC):
     datadir: str
     json: bool
     no_color: bool
+
+    stdout: Optional[IO]
+    stderr: Optional[IO]
 
     builtin_options: List = builtin_options
     options: Optional[List] = None
@@ -400,15 +415,18 @@ class Command(abc.ABC):
 
     def __init__(self, ctx: click.Context, *args: Any, **kwargs: Any) -> None:
         self.ctx = ctx
+        root = self.ctx.find_root()
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
         self.datadir = self.ctx.obj['datadir']
         self.json = self.ctx.obj['json']
         self.no_color = self.ctx.obj['no_color']
+        self.stdout = root.stdout
+        self.stderr = root.stderr
         self.args = args
         self.kwargs = kwargs
-        self.prog_name = self.ctx.find_root().command_path
+        self.prog_name = root.command_path
         self.signal_handlers = {
             signal.SIGINT: self.on_sigint,
             signal.SIGTERM: self.on_sigterm,
@@ -516,7 +534,10 @@ class Command(abc.ABC):
         max_width = max(table.column_max_width(1), 10)
         return '\n'.join(wrap(text, max_width))
 
-    def say(self, *args: Any, **kwargs: Any) -> None:
+    def say(self, *args: Any,
+            file: IO = None,
+            err: IO = None,
+            **kwargs: Any) -> None:
         """Print something to stdout (or use ``file=stderr`` kwarg).
 
         Note:
@@ -524,7 +545,10 @@ class Command(abc.ABC):
             option is enabled.
         """
         if not self.quiet:
-            echo(*args, **kwargs)
+            echo(*args,
+                 file=file or self.stdout,
+                 err=err or self.stderr,
+                 **kwargs)
 
     def carp(self, s: Any, **kwargs: Any) -> None:
         """Print something to stdout (or use ``file=stderr`` kwargs).
@@ -534,7 +558,7 @@ class Command(abc.ABC):
             option is enabled.
         """
         if self.debug:
-            print(f'#-- {s}', **kwargs)
+            self.say(f'#-- {s}', **kwargs)
 
     def dumps(self, obj: Any) -> str:
         return json.dumps(obj)
@@ -591,6 +615,7 @@ class AppCommand(Command):
 
         self.app = getattr(ctx.find_root(), 'app', None)
         if self.app is not None:
+            self.app.finalize()
             # XXX How to find full argv[0] with click?
             origin = self.app.conf.origin
             if sys.argv:
@@ -726,3 +751,25 @@ class AppCommand(Command):
             'examples.other.foo'
         """
         return text.abbr_fqdn(self.app.conf.origin, name, prefix=prefix)
+
+
+def call_command(command: str,
+                 args: List[str] = None,
+                 stdout: IO = None,
+                 stderr: IO = None,
+                 side_effects: bool = False,
+                 **kwargs: Any) -> Tuple[int, IO, IO]:
+    exitcode: int = 0
+    if stdout is None:
+        stdout = io.StringIO()
+    if stderr is None:
+        stderr = io.StringIO()
+    try:
+        cli(args=[command] + (args or []),
+            side_effects=side_effects,
+            stdout=stdout,
+            stderr=stderr,
+            **kwargs)
+    except SystemExit as exc:
+        exitcode = exc.code
+    return exitcode, stdout, stderr
