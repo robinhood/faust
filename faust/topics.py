@@ -2,6 +2,7 @@
 import asyncio
 import re
 import typing
+from contextlib import suppress
 from functools import partial
 from typing import (
     Any,
@@ -117,7 +118,11 @@ class Topic(Channel, TopicT):
             maxsize=maxsize,
         )
         self.key_serializer = key_serializer
+        if self.key_serializer is None and key_type:
+            self.key_serializer = _model_serializer(key_type)
         self.value_serializer = value_serializer
+        if self.value_serializer is None and value_type:
+            self.value_serializer = _model_serializer(value_type)
         self.pattern = cast(Pattern, pattern)
         self.partitions = partitions
         self.retention = retention
@@ -396,3 +401,8 @@ class Topic(Channel, TopicT):
 
     def __str__(self) -> str:
         return str(self.pattern) if self.pattern else ','.join(self.topics)
+
+
+def _model_serializer(typ: Any) -> Optional[CodecArg]:
+    with suppress(AttributeError):
+        return typ._options.serializer
