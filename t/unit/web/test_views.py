@@ -30,6 +30,7 @@ class test_View:
         assert view.app is app
         assert view.web is web
         assert view.methods == {
+            'head': view.head,
             'get': view.get,
             'post': view.post,
             'patch': view.patch,
