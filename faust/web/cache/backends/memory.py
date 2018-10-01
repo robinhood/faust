@@ -36,12 +36,12 @@ class CacheStorage(Generic[KT, VT]):
         self._time_index[key] -= self._expires[key]
 
     def set(self, key: KT, value: VT) -> None:
-        self._data[key] = want_bytes(value)
+        self._data[key] = value
 
     def setex(self, key: KT, timeout: float, value: VT) -> None:
         self._expires[key] = timeout
-        self._data[key] = value
         self._time_index[key] = monotonic()
+        self.set(key, value)
 
     def ttl(self, key: KT) -> Optional[float]:
         try:
@@ -53,6 +53,11 @@ class CacheStorage(Generic[KT, VT]):
         self._expires.pop(key, None)
         self._data.pop(key, None)  # type: ignore
         self._time_index.pop(key, None)
+
+    def clear(self) -> None:
+        self._expires.clear()
+        self._data.clear()
+        self._time_index.clear()
 
 
 class CacheBackend(base.CacheBackend):

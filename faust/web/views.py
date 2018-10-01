@@ -50,6 +50,7 @@ class View:
         self.app = app
         self.web = web
         self.methods = {
+            'head': self.head,
             'get': self.get,
             'post': self.post,
             'patch': self.patch,
@@ -82,24 +83,28 @@ class View:
                                exc: WebError) -> Response:
         return self.error(exc.code, exc.detail, **exc.extra_context)
 
+    @no_type_check
+    async def head(self, request: Request, **kwargs: Any) -> Any:
+        return await self.get(request, **kwargs)
+
     @no_type_check  # subclasses change signature based on route match_info
-    async def get(self, request: Request) -> Any:
+    async def get(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method GET not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
-    async def post(self, request: Request) -> Any:
+    async def post(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method POST not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
-    async def put(self, request: Request) -> Any:
+    async def put(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method PUT not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
-    async def patch(self, request: Request) -> Any:
+    async def patch(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method PATCH not allowed.')
 
     @no_type_check  # subclasses change signature based on route match_info
-    async def delete(self, request: Request) -> Any:
+    async def delete(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method DELETE not allowed.')
 
     def text(self, value: str, *, content_type: str = None,

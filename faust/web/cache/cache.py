@@ -23,8 +23,6 @@ IDENT: str = 'faustweb.cache.view'
 class Cache(CacheT):
     ident: ClassVar[str] = IDENT
 
-    cache_allowed_methods = frozenset({'GET', 'HEAD'})
-
     def __init__(self,
                  timeout: Seconds = None,
                  key_prefix: str = None,
@@ -45,30 +43,34 @@ class Cache(CacheT):
             async def cached(view: View, request: Request,
                              *args: Any, **kwargs: Any) -> Response:
                 key: Optional[str] = None
+                is_head = request.method.upper() == 'HEAD'
                 if self.can_cache_request(request):
                     key = self.key_for_request(request, key_prefix, 'GET')
 
-                if key is not None:
                     response = await self.get_view(key, view)
                     if response is not None:
                         logger.info('Found cached response for %r', key)
                         return response
-                    if request.method.upper() == 'HEAD':
+                    if is_head:
                         response = await self.get_view(
                             self.key_for_request(request, key_prefix, 'HEAD'),
-                            view)
+                            view,
+                        )
                         if response is not None:
-                            logger.info('Found cached HEAD response for %r',
-                                        key)
+                            logger.info(
+                                'Found cached HEAD response for %r', key)
                             return response
 
                 logger.info('No cache found for %r', key)
-                view_response = await fun(view, request, *args, **kwargs)
+                res = await fun(view, request, *args, **kwargs)
 
-                if key is not None and view_response.status == 200:
+                if key is not None and self.can_cache_response(request, res):
                     logger.info('Saving cache for key %r', key)
-                    await self.set_view(key, view, view_response, timeout)
-                return view_response
+                    if is_head:
+                        key = self.key_for_request(
+                            request, key_prefix, 'HEAD')
+                    await self.set_view(key, view, res, timeout)
+                return res
             return cached
         return _inner
 
@@ -98,7 +100,12 @@ class Cache(CacheT):
             )
 
     def can_cache_request(self, request: Request) -> bool:
-        return request.method.upper() in self.cache_allowed_methods
+        return True
+
+    def can_cache_response(self,
+                           request: Request,
+                           response: Response) -> bool:
+        return response.status == 200
 
     def key_for_request(self,
                         request: Request,

@@ -13,6 +13,11 @@ from faust.web.cache.exceptions import CacheUnavailable
 
 logger = get_logger(__name__)
 
+E_CACHE_IRRECOVERABLE = 'Cache disabled for irrecoverable error: %r'
+E_CACHE_INVALIDATING = 'Destroying cache for key %r caused error: %r'
+E_CANNOT_INVALIDATE = 'Unable to invalidate key %r: %r'
+E_CACHE_INOPERATIONAL = 'Cache operational error: %r'
+
 
 class CacheBackend(CacheBackendT, Service):
     logger = logger
@@ -61,18 +66,18 @@ class CacheBackend(CacheBackendT, Service):
         try:
             yield
         except self.irrecoverable_errors as exc:
-            self.log.exception(
-                'Cache disabled for irrecoverable error: %r', exc)
+            self.log.exception(E_CACHE_IRRECOVERABLE, exc)
             raise self.Unavailable(exc)
         except self.invalidating_errors as exc:
-            self.log.warn(
-                'Destroying cache for key %r caused error: %r',
-                key, exc, exc_info=1)
+            self.log.warn(E_CACHE_INVALIDATING, key, exc, exc_info=1)
             try:
                 await self._delete(key)
             except self.operational_errors + self.invalidating_errors as exc:
-                self.log.exception('Could not invalidate %r %r', key, exc)
+                self.log.exception(E_CANNOT_INVALIDATE, key, exc)
             raise self.Unavailable()
         except self.operational_errors as exc:
-            self.log.warn('Cache operational error: %r', exc, exc_info=1)
+            self.log.warn(E_CACHE_INOPERATIONAL, exc, exc_info=1)
             raise self.Unavailable()
+
+    def _repr_info(self) -> str:
+        return f'url={self.url!r}'

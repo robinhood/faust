@@ -38,3 +38,8 @@ omit =
 
     # deprecataed
     */faust/app/_attached.py
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    \@abc\.abstractmethod

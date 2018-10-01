@@ -13,10 +13,10 @@ from . import base
 try:
     import aredis
     import aredis.exceptions
-except ImportError:
+except ImportError:  # pragma: no cover
     aredis = None  # noqa
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from aredis import StrictRedis as RedisClientT
 else:
     class RedisClientT: ...  # noqa
@@ -31,7 +31,9 @@ class CacheBackend(base.CacheBackend):
     _client: Optional[RedisClientT] = None
     _client_by_scheme: Mapping[str, Type[RedisClientT]]
 
-    if aredis is not None:
+    if aredis is None:  # pragma: no cover
+        ...
+    else:
         operational_errors = (
             socket.error,
             IOError,
@@ -65,12 +67,13 @@ class CacheBackend(base.CacheBackend):
         self._client_by_scheme = self._init_schemes()
 
     def _init_schemes(self) -> Mapping[str, Type[RedisClientT]]:
-        if aredis is not None:
+        if aredis is None:  # pragma: no cover
+            return {}
+        else:
             return {
                 'redis': aredis.StrictRedis,
                 'rediscluster': aredis.StrictRedisCluster,
             }
-        return {}
 
     async def _get(self, key: str) -> Optional[bytes]:
         value: Optional[bytes] = await self.client.get(key)

@@ -2,6 +2,7 @@ from itertools import count
 
 import pytest
 import faust
+from faust.exceptions import ImproperlyConfigured
 from faust.web import Blueprint, View
 
 DEFAULT_TIMEOUT = 361.363
@@ -52,6 +53,19 @@ def test_cache():
 
 
 @pytest.mark.asyncio
+@pytest.mark.app(cache='memory://')
+async def test_cached_view__HEAD(*, app, bp, web_client, web):
+    app.cache.storage.clear()
+    async with app.cache:
+        client = await web_client(web._app)
+        urlA = web.url_for('test:a')
+        response = await client.head(urlA)
+        assert response.status == 200
+        response2 = await client.head(urlA)
+        assert response2.status == 200
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('expected_backend', [
     pytest.param('redis', marks=pytest.mark.app(cache='redis://')),
     pytest.param('memory', marks=pytest.mark.app(cache='memory://')),
@@ -73,12 +87,14 @@ async def test_cached_view__redis(expected_backend, *,
         urlB = web.url_for('test:b')
         urlC = web.url_for('test:c')
         assert urlA == '/test/A/'
+        assert storage.ttl('does-not-exist') is None
         responseA = await model_response(await client.get(urlA))
         keyA = responseA.key
         assert '.test.' in keyA
         assert responseA.value == 0
         assert await model_value(await client.get(urlA)) == 0
         assert storage.get(keyA)
+        assert storage.ttl(keyA)
         assert (timeout_t(storage.last_set_ttl(keyA)) ==
                 timeout_t(DEFAULT_TIMEOUT))
 
@@ -136,8 +152,8 @@ async def test_cached_view__redis(expected_backend, *,
                  marks=pytest.mark.app(
                      cache='redis://h:6?max_connections=10&stream_timeout=8')),
 ])
-async def test_cache__redis_url(scheme, host, port, password, db, settings,
-                                *, app, mocked_redis):
+async def test_redis__url(scheme, host, port, password, db, settings,
+                          *, app, mocked_redis):
     settings = dict(settings or {})
     settings.setdefault('connect_timeout', None)
     settings.setdefault('stream_timeout', None)
@@ -151,6 +167,108 @@ async def test_cache__redis_url(scheme, host, port, password, db, settings,
         db=db,
         skip_full_coverage_check=True,
         **settings)
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://h:6079//')
+async def test_redis__url_invalid_path(app, mocked_redis):
+    with pytest.raises(ValueError):
+        await app.cache.connect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://h:6079//')
+async def test_redis__using_starting_(app, mocked_redis):
+    with pytest.raises(RuntimeError):
+        app.cache.client
+
+
+@pytest.fixture()
+def no_aredis(monkeypatch):
+    monkeypatch.setattr('faust.web.cache.backends.redis.aredis', None)
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://')
+async def test_redis__aredis_is_not_installed(*, app, no_aredis):
+    cache = app.cache
+    with pytest.raises(ImproperlyConfigured):
+        async with cache:
+            ...
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://')
+async def test_redis__start_twice_same_client(*, app, mocked_redis):
+    async with app.cache:
+        client1 = app.cache._client
+        assert client1 is not None
+        client1.ping.assert_called_once_with()
+        await app.cache.restart()
+        assert app.cache._client is client1
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://')
+async def test_redis_get__irrecoverable_errors(*, app, mocked_redis):
+    from aredis.exceptions import AuthenticationError
+    mocked_redis.return_value.get.coro.side_effect = AuthenticationError()
+
+    with pytest.raises(app.cache.Unavailable):
+        async with app.cache:
+            await app.cache.get('key')
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://')
+@pytest.mark.parametrize('operation,delete_error', [
+    ('get', False),
+    ('get', True),
+    ('delete', False),
+    ('delete', True),
+])
+async def test_redis_invalidating_error(operation, delete_error, *,
+                                        app, mocked_redis):
+    from aredis.exceptions import DataError
+    mocked_op = getattr(mocked_redis.return_value, operation)
+    mocked_op.coro.side_effect = DataError()
+    if delete_error:
+        # then the delete fails
+        mocked_redis.return_value.delete.coro.side_effect = DataError()
+
+    with pytest.raises(app.cache.Unavailable):
+        async with app.cache:
+            await getattr(app.cache, operation)('key')
+    if operation == 'delete':
+        mocked_redis.return_value.delete.assert_called_with('key')
+        assert mocked_redis.return_value.delete.call_count == 2
+    else:
+        mocked_redis.return_value.delete.assert_called_once_with('key')
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='memory://')
+async def test_memory_delete(*, app):
+    app.cache.storage.set('foo', b'bar')
+    async with app.cache:
+        assert await app.cache.get('foo') == b'bar'
+        await app.cache.delete('foo')
+        assert await app.cache.get('foo') is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='redis://')
+async def test_redis_get__operational_error(*, app, mocked_redis):
+    from aredis.exceptions import TimeoutError
+    mocked_redis.return_value.get.coro.side_effect = TimeoutError()
+
+    with pytest.raises(app.cache.Unavailable):
+        async with app.cache:
+            await app.cache.get('key')
+
+
+def test_cache_repr(*, app):
+    assert repr(app.cache)
 
 
 async def model_response(response, *,
