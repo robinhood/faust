@@ -24,6 +24,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    cast,
     no_type_check,
 )
 
@@ -128,6 +129,14 @@ builtin_options: Sequence[Callable] = [
            type=click.Choice(LOOP_CHOICES),
            help='Event loop implementation to use.'),
 ]
+
+
+class _FaustRootContextT(click.Context):
+    # used for typing only
+    app: Optional[AppT]
+    stdout: Optional[IO]
+    stderr: Optional[IO]
+    side_effects: bool
 
 
 def find_app(app: str,
@@ -277,7 +286,7 @@ class _Group(click.Group):
                      **extra: Any) -> click.Context:
         ctx = super().make_context(info_name, args, **extra)
         self._maybe_import_app()
-        root = ctx.find_root()
+        root = cast(_FaustRootContextT, ctx.find_root())
         root.app = app
         root.stdout = stdout
         root.stderr = stderr
@@ -312,7 +321,7 @@ def cli(ctx: click.Context,
         'no_color': no_color,
         'loop': loop,
     }
-    root = ctx.find_root()
+    root = cast(_FaustRootContextT, ctx.find_root())
     if root.side_effects:
         if workdir:
             os.environ['F_WORKDIR'] = workdir
@@ -415,7 +424,7 @@ class Command(abc.ABC):
 
     def __init__(self, ctx: click.Context, *args: Any, **kwargs: Any) -> None:
         self.ctx = ctx
-        root = self.ctx.find_root()
+        root = cast(_FaustRootContextT, self.ctx.find_root())
         self.debug = self.ctx.obj['debug']
         self.quiet = self.ctx.obj['quiet']
         self.workdir = self.ctx.obj['workdir']
@@ -534,7 +543,7 @@ class Command(abc.ABC):
         max_width = max(table.column_max_width(1), 10)
         return '\n'.join(wrap(text, max_width))
 
-    def say(self, *args: Any,
+    def say(self, message: str,
             file: IO = None,
             err: IO = None,
             **kwargs: Any) -> None:
@@ -545,9 +554,10 @@ class Command(abc.ABC):
             option is enabled.
         """
         if not self.quiet:
-            echo(*args,
+            echo(message,
                  file=file or self.stdout,
-                 err=err or self.stderr,
+                 # XXX mypy thinks this should be bool(?!)
+                 err=cast(bool, err or self.stderr),
                  **kwargs)
 
     def carp(self, s: Any, **kwargs: Any) -> None:
