@@ -134,7 +134,7 @@ class worker(AppCommand):
             ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
         ]
         table = self.table(
-            [(self.bold(x), y) for x, y in data],
+            [(self.bold(x), str(y)) for x, y in data],
             title=self.faust_ident(),
         )
         table.inner_heading_row_border = False
