@@ -710,13 +710,23 @@ The logging level to use when redirect STDOUT/STDERR to logging.
 Advanced Web Server Settings
 ============================
 
+.. setting:: web
+
+``web``
+-------
+
+:type: :class:`str`
+:default: ``aiohttp://``
+
+The web driver to use.
+
 .. setting:: canonical_url
 
 ``canonical_url``
 -----------------
 
 :type:  :class:`str`
-:default: ``socket.gethostname()``
+:default: ``f"http://{web_host}:{web_port}"``
 
 You shouldn't have to set this manually.
 
@@ -724,6 +734,49 @@ The canonical URL defines how to reach the web server on a running
 worker node, and is usually set by combining the :option:`faust worker --web-host`
 and :option:`faust worker --web-port` command line arguments, not
 by passing it as a keyword argument to :class:`App`.
+
+.. setting:: web_host
+
+``web_host``
+------------
+
+:type: :class:`str`
+:default: ``f"{socket.gethostname()}"``
+
+Hostname used to access this web server, used for generating
+the :setting:`canonical_url` setting.
+
+This option is usually set by :option:`faust worker --web-host`,
+not by passing it as a keyword argument to :class:`app`.
+
+.. setting:: web_port
+
+``web_port``
+------------
+
+:type: :class:`int`
+:default: ``6066``
+
+A port number between 1024 and 65535 to use for the web server.
+
+This option is usually set by :option:`faust worker --web-port`,
+not by passing it as a keyword argument to :class:`app`.
+
+.. setting:: web_bind
+
+``web_bind``
+------------
+
+:type: :class:`str`
+:default: ``"0.0.0.0"``
+
+The IP network address mask that decides what interfaces
+the web server will bind to.
+
+By default this will bind to all interfaces.
+
+This option is usually set by :option:`faust worker --web-bind`,
+not by passing it as a keyword argument to :class:`app`.
 
 .. _settings-agent:
 
