@@ -164,10 +164,16 @@ class Worker(mode.Worker):
                  workdir: Union[Path, str] = None,
                  console_port: int = 50101,
                  loop: asyncio.AbstractEventLoop = None,
+                 redirect_stdouts: bool = None,
+                 redirect_stdouts_level: int = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.sensors = set(sensors or [])
         self.workdir = Path(workdir or Path.cwd())
+        if redirect_stdouts is None:
+            redirect_stdouts = app.conf.worker_redirect_stdouts
+        if redirect_stdouts_level is None:
+            redirect_stdouts_level = app.conf.worker_redirect_stdouts_level
         super().__init__(
             *services,
             debug=debug,
@@ -179,8 +185,8 @@ class Worker(mode.Worker):
             stderr=stderr,
             blocking_timeout=blocking_timeout,
             console_port=console_port,
-            redirect_stdouts=app.conf.worker_redirect_stdouts,
-            redirect_stdouts_level=app.conf.worker_redirect_stdouts_level,
+            redirect_stdouts=redirect_stdouts,
+            redirect_stdouts_level=redirect_stdouts_level,
             loop=loop,
             **kwargs)
         self.spinner = terminal.Spinner(file=self.stdout)
@@ -252,7 +258,7 @@ class Worker(mode.Worker):
         return f'{conf.id} -p {conf.web_port} {conf.datadir.absolute()}'
 
     async def on_execute(self) -> None:
-        # This is called as soon as we starts
+        # This is called as soon as we start
         self._setproctitle('init')
         if self.spinner and self.spinner.file.isatty():
             self._say('starting➢ ', end='')

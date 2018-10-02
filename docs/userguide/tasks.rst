@@ -308,3 +308,25 @@ used to send example data into the stream processors:
 The ``@app.command`` decorator accepts both :class:`click.option` and
 :class:`click.argument`, so you can specify command-line options, as
 well as command-line positional arguments.
+
+Daemon Commands
+~~~~~~~~~~~~~~~
+
+The ``daemon`` flag can be set to mark the command as a background service
+that won't exit until the user hits :kbd:`Control-c`, or the process is
+terminated by another signal:
+
+.. sourcecode:: python
+
+    @app.command(
+        option('--foo', type=float, default=1.33),
+        daemon=True,
+    )
+    async def my_daemon(self, foo: float):
+        print('STARTING DAEMON')
+        ...
+        # set up some stuff
+        # we can return here but the program will not shut down
+        # until the user hits :kbd:`Control-c`, or the process is terminated
+        # by signal
+        return

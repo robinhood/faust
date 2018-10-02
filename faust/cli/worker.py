@@ -1,22 +1,18 @@
 """Program ``faust worker`` used to start application from console."""
+import asyncio
 import os
 import platform
 import socket
-import typing
-from typing import Any, Iterable, Optional
+from typing import Any, List, Optional, cast
 
-import click
+from mode import ServiceT, Worker
 from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
 
-from faust.types._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
+from faust.types._env import WEB_BIND, WEB_PORT
 
-from .base import AppCommand, TCPPort, WritableFilePath, option
-
-if typing.TYPE_CHECKING:
-    from faust.worker import Worker
-else:
-    class Worker: ...   # noqa
+from . import params
+from .base import AppCommand, now_builtin_worker_options, option
 
 __all__ = ['worker']
 
@@ -25,74 +21,45 @@ FAUST = 'ƒaµS†'
 # XXX mypy borks if we do `from faust import __version`.
 faust_version: str = symbol_by_name('faust:__version__')
 
-LOGLEVELS = (
-    'CRIT',
-    'ERROR',
-    'WARN',
-    'INFO',
-    'DEBUG',
-)
-
-DEFAULT_LOGLEVEL = 'WARN'
-
-
-class CaseInsensitiveChoice(click.Choice):
-
-    def __init__(self, choices: Iterable[Any]) -> None:
-        self.choices = [str(val).lower() for val in choices]
-
-    def convert(self,
-                value: str,
-                param: Optional[click.Parameter],
-                ctx: Optional[click.Context]) -> Any:
-        if value.lower() in self.choices:
-            return value
-        return super().convert(value, param, ctx)
-
 
 class worker(AppCommand):
     """Start worker instance for given app."""
 
-    options = [
-        option('--logfile', '-f',
-               default=None, type=WritableFilePath,
-               help='Path to logfile (default is <stderr>).'),
-        option('--loglevel', '-l',
-               default=DEFAULT_LOGLEVEL, type=CaseInsensitiveChoice(LOGLEVELS),
-               help='Logging level to use.'),
-        option('--blocking-timeout',
-               default=BLOCKING_TIMEOUT, type=float,
-               help='Blocking detector timeout (requires --debug).'),
+    daemon = True
+    redirect_stdouts = True
+
+    worker_options = [
         option('--with-web/--without-web',
                default=True,
                help='Enable/disable web server and related components.'),
         option('--web-port', '-p',
-               default=None, type=TCPPort(),
+               default=None, type=params.TCPPort(),
                help=f'Port to run web server on (default: {WEB_PORT})'),
         option('--web-bind', '-b', type=str),
         option('--web-host', '-h',
                default=socket.gethostname(), type=str,
                help=f'Canonical host name for the web server '
                     f'(default: {WEB_BIND})'),
-        option('--console-port',
-               default=50101, type=TCPPort(),
-               help='(when --debug:) Port to run debugger console on.'),
     ]
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.start_worker(
-            *self.args + args,
-            **{**self.kwargs, **kwargs})
+    options = (cast(List, worker_options) +
+               cast(List, now_builtin_worker_options))
 
-    def start_worker(self,
-                     logfile: str,
-                     loglevel: str,
-                     blocking_timeout: float,
-                     with_web: bool,
-                     web_port: Optional[int],
-                     web_bind: Optional[str],
-                     web_host: str,
-                     console_port: int) -> Any:
+    def on_worker_created(self, worker: Worker) -> None:
+        self.say(self.banner(worker))
+
+    def as_service(self, loop: asyncio.AbstractEventLoop,
+                   *args: Any, **kwargs: Any) -> ServiceT:
+        self._init_worker_options(*args, **kwargs)
+        return self.app
+
+    def _init_worker_options(self,
+                             *args: Any,
+                             with_web: bool,
+                             web_port: Optional[int],
+                             web_bind: Optional[str],
+                             web_host: str,
+                             **kwargs: Any) -> None:
         self.app.conf.web_enabled = with_web
         if web_port is not None:
             self.app.conf.web_port = web_port
@@ -100,15 +67,11 @@ class worker(AppCommand):
             self.app.conf.web_bind = web_bind
         if web_host is not None:
             self.app.conf.web_host = web_host
-        worker = self.app.Worker(
-            debug=self.debug,
-            quiet=self.quiet,
-            logfile=logfile,
-            loglevel=loglevel,
-            console_port=console_port,
-        )
-        self.say(self.banner(worker))
-        return worker.execute_from_commandline()
+
+    @property
+    def _Worker(self) -> Worker:
+        # using Faust worker to start the app, not command code.
+        return self.app.conf.Worker
 
     def banner(self, worker: Worker) -> str:
         """Generate the text banner emitted before the worker starts."""

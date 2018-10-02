@@ -4,7 +4,6 @@ import asyncio
 import inspect
 import io
 import os
-import signal
 import sys
 from functools import wraps
 from pathlib import Path
@@ -19,6 +18,7 @@ from typing import (
     IO,
     List,
     Mapping,
+    MutableSequence,
     Optional,
     Sequence,
     Tuple,
@@ -31,15 +31,17 @@ from typing import (
 import click
 from click import echo
 from colorclass import Color, disable_all_colors, enable_all_colors
+from mode import Service, ServiceT, Worker
 from mode.utils import text
 from mode.utils.compat import want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
-from faust.types._env import DATADIR, DEBUG, WORKDIR
+from faust.types._env import BLOCKING_TIMEOUT, DATADIR, DEBUG, WORKDIR
 from faust.types import AppT, CodecArg, ModelT
 from faust.utils import json
 from faust.utils import terminal
 
+from . import params
 
 try:
     import click_completion
@@ -51,9 +53,6 @@ else:
 __all__ = [
     'AppCommand',
     'Command',
-    'TCPPort',
-    'WritableDirectory',
-    'WritableFilePath',
     'argument',
     'cli',
     'find_app',
@@ -63,8 +62,20 @@ __all__ = [
 argument = click.argument
 option = click.option
 
-LOOP_CHOICES = ('aio', 'gevent', 'eventlet', 'uvloop')
-DEFAULT_LOOP = 'aio'
+OptionDecorator = Callable[[Any], Any]
+OptionSequence = Sequence[OptionDecorator]
+OptionList = MutableSequence[OptionDecorator]
+
+LOOP_CHOICES: Sequence[str] = ('aio', 'gevent', 'eventlet', 'uvloop')
+DEFAULT_LOOP: str = 'aio'
+DEFAULT_LOGLEVEL: str = 'WARN'
+LOGLEVELS: Sequence[str] = (
+    'CRIT',
+    'ERROR',
+    'WARN',
+    'INFO',
+    'DEBUG',
+)
 
 # XXX For some reason mypy gives strange errors if we import
 # this here: probably mypy bug.
@@ -79,32 +90,76 @@ DEFAULT_LOOP = 'aio'
 faust_version = symbol_by_name('faust:__version__')
 
 
-class TCPPort(click.IntRange):
-    """CLI option: TCP Port (integer in range 1 - 65535)."""
+# Worker options moved from `faust worker` to toplevel
+# According to @mitsuhiko the following is "really simple to
+# implement through decorators."
+# [from https://github.com/pallets/click/issues/108]
+class State:
+    app: Optional[AppT] = None
+    quiet: bool = False
+    debug: bool = False
+    workdir: Optional[str] = None
+    datadir: Optional[str] = None
+    json: bool = False
+    no_color: bool = False
+    loop: Optional[str] = None
+    logfile: Optional[str] = None
+    loglevel: Optional[int] = None
+    blocking_timeout: Optional[float] = None
+    console_port: Optional[int] = None
 
-    name = 'range[1-65535]'
 
-    def __init__(self) -> None:
-        super().__init__(1, 65535)
+def compat_option(
+        *args: Any,
+        state_key: str,
+        callback: Callable[[click.Context, click.Parameter, Any], Any] = None,
+        expose_value: bool = False,
+        **kwargs: Any) -> Callable[[Any], click.Parameter]:
+
+    def _callback(ctx: click.Context,
+                  param: click.Parameter,
+                  value: Any) -> Any:
+        state = ctx.ensure_object(State)
+        if getattr(state, state_key, None) is None:
+            setattr(state, state_key, value)
+        return callback(ctx, param, value) if callback else value
+
+    return option(
+        *args, callback=_callback, expose_value=expose_value, **kwargs)
 
 
-WritableDirectory = click.Path(
-    exists=False,      # create if needed,
-    file_okay=False,   # must be directory,
-    dir_okay=True,     # not file;
-    writable=True,     # and read/write access.
-    readable=True,     #
-)
+now_builtin_worker_options: OptionSequence = [
+    compat_option(
+        '--logfile', '-f',
+        state_key='logfile',
+        default=None,
+        type=params.WritableFilePath,
+        help='Path to logfile (default is <stderr>).',
+    ),
+    compat_option(
+        '--loglevel', '-l',
+        state_key='loglevel',
+        default=DEFAULT_LOGLEVEL,
+        type=params.CaseInsensitiveChoice(LOGLEVELS),
+        help='Logging level to use.',
+    ),
+    compat_option(
+        '--blocking-timeout',
+        state_key='blocking_timeout',
+        default=BLOCKING_TIMEOUT,
+        type=float,
+        help='when --debug: Blocking detector timeout.',
+    ),
+    compat_option(
+        '--console-port',
+        state_key='console_port',
+        default=50101,
+        type=params.TCPPort(),
+        help='when --debug: Port to run debugger console on.',
+    ),
+]
 
-WritableFilePath = click.Path(
-    exists=False,       # create if needed,
-    file_okay=True,     # must be file,
-    dir_okay=False,     # not directory;
-    writable=True,      # and read/write access.
-    readable=True,      #
-)
-
-builtin_options: Sequence[Callable] = [
+core_options: OptionSequence = [
     click.version_option(version=f'Faust {faust_version}'),
     option('--app', '-A',
            help='Path of Faust application to use, or the name of a module.'),
@@ -116,11 +171,11 @@ builtin_options: Sequence[Callable] = [
            help='Enable colors in output.'),
     option('--workdir', '-W',
            default=WORKDIR,
-           type=WritableDirectory,
+           type=params.WritableDirectory,
            help='Working directory to change to after start.'),
     option('--datadir', '-D',
            default=DATADIR,
-           type=WritableDirectory,
+           type=params.WritableDirectory,
            help='Directory to keep application state.'),
     option('--json', default=False, is_flag=True,
            help='Return output in machine-readable JSON format'),
@@ -129,6 +184,9 @@ builtin_options: Sequence[Callable] = [
            type=click.Choice(LOOP_CHOICES),
            help='Event loop implementation to use.'),
 ]
+
+builtin_options = (cast(List, core_options) +
+                   cast(List, now_builtin_worker_options))
 
 
 class _FaustRootContextT(click.Context):
@@ -215,10 +273,10 @@ def prepare_app(app: AppT, name: Optional[str]) -> AppT:
 
 # We just use this to apply many @click.option/@click.argument
 # decorators in the same decorator.
-def _apply_options(options: Sequence[Callable]) -> Callable:
+def _apply_options(options: OptionSequence) -> OptionDecorator:
     """Add list of ``click.option`` values to click command function."""
 
-    def _inner(fun: Callable) -> Callable:
+    def _inner(fun: OptionDecorator) -> OptionDecorator:
         for opt in options:
             fun = opt(fun)
         return fun
@@ -311,16 +369,16 @@ def cli(ctx: click.Context,
         no_color: bool,
         loop: str) -> None:
     """Faust command-line interface."""
-    ctx.obj = {
-        'app': app,
-        'quiet': quiet,
-        'debug': debug,
-        'workdir': workdir,
-        'datadir': datadir,
-        'json': json,
-        'no_color': no_color,
-        'loop': loop,
-    }
+    state = ctx.ensure_object(State)
+    state.app = app
+    state.quiet = quiet
+    state.debug = debug
+    state.workdir = workdir
+    state.datadir = datadir
+    state.json = json
+    state.no_color = no_color
+    state.loop = loop
+
     root = cast(_FaustRootContextT, ctx.find_root())
     if root.side_effects:
         if workdir:
@@ -366,12 +424,20 @@ class Command(abc.ABC):
     datadir: str
     json: bool
     no_color: bool
+    loglevel: str
+    logfile: str
+    blocking_timeout: float
+    console_port: int
 
     stdout: Optional[IO]
     stderr: Optional[IO]
 
-    builtin_options: List = builtin_options
-    options: Optional[List] = None
+    daemon: bool = False
+    redirect_stdouts: Optional[bool] = None
+    redirect_stdouts_level: Optional[int] = None
+
+    builtin_options: OptionSequence = builtin_options
+    options: Optional[OptionList] = None
 
     args: Tuple
     kwargs: Dict
@@ -425,21 +491,22 @@ class Command(abc.ABC):
     def __init__(self, ctx: click.Context, *args: Any, **kwargs: Any) -> None:
         self.ctx = ctx
         root = cast(_FaustRootContextT, self.ctx.find_root())
-        self.debug = self.ctx.obj['debug']
-        self.quiet = self.ctx.obj['quiet']
-        self.workdir = self.ctx.obj['workdir']
-        self.datadir = self.ctx.obj['datadir']
-        self.json = self.ctx.obj['json']
-        self.no_color = self.ctx.obj['no_color']
+        self.state = ctx.ensure_object(State)
+        self.debug = self.state.debug
+        self.quiet = self.state.quiet
+        self.workdir = self.state.workdir
+        self.datadir = self.state.datadir
+        self.json = self.state.json
+        self.no_color = self.state.no_color
+        self.logfile = self.state.logfile
+        self.loglevel = self.state.loglevel
+        self.blocking_timeout = self.state.blocking_timeout
+        self.console_port = self.state.console_port
         self.stdout = root.stdout
         self.stderr = root.stderr
         self.args = args
         self.kwargs = kwargs
         self.prog_name = root.command_path
-        self.signal_handlers = {
-            signal.SIGINT: self.on_sigint,
-            signal.SIGTERM: self.on_sigterm,
-        }
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
@@ -449,25 +516,50 @@ class Command(abc.ABC):
         ...
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        self.run_using_worker(*args, **kwargs)
+
+    def run_using_worker(self, *args: Any, **kwargs: Any) -> Any:
         loop = asyncio.get_event_loop()
-        self.install_signal_handlers(loop)
         args = self.args + args
         kwargs = {**self.kwargs, **kwargs}
-        return loop.run_until_complete(self.run(*args, **kwargs))
+        service = self.as_service(loop, *args, **kwargs)
+        worker = self.worker_for_service(service, loop)
+        self.on_worker_created(worker)
+        return worker.execute_from_commandline()
 
-    def install_signal_handlers(self,
-                                loop: asyncio.AbstractEventLoop) -> None:
-        for signum, handler in self.signal_handlers.items():
-            loop.add_signal_handler(signum, handler)
+    def on_worker_created(self, worker: Worker) -> None:
+        ...
 
-    def on_sigint(self) -> None:
-        self.on_signal_default_handler(signal.SIGINT)
+    def as_service(self,
+                   loop: asyncio.AbstractEventLoop,
+                   *args: Any, **kwargs: Any) -> Service:
+        return Service.from_awaitable(
+            self.run(*args, **kwargs),
+            name=type(self).__name__,
+            loop=loop or asyncio.get_event_loop())
 
-    def on_sigterm(self) -> None:
-        self.on_signal_default_handler(signal.SIGTERM)
+    def worker_for_service(self,
+                           service: ServiceT,
+                           loop: asyncio.AbstractEventLoop = None) -> Worker:
+        return self._Worker(
+            service,
+            debug=self.debug,
+            quiet=self.quiet,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            loglevel=self.loglevel,
+            logfile=self.logfile,
+            blocking_timeout=self.blocking_timeout,
+            console_port=self.console_port,
+            redirect_stdouts=self.redirect_stdouts,
+            redirect_stdouts_level=self.redirect_stdouts_level,
+            loop=loop or asyncio.get_event_loop(),
+            daemon=self.daemon,
+        )
 
-    def on_signal_default_handler(self, signal: int) -> None:
-        raise KeyboardInterrupt()
+    @property
+    def _Worker(self) -> Type[Worker]:
+        return Worker
 
     def tabulate(self,
                  data: terminal.TableDataT,
@@ -646,7 +738,7 @@ class AppCommand(Command):
                 origin = package
             prepare_app(self.app, origin)
         else:
-            appstr = self.ctx.obj['app']
+            appstr = self.state.app
             if appstr:
                 self.app = find_app(appstr)
                 conf = self.app.conf
