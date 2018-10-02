@@ -8,6 +8,21 @@ This document contain change notes for bugfix releases in
 the Faust 1.1 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+1.2.0
+=====
+:release-date: TBA
+:release-by: TBA
+
+- Setuptools metadata now moved to ``setup.py`` to keep in one location.
+
+    This also helps the README banner icons show the correct information.
+
+    Contributed by Bryant Biggs (:github_user:`bryantbiggs`)
+
+- Documentation and examples improvements by
+
+    + Denis Kataev (:github_user:`kataev`).
+
 .. _version-1.1.3:
 
 1.1.3
