@@ -30,6 +30,7 @@ class test_settings:
         assert conf.store == URL(settings.STORE_URL)
         assert conf.cache == URL(settings.CACHE_URL)
         assert conf.web == URL(settings.WEB_URL)
+        assert conf.web_enabled
         assert conf.datadir == conf.prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
@@ -125,6 +126,7 @@ class test_settings:
                                  store='bar://',
                                  cache='baz://',
                                  web='xuzzy://',
+                                 web_enabled=False,
                                  autodiscover=True,
                                  origin='faust',
                                  canonical_url='http://example.com/',
@@ -164,6 +166,7 @@ class test_settings:
             store=store,
             cache=cache,
             web=web,
+            web_enabled=web_enabled,
             autodiscover=autodiscover,
             origin=origin,
             canonical_url=canonical_url,
@@ -201,6 +204,7 @@ class test_settings:
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
         assert conf.web == URL(str(web))
+        assert not conf.web_enabled
         assert conf.autodiscover == autodiscover
         assert conf.canonical_url == URL(str(canonical_url))
         assert conf.broker_client_id == broker_client_id

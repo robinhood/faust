@@ -720,6 +720,18 @@ Advanced Web Server Settings
 
 The web driver to use.
 
+.. setting:: web_enabled
+
+``web_enabled``
+---------------
+
+:type: :class:`bool`
+:default: :const:`True`
+
+Enable web server and other web components.
+
+This option can also be set using :option:`faust worker --without-web`.
+
 .. setting:: canonical_url
 
 ``canonical_url``

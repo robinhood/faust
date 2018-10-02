@@ -234,6 +234,7 @@ class Settings(abc.ABC):
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
     producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
+    web_enabled: bool
     web_bind: str = WEB_BIND
     web_port: int = WEB_PORT
     web_host: str = socket.gethostname()
@@ -294,6 +295,7 @@ class Settings(abc.ABC):
             store: Union[str, URL] = None,
             cache: Union[str, URL] = None,
             web: Union[str, URL] = None,
+            web_enabled: bool = True,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
@@ -351,6 +353,7 @@ class Settings(abc.ABC):
         self.store = store or STORE_URL
         self.cache = cache or CACHE_URL
         self.web = web or WEB_URL
+        self.web_enabled = web_enabled
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:

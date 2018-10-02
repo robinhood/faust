@@ -50,10 +50,9 @@ class AppService(Service):
         return self._components_server()
 
     def _components_producer_only(self) -> Iterable[ServiceT]:
-        return cast(Iterable[ServiceT], (
-            self.app.cache,
-            self.app.web,
-            self.app.producer,
+        return cast(Iterable[ServiceT], chain(
+            self._web_components_when_enabled(),
+            [self.app.producer],
         ))
 
     def _components_client(self) -> Iterable[ServiceT]:
@@ -87,10 +86,8 @@ class AppService(Service):
             chain(
                 # Sensors (Sensor): always start first and stop last.
                 self.app.sensors,
-                # Optional cache backend.
-                [self.app.cache],
-                # Webserver
-                [self.app.web],
+                # Web
+                self._web_components_when_enabled(),
                 # Producer: always stop after Consumer.
                 [self.app.producer],
                 # Consumer: always stop after Conductor
@@ -107,6 +104,16 @@ class AppService(Service):
                 [self.app.tables],
             ),
         )
+
+    def _web_components_when_enabled(self) -> Iterable[ServiceT]:
+        if self.app.conf.web_enabled:
+            return [
+                # Optional cache backend.
+                self.app.cache,
+                # Web server
+                self.app.web,
+            ]
+        return []
 
     async def on_first_start(self) -> None:
         if not self.app.agents and not self.app.producer_only:

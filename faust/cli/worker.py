@@ -51,7 +51,7 @@ class CaseInsensitiveChoice(click.Choice):
 
 
 class worker(AppCommand):
-    """Start ƒaust worker instance."""
+    """Start worker instance for given app."""
 
     options = [
         option('--logfile', '-f',
@@ -63,6 +63,9 @@ class worker(AppCommand):
         option('--blocking-timeout',
                default=BLOCKING_TIMEOUT, type=float,
                help='Blocking detector timeout (requires --debug).'),
+        option('--with-web/--without-web',
+               default=True,
+               help='Enable/disable web server and related components.'),
         option('--web-port', '-p',
                default=None, type=TCPPort(),
                help=f'Port to run web server on (default: {WEB_PORT})'),
@@ -85,10 +88,12 @@ class worker(AppCommand):
                      logfile: str,
                      loglevel: str,
                      blocking_timeout: float,
+                     with_web: bool,
                      web_port: Optional[int],
                      web_bind: Optional[str],
                      web_host: str,
                      console_port: int) -> Any:
+        self.app.conf.web_enabled = with_web
         if web_port is not None:
             self.app.conf.web_port = web_port
         if web_bind:
@@ -118,11 +123,11 @@ class worker(AppCommand):
             transport_extra = '+gevent'
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
-        data = [
+        data = list(filter(None, [
             ('id', app.conf.id),
             ('transport', f'{app.conf.broker} {transport_extra}'),
             ('store', app.conf.store),
-            ('web', app.web.url),
+            ('web', app.web.url) if app.conf.web_enabled else None,
             ('log', f'{logfile} ({loglevel})'),
             ('pid', f'{os.getpid()}'),
             ('hostname', f'{socket.gethostname()}'),
@@ -132,7 +137,7 @@ class worker(AppCommand):
                 http_v=app.web.driver_version)),
             ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
             ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
-        ]
+        ]))
         table = self.table(
             [(self.bold(x), str(y)) for x, y in data],
             title=self.faust_ident(),
