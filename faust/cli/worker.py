@@ -8,9 +8,9 @@ from typing import Any, Iterable, Optional
 import click
 from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
-from yarl import URL
 
-from ._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
+from faust.types._env import BLOCKING_TIMEOUT, WEB_BIND, WEB_PORT
+
 from .base import AppCommand, TCPPort, WritableFilePath, option
 
 if typing.TYPE_CHECKING:
@@ -64,12 +64,13 @@ class worker(AppCommand):
                default=BLOCKING_TIMEOUT, type=float,
                help='Blocking detector timeout (requires --debug).'),
         option('--web-port', '-p',
-               default=WEB_PORT, type=TCPPort(),
-               help='Port to run web server on.'),
-        option('--web-bind', '-b', default=WEB_BIND, type=str),
+               default=None, type=TCPPort(),
+               help=f'Port to run web server on (default: {WEB_PORT})'),
+        option('--web-bind', '-b', type=str),
         option('--web-host', '-h',
                default=socket.gethostname(), type=str,
-               help='Canonical host name for the web server.'),
+               help=f'Canonical host name for the web server '
+                    f'(default: {WEB_BIND})'),
         option('--console-port',
                default=50101, type=TCPPort(),
                help='(when --debug:) Port to run debugger console on.'),
@@ -80,18 +81,25 @@ class worker(AppCommand):
             *self.args + args,
             **{**self.kwargs, **kwargs})
 
-    def start_worker(self, logfile: str, loglevel: str,
-                     blocking_timeout: float, web_port: int, web_bind: str,
-                     web_host: str, console_port: int) -> Any:
-        self.app.conf.canonical_url = URL(f'http://{web_host}:{web_port}')
+    def start_worker(self,
+                     logfile: str,
+                     loglevel: str,
+                     blocking_timeout: float,
+                     web_port: Optional[int],
+                     web_bind: Optional[str],
+                     web_host: str,
+                     console_port: int) -> Any:
+        if web_port is not None:
+            self.app.conf.web_port = web_port
+        if web_bind:
+            self.app.conf.web_bind = web_bind
+        if web_host is not None:
+            self.app.conf.web_host = web_host
         worker = self.app.Worker(
             debug=self.debug,
             quiet=self.quiet,
             logfile=logfile,
             loglevel=loglevel,
-            web_port=web_port,
-            web_bind=web_bind,
-            web_host=web_host,
             console_port=console_port,
         )
         self.say(self.banner(worker))
@@ -101,7 +109,6 @@ class worker(AppCommand):
         """Generate the text banner emitted before the worker starts."""
         app = worker.app
         loop = worker.loop
-        website = worker.website
         transport_extra = ''
         # uvloop didn't leave us with any way to identify itself,
         # and also there's no uvloop.__version__ attribute.
@@ -115,14 +122,14 @@ class worker(AppCommand):
             ('id', app.conf.id),
             ('transport', f'{app.conf.broker} {transport_extra}'),
             ('store', app.conf.store),
-            ('web', website.web.url),
+            ('web', app.web.url),
             ('log', f'{logfile} ({loglevel})'),
             ('pid', f'{os.getpid()}'),
             ('hostname', f'{socket.gethostname()}'),
             ('platform', self.platform()),
             ('drivers', '{transport_v} {http_v}'.format(
                 transport_v=app.transport.driver_version,
-                http_v=website.web.driver_version)),
+                http_v=app.web.driver_version)),
             ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
             ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
         ]

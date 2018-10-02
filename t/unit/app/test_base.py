@@ -435,7 +435,7 @@ class test_App:
             async def view(self, request):
                 ...
 
-            assert ('', view) in app.pages
+            assert '/foo' in app.web.views
 
             venusian.attach.assert_called_once_with(view, category=SCAN_PAGE)
 
@@ -566,8 +566,11 @@ class test_App:
 
 class test_AppConfiguration:
 
-    def test_conf__before_finalized(self, *, app):
+    def test_conf__before_finalized(self, *, monkeypatch, app):
         app.finalized = False
+        monkeypatch.setattr('faust.app.base.STRICT', False)
+        app.conf.id
+        monkeypatch.setattr('faust.app.base.STRICT', True)
         with pytest.raises(ImproperlyConfigured):
             app.conf.id
 

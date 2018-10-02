@@ -54,9 +54,11 @@ from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import venusian
+from faust.web import drivers as web_drivers
 from faust.web.cache import backends as cache_backends
-from faust.web.views import Request, Response, View, Web
+from faust.web.views import View
 
+from faust.types._env import STRICT
 from faust.types.app import AppT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
@@ -77,12 +79,14 @@ from faust.types.transports import (
 )
 from faust.types.tuples import MessageSentCallback, RecordMetadata, TP
 from faust.types.web import (
-    BlueprintT,
     CacheBackendT,
     HttpClientT,
     PageArg,
+    Request,
+    Response,
     RoutedViewGetHandler,
     ViewGetHandler,
+    Web,
 )
 from faust.types.windows import WindowT
 
@@ -234,8 +238,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     _extra_services: List[ServiceT]
 
-    _blueprints: MutableMapping[str, BlueprintT]
-
     # See faust/app/_attached.py
     _attachments: Attachments
 
@@ -271,11 +273,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
         # Called as soon as the a worker is fully operational.
         self.on_startup_finished: Optional[Callable] = None
-
-        # Any additional web server views added using @app.page decorator.
-        self.pages = []
-        # currently used to add blueprint static paths
-        self._blueprints = {}
 
         # Any additional services added using the @app.service decorator.
         self._extra_services = []
@@ -765,7 +762,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 view = view_base.from_handler(cast(ViewGetHandler, fun))
             view.view_name = name or view.__name__
             view.view_path = path
-            self.pages.append(('', view))
+            self.web.add_view(view)
             venusian.attach(view, category=SCAN_PAGE)
             return view
 
@@ -1116,7 +1113,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     @property
     def conf(self) -> Settings:
-        if not self.finalized:
+        if not self.finalized and STRICT:
             raise ImproperlyConfigured(
                 'App configuration accessed before app.finalize()')
         if self._conf is None:
@@ -1259,6 +1256,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         ``@app.table_route`` decorator.
         """
         return self.conf.Router(self)
+
+    @cached_property
+    def web(self) -> Web:
+        return self._new_web()
+
+    def _new_web(self) -> Web:
+        return web_drivers.by_url(self.conf.web)(self)
 
     @cached_property
     def serializers(self) -> RegistryT:

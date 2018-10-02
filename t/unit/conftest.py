@@ -4,7 +4,7 @@ from faust.transport.producer import Producer
 from mode.utils.mocks import AsyncMock, Mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def app(event_loop):
     instance = faust.App('testid')
     instance.producer = Mock(
@@ -17,3 +17,8 @@ def app(event_loop):
     )
     instance.finalize()
     return instance
+
+
+@pytest.fixture()
+def web(app):
+    return app.web

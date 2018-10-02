@@ -1,11 +1,22 @@
 import abc
 import inspect
 import logging
+import socket
 import ssl
 import typing
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, List, Optional, Set, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Type,
+    Union,
+    cast,
+)
 from uuid import uuid4
 
 from mode import Seconds, SupervisorStrategyT, want_seconds
@@ -13,9 +24,9 @@ from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import Severity
 from yarl import URL
 
-from faust.cli._env import DATADIR
 from faust.exceptions import ImproperlyConfigured
 
+from ._env import DATADIR, WEB_BIND, WEB_PORT
 from .agents import AgentT
 from .assignor import LeaderAssignorT, PartitionAssignorT
 from .codecs import CodecArg
@@ -45,6 +56,9 @@ STORE_URL = 'memory://'
 
 #: Cache storage URL, used as default for setting:`cache`.
 CACHE_URL = 'memory://'
+
+#: Web driver URL, used as default for setting:`web`.
+WEB_URL = 'aiohttp://'
 
 #: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
@@ -176,6 +190,7 @@ PRODUCER_COMPRESSION_TYPE: Optional[str] = None
 #:         remains alive. This is the strongest available guarantee.
 PRODUCER_ACKS = -1
 
+
 #: Set of settings added for backwards compatibility
 SETTINGS_COMPAT: Set[str] = {'url'}
 
@@ -219,6 +234,9 @@ class Settings(abc.ABC):
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
     producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
+    web_bind: str = WEB_BIND
+    web_port: int = WEB_PORT
+    web_host: str = socket.gethostname()
     worker_redirect_stdouts: bool = True
     worker_redirect_stdouts_level: Severity = 'WARN'
 
@@ -228,7 +246,8 @@ class Settings(abc.ABC):
     _broker: URL
     _store: URL
     _cache: URL
-    _canonical_url: URL
+    _web: URL
+    _canonical_url: URL = cast(URL, None)
     _datadir: Path
     _tabledir: Path
     _agent_supervisor: Type[SupervisorStrategyT]
@@ -274,6 +293,7 @@ class Settings(abc.ABC):
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
             cache: Union[str, URL] = None,
+            web: Union[str, URL] = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
@@ -302,6 +322,9 @@ class Settings(abc.ABC):
             producer_acks: int = None,
             producer_max_request_size: int = None,
             producer_compression_type: str = None,
+            web_bind: str = None,
+            web_port: int = None,
+            web_host: str = None,
             worker_redirect_stdouts: bool = None,
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
@@ -327,11 +350,13 @@ class Settings(abc.ABC):
         self.ssl_context = ssl_context
         self.store = store or STORE_URL
         self.cache = cache or CACHE_URL
+        self.web = web or WEB_URL
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
             self.broker_client_id = broker_client_id
-        self.canonical_url = canonical_url or ''
+        if canonical_url:
+            self.canonical_url = canonical_url
         # datadir is a format string that can contain e.g. {conf.id}
         self.datadir = datadir or DATADIR
         self.tabledir = tabledir or TABLEDIR
@@ -385,6 +410,12 @@ class Settings(abc.ABC):
             self.producer_max_request_size = producer_max_request_size
         if producer_compression_type is not None:
             self.producer_compression_type = producer_compression_type
+        if web_bind is not None:
+            self.web_bind = web_bind
+        if web_port is not None:
+            self.web_port = web_port
+        if web_host is not None:
+            self.web_host = web_host
         if worker_redirect_stdouts is not None:
             self.worker_redirect_stdouts = worker_redirect_stdouts
         if worker_redirect_stdouts_level is not None:
@@ -475,6 +506,14 @@ class Settings(abc.ABC):
         self._store = URL(store)
 
     @property
+    def web(self) -> URL:
+        return self._web
+
+    @web.setter
+    def web(self, web: Union[URL, str]) -> None:
+        self._web = URL(web)
+
+    @property
     def cache(self) -> URL:
         return self._cache
 
@@ -484,6 +523,9 @@ class Settings(abc.ABC):
 
     @property
     def canonical_url(self) -> URL:
+        if not self._canonical_url:
+            self._canonical_url = URL(
+                f'http://{self.web_host}:{self.web_port}')
         return self._canonical_url
 
     @canonical_url.setter

@@ -32,6 +32,12 @@ def app(event_loop, request):
     return app
 
 
+@pytest.fixture()
+def web(app):
+    app.web.init_server()
+    return app.web
+
+
 class LoggingMarks(NamedTuple):
     logfile: Union[str, IO] = None
     loglevel: Union[str, int] = 'info'

@@ -1,14 +1,12 @@
 import asyncio
 import logging
-import socket
 import warnings
 from pathlib import Path
 
 import pytest
 from faust import Sensor
-from faust.worker import WEBSITE_CLS, Worker
+from faust.worker import Worker
 from faust.utils import terminal
-from mode.utils.imports import symbol_by_name
 from mode.utils.logging import CompositeLogger
 from mode.utils.trees import Node
 from mode.utils.mocks import AsyncMock, Mock, patch
@@ -27,17 +25,13 @@ class test_Worker:
 
     @pytest.fixture
     def worker(self, app):
-        return Worker(app, web_port=8080)
+        return Worker(app)
 
     def test_constructor(self, app):
         w = Worker(app)
         assert w.app is app
         assert w.sensors == set()
         assert w.workdir == Path.cwd()
-        assert w.Website == symbol_by_name(WEBSITE_CLS)
-        assert w.web_port is None
-        assert w.web_bind is None
-        assert w.web_host == socket.gethostname()
         assert isinstance(w.spinner, terminal.Spinner)
 
     def test_set_sensors(self, app):
@@ -45,18 +39,6 @@ class test_Worker:
 
     def test_set_workdir(self, app):
         assert Worker(app, workdir='/foo').workdir == Path('/foo')
-
-    def test_set_website(self, app):
-        assert Worker(app, Website='unittest.mock.Mock').Website is Mock
-
-    def test_set_web_port(self, app):
-        assert Worker(app, web_port=8080).web_port == 8080
-
-    def test_set_web_bind(self, app):
-        assert Worker(app, web_bind='***').web_bind == '***'
-
-    def test_set_web_host(self, app):
-        assert Worker(app, web_host='foo').web_host == 'foo'
 
     @pytest.mark.asyncio
     async def test_on_siginit(self, worker):
@@ -141,11 +123,7 @@ class test_Worker:
     def test_on_init_dependencies(self, worker, app):
         app.beacon = Mock(name='app.beacon', autospec=Node)
         deps = worker.on_init_dependencies()
-        assert list(deps) == (
-            [worker.website] +
-            list(worker.services) +
-            [app]
-        )
+        assert list(deps) == list(worker.services) + [app]
         app.beacon.reattach.assert_called_once_with(worker.beacon)
         assert app.on_startup_finished == worker.on_startup_finished
 
@@ -194,12 +172,12 @@ class test_Worker:
         with patch('faust.worker.setproctitle') as setproctitle:
             worker._setproctitle('foo')
             setproctitle.assert_called_with(
-                f'[Faust:Worker] -foo- testid -p 8080 '
+                f'[Faust:Worker] -foo- testid -p {app.conf.web_port} '
                 f'{app.conf.datadir.absolute()}')
 
     def test_proc_ident(self, worker, app):
         assert (worker._proc_ident() ==
-                f'testid -p 8080 {app.conf.datadir.absolute()}')
+                f'testid -p {app.conf.web_port} {app.conf.datadir.absolute()}')
 
     @pytest.mark.asyncio
     async def test_on_execute(self, worker):
@@ -260,16 +238,3 @@ class test_Worker:
             ),
             logging.INFO,
         )
-
-    def test_website(self, app):
-        with patch('faust.web.site.Website') as Website:
-            worker = Worker(app)
-            website = worker.website
-            Website.assert_called_once_with(
-                worker.app,
-                bind=worker.web_bind,
-                port=worker.web_port,
-                loop=worker.loop,
-                beacon=worker.beacon,
-            )
-            assert website is Website()

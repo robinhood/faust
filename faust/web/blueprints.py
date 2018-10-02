@@ -53,7 +53,7 @@ Blueprints can be registered to multiple apps at the same time.
 """
 import typing
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Type, Union, cast
+from typing import List, NamedTuple, Optional, Type, Union
 
 from mode.utils.times import Seconds
 
@@ -106,28 +106,6 @@ class Blueprint(BlueprintT):
         self.routes = []
         self.static_routes = []
 
-    def clone(self, url_prefix: Optional[str] = None) -> BlueprintT:
-        # Clone is only used for keeping track of static paths.
-        # We have app.page(), but no app.static() so solved this
-        # by keeping a mapping of the blueprint added to each app
-        # (in app._blueprints).
-        #
-        # blueprint.register(app, uri_prefix) adds itself to this mapping
-        # by creating a copy of the blueprint with that url_prefix set.
-
-        if url_prefix is None:
-            url_prefix = self.url_prefix
-        bp = type(self)(name=self.name, url_prefix=url_prefix)
-
-        # Note: The clone will not copy the list of routes, so any changes
-        # to these in the clone will be reflected in the original.
-        # (that is @app._blueprint['name'].route() will be added to all apps
-        #  using that blueprint, pretty sure nobody would do this so
-        #  it's safe).
-        bp.routes = self.routes
-        bp.static_routes = self.static_routes
-        return bp
-
     def cache(self,
               timeout: Seconds = None,
               key_prefix: str = None,
@@ -167,12 +145,8 @@ class Blueprint(BlueprintT):
         for route in self.routes:
             self._apply_route(app, route, url_prefix)
 
-        # Keep reference to blueprint on app,
-        # so that it will call Blueprint.init_webserver when time
-        # comes to add any @static paths.
-        cast(App, app)._blueprints[self.name] = self.clone(
-            url_prefix=url_prefix,
-        )
+        for static_route in self.static_routes:
+            self._apply_static_route(app.web, static_route, self.url_prefix)
 
     def _apply_route(self,
                      app: AppT,
@@ -194,8 +168,6 @@ class Blueprint(BlueprintT):
         return self.view_name_separator.join([self.name, name])
 
     def init_webserver(self, web: Web) -> None:
-        for route in self.static_routes:
-            self._apply_static_route(web, route, self.url_prefix)
         self.on_webserver_init(web)
 
     def on_webserver_init(self, web: Web) -> None:

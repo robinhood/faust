@@ -6,9 +6,11 @@ from typing import Any, Callable, ClassVar, Optional, Tuple, Union, cast
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
+from mode import Service
 from mode.threads import ServiceThread
 from mode.utils.compat import want_str
 from mode.utils.futures import notify
+from mode.utils.objects import cached_property
 
 from faust.types import AppT
 from faust.web import base
@@ -58,29 +60,44 @@ class ServerThread(ServiceThread):
         await self.web.stop_server(self.loop)
 
 
+class WebService(Service):
+
+    #: We serve the web server in a separate thread (and separate event loop).
+    _thread: Optional[ServerThread] = None
+
+    def __init__(self, web: 'Web', **kwargs: Any) -> None:
+        self.web = web
+        super().__init__(**kwargs)
+
+    async def on_start(self) -> None:
+        self.web.init_server()
+        self._thread = ServerThread(
+            self.web,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
+        self.add_dependency(self._thread)
+
+
 class Web(base.Web):
     """Web server and framework implemention using :pypi:`aiohttp`."""
 
     driver_version = f'aiohttp={aiohttp_version}'
     handler_shutdown_timeout: float = 60.0
 
-    #: We serve the web server in a separate thread (and separate event loop).
-    _thread: Optional[ServerThread] = None
-
     content_separator: ClassVar[bytes] = CONTENT_SEPARATOR
     header_separator: ClassVar[bytes] = HEADER_SEPARATOR
     header_key_value_separator: ClassVar[bytes] = HEADER_KEY_VALUE_SEPARATOR
 
-    def __init__(self,
-                 app: AppT,
-                 *,
-                 port: int = None,
-                 bind: str = None,
-                 **kwargs: Any) -> None:
-        super().__init__(app, port=port, bind=bind, **kwargs)
+    def __init__(self, app: AppT, **kwargs: Any) -> None:
+        super().__init__(app, **kwargs)
         self._app: Application = Application()
         self._srv: Any = None
         self._handler: Any = None
+
+    @cached_property
+    def _service(self) -> WebService:
+        return WebService(self, loop=self.app.loop, beacon=self.app.beacon)
 
     def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> base.Response:
@@ -152,13 +169,10 @@ class Web(base.Web):
             for k, v in response.headers.items()
         )
 
-    async def on_start(self) -> None:
-        self._thread = ServerThread(self, loop=self.loop, beacon=self.beacon)
-        self.add_dependency(self._thread)
-
     async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
         handler = self._handler = self._app.make_handler()
-        self._srv = await loop.create_server(handler, self.bind, self.port)
+        self._srv = await loop.create_server(
+            handler, self.app.conf.web_bind, self.app.conf.web_port)
         self.log.info('Serving on %s', self.url)
 
     async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:

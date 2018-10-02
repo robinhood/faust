@@ -35,11 +35,11 @@ from mode.utils import text
 from mode.utils.compat import want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
+from faust.types._env import DATADIR, DEBUG, WORKDIR
 from faust.types import AppT, CodecArg, ModelT
 from faust.utils import json
 from faust.utils import terminal
 
-from ._env import DATADIR, DEBUG, WORKDIR
 
 try:
     import click_completion

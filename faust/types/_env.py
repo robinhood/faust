@@ -6,6 +6,7 @@ __all__ = [
     'BLOCKING_TIMEOUT',
     'DATADIR',
     'DEBUG',
+    'STRICT',
     'WEB_PORT',
     'WEB_BIND',
     'WORKDIR',
@@ -37,6 +38,8 @@ DATADIR: str = _getenv('DATADIR', '{conf.name}-data')
 
 #: Blocking detection timeout
 BLOCKING_TIMEOUT: float = float(_getenv('BLOCKING_TIMEOUT', '10.0'))
+
+STRICT: bool = bool(_getenv('STRICT', False))
 
 WEB_PORT: int = int(_getenv('WEB_PORT', '6066'))
 WEB_BIND: str = _getenv('F_WEB_BIND', '0.0.0.0')

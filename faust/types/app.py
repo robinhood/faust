@@ -7,13 +7,11 @@ from typing import (
     Awaitable,
     Callable,
     Iterable,
-    List,
     Mapping,
     MutableSequence,
     Optional,
     Pattern,
     Set,
-    Tuple,
     Type,
     Union,
 )
@@ -100,7 +98,6 @@ class AppT(ServiceT):
 
     agents: AgentManagerT
     sensors: SensorDelegateT
-    pages: List[Tuple[str, Type[View]]]
 
     fixups: MutableSequence[FixupT]
 
@@ -360,4 +357,13 @@ class AppT(ServiceT):
     @property
     @abc.abstractmethod
     def serializers(self) -> RegistryT:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def web(self) -> Web:
+        ...
+
+    @web.setter
+    def web(self, web: Web) -> None:
         ...

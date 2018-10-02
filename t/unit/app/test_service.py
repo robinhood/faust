@@ -37,6 +37,7 @@ class test_AppService:
         components = list(s._components_server())
         expected_components = list(app.sensors)
         expected_components.extend([
+            app.web,
             app.producer,
             app.consumer,
             app.cache,

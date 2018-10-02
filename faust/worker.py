@@ -8,7 +8,6 @@ See Also:
 import asyncio
 import logging
 import os
-import socket
 import sys
 from collections import defaultdict
 from itertools import chain
@@ -29,14 +28,11 @@ from typing import (
 import mode
 from rhkafka.structs import TopicPartition as _TopicPartition
 from mode import ServiceT, get_logger
-from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import formatter
-from mode.utils.objects import cached_property
 
-from .cli._env import BLOCKING_TIMEOUT, DEBUG
 from .types import AppT, SensorT, TP, TopicT
+from .types._env import BLOCKING_TIMEOUT, DEBUG
 from .utils import terminal
-from .web.site import Website as _Website
 
 try:  # pragma: no cover
     # if installed we use this to set ps.name (argv[0])
@@ -45,9 +41,6 @@ except ImportError:  # pragma: no cover
     def setproctitle(title: str) -> None: ...  # noqa
 
 __all__ = ['Worker']
-
-#: Path to default Web site class.
-WEBSITE_CLS = 'faust.web.site:Website'
 
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
@@ -135,12 +128,6 @@ class Worker(mode.Worker):
             that the worker will change into when started.
             This working directory change is permanent for the process,
             or until something else changes the working directory again.
-        Website: Class used to serve the Faust web site
-            (defaults to :class:`faust.web.site.Website`).
-        web_port (int): Port for web site to bind to (defaults to 6066).
-        web_bind (str): Host to bind web site to (defaults to "0.0.0.0").
-        web_host (str): Canonical host name used for this server.
-           (defaults to the current host name).
         loop (asyncio.AbstractEventLoop): Custom event loop object.
     """
 
@@ -156,15 +143,6 @@ class Worker(mode.Worker):
     #: Note that if passed as an argument to Worker, the worker
     #: will change to this directory when started.
     workdir: Path
-
-    #: Port to run the embedded web server on (defaults to 6066).
-    web_port: Optional[int]
-
-    #: Host to bind web server port to (defaults to '0.0.0.0').
-    web_bind: Optional[str]
-
-    #: Class that starts our web server and serves the Faust website.
-    Website: Type[_Website]
 
     #: Class that displays a terminal progress spinner (see :pypi:`progress`).
     spinner: Optional[terminal.Spinner]
@@ -184,20 +162,12 @@ class Worker(mode.Worker):
                  stderr: IO = sys.stderr,
                  blocking_timeout: float = BLOCKING_TIMEOUT,
                  workdir: Union[Path, str] = None,
-                 Website: SymbolArg[Type[_Website]] = WEBSITE_CLS,
-                 web_port: int = None,
-                 web_bind: str = None,
-                 web_host: str = None,
                  console_port: int = 50101,
                  loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.sensors = set(sensors or [])
         self.workdir = Path(workdir or Path.cwd())
-        self.Website = symbol_by_name(Website)
-        self.web_port = web_port
-        self.web_bind = web_bind
-        self.web_host = web_host or socket.gethostname()
         super().__init__(
             *services,
             debug=debug,
@@ -259,7 +229,7 @@ class Worker(mode.Worker):
         # Callback called once the app is running and fully
         # functional, we use it to e.g. print the "ready" message.
         self.app.on_startup_finished = self.on_startup_finished
-        return chain([self.website], self.services, [self.app])
+        return chain(self.services, [self.app])
 
     async def on_first_start(self) -> None:
         self.change_workdir(self.workdir)
@@ -279,7 +249,7 @@ class Worker(mode.Worker):
 
     def _proc_ident(self) -> str:
         conf = self.app.conf
-        return f'{conf.id} -p {self.web_port} {conf.datadir.absolute()}'
+        return f'{conf.id} -p {conf.web_port} {conf.datadir.absolute()}'
 
     async def on_execute(self) -> None:
         # This is called as soon as we starts
@@ -306,13 +276,3 @@ class Worker(mode.Worker):
             logger.addHandler(
                 terminal.SpinnerHandler(self.spinner, level=logging.DEBUG))
             logger.setLevel(logging.DEBUG)
-
-    @cached_property
-    def website(self) -> _Website:
-        return self.Website(
-            self.app,
-            bind=self.web_bind,
-            port=self.web_port,
-            loop=self.loop,
-            beacon=self.beacon,
-        )

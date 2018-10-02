@@ -1,3 +1,4 @@
+import socket
 from pathlib import Path
 
 import faust
@@ -28,6 +29,7 @@ class test_settings:
         assert conf.broker == URL(settings.BROKER_URL)
         assert conf.store == URL(settings.STORE_URL)
         assert conf.cache == URL(settings.CACHE_URL)
+        assert conf.web == URL(settings.WEB_URL)
         assert conf.datadir == conf.prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
@@ -60,7 +62,9 @@ class test_settings:
         assert conf.topic_partitions == 8
         assert conf.loghandlers == []
         assert conf.version == 1
-        assert conf.canonical_url == URL('')
+        assert conf.canonical_url == URL(f'http://{socket.gethostname()}:6066')
+        assert conf.web_bind == '0.0.0.0'
+        assert conf.web_port == 6066
         assert conf.worker_redirect_stdouts
         assert conf.worker_redirect_stdouts_level == 'WARN'
 
@@ -99,6 +103,10 @@ class test_settings:
         app = self.assert_config_equivalent(cache=URL('moo://'))
         assert isinstance(app.conf.cache, URL)
 
+    def test_web_as_URL(self):
+        app = self.assert_config_equivalent(web=URL('moo://'))
+        assert isinstance(app.conf.web, URL)
+
     def test_datadir_as_Path(self):
         app = self.assert_config_equivalent(datadir=Path('/etc/moo'))
         assert isinstance(app.conf.datadir, Path)
@@ -116,6 +124,7 @@ class test_settings:
                                  broker='foo://',
                                  store='bar://',
                                  cache='baz://',
+                                 web='xuzzy://',
                                  autodiscover=True,
                                  origin='faust',
                                  canonical_url='http://example.com/',
@@ -141,6 +150,9 @@ class test_settings:
                                  stream_ack_cancelled_tasks=True,
                                  stream_ack_exceptions=False,
                                  stream_publish_on_commit=False,
+                                 web_bind='localhost',
+                                 web_port=6069,
+                                 web_host='localhost',
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  **kwargs) -> App:
@@ -151,6 +163,7 @@ class test_settings:
             broker=broker,
             store=store,
             cache=cache,
+            web=web,
             autodiscover=autodiscover,
             origin=origin,
             canonical_url=canonical_url,
@@ -176,6 +189,9 @@ class test_settings:
             stream_ack_cancelled_tasks=stream_ack_cancelled_tasks,
             stream_ack_exceptions=stream_ack_exceptions,
             stream_publish_on_commit=stream_publish_on_commit,
+            web_bind=web_bind,
+            web_port=web_port,
+            web_host=web_host,
             worker_redirect_stdouts=worker_redirect_stdouts,
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
         )
@@ -184,6 +200,7 @@ class test_settings:
         assert conf.broker == URL(str(broker))
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
+        assert conf.web == URL(str(web))
         assert conf.autodiscover == autodiscover
         assert conf.canonical_url == URL(str(canonical_url))
         assert conf.broker_client_id == broker_client_id
@@ -211,10 +228,26 @@ class test_settings:
         assert conf.stream_ack_cancelled_tasks == stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions == stream_ack_exceptions
         assert conf.stream_publish_on_commit == stream_publish_on_commit
+        assert conf.web_bind == web_bind
+        assert conf.web_port == web_port
+        assert conf.web_host == web_host
         assert conf.worker_redirect_stdouts == worker_redirect_stdouts
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)
         return app
+
+    def test_custom_host_port_to_canonical(self,
+                                           web_bind='localhost',
+                                           web_port=6069,
+                                           web_host='localhost'):
+        app = self.App(
+            'id',
+            web_bind=web_bind,
+            web_port=web_port,
+            web_host=web_host,
+        )
+        assert app.conf.canonical_url == URL(
+            f'http://{app.conf.web_host}:{app.conf.web_port}')
 
     def test_id_no_version(self):
         assert self.App('id', version=1).conf.id == 'id'

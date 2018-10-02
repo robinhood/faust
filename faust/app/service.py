@@ -51,8 +51,9 @@ class AppService(Service):
 
     def _components_producer_only(self) -> Iterable[ServiceT]:
         return cast(Iterable[ServiceT], (
-            self.app.producer,
             self.app.cache,
+            self.app.web,
+            self.app.producer,
         ))
 
     def _components_client(self) -> Iterable[ServiceT]:
@@ -86,12 +87,14 @@ class AppService(Service):
             chain(
                 # Sensors (Sensor): always start first and stop last.
                 self.app.sensors,
+                # Optional cache backend.
+                [self.app.cache],
+                # Webserver
+                [self.app.web],
                 # Producer: always stop after Consumer.
                 [self.app.producer],
                 # Consumer: always stop after Conductor
                 [self.app.consumer],
-                # Optional cache backend.
-                [self.app.cache],
                 # Leader Assignor (assignor.LeaderAssignor)
                 [self.app._leader_assignor],
                 # Reply Consumer (ReplyConsumer)

@@ -2,13 +2,8 @@ import asyncio
 import pytest
 from aiohttp.web import Application
 from faust.web import base
-from faust.web.drivers.aiohttp import ServerThread, Web
+from faust.web.drivers.aiohttp import ServerThread
 from mode.utils.mocks import AsyncMock, Mock, patch
-
-
-@pytest.fixture
-def web(*, app):
-    return Web(app, port=6066, bind='localhost')
 
 
 @pytest.fixture
@@ -77,16 +72,17 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, web):
-        web.add_dependency = Mock(name='add_dependency')
+        serv = web._service
+        serv.add_dependency = Mock(name='add_dependency')
         with patch('faust.web.drivers.aiohttp.ServerThread') as ServerThread:
-            await web.on_start()
+            await serv.on_start()
             ServerThread.assert_called_once_with(
-                web, loop=web.loop, beacon=web.beacon)
-            assert web._thread is ServerThread()
-            web.add_dependency.assert_called_once_with(web._thread)
+                web, loop=serv.loop, beacon=serv.beacon)
+            assert serv._thread is ServerThread()
+            serv.add_dependency.assert_called_once_with(serv._thread)
 
     @pytest.mark.asyncio
-    async def test_start_server(self, *, web):
+    async def test_start_server(self, *, app, web):
         loop = Mock(
             name='loop',
             autospec=asyncio.AbstractEventLoop,
@@ -99,7 +95,7 @@ class test_Web:
         assert web._handler is web._app.make_handler()
         assert web._srv is loop.create_server.coro()
         loop.create_server.asssert_called_once_with(
-            web._handler, web.bind, web.port)
+            web._handler, app.conf.web_bind, app.conf.web_port)
 
     @pytest.mark.asyncio
     async def test_stop_server(self, *, web):
