@@ -762,7 +762,7 @@ class AppCommand(Command):
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
 
-    async def on_stop(self):
+    async def on_stop(self) -> None:
         app = self.app
         # If command started the app, we should stop it.
         #   - could have app.client_only, or app.producer_only set.
