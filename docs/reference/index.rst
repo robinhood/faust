@@ -226,6 +226,7 @@ CLI
     faust.cli.faust
     faust.cli.model
     faust.cli.models
+    faust.cli.params
     faust.cli.reset
     faust.cli.send
     faust.cli.tables
