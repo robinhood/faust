@@ -20,7 +20,7 @@ News
 
 - **Requirements**
 
-    + Now depends on :ref:`Mode 1.18.0 <mode:version-1.18.0>`.
+    + Now depends on :ref:`Mode 1.18.1 <mode:version-1.18.1>`.
 
 - **Web**: Users can now disable the web server from the faust worker
     (Issue #167).
