@@ -54,13 +54,13 @@ Start first worker:
 
 .. sourcecode:: console
 
-    $ faust --datadir=/var/faust/worker1 -A proj worker -l info --web-port=6066
+    $ faust --datadir=/var/faust/worker1 -A proj -l info worker --web-port=6066
 
 Then start the second worker:
 
 .. sourcecode:: console
 
-    $ faust --datadir=/var/faust/worker2 -A proj worker -l info --web-port=6067
+    $ faust --datadir=/var/faust/worker2 -A proj -l info worker --web-port=6067
 
 .. _worker-stopping:
 

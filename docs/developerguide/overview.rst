@@ -87,13 +87,6 @@ delegates all service methods to a composite class (App -> AppService, Agent
 The worker can be used to start a Faust application, and performs tasks like
 setting up logging, installs signal handlers and debugging tools etc.
 
-``Webserver``
--------------
-
-The ``Worker`` also starts the web service.  This is a local web server
-running in each Faust instances that exposes things like statistics and
-access to table data.
-
 ``App``
 -------
 
@@ -175,6 +168,11 @@ The Fetcher is the service that actually retrieves messages from the kafka
 topic.  The fetcher forwards these messages to the TopicManager, which in
 turns forwards it to Topic's and streams.
 
+``Web``
+-------------
+
+This is a local web server started by the app (see :setting:`web_enable`
+setting).
 
 
 

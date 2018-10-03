@@ -13,5 +13,6 @@ version please visit :ref:`changelog`.
 .. toctree::
     :maxdepth: 2
 
+    changelog-1.1
     changelog-1.0
     changelog-0.9

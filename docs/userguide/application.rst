@@ -1143,11 +1143,6 @@ want to embed a Faust application, starting the app have several possible entryp
         async def start_app(app):
             await app.start()
 
-    .. admonition:: Web server
-
-        Starting the app will not start the webserver, as this is part of the
-        workers responsibility.
-
     This will block until the worker shuts down, so if you want to
     start other parts of your program, you can start this in the background:
 
