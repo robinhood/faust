@@ -41,6 +41,8 @@ class test_settings:
         assert conf.broker_commit_every == settings.BROKER_COMMIT_EVERY
         assert (conf.broker_commit_livelock_soft_timeout ==
                 settings.BROKER_LIVELOCK_SOFT)
+        assert (conf.broker_commit_offset_skew ==
+                settings.BROKER_COMMIT_OFFSET_SKEW)
         assert conf.broker_check_crcs
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
@@ -138,6 +140,7 @@ class test_settings:
                                  broker_commit_every=202,
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
+                                 broker_commit_offset_skew=40,
                                  broker_check_crcs=False,
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
@@ -179,6 +182,7 @@ class test_settings:
             broker_commit_interval=broker_commit_interval,
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
             broker_check_crcs=broker_check_crcs,
+            broker_commit_offset_skew=broker_commit_offset_skew,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -219,6 +223,7 @@ class test_settings:
         assert conf.broker_commit_interval == broker_commit_interval
         assert (conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)
+        assert conf.broker_commit_offset_skew == broker_commit_offset_skew
         assert conf.broker_check_crcs == broker_check_crcs
         assert conf.table_cleanup_interval == table_cleanup_interval
         assert conf.key_serializer == key_serializer

@@ -128,6 +128,11 @@ BROKER_SESSION_TIMEOUT = 30.0
 #: Kafka consumer heartbeat (``heartbeat_interval_ms``).
 BROKER_HEARTBEAT_INTERVAL = 3.0
 
+#: Kafka usually commits ``offset + 1``, but Faust commits ``offset``.
+#: To get the best practice behavior set
+#: :setting:`broker_commit_offset_skew` to 1.
+BROKER_COMMIT_OFFSET_SKEW: int = 0
+
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
 BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
@@ -211,6 +216,7 @@ class Settings(abc.ABC):
     autodiscover: AutodiscoverArg = False
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
+    broker_commit_offset_skew: int = BROKER_COMMIT_OFFSET_SKEW
     broker_check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
     origin: Optional[str] = None
@@ -288,6 +294,7 @@ class Settings(abc.ABC):
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
+            broker_commit_offset_skew: int = None,
             broker_session_timeout: Seconds = None,
             broker_heartbeat_interval: Seconds = None,
             broker_check_crcs: bool = None,
@@ -373,6 +380,8 @@ class Settings(abc.ABC):
         if broker_heartbeat_interval is not None:
             self.broker_heartbeat_interval = want_seconds(
                 broker_heartbeat_interval)
+        if broker_commit_offset_skew is not None:
+            self.broker_commit_offset_skew = broker_commit_offset_skew
         self.table_cleanup_interval = (
             table_cleanup_interval or self._table_cleanup_interval)
 

@@ -71,10 +71,12 @@ class ChangelogReader(Service, ChangelogReaderT):
         consumer = self.app.consumer
         tps = self.tps
         highwaters = await consumer.highwaters(*tps)
+        offset_skew = self.app.conf.broker_commit_offset_skew
+        offset_skew_reverse = offset_skew + 1  # for highwater calculation
         self._highwaters.clear()
         self._highwaters.update({
             # FIXME the -1 here is because of the way we commit offsets
-            tp: highwaters[tp] - 1
+            tp: highwaters[tp] - offset_skew_reverse
             for tp in tps
         })
         table = terminal.logtable(
@@ -99,7 +101,12 @@ class ChangelogReader(Service, ChangelogReaderT):
         consumer = self.app.consumer
         earliest = await consumer.earliest_offsets(*self.tps)
         # FIXME: To be consistent with the offset -1 logic
-        earliest = {tp: offset - 1 for tp, offset in earliest.items()}
+        offset_skew = self.app.conf.broker_commit_offset_skew
+        offset_skew_reverse = offset_skew + 1  # for highwater calculation
+        earliest = {
+            tp: offset - offset_skew_reverse
+            for tp, offset in earliest.items()
+        }
         for tp in self.tps:
             self.offsets[tp] = max(self.offsets[tp], earliest[tp])
         table = terminal.logtable(
