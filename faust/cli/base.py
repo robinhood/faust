@@ -515,6 +515,15 @@ class Command(abc.ABC):
         # Worker.execute_from_commandline() method.
         ...
 
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
+        try:
+            await self.run(*args, **kwargs)
+        finally:
+            await self.on_stop()
+
+    async def on_stop(self) -> None:
+        ...
+
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         self.run_using_worker(*args, **kwargs)
 
@@ -534,7 +543,7 @@ class Command(abc.ABC):
                    loop: asyncio.AbstractEventLoop,
                    *args: Any, **kwargs: Any) -> Service:
         return Service.from_awaitable(
-            self.run(*args, **kwargs),
+            self.execute(*args, **kwargs),
             name=type(self).__name__,
             loop=loop or asyncio.get_event_loop())
 
@@ -752,6 +761,18 @@ class AppCommand(Command):
         self.kwargs = kwargs
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
+
+    async def on_stop(self):
+        app = self.app
+        # If command started the app, we should stop it.
+        #   - could have app.client_only, or app.producer_only set.
+        if type(app)._service.is_set(app) and app._service.started:
+            await app._service.stop()
+
+        # If command started the producer, we should also stop that
+        #   - this will flush any buffers before exiting.
+        if type(app).producer.is_set(app) and app.producer.started:
+            await app.producer.stop()
 
     def to_key(self, typ: Optional[str], key: str) -> Any:
         """Convert command-line argument string to model (key).
