@@ -22,12 +22,6 @@ News
 
     + Now depends on :ref:`Mode 1.18.1 <mode:version-1.18.1>`.
 
-- **Web**: Users can now disable the web server from the faust worker
-    (Issue #167).
-
-    Either by passing :option:`faust worker --without-web` on the
-    command-line, or by using the new :setting:`web_enable` setting.
-
 - **App**: Channels and topics now take default
     ``key_serializer``/``value_serializer`` from ``key_type``/``value_type``
     when they are specified as models (Issue #173).
@@ -38,6 +32,10 @@ News
             class X(faust.Record, serializer='msgpack'):
                 x: int
                 y: int
+
+- **CLI**: All commands, including user-defined, now wait for producer to
+   be fully stopped before shutting down to make sure buffers are flushed
+   (Issue #172).
 
 - **CLI**: Command-line improvements.
 
@@ -83,12 +81,50 @@ News
                 # set up stuff
                 return  # command will continue to run after return.
 
-    - Web driver preference can now be specified using the :setting:`web`
-      setting (default is ``aiohttp://``).
-
 - **CLI**: New :func:`~faust.cli.faust.call_command` utility for testing.
 
     This can be used to safely call a command by name, given an argument list.
+
+- **Producer**: New :setting:`producer_partitioner` setting (Issue #164)
+
+- **Models**: Attempting to instantiate abstract model now raises an error
+  (Issue #168).
+
+- **App**: App will no longer raise if configuration accessed before
+  being finalized.
+
+    Instead there's a new :class:`~faust.exceptions.AlreadyConfiguredWarning`
+    emitted when a configuration key that has been read is modified.
+
+- **Distribution**: Setuptools metadata now moved to ``setup.py`` to
+                    keep in one location.
+
+    This also helps the README banner icons show the correct information.
+
+    Contributed by Bryant Biggs (:github_user:`bryantbiggs`)
+
+- Documentation and examples improvements by
+
+    + Denis Kataev (:github_user:`kataev`).
+
+Web Improvements
+----------------
+
+.. note::
+
+    :mod:`faust.web` is a small web abstraction used by Faust projects.
+
+    It is kept separate and is decoupled from stream processing
+    so in the future we can move it to a separate package if necessary.
+
+    You can safely disable the web server component of any Faust worker
+    by passing the ``--without-web`` option.
+
+- **Web**: Users can now disable the web server from the faust worker
+    (Issue #167).
+
+    Either by passing :option:`faust worker --without-web` on the
+    command-line, or by using the new :setting:`web_enable` setting.
 
 - **Web**: Blueprints can now be added to apps by using strings
 
@@ -100,25 +136,41 @@ News
 
         app.web.blueprints.add('/users/', 'proj.users.views:blueprint')
 
-- **Web**: Refactored ``faust.web`` to be decoupled from the faust App.
+- **Web**: Web server is now started by the :class:`~faust.App`
+           :class:`faust.Worker`.
 
-    - The web server is now started by :class:`faust.App`, not
-      :class:`faust.Worker`.
+    This makes it easier to access web-related functionality from the
+    app.  For example to get the URL for a view by name,
+    you can now use ``app.web`` to do so after registering a blueprint:
 
-    - This means web related functionality is always available from
-      ``app.web`` attribute.
+    .. sourcecode:: python
 
-        After registering a blueprint, you can get the URL for a view by
-        name simply by calling: ``app.web.url_for('user:detail', user_id=3)``.
+        app.web.url_for('user:detail', user_id=3)
 
-    - Completely removed the ``Website`` class, everything is now in the
-      ``faust.web.Web`` class and individual web framework drivers.
+- New :setting:`web` allows you to specify web framework by URL.
 
-    - Views can now define a ``__post_init__`` method as supported by
-      dataclasses/Faust models.
+    Default, and only supported web driver is currently ``aiohttp://``.
 
-    - The aiohttp ``json()`` response method now uses the Faust json
-      serializer for automatic support of ``__json__`` callbacks.
+- **View**: A view can now define ``__post_init__``, just like
+  dataclasses/Faust models can.
+
+    This is useful for when you don't want to deal with all the work
+    involved in overriding ``__init__``:
+
+    .. sourcecode:: python
+
+        @blueprint.route('/', name='list')
+        class UserListView(web.View):
+
+            def __post_init__(self):
+                self.something = True
+
+            async def get(self, request, response):
+                if self.something:
+                    ...
+
+- **aiohttp Driver**: ``json()`` response method now uses the Faust json
+    serializer for automatic support of ``__json__`` callbacks.
 
 - **Web**: New cache decorator and cache backends
 
@@ -171,13 +223,3 @@ News
     ``UserListView`` is now ``/user/``, and the URL for the ``UserDetailView``
     is ``/user/{user_id}/``.
 
-- **Distribution**: Setuptools metadata now moved to ``setup.py`` to
-                    keep in one location.
-
-    This also helps the README banner icons show the correct information.
-
-    Contributed by Bryant Biggs (:github_user:`bryantbiggs`)
-
-- Documentation and examples improvements by
-
-    + Denis Kataev (:github_user:`kataev`).
