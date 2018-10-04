@@ -110,6 +110,17 @@ __all__ = ['Model', 'FieldDescriptor', 'registry']
 #       ACCESS ON INSTANCE
 #       42
 
+E_ABSTRACT_INSTANCE = '''
+Cannot instantiate abstract model.
+
+If this model is used as the field of another model,
+and you meant to define a polymorphic relationship: make sure
+your abstract model class has the `allow_blessed_key` option enabled:
+
+    class {name}(faust.Record, abstract=True, allow_blessed_key=True):
+        ...
+'''
+
 #: Global map of namespace -> Model, used to find model classes by name.
 #: Every single model defined is added here automatically when a model
 #: class is defined.
@@ -252,6 +263,7 @@ class Model(ModelT):
         if options is None:
             options = ModelOptions()
             options.coercions = {}
+            options.defaults = {}
         else:
             options = options.clone_defaults()
         if custom_options:
@@ -275,6 +287,7 @@ class Model(ModelT):
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
             cls._options = options
+            cls.__init__ = cls.__abstract_init__
             return
         cls.__is_abstract__ = False
 
@@ -301,6 +314,11 @@ class Model(ModelT):
         cls._model_eq = cls._BUILD_eq()
         if '__eq__' not in cls.__dict__:
             cls.__eq__ = cls._model_eq
+
+    def __abstract_init__(self) -> None:
+        raise NotImplementedError(E_ABSTRACT_INSTANCE.format(
+            name=type(self).__name__,
+        ))
 
     @classmethod
     @abc.abstractmethod

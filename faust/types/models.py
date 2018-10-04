@@ -66,17 +66,6 @@ class ModelOptions(abc.ABC):
     decimals: bool = False
     coercions: CoercionMapping = cast(CoercionMapping, None)
 
-    def clone_defaults(self) -> 'ModelOptions':
-        new_options = type(self)()
-        new_options.serializer = self.serializer
-        new_options.namespace = self.namespace
-        new_options.include_metadata = self.include_metadata
-        new_options.allow_blessed_key = self.allow_blessed_key
-        new_options.isodates = self.isodates
-        new_options.decimals = self.decimals
-        new_options.coercions = dict(self.coercions)
-        return new_options
-
     # If we set `attr = None` mypy will think the values can be None
     # on the instance, but if we don't set it Sphinx will find
     # that the attributes don't exist on the class.
@@ -117,6 +106,17 @@ class ModelOptions(abc.ABC):
     #: Mapping of init field conversion callbacks.
     initfield: Mapping[str, CoercionHandler] = cast(
         Mapping[str, CoercionHandler], None)
+
+    def clone_defaults(self) -> 'ModelOptions':
+        new_options = type(self)()
+        new_options.serializer = self.serializer
+        new_options.namespace = self.namespace
+        new_options.include_metadata = self.include_metadata
+        new_options.allow_blessed_key = self.allow_blessed_key
+        new_options.isodates = self.isodates
+        new_options.decimals = self.decimals
+        new_options.coercions = dict(self.coercions)
+        return new_options
 
 
 base = abc.ABC if abc_compatible_with_init_subclass else object

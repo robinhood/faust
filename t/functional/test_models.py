@@ -881,3 +881,13 @@ def test_subclass_inherit_flags(flag, expected_default):
     assert getattr(X._options, flag) is not expected_default
     assert getattr(Y._options, flag) is not expected_default
     assert getattr(Z._options, flag) is expected_default
+
+
+def test_abstract_model_repr():
+
+    class MyBase(faust.Record, abstract=True):
+        ...
+
+    assert MyBase.__is_abstract__
+    with pytest.raises(NotImplementedError):
+        MyBase()
