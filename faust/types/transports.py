@@ -1,6 +1,7 @@
 # App.transport creates Kafka consumer and producer.
 import abc
 import asyncio
+import ssl
 import typing
 from typing import (
     AbstractSet,
@@ -181,8 +182,14 @@ class ProducerT(ServiceT):
 
     #: The transport that created this Producer.
     transport: 'TransportT'
+
+    client_id: str
     linger_ms: int
     max_batch_size: int
+    acks: int
+    max_request_size: int
+    compression_type: Optional[str]
+    ssl_context: Optional[ssl.SSLContext]
 
     @abc.abstractmethod
     def __init__(self, transport: 'TransportT',

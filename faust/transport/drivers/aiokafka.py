@@ -610,20 +610,19 @@ class Producer(base.Producer):
 
     def on_init(self) -> None:
         transport = cast(Transport, self.transport)
-        conf = transport.app.conf
         self._producer = aiokafka.AIOKafkaProducer(
             loop=self.loop,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
-            client_id=conf.broker_client_id,
+            client_id=self.client_id,
             acks=self.acks,
             linger_ms=self.linger_ms,
             max_batch_size=self.max_batch_size,
             max_request_size=self.max_request_size,
             compression_type=self.compression_type,
             on_irrecoverable_error=self._on_irrecoverable_error,
-            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
-            ssl_context=conf.ssl_context,
+            security_protocol="SSL" if self.ssl_context else "PLAINTEXT",
+            ssl_context=self.ssl_context,
         )
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:
