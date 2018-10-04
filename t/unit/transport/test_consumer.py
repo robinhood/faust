@@ -2,6 +2,7 @@ import asyncio
 import pytest
 from faust import App
 from faust.app._attached import Attachments
+from faust.exceptions import AlreadyConfiguredWarning
 from faust.tables.manager import TableManager
 from faust.transport.consumer import Consumer, Fetcher, ProducerSendError
 from faust.transport.conductor import Conductor
@@ -191,7 +192,8 @@ class test_Consumer:
         await consumer.on_stop()
         assert consumer._last_batch is None
 
-        consumer.app.conf.stream_wait_empty = True
+        with pytest.warns(AlreadyConfiguredWarning):
+            consumer.app.conf.stream_wait_empty = True
         consumer.wait_empty = AsyncMock(name='wait_empty')
 
         await consumer.on_stop()

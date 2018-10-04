@@ -6,7 +6,7 @@ from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
 from faust.app.service import AppService
 from faust.assignor.leader_assignor import LeaderAssignor, LeaderAssignorT
 from faust.channels import Channel, ChannelT
-from faust.exceptions import ImproperlyConfigured
+from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 from faust.fixups.base import Fixup
 from faust.sensors.monitor import Monitor
 from faust.serializers import codecs
@@ -149,7 +149,8 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
         app.consumer.pause_partitions.assert_called_once_with(assignment)
         app.flow_control.clear.assert_called_once_with()
 
-        app.conf.stream_wait_empty = True
+        with pytest.warns(AlreadyConfiguredWarning):
+            app.conf.stream_wait_empty = True
         await app._on_partitions_revoked(revoked)
         app.consumer.wait_empty.assert_called_once_with()
 
@@ -339,7 +340,8 @@ class test_App:
             app.worker_init.assert_called_once_with()
             cli.assert_called_once_with(app=app)
 
-            app.conf.autodiscover = True
+            with pytest.warns(AlreadyConfiguredWarning):
+                app.conf.autodiscover = True
             app.main()
             app.discover.assert_called_once_with()
 
@@ -590,13 +592,15 @@ class test_AppConfiguration:
         on_after = app.on_after_configured.connect(Mock(name='on_after'))
 
         app.configured = False
-        app.config_from_object(config_source)
+        with pytest.warns(AlreadyConfiguredWarning):
+            app.config_from_object(config_source)
 
         assert app._config_source is config_source
         app._config_source = None
 
         app.configured = True
-        app.config_from_object(config_source)
+        with pytest.warns(AlreadyConfiguredWarning):
+            app.config_from_object(config_source)
 
         assert app._config_source is config_source
         on_before.assert_called_with(app, signal=app.on_before_configured)
@@ -606,7 +610,8 @@ class test_AppConfiguration:
         assert app.conf.stream_buffer_maxsize == 1
 
     def test_finalize__no_id(self, *, app):
-        app.conf.id = None
+        with pytest.warns(AlreadyConfiguredWarning):
+            app.conf.id = None
         app.finalized = False
         with pytest.raises(ImproperlyConfigured):
             app.finalize()
@@ -627,5 +632,6 @@ class test_AppConfiguration:
             'client_id': 'foo',
             'broker_client_id': 'bar',
         }
-        with pytest.raises(ImproperlyConfigured):
-            app.config_from_object(config)
+        with pytest.warns(AlreadyConfiguredWarning):
+            with pytest.raises(ImproperlyConfigured):
+                app.config_from_object(config)

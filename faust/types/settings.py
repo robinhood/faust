@@ -4,6 +4,7 @@ import logging
 import socket
 import ssl
 import typing
+import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import (
@@ -24,7 +25,7 @@ from mode.utils.imports import SymbolArg, symbol_by_name
 from mode.utils.logging import Severity
 from yarl import URL
 
-from faust.exceptions import ImproperlyConfigured
+from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 
 from ._env import DATADIR, WEB_BIND, WEB_PORT
 from .agents import AgentT
@@ -45,6 +46,33 @@ else:
     class WorkerT: ...      # noqa
 
 __all__ = ['AutodiscoverArg', 'Settings']
+
+W_ALREADY_CONFIGURED = '''\
+App is already configured.
+
+Reconfiguring late may mean parts of your program are still
+using the old configuration.
+
+Code such as:
+
+app.conf.config_from_object('my.config')
+
+Should appear before calling app.topic/@app.agent/etc.
+'''
+
+W_ALREADY_CONFIGURED_KEY = '''\
+Setting new value for configuration key {key!r} that was already used.
+
+Reconfiguring late may mean parts of your program are still
+using the old value of {old_value!r}.
+
+Code such as:
+
+app.conf.{key} = {value!r}
+
+Should appear before calling app.topic/@app.agent/etc.
+'''
+
 
 # XXX mypy borks if we do `from faust import __version__`
 faust_version: str = symbol_by_name('faust:__version__')
@@ -273,12 +301,34 @@ class Settings(abc.ABC):
     _HttpClient: Type[HttpClientT]
     _Monitor: Type[SensorT]
 
+    _initializing: bool = True
+    _accessed: Set[str]
+
     @classmethod
     def setting_names(cls) -> Set[str]:
         return {
             k for k, v in inspect.signature(cls).parameters.items()
             if v.kind not in SETTINGS_SKIP
         } - SETTINGS_COMPAT
+
+    @classmethod
+    def _warn_already_configured(cls) -> None:
+        warnings.warn(AlreadyConfiguredWarning(W_ALREADY_CONFIGURED),
+                      stacklevel=3)
+
+    @classmethod
+    def _warn_already_configured_key(cls,
+                                     key: str,
+                                     value: Any,
+                                     old_value: Any) -> None:
+        warnings.warn(
+            AlreadyConfiguredWarning(W_ALREADY_CONFIGURED_KEY.format(
+                key=key,
+                value=value,
+                old_value=old_value,
+            )),
+            stacklevel=3,
+        )
 
     def __init__(  # noqa: C901
             self,
@@ -347,6 +397,7 @@ class Settings(abc.ABC):
             # XXX backward compat (remove for Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
+        self._accessed = set()
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
         self.origin = origin if origin is not None else self.origin
@@ -454,16 +505,30 @@ class Settings(abc.ABC):
         self.HttpClient = HttpClient or HTTP_CLIENT_TYPE
         self.Monitor = Monitor or MONITOR_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
+        object.__setattr__(self, '_initializing', False)
 
-    def prepare_id(self, id: str) -> str:
+    def __getattribute__(self, key: str) -> Any:
+        if not key.startswith('_'):
+            if not object.__getattribute__(self, '_initializing'):
+                object.__getattribute__(self, '_accessed').add(key)
+        return object.__getattribute__(self, key)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        if not key.startswith('_') and \
+                key in object.__getattribute__(self, '_accessed'):
+            old_value = object.__getattribute__(self, key)
+            self._warn_already_configured_key(key, value, old_value)
+        object.__setattr__(self, key, value)
+
+    def _prepare_id(self, id: str) -> str:
         if self.version > 1:
             return self.id_format.format(id=id, self=self)
         return id
 
-    def prepare_datadir(self, datadir: Union[str, Path]) -> Path:
+    def _prepare_datadir(self, datadir: Union[str, Path]) -> Path:
         return self._Path(str(datadir).format(conf=self))
 
-    def prepare_tabledir(self, tabledir: Union[str, Path]) -> Path:
+    def _prepare_tabledir(self, tabledir: Union[str, Path]) -> Path:
         return self._appdir_path(self._Path(tabledir))
 
     def _Path(self, *parts: Union[str, Path]) -> Path:
@@ -484,7 +549,7 @@ class Settings(abc.ABC):
     @id.setter
     def id(self, name: str) -> None:
         self._name = name
-        self._id = self.prepare_id(name)  # id is name+version
+        self._id = self._prepare_id(name)  # id is name+version
 
     @property
     def version(self) -> int:
@@ -546,7 +611,7 @@ class Settings(abc.ABC):
 
     @datadir.setter
     def datadir(self, datadir: Union[Path, str]) -> None:
-        self._datadir = self.prepare_datadir(datadir)
+        self._datadir = self._prepare_datadir(datadir)
 
     @property
     def appdir(self) -> Path:
@@ -558,7 +623,7 @@ class Settings(abc.ABC):
 
     @tabledir.setter
     def tabledir(self, tabledir: Union[Path, str]) -> None:
-        self._tabledir = self.prepare_tabledir(tabledir)
+        self._tabledir = self._prepare_tabledir(tabledir)
 
     @property
     def broker_session_timeout(self) -> float:

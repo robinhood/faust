@@ -6,7 +6,7 @@ import mode
 import pytest
 from faust import App
 from faust.assignor import LeaderAssignor, PartitionAssignor
-from faust.exceptions import ImproperlyConfigured
+from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 from faust.app.router import Router
 from faust.sensors import Monitor
 from faust.serializers import Registry
@@ -35,8 +35,8 @@ class test_settings:
         assert conf.cache == URL(settings.CACHE_URL)
         assert conf.web == URL(settings.WEB_URL)
         assert conf.web_enabled
-        assert conf.datadir == conf.prepare_datadir(settings.DATADIR)
-        assert conf.tabledir == conf.prepare_tabledir(settings.TABLEDIR)
+        assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
+        assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
         assert (conf.broker_heartbeat_interval ==
@@ -206,7 +206,7 @@ class test_settings:
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
         )
         conf = app.conf
-        assert conf.id == app.conf.prepare_id(id)
+        assert conf.id == app.conf._prepare_id(id)
         assert conf.broker == URL(str(broker))
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
@@ -302,3 +302,12 @@ class test_settings:
         with pytest.warns(FutureWarning):
             assert self.App(
                 replication_factor=36).conf.topic_replication_factor == 36
+
+    def test_warns_when_key_already_configured(self):
+        app = self.App(topic_partitions=37, topic_replication_factor=38)
+        assert app.conf.topic_partitions == 37
+        with pytest.warns(AlreadyConfiguredWarning):
+            app.conf.topic_partitions = 39
+        assert app.conf.topic_partitions == 39
+        app.conf.topic_replication_factor = 40
+        assert app.conf.topic_replication_factor == 40

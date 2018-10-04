@@ -2,6 +2,8 @@
 
 __all__ = [
     'FaustError',
+    'FaustWarning',
+    'AlreadyConfiguredWarning',
     'ImproperlyConfigured',
     'DecodeError',
     'KeyDecodeError',
@@ -11,6 +13,14 @@ __all__ = [
 
 class FaustError(Exception):
     """Base-class for all Faust exceptions."""
+
+
+class FaustWarning(UserWarning):
+    """Base-class for all Faust warnings."""
+
+
+class AlreadyConfiguredWarning(FaustWarning):
+    """Trying to configure app after configuration accessed."""
 
 
 class ImproperlyConfigured(FaustError):

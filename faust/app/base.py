@@ -35,7 +35,7 @@ from mode.services import ServiceCallbacks
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.futures import stampede
-from mode.utils.imports import import_from_cwd, smart_import, symbol_by_name
+from mode.utils.imports import import_from_cwd, smart_import
 from mode.utils.logging import flight_recorder
 from mode.utils.objects import cached_property
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
@@ -105,9 +105,9 @@ else:
 __all__ = ['App']
 
 #: Format string for ``repr(app)``.
-APP_REPR = """
+APP_REPR = '''
 <{name}({c.id}): {c.broker} {s.state} agents({agents}) topics({topics})>
-""".strip()
+'''.strip()
 
 # Venusian (pypi): This is used for "autodiscovery" of user code,
 # CLI commands, and much more.
@@ -135,7 +135,7 @@ SCAN_CATEGORIES: Iterable[str] = [
 #: decorators.
 SCAN_IGNORE: Iterable[str] = ['test_.*', '.*__main__.*']
 
-E_NEED_ORIGIN = """
+E_NEED_ORIGIN = '''
 `origin` argument to faust.App is mandatory when autodiscovery enabled.
 
 This parameter sets the canonical path to the project package,
@@ -153,18 +153,18 @@ origin will be "project":
         id='myid',
         origin='project',
     )
-"""
+'''
 
-W_OPTION_DEPRECATED = """\
+W_OPTION_DEPRECATED = '''\
 Argument {old!r} is deprecated and scheduled for removal in Faust 1.0.
 
 Please use {new!r} instead.
-"""
+'''
 
-W_DEPRECATED_SHARD_PARAM = """\
+W_DEPRECATED_SHARD_PARAM = '''\
 The second argument to `@table_route` is deprecated,
 please use the `query_param` keyword argument instead.
-"""
+'''
 
 # @app.task decorator may be called in several ways:
 #
@@ -358,6 +358,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 By default the configuration will be read only when required.
         """
         self._config_source = obj
+        if self.finalized or self.configured:
+            Settings._warn_already_configured()
         if force or self.configured:
             self._conf = None
             self._configure(silent=silent)
@@ -467,9 +469,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         See Also:
             :class:`faust.topics.Topic`
         """
-        Topic = (self.conf.Topic
-                 if self.finalized else symbol_by_name('faust:Topic'))
-        return Topic(
+        return self.conf.Topic(
             self,
             topics=topics,
             pattern=pattern,
@@ -543,9 +543,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
 
         def _inner(fun: AgentFun) -> AgentT:
-            Agent = (self.conf.Agent
-                     if self.finalized else symbol_by_name('faust:Agent'))
-            agent = Agent(
+            agent = self.conf.Agent(
                 fun,
                 name=name,
                 app=self,
@@ -733,10 +731,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             >>> table['Elaine']
             2
         """
-        Table = (self.conf.Table
-                 if self.finalized else symbol_by_name('faust:Table'))
         table = self.tables.add(
-            Table(
+            self.conf.Table(
                 self,
                 name=name,
                 default=default,
@@ -1162,9 +1158,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     @cached_property
     def tables(self) -> TableManagerT:
         """Map of available tables, and the table manager service."""
-        TableManager = (self.conf.TableManager if self.finalized else
-                        symbol_by_name('faust.tables:TableManager'))
-        return TableManager(
+        return self.conf.TableManager(
             app=self,
             loop=self.loop,
             beacon=self.beacon,
