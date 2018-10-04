@@ -766,12 +766,14 @@ class AppCommand(Command):
         app = self.app
         # If command started the app, we should stop it.
         #   - could have app.client_only, or app.producer_only set.
-        if type(app)._service.is_set(app) and app._service.started:
+        app_service_cached = type(app)._service.is_set(app)
+        if app_service_cached and app._service.started:
             await app._service.stop()
 
         # If command started the producer, we should also stop that
         #   - this will flush any buffers before exiting.
-        if type(app).producer.is_set(app) and app.producer.started:
+        producer_cached = type(app).producer.is_set(app)  # type: ignore
+        if producer_cached and app.producer.started:
             await app.producer.stop()
 
     def to_key(self, typ: Optional[str], key: str) -> Any:
