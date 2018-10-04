@@ -16,6 +16,10 @@ from faust.types.app import HttpClientT
 from yarl import URL
 
 
+def _dummy_partitioner(a, b, c):
+    return 0
+
+
 class test_settings:
 
     def App(self, id='myid', **kwargs):
@@ -46,6 +50,7 @@ class test_settings:
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
+        assert conf.producer_partitioner is None
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
         assert not conf.stream_wait_empty
@@ -139,6 +144,7 @@ class test_settings:
                                  broker_commit_interval=30.3,
                                  broker_commit_livelock_soft_timeout=60.6,
                                  broker_check_crcs=False,
+                                 producer_partitioner=_dummy_partitioner,
                                  table_cleanup_interval=80.8,
                                  key_serializer='str',
                                  value_serializer='str',
@@ -179,6 +185,7 @@ class test_settings:
             broker_commit_interval=broker_commit_interval,
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
             broker_check_crcs=broker_check_crcs,
+            producer_partitioner=producer_partitioner,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
@@ -220,6 +227,7 @@ class test_settings:
         assert (conf.broker_commit_livelock_soft_timeout ==
                 broker_commit_livelock_soft_timeout)
         assert conf.broker_check_crcs == broker_check_crcs
+        assert conf.producer_partitioner is producer_partitioner
         assert conf.table_cleanup_interval == table_cleanup_interval
         assert conf.key_serializer == key_serializer
         assert conf.value_serializer == value_serializer

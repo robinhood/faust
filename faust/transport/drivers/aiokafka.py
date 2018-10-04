@@ -621,8 +621,9 @@ class Producer(base.Producer):
             max_request_size=self.max_request_size,
             compression_type=self.compression_type,
             on_irrecoverable_error=self._on_irrecoverable_error,
-            security_protocol="SSL" if self.ssl_context else "PLAINTEXT",
+            security_protocol='SSL' if self.ssl_context else 'PLAINTEXT',
             ssl_context=self.ssl_context,
+            partitioner=self.partitioner,
         )
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:

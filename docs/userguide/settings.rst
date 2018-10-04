@@ -550,6 +550,50 @@ durability of records that are sent. The following settings are common:
   long as at least one in-sync replica remains alive. This is the strongest
   available guarantee.
 
+.. setting:: producer_partitioner
+
+``producer_partitioner``
+------------------------
+
+:type: ``Callable[[bytes, List[int], List[int]], int]``
+:default: *transport specific*
+
+The Kafka producer can be configured with a custom partitioner
+to change how keys are partitioned when producing to topics.
+
+The default partitioner for Kafka is implemented as follows,
+and can be used as a template for your own partitioner:
+
+.. sourcecode:: python
+
+    import random
+    from typing import List
+    from kafka.partitioner.hashed import murmur2
+
+    def partition(key: bytes,
+                  all_partitions: List[int],
+                  available: List[int]) -> int:
+        """Default partitioner.
+
+        Hashes key to partition using murmur2 hashing (from java client)
+        If key is None, selects partition randomly from available,
+        or from all partitions if none are currently available
+
+        Arguments:
+            key: partitioning key
+            all_partitions: list of all partitions sorted by partition ID.
+            available: list of available partitions in no particular order
+        Returns:
+            int: one of the values from ``all_partitions`` or ``available``.
+        """
+        if key is None:
+            source = available if available else all_paritions
+            return random.choice(source)
+        index: int = murmur2(key)
+        index &= 0x7fffffff
+        index %= len(all_partitions)
+        return all_partitions[index]
+
 .. _settings-table:
 
 Advanced Table Settings

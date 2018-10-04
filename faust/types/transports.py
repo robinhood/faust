@@ -15,6 +15,7 @@ from typing import (
     MutableMapping,
     MutableSet,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -38,6 +39,7 @@ __all__ = [
     'TPorTopicSet',
     'PartitionsRevokedCallback',
     'PartitionsAssignedCallback',
+    'PartitionerT',
     'ConsumerT',
     'ProducerT',
     'ConductorT',
@@ -58,6 +60,13 @@ PartitionsRevokedCallback = Callable[[Set[TP]], Awaitable[None]]
 #: Callback (:keyword:`async def`) called when consumer
 #: partitions are assigned.
 PartitionsAssignedCallback = Callable[[Set[TP]], Awaitable[None]]
+
+PartitionerT = Callable[
+    [Optional[bytes],   # key to hash (or None)
+     Sequence[int],     # all partitions
+     Sequence[int]],    # available partitions
+    int,
+]
 
 
 class ConsumerT(ServiceT):
@@ -190,6 +199,7 @@ class ProducerT(ServiceT):
     max_request_size: int
     compression_type: Optional[str]
     ssl_context: Optional[ssl.SSLContext]
+    partitioner: Optional[PartitionerT]
 
     @abc.abstractmethod
     def __init__(self, transport: 'TransportT',

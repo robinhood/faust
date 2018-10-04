@@ -30,6 +30,7 @@ class Producer(Service, ProducerT):
         self.max_request_size = conf.producer_max_request_size
         self.compression_type = conf.producer_compression_type
         self.ssl_context = conf.ssl_context
+        self.partitioner = conf.producer_partitioner
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 
     async def send(self, topic: str, key: Optional[bytes],

@@ -34,6 +34,7 @@ from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
 from .streams import StreamT
+from .transports import PartitionerT
 from .tables import TableManagerT, TableT
 from .topics import TopicT
 from .web import HttpClientT
@@ -256,6 +257,7 @@ class Settings(abc.ABC):
     _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
+    _producer_partitioner: Optional[PartitionerT] = None
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
     _Agent: Type[AgentT]
@@ -324,6 +326,7 @@ class Settings(abc.ABC):
             producer_acks: int = None,
             producer_max_request_size: int = None,
             producer_compression_type: str = None,
+            producer_partitioner: SymbolArg[PartitionerT] = None,
             web_bind: str = None,
             web_port: int = None,
             web_host: str = None,
@@ -413,6 +416,8 @@ class Settings(abc.ABC):
             self.producer_max_request_size = producer_max_request_size
         if producer_compression_type is not None:
             self.producer_compression_type = producer_compression_type
+        if producer_partitioner is not None:
+            self.producer_partitioner = producer_partitioner
         if web_bind is not None:
             self.web_bind = web_bind
         if web_port is not None:
@@ -586,6 +591,15 @@ class Settings(abc.ABC):
     @broker_commit_livelock_soft_timeout.setter
     def broker_commit_livelock_soft_timeout(self, value: Seconds) -> None:
         self._broker_commit_livelock_soft_timeout = want_seconds(value)
+
+    @property
+    def producer_partitioner(self) -> Optional[PartitionerT]:
+        return self._producer_partitioner
+
+    @producer_partitioner.setter
+    def producer_partitioner(
+            self, handler: Optional[SymbolArg[PartitionerT]]) -> None:
+        self._producer_partitioner = symbol_by_name(handler)
 
     @property
     def table_cleanup_interval(self) -> float:
