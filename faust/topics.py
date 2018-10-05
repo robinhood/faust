@@ -42,9 +42,17 @@ from .types.topics import ChannelT, TopicT
 from .types.transports import ProducerT
 
 if typing.TYPE_CHECKING:  # pragma: no cover
+    from mypy_extensions import DefaultNamedArg
+
     from .app import App
+
+    DecodeFunction = Callable[[Message, DefaultNamedArg(bool, 'propagate')],
+                              Awaitable[EventT]]
 else:
-    class App: ...  # noqa
+    class App:
+        ...  # noqa
+
+    DecodeFunction = Callable[..., Awaitable[EventT]]
 
 __all__ = ['Topic']
 
@@ -106,6 +114,7 @@ class Topic(Channel, TopicT):
                  maxsize: int = None,
                  root: ChannelT = None,
                  active_partitions: Set[TP] = None,
+                 allow_empty: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         self.topics = topics or []
         super().__init__(
@@ -133,6 +142,7 @@ class Topic(Channel, TopicT):
         self.internal = internal
         self.active_partitions = active_partitions
         self.config = config or {}
+        self.allow_empty = allow_empty
 
     async def send(self,
                    *,
@@ -169,7 +179,7 @@ class Topic(Channel, TopicT):
                      propagate: bool = False) -> EventT:
         # first call to decode compiles and caches it.
         decode = self.decode = self._compile_decode()  # type: ignore
-        return await decode(message)
+        return await decode(message, propagate=propagate)
 
     async def put(self, event: EventT) -> None:
         if not self.is_iterator:
@@ -177,7 +187,7 @@ class Topic(Channel, TopicT):
                 f'Cannot put on Topic channel before aiter({self})')
         await self.queue.put(event)
 
-    def _compile_decode(self) -> Callable[[Message], Awaitable[EventT]]:
+    def _compile_decode(self) -> DecodeFunction:
         app = self.app
         key_type = self.key_type
         value_type = self.value_type
@@ -196,6 +206,8 @@ class Topic(Channel, TopicT):
                 await self.on_key_decode_error(exc, message)
             else:
                 try:
+                    if message.value is None and self.allow_empty:
+                        return create_event(k, None, message)
                     v = loads_value(
                         value_type, message.value, serializer=value_serializer)
                 except ValueDecodeError as exc:
@@ -223,7 +235,8 @@ class Topic(Channel, TopicT):
                 'value_serializer': self.value_serializer,
                 'acks': self.acks,
                 'config': self.config,
-                'active_partitions': self.active_partitions}}
+                'active_partitions': self.active_partitions,
+                'allow_empty': self.allow_empty}}
 
     @property
     def pattern(self) -> Optional[Pattern]:

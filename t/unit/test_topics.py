@@ -1,9 +1,14 @@
 import asyncio
 import re
 import pytest
-from faust import Event
+from faust import Event, Record
+from faust.exceptions import ValueDecodeError
 from faust.types import Message
 from mode.utils.mocks import AsyncMock, Mock
+
+
+class Dummy(Record):
+    foo: int
 
 
 class test_Topic:
@@ -13,8 +18,16 @@ class test_Topic:
         return app.topic('foo')
 
     @pytest.fixture
+    def topic_allow_empty(self, *, app):
+        return app.topic('foo', allow_empty=True)
+
+    @pytest.fixture
     def message(self):
         return Mock(name='message', autospec=Message)
+
+    @pytest.fixture
+    def message_empty_value(self):
+        return Mock(name='message', value=None, autospec=Message)
 
     def test_on_published(self, *, topic):
         fut = Mock(name='fut', autospec=asyncio.Future)
@@ -37,6 +50,19 @@ class test_Topic:
 
         await topic.decode(message, propagate=True)
         topic._compile_decode.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_decode_empty_error(self, *, topic, message_empty_value):
+        topic = topic.derive_topic(value_serializer='json', value_type=Dummy)
+        with pytest.raises(ValueDecodeError):
+            await topic.decode(message_empty_value, propagate=True)
+
+    @pytest.mark.asyncio
+    async def test_decode_allow_empty(self, *, topic_allow_empty,
+                                      message_empty_value):
+        event = await topic_allow_empty.decode(message_empty_value)
+        assert event.value is None
+        assert event.message == message_empty_value
 
     @pytest.mark.asyncio
     async def test_put(self, *, topic):
