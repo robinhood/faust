@@ -13,14 +13,14 @@ please visit the :ref:`history` section.
 :release-date: TBA
 :release-by: TBA
 
-.. _v120-news:
+.. _v120-fixes:
 
-News
-----
+Fixes
+-----
 
-- **Requirements**
-
-    + Now depends on :ref:`Mode 1.18.1 <mode:version-1.18.1>`.
+- **CLI**: All commands, including user-defined, now wait for producer to
+   be fully stopped before shutting down to make sure buffers are flushed
+   (Issue #172).
 
 - **App**: Channels and topics now take default
     ``key_serializer``/``value_serializer`` from ``key_type``/``value_type``
@@ -33,9 +33,14 @@ News
                 x: int
                 y: int
 
-- **CLI**: All commands, including user-defined, now wait for producer to
-   be fully stopped before shutting down to make sure buffers are flushed
-   (Issue #172).
+.. _v120-news:
+
+News
+----
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 1.18.1 <mode:version-1.18.1>`.
 
 - **CLI**: Command-line improvements.
 
