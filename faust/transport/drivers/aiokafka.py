@@ -39,6 +39,7 @@ from rhkafka.errors import (
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
 )
+from rhkafka.partitioner.default import DefaultPartitioner
 from rhkafka.protocol.metadata import MetadataRequest_v1
 from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
 from mode.utils.compat import AsyncContextManager, OrderedDict
@@ -623,7 +624,7 @@ class Producer(base.Producer):
             on_irrecoverable_error=self._on_irrecoverable_error,
             security_protocol='SSL' if self.ssl_context else 'PLAINTEXT',
             ssl_context=self.ssl_context,
-            partitioner=self.partitioner,
+            partitioner=self.partitioner or DefaultPartitioner(),
         )
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:
