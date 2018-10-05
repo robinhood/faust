@@ -330,6 +330,7 @@ class Collection(Service, CollectionT):
             # use large buffer size as we do not commit attached messages
             # when reading changelog streams.
             maxsize=131_072,
+            allow_empty=True,
         )
 
     def __copy__(self) -> Any:

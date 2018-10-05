@@ -78,6 +78,7 @@ class TopicT(ChannelT):
                  maxsize: int = None,
                  root: ChannelT = None,
                  active_partitions: Set[TP] = None,
+                 allow_empty: bool = False,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 
