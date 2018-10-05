@@ -58,6 +58,8 @@ the semi-comma:
 ``ssl_context``
 ---------------
 
+.. versionadded:: 1.1
+
 :type: ``ssl.SSLContext``
 :default: ``None``
 
@@ -97,6 +99,8 @@ preferred.
 
 ``cache``
 ---------
+
+.. versionadded:: 1.2
 
 :type: ``str``
 :default: ``memory://``
@@ -454,6 +458,8 @@ Automatically check the CRC32 of the records consumed.
 ``broker_heartbeat_interval``
 -----------------------------
 
+.. versionadded:: 1.0.11
+
 :type: :class:`int`
 :default: ``3.0`` (three seconds)
 
@@ -466,6 +472,8 @@ If any of these time out, you should increase this setting.
 
 ``broker_session_timeout``
 --------------------------
+
+.. versionadded:: 1.0.11
 
 :type: :class:`int`
 :default: ``30.0`` (thirty seconds)
@@ -554,6 +562,8 @@ durability of records that are sent. The following settings are common:
 
 ``producer_partitioner``
 ------------------------
+
+.. versionadded:: 1.2
 
 :type: ``Callable[[bytes, List[int], List[int]], int]``
 :default: *transport specific*
@@ -759,6 +769,8 @@ Advanced Web Server Settings
 ``web``
 -------
 
+.. versionadded:: 1.2
+
 :type: :class:`str`
 :default: ``aiohttp://``
 
@@ -768,6 +780,8 @@ The web driver to use.
 
 ``web_enabled``
 ---------------
+
+.. versionadded:: 1.2
 
 :type: :class:`bool`
 :default: :const:`True`
@@ -796,6 +810,8 @@ by passing it as a keyword argument to :class:`App`.
 ``web_host``
 ------------
 
+.. versionadded:: 1.2
+
 :type: :class:`str`
 :default: ``f"{socket.gethostname()}"``
 
@@ -810,6 +826,8 @@ not by passing it as a keyword argument to :class:`app`.
 ``web_port``
 ------------
 
+.. versionadded:: 1.2
+
 :type: :class:`int`
 :default: ``6066``
 
@@ -822,6 +840,8 @@ not by passing it as a keyword argument to :class:`app`.
 
 ``web_bind``
 ------------
+
+.. versionadded:: 1.2
 
 :type: :class:`str`
 :default: ``"0.0.0.0"``
