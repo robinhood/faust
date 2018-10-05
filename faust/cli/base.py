@@ -254,8 +254,8 @@ def find_app(app: str,
 
 def prepare_app(app: AppT, name: Optional[str]) -> AppT:
     app.finalize()
-    if app.conf.origin is None:
-        app.conf.origin = name
+    if app.conf._origin is None:
+        app.conf._origin = name
     if app.conf.autodiscover:
         app.discover()
 

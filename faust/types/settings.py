@@ -242,7 +242,6 @@ class Settings(abc.ABC):
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     id_format: str = '{id}-v{self.version}'
-    origin: Optional[str] = None
     key_serializer: CodecArg = 'raw'
     value_serializer: CodecArg = 'json'
     reply_to: str
@@ -271,6 +270,7 @@ class Settings(abc.ABC):
     worker_redirect_stdouts_level: Severity = 'WARN'
 
     _id: str
+    _origin: Optional[str] = None
     _name: str
     _version: int = 1
     _broker: URL
@@ -400,7 +400,8 @@ class Settings(abc.ABC):
         self._accessed = set()
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
-        self.origin = origin if origin is not None else self.origin
+        if origin is not None:
+            self.origin = origin
         self.id = id
         self.broker = url or broker or BROKER_URL
         self.ssl_context = ssl_context
@@ -550,6 +551,14 @@ class Settings(abc.ABC):
     def id(self, name: str) -> None:
         self._name = name
         self._id = self._prepare_id(name)  # id is name+version
+
+    @property
+    def origin(self) -> str:
+        return self._origin
+
+    @origin.setter
+    def origin(self, origin: str) -> None:
+        self._origin = origin
 
     @property
     def version(self) -> int:
