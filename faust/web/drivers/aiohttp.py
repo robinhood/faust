@@ -2,7 +2,17 @@
 import asyncio
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    ClassVar,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
@@ -89,11 +99,21 @@ class Web(base.Web):
     header_separator: ClassVar[bytes] = HEADER_SEPARATOR
     header_key_value_separator: ClassVar[bytes] = HEADER_KEY_VALUE_SEPARATOR
 
+    _transport_schemes: Mapping[
+        str,
+        Callable[[asyncio.AbstractEventLoop, Any],
+                 Awaitable[asyncio.AbstractServer]],
+    ]
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self._app: Application = Application()
         self._srv: Any = None
         self._handler: Any = None
+        self._transport_schemes = {
+            'tcp': self._connect_tcp,
+            'unix': self._connect_unix,
+        }
 
     @cached_property
     def _service(self) -> WebService:
@@ -171,9 +191,29 @@ class Web(base.Web):
 
     async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
         handler = self._handler = self._app.make_handler()
-        self._srv = await loop.create_server(
+        self._srv = await self.create_server(loop, handler)
+
+    async def create_server(self,
+                            loop: asyncio.AbstractEventLoop,
+                            handler: Any) -> asyncio.AbstractServer:
+        transport = self.app.conf.web_transport
+        return await self._transport_schemes[transport.scheme](loop, handler)
+
+    async def _connect_tcp(self,
+                           loop: asyncio.AbstractEventLoop,
+                           handler: Any) -> asyncio.AbstractServer:
+        server = await loop.create_server(
             handler, self.app.conf.web_bind, self.app.conf.web_port)
         self.log.info('Serving on %s', self.url)
+        return server
+
+    async def _connect_unix(self,
+                            loop: asyncio.AbstractEventLoop,
+                            handler: Any) -> asyncio.AbstractServer:
+        server = await loop.create_unix_server(
+            handler, self.app.conf.web_transport.path)
+        self.log.info('Serving on %s', self.app.conf.web_transport.path)
+        return server
 
     async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:
         await self._stop_server()

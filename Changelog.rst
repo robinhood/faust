@@ -141,6 +141,17 @@ Web Improvements
 
         app.web.blueprints.add('/users/', 'proj.users.views:blueprint')
 
+- **Web**: Web server can now serve using Unix domain sockets.
+
+    The ``--web-transport`` argument to :program:`faust worker`,
+    and the :setting:`web_transport` setting was added for this purpose.
+
+    Serve HTTP over Unix domain socket:
+
+    .. sourcecode:: console
+
+        faust -A app -l info worker --web-transport=unix:///tmp/faustweb.sock
+
 - **Web**: Web server is now started by the :class:`~faust.App`
            :class:`faust.Worker`.
 

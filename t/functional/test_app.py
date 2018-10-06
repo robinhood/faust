@@ -71,6 +71,7 @@ class test_settings:
         assert conf.canonical_url == URL(f'http://{socket.gethostname()}:6066')
         assert conf.web_bind == '0.0.0.0'
         assert conf.web_port == 6066
+        assert conf.web_transport == settings.WEB_TRANSPORT
         assert conf.worker_redirect_stdouts
         assert conf.worker_redirect_stdouts_level == 'WARN'
 
@@ -161,6 +162,7 @@ class test_settings:
                                  web_bind='localhost',
                                  web_port=6069,
                                  web_host='localhost',
+                                 web_transport='udp://',
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  **kwargs) -> App:
@@ -202,6 +204,7 @@ class test_settings:
             web_bind=web_bind,
             web_port=web_port,
             web_host=web_host,
+            web_transport=web_transport,
             worker_redirect_stdouts=worker_redirect_stdouts,
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
         )
@@ -243,6 +246,7 @@ class test_settings:
         assert conf.web_bind == web_bind
         assert conf.web_port == web_port
         assert conf.web_host == web_host
+        assert conf.web_transport == URL(web_transport)
         assert conf.worker_redirect_stdouts == worker_redirect_stdouts
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)

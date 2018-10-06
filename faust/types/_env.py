@@ -1,6 +1,7 @@
 """Faust environment variables."""
 import os
 from typing import Any, Sequence
+from yarl import URL
 
 __all__ = [
     'BLOCKING_TIMEOUT',
@@ -9,6 +10,7 @@ __all__ = [
     'STRICT',
     'WEB_PORT',
     'WEB_BIND',
+    'WEB_TRANSPORT',
     'WORKDIR',
 ]
 
@@ -43,3 +45,4 @@ STRICT: bool = bool(_getenv('STRICT', False))
 
 WEB_PORT: int = int(_getenv('WEB_PORT', '6066'))
 WEB_BIND: str = _getenv('F_WEB_BIND', '0.0.0.0')
+WEB_TRANSPORT: URL = URL(_getenv('WEB_TRANSPORT', 'tcp://'))

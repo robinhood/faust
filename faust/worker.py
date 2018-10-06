@@ -255,7 +255,13 @@ class Worker(mode.Worker):
 
     def _proc_ident(self) -> str:
         conf = self.app.conf
-        return f'{conf.id} -p {conf.web_port} {conf.datadir.absolute()}'
+        return f'{conf.id} {self._proc_web_ident()} {conf.datadir.absolute()}'
+
+    def _proc_web_ident(self) -> str:
+        conf = self.app.conf
+        if conf.web_transport.scheme == 'unix':
+            return f'{conf.web_transport}'
+        return f'-p {conf.web_port}'
 
     async def on_execute(self) -> None:
         # This is called as soon as we start

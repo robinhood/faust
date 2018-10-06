@@ -790,6 +790,28 @@ Enable web server and other web components.
 
 This option can also be set using :option:`faust worker --without-web`.
 
+.. setting:: web_transport
+
+``web_transport``
+-----------------
+
+.. versionadded:: 1.2
+
+:type: :class:`str`
+:default: ``"tcp://"``
+
+The network transport used for the web server.
+
+Default is to use TCP, but this setting also enables you to use
+Unix domain sockets.  To use domain sockets specify an URL including
+the path to the file you want to create like this:
+
+.. sourcecode:: text
+
+    unix:///tmp/server.sock
+
+This will create a new domain socket available in :file:`/tmp/server.sock`.
+
 .. setting:: canonical_url
 
 ``canonical_url``

@@ -27,7 +27,7 @@ from yarl import URL
 
 from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 
-from ._env import DATADIR, WEB_BIND, WEB_PORT
+from ._env import DATADIR, WEB_BIND, WEB_PORT, WEB_TRANSPORT
 from .agents import AgentT
 from .assignor import LeaderAssignorT, PartitionAssignorT
 from .codecs import CodecArg
@@ -288,6 +288,7 @@ class Settings(abc.ABC):
     _producer_partitioner: Optional[PartitionerT] = None
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
+    _web_transport: URL = WEB_TRANSPORT
     _Agent: Type[AgentT]
     _Stream: Type[StreamT]
     _Table: Type[TableT]
@@ -380,6 +381,7 @@ class Settings(abc.ABC):
             web_bind: str = None,
             web_port: int = None,
             web_host: str = None,
+            web_transport: Union[str, URL] = None,
             worker_redirect_stdouts: bool = None,
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
@@ -476,6 +478,8 @@ class Settings(abc.ABC):
             self.web_port = web_port
         if web_host is not None:
             self.web_host = web_host
+        if web_transport is not None:
+            self.web_transport = web_transport
         if worker_redirect_stdouts is not None:
             self.worker_redirect_stdouts = worker_redirect_stdouts
         if worker_redirect_stdouts_level is not None:
@@ -699,6 +703,14 @@ class Settings(abc.ABC):
     def agent_supervisor(
             self, sup: SymbolArg[Type[SupervisorStrategyT]]) -> None:
         self._agent_supervisor = symbol_by_name(sup)
+
+    @property
+    def web_transport(self) -> URL:
+        return self._web_transport
+
+    @web_transport.setter
+    def web_transport(self, url: Union[str, URL]) -> None:
+        self._web_transport = URL(url)
 
     @property
     def Agent(self) -> Type[AgentT]:

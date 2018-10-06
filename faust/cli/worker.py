@@ -8,8 +8,9 @@ from typing import Any, List, Optional, cast
 from mode import ServiceT, Worker
 from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
+from yarl import URL
 
-from faust.types._env import WEB_BIND, WEB_PORT
+from faust.types._env import WEB_BIND, WEB_PORT, WEB_TRANSPORT
 
 from . import params
 from .base import AppCommand, now_builtin_worker_options, option
@@ -35,6 +36,9 @@ class worker(AppCommand):
         option('--web-port', '-p',
                default=None, type=params.TCPPort(),
                help=f'Port to run web server on (default: {WEB_PORT})'),
+        option('--web-transport',
+               default=None, type=params.URLParam(),
+               help=f'Web server transport (default: {WEB_TRANSPORT})'),
         option('--web-bind', '-b', type=str),
         option('--web-host', '-h',
                default=socket.gethostname(), type=str,
@@ -59,6 +63,7 @@ class worker(AppCommand):
                              web_port: Optional[int],
                              web_bind: Optional[str],
                              web_host: str,
+                             web_transport: URL,
                              **kwargs: Any) -> None:
         self.app.conf.web_enabled = with_web
         if web_port is not None:
@@ -67,6 +72,8 @@ class worker(AppCommand):
             self.app.conf.web_bind = web_bind
         if web_host is not None:
             self.app.conf.web_host = web_host
+        if web_transport is not None:
+            self.app.conf.web_transport = web_transport
 
     @property
     def _Worker(self) -> Worker:

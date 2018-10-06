@@ -1,11 +1,14 @@
 from typing import Any, Iterable, Optional
 import click
+from click.types import ParamType, StringParamType
+from yarl import URL
 
 __all__ = [
     'WritableDirectory',
     'WritableFilePath',
     'CaseInsensitiveChoice',
     'TCPPort',
+    'URLParam',
 ]
 
 
@@ -48,3 +51,22 @@ class TCPPort(click.IntRange):
 
     def __init__(self) -> None:
         super().__init__(1, 65535)
+
+
+class URLParam(ParamType):
+    name = 'URL'
+
+    _string_param: StringParamType
+
+    def __init__(self) -> None:
+        self._string_param = StringParamType()
+
+    def convert(self,
+                value: str,
+                param: Optional[click.Parameter],
+                ctx: Optional[click.Context]) -> URL:
+        text_value = self._string_param.convert(value, param, ctx)
+        return URL(text_value)
+
+    def __repr__(self) -> str:
+        return 'URL'
