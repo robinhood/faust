@@ -154,7 +154,7 @@ setup(
     ],
     classifiers=[
         'Framework :: AsyncIO',
-        'Development Status = : 5 - Production/Stable',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Natural Language :: English',
         'License :: OSI Approved :: BSD License',
