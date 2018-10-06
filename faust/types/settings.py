@@ -553,11 +553,11 @@ class Settings(abc.ABC):
         self._id = self._prepare_id(name)  # id is name+version
 
     @property
-    def origin(self) -> str:
+    def origin(self) -> Optional[str]:
         return self._origin
 
     @origin.setter
-    def origin(self, origin: str) -> None:
+    def origin(self, origin: Optional[str]) -> None:
         self._origin = origin
 
     @property
