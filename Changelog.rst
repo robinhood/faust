@@ -8,6 +8,8 @@ This document contain change notes for bugfix releases in
 the Faust 1.2 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.2.0:
+
 1.2.0
 =====
 :release-date: 2018-10-05 5:23 P.M PDT
