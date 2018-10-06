@@ -120,7 +120,8 @@ def compat_option(
                   param: click.Parameter,
                   value: Any) -> Any:
         state = ctx.ensure_object(State)
-        if getattr(state, state_key, None) is None:
+        prev_value = getattr(state, state_key, None)
+        if prev_value is None and value != param.default:
             setattr(state, state_key, value)
         return callback(ctx, param, value) if callback else value
 
