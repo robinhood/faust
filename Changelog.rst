@@ -10,8 +10,8 @@ please visit the :ref:`history` section.
 
 1.2.0
 =====
-:release-date: TBA
-:release-by: TBA
+:release-date: 2018-10-05 5:23 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`).
 
 .. _v120-fixes:
 
@@ -21,6 +21,9 @@ Fixes
 - **CLI**: All commands, including user-defined, now wait for producer to
    be fully stopped before shutting down to make sure buffers are flushed
    (Issue #172).
+
+- **Table**: Delete event in changelog would crash app on table
+  restore (Issue #175)
 
 - **App**: Channels and topics now take default
     ``key_serializer``/``value_serializer`` from ``key_type``/``value_type``
