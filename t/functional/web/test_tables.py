@@ -16,9 +16,9 @@ def tables(table_foo, table_bar):
     return [table_foo, table_bar]
 
 
-async def test_list_tables(client, tables):
-    client_ = await client
-    resp = await client_.get('/table/')
+async def test_list_tables(web_client, tables):
+    client = await web_client
+    resp = await client.get('/table/')
     assert resp.status == 200
     payload = await resp.json()
     tables = {t['name']: t for t in payload}
@@ -28,18 +28,18 @@ async def test_list_tables(client, tables):
     assert tables['bar-table']['help'] == 'Second table.'
 
 
-async def test_table_detail(client, tables):
-    client_ = await client
-    resp = await client_.get('/table/foo-table/')
+async def test_table_detail(web_client, tables):
+    client = await web_client
+    resp = await client.get('/table/foo-table/')
     assert resp.status == 200
     payload = await resp.json()
     assert payload['name'] == 'foo-table'
     assert payload['help'] == 'First table.'
 
 
-async def test_table_detail__missing_table(client, tables):
-    client_ = await client
-    resp = await client_.get('/table/XUZZY-table/')
+async def test_table_detail__missing_table(web_client, tables):
+    client = await web_client
+    resp = await client.get('/table/XUZZY-table/')
     assert resp.status == 404
     payload = await resp.json()
     assert payload == {
@@ -48,18 +48,21 @@ async def test_table_detail__missing_table(client, tables):
     }
 
 
-async def test_table_key(client, tables, table_foo, router_same):
-    client_ = await client
+async def test_table_key(web_client, tables, table_foo, router_same):
+    client = await web_client
     table_foo.data.data['KEY'] = '303'
-    resp = await client_.get('/table/foo-table/KEY/')
+    resp = await client.get('/table/foo-table/KEY/')
     assert resp.status == 200
     payload = await resp.json()
     assert payload == '303'
 
 
-async def test_table_key__missing_key(client, tables, table_foo, router_same):
-    client_ = await client
-    resp = await client_.get('/table/foo-table/MISSINGKEY/')
+async def test_table_key__missing_key(web_client,
+                                      tables,
+                                      table_foo,
+                                      router_same):
+    client = await web_client
+    resp = await client.get('/table/foo-table/MISSINGKEY/')
     assert resp.status == 404
     payload = await resp.json()
     assert payload == {

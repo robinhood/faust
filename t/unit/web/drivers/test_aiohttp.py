@@ -88,11 +88,11 @@ class test_Web:
             autospec=asyncio.AbstractEventLoop,
             create_server=AsyncMock(),
         )
-        web._app = Mock(name='_app', autospec=Application)
+        web.web_app = Mock(name='web.web_app', autospec=Application)
         await web.start_server(loop)
 
-        web._app.make_handler.assert_called_once_with()
-        assert web._handler is web._app.make_handler()
+        web.web_app.make_handler.assert_called_once_with()
+        assert web._handler is web.web_app.make_handler()
         assert web._srv is loop.create_server.coro()
         loop.create_server.asssert_called_once_with(
             web._handler, app.conf.web_bind, app.conf.web_port)
@@ -122,15 +122,15 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_shutdown_webapp(self, *, web):
-        web._app = None
+        web.web_app = None
         await web._shutdown_webapp()
-        web._app = Mock(
-            name='_app',
+        web.web_app = Mock(
+            name='web.web_app',
             autospec=Application,
             shutdown=AsyncMock(),
         )
         await web._shutdown_webapp()
-        web._app.shutdown.assert_called_once_with()
+        web.web_app.shutdown.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_shutdown_handler(self, *, web):
@@ -142,12 +142,12 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_cleanup_app(self, *, web):
-        web._app = None
+        web.web_app = None
         await web._cleanup_app()
-        web._app = Mock(
-            name='_app',
+        web.web_app = Mock(
+            name='web.web_app',
             autospec=Application,
             cleanup=AsyncMock(),
         )
         await web._cleanup_app()
-        web._app.cleanup.assert_called_once_with()
+        web.web_app.cleanup.assert_called_once_with()

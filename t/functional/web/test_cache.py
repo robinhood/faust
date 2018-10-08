@@ -57,7 +57,7 @@ def test_cache():
 async def test_cached_view__HEAD(*, app, bp, web_client, web):
     app.cache.storage.clear()
     async with app.cache:
-        client = await web_client(web._app)
+        client = await web_client
         urlA = web.url_for('test:a')
         response = await client.head(urlA)
         assert response.status == 200
@@ -82,7 +82,7 @@ async def test_cached_view__redis(expected_backend, *,
     async with cache_backend:
         assert cache_backend.url.scheme == expected_backend
 
-        client = await web_client(web._app)
+        client = await web_client
         urlA = web.url_for('test:a')
         urlB = web.url_for('test:b')
         urlC = web.url_for('test:c')

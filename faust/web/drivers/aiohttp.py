@@ -107,7 +107,7 @@ class Web(base.Web):
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
-        self._app: Application = Application()
+        self.web_app: Application = Application()
         self._srv: Any = None
         self._handler: Any = None
         self._transport_schemes = {
@@ -147,13 +147,13 @@ class Web(base.Web):
         return cast(base.Response, response)
 
     def route(self, pattern: str, handler: Callable) -> None:
-        self._app.router.add_route('*', pattern, handler)
+        self.web_app.router.add_route('*', pattern, handler)
 
     def add_static(self,
                    prefix: str,
                    path: Union[Path, str],
                    **kwargs: Any) -> None:
-        self._app.router.add_static(prefix, str(path), **kwargs)
+        self.web_app.router.add_static(prefix, str(path), **kwargs)
 
     def bytes_to_response(self, s: _bytes) -> base.Response:
         status_code, _, payload = s.partition(self.content_separator)
@@ -190,7 +190,7 @@ class Web(base.Web):
         )
 
     async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
-        handler = self._handler = self._app.make_handler()
+        handler = self._handler = self.web_app.make_handler()
         self._srv = await self.create_server(loop, handler)
 
     async def create_server(self,
@@ -229,9 +229,9 @@ class Web(base.Web):
             await self._srv.wait_closed()
 
     async def _shutdown_webapp(self) -> None:
-        if self._app is not None:
+        if self.web_app is not None:
             self.log.info('Shutting down web application')
-            await self._app.shutdown()
+            await self.web_app.shutdown()
 
     async def _shutdown_handler(self) -> None:
         if self._handler is not None:
@@ -239,6 +239,11 @@ class Web(base.Web):
             await self._handler.shutdown(self.handler_shutdown_timeout)
 
     async def _cleanup_app(self) -> None:
-        if self._app is not None:
+        if self.web_app is not None:
             self.log.info('Cleanup')
-            await self._app.cleanup()
+            await self.web_app.cleanup()
+
+    @property
+    def _app(self) -> Application:
+        # XXX compat alias
+        return self.web_app
