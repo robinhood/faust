@@ -33,6 +33,7 @@ class StoreT(ServiceT, MutableMapping):
 
     url: URL
     app: AppT
+    table: CollectionT
     table_name: str
     key_type: Optional[ModelArg]
     value_type: Optional[ModelArg]
@@ -43,6 +44,7 @@ class StoreT(ServiceT, MutableMapping):
     def __init__(self,
                  url: Union[str, URL],
                  app: AppT,
+                 table: CollectionT,
                  *,
                  table_name: str = '',
                  key_type: ModelArg = None,

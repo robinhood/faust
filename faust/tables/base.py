@@ -145,8 +145,7 @@ class Collection(Service, CollectionT):
             else:
                 url = self._store or self.app.conf.store
                 self._data = stores.by_url(url)(
-                    url,
-                    app,
+                    url, app, self,
                     table_name=self.name,
                     key_type=self.key_type,
                     value_type=self.value_type,

@@ -34,6 +34,7 @@ class Store(StoreT, Service):
     def __init__(self,
                  url: Union[str, URL],
                  app: AppT,
+                 table: CollectionT = None,
                  *,
                  table_name: str = '',
                  key_type: ModelArg = None,
@@ -44,6 +45,7 @@ class Store(StoreT, Service):
         Service.__init__(self, **kwargs)
         self.url = URL(url)
         self.app = app
+        self.table = table
         self.table_name = table_name
         self.key_type = key_type
         self.value_type = value_type

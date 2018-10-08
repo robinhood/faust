@@ -137,6 +137,7 @@ class Store(base.SerializedStore):
     def __init__(self,
                  url: Union[str, URL],
                  app: AppT,
+                 table: CollectionT,
                  *,
                  key_index_size: int = 10_000,
                  options: Mapping = None,
@@ -144,7 +145,7 @@ class Store(base.SerializedStore):
         if rocksdb is None:
             raise ImproperlyConfigured(
                 'RocksDB bindings not installed: pip install python-rocksdb')
-        super().__init__(url, app, **kwargs)
+        super().__init__(url, app, table, **kwargs)
         if not self.url.path:
             self.url /= self.table_name
         self.options = RocksDBOptions(**options or {})
@@ -321,16 +322,28 @@ class Store(base.SerializedStore):
         return sum(1 for _ in self._visible_keys(db))
 
     def _iterkeys(self) -> Iterator[bytes]:
-        for db in self._dbs.values():
-            yield from self._visible_keys(db)
+        actives = self.app.assignor.assigned_actives()
+        topic = self.table._changelog_topic_name()
+        for partition, db in self._dbs.items():
+            tp = TP(topic=topic, partition=partition)
+            if tp in actives:
+                yield from self._visible_keys(db)
 
     def _itervalues(self) -> Iterator[bytes]:
-        for db in self._dbs.values():
-            yield from self._visible_values(db)
+        actives = self.app.assignor.assigned_actives()
+        topic = self.table._changelog_topic_name()
+        for partition, db in self._dbs.items():
+            tp = TP(topic=topic, partition=partition)
+            if tp in actives:
+                yield from self._visible_values(db)
 
     def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
-        for db in self._dbs.values():
-            yield from self._visible_items(db)
+        actives = self.app.assignor.assigned_actives()
+        topic = self.table._changelog_topic_name()
+        for partition, db in self._dbs.items():
+            tp = TP(topic=topic, partition=partition)
+            if tp in actives:
+                yield from self._visible_items(db)
 
     def _clear(self) -> None:
         raise NotImplementedError('TODO')  # XXX cannot reset tables
