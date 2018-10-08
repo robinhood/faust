@@ -150,7 +150,7 @@ The value for this argument can be:
     scan the package name described in the ``origin`` attribute.
 
     The ``origin`` attribute is automatically set when you start
-    a worker using the :program:`faust` command line program, for example::
+    a worker using the :program:`faust` command line program, for example:
 
     .. sourcecode:: console
 
