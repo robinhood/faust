@@ -119,6 +119,10 @@ class Web(base.Web):
     def _service(self) -> WebService:
         return WebService(self, loop=self.app.loop, beacon=self.app.beacon)
 
+    async def wsgi(self) -> Any:
+        self.init_server()
+        return self.web_app
+
     def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> base.Response:
         response = Response(

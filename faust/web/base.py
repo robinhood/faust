@@ -145,6 +145,10 @@ class Web(ServiceProxy):
                    **kwargs: Any) -> None:
         ...
 
+    @abc.abstractmethod
+    async def wsgi(self) -> Any:
+        ...
+
     def add_view(self, view_cls: Type[View], *, prefix: str = '') -> View:
         view: View = view_cls(self.app, self)
         path = prefix.rstrip('/') + '/' + view.view_path.lstrip('/')
