@@ -36,7 +36,13 @@ from mode.utils import text
 from mode.utils.compat import want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
 
-from faust.types._env import BLOCKING_TIMEOUT, DATADIR, DEBUG, WORKDIR
+from faust.types._env import (
+    BLOCKING_TIMEOUT,
+    CONSOLE_PORT,
+    DATADIR,
+    DEBUG,
+    WORKDIR,
+)
 from faust.types import AppT, CodecArg, ModelT
 from faust.utils import json
 from faust.utils import terminal
@@ -154,7 +160,7 @@ now_builtin_worker_options: OptionSequence = [
     compat_option(
         '--console-port',
         state_key='console_port',
-        default=50101,
+        default=CONSOLE_PORT,
         type=params.TCPPort(),
         help='when --debug: Port to run debugger console on.',
     ),
@@ -425,10 +431,10 @@ class Command(abc.ABC):
     datadir: str
     json: bool
     no_color: bool
-    loglevel: str
     logfile: str
-    blocking_timeout: float
-    console_port: int
+    _loglevel: Optional[str]
+    _blocking_timeout: Optional[float]
+    _console_port: Optional[int]
 
     stdout: Optional[IO]
     stderr: Optional[IO]
@@ -500,14 +506,17 @@ class Command(abc.ABC):
         self.json = self.state.json
         self.no_color = self.state.no_color
         self.logfile = self.state.logfile
-        self.loglevel = self.state.loglevel
-        self.blocking_timeout = self.state.blocking_timeout
-        self.console_port = self.state.console_port
         self.stdout = root.stdout
         self.stderr = root.stderr
         self.args = args
         self.kwargs = kwargs
         self.prog_name = root.command_path
+
+        # compat options must be None for now, since subcommands
+        # also can accept them as arguments.
+        self._loglevel = self.state.loglevel
+        self._blocking_timeout = self.state.blocking_timeout
+        self._console_port = self.state.console_port
 
     @no_type_check   # Subclasses can omit *args, **kwargs in signature.
     async def run(self, *args: Any, **kwargs: Any) -> Any:
@@ -674,6 +683,30 @@ class Command(abc.ABC):
 
     def dumps(self, obj: Any) -> str:
         return json.dumps(obj)
+
+    @property
+    def loglevel(self) -> str:
+        return self._loglevel or DEFAULT_LOGLEVEL
+
+    @loglevel.setter
+    def loglevel(self, level: str) -> None:
+        self._loglevel = level
+
+    @property
+    def blocking_timeout(self) -> float:
+        return self._blocking_timeout or BLOCKING_TIMEOUT
+
+    @blocking_timeout.setter
+    def blocking_timeout(self, timeout: float) -> None:
+        self._blocking_timeout = timeout
+
+    @property
+    def console_port(self) -> int:
+        return self._console_port or CONSOLE_PORT
+
+    @console_port.setter
+    def console_port(self, port: int) -> None:
+        self._console_port = port
 
 
 class AppCommand(Command):

@@ -31,7 +31,7 @@ from mode import ServiceT, get_logger
 from mode.utils.logging import formatter
 
 from .types import AppT, SensorT, TP, TopicT
-from .types._env import BLOCKING_TIMEOUT, DEBUG
+from .types._env import BLOCKING_TIMEOUT, CONSOLE_PORT, DEBUG
 from .utils import terminal
 
 try:  # pragma: no cover
@@ -162,7 +162,7 @@ class Worker(mode.Worker):
                  stderr: IO = sys.stderr,
                  blocking_timeout: float = BLOCKING_TIMEOUT,
                  workdir: Union[Path, str] = None,
-                 console_port: int = 50101,
+                 console_port: int = CONSOLE_PORT,
                  loop: asyncio.AbstractEventLoop = None,
                  redirect_stdouts: bool = None,
                  redirect_stdouts_level: int = None,
