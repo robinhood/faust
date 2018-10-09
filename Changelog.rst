@@ -8,6 +8,26 @@ This document contain change notes for bugfix releases in
 the Faust 1.2 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.2.1:
+
+1.2.1
+=====
+:release-date: 2018-10-08 5:00 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Worker**: Fixed crash introduced in 1.2.0 if no ``--loglevel`` argument
+  present.
+
+- **Web**: The :pypi:`aiohttp` driver now exposes ``app.web.web_app``
+  attribute.
+
+    This will be the :class:`aiohttp.web_app.Application` instance used.
+
+- **Documentation**: Fixed markup typo in the settings section of the
+  userguide (Issue #177).
+
+    Contributed by Denis Kataev (:github_user:`kataev`).
+
 .. _version-1.2.0:
 
 1.2.0
