@@ -57,10 +57,5 @@ async def sender():
     ))
 
 
-@app.on_worker_init.connect
-def foo(sender, **kwargs):
-    print('ON WORKER INIT')
-
-
 if __name__ == '__main__':
     app.main()
