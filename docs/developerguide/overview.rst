@@ -67,20 +67,6 @@ Services can start other services, but they can also start asyncio.Tasks via
 `self.add_future`.  These dependencies will be started/stopped/restarted with
 the service.
 
-Since the Service class requires the asyncio loop at start, there's also
-ServiceProxy.  This special subclass is used by App and Agent as they
-are created at module time, for example the module ``t.py``::
-
-    # t.py
-    import faust
-
-    app = faust.App('myid')
-
-The ServiceProxy makes the initialization of the service part lazy, and
-delegates all service methods to a composite class (App -> AppService, Agent
--> AgentService).
-
-
 ``Worker``
 ----------
 

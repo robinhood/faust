@@ -3,7 +3,6 @@ import faust
 from faust.agents import Agent
 from faust.agents.manager import AgentManager
 from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
-from faust.app.service import AppService
 from faust.assignor.leader_assignor import LeaderAssignor, LeaderAssignorT
 from faust.channels import Channel, ChannelT
 from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
@@ -455,28 +454,19 @@ class test_App:
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
-        app._service = Mock(
-            name='_service',
-            autospec=AppService,
-            maybe_start=AsyncMock(),
-        )
+        app.maybe_start = AsyncMock(name='app.maybe_start')
         await app.start_client()
         assert app.client_only
-        app._service.maybe_start.assert_called_once_with()
+        app.maybe_start.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_maybe_start_client(self, *, app):
         app.start_client = AsyncMock(name='start_client')
-        app._service = Mock(
-            name='_service',
-            autospec=AppService,
-        )
-
-        app._service.started = True
+        app.started = True
         await app.maybe_start_client()
         app.start_client.assert_not_called()
 
-        app._service.started = False
+        app.started = False
         await app.maybe_start_client()
         app.start_client.assert_called_once_with()
 

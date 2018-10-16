@@ -12,7 +12,6 @@ from .models import Status
 CHECK_FREQUENCY = 5.0
 
 
-# Note: Check is a serviceproxy since Service.state already exists.
 class Check(Service):
     description: str = ''
 

@@ -50,7 +50,7 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
     while not app.should_stop:
         if app.rebalancing:
             partitions_sent_counter.clear()
-            await app._service.sleep(5)
+            await app.sleep(5)
         if app.is_leader():
             await leader_sending.send_ok(app)
             for partition in range(app.conf.topic_partitions):
@@ -59,9 +59,9 @@ async def on_leader_send_monotonic_counter(app, max_latency=0.08) -> None:
                 current_value = partitions_sent_counter.get(partition, 0)
                 await process.send(value=current_value, partition=partition)
                 partitions_sent_counter[partition] += 1
-            await app._service.sleep(random.uniform(0, max_latency))
+            await app.sleep(random.uniform(0, max_latency))
         else:
-            await app._service.sleep(1)
+            await app.sleep(1)
 
 
 @app.agent(value_type=int)

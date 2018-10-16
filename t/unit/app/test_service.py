@@ -13,7 +13,7 @@ class test_AppService:
 
     @pytest.fixture
     def s(self, *, app):
-        return app._service
+        return app
 
     def test_on_init_dependencies(self, *, s):
         s._components_client = Mock(name='components_client')

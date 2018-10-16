@@ -63,7 +63,7 @@ async def track_user_withdrawal(withdrawals):
 async def report_progress(app):
     prev_count = 0
     while not app.should_stop:
-        await app._service.sleep(5.0)
+        await app.sleep(5.0)
         if seen_events <= prev_count:
             print(f'Not progressing: was {prev_count} now {seen_events}')
         else:

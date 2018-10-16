@@ -3,15 +3,13 @@ from collections import defaultdict
 from typing import Any, Dict, MutableMapping, MutableSet, Set
 from weakref import WeakSet
 from mode import Service
-from mode.proxy import ServiceProxy
 from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
-from mode.utils.objects import cached_property
 from faust.types import AgentManagerT, AgentT, AppT
 from faust.types.tuples import TP, tp_set_to_map
 
 
-class AgentManager(ServiceProxy, AgentManagerT, ManagedUserDict):
+class AgentManager(Service, AgentManagerT, ManagedUserDict):
     """Agent manager."""
 
     _by_topic: MutableMapping[str, MutableSet[AgentT]]
@@ -21,10 +19,29 @@ class AgentManager(ServiceProxy, AgentManagerT, ManagedUserDict):
         self.app = app
         self.data = OrderedDict()
         self._by_topic = defaultdict(WeakSet)
+        Service.__init__(self, **kwargs)
 
-    @cached_property
-    def _service(self) -> 'AgentManagerService':
-        return AgentManagerService(self)
+    async def on_start(self) -> None:
+        self.update_topic_index()
+        for agent in self.values():
+            await agent.maybe_start()
+
+    def service_reset(self) -> None:
+        [agent.service_reset() for agent in self.values()]
+        super().service_reset()
+
+    async def on_stop(self) -> None:
+        for agent in self.values():
+            await agent.stop()
+
+    async def stop(self) -> None:
+        # Cancel first so _execute_task sees we are not stopped.
+        self.cancel()
+        # Then stop the agents
+        await super().stop()
+
+    def cancel(self) -> None:
+        [agent.cancel() for agent in self.values()]
 
     def update_topic_index(self) -> None:
         # keep mapping from topic name to set of agents.
@@ -52,31 +69,3 @@ class AgentManager(ServiceProxy, AgentManagerT, ManagedUserDict):
             for agent in self._by_topic[topic]:
                 by_agent[agent].update(tps)
         return by_agent
-
-
-class AgentManagerService(Service):
-
-    def __init__(self, agents: AgentManager, **kwargs: Any) -> None:
-        self.agents = agents
-        super().__init__(**kwargs)
-
-    async def on_start(self) -> None:
-        self.agents.update_topic_index()
-        for agent in self.agents.values():
-            await agent.maybe_start()
-
-    def service_reset(self) -> None:
-        [agent.service_reset() for agent in self.agents.values()]
-
-    async def stop(self) -> None:
-        # Cancel first so _execute_task sees we are not stopped.
-        self.cancel()
-        # Then stop the agents
-        await super().stop()
-
-    async def on_stop(self) -> None:
-        for agent in self.agents.values():
-            await agent.stop()
-
-    def cancel(self) -> None:
-        [agent.cancel() for agent in self.agents.values()]

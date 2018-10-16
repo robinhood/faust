@@ -4,21 +4,16 @@ import statistics
 from time import monotonic
 from typing import Any, Callable, List, Mapping, MutableMapping, cast
 
-from mode import Service, ServiceT, label
-from mode.proxy import ServiceProxy
+from mode import Service, label
 from mode.utils.compat import Counter
-from mode.utils.objects import KeywordReduce, cached_property
+from mode.utils.objects import KeywordReduce
 
 from faust.types import CollectionT, EventT, Message, StreamT, TP, TopicT
 from faust.types.transports import ConsumerT, ProducerT
 
 from .base import Sensor
 
-__all__ = [
-    'TableState',
-    'Monitor',
-    'MonitorService',
-]
+__all__ = ['TableState', 'Monitor']
 
 MAX_AVG_HISTORY = 100
 MAX_COMMIT_LATENCY_HISTORY = 30
@@ -68,7 +63,7 @@ class TableState(KeywordReduce):
         return {**self.asdict(), 'table': self.table}
 
 
-class Monitor(ServiceProxy, Sensor, KeywordReduce):
+class Monitor(Sensor, KeywordReduce):
     """Default Faust Sensor.
 
     This is the default sensor, recording statistics about
@@ -200,6 +195,33 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
         self.tp_committed_offsets = {}
         self.tp_read_offsets = {}
         self.tp_end_offsets = {}
+        Service.__init__(self, **kwargs)
+
+    @Service.task
+    async def _sampler(self) -> None:
+        median = statistics.median
+        prev_message_total = self.messages_received_total
+        prev_event_total = self.events_total
+        while not self.should_stop:
+            await self.sleep(1.0)
+
+            # Update average event runtime.
+            if self.events_runtime:
+                self.events_runtime_avg = median(self.events_runtime)
+
+            # Update events/s
+            self.events_s, prev_event_total = (
+                self.events_total - prev_event_total,
+                self.events_total,
+            )
+
+            # Update messages/s
+            self.messages_s, prev_message_total = (
+                self.messages_received_total - prev_message_total,
+                self.messages_received_total)
+
+            # Cleanup
+            self._cleanup()
 
     def asdict(self) -> Mapping:
         return {
@@ -369,51 +391,3 @@ class Monitor(ServiceProxy, Sensor, KeywordReduce):
 
     def track_tp_end_offset(self, tp: TP, offset: int) -> None:
         self.tp_end_offsets[tp] = offset
-
-    @cached_property
-    def _service(self) -> ServiceT:
-        return MonitorService(self)
-
-
-class MonitorService(Service):
-    """Service responsible for starting/stopping a sensor."""
-
-    # Users may pass custom monitor to app, for example::
-    #     app = faust.App(monitor=StatsdMonitor(prefix='word-count'))
-
-    # When they do it's important to remember that the app is created during
-    # module import, and that Service.__init__ creates the asyncio event loop.
-    # To stop that from happening we use ServiceProxy to split this
-    # into Monitor/MonitorService so that instantiating Monitor will not create
-    # the service, instead the service is created lazily when first needed.
-
-    def __init__(self, monitor: Monitor, **kwargs: Any) -> None:
-        self.monitor: Monitor = monitor
-        super().__init__()
-
-    @Service.task
-    async def _sampler(self) -> None:
-        monitor = self.monitor
-        median = statistics.median
-        prev_message_total = monitor.messages_received_total
-        prev_event_total = monitor.events_total
-        while not self.should_stop:
-            await self.sleep(1.0)
-
-            # Update average event runtime.
-            if monitor.events_runtime:
-                monitor.events_runtime_avg = median(monitor.events_runtime)
-
-            # Update events/s
-            monitor.events_s, prev_event_total = (
-                monitor.events_total - prev_event_total,
-                monitor.events_total,
-            )
-
-            # Update messages/s
-            monitor.messages_s, prev_message_total = (
-                monitor.messages_received_total - prev_message_total,
-                monitor.messages_received_total)
-
-            # Cleanup
-            monitor._cleanup()

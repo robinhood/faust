@@ -14,7 +14,7 @@ from typing import (
     Union,
 )
 from urllib.parse import quote
-from mode.proxy import ServiceProxy
+from mode import Service
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
 from faust.types import AppT
@@ -85,7 +85,7 @@ class BlueprintManager:
         bp.init_webserver(web)
 
 
-class Web(ServiceProxy):
+class Web(Service):
     """Web server and HTTP interface."""
     default_blueprints: ClassVar[_BPList] = DEFAULT_BLUEPRINTS  # noqa: E704
 
@@ -103,7 +103,7 @@ class Web(ServiceProxy):
         self.views = {}
         self.reverse_names = {}
         self.blueprints = BlueprintManager(self.default_blueprints)
-        super().__init__(**kwargs)
+        Service.__init__(self, **kwargs)
 
     @abc.abstractmethod
     def text(self, value: str, *, content_type: str = None,
