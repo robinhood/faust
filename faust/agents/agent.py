@@ -31,10 +31,9 @@ from mode import (
     ServiceT,
     SupervisorStrategyT,
 )
-from mode.proxy import ServiceProxy
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import maybe_async
-from mode.utils.objects import cached_property, canoname, qualname
+from mode.utils.objects import canoname, qualname
 from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
@@ -134,141 +133,13 @@ __all__ = ['Agent']
 #      ``@app.agent(sinks=[other_agent])``.
 
 
-class AgentService(Service):
-    # Agents are created at module-scope, and the Service class
-    # creates the asyncio loop when created, so we separate the
-    # agent service in such a way that we can start it lazily.
-    # Agent(ServiceProxy) -> AgentService.
-
-    agent: AgentT
-    instances: MutableSequence[ActorRefT]
-    supervisor: SupervisorStrategyT = None
-
-    def __init__(self, agent: AgentT, **kwargs: Any) -> None:
-        self.agent = agent
-        self.supervisor = None
-        super().__init__(**kwargs)
-
-    async def _start_one(self,
-                         *,
-                         index: Optional[int] = None,
-                         active_partitions: Optional[Set[TP]] = None,
-                         stream: StreamT = None,
-                         channel: ChannelT = None) -> ActorT:
-        # an index of None means there's only one instance,
-        # and `index is None` is used as a test by functions that
-        # disallows concurrency.
-        index = index if self.agent.concurrency > 1 else None
-        return await cast(Agent, self.agent)._start_task(
-            index=index,
-            active_partitions=active_partitions,
-            stream=stream,
-            channel=channel,
-            beacon=self.beacon,
-        )
-
-    async def _start_one_supervised(
-            self,
-            index: Optional[int] = None,
-            active_partitions: Optional[Set[TP]] = None,
-            stream: StreamT = None) -> ActorT:
-        aref = await self._start_one(
-            index=index,
-            active_partitions=active_partitions,
-            stream=stream,
-        )
-        self.supervisor.add(aref)
-        await aref.maybe_start()
-        return aref
-
-    async def _start_for_partitions(self,
-                                    active_partitions: Set[TP]) -> ActorT:
-        assert active_partitions
-        self.log.info('Starting actor for partitions %s', active_partitions)
-        return await self._start_one_supervised(None, active_partitions)
-
-    async def on_start(self) -> None:
-        self.supervisor = self._new_supervisor()
-        await self._on_start_supervisor()
-
-    def _new_supervisor(self) -> SupervisorStrategyT:
-        return self._get_supervisor_strategy()(
-            max_restarts=100.0,
-            over=1.0,
-            replacement=self._replace_actor,
-            loop=self.loop,
-            beacon=self.beacon,
-        )
-
-    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
-        aref = cast(ActorRefT, service)
-        return await self._start_one(
-            index=index,
-            active_partitions=aref.active_partitions,
-            stream=aref.stream,
-            channel=cast(ChannelT, aref.stream.channel),
-        )
-
-    def _get_supervisor_strategy(self) -> Type[SupervisorStrategyT]:
-        SupervisorStrategy = self.agent.supervisor_strategy
-        if SupervisorStrategy is None:
-            SupervisorStrategy = self.agent.app.conf.agent_supervisor
-        return SupervisorStrategy
-
-    async def _on_start_supervisor(self) -> None:
-        active_partitions = self._get_active_partitions()
-        channel: ChannelT = cast(ChannelT, None)
-        for i in range(self.agent.concurrency):
-            res = await self._start_one(
-                index=i,
-                active_partitions=active_partitions,
-                channel=channel,
-            )
-            if channel is None:
-                # First concurrency actor creates channel,
-                # then we reuse it for --concurrency=n.
-                # This way they share the same queue.
-                channel = res.stream.channel
-            self.supervisor.add(res)
-        await self.supervisor.start()
-
-    def _get_active_partitions(self) -> Optional[Set[TP]]:
-        active_partitions: Optional[Set[TP]] = None
-        if self.agent.isolated_partitions:
-            # when we start our first agent, we create the set of
-            # partitions early, and save it in ._pending_active_partitions.
-            # That way we can update the set once partitions are assigned,
-            # and the actor we started may be assigned one of the partitions.
-            active_partitions = self.agent._pending_active_partitions = set()
-        return active_partitions
-
-    async def on_stop(self) -> None:
-        # Agents iterate over infinite streams, so we cannot wait for it
-        # to stop.
-        # Instead we cancel it and this forces the stream to ack the
-        # last message processed (but not the message causing the error
-        # to be raised).
-        await self._stop_supervisor()
-
-    async def _stop_supervisor(self) -> None:
-        if self.supervisor:
-            await self.supervisor.stop()
-            self.supervisor = None
-
-    @property
-    def label(self) -> str:
-        return self.agent.label
-
-    @property
-    def shortlabel(self) -> str:
-        return self.agent.shortlabel
-
-
-class Agent(AgentT, ServiceProxy):
+class Agent(AgentT, Service):
     """Agent.
 
     This is the type of object returned by the ``@app.agent`` decorator.
     """
+    supervisor: SupervisorStrategyT = None
+    instances: MutableSequence[ActorRefT]
 
     # channel is loaded lazily on .channel property access
     # to make sure configuration is not accessed when agent created
@@ -328,7 +199,113 @@ class Agent(AgentT, ServiceProxy):
         if self.isolated_partitions and self.concurrency > 1:
             raise ImproperlyConfigured(
                 'Agent concurrency must be 1 when using isolated partitions')
-        ServiceProxy.__init__(self)
+        Service.__init__(self)
+
+    async def _start_one(self,
+                         *,
+                         index: Optional[int] = None,
+                         active_partitions: Optional[Set[TP]] = None,
+                         stream: StreamT = None,
+                         channel: ChannelT = None) -> ActorT:
+        # an index of None means there's only one instance,
+        # and `index is None` is used as a test by functions that
+        # disallows concurrency.
+        index = index if self.concurrency > 1 else None
+        return await self._start_task(
+            index=index,
+            active_partitions=active_partitions,
+            stream=stream,
+            channel=channel,
+            beacon=self.beacon,
+        )
+
+    async def _start_one_supervised(
+            self,
+            index: Optional[int] = None,
+            active_partitions: Optional[Set[TP]] = None,
+            stream: StreamT = None) -> ActorT:
+        aref = await self._start_one(
+            index=index,
+            active_partitions=active_partitions,
+            stream=stream,
+        )
+        self.supervisor.add(aref)
+        await aref.maybe_start()
+        return aref
+
+    async def _start_for_partitions(self,
+                                    active_partitions: Set[TP]) -> ActorT:
+        assert active_partitions
+        self.log.info('Starting actor for partitions %s', active_partitions)
+        return await self._start_one_supervised(None, active_partitions)
+
+    async def on_start(self) -> None:
+        self.supervisor = self._new_supervisor()
+        await self._on_start_supervisor()
+
+    def _new_supervisor(self) -> SupervisorStrategyT:
+        return self._get_supervisor_strategy()(
+            max_restarts=100.0,
+            over=1.0,
+            replacement=self._replace_actor,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
+
+    async def _replace_actor(self, service: ServiceT, index: int) -> ServiceT:
+        aref = cast(ActorRefT, service)
+        return await self._start_one(
+            index=index,
+            active_partitions=aref.active_partitions,
+            stream=aref.stream,
+            channel=cast(ChannelT, aref.stream.channel),
+        )
+
+    def _get_supervisor_strategy(self) -> Type[SupervisorStrategyT]:
+        SupervisorStrategy = self.supervisor_strategy
+        if SupervisorStrategy is None:
+            SupervisorStrategy = self.app.conf.agent_supervisor
+        return SupervisorStrategy
+
+    async def _on_start_supervisor(self) -> None:
+        active_partitions = self._get_active_partitions()
+        channel: ChannelT = cast(ChannelT, None)
+        for i in range(self.concurrency):
+            res = await self._start_one(
+                index=i,
+                active_partitions=active_partitions,
+                channel=channel,
+            )
+            if channel is None:
+                # First concurrency actor creates channel,
+                # then we reuse it for --concurrency=n.
+                # This way they share the same queue.
+                channel = res.stream.channel
+            self.supervisor.add(res)
+        await self.supervisor.start()
+
+    def _get_active_partitions(self) -> Optional[Set[TP]]:
+        active_partitions: Optional[Set[TP]] = None
+        if self.isolated_partitions:
+            # when we start our first agent, we create the set of
+            # partitions early, and save it in ._pending_active_partitions.
+            # That way we can update the set once partitions are assigned,
+            # and the actor we started may be assigned one of the partitions.
+            active_partitions = self._pending_active_partitions = set()
+        return active_partitions
+
+    async def on_stop(self) -> None:
+        # Agents iterate over infinite streams, so we cannot wait for it
+        # to stop.
+        # Instead we cancel it and this forces the stream to ack the
+        # last message processed (but not the message causing the error
+        # to be raised).
+        await self._stop_supervisor()
+
+    async def _stop_supervisor(self) -> None:
+        if self.supervisor:
+            await self.supervisor.stop()
+            self.supervisor = None
 
     def cancel(self) -> None:
         for actor in self._actors:
@@ -385,7 +362,7 @@ class Agent(AgentT, ServiceProxy):
         await aref.on_isolated_partition_assigned(tp)
 
     async def _start_isolated(self, tp: TP) -> ActorT:
-        return await self._service._start_for_partitions({tp})
+        return await self._start_for_partitions({tp})
 
     async def on_shared_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
@@ -571,7 +548,7 @@ class Agent(AgentT, ServiceProxy):
             # can start a new one.
             assert aref.supervisor is not None
             await aref.crash(exc)
-            self._service.supervisor.wakeup()
+            self.supervisor.wakeup()
 
             raise
 
@@ -838,10 +815,6 @@ class Agent(AgentT, ServiceProxy):
     @channel_iterator.setter
     def channel_iterator(self, it: AsyncIterator) -> None:
         self._channel_iterator = it
-
-    @cached_property
-    def _service(self) -> AgentService:
-        return AgentService(self, beacon=self.app.beacon, loop=self.app.loop)
 
     @property
     def label(self) -> str:

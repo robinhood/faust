@@ -11,6 +11,7 @@ import re
 import typing
 import warnings
 from functools import wraps
+from itertools import chain
 from typing import (
     Any,
     AsyncIterable,
@@ -29,9 +30,7 @@ from typing import (
     cast,
 )
 
-from mode import Seconds, ServiceT, SupervisorStrategyT, want_seconds
-from mode.proxy import ServiceProxy
-from mode.services import ServiceCallbacks
+from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.futures import stampede
@@ -91,7 +90,6 @@ from faust.types.web import (
 from faust.types.windows import WindowT
 
 from ._attached import Attachments
-from .service import AppService
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.cli.base import AppCommand
@@ -189,7 +187,7 @@ TaskDecoratorRet = Union[
 ]
 
 
-class App(AppT, ServiceProxy, ServiceCallbacks):
+class App(AppT, Service):
     """Faust Application.
 
     Arguments:
@@ -240,6 +238,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     _http_client: Optional[HttpClientT] = None
 
     _extra_services: List[ServiceT]
+    _extra_service_instances: Optional[List[ServiceT]] = None
 
     # See faust/app/_attached.py
     _attachments: Attachments
@@ -255,6 +254,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                  monitor: Monitor = None,
                  config_source: Any = None,
                  loop: asyncio.AbstractEventLoop = None,
+                 beacon: NodeT = None,
                  **options: Any) -> None:
         # This is passed to the configuration in self.conf
         self._default_options = (id, options)
@@ -294,11 +294,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         # such as Django integration).
         self.fixups = self._init_fixups()
 
-        self.loop = loop
-
-        # init the service proxy required to ensure of lazy loading
-        # of the service class (see faust/app/service.py).
-        ServiceProxy.__init__(self)
+        Service.__init__(self, loop=loop, beacon=beacon)
 
     def _init_signals(self) -> None:
         # Signals in Faust are the same as in Django, but asynchronous by
@@ -346,6 +342,140 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         # are automatically enabled by installing a PyPI package with
         # `pip install myname`.
         return list(fixups(self))
+
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
+        # Client-Only: Boots up enough services to be able to
+        # produce to topics and receive replies from topics.
+        # XXX Need better way to do RPC
+        if self.producer_only:
+            return self._components_producer_only()
+        if self.client_only:
+            return self._components_client()
+        # Server: Starts everything.
+        return self._components_server()
+
+    def _components_producer_only(self) -> Iterable[ServiceT]:
+        return cast(Iterable[ServiceT], chain(
+            self._web_components_when_enabled(),
+            [self.producer],
+        ))
+
+    def _components_client(self) -> Iterable[ServiceT]:
+        # Returns the components started when running in Client-Only mode.
+        return cast(Iterable[ServiceT], (
+            self.producer,
+            self.consumer,
+            self._reply_consumer,
+            self.topics,
+            self._fetcher,
+        ))
+
+    def _components_server(self) -> Iterable[ServiceT]:
+        # Returns the components started when running normally (Server mode).
+        # Note: has side effects: adds the monitor to the app's list of
+        # sensors.
+
+        # Add the main Monitor sensor.
+        # The beacon is also reattached in case the monitor
+        # was created by the user.
+        self.monitor.beacon.reattach(self.beacon)
+        self.monitor.loop = self.loop
+        self.sensors.add(self.monitor)
+
+        # Then return the list of "subservices",
+        # those that'll be started when the app starts,
+        # stopped when the app stops,
+        # etc...
+        return cast(
+            Iterable[ServiceT],
+            chain(
+                # Sensors (Sensor): always start first and stop last.
+                self.sensors,
+                # Web
+                self._web_components_when_enabled(),
+                # Producer: always stop after Consumer.
+                [self.producer],
+                # Consumer: always stop after Conductor
+                [self.consumer],
+                # Leader Assignor (assignor.LeaderAssignor)
+                [self._leader_assignor],
+                # Reply Consumer (ReplyConsumer)
+                [self._reply_consumer],
+                # AgentManager starts agents (app.agents)
+                [self.agents],
+                # Conductor (transport.Conductor))
+                [self.topics],
+                # Table Manager (app.TableManager)
+                [self.tables],
+            ),
+        )
+
+    def _web_components_when_enabled(self) -> Iterable[ServiceT]:
+        if self.conf.web_enabled:
+            return [
+                # Optional cache backend.
+                self.cache,
+                # Web server
+                self.web,
+            ]
+        return []
+
+    async def on_first_start(self) -> None:
+        if not self.agents and not self.producer_only:
+            # XXX I can imagine use cases where an app is useful
+            #     without agents, but use this as more of an assertion
+            #     to make sure agents are registered correctly. [ask]
+            raise ImproperlyConfigured(
+                'Attempting to start app that has no agents')
+        self._create_directories()
+
+    async def on_start(self) -> None:
+        self.finalize()
+
+    async def on_started(self) -> None:
+        # Wait for table recovery to complete (returns True if app stopped)
+        if not await self._wait_for_table_recovery_completed():
+            # Add all asyncio.Tasks, like timers, etc.
+            await self.on_started_init_extra_tasks()
+
+            # Start user-provided services.
+            await self.on_started_init_extra_services()
+
+            # Call the app-is-fully-started callback used by Worker
+            # to print the "ready" message that signals to the user that
+            # the worker is ready to start processing.
+            if self.on_startup_finished:
+                await self.on_startup_finished()
+
+    async def _wait_for_table_recovery_completed(self) -> bool:
+        if not self.producer_only and not self.client_only:
+            return await self.wait_for_stopped(self.tables.recovery.completed)
+        return False
+
+    async def on_started_init_extra_tasks(self) -> None:
+        for task in self._tasks:
+            self.add_future(task())
+
+    async def on_started_init_extra_services(self) -> None:
+        if self._extra_service_instances is None:
+            # instantiate the services added using the @app.service decorator.
+            self._extra_service_instances = [
+                await self.on_init_extra_service(service)
+                for service in self._extra_services
+            ]
+
+    async def on_init_extra_service(
+            self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:
+        s: ServiceT = self._prepare_subservice(service)
+        # start the service now, or when the app is started.
+        await self.add_runtime_dependency(s)
+        return s
+
+    def _prepare_subservice(
+            self, service: Union[ServiceT, Type[ServiceT]]) -> ServiceT:
+        if inspect.isclass(service):
+            return service(loop=self.loop, beacon=self.beacon)
+        return service
 
     def config_from_object(self,
                            obj: Any,
@@ -659,8 +789,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             @self.task
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
-                while not self._service.should_stop:
-                    await self._service.sleep(interval_s)
+                while not self.should_stop:
+                    await self.sleep(interval_s)
                     should_run = not on_leader or self.is_leader()
                     if should_run:
                         await fun(*args)  # type: ignore
@@ -830,11 +960,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             Once started as a client the app cannot be restarted as Server.
         """
         self.client_only = True
-        await self._service.maybe_start()
+        await self.maybe_start()
 
     async def maybe_start_client(self) -> None:
         """Start the app in Client-Only mode if not started as Server."""
-        if not self._service.started:
+        if not self.started:
             await self.start_client()
 
     async def send(
@@ -1135,13 +1265,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     raise
                 return {}
         return force_mapping(source)
-
-    @cached_property
-    def _service(self) -> ServiceT:
-        # We subclass from ServiceProxy and this delegates any ServiceT
-        # feature to this service (e.g. ``app.start()`` calls
-        # ``app._service.start()``.  See comment in ServiceProxy.
-        return AppService(self)
 
     @property
     def conf(self) -> Settings:

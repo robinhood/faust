@@ -72,14 +72,13 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, web):
-        serv = web._service
-        serv.add_dependency = Mock(name='add_dependency')
+        web.add_dependency = Mock(name='add_dependency')
         with patch('faust.web.drivers.aiohttp.ServerThread') as ServerThread:
-            await serv.on_start()
+            await web.on_start()
             ServerThread.assert_called_once_with(
-                web, loop=serv.loop, beacon=serv.beacon)
-            assert serv._thread is ServerThread()
-            serv.add_dependency.assert_called_once_with(serv._thread)
+                web, loop=web.loop, beacon=web.beacon)
+            assert web._thread is ServerThread()
+            web.add_dependency.assert_called_once_with(web._thread)
 
     @pytest.mark.asyncio
     async def test_start_server(self, *, app, web):

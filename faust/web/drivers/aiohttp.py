@@ -16,11 +16,9 @@ from typing import (
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Response, json_response
-from mode import Service
 from mode.threads import ServiceThread
 from mode.utils.compat import want_str
 from mode.utils.futures import notify
-from mode.utils.objects import cached_property
 
 from faust.types import AppT
 from faust.web import base
@@ -70,25 +68,6 @@ class ServerThread(ServiceThread):
         await self.web.stop_server(self.loop)
 
 
-class WebService(Service):
-
-    #: We serve the web server in a separate thread (and separate event loop).
-    _thread: Optional[ServerThread] = None
-
-    def __init__(self, web: 'Web', **kwargs: Any) -> None:
-        self.web = web
-        super().__init__(**kwargs)
-
-    async def on_start(self) -> None:
-        self.web.init_server()
-        self._thread = ServerThread(
-            self.web,
-            loop=self.loop,
-            beacon=self.beacon,
-        )
-        self.add_dependency(self._thread)
-
-
 class Web(base.Web):
     """Web server and framework implemention using :pypi:`aiohttp`."""
 
@@ -98,6 +77,9 @@ class Web(base.Web):
     content_separator: ClassVar[bytes] = CONTENT_SEPARATOR
     header_separator: ClassVar[bytes] = HEADER_SEPARATOR
     header_key_value_separator: ClassVar[bytes] = HEADER_KEY_VALUE_SEPARATOR
+
+    #: We serve the web server in a separate thread (and separate event loop).
+    _thread: Optional[ServerThread] = None
 
     _transport_schemes: Mapping[
         str,
@@ -115,9 +97,14 @@ class Web(base.Web):
             'unix': self._connect_unix,
         }
 
-    @cached_property
-    def _service(self) -> WebService:
-        return WebService(self, loop=self.app.loop, beacon=self.app.beacon)
+    async def on_start(self) -> None:
+        self.init_server()
+        self._thread = ServerThread(
+            self,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
+        self.add_dependency(self._thread)
 
     async def wsgi(self) -> Any:
         self.init_server()

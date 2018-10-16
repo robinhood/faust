@@ -318,14 +318,12 @@ class test_Agent:
 
     @pytest.mark.asyncio
     async def test_start_isolated(self, *, agent):
-        service = agent._service = Mock(
-            name='service',
-            autospec=AgentService,
-            _start_for_partitions=AsyncMock(),
+        agent._start_for_partitions = AsyncMock(
+            name='agent._start_for_partitions',
         )
         ret = await agent._start_isolated(TP('foo', 0))
-        service._start_for_partitions.assert_called_once_with({TP('foo', 0)})
-        assert ret is service._start_for_partitions.coro()
+        agent._start_for_partitions.assert_called_once_with({TP('foo', 0)})
+        assert ret is agent._start_for_partitions.coro()
 
     @pytest.mark.asyncio
     async def test_on_shared_partitions_revoked(self, *, agent):
@@ -448,7 +446,7 @@ class test_Agent:
             autospec=Actor,
             crash=AsyncMock(),
         )
-        agent._service = Mock(name='_service', autospec=AgentService)
+        agent.supervisor = Mock(name='supervisor')
         coro = FutureMock()
         exc = coro.side_effect = KeyError('bar')
         with pytest.raises(KeyError):
@@ -456,7 +454,7 @@ class test_Agent:
         coro.assert_awaited()
 
         aref.crash.assert_called_once_with(exc)
-        agent._service.supervisor.wakeup.assert_called_once_with()
+        agent.supervisor.wakeup.assert_called_once_with()
         agent._on_error.assert_called_once_with(agent, exc)
 
         agent._on_error = None
@@ -743,16 +741,6 @@ class test_Agent:
         assert it is agent.channel.clone()
         agent.channel_iterator = [42]
         assert agent.channel_iterator == [42]
-
-    def test_service(self, *, agent):
-        with patch('faust.agents.agent.AgentService') as AgentService:
-            service = agent._service
-            AgentService.assert_called_once_with(
-                agent,
-                beacon=agent.app.beacon,
-                loop=agent.app.loop,
-            )
-            assert service is AgentService()
 
     def test_label(self, *, agent):
         assert label(agent)

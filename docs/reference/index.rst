@@ -33,7 +33,6 @@ App
     faust.app
     faust.app.base
     faust.app.router
-    faust.app.service
 
 Agents
 ======
