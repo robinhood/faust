@@ -152,7 +152,7 @@ BROKER_COMMIT_EVERY = 10_000
 BROKER_COMMIT_INTERVAL = 2.8
 
 #: Kafka consumer session timeout (``session_timeout_ms``).
-BROKER_SESSION_TIMEOUT = 30.0
+BROKER_SESSION_TIMEOUT = 60.0
 
 #: Kafka consumer heartbeat (``heartbeat_interval_ms``).
 BROKER_HEARTBEAT_INTERVAL = 3.0
