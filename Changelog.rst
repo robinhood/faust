@@ -8,6 +8,14 @@ This document contain change notes for bugfix releases in
 the Faust 1.2 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+``master``
+==========
+
+- Documentation and examples fixes contributed by
+
+    - Fabian Neumann (:github_user:`hellp`)
+
+
 .. _version-1.2.1:
 
 1.2.1
