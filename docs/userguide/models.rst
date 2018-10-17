@@ -134,7 +134,7 @@ Using models to describe topics provides benefits:
         account_id: str
         amount: float
 
-    app = faust.app('values')
+    app = faust.App('values')
     transfers_topic = app.topic('transfers', value_type=Transfer)
     large_transfers_topic = app.topic('large_transfers', value_type=Transfer)
 
