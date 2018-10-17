@@ -97,7 +97,7 @@ __all__ = ['Agent']
 #       account: str
 #       amount: float
 #
-#   app = faust.app('myid', broker='kafka://localhost:9092')
+#   app = faust.App('myid', broker='kafka://localhost:9092')
 #
 #   withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 #
