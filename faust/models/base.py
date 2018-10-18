@@ -287,7 +287,7 @@ class Model(ModelT):
             # Custom base classes can set this to skip class initialization.
             cls.__is_abstract__ = True
             cls._options = options
-            cls.__init__ = cls.__abstract_init__
+            cls.__init__ = cls.__abstract_init__  # type: ignore
             return
         cls.__is_abstract__ = False
 
@@ -307,13 +307,13 @@ class Model(ModelT):
 
         cls._model_init = cls._BUILD_init()
         if '__init__' not in cls.__dict__:
-            cls.__init__ = cls._model_init
+            cls.__init__ = cls._model_init  # type: ignore
         cls._model_hash = cls._BUILD_hash()
         if '__hash__' not in cls.__dict__:
-            cls.__hash__ = cls._model_hash
+            cls.__hash__ = cls._model_hash  # type: ignore
         cls._model_eq = cls._BUILD_eq()
         if '__eq__' not in cls.__dict__:
-            cls.__eq__ = cls._model_eq
+            cls.__eq__ = cls._model_eq  # type: ignore
 
     def __abstract_init__(self) -> None:
         raise NotImplementedError(E_ABSTRACT_INSTANCE.format(

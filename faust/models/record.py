@@ -263,8 +263,8 @@ class Record(Model, abstract=True):
     def _contribute_methods(cls) -> None:
         if not getattr(cls.asdict, 'faust_generated', False):
             raise RuntimeError('Not allowed to override Record.asdict()')
-        cls.asdict = cls._BUILD_asdict()
-        cls.asdict.faust_generated = True
+        cls.asdict = cls._BUILD_asdict()  # type: ignore
+        cls.asdict.faust_generated = True  # type: ignore
 
     @staticmethod
     def _init_maybe_coerce(coerce: CoercionHandler,
