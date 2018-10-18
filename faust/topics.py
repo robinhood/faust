@@ -15,6 +15,7 @@ from typing import (
     Set,
     Union,
     cast,
+    no_type_check,
 )
 from mode import Seconds, get_logger
 from mode.utils.futures import stampede
@@ -219,6 +220,7 @@ class Topic(Channel, TopicT):
 
         return decode
 
+    @no_type_check  # incompatible with base class, but OK
     def _clone_args(self) -> Mapping:
         return {
             **super()._clone_args(),
