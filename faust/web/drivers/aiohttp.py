@@ -4,7 +4,16 @@ from pathlib import Path
 from typing import Any, Awaitable, Callable, Mapping, Optional, Union, cast
 
 from aiohttp import __version__ as aiohttp_version
-from aiohttp.web import Application, Request, Response, json_response
+from aiohttp.web import (
+    Application,
+    AppRunner,
+    Request,
+    Response,
+    json_response,
+    TCPSite,
+    UnixSite
+)
+from mode import Service
 from mode.threads import ServiceThread
 
 from faust.types import AppT
@@ -23,11 +32,11 @@ class ServerThread(ServiceThread):
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
-        await self.web.start_server(self.loop)
+        await self.web.start_site()
 
     async def on_thread_stop(self) -> None:
         # on_stop() executes in parent thread, on_thread_stop in the thread.
-        await self.web.stop_server(self.loop)
+        await self.web.stop_site()
 
 
 class Web(base.Web):
@@ -39,21 +48,10 @@ class Web(base.Web):
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[ServerThread] = None
 
-    _transport_schemes: Mapping[
-        str,
-        Callable[[asyncio.AbstractEventLoop, Any],
-                 Awaitable[asyncio.AbstractServer]],
-    ]
-
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self.web_app: Application = Application()
-        self._srv: Any = None
-        self._handler: Any = None
-        self._transport_schemes = {
-            'tcp': self._connect_tcp,
-            'unix': self._connect_unix,
-        }
+        self._runner: AppRunner = AppRunner(self.web_app)
 
     async def on_start(self) -> None:
         self.init_server()
@@ -135,54 +133,30 @@ class Web(base.Web):
             resp.body,
         )
 
-    async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
-        handler = self._handler = self.web_app.make_handler()
-        self._srv = await self.create_server(loop, handler)
+    async def start_site(self) -> None:
+        await self._runner.setup()
+        site = await self._create_site()
 
-    async def create_server(self,
-                            loop: asyncio.AbstractEventLoop,
-                            handler: Any) -> asyncio.AbstractServer:
-        transport = self.app.conf.web_transport
-        return await self._transport_schemes[transport.scheme](loop, handler)
+        if site is not None:
+            await site.start()
 
-    async def _connect_tcp(self,
-                           loop: asyncio.AbstractEventLoop,
-                           handler: Any) -> asyncio.AbstractServer:
-        server = await loop.create_server(
-            handler, self.app.conf.web_bind, self.app.conf.web_port)
-        self.log.info('Serving on %s', self.url)
-        return server
+    async def _create_site(self) -> Optional[Union[TCPSite, UnixSite]]:
+        site = None
+        transport = self.app.conf.web_transport.scheme
 
-    async def _connect_unix(self,
-                            loop: asyncio.AbstractEventLoop,
-                            handler: Any) -> asyncio.AbstractServer:
-        server = await loop.create_unix_server(
-            handler, self.app.conf.web_transport.path)
-        self.log.info('Serving on %s', self.app.conf.web_transport.path)
-        return server
+        if transport == 'tcp':
+            site = TCPSite(
+                self._runner,
+                self.app.conf.web_bind,
+                self.app.conf.web_port)
+        elif transport == 'unix':
+            site = UnixSite(self._runner, self.app.conf.web_transport.path)
 
-    async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:
-        await self._stop_server()
-        await self._shutdown_webapp()
-        await self._shutdown_handler()
+        return site
+
+    async def stop_site(self) -> None:
+        await self._runner.cleanup()
         await self._cleanup_app()
-
-    async def _stop_server(self) -> None:
-        if self._srv is not None:
-            self.log.info('Closing server')
-            self._srv.close()
-            self.log.info('Waiting for server to close handle')
-            await self._srv.wait_closed()
-
-    async def _shutdown_webapp(self) -> None:
-        if self.web_app is not None:
-            self.log.info('Shutting down web application')
-            await self.web_app.shutdown()
-
-    async def _shutdown_handler(self) -> None:
-        if self._handler is not None:
-            self.log.info('Waiting for handler to shut down')
-            await self._handler.shutdown(self.handler_shutdown_timeout)
 
     async def _cleanup_app(self) -> None:
         if self.web_app is not None:
