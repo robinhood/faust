@@ -1,24 +1,21 @@
 """Web driver using :pypi:`aiohttp`."""
-import asyncio
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Mapping, Optional, Union, cast
+from typing import Any, Callable, Optional, Union, cast
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import (
-    Application,
     AppRunner,
+    Application,
     Request,
     Response,
-    json_response,
     TCPSite,
-    UnixSite
+    UnixSite,
+    json_response,
 )
-from mode import Service
-from mode.threads import ServiceThread
-
 from faust.types import AppT
-from faust.web import base
 from faust.utils import json as _json
+from faust.web import base
+from mode.threads import ServiceThread
 
 __all__ = ['Web']
 
@@ -32,11 +29,11 @@ class ServerThread(ServiceThread):
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
-        await self.web.start_site()
+        await self.web.start_server()
 
     async def on_thread_stop(self) -> None:
         # on_stop() executes in parent thread, on_thread_stop in the thread.
-        await self.web.stop_site()
+        await self.web.stop_server()
 
 
 class Web(base.Web):
@@ -133,14 +130,7 @@ class Web(base.Web):
             resp.body,
         )
 
-    async def start_site(self) -> None:
-        await self._runner.setup()
-        site = await self._create_site()
-
-        if site is not None:
-            await site.start()
-
-    async def _create_site(self) -> Optional[Union[TCPSite, UnixSite]]:
+    def _create_site(self) -> Optional[Union[TCPSite, UnixSite]]:
         site = None
         transport = self.app.conf.web_transport.scheme
 
@@ -154,8 +144,16 @@ class Web(base.Web):
 
         return site
 
-    async def stop_site(self) -> None:
-        await self._runner.cleanup()
+    async def start_server(self) -> None:
+        await self._runner.setup()
+        site = self._create_site()
+
+        if site is not None:
+            await site.start()
+
+    async def stop_server(self) -> None:
+        if self._runner:
+            await self._runner.cleanup()
         await self._cleanup_app()
 
     async def _cleanup_app(self) -> None:

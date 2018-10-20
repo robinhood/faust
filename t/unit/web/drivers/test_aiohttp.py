@@ -1,9 +1,11 @@
 import asyncio
+
 import pytest
 from aiohttp.web import Application
+from mode.utils.mocks import AsyncMock, Mock, patch
+
 from faust.web import base
 from faust.web.drivers.aiohttp import ServerThread
-from mode.utils.mocks import AsyncMock, Mock, patch
 
 
 @pytest.fixture
@@ -15,6 +17,13 @@ class test_ServerThread:
 
     def test_constructor(self, *, thread, web):
         assert thread.web is web
+
+    @pytest.mark.asyncio
+    async def test_on_start(self, *, thread):
+        thread.web.start_server = AsyncMock(name='web.start_server')
+        await thread.on_start()
+
+        thread.web.start_server.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_crash(self, *, thread):
@@ -35,7 +44,7 @@ class test_ServerThread:
         )
         await thread.on_thread_stop()
 
-        thread.web.stop_server.assert_called_once_with(thread.loop)
+        thread.web.stop_server.assert_called_once()
 
 
 class test_Web:
@@ -73,62 +82,16 @@ class test_Web:
 
     @pytest.mark.asyncio
     async def test_start_server(self, *, app, web):
-        loop = Mock(
-            name='loop',
-            autospec=asyncio.AbstractEventLoop,
-            create_server=AsyncMock(),
-        )
         web.web_app = Mock(name='web.web_app', autospec=Application)
-        await web.start_server(loop)
-
-        web.web_app.make_handler.assert_called_once_with()
-        assert web._handler is web.web_app.make_handler()
-        assert web._srv is loop.create_server.coro()
-        loop.create_server.asssert_called_once_with(
-            web._handler, app.conf.web_bind, app.conf.web_port)
+        await web.start_server()
+        assert len(web._runner.sites) > 0
 
     @pytest.mark.asyncio
     async def test_stop_server(self, *, web):
-        web._stop_server = AsyncMock(name='_stop_server')
-        web._shutdown_webapp = AsyncMock(name='_shutdown_webapp')
-        web._shutdown_handler = AsyncMock(name='_shutdown_handler')
         web._cleanup_app = AsyncMock(name='_cleanup_app')
 
-        await web.stop_server(
-            Mock(name='loop', autospec=asyncio.AbstractEventLoop))
-        web._stop_server.assert_called_once_with()
-        web._shutdown_webapp.assert_called_once_with()
-        web._shutdown_handler.assert_called_once_with()
+        await web.stop_server()
         web._cleanup_app.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test__stop_server(self, *, web):
-        web._srv = None
-        await web._stop_server()
-        web._srv = Mock(name='_srv', wait_closed=AsyncMock())
-        await web._stop_server()
-        web._srv.close.assert_called_once_with()
-        web._srv.wait_closed.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test_shutdown_webapp(self, *, web):
-        web.web_app = None
-        await web._shutdown_webapp()
-        web.web_app = Mock(
-            name='web.web_app',
-            autospec=Application,
-            shutdown=AsyncMock(),
-        )
-        await web._shutdown_webapp()
-        web.web_app.shutdown.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test_shutdown_handler(self, *, web):
-        web._handler = None
-        await web._shutdown_handler()
-        web._handler = Mock(name='_handler', shutdown=AsyncMock())
-        await web._shutdown_handler()
-        web._handler.shutdown.assert_called_with(web.handler_shutdown_timeout)
 
     @pytest.mark.asyncio
     async def test_cleanup_app(self, *, web):
