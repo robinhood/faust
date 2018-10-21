@@ -13,20 +13,21 @@ from aiohttp.web import (
     UnixSite,
     json_response,
 )
-from faust.types import AppT
-from faust.utils import json as _json
-from faust.web import base
 from mode import Service
 from mode.threads import ServiceThread
 from mode.utils.compat import want_str
 from mode.utils.futures import notify
 from mode.utils.objects import cached_property
 
-__all__ = ['Web']
+from faust.types import AppT
+from faust.utils import json as _json
+from faust.web import base
 
-CONTENT_SEPARATOR: bytes = b'\r\n\r\n'
-HEADER_SEPARATOR: bytes = b'\r\n'
-HEADER_KEY_VALUE_SEPARATOR: bytes = b': '
+__all__ = ["Web"]
+
+CONTENT_SEPARATOR: bytes = b"\r\n\r\n"
+HEADER_SEPARATOR: bytes = b"\r\n"
+HEADER_KEY_VALUE_SEPARATOR: bytes = b": "
 
 _bytes = bytes
 
@@ -34,7 +35,7 @@ _bytes = bytes
 class ServerThread(ServiceThread):
     _port_open: Optional[asyncio.Future] = None
 
-    def __init__(self, web: 'Web', **kwargs: Any) -> None:
+    def __init__(self, web: "Web", **kwargs: Any) -> None:
         self.web = web
         super().__init__(**kwargs)
 
@@ -71,24 +72,21 @@ class WebService(Service):
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[ServerThread] = None
 
-    def __init__(self, web: 'Web', **kwargs: Any) -> None:
+    def __init__(self, web: "Web", **kwargs: Any) -> None:
         self.web = web
         super().__init__(**kwargs)
 
     async def on_start(self) -> None:
         self.web.init_server()
         self._thread = ServerThread(
-            self.web,
-            loop=self.loop,
-            beacon=self.beacon,
-        )
+            self.web, loop=self.loop, beacon=self.beacon)
         self.add_dependency(self._thread)
 
 
 class Web(base.Web):
     """Web server and framework implemention using :pypi:`aiohttp`."""
 
-    driver_version = f'aiohttp={aiohttp_version}'
+    driver_version = f"aiohttp={aiohttp_version}"
     handler_shutdown_timeout: float = 60.0
 
     content_separator: ClassVar[bytes] = CONTENT_SEPARATOR
@@ -111,14 +109,11 @@ class Web(base.Web):
     def text(self, value: str, *, content_type: str = None,
              status: int = 200) -> base.Response:
         response = Response(
-            text=value,
-            content_type=content_type,
-            status=status,
-        )
+            text=value, content_type=content_type, status=status)
         return cast(base.Response, response)
 
     def html(self, value: str, *, status: int = 200) -> base.Response:
-        return self.text(value, status=status, content_type='text/html')
+        return self.text(value, status=status, content_type="text/html")
 
     def json(self, value: Any, *, status: int = 200) -> Any:
         return json_response(value, status=status, dumps=_json.dumps)
@@ -129,18 +124,13 @@ class Web(base.Web):
               content_type: str = None,
               status: int = 200) -> base.Response:
         response = Response(
-            body=value,
-            status=status,
-            content_type=content_type,
-        )
+            body=value, status=status, content_type=content_type)
         return cast(base.Response, response)
 
     def route(self, pattern: str, handler: Callable) -> None:
-        self.web_app.router.add_route('*', pattern, handler)
+        self.web_app.router.add_route("*", pattern, handler)
 
-    def add_static(self,
-                   prefix: str,
-                   path: Union[Path, str],
+    def add_static(self, prefix: str, path: Union[Path, str],
                    **kwargs: Any) -> None:
         self.web_app.router.add_static(prefix, str(path), **kwargs)
 
@@ -163,31 +153,25 @@ class Web(base.Web):
         resp = cast(Response, response)
         return self.content_separator.join([
             str(resp.status).encode(),
-            self.content_separator.join([
-                self._headers_serialize(resp),
-                resp.body,
-            ]),
+            self.content_separator.join(
+                [self._headers_serialize(resp), resp.body]),
         ])
 
     def _headers_serialize(self, response: Response) -> _bytes:
         return self.header_separator.join(
             self.header_key_value_separator.join([
-                k if isinstance(k, _bytes) else k.encode('ascii'),
-                v if isinstance(v, _bytes) else v.encode('latin-1'),
-            ])
-            for k, v in response.headers.items()
-        )
+                k if isinstance(k, _bytes) else k.encode("ascii"),
+                v if isinstance(v, _bytes) else v.encode("latin-1"),
+            ]) for k, v in response.headers.items())
 
     def _create_site(self) -> Optional[Union[TCPSite, UnixSite]]:
         site = None
         transport = self.app.conf.web_transport.scheme
 
-        if transport == 'tcp':
-            site = TCPSite(
-                self._runner,
-                self.app.conf.web_bind,
-                self.app.conf.web_port)
-        elif transport == 'unix':
+        if transport == "tcp":
+            site = TCPSite(self._runner, self.app.conf.web_bind,
+                           self.app.conf.web_port)
+        elif transport == "unix":
             site = UnixSite(self._runner, self.app.conf.web_transport.path)
 
         return site
@@ -206,7 +190,7 @@ class Web(base.Web):
 
     async def _cleanup_app(self) -> None:
         if self.web_app is not None:
-            self.log.info('Cleanup')
+            self.log.info("Cleanup")
             await self.web_app.cleanup()
 
     @property

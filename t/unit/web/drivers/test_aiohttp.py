@@ -1,7 +1,7 @@
 import asyncio
 
 import pytest
-from aiohttp.web import Application
+from aiohttp.web import Application, TCPSite, UnixSite
 from mode.utils.mocks import AsyncMock, Mock, patch
 
 from faust.web import base
@@ -87,7 +87,13 @@ class test_Web:
     async def test_start_server(self, *, app, web):
         web.web_app = Mock(name='web.web_app', autospec=Application)
         await web.start_server()
-        assert len(web._runner.sites) > 0
+        assert isinstance(list(web._runner.sites)[0], TCPSite)
+
+    @pytest.mark.asyncio
+    async def test_start_server_unix_socket(self, *, app, web):
+        app.conf.web_transport = 'unix:///tmp/server.sock'
+        await web.start_server()
+        assert isinstance(list(web._runner.sites)[0], UnixSite)
 
     @pytest.mark.asyncio
     async def test_stop_server(self, *, web):
