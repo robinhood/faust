@@ -425,9 +425,9 @@ then store that in a database somewhere (yeah, pretty contrived):
         url: str
         date_published: datetime
 
-    news_topic = app.topic('news')
+    news_topic = app.topic('news', value_type=Article)
 
-    @app.agent()
+    @app.agent(news_topic, concurrency=10)
     async def imports_news(articles):
         async for article in articles:
             response = await aiohttp.ClientSession().get(article.url)
