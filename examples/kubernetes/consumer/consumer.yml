@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    run: consumer
+  name: consumer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      run: consumer
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: consumer
+    spec:
+      containers:
+      - image: consumer
+        name: consumer
+        resources: {}
+        imagePullPolicy: IfNotPresent
+status: {}
