@@ -28,8 +28,6 @@ TABLEMAN_UPDATE = 'UPDATE'
 TABLEMAN_START_STANDBYS = 'START_STANDBYS'
 TABLEMAN_STOP_STANDBYS = 'STOP_STANDBYS'
 TABLEMAN_RECOVER = 'RECOVER'
-TABLEMAN_PARTITIONS_REVOKED = 'PARTITIONS REVOKED'
-TABLEMAN_PARTITIONS_ASSIGNED = 'PARTITIONS_ASSIGNED'
 
 
 class TableManager(Service, TableManagerT, FastUserDict):
@@ -158,30 +156,41 @@ class TableManager(Service, TableManagerT, FastUserDict):
         )
         self.log.info('After syncing:\n%s', table)
 
-    @Service.transitions_to(TABLEMAN_PARTITIONS_REVOKED)
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+    async def on_rebalance(self,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
         on_timeout = self.app._on_revoked_timeout
         on_timeout.info('+TABLES: maybe_abort_ongoing_recovery')
         await self._maybe_abort_ongoing_recovery()
-        on_timeout.info('+TABLES: STOP STANDBYS')
-        await self._stop_standbys()
         on_timeout.info(
             f'+TABLES: call table.on_..._revoked {len(self.values())}')
         for table in self.values():
             on_timeout.info(f'+TABLE.on_partitions_revoked(): {table!r}')
             await table.on_partitions_revoked(revoked)
-        on_timeout.info(
-            f'-TABLES: call table.on_..._revoked {len(self.values())}')
+            on_timeout.info(f'+TABLE.on_partitions_assigned(): {table!r}')
+            await table.on_partitions_assigned(newly_assigned)
+        await self._start_recovery(assigned, revoked, newly_assigned)
 
-    @Service.transitions_to(TABLEMAN_PARTITIONS_ASSIGNED)
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        await self._start_recovery(assigned)
-
-    async def _start_recovery(self, assigned: Set[TP]) -> None:
+    async def _start_recovery(self,
+                              assigned: Set[TP],
+                              revoked: Set[TP],
+                              newly_assigned: Set[TP]) -> None:
         assert self._ongoing_recovery is None
         assert not self._revivers
         self._ongoing_recovery = self.add_future(self._recover(assigned))
         self.log.info('Triggered recovery in background')
+
+    async def on_recovery_completed(self, assigned: Set[TP]) -> None:
+        await self._on_recovery_completed()
+        await self.app.consumer.resume_partitions({
+            tp for tp in assigned
+            if not self._is_changelog_tp(tp)
+        })
+        # finally start the fetcher
+        await self.app._fetcher.start()
+        self.app.rebalancing = False
+        self.log.info('Worker ready')
 
     async def _recover(self, assigned: Set[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
@@ -192,8 +201,8 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self.log.info('New assignments found')
         # This needs to happen in background and be aborted midway
         await self._on_recovery_started()
-        for table in self.values():
-            await table.on_partitions_assigned(assigned)
+        self.log.info('Stopping standbys...')
+        await self._stop_standbys()
         did_recover = await self._recover_changelogs(assigned_tps)
 
         if did_recover and not self._stopped.is_set():
@@ -207,15 +216,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
             await self.app.consumer.perform_seek()
             await self._start_standbys(standby_tps)
             self.log.info('New assignments handled')
-            await self._on_recovery_completed()
-            await self.app.consumer.resume_partitions({
-                tp for tp in assigned
-                if not self._is_changelog_tp(tp)
-            })
-            # finally start the fetcher
-            await self.app._fetcher.start()
-            self.app.rebalancing = False
-            self.log.info('Worker ready')
+            await self.on_recovery_completed(assigned)
         else:
             self.log.info('Recovery interrupted')
         self._revivers = None

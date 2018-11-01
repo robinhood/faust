@@ -33,16 +33,17 @@ class AgentManager(ServiceProxy, AgentManagerT, ManagedUserDict):
             for topic in agent.get_topic_names():
                 by_topic_index[topic].add(agent)
 
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+    async def on_rebalance(self,
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
         # for isolated_partitions agents we stop agents for revoked
         # partitions.
         for agent, tps in self._collect_agents_for_update(revoked).items():
             await agent.on_partitions_revoked(tps)
-
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         # for isolated_partitions agents we start agents for newly
         # assigned partitions
-        for agent, tps in self._collect_agents_for_update(assigned).items():
+        for agent, tps in self._collect_agents_for_update(
+                newly_assigned).items():
             await agent.on_partitions_assigned(tps)
 
     def _collect_agents_for_update(

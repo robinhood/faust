@@ -336,13 +336,16 @@ class Agent(AgentT, ServiceProxy):
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         if self.isolated_partitions:
-            return await self.on_isolated_partitions_revoked(revoked)
-        return await self.on_shared_partitions_revoked(revoked)
+            # isolated: start/stop actors for each partition
+            await self.on_isolated_partitions_revoked(revoked)
+        else:
+            await self.on_shared_partitions_revoked(revoked)
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         if self.isolated_partitions:
-            return await self.on_isolated_partitions_assigned(assigned)
-        return await self.on_shared_partitions_assigned(assigned)
+            await self.on_isolated_partitions_assigned(assigned)
+        else:
+            await self.on_shared_partitions_assigned(assigned)
 
     async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.log.dev('Partitions revoked')

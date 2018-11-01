@@ -976,31 +976,25 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         else:
             revoked = set()
             newly_assigned = set()  # noqa XXX unused
+        self.assignment = assigned
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
                 on_timeout.info('fetcher.stop()')
                 await self._stop_fetcher()
-                on_timeout.info('tables.stop_standbys()')
-                await self.tables._stop_standbys()
-                on_timeout.info('agents.on_partitions_revoked()')
-                await self.agents.on_partitions_revoked(revoked)
-                on_timeout.info('agents.on_partitions_assigned()')
-                await self.agents.on_partitions_assigned(assigned)
+                on_timeout.info('agents.on_rebalance()')
+                await self.agents.on_rebalance(revoked, newly_assigned)
                 # Wait for transport.Conductor to finish
                 # calling Consumer.subscribe
                 on_timeout.info('topics.wait_for_subscriptions()')
                 await self.topics.wait_for_subscriptions()
                 on_timeout.info('consumer.pause_partitions()')
                 await self.consumer.pause_partitions(assigned)
-                on_timeout.info('topics.on_partitions_revoked')
-                await self.agents.on_partitions_revoked(revoked)
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
-                on_timeout.info('tables.on_partitions_revoked()')
-                await self.tables.on_partitions_revoked(revoked)
-                on_timeout.info('tables.on_partitions_assigned()')
-                await self.tables.on_partitions_assigned(assigned)
+                on_timeout.info('tables.on_rebalance()')
+                await self.tables.on_rebalance(
+                    assigned, revoked, newly_assigned)
                 on_timeout.info('+send signal: on_partitions_assigned')
                 await self.on_partitions_assigned.send(assigned)
                 on_timeout.info('-send signal: on_partitions_assigned')

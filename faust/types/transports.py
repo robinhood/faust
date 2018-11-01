@@ -265,10 +265,6 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
-    @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        ...
-
 
 class TransportT(abc.ABC):
 

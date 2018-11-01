@@ -184,11 +184,10 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+    async def on_rebalance(self,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
         ...
 
     @property
