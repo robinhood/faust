@@ -239,10 +239,10 @@ class Collection(Service, CollectionT):
                     timestamps[0],
                     self._partition_latest_timestamp[partition]):
                 timestamp = heappop(timestamps)
-                for key in self._partition_timestamp_keys[(partition,
-                                                           timestamp)]:
+                keys_to_remove = self._partition_timestamp_keys.pop(
+                    (partition, timestamp), None)
+                for key in keys_to_remove:
                     del self.data[key]
-                del self._partition_timestamp_keys[(partition, timestamp)]
 
     def _should_expire_keys(self) -> bool:
         window = self.window
