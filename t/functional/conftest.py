@@ -16,7 +16,7 @@ class AppMarks(NamedTuple):
 
 @pytest.fixture()
 def app(event_loop, request):
-    marks = request.node.get_marker('app')
+    marks = request.node.get_closest_marker('app')
     options = AppMarks(**{
         **{'name': 'funtest',
            'store': 'memory://',
@@ -46,7 +46,7 @@ class LoggingMarks(NamedTuple):
 
 @pytest.yield_fixture()
 def logging(request):
-    marks = request.node.get_marker('logging')
+    marks = request.node.get_closest_marker('logging')
     options = LoggingMarks(**{
         **{'logfile': None,
            'loglevel': 'info',
