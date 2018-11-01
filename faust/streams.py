@@ -56,6 +56,7 @@ logger = get_logger(__name__)
 
 try:  # pragma: no cover
     from contextvars import ContextVar
+    from asyncio import current_task
 
     def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
         ...
@@ -73,6 +74,8 @@ except ImportError:  # pragma: no cover
         # note: in actual CPython it's task._context, the aiocontextvars
         # backport is a backport of a previous version of the PEP: :pep:`560`
         task.ctx = Context(Context.current())  # type: ignore
+
+    current_task = asyncio.Task.current_task
 
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -148,7 +151,7 @@ class Stream(StreamT[T_co], Service):
         self._on_start = on_start
 
         # attach beacon to channel, or if iterable attach to current task.
-        task = asyncio.Task.current_task(loop=self.loop)
+        task = current_task(loop=self.loop)
         if task is not None:
             self.task_owner = task
 
