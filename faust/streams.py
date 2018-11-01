@@ -56,7 +56,7 @@ logger = get_logger(__name__)
 
 try:  # pragma: no cover
     from contextvars import ContextVar
-    from asyncio import current_task
+    from asyncio import current_task  # type: ignore
 
     def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
         ...
