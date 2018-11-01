@@ -410,32 +410,6 @@ Table Arguments
     A callback called for every changelog event during recovery and while
     keeping table standbys in sync.
 
-``app.Set()`` -- Define a new Set-based table
----------------------------------------------
-
-Use :meth:`~@Set` to create a set table that only tracks membership and does not
-associate each key with a particular value:
-
-.. sourcecode:: python
-
-    users_with_transfer = app.Set('users-with-transfers', key_type=str)
-
-    @app.agent(transfers_topic)
-    async def transfer(transfers):
-        async for transfer in transfers:
-            users_with_transfer.add(transfer.username)
-
-.. seealso::
-
-    - The :ref:`guide-tables` guide -- for more information about tables and
-      sets.
-
-Set Arguments
-~~~~~~~~~~~~~
-
-Supports the same arguments as :meth:`@table`: see
-:ref:`application-table-arguments`.
-
 ``@app.agent()`` -- Define a new stream processor
 -------------------------------------------------
 
