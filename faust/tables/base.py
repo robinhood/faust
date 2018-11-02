@@ -3,6 +3,7 @@ import abc
 from collections import defaultdict
 from datetime import datetime
 from heapq import heappop, heappush
+from time import time
 from typing import (
     Any,
     Callable,
@@ -364,7 +365,7 @@ class Collection(Service, CollectionT):
         # get current timestamp
         event = event if event is not None else current_event()
         if event is None:
-            raise RuntimeError('Outside of stream iteration')
+            return time()
         return self._partition_latest_timestamp[event.message.partition]
 
     def _relative_event(self, event: EventT = None) -> float:
