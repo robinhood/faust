@@ -253,9 +253,9 @@ class DatadogMonitor(Monitor):
     def _time(self, time: float) -> float:
         return time * 1000.
 
-    def _format_label(self, tp: Optional[TP]=None,
-                      stream: Optional[StreamT]=None,
-                      table: Optional[CollectionT]=None) -> Dict:
+    def _format_label(self, tp: Optional[TP] = None,
+                      stream: Optional[StreamT] = None,
+                      table: Optional[CollectionT] = None) -> Dict:
         labels = {}
         if tp is not None:
             labels.update(self._format_tp_label(tp))
