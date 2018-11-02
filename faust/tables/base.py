@@ -360,7 +360,7 @@ class Collection(Service, CollectionT):
             yield window_range
 
     def _relative_now(self, event: EventT = None) -> float:
-        # get current timestampe
+        # get current timestamp
         event = event if event is not None else current_event()
         if event is None:
             raise RuntimeError('Outside of stream iteration')
