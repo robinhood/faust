@@ -8,11 +8,6 @@
 
     These are the core dependencies required for Faust to work.
 
-+ ``py36.txt``
-
-    Additional dependencies to install when you do ``pip install faust``
-    and you are running Python 3.6.
-
 + ``extras/``
 
     Extra requirements for Faust features like RocksDB storage,

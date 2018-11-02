@@ -4,6 +4,7 @@ import reprlib
 import typing
 import weakref
 from asyncio import CancelledError
+from contextvars import ContextVar
 from time import monotonic
 from typing import (
     Any,
@@ -26,6 +27,7 @@ from typing import (
 
 from mode import Seconds, Service, get_logger, want_seconds
 from mode.utils.aiter import aenumerate, aiter
+from mode.utils.compat import current_task
 from mode.utils.futures import maybe_async, notify
 from mode.utils.objects import cached_property
 from mode.utils.types.trees import NodeT
@@ -53,30 +55,6 @@ __all__ = [
 ]
 
 logger = get_logger(__name__)
-
-try:  # pragma: no cover
-    from contextvars import ContextVar
-    from asyncio import current_task  # type: ignore
-
-    def _inherit_context(*, loop: asyncio.AbstractEventLoop = None) -> None:
-        ...
-except ImportError:  # pragma: no cover
-    from aiocontextvars import ContextVar, Context  # type: ignore
-
-    def _inherit_context(
-            *, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
-        # see module: aiocontextvars.inherit
-        # this is the backport of the contextvars module added in CPython 3.7.
-        # it provides "thread-locals" for async generators, and asyncio.Task
-        # will automatically call this stuff in 3.7, but not in 3.6 so we call
-        # this when starting to iterate over the stream (Stream.__aiter__).
-        task = asyncio.Task.current_task(loop=loop or asyncio.get_event_loop())
-        # note: in actual CPython it's task._context, the aiocontextvars
-        # backport is a backport of a previous version of the PEP: :pep:`560`
-        task.ctx = Context(Context.current())  # type: ignore
-
-    current_task = asyncio.Task.current_task
-
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     _current_event: ContextVar[weakref.ReferenceType[EventT]]
@@ -691,7 +669,6 @@ class Stream(StreamT[T_co], Service):
     async def __aiter__(self) -> AsyncIterator:
         self._finalized = True
         loop = self.loop
-        _inherit_context(loop=loop)
         await self.maybe_start()
         on_merge = self.on_merge
         on_stream_event_out = self._on_stream_event_out

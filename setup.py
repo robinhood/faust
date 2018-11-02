@@ -105,13 +105,6 @@ if README.exists():
 else:
     long_description = 'See http://pypi.org/project/{}'.format(NAME)
 
-# -*- Install Requires -*-
-
-
-install_requires = reqs('default.txt')
-if sys.version_info < (3, 7):
-    install_requires += reqs('py36.txt')
-
 # -*- %%% -*-
 
 setup(
@@ -131,7 +124,7 @@ setup(
     include_package_data=True,
     python_requires='>=3.6.0',
     zip_safe=False,
-    install_requires=install_requires,
+    install_requires=reqs('default.txt'),
     tests_require=reqs('test.txt'),
     extras_require=extras_require(),
     entry_points={
