@@ -803,13 +803,13 @@ class Stream(StreamT[T_co], Service):
                     if not ack_cancelled_tasks:
                         do_ack = False
                     raise
-                except Exception as exc:
+                except Exception:
                     if not ack_exceptions:
                         do_ack = False
                     raise
                 except GeneratorExit:
                     raise  # consumer did `break`
-                except BaseException as exc:
+                except BaseException:
                     # e.g. SystemExit/KeyboardInterrupt
                     if not ack_cancelled_tasks:
                         do_ack = False

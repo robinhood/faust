@@ -125,7 +125,7 @@ class CopartitionedAssignor:
         )
 
     def _client_exhausted(self, assignemnt: CopartitionedAssignment,
-                          active: bool, client_limit: int=None) -> bool:
+                          active: bool, client_limit: int = None) -> bool:
         if client_limit is None:
             client_limit = self._get_client_limit(active)
         return assignemnt.num_assigned(active) == client_limit

@@ -752,7 +752,7 @@ class Transport(base.Transport):
                 loop=self.loop, **kwargs)
         try:
             await wrap()
-        except Exception as exc:
+        except Exception:
             self._topic_waiters.pop(topic, None)
             raise
 
