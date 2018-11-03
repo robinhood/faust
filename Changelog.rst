@@ -8,12 +8,43 @@ This document contain change notes for bugfix releases in
 the Faust 1.2 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
-``master``
-==========
+.. _version-1.2.2:
+
+1.2.2
+=====
+
+- **Requirements**
+
+    + Now depends on :mod:`aiocontextvars` 0.1.x.
+
+        The new 0.2 version is backwards incompatible and breaks Faust.
+
+- **Settings**: Increases default :setting:`broker_session_timeout`
+  to 60.0 seconds.
+
+- **Tables**: Fixes use of windowed tables when using :mod:`simplejson`.
+
+    This change makes sure :mod:`simplejson` serializes
+    :class:`typing.NamedTuple` as lists, and not dictionaries.
+
+    Fix contributed by Omar Rayward (:github_user:`omarrayward`).
+
+- **Tables**: ``windowed_table[key].now()`` works outside of stream iteration.
+
+    Fix contributed by Omar Rayward (:github_user:`omarrayward`).
+
+- **Examples**: New Kubernetes example.
+
+    Contributed by Omar Rayward (:github_user:`omarrayward`).
+
+- **Misc**: Fixes :exc:`DeprecationWarning` for ``asyncio.current_task``.
+
+- **Typing**: Type checks now compatible with :pypi:`mypy` 0.641.
 
 - Documentation and examples fixes contributed by
 
     - Fabian Neumann (:github_user:`hellp`)
+    - Omar Rayward (:github_user:`omarrayward`)
 
 
 .. _version-1.2.1:
