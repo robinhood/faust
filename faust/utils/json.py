@@ -30,7 +30,7 @@ try:  # pragma: no cover
     # we have a chance to override it using Encoder.default.
     _JSON_DEFAULT_KWARGS = {
         'use_decimal': False,
-        'namedtuple_as_object': False
+        'namedtuple_as_object': False,
     }
 
 except ImportError:  # pragma: no cover
