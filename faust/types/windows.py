@@ -11,9 +11,9 @@ class WindowRange(NamedTuple):
     start: float
     end: float
 
-    @classmethod
-    def from_start(cls, start: float, size: float) -> 'WindowRange':
-        return cls(start=start, end=start + size - 0.1)
+
+def WindowRange_from_start(start: float, size: float) -> WindowRange:
+    return WindowRange(start=start, end=start + size - 0.1)
 
 
 class WindowT(abc.ABC):

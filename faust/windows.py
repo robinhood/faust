@@ -1,7 +1,7 @@
 """Window Types."""
 from typing import List
 from mode import Seconds, want_seconds
-from .types import WindowRange, WindowT
+from .types.windows import WindowRange, WindowRange_from_start, WindowT
 
 __all__ = [
     'Window',
@@ -34,7 +34,7 @@ class HoppingWindow(Window):
         curr = self._timestamp_window(timestamp)
         earliest = curr.start - self.size + self.step
         return [
-            WindowRange.from_start(float(start), self.size)
+            WindowRange_from_start(float(start), self.size)
             for start in range(int(earliest), int(curr.end), int(self.step))
         ]
 
@@ -50,7 +50,7 @@ class HoppingWindow(Window):
 
     def _timestamp_window(self, timestamp: float) -> WindowRange:
         start = (timestamp // self.step) * self.step
-        return WindowRange.from_start(start, self.size)
+        return WindowRange_from_start(start, self.size)
 
     def _stale_before(self, latest_timestamp: float, expires: float) -> float:
         return self._timestamp_window(latest_timestamp - expires).start
