@@ -4,7 +4,7 @@ import pytest
 
 from faust.events import Event
 from faust.types import Message
-from faust.tables.wrappers import WindowWrapper, WindowSet
+from faust.tables.wrappers import WindowSet, WindowWrapper
 from mode.utils.mocks import Mock, patch
 
 
