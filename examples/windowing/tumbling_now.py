@@ -24,8 +24,9 @@ class Model(faust.Record, serializer='json'):
 TOPIC = 'window_topic'
 
 window_topic = app.topic(TOPIC, value_type=Model)
-table = app.Table('tumbling_now_table', default=int) \
-            .tumbling(10, expires=timedelta(minutes=10))
+table = app.Table(
+    'tumbling_now_table',
+    default=int).tumbling(10, expires=timedelta(minutes=10))
 
 
 @app.agent(window_topic)
