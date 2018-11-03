@@ -201,7 +201,7 @@ class WindowWrapper(WindowWrapperT):
         return self.table._windowed_contains(key, self.get_timestamp())
 
     def __getitem__(self, key: Any) -> WindowSetT:
-        return WindowSet(key, self.table, self)
+        return WindowSet(key, self.table, self, current_event())
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if not isinstance(value, WindowSetT):

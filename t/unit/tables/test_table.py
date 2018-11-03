@@ -1,6 +1,10 @@
+import datetime
 import faust
 import pytest
-from faust.tables.wrappers import WindowWrapper
+
+from faust.events import Event
+from faust.types import Message
+from faust.tables.wrappers import WindowWrapper, WindowSet
 from mode.utils.mocks import Mock, patch
 
 
@@ -17,6 +21,14 @@ KEY1 = TableKey('foo')
 VALUE1 = TableValue('id', 3)
 
 WINDOW1 = faust.HoppingWindow(size=10, step=2, expires=3600.0)
+
+
+def event():
+    message = Message(topic='test-topic', key='key', value='value',
+                      partition=3, offset=0, checksum=None,
+                      timestamp=datetime.datetime.now().timestamp(),
+                      timestamp_type=0)
+    return Event(app='test-app', key='key', value='value', message=message)
 
 
 class test_Table:
@@ -40,14 +52,23 @@ class test_Table:
             value_type=value_type,
             **kwargs)
 
-    def test_using_window(self, *, table):
-        self.assert_wrapper(table.using_window(WINDOW1), table, WINDOW1)
+    @patch('faust.tables.wrappers.current_event', return_value=event())
+    def test_using_window(self, patch_current, *, table):
+        with_wrapper = table.using_window(WINDOW1)
+        self.assert_wrapper(with_wrapper, table, WINDOW1)
+        self.assert_current(with_wrapper, patch_current)
 
-    def test_hopping(self, *, table):
-        self.assert_wrapper(table.hopping(10, 2, 3600), table)
+    @patch('faust.tables.wrappers.current_event', return_value=event())
+    def test_hopping(self, patch_current, *, table):
+        with_wrapper = table.hopping(10, 2, 3600)
+        self.assert_wrapper(with_wrapper, table)
+        self.assert_current(with_wrapper, patch_current)
 
-    def test_tumbling(self, *, table):
-        self.assert_wrapper(table.tumbling(10, 3600), table)
+    @patch('faust.tables.wrappers.current_event', return_value=event())
+    def test_tumbling(self, patch_current, *, table):
+        with_wrapper = table.tumbling(10, 3600)
+        self.assert_wrapper(with_wrapper, table)
+        self.assert_current(with_wrapper, patch_current)
 
     def assert_wrapper(self, wrapper, table, window=None):
         assert wrapper.table is table
@@ -58,6 +79,12 @@ class test_Table:
         assert t._changelog_deleting
         assert t._changelog_topic is None
         assert isinstance(wrapper, WindowWrapper)
+
+    def assert_current(self, wrapper, patch_current):
+        value = wrapper['test']
+        assert isinstance(value, WindowSet)
+        patch_current.asssert_called_once_with()
+        assert value.current() == 0
 
     def test_missing__when_default(self, *, table):
         assert table['foo'] == 0
