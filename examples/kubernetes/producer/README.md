@@ -1,9 +1,9 @@
 ## Produce 10,000 messages
 
-This process assumes a kafka broker accessible at `host.docker.internal:9092`
+This process assumes a Kafka broker accessible at `host.docker.internal:9092`
 
 
-Producer that places 10,000 messages into a kafka topic named "test". Each message
+Producer that places 10,000 messages into a Kafka topic named "test". Each message
 is a mapping representing a score. Each score has 2 keys:
 * index
 * value
