@@ -1,9 +1,9 @@
 ## Consume 10,000 messages
 
-This process assumes a kafka broker accessible at `host.docker.internal:9092`
+This process assumes a Kafka broker accessible at `host.docker.internal:9092`
 
 
-Consumes 10,000 messages from kafka topic named "test". Each message
+Consumes 10,000 messages from Kafka topic named "test". Each message
 is a mapping representing a score. Each score has 2 keys:
 * index
 * value

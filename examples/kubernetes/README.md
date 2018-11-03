@@ -1,6 +1,6 @@
 ## Faust example using kubernetes
 
-Example showcasing how to use fast workers inside a Kubernetes cluster.
+Example showcasing how to use Faust workers inside a Kubernetes cluster.
 This example will only work on a Mac running a docker version that supports
 _[Kubernetes in Docker for a Mac](https://docs.docker.com/docker-for-mac/kubernetes/)_.
 
@@ -17,7 +17,7 @@ distributed systems, the producer doesn't use faust, it uses another python libr
 to producer messages. The rational for not using faust is to showcase how faust can
 be added as a new component to the overall system.
 
-3. Consumer. This is a faust worker, consuming the messages placed in the kafka topic,
+3. Consumer. This is a Faust worker, consuming the messages placed in the Kafka topic,
 which we have named `test`
 
 
