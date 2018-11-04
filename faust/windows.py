@@ -33,9 +33,10 @@ class HoppingWindow(Window):
     def ranges(self, timestamp: float) -> List[WindowRange]:
         curr = self._timestamp_window(timestamp)
         earliest = curr.start - self.size + self.step
+        end_range = int(timestamp) + 1
         return [
             WindowRange_from_start(float(start), self.size)
-            for start in range(int(earliest), int(curr.end), int(self.step))
+            for start in range(int(earliest), end_range, int(self.step))
         ]
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:
