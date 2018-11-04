@@ -31,11 +31,10 @@ class HoppingWindow(Window):
         self.expires = want_seconds(expires) if expires else None
 
     def ranges(self, timestamp: float) -> List[WindowRange]:
-        curr = self._timestamp_window(timestamp)
-        earliest = curr.start - self.size + self.step
+        start = self._start_initial_range(timestamp)
         return [
             WindowRange_from_start(float(start), self.size)
-            for start in range(int(earliest), int(curr.end), int(self.step))
+            for start in range(int(start), int(timestamp) + 1, int(self.step))
         ]
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:
@@ -43,17 +42,23 @@ class HoppingWindow(Window):
                 if self.expires else False)
 
     def current(self, timestamp: float) -> WindowRange:
-        return self._timestamp_window(timestamp)
+        """
+        The current WindowRange is the latest WindowRange for a given timestamp
+        """
+        return self.ranges(timestamp)[-1]
 
     def delta(self, timestamp: float, d: Seconds) -> WindowRange:
-        return self._timestamp_window(timestamp - want_seconds(d))
+        return self.current(timestamp - want_seconds(d))
 
-    def _timestamp_window(self, timestamp: float) -> WindowRange:
-        start = (timestamp // self.step) * self.step
-        return WindowRange_from_start(start, self.size)
+    def earliest(self, timestamp: float) -> WindowRange:
+        return self.ranges(timestamp)[0]
+
+    def _start_initial_range(self, timestamp: float) -> float:
+        closest_step = (timestamp // self.step) * self.step
+        return closest_step - self.size + self.step
 
     def _stale_before(self, latest_timestamp: float, expires: float) -> float:
-        return self._timestamp_window(latest_timestamp - expires).start
+        return self.current(latest_timestamp - expires).start
 
 
 class TumblingWindow(HoppingWindow):

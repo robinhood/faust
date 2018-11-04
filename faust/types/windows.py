@@ -33,5 +33,9 @@ class WindowT(abc.ABC):
         ...
 
     @abc.abstractmethod
+    def earliest(self, timestamp: float) -> WindowRange:
+        ...
+
+    @abc.abstractmethod
     def delta(self, timestamp: float, d: Seconds) -> WindowRange:
         ...

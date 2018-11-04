@@ -389,7 +389,8 @@ class Collection(Service, CollectionT):
         return handler
 
     def _windowed_now(self, key: Any) -> Any:
-        return self._windowed_timestamp(key, self._relative_now())
+        window = cast(WindowT, self.window)
+        return self._get_key((key, window.earliest(self._relative_now())))
 
     def _windowed_timestamp(self, key: Any, timestamp: float) -> Any:
         window = cast(WindowT, self.window)
