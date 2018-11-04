@@ -20,3 +20,10 @@ class test_TumblingWindow:
 
         assert base_range.start == compare_range.start
         assert base_range.end == compare_range.end
+
+    def test_earliest_and_current_range_are_the_same(self):
+        size = 57
+        timestamp = 456
+        window = TumblingWindow(size)
+
+        assert window.current(timestamp) == window.earliest(timestamp)
