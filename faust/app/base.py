@@ -975,8 +975,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             newly_assigned = assigned - self._assignment
         else:
             revoked = set()
-            newly_assigned = set()  # noqa XXX unused
-        self.assignment = assigned
+            newly_assigned = assigned  # noqa XXX unused
+        self._assignment = assigned
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:

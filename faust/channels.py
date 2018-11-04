@@ -115,15 +115,19 @@ class Channel(ChannelT):
         return self._queue
 
     def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT:
-        subchannel: Channel = type(self)(
-            is_iterator=(is_iterator
-                         if is_iterator is not None else self.is_iterator),
-            **{**self._clone_args(), **kwargs})
+        is_it = is_iterator if is_iterator is not None else self.is_iterator
+        subchannel: Channel = self._clone(is_iterator=is_it, **kwargs)
         (self._root or self)._subscribers.add(subchannel)
         # make sure queue is created at this point
         # ^ it's a cached_property
         subchannel.queue
         return subchannel
+
+    def clone_using_queue(self, queue: asyncio.Queue):
+        return self.clone(queue=queue)
+
+    def _clone(self, **kwargs):
+        return type(self)(**{**self._clone_args(), **kwargs})
 
     def _clone_args(self) -> Mapping:
         # How to create a copy of this channel.
