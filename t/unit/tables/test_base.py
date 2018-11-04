@@ -287,10 +287,11 @@ class test_Collection:
 
     def test_windowed_now(self, *, table):
         with patch('faust.tables.base.current_event'):
-            table._windowed_timestamp = Mock(name='windowed_timestamp')
-            ret = table._windowed_now('k')
-            table._windowed_timestamp.assert_called_once_with('k', 0)
-            assert ret is table._windowed_timestamp()
+            table.window = Mock(name='window', autospec=Window)
+            table.window.earliest.return_value = 42
+            table._get_key = Mock(name='_get_key')
+            table._windowed_now('k')
+            table._get_key.assert_called_once_with(('k', 42))
 
     def test_windowed_timestamp(self, *, table):
         table.window = Mock(name='window', autospec=Window)
