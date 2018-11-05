@@ -219,9 +219,9 @@ class Recovery(Service):
                 # Wait for actives to be up to date.
                 self.signal_recovery_end.clear()
 
-                wait_result = self.wait_first(
+                wait_result = await self.wait_first(
                     self.signal_recovery_end,
-                    self.signal_recovery_begin,
+                    self.signal_recovery_start,
                 )
                 if wait_result.stopped:
                     # service was stopped.
