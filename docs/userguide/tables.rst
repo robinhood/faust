@@ -226,9 +226,50 @@ configured "Windowing Policy."
 
 We support the following policies:
 
+.. class:: TumblingWindow
+
+This class creates fixed-sized, non-overlapping and contiguous time intervals
+to preserve key-value pairs, e.g. ``Tumbling(10)`` will create non-overlapping
+10 seconds windows:
+
+.. sourcecode:: bash
+
+  window 1: ----------
+  window 2:           ----------
+  window 3:                     ----------
+  window 4:                               ----------
+  window 5:                                         ----------
+
+
+This class is exposed as a method from the output of ``app.Table()``, it takes
+a mandatory parameter ``size``, representing the window (time interval) duration
+and an optional parameter ``expires``, representing the duration for which we
+want to store the data (key-value pairs) allocated to each window.
+
 .. class:: HoppingWindow
 
-.. class:: TumblingWindow
+This class creates fixed-sized, overlapping time intervals to preserve key-value
+pairs, e.g. ``Hopping(10, 5)`` will create overlapping 10 seconds windows. Each
+window will be created every 5 seconds.
+
+.. sourcecode:: bash
+
+  window 1: ----------
+  window 2:      ----------
+  window 3:           ----------
+  window 4:                ----------
+  window 5:                     ----------
+  window 6:                          ----------
+
+
+This class is exposed as a method from the output of ``app.Table()``, it takes 2
+mandatory parameters:
+
+- ``size``, representing the window (time interval) duration.
+- ``step``, representing the time interval used to create new windows.
+
+It also takes an optional parameter ``expires``, representing the duration for
+which we want to store the data (key-value pairs) allocated to each window.
 
 How To
 ------
@@ -255,24 +296,41 @@ Here's an example of a windowed table in use:
 
     @app.agent(events_topic)
     async def aggregate_page_views(events):
-        async for event in events:
-            page = event.page
+        async for record in events:
+            page = record.page
 
-            # increment one to all windows this event falls into.
+            # increment one to all windows this record falls into.
             views[page] += 1
 
             if views[page].now() >= 10000:
                 # Page is trending for current processing time window
                 print('Trending now')
-            if views[page].current(event) >= 10000:
+
+            if views[page].current(record.current_event) >= 10000:
                 # Page would be trending in the event's time window
                 print('Trending when event happened')
+
+            if views[page].value(record.current_event) >= 10000:
+                # Page would be trending in the event's time window
+                # according to the relative time set when creating the
+                # table.
+                print('Trending when event happened')
+
             if views[page].delta(timedelta(minutes=30)) > views[page].now():
                 print('Less popular compared to 30 minutes back')
 
 
+In this table, ``table[k].now()`` returns the most recent value for the
+current processing window, overriding the _relative_to_ option used to create
+the window.
+
 In this table, ``table[k].current()`` returns the most recent value relative
+to the time of the currently processing event, overriding the _relative_to_
+option used to create the window.
+
+In this table, ``table[k].value()`` returns the most recent value relative
 to the time of the currently processing event, and is the default behavior.
+
 You can also make the current value relative to the current local time,
 relative to a different field in the event (if it has a custom timestamp
 field), or of another event.
@@ -310,14 +368,31 @@ You can override this default behavior when accessing data in the table:
         async for event in stream:
             # Get latest value for key', based on the tables default
             # relative to option.
+            print(table[key].value())
+
+            # You can bypass the default relative to option, and
+            # get the value closest to the event timestamp
             print(table[key].current())
 
             # You can bypass the default relative to option, and
             # get the value closest to the current local time
             print(table[key].now())
 
-            # Or get the value for a delta, e.g. 30 seconds ago
+            # Or get the value for a delta, e.g. 30 seconds ago, relative
+            # to the event timestamp
             print(table[key].delta(30))
+
+
+.. note::
+
+  We always retrieve window data based on timestamps. With tumbling windows
+  there is just one window at a time, so for a given timestamp there is just
+  one corresponding window. This is not the case for for hopping windows, in
+  which a timestamp could be located in more than 1 window.
+
+  At this point, when accessing data from a hopping table, we always access the
+  latest window for a given timestamp and we have no way of modifying this
+  behavior.
 
 
 "Out of Order" Events
