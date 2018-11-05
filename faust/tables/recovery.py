@@ -170,8 +170,6 @@ class Recovery(Service):
         print('ACTIVE TPS: %r' % (self.active_tps,))
         print('STANDBY TPS: %r' % (self.standby_tps,))
 
-        self.signal_recovery_start.clear()
-        self.signal_recovery_end.clear()
         self.signal_recovery_start.set()
         self.in_recovery = True
 
@@ -220,6 +218,7 @@ class Recovery(Service):
             if self.need_recovery():
                 await self.app._fetcher.maybe_start()
                 # Wait for actives to be up to date.
+                self.signal_recovery_end.clear()
                 if await self.wait_for_stopped(self.signal_recovery_end):
                     break
                 self.log.info('Done reading from changelog topics')
