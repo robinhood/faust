@@ -321,10 +321,6 @@ class Consumer(base.Consumer):
             await self.sleep(1)
         create_message = ConsumerMessage  # localize
 
-        if records:
-            print('GOT RECORDS: %r' % (
-                sum(len(x) for x in records.values())))
-
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,
         # normal order of iteration would be to process each

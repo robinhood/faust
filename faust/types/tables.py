@@ -1,5 +1,4 @@
 import abc
-import asyncio
 import typing
 from datetime import datetime
 from typing import (
@@ -173,7 +172,6 @@ class TableT(CollectionT, MutableMapping):
 
 class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     app: AppT
-    recovery_completed: asyncio.Event
 
     @abc.abstractmethod
     def __init__(self, app: AppT, **kwargs: Any) -> None:

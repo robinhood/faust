@@ -1,11 +1,11 @@
 =====================================================
- ``faust.tables.changelogs``
+ ``faust.tables.recovery``
 =====================================================
 
 .. contents::
     :local:
-.. currentmodule:: faust.tables.changelogs
+.. currentmodule:: faust.tables.recovery
 
-.. automodule:: faust.tables.changelogs
+.. automodule:: faust.tables.recovery
     :members:
     :undoc-members:

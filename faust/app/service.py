@@ -149,7 +149,7 @@ class AppService(Service):
     async def wait_for_table_recovery_completed(self) -> None:
         if not self.app.producer_only and not self.app.client_only:
             return await self.wait_for_stopped(
-                self.app.tables.recovery_completed)
+                self.app.tables.recovery.completed)
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self.app._tasks:

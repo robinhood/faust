@@ -22,7 +22,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
     _channels: MutableMapping[CollectionT, ChannelT]
     _changelogs: MutableMapping[str, CollectionT]
     _recovery_started: asyncio.Event
-    recovery_completed: asyncio.Event
     _changelog_queue: ThrowableQueue
 
     _recovery: Optional[Recovery] = None
@@ -36,7 +35,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._changelogs = {}
         self._standbys = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
-        self.recovery_completed = asyncio.Event(loop=self.loop)
 
     def __hash__(self) -> int:
         return object.__hash__(self)
@@ -108,27 +106,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
         await self._update_channels()
         await self.recovery.on_rebalance(assigned, revoked, newly_assigned)
-
-    async def on_recovery_completed(self) -> None:
-        self.log.info('Restore complete!')
-        # This needs to happen if all goes well
-        callback_coros = []
-        for table in self.values():
-            callback_coros.append(table.call_recover_callbacks())
-        if callback_coros:
-            await asyncio.wait(callback_coros)
-        self.log.info('Perform seek')
-        await self.app.consumer.perform_seek()
-        self.recovery_completed.set()
-        assignment = self.app.consumer.assignment()
-        self.app.consumer.resume_partitions({
-            tp for tp in assignment
-            if not self._is_changelog_tp(tp)
-        })
-        # finally start the fetcher
-        await self.app._fetcher.maybe_start()
-        self.app.rebalancing = False
-        self.log.info('Worker ready')
 
     def _is_changelog_tp(self, tp: TP) -> bool:
         return tp.topic in self.changelog_topics
