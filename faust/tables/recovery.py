@@ -136,7 +136,6 @@ class Recovery(Service):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        self.in_recovery = False
         self.log.info('Updating actives/standbys after rebalance...')
         standby_tps = self.app.assignor.assigned_standbys()
         # for table in self.values():
@@ -171,7 +170,6 @@ class Recovery(Service):
         print('STANDBY TPS: %r' % (self.standby_tps,))
 
         self.signal_recovery_start.set()
-        self.in_recovery = True
 
     async def wait_for_actives(self):
         print('SHOULD WAIT FOR ACTIVES')
@@ -189,6 +187,7 @@ class Recovery(Service):
             if await self.wait_for_stopped(self.signal_recovery_start):
                 self.signal_recovery_start.clear()
                 break  # service was stopped
+            self.in_recovery = True
             self.signal_recovery_start.clear()
             print('-------------RECEIVED SIGNAL RECOVERY START')
 
@@ -219,9 +218,20 @@ class Recovery(Service):
                 await self.app._fetcher.maybe_start()
                 # Wait for actives to be up to date.
                 self.signal_recovery_end.clear()
-                if await self.wait_for_stopped(self.signal_recovery_end):
+
+                wait_result = self.wait_first(
+                    self.signal_recovery_end,
+                    self.signal_recovery_begin,
+                )
+                if wait_result.stopped:
+                    # service was stopped.
                     break
-                self.log.info('Done reading from changelog topics')
+                elif self.signal_recovery_start in wait_result.done:
+                    # another rebalance started
+                    continue
+                else:
+                    # recovery done.
+                    self.log.info('Done reading from changelog topics')
             self.in_recovery = False
             consumer.pause_partitions(active_tps)
 
