@@ -908,14 +908,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
-                on_timeout.info('fetcher.stop()')
-                await self._stop_fetcher()
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
+                    self.consumer.stop_flow()
                     self.flow_control.suspend()
                     on_timeout.info('consumer.pause_partitions')
-                    await self.consumer.pause_partitions(assignment)
+                    self.consumer.pause_partitions(assignment)
                     # Every agent instance has an incoming buffer of messages
                     # (a asyncio.Queue) -- we clear those to make sure
                     # agents will not start processing them.
@@ -980,8 +979,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
-                on_timeout.info('fetcher.stop()')
-                await self._stop_fetcher()
                 on_timeout.info('agents.on_rebalance()')
                 await self.agents.on_rebalance(revoked, newly_assigned)
                 # Wait for transport.Conductor to finish
@@ -989,7 +986,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 on_timeout.info('topics.wait_for_subscriptions()')
                 await self.topics.wait_for_subscriptions()
                 on_timeout.info('consumer.pause_partitions()')
-                await self.consumer.pause_partitions(assigned)
+                self.consumer.pause_partitions(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
                 on_timeout.info('tables.on_rebalance()')
@@ -998,8 +995,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 on_timeout.info('+send signal: on_partitions_assigned')
                 await self.on_partitions_assigned.send(assigned)
                 on_timeout.info('-send signal: on_partitions_assigned')
-                on_timeout.info('flow_control.resume()')
-                self.flow_control.resume()
                 self._assignment = assigned
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)

@@ -94,13 +94,13 @@ class Consumer(base.Consumer):
     async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
         ...
 
-    async def pause_partitions(self, tps: Iterable[TP]) -> None:
+    def pause_partitions(self, tps: Iterable[TP]) -> None:
         ...
 
     async def position(self, tp: TP) -> Optional[int]:
         return 0
 
-    async def resume_partitions(self, partitions: Iterable[TP]) -> None:
+    def resume_partitions(self, partitions: Iterable[TP]) -> None:
         ...
 
     async def seek_to_latest(self, *partitions: TP) -> None:

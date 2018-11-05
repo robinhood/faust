@@ -1,12 +1,10 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
-from types import TracebackType
 from typing import (
     Any,
     AsyncIterator,
     Awaitable,
     ClassVar,
-    ContextManager,
     Dict,
     Iterable,
     Iterator,
@@ -42,8 +40,9 @@ from rhkafka.errors import (
 from rhkafka.partitioner.default import DefaultPartitioner
 from rhkafka.protocol.metadata import MetadataRequest_v1
 from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
-from mode.utils.compat import AsyncContextManager, OrderedDict
+from mode.utils.compat import OrderedDict
 from mode.utils.futures import StampedeWrapper
+from mode.utils.locks import Event
 from yarl import URL
 
 from faust.exceptions import ProducerSendError
@@ -74,68 +73,6 @@ TopicIndexMap = MutableMapping[str, '_TopicBuffer']
 _TPTypes = Union[TP, _TopicPartition]
 
 logger = get_logger(__name__)
-
-
-class Fence(AsyncContextManager, ContextManager):
-    # like a mutex, but crashing if two coroutines acquire it at the same
-    # time. This makes it more of an assertion, in that we think it will
-    # NEVER happen, but if we are wrong we want it to crash.
-
-    _locked: bool = False
-    owner: Optional[asyncio.Task] = None
-    raising: Type[BaseException] = RuntimeError
-    loop: asyncio.AbstractEventLoop
-    tb: str = ''
-
-    def __init__(self, *, loop: asyncio.AbstractEventLoop = None) -> None:
-        self.loop = loop or asyncio.get_event_loop()
-
-    def locked(self) -> bool:
-        return self._locked
-
-    def acquire(self) -> None:
-        me: asyncio.Task = self._get_current_task()
-        self._raise_if_locked(me)
-        self._locked = True
-        self.owner = me
-        import traceback
-        self.tb = '\n'.join(traceback.format_stack())
-
-    def _get_current_task(self) -> asyncio.Task:
-        return asyncio.Task.current_task(loop=self.loop)
-
-    def raise_if_locked(self) -> None:
-        me: asyncio.Task = self._get_current_task()
-        self._raise_if_locked(me)
-
-    def _raise_if_locked(self, me: asyncio.Task) -> None:
-        if self._locked:
-            raise self.raising(
-                f'Coroutine {me} tried to break fence owned by {self.owner}'
-                f' {self.tb}')
-
-    def release(self) -> None:
-        self._locked, self.owner = False, None
-
-    async def __aenter__(self) -> 'Fence':
-        self.acquire()
-        return self
-
-    async def __aexit__(self,
-                        _exc_type: Type[BaseException] = None,
-                        _exc_val: BaseException = None,
-                        _exc_tb: TracebackType = None) -> None:
-        self.release()
-
-    def __enter__(self) -> 'Fence':
-        self.acquire()
-        return self
-
-    def __exit__(self,
-                 _exc_type: Type[BaseException] = None,
-                 _exc_val: BaseException = None,
-                 _exc_tb: TracebackType = None) -> None:
-        self.release()
 
 
 def server_list(url: URL, default_port: int) -> str:
@@ -244,12 +181,14 @@ class Consumer(base.Consumer):
     _rebalance_listener: ConsumerRebalanceListener
     _active_partitions: Optional[Set[_TopicPartition]]
     _paused_partitions: Set[_TopicPartition]
-    _partitions_lock: Fence
     fetch_timeout: float = 10.0
 
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = (
         ConsumerStoppedError,
     )
+
+    flow_active: bool = True
+    can_resume_flow: Event
 
     def on_init(self) -> None:
         app = self.transport.app
@@ -261,7 +200,7 @@ class Consumer(base.Consumer):
             self._consumer = self._create_worker_consumer(app, transport)
         self._active_partitions = None
         self._paused_partitions = set()
-        self._partitions_lock = Fence(loop=self.loop)
+        self.can_resume_flow = Event()
 
     async def on_restart(self) -> None:
         self.on_init()
@@ -367,21 +306,24 @@ class Consumer(base.Consumer):
         _next = next
 
         records: RecordMap = {}
-        # This lock is acquired by pause_partitions/resume_partitions,
-        # but those should never be called when the Fetcher is running.
-        with self._partitions_lock:
-            if active_partitions:
-                # Fetch records only if active partitions to avoid the risk of
-                # fetching all partitions in the beginning when none of the
-                # partitions is paused/resumed.
-                records = await fetcher.fetched_records(
-                    active_partitions,
-                    timeout=timeout,
-                )
-            else:
-                # We should still release to the event loop
-                await self.sleep(0)
+        if not self.flow_active:
+            await self.wait(self.can_resume_flow)
+        if active_partitions:
+            # Fetch records only if active partitions to avoid the risk of
+            # fetching all partitions in the beginning when none of the
+            # partitions is paused/resumed.
+            records = await fetcher.fetched_records(
+                active_partitions,
+                timeout=timeout,
+            )
+        else:
+            # We should still release to the event loop
+            await self.sleep(1)
         create_message = ConsumerMessage  # localize
+
+        if records:
+            print('GOT RECORDS: %r' % (
+                sum(len(x) for x in records.values())))
 
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,
@@ -430,9 +372,13 @@ class Consumer(base.Consumer):
         to_remove: Set[str] = set()
         sentinel = object()
         while topic_index:
+            if not self.flow_active:
+                break
             for topic in to_remove:
                 topic_index.pop(topic, None)
             for topic, messages in topic_index.items():
+                if not self.flow_active:
+                    break
                 item = _next(messages, sentinel)
                 if item is sentinel:
                     # this topic is now empty,
@@ -553,14 +499,20 @@ class Consumer(base.Consumer):
             await self.crash(exc)
             return False
 
-    async def pause_partitions(self, tps: Iterable[TP]) -> None:
-        self._partitions_lock.raise_if_locked()
+    def stop_flow(self) -> None:
+        self.flow_active = False
+        self.can_resume_flow.clear()
+
+    def resume_flow(self) -> None:
+        self.flow_active = True
+        self.can_resume_flow.set()
+
+    def pause_partitions(self, tps: Iterable[TP]) -> None:
         tpset = set(tps)
         self._get_active_partitions().difference_update(tpset)
         self._paused_partitions.update(tpset)
 
-    async def resume_partitions(self, tps: Iterable[TP]) -> None:
-        self._partitions_lock.raise_if_locked()
+    def resume_partitions(self, tps: Iterable[TP]) -> None:
         tpset = set(tps)
         self._get_active_partitions().update(tps)
         self._paused_partitions.difference_update(tpset)
@@ -752,7 +704,7 @@ class Transport(base.Transport):
                 loop=self.loop, **kwargs)
         try:
             await wrap()
-        except Exception as exc:
+        except Exception:
             self._topic_waiters.pop(topic, None)
             raise
 

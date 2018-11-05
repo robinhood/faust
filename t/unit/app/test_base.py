@@ -119,7 +119,7 @@ async def test_on_partitions_revoked(revoked, assignment, *, app):
     app.consumer = Mock(
         name='app.consumer',
         autospec=Consumer,
-        pause_partitions=AsyncMock(),
+        pause_partitions=Mock(),
         wait_empty=AsyncMock(),
     )
     app.flow_control = Mock(
@@ -167,7 +167,7 @@ async def test_on_partitions_assigned(assigned, *, app):
     app.consumer = Mock(
         name='app.consumer',
         autospec=Consumer,
-        pause_partitions=AsyncMock(),
+        pause_partitions=Mock(),
     )
     app.agents = Mock(
         name='app.agents',

@@ -85,7 +85,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 self.app.topics.add(chan)
                 self._channels[table] = cast(ChannelT, chan)
             await table.maybe_start()
-        await self.app.consumer.pause_partitions({
+        self.app.consumer.pause_partitions({
             tp for tp in self.app.consumer.assignment()
             if tp.topic in self._changelogs
         })
@@ -121,7 +121,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
         await self.app.consumer.perform_seek()
         self.recovery_completed.set()
         assignment = self.app.consumer.assignment()
-        await self.app.consumer.resume_partitions({
+        self.app.consumer.resume_partitions({
             tp for tp in assignment
             if not self._is_changelog_tp(tp)
         })

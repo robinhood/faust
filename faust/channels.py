@@ -124,7 +124,7 @@ class Channel(ChannelT):
         return subchannel
 
     def clone_using_queue(self, queue: asyncio.Queue):
-        return self.clone(queue=queue)
+        return self.clone(queue=queue, is_iterator=True)
 
     def _clone(self, **kwargs):
         return type(self)(**{**self._clone_args(), **kwargs})

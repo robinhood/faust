@@ -53,7 +53,7 @@ class MyConsumer(Consumer):
     def highwaters(self, *args, **kwargs):
         ...
 
-    async def pause_partitions(self, *args, **kwargs):
+    def pause_partitions(self, *args, **kwargs):
         ...
 
     async def perform_seek(self, *args, **kwargs):
@@ -62,7 +62,7 @@ class MyConsumer(Consumer):
     def position(self, *args, **kwargs):
         ...
 
-    async def resume_partitions(self, *args, **kwargs):
+    def resume_partitions(self, *args, **kwargs):
         ...
 
     async def seek(self, *args, **kwargs):
