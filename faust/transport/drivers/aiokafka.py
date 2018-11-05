@@ -414,8 +414,8 @@ class Consumer(base.Consumer):
         topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             if tp not in active_partitions:
-                self.log.error(f'SKIP PAUSED PARTITION: {tp} '
-                               f'ACTIVES: {active_partitions}')
+                self.log.info(f'Skipping paused partition: {tp} '
+                              f'actives: {active_partitions}')
                 continue
             try:
                 entry = topic_index[tp.topic]
