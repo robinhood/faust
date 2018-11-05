@@ -974,7 +974,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             newly_assigned = assigned - self._assignment
         else:
             revoked = set()
-            newly_assigned = assigned  # noqa XXX unused
+            newly_assigned = assigned
         self._assignment = assigned
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
@@ -995,7 +995,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 on_timeout.info('+send signal: on_partitions_assigned')
                 await self.on_partitions_assigned.send(assigned)
                 on_timeout.info('-send signal: on_partitions_assigned')
-                self._assignment = assigned
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)
                 await self.crash(exc)
