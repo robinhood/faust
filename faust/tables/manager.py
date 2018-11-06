@@ -94,6 +94,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
         for table in self.values():
             await table.stop()
 
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        await self.recovery.on_partitions_revoked(revoked)
+
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],

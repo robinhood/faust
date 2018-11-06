@@ -383,26 +383,27 @@ class Consumer(base.Consumer):
                     to_remove.add(topic)
                     continue
                 tp, record = item  # type: ignore
-                highwater_mark = self._consumer.highwater(tp)
-                self.app.monitor.track_tp_end_offset(tp, highwater_mark)
-                # convert timestamp to seconds from int milliseconds.
-                timestamp: Optional[int] = record.timestamp
-                timestamp_s: float = cast(float, None)
-                if timestamp is not None:
-                    timestamp_s = timestamp / 1000.0
-                yield tp, create_message(
-                    record.topic,
-                    record.partition,
-                    record.offset,
-                    timestamp_s,
-                    record.timestamp_type,
-                    record.key,
-                    record.value,
-                    record.checksum,
-                    record.serialized_key_size,
-                    record.serialized_value_size,
-                    tp,
-                )
+                if tp in active_partitions:
+                    highwater_mark = self._consumer.highwater(tp)
+                    self.app.monitor.track_tp_end_offset(tp, highwater_mark)
+                    # convert timestamp to seconds from int milliseconds.
+                    timestamp: Optional[int] = record.timestamp
+                    timestamp_s: float = cast(float, None)
+                    if timestamp is not None:
+                        timestamp_s = timestamp / 1000.0
+                    yield tp, create_message(
+                        record.topic,
+                        record.partition,
+                        record.offset,
+                        timestamp_s,
+                        record.timestamp_type,
+                        record.key,
+                        record.value,
+                        record.checksum,
+                        record.serialized_key_size,
+                        record.serialized_value_size,
+                        tp,
+                    )
 
     def _records_to_topic_index(self,
                                 records: RecordMap,

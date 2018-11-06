@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Any, List, MutableMapping, Optional, Set, Tuple, cast
 
 from mode import Service
+from mode.services import WaitArgT
 from mode.utils.compat import Counter
 from mode.utils.locks import Event
 
@@ -16,6 +17,14 @@ if typing.TYPE_CHECKING:
     from .manager import TableManager
 else:
     class TableManager: ...  # noqa
+
+
+class ServiceStopped(Exception):
+    ...
+
+
+class RebalanceAgain(Exception):
+    ...
 
 
 class Recovery(Service):
@@ -58,6 +67,7 @@ class Recovery(Service):
 
     _signal_recovery_start: Optional[Event] = None
     _signal_recovery_end: Optional[Event] = None
+    _signal_recovery_reset: Optional[Event] = None
 
     completed: Event
     in_recovery: bool = False
@@ -107,6 +117,12 @@ class Recovery(Service):
             self._signal_recovery_end = Event(loop=self.loop)
         return self._signal_recovery_end
 
+    @property
+    def signal_recovery_reset(self) -> Event:
+        if self._signal_recovery_reset is None:
+            self._signal_recovery_reset = Event(loop=self.loop)
+        return self._signal_recovery_reset
+
     async def on_stop(self) -> None:
         # Flush buffers when stopping.
         self.flush_buffers()
@@ -150,6 +166,10 @@ class Recovery(Service):
         self.tp_to_table.pop(tp, None)
         self.tps.discard(tp)
 
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        self.flush_buffers()
+        self.signal_recovery_reset.set()
+
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
@@ -159,11 +179,6 @@ class Recovery(Service):
         # for table in self.values():
         #     standby_tps = await local_tps(table, standby_tps)
         assigned_tps = self.app.assignor.assigned_actives()
-
-        self.log.dev('REVOKED: %r', revoked)
-        self.log.dev('NEWLY ASSIGNED: %r', newly_assigned)
-        self.log.dev('ASSIGNOR SAYS STANDBYS IS %r', standby_tps)
-        self.log.dev('ASSIGNOR SAYS ACTIVES IS %r', assigned_tps)
 
         for tp in revoked:
             if tp in self.active_tps:
@@ -184,12 +199,10 @@ class Recovery(Service):
                     else:
                         pass   # belongs to agent?
 
-        self.log.dev('ACTIVE TPS: %r', self.active_tps)
-        self.log.dev('STANDBY TPS: %r', self.standby_tps)
-
+        self.signal_recovery_reset.clear()
         self.signal_recovery_start.set()
 
-    async def resume_streams(self) -> None:
+    async def _resume_streams(self) -> None:
         app = self.app
         consumer = app.consumer
         await app.on_rebalance_complete.send()
@@ -198,7 +211,7 @@ class Recovery(Service):
         consumer.resume_flow()
         app.flow_control.resume()
         self.log.info('Seek stream partitions to committed offsets.')
-        await consumer.perform_seek()
+        await self._wait(consumer.perform_seek())
         self.completed.set()
         assignment = consumer.assignment()
         self.log.dev('Resume stream partitions')
@@ -218,84 +231,118 @@ class Recovery(Service):
         active_highwaters = self.active_highwaters
         standby_highwaters = self.standby_highwaters
         while not self.should_stop:
+            self.log.dev('WAITING FOR NEXT RECOVERY TO START')
+            self.signal_recovery_reset.clear()
+            self.in_recovery = False
             if await self.wait_for_stopped(self.signal_recovery_start):
                 self.signal_recovery_start.clear()
                 break  # service was stopped
             self.signal_recovery_start.clear()
 
-            if not self.tables:
-                # If there are no tables -- simply resume streams
-                await self.resume_streams()
-                continue
-
-            self.in_recovery = True
-            self.log.info('Table recovery requested by rebalance...')
-
-            # Must flush any buffers before starting rebalance.
-            self.flush_buffers()
-
-            self.log.dev('Build highwaters for active partitions')
-            await self._build_highwaters(
-                consumer, active_tps, active_highwaters, 'active')
-
-            self.log.dev('Build offsets for active partitions')
-            await self._build_offsets(
-                consumer, active_tps, active_offsets, 'active')
-            self.log.dev('Build offsets for standby partitions')
-            await self._build_offsets(
-                consumer, standby_tps, standby_offsets, 'standby')
-
-            self.log.dev('Seek offsets for active partitions')
-            await self._seek_offsets(
-                consumer, active_tps, active_offsets, 'active')
-
-            # Resume partitions and start fetching.
-            self.log.info('Resuming flow...')
-            consumer.resume_flow()
-            self.app.flow_control.resume()
-
-            if self.need_recovery():
-                self.log.info('Restoring state from changelog topics...')
-                consumer.resume_partitions(active_tps)
-                await self.app._fetcher.maybe_start()
-                # Wait for actives to be up to date.
-                self.signal_recovery_end.clear()
-
-                wait_result = await self.wait_first(
-                    self.signal_recovery_end,
-                    self.signal_recovery_start,
-                )
-                if wait_result.stopped:
-                    # service was stopped.
-                    break
-                elif self.signal_recovery_start in wait_result.done:
-                    # another rebalance started
+            try:
+                if not self.tables:
+                    # If there are no tables -- simply resume streams
+                    await self._resume_streams()
                     continue
-                else:
+
+                self.in_recovery = True
+                self.log.info('Table recovery requested by rebalance...')
+
+                # Must flush any buffers before starting rebalance.
+                self.flush_buffers()
+
+                self.log.dev('Build highwaters for active partitions')
+                await self._wait(
+                    self._build_highwaters(
+                        consumer, active_tps, active_highwaters, 'active'))
+
+                self.log.dev('Build offsets for active partitions')
+                await self._wait(
+                    self._build_offsets(
+                        consumer, active_tps, active_offsets, 'active'))
+
+                self.log.dev('Build offsets for standby partitions')
+                await self._wait(
+                    self._build_offsets(
+                        consumer, standby_tps, standby_offsets, 'standby'))
+
+                self.log.dev('Seek offsets for active partitions')
+                await self._wait(
+                    self._seek_offsets(
+                        consumer, active_tps, active_offsets, 'active'))
+
+                # Resume partitions and start fetching.
+                self.log.info('Resuming flow...')
+                consumer.resume_flow()
+                self.app.flow_control.resume()
+
+                if self.need_recovery():
+                    self.log.info('Restoring state from changelog topics...')
+                    consumer.resume_partitions(active_tps)
+                    await self.app._fetcher.maybe_start()
+
+                    # Wait for actives to be up to date.
+                    # This signal will be set by _slurp_changelogs
+                    self.signal_recovery_end.clear()
+                    await self._wait(self.signal_recovery_end)
+
                     # recovery done.
                     self.log.info('Done reading from changelog topics')
-                consumer.pause_partitions(active_tps)
+                    consumer.pause_partitions(active_tps)
 
-            self.log.info('Recovery complete')
-            self.in_recovery = False
+                self.log.info('Recovery complete')
+                self.in_recovery = False
 
-            if standby_tps:
-                self.log.info('Starting standby partitions...')
-                self.log.dev('Seek standby offsets')
-                await self._seek_offsets(
-                    consumer, standby_tps, standby_offsets, 'standby')
-                self.log.dev('Build standby highwaters')
-                await self._build_highwaters(
-                    consumer, standby_tps, standby_highwaters, 'standby')
-                self.log.dev('Resume standby partitions')
-                consumer.resume_partitions(standby_tps)
+                if standby_tps:
+                    self.log.info('Starting standby partitions...')
 
-            # Pause all our topic partitions,
-            # to make sure we don't fetch any more records from them.
-            await self.sleep(0.1)  # this was here possibly not needed
-            await self.on_recovery_completed()
+                    self.log.dev('Seek standby offsets')
+                    await self._wait(
+                        self._seek_offsets(
+                            consumer, standby_tps, standby_offsets, 'standby'))
 
+                    self.log.dev('Build standby highwaters')
+                    await self._wait(
+                        self._build_highwaters(
+                            consumer,
+                            standby_tps,
+                            standby_highwaters,
+                            'standby',
+                        ),
+                    )
+
+                    self.log.dev('Resume standby partitions')
+                    consumer.resume_partitions(standby_tps)
+
+                # Pause all our topic partitions,
+                # to make sure we don't fetch any more records from them.
+                await self._wait(asyncio.sleep(0.1))  # still needed?
+                await self._wait(self.on_recovery_completed())
+            except RebalanceAgain:
+                self.log.dev('RAISED REBALANCE AGAIN')
+                continue  # another rebalance started
+            except ServiceStopped:
+                self.log.dev('RAISED SERVICE STOPPED')
+                break  # service was stopped
             # restart - wait for next rebalance.
+        self.in_recovery = False
+
+    async def _wait(self, coro: WaitArgT) -> None:
+        wait_result = await self.wait_first(
+            coro,
+            self.signal_recovery_reset,
+            self.signal_recovery_start,
+        )
+        if wait_result.stopped:
+            # service was stopped.
+            raise ServiceStopped()
+        elif self.signal_recovery_start in wait_result.done:
+            # another rebalance started
+            raise RebalanceAgain()
+        elif self.signal_recovery_reset in wait_result.done:
+            raise RebalanceAgain()
+        else:
+            return None
 
     async def on_recovery_completed(self) -> None:
         consumer = self.app.consumer
@@ -397,17 +444,18 @@ class Recovery(Service):
 
             offsets: Counter[TP]
             bufsize = buffer_sizes.get(tp)
-            table = tp_to_table[tp]
             if tp in active_tps:
+                table = tp_to_table[tp]
                 offsets = active_offsets
                 if bufsize is None:
                     bufsize = buffer_sizes[tp] = table.recovery_buffer_size
             elif tp in standby_tps:
+                table = tp_to_table[tp]
                 offsets = standby_offsets
                 if bufsize is None:
                     bufsize = buffer_sizes[tp] = table.standby_buffer_size
             else:
-                raise RuntimeError(f'Unknown event received: {message!r}')
+                continue
 
             seen_offset = offsets.get(tp, -1)
             if offset > seen_offset:

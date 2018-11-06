@@ -925,6 +925,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     # (stream_buffer_maxsize).
                     on_timeout.info('flow_control.clear()')
                     self.flow_control.clear()
+                    await self.tables.on_partitions_revoked(revoked)
 
                     # even if we clear, some of the agent instances may have
                     # already started working on an event.
