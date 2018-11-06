@@ -3,6 +3,7 @@ import abc
 from collections import defaultdict
 from datetime import datetime
 from heapq import heappop, heappush
+from time import time
 from typing import (
     Any,
     Callable,
@@ -239,10 +240,11 @@ class Collection(Service, CollectionT):
                     timestamps[0],
                     self._partition_latest_timestamp[partition]):
                 timestamp = heappop(timestamps)
-                for key in self._partition_timestamp_keys[(partition,
-                                                           timestamp)]:
-                    del self.data[key]
-                del self._partition_timestamp_keys[(partition, timestamp)]
+                keys_to_remove = self._partition_timestamp_keys.pop(
+                    (partition, timestamp), None)
+                if keys_to_remove:
+                    for key in keys_to_remove:
+                        del self.data[key]
 
     def _should_expire_keys(self) -> bool:
         window = self.window
@@ -360,10 +362,10 @@ class Collection(Service, CollectionT):
             yield window_range
 
     def _relative_now(self, event: EventT = None) -> float:
-        # get current timestampe
+        # get current timestamp
         event = event if event is not None else current_event()
         if event is None:
-            raise RuntimeError('Outside of stream iteration')
+            return time()
         return self._partition_latest_timestamp[event.message.partition]
 
     def _relative_event(self, event: EventT = None) -> float:

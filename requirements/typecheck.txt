@@ -1,2 +1,2 @@
-mypy~=0.610
+mypy~=0.641
 mypy-extensions~=0.4.1

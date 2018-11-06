@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  creationTimestamp: null
+  labels:
+    run: producer
+  name: producer
+spec:
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: producer
+    spec:
+      containers:
+      - image: producer
+        name: producer
+        resources: {}
+        imagePullPolicy: IfNotPresent
+      restartPolicy: OnFailure
+status: {}

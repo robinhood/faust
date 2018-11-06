@@ -65,13 +65,14 @@ class send(AppCommand):
         topic = self.to_topic(entity)
         for i in range(repeat):
             self.carp(f'k={key!r} v={value!r} -> {topic!r}...')
-            meta: RecordMetadata = await (await topic.send(
+            fut_send_complete = await topic.send(
                 key=key,
                 value=value,
                 partition=partition,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
-            ))
+            )
+            meta: RecordMetadata = await fut_send_complete
             self.say(self.dumps(meta._asdict()))
             if i and max_latency:
                 await asyncio.sleep(random.uniform(min_latency, max_latency))

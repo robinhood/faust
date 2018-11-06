@@ -459,7 +459,7 @@ class Command(abc.ABC):
         @click.pass_context
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> Callable:
-            cmd = cls(*args, **kwargs)  # type: ignore
+            cmd = cls(*args, **kwargs)
             return cmd()
 
         return _apply_options(cls.options or [])(
