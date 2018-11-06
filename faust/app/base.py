@@ -243,6 +243,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     _on_revoked_timeout = None
 
+    #: Current assignment
+    _assignment: Optional[Set[TP]] = None
+
     def __init__(self,
                  id: str,
                  *,
@@ -900,21 +903,18 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         if self.should_stop:
             return self._on_rebalance_when_stopped()
-        session_timeout = self.conf.broker_session_timeout
+        session_timeout = self.conf.broker_session_timeout * 0.95
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
-                on_timeout.info('fetcher.stop()')
-                await self._stop_fetcher()
-                on_timeout.info('tables.stop_standbys()')
-                await self.tables._stop_standbys()
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
+                    self.consumer.stop_flow()
                     self.flow_control.suspend()
                     on_timeout.info('consumer.pause_partitions')
-                    await self.consumer.pause_partitions(assignment)
+                    self.consumer.pause_partitions(assignment)
                     # Every agent instance has an incoming buffer of messages
                     # (a asyncio.Queue) -- we clear those to make sure
                     # agents will not start processing them.
@@ -931,19 +931,13 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     if self.conf.stream_wait_empty:
                         on_timeout.info('consumer.wait_empty()')
                         await self.consumer.wait_empty()
-                    on_timeout.info('agents.on_partitions_revoked')
-                    await self.agents.on_partitions_revoked(revoked)
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
-                on_timeout.info('topics.on_partitions_revoked()')
-                await self.topics.on_partitions_revoked(revoked)
-                on_timeout.info('tables.on_partitions_revoked()')
-                await self.tables.on_partitions_revoked(revoked)
                 on_timeout.info('+send signal: on_partitions_revoked')
                 await self.on_partitions_revoked.send(revoked)
                 on_timeout.info('-send signal: on_partitions_revoked')
             except Exception as exc:
-                on_timeout.info('on partitions assigned crashed: %r', exc)
+                on_timeout.info('on partitions revoked crashed: %r', exc)
                 await self.crash(exc)
             finally:
                 self._on_revoked_timeout = None
@@ -968,29 +962,39 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         if self.should_stop:
             return self._on_rebalance_when_stopped()
-        session_timeout = self.conf.broker_session_timeout
+        # shave some time off so we timeout before the broker
+        # (Kafka does not send error, it just logs)
+        session_timeout = self.conf.broker_session_timeout * 0.95
         self.unassigned = not assigned
+
+        revoked: Set[TP]
+        newly_assigned: Set[TP]
+        if self._assignment is not None:
+            revoked = self._assignment - assigned
+            newly_assigned = assigned - self._assignment
+        else:
+            revoked = set()
+            newly_assigned = assigned
+        self._assignment = assigned
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
+            self._on_revoked_timeout = on_timeout
             try:
-                on_timeout.info('fetcher.stop()')
-                await self._stop_fetcher()
-                on_timeout.info('agents.on_partitions_assigned()')
-                await self.agents.on_partitions_assigned(assigned)
+                on_timeout.info('agents.on_rebalance()')
+                await self.agents.on_rebalance(revoked, newly_assigned)
                 # Wait for transport.Conductor to finish
                 # calling Consumer.subscribe
                 on_timeout.info('topics.wait_for_subscriptions()')
                 await self.topics.wait_for_subscriptions()
                 on_timeout.info('consumer.pause_partitions()')
-                await self.consumer.pause_partitions(assigned)
+                self.consumer.pause_partitions(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
-                on_timeout.info('tables.on_partitions_assigned()')
-                await self.tables.on_partitions_assigned(assigned)
+                on_timeout.info('tables.on_rebalance()')
+                await self.tables.on_rebalance(
+                    assigned, revoked, newly_assigned)
                 on_timeout.info('+send signal: on_partitions_assigned')
                 await self.on_partitions_assigned.send(assigned)
                 on_timeout.info('-send signal: on_partitions_assigned')
-                on_timeout.info('flow_control.resume()')
-                self.flow_control.resume()
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)
                 await self.crash(exc)

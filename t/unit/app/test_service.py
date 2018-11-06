@@ -119,7 +119,7 @@ class test_AppService:
         s.wait_for_stopped = AsyncMock(name='wait_for_stopped')
         await s.wait_for_table_recovery_completed()
         s.wait_for_stopped.assert_called_once_with(
-            s.app.tables.recovery_completed)
+            s.app.tables.recovery.completed)
 
     @pytest.mark.asyncio
     async def test_on_started_init_extra_tasks(self, *, s, app):

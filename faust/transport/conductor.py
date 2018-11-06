@@ -280,9 +280,6 @@ class Conductor(ConductorT, Service):
             for tp, channels in self._tp_index.items()
         )
 
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self._tp_index.clear()
-
     def clear(self) -> None:
         self._topics.clear()
         self._topic_name_index.clear()

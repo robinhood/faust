@@ -107,8 +107,8 @@ Tables
 
     faust.tables
     faust.tables.base
-    faust.tables.changelogs
     faust.tables.manager
+    faust.tables.recovery
     faust.tables.table
     faust.tables.wrappers
 

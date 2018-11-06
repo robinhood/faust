@@ -145,11 +145,19 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def pause_partitions(self, tps: Iterable[TP]) -> None:
+    def stop_flow(self) -> None:
         ...
 
     @abc.abstractmethod
-    async def resume_partitions(self, tps: Iterable[TP]) -> None:
+    def resume_flow(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def pause_partitions(self, tps: Iterable[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def resume_partitions(self, tps: Iterable[TP]) -> None:
         ...
 
     @abc.abstractmethod
@@ -263,10 +271,6 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
 
     @abc.abstractmethod
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
 

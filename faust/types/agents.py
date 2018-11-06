@@ -152,11 +152,11 @@ class AgentT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         ...
 
     @abc.abstractmethod
@@ -254,11 +254,9 @@ class AgentManagerT(ServiceT, MutableMapping[str, AgentT]):
     app: AppT
 
     @abc.abstractmethod
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+    async def on_rebalance(self,
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
         ...
 
 

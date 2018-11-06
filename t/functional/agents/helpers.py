@@ -151,8 +151,7 @@ class AgentCase(Service):
 
     async def conductor_setup(self, assigned: Set[TP]) -> None:
         print('PARTITIONS ASSIGNED: %r' % (assigned,))
-        await self.app.agents.on_partitions_revoked(assigned)
-        await self.app.agents.on_partitions_assigned(assigned)
+        await self.app.agents.on_rebalance(set(), assigned)
         await self.app.topics._update_indices()
         await self.app.topics.on_partitions_assigned(assigned)
 
