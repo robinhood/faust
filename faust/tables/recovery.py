@@ -174,6 +174,24 @@ class Recovery(Service):
 
         self.signal_recovery_start.set()
 
+    async def resume_streams(self) -> None:
+        app = self.app
+        consumer = app.consumer
+        # Resume partitions and start fetching.
+        self.log.info('Resuming flow...')
+        consumer.resume_flow()
+        app.flow_control.resume()
+        self.log.info('Seek stream partitions to committed offsets.')
+        await consumer.perform_seek()
+        self.completed.set()
+        assignment = consumer.assignment()
+        self.log.dev('Resume stream partitions')
+        consumer.resume_partitions(assignment)
+        # finally make sure the fetcher is running.
+        await app._fetcher.maybe_start()
+        app.rebalancing = False
+        self.log.info('Worker ready')
+
     @Service.task
     async def _restart_recovery(self) -> None:
         consumer = self.app.consumer
@@ -187,8 +205,14 @@ class Recovery(Service):
             if await self.wait_for_stopped(self.signal_recovery_start):
                 self.signal_recovery_start.clear()
                 break  # service was stopped
-            self.in_recovery = True
             self.signal_recovery_start.clear()
+
+            if not self.tables:
+                # If there are no tables -- simply resume streams
+                await self.resume_streams()
+                continue
+
+            self.in_recovery = True
             self.log.info('Table recovery requested by rebalance...')
 
             self.log.dev('Build highwaters for active partitions')
@@ -204,7 +228,6 @@ class Recovery(Service):
 
             self.log.dev('Seek offsets for active partitions')
             await self._seek_offsets(
-
                 consumer, active_tps, active_offsets, 'active')
 
             # Resume partitions and start fetching.
