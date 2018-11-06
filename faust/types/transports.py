@@ -245,6 +245,10 @@ class ProducerT(ServiceT):
     def key_partition(self, topic: str, key: bytes) -> TP:
         ...
 
+    @abc.abstractmethod
+    async def flush(self) -> None:
+        ...
+
 
 class ConductorT(ServiceT, MutableSet[ChannelT]):
 

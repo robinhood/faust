@@ -157,8 +157,7 @@ class Recovery(Service):
         self.tps.add(tp)
         persisted_offset = table.persisted_offset(tp)
         if persisted_offset is not None:
-            curr_offset = offsets.get(tp, -1)
-            offsets[tp] = max(curr_offset, persisted_offset)
+            offsets[tp] = persisted_offset
         offsets.setdefault(tp, -1)
 
     def _remove(self, table: CollectionT, tp: TP) -> None:
@@ -174,10 +173,7 @@ class Recovery(Service):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        self.log.info('Updating actives/standbys after rebalance...')
         standby_tps = self.app.assignor.assigned_standbys()
-        # for table in self.values():
-        #     standby_tps = await local_tps(table, standby_tps)
         assigned_tps = self.app.assignor.assigned_actives()
 
         for tp in revoked:
@@ -226,10 +222,14 @@ class Recovery(Service):
         consumer = self.app.consumer
         active_tps = self.active_tps
         standby_tps = self.standby_tps
+        standby_offsets = self.standby_offsets
+        standby_highwaters = self.standby_highwaters
+        assigned_active_tps = self.active_tps
+        assigned_standby_tps = self.standby_tps
         active_offsets = self.active_offsets
         standby_offsets = self.standby_offsets
         active_highwaters = self.active_highwaters
-        standby_highwaters = self.standby_highwaters
+
         while not self.should_stop:
             self.log.dev('WAITING FOR NEXT RECOVERY TO START')
             self.signal_recovery_reset.clear()
@@ -240,46 +240,44 @@ class Recovery(Service):
             self.signal_recovery_start.clear()
 
             try:
+                await self._wait(asyncio.sleep(10.0))
+
                 if not self.tables:
                     # If there are no tables -- simply resume streams
                     await self._resume_streams()
                     continue
 
                 self.in_recovery = True
-                self.log.info('Table recovery requested by rebalance...')
-
                 # Must flush any buffers before starting rebalance.
                 self.flush_buffers()
+                await self._wait(self.app._producer.flush())
 
                 self.log.dev('Build highwaters for active partitions')
-                await self._wait(
-                    self._build_highwaters(
-                        consumer, active_tps, active_highwaters, 'active'))
+                await self._wait(self._build_highwaters(
+                    consumer, assigned_active_tps,
+                    active_highwaters, 'active'))
 
                 self.log.dev('Build offsets for active partitions')
-                await self._wait(
-                    self._build_offsets(
-                        consumer, active_tps, active_offsets, 'active'))
+                await self._wait(self._build_offsets(
+                    consumer, assigned_active_tps, active_offsets, 'active'))
 
                 self.log.dev('Build offsets for standby partitions')
-                await self._wait(
-                    self._build_offsets(
-                        consumer, standby_tps, standby_offsets, 'standby'))
+                await self._wait(self._build_offsets(
+                    consumer, assigned_standby_tps,
+                    standby_offsets, 'standby'))
 
                 self.log.dev('Seek offsets for active partitions')
-                await self._wait(
-                    self._seek_offsets(
-                        consumer, active_tps, active_offsets, 'active'))
-
-                # Resume partitions and start fetching.
-                self.log.info('Resuming flow...')
-                consumer.resume_flow()
-                self.app.flow_control.resume()
+                await self._wait(self._seek_offsets(
+                    consumer, assigned_active_tps, active_offsets, 'active'))
 
                 if self.need_recovery():
                     self.log.info('Restoring state from changelog topics...')
                     consumer.resume_partitions(active_tps)
+                    # Resume partitions and start fetching.
+                    self.log.info('Resuming flow...')
+                    consumer.resume_flow()
                     await self.app._fetcher.maybe_start()
+                    self.app.flow_control.resume()
 
                     # Wait for actives to be up to date.
                     # This signal will be set by _slurp_changelogs
@@ -289,6 +287,10 @@ class Recovery(Service):
                     # recovery done.
                     self.log.info('Done reading from changelog topics')
                     consumer.pause_partitions(active_tps)
+                else:
+                    self.log.info('Resuming flow...')
+                    consumer.resume_flow()
+                    self.app.flow_control.resume()
 
                 self.log.info('Recovery complete')
                 self.in_recovery = False
@@ -418,10 +420,11 @@ class Recovery(Service):
         # Seek to new offsets
         for tp in tps:
             offset = offsets[tp]
-            if offset >= 0:
-                # FIXME Remove check when fixed offset-1 discrepancy
-                await consumer.seek(tp, offset)
-                assert await consumer.position(tp) == offset
+            if offset == -1:
+                offset = 0
+            # FIXME Remove check when fixed offset-1 discrepancy
+            await consumer.seek(tp, offset)
+            assert await consumer.position(tp) == offset
 
     @Service.task
     async def _slurp_changelogs(self) -> None:
@@ -466,11 +469,11 @@ class Recovery(Service):
                 if len(buf) >= bufsize:
                     table.apply_changelog_batch(buf)
                     buf.clear()
-                if self.in_recovery and not self.active_remaining_total():
-                    # apply anything stuck in the buffers
-                    self.flush_buffers()
-                    self.in_recovery = False
-                    self.signal_recovery_end.set()
+            if self.in_recovery and not self.active_remaining_total():
+                # apply anything stuck in the buffers
+                self.flush_buffers()
+                self.in_recovery = False
+                self.signal_recovery_end.set()
 
     def flush_buffers(self) -> None:
         for table, buffer in self.buffers.items():

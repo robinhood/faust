@@ -637,6 +637,9 @@ class Producer(base.Producer):
         fut = await self.send(topic, key=key, value=value, partition=partition)
         return await fut
 
+    async def flush(self) -> None:
+        await self._producer.flush()
+
     def key_partition(self, topic: str, key: bytes) -> TP:
         partition = self._producer._partition(
             topic,

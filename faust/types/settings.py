@@ -155,7 +155,7 @@ BROKER_COMMIT_INTERVAL = 2.8
 BROKER_SESSION_TIMEOUT = 60.0
 
 #: Kafka consumer heartbeat (``heartbeat_interval_ms``).
-BROKER_HEARTBEAT_INTERVAL = 3.0
+BROKER_HEARTBEAT_INTERVAL = 6.0
 
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
@@ -189,7 +189,7 @@ PRODUCER_LINGER_MS = 0
 
 #: Maximum size of buffered data per partition in bytes in the producer.
 #: Used as the default value for :setting:`max_batch_size`.
-PRODUCER_MAX_BATCH_SIZE = 16_384
+PRODUCER_MAX_BATCH_SIZE = 4096
 
 #: Maximum size of a request in bytes in the producer.
 #: Used as the default value for :setting:`max_request_size`.

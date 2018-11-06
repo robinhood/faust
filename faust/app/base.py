@@ -219,6 +219,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     # Default consumer instance.
     _consumer: Optional[ConsumerT] = None
 
+    # Default producer instance.
+    _producer: Optional[ProducerT] = None
+
     # Transport is created on demand: use `.transport` property.
     _transport: Optional[TransportT] = None
 
@@ -384,6 +387,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 raise ImproperlyConfigured('App requires an id!')
 
     async def on_stop(self) -> None:
+        if self._producer is not None:
+            await self._producer.flush()
         await self._maybe_close_http_client()
 
     async def _maybe_close_http_client(self) -> None:
@@ -910,6 +915,7 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
+                await self.tables.on_partitions_revoked(revoked)
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
@@ -925,7 +931,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     # (stream_buffer_maxsize).
                     on_timeout.info('flow_control.clear()')
                     self.flow_control.clear()
-                    await self.tables.on_partitions_revoked(revoked)
 
                     # even if we clear, some of the agent instances may have
                     # already started working on an event.
@@ -1129,9 +1134,11 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
     def conf(self, settings: Settings) -> None:
         self._conf = settings
 
-    @cached_property
+    @property
     def producer(self) -> ProducerT:
-        return self._new_producer()
+        if self._producer is None:
+            self._producer = self._new_producer()
+        return self._producer
 
     @property
     def consumer(self) -> ConsumerT:

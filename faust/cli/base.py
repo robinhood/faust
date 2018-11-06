@@ -806,9 +806,8 @@ class AppCommand(Command):
 
         # If command started the producer, we should also stop that
         #   - this will flush any buffers before exiting.
-        producer_cached = type(app).producer.is_set(app)  # type: ignore
-        if producer_cached and app.producer.started:
-            await app.producer.stop()
+        if app._producer is not None and app._producer.started:
+            await app._producer.stop()
 
     def to_key(self, typ: Optional[str], key: str) -> Any:
         """Convert command-line argument string to model (key).
