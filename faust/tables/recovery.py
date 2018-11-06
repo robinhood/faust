@@ -62,6 +62,14 @@ class Recovery(Service):
     completed: Event
     in_recovery: bool = False
 
+    #: Changelog event buffers by table.
+    #: These are filled by background task `_slurp_changelog`,
+    #: and need to be flushed before starting new recovery/stopping.
+    buffers: MutableMapping[CollectionT, List[EventT]]
+
+    #: Cache of buffer size by TopicPartitiojn.
+    buffer_sizes: MutableMapping[TP, int]
+
     def __init__(self,
                  app: AppT,
                  tables: TableManagerT,
@@ -82,6 +90,9 @@ class Recovery(Service):
         self.standby_highwaters = Counter()
         self.completed = Event()
 
+        self.buffers = defaultdict(list)
+        self.buffer_sizes = {}
+
         super().__init__(**kwargs)
 
     @property
@@ -95,6 +106,10 @@ class Recovery(Service):
         if self._signal_recovery_end is None:
             self._signal_recovery_end = Event(loop=self.loop)
         return self._signal_recovery_end
+
+    async def on_stop(self) -> None:
+        # Flush buffers when stopping.
+        self.flush_buffers()
 
     def add_active(self, tp: TP) -> None:
         table = self.tables._changelogs[tp.topic]
@@ -215,6 +230,9 @@ class Recovery(Service):
 
             self.in_recovery = True
             self.log.info('Table recovery requested by rebalance...')
+
+            # Must flush any buffers before starting rebalance.
+            self.flush_buffers()
 
             self.log.dev('Build highwaters for active partitions')
             await self._build_highwaters(
@@ -362,15 +380,14 @@ class Recovery(Service):
     async def _slurp_changelogs(self) -> None:
         changelog_queue = self.tables.changelog_queue
         tp_to_table = self.tp_to_table
-        buffers: MutableMapping[CollectionT, List[EventT]] = defaultdict(list)
-        buffer_sizes: MutableMapping[TP, int] = {}
 
         active_tps = self.active_tps
         standby_tps = self.standby_tps
-        active_highwaters = self.active_highwaters
-        standby_highwaters = self.standby_highwaters
         active_offsets = self.active_offsets
         standby_offsets = self.standby_offsets
+
+        buffers = self.buffers
+        buffer_sizes = self.buffer_sizes
 
         while not self.should_stop:
             event: EventT = await changelog_queue.get()
@@ -378,17 +395,14 @@ class Recovery(Service):
             tp = message.tp
             offset = message.offset
 
-            highwaters: Counter[TP]
             offsets: Counter[TP]
             bufsize = buffer_sizes.get(tp)
             table = tp_to_table[tp]
             if tp in active_tps:
                 offsets = active_offsets
-                highwaters = active_highwaters
                 if bufsize is None:
                     bufsize = buffer_sizes[tp] = table.recovery_buffer_size
             elif tp in standby_tps:
-                highwaters = standby_highwaters
                 offsets = standby_offsets
                 if bufsize is None:
                     bufsize = buffer_sizes[tp] = table.standby_buffer_size
@@ -401,17 +415,19 @@ class Recovery(Service):
                 buf = buffers[table]
                 buf.append(event)
                 await table.on_changelog_event(event)
-                need_now = highwaters[tp] - offset
-                if len(buf) >= bufsize or need_now < bufsize:
+                if len(buf) >= bufsize:
                     table.apply_changelog_batch(buf)
                     buf.clear()
                 if self.in_recovery and not self.active_remaining_total():
                     # apply anything stuck in the buffers
-                    for table, buffer in buffers.items():
-                        table.apply_changelog_batch(buffer)
-                        buffer.clear()
+                    self.flush_buffers()
                     self.in_recovery = False
                     self.signal_recovery_end.set()
+
+    def flush_buffers(self) -> None:
+        for table, buffer in self.buffers.items():
+            table.apply_changelog_batch(buffer)
+            buffer.clear()
 
     def need_recovery(self) -> bool:
         return self.active_highwaters != self.active_offsets
