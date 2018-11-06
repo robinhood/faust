@@ -177,6 +177,7 @@ class Recovery(Service):
     async def resume_streams(self) -> None:
         app = self.app
         consumer = app.consumer
+        await app.on_rebalance_complete.send()
         # Resume partitions and start fetching.
         self.log.info('Resuming flow...')
         consumer.resume_flow()
@@ -281,6 +282,7 @@ class Recovery(Service):
     async def on_recovery_completed(self) -> None:
         consumer = self.app.consumer
         self.log.info('Restore complete!')
+        await self.app.on_rebalance_complete.send()
         # This needs to happen if all goes well
         callback_coros = []
         for table in self.tables.values():

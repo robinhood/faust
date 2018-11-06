@@ -326,6 +326,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.on_partitions_revoked = (
             self.on_partitions_revoked.with_default_sender(self))
         self.on_worker_init = self.on_worker_init.with_default_sender(self)
+        self.on_rebalance_complete = (
+            self.on_rebalance_complete.with_default_sender(self))
 
     def _init_fixups(self) -> MutableSequence[FixupT]:
         # Returns list of "fixups"

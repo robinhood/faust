@@ -57,5 +57,15 @@ async def sender():
     ))
 
 
+@app.on_rebalance_complete.connect
+async def on_rebalance_complete(sender, **kwargs):
+    print(word_counts.as_ansitable(
+        key='word',
+        value='count',
+        title='$$ TALLY - after rebalance $$',
+        sort=True,
+    ))
+
+
 if __name__ == '__main__':
     app.main()
