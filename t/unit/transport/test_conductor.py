@@ -130,12 +130,6 @@ class test_Conductor:
         assert con._tp_to_callback[TP1]
         assert con._tp_to_callback[TP2]
 
-    @pytest.mark.asyncio
-    async def test_on_partitions_revoked(self, *, con):
-        con._tp_index = {1: 2}
-        await con.on_partitions_revoked(set())
-        assert not con._tp_index
-
     def test_clear(self, *, con):
         con._topics = {'t1'}
         con._topic_name_index = {2: 3}

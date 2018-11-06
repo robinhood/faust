@@ -1,7 +1,6 @@
 import re
 import faust
 from faust.agents import Agent
-from faust.agents.manager import AgentManager
 from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
 from faust.app.service import AppService
 from faust.assignor.leader_assignor import LeaderAssignor, LeaderAssignorT
@@ -10,17 +9,14 @@ from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 from faust.fixups.base import Fixup
 from faust.sensors.monitor import Monitor
 from faust.serializers import codecs
-from faust.tables.manager import TableManager
 from faust.transport.base import Transport
 from faust.transport.conductor import Conductor
 from faust.transport.consumer import Consumer, Fetcher
 from faust.types.models import ModelT
 from faust.types.settings import Settings
 from mode import Service
-from mode.utils.futures import FlowControlEvent
 from mode.utils.compat import want_bytes
-from mode.utils.logging import CompositeLogger
-from mode.utils.mocks import ANY, AsyncMock, MagicMock, Mock, call, patch
+from mode.utils.mocks import ANY, AsyncMock, Mock, call, patch
 from yarl import URL
 import pytest
 
@@ -83,133 +79,6 @@ async def test_send(
 @pytest.mark.asyncio
 async def test_send_str(app):
     await app.send('foo', Value(amount=0.0))
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('revoked,assignment', [
-    ({1, 2, 3, 7, 9, 101, 1001}, None),
-    ({1, 2, 3, 7, 9, 101, 1001}, {}),
-    ({1, 2, 3}, None),
-    ({1, 2}, None),
-    ({1, 2}, {}),
-    ({1}, None),
-    ({1}, {}),
-    ({}, None),
-    ({}, {}),
-])
-async def test_on_partitions_revoked(revoked, assignment, *, app):
-    if assignment is None:
-        assignment = revoked
-    app.topics = MagicMock(
-        name='app.topics',
-        autospec=Conductor,
-        on_partitions_revoked=AsyncMock(),
-    )
-    app.tables = Mock(
-        name='app.tables',
-        autospec=TableManager,
-        on_partitions_revoked=AsyncMock(),
-        _stop_standbys=AsyncMock(),  # XXX should not use internal method
-    )
-    app._fetcher = Mock(
-        name='app._fetcher',
-        autospec=Fetcher,
-        stop=AsyncMock(),
-    )
-    app.consumer = Mock(
-        name='app.consumer',
-        autospec=Consumer,
-        pause_partitions=Mock(),
-        wait_empty=AsyncMock(),
-    )
-    app.flow_control = Mock(
-        name='app.flow_control',
-        autospec=FlowControlEvent,
-    )
-    app.agents = Mock(
-        name='app.agents',
-        autospec=AgentManager,
-    )
-    signal = app.on_partitions_revoked.connect(AsyncMock(name='signal'))
-
-    app.consumer.assignment.return_value = None
-    app.conf.stream_wait_empty = False
-    await app._on_partitions_revoked(revoked)
-
-    app.topics.on_partitions_revoked.assert_called_once_with(revoked)
-    app.tables.on_partitions_revoked.assert_called_once_with(revoked)
-    app._fetcher.stop.assert_called_once_with()
-    signal.assert_called_with(app, revoked, signal=app.on_partitions_revoked)
-
-    assignment = app.consumer.assignment.return_value = revoked
-    await app._on_partitions_revoked(revoked)
-
-    if assignment:
-        app.flow_control.suspend.assert_called_once_with()
-        app.consumer.pause_partitions.assert_called_once_with(assignment)
-        app.flow_control.clear.assert_called_once_with()
-
-        with pytest.warns(AlreadyConfiguredWarning):
-            app.conf.stream_wait_empty = True
-        await app._on_partitions_revoked(revoked)
-        app.consumer.wait_empty.assert_called_once_with()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('assigned', [
-    {1, 2, 3, 7, 9, 101, 1001},
-    {1, 2, 3},
-    {1, 2},
-    {1},
-    {},
-])
-async def test_on_partitions_assigned(assigned, *, app):
-    app.consumer = Mock(
-        name='app.consumer',
-        autospec=Consumer,
-        pause_partitions=Mock(),
-    )
-    app.agents = Mock(
-        name='app.agents',
-        autospec=AgentManager,
-        on_partitions_assigned=AsyncMock(),
-    )
-    app.topics = MagicMock(
-        name='app.topics',
-        autospec=Conductor,
-        on_partitions_assigned=AsyncMock(),
-        wait_for_subscriptions=AsyncMock(),
-    )
-    app.tables = Mock(
-        name='app.tables',
-        autospec=TableManager,
-        on_partitions_assigned=AsyncMock(),
-    )
-    app._fetcher = Mock(
-        name='app._fetcher',
-        autospec=Fetcher,
-        restart=AsyncMock(),
-        stop=AsyncMock(),
-    )
-    app.flow_control = Mock(
-        name='app.flow_control',
-        autospec=FlowControlEvent,
-    )
-    signal = app.on_partitions_assigned.connect(AsyncMock(name='signal'))
-
-    await app._on_partitions_assigned(assigned)
-
-    app.agents.on_partitions_assigned.assert_called_once_with(assigned)
-    app.topics.wait_for_subscriptions.assert_called_once_with()
-    app.consumer.pause_partitions.assert_called_once_with(assigned)
-    app.topics.on_partitions_assigned.assert_called_once_with(assigned)
-    app.tables.on_partitions_assigned.assert_called_once_with(assigned)
-    app.flow_control.resume.assert_called_once_with()
-    signal.assert_called_once_with(
-        app, assigned, signal=app.on_partitions_assigned)
-
-    app.log = Mock(name='log', autospec=CompositeLogger)
-    await app._on_partitions_assigned(assigned)
 
 
 class test_App:

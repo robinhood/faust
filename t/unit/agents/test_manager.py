@@ -1,5 +1,4 @@
 import pytest
-from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
 
 
@@ -63,54 +62,6 @@ class test_AgentManager:
         await many.stop()
         for agent in many.values():
             agent.cancel.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test_on_partitions_revoked(self, *, many, agent1, agent2):
-        many.update_topic_index()
-        await many.on_partitions_revoked({
-            TP('t1', 0),
-            TP('t1', 1),
-            TP('t2', 3),
-            TP('t2', 6),
-            TP('t2', 7),
-            TP('t3', 8),
-            TP('t4', 9),
-        })
-        agent1.on_partitions_revoked.assert_called_once_with({
-            TP('t1', 0), TP('t1', 1),
-        })
-        agent2.on_partitions_revoked.assert_called_once_with({
-            TP('t1', 0),
-            TP('t1', 1),
-            TP('t2', 3),
-            TP('t2', 6),
-            TP('t2', 7),
-            TP('t3', 8),
-        })
-
-    @pytest.mark.asyncio
-    async def test_on_partitions_assigned(self, *, many, agent1, agent2):
-        many.update_topic_index()
-        await many.on_partitions_assigned({
-            TP('t1', 0),
-            TP('t1', 1),
-            TP('t2', 3),
-            TP('t2', 6),
-            TP('t2', 7),
-            TP('t3', 8),
-            TP('t4', 9),
-        })
-        agent1.on_partitions_assigned.assert_called_once_with({
-            TP('t1', 0), TP('t1', 1),
-        })
-        agent2.on_partitions_assigned.assert_called_once_with({
-            TP('t1', 0),
-            TP('t1', 1),
-            TP('t2', 3),
-            TP('t2', 6),
-            TP('t2', 7),
-            TP('t3', 8),
-        })
 
     def test_update_topic_index(self, *, many, agent1, agent2):
         many.update_topic_index()

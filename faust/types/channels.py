@@ -59,6 +59,10 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
+    def clone_using_queue(self, queue: asyncio.Queue) -> 'ChannelT':
+        ...
+
+    @abc.abstractmethod
     def stream(self, **kwargs: Any) -> StreamT:
         ...
 

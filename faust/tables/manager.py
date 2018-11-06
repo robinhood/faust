@@ -1,6 +1,6 @@
 """Tables (changelog stream)."""
 import asyncio
-from typing import Any, MutableMapping, Optional, Set, cast
+from typing import Any, MutableMapping, Optional, Set
 
 from mode import Service
 from mode.utils.collections import FastUserDict
@@ -33,7 +33,6 @@ class TableManager(Service, TableManagerT, FastUserDict):
         self._changelog_queue = None
         self._channels = {}
         self._changelogs = {}
-        self._standbys = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
 
     def __hash__(self) -> int:
@@ -81,7 +80,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                 chan = table.changelog_topic.clone_using_queue(
                     self.changelog_queue)
                 self.app.topics.add(chan)
-                self._channels[table] = cast(ChannelT, chan)
+                self._channels[table] = chan
             await table.maybe_start()
         self.app.consumer.pause_partitions({
             tp for tp in self.app.consumer.assignment()
@@ -106,6 +105,3 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
         await self._update_channels()
         await self.recovery.on_rebalance(assigned, revoked, newly_assigned)
-
-    def _is_changelog_tp(self, tp: TP) -> bool:
-        return tp.topic in self.changelog_topics
