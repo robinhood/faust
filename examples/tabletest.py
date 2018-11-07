@@ -6,16 +6,30 @@ app = faust.App(
     'tabletest',
     broker='kafka://localhost:9092',
     store='rocksdb://',
-    version=2,
+    version=20,
     topic_partitions=8,
 )
 
 counts = app.Table('counts', default=int)
+seen = {}
+prev_offsets = {}
 
 
 @app.agent(key_type=str, value_type=int)
 async def count(stream):
-    async for partition, count in stream.items():
+    async for event in stream.events():
+        partition = event.key
+        count = event.value
+        prev = seen.get(partition)
+        prev_offset = prev_offsets.get(partition)
+        if prev is not None:
+            if count != prev + 1:
+                print(f'!!! PREV {partition} WAS {prev} NOW {count}')
+                print(f'OFFSET: {event.message.offset} PREV: {prev_offset}')
+                import time
+                time.sleep(3600)
+        seen[partition] = count
+        prev_offsets[partition] = event.message.offset
         counts[str(partition)] += count
 
 
