@@ -155,7 +155,7 @@ BROKER_COMMIT_INTERVAL = 2.8
 BROKER_SESSION_TIMEOUT = 60.0
 
 #: Kafka consumer heartbeat (``heartbeat_interval_ms``).
-BROKER_HEARTBEAT_INTERVAL = 6.0
+BROKER_HEARTBEAT_INTERVAL = 3.0
 
 #: How long time it takes before we warn that the commit offset has
 #: not advanced.
@@ -248,7 +248,7 @@ class Settings(abc.ABC):
     reply_to_prefix: str = REPLY_TO_PREFIX
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
-    stream_wait_empty: bool = False
+    stream_wait_empty: bool = True
     stream_ack_cancelled_tasks: bool = False
     stream_ack_exceptions: bool = True
     stream_publish_on_commit: bool = STREAM_PUBLISH_ON_COMMIT
