@@ -388,7 +388,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
 
     async def on_stop(self) -> None:
         if self._producer is not None:
+            self.log.info('Flush producer buffer...')
             await self._producer.flush()
+
         await self._maybe_close_http_client()
 
     async def _maybe_close_http_client(self) -> None:
