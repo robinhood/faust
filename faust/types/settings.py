@@ -174,6 +174,12 @@ REPLY_EXPIRES = want_seconds(timedelta(days=1))
 #: Max number of messages channels/streams/topics can "prefetch".
 STREAM_BUFFER_MAXSIZE = 4096
 
+#: Number of seconds to sleep before continuing after rebalance.
+#: We wait for a bit to allow for more nodes to join/leave before
+#: starting to reprocess, to minimize the chance of errors and rebalancing
+#: loops.
+STREAM_RECOVERY_DELAY = 10.0
+
 #: We buffer up sending messages until the
 #: source topic offset related to that processsing is committed.
 #: This means when we do commit, we may have buffered up a LOT of messages
@@ -286,6 +292,7 @@ class Settings(abc.ABC):
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _producer_partitioner: Optional[PartitionerT] = None
+    _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
     _web_transport: URL = WEB_TRANSPORT
@@ -372,6 +379,7 @@ class Settings(abc.ABC):
             stream_ack_cancelled_tasks: bool = None,
             stream_ack_exceptions: bool = None,
             stream_publish_on_commit: bool = None,
+            stream_recovery_delay: Seconds = None,
             producer_linger_ms: int = None,
             producer_max_batch_size: int = None,
             producer_acks: int = None,
@@ -460,6 +468,8 @@ class Settings(abc.ABC):
             self.stream_ack_exceptions = stream_ack_exceptions
         if stream_publish_on_commit is not None:
             self.stream_publish_on_commit = stream_publish_on_commit
+        if stream_recovery_delay is not None:
+            self.stream_recovery_delay = stream_recovery_delay
         if producer_linger_ms is not None:
             self.producer_linger_ms = producer_linger_ms
         if producer_max_batch_size is not None:
@@ -694,6 +704,14 @@ class Settings(abc.ABC):
     @reply_expires.setter
     def reply_expires(self, reply_expires: Seconds) -> None:
         self._reply_expires = want_seconds(reply_expires)
+
+    @property
+    def stream_recovery_delay(self) -> float:
+        return self._stream_recovery_delay
+
+    @stream_recovery_delay.setter
+    def stream_recovery_delay(self, delay: Seconds) -> None:
+        self._stream_recovery_delay = want_seconds(delay)
 
     @property
     def agent_supervisor(self) -> Type[SupervisorStrategyT]:

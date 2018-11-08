@@ -65,6 +65,7 @@ class Recovery(Service):
 
     completed: Event
     in_recovery: bool = False
+    recovery_delay: float
 
     #: Changelog event buffers by table.
     #: These are filled by background task `_slurp_changelog`,
@@ -94,6 +95,7 @@ class Recovery(Service):
 
         self.buffers = defaultdict(list)
         self.buffer_sizes = {}
+        self.recovery_delay = self.app.conf.stream_recovery_delay
 
         super().__init__(**kwargs)
 
@@ -220,7 +222,7 @@ class Recovery(Service):
             self.signal_recovery_start.clear()
 
             try:
-                await self._wait(asyncio.sleep(10.0))
+                await self._wait(asyncio.sleep(self.recovery_delay))
 
                 if not self.tables:
                     # If there are no tables -- simply resume streams

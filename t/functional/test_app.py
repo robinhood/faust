@@ -50,6 +50,7 @@ class test_settings:
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
         assert conf.stream_buffer_maxsize == settings.STREAM_BUFFER_MAXSIZE
+        assert conf.stream_recovery_delay == settings.STREAM_RECOVERY_DELAY
         assert conf.producer_partitioner is None
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
@@ -159,6 +160,7 @@ class test_settings:
                                  stream_ack_cancelled_tasks=True,
                                  stream_ack_exceptions=False,
                                  stream_publish_on_commit=False,
+                                 stream_recovery_delay=69.3,
                                  web_bind='localhost',
                                  web_port=6069,
                                  web_host='localhost',
@@ -201,6 +203,7 @@ class test_settings:
             stream_ack_cancelled_tasks=stream_ack_cancelled_tasks,
             stream_ack_exceptions=stream_ack_exceptions,
             stream_publish_on_commit=stream_publish_on_commit,
+            stream_recovery_delay=stream_recovery_delay,
             web_bind=web_bind,
             web_port=web_port,
             web_host=web_host,
@@ -243,6 +246,7 @@ class test_settings:
         assert conf.stream_ack_cancelled_tasks == stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions == stream_ack_exceptions
         assert conf.stream_publish_on_commit == stream_publish_on_commit
+        assert conf.stream_recovery_delay == stream_recovery_delay
         assert conf.web_bind == web_bind
         assert conf.web_port == web_port
         assert conf.web_host == web_host

@@ -665,6 +665,18 @@ send messages or update tables.
 The next version of Faust will take advantage of Kafka transactions
 to remove the bottleneck of sending messages on commit.
 
+.. setting:: stream_recovery_delay
+
+``stream_recovery_delay``
+-------------------------
+:type: ``Union[float, datetime.timedelta]``
+:default: ``10.0``
+
+Number of seconds to sleep before continuing after rebalance.
+We wait for a bit to allow for more nodes to join/leave before
+starting recovery tables and then processing streams. This to minimize
+the chance of errors rebalancing loops.
+
 .. setting:: stream_wait_empty
 
 ``stream_wait_empty``
@@ -728,8 +740,6 @@ source topic offset related to that processsing is committed.
 This means when we do commit, we may have buffered up a LOT of messages
 so commit needs to happen frequently (make sure to decrease
 :setting:`broker_commit_every`).
-
-This setting will be removed once transaction support is added in a later version.
 
 .. _settings-worker:
 
