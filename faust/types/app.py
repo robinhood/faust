@@ -93,6 +93,7 @@ class AppT(ServiceT):
     on_partitions_assigned: Signal[Set[TP]] = Signal()
     on_partitions_revoked: Signal[Set[TP]] = Signal()
     on_rebalance_complete: Signal = Signal()
+    on_before_shutdown: Signal = Signal()
     on_worker_init: SyncSignal = SyncSignal()
 
     client_only: bool

@@ -331,6 +331,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         self.on_worker_init = self.on_worker_init.with_default_sender(self)
         self.on_rebalance_complete = (
             self.on_rebalance_complete.with_default_sender(self))
+        self.on_before_shutdown = (
+            self.on_before_shutdown.with_default_sender(self))
 
     def _init_fixups(self) -> MutableSequence[FixupT]:
         # Returns list of "fixups"
@@ -908,6 +910,8 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                 if self.conf.stream_wait_empty:
                     self.log.info('Wait for streams...')
                     await self.consumer.wait_empty()
+        # send shutdown signal
+        await self.on_before_shutdown.send()
         if self._producer is not None:
             self.log.info('Flush producer buffer...')
             await self._producer.flush()
