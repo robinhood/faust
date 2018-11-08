@@ -292,31 +292,31 @@ Here's an example of a windowed table in use:
 
 .. sourcecode:: python
 
-    events_topic = app.topic('events_elk', value_type=Event)
+    page_views_topic = app.topic('page_views', value_type=str)
 
     @app.agent(events_topic)
-    async def aggregate_page_views(events):
-        async for record in events:
-            page = record.page
+    async def aggregate_page_views(pages):
+        # values in this streams are URLs as strings.
+        async for page_url in pages:
 
-            # increment one to all windows this record falls into.
-            views[page] += 1
+            # increment one to all windows this page URL fall into.
+            views[page_url] += 1
 
-            if views[page].now() >= 10000:
+            if views[page_url].now() >= 10000:
                 # Page is trending for current processing time window
                 print('Trending now')
 
-            if views[page].current(record.current_event) >= 10000:
-                # Page would be trending in the event's time window
+            if views[page_url].current() >= 10000:
+                # Page would be trending in the current event's time window
                 print('Trending when event happened')
 
-            if views[page].value(record.current_event) >= 10000:
-                # Page would be trending in the event's time window
+            if views[page_url].value() >= 10000:
+                # Page would be trending in the current event's time window
                 # according to the relative time set when creating the
                 # table.
                 print('Trending when event happened')
 
-            if views[page].delta(timedelta(minutes=30)) > views[page].now():
+            if views[page_url].delta(timedelta(minutes=30)) > views[page_url].now():
                 print('Less popular compared to 30 minutes back')
 
 
