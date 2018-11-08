@@ -41,3 +41,7 @@ please visit the :ref:`history` section.
 - **App**: Adds :signal:`App.on_rebalance_complete` signal.
 
 - **App**: Adds :signal:`App.on_before_shutdown` signal.
+
+- **Documentation and examples**: Improvements contributed by:
+
+    - Martin Maillard (:github_user:`martinmaillard`).
