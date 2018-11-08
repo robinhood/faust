@@ -138,7 +138,18 @@ class Web(base.Web):
         return cast(base.Response, response)
 
     def route(self, pattern: str, handler: Callable) -> None:
-        self.web_app.router.add_route('*', pattern, handler)
+        self.web_app.router.add_route(
+            '*', pattern, self._wrap_into_asyncdef(handler))
+
+    def _wrap_into_asyncdef(self, handler: Callable) -> Callable:
+        # get rid of pesky "DeprecationWarning: Bare functions are
+        # deprecated, use async ones" warnings.
+        # The handler is actually a class that defines `async def __call__`
+        # but aiohttp doesn't recognize it as such and emits the warning.
+        # To avoid that we just wrap it in an `async def` function
+        async def _dispatch(request: base.Request) -> base.Response:
+            return await handler(request)
+        return _dispatch
 
     def add_static(self,
                    prefix: str,
