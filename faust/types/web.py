@@ -39,7 +39,12 @@ RouteDecoratorRet = Callable[[PageArg], PageArg]
 
 
 class HttpClientT(ClientSession):
-    ...
+
+    def __init_subclass__(cls) -> None:
+        # defining this method here just ignores the annoying
+        # "Inheritance class HttpClientT from ClientSession is discouraged"
+        # warning.
+        ...
 
 
 class CacheBackendT(ServiceT):
