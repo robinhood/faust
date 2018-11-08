@@ -6,8 +6,8 @@ app = faust.App(
     'tabletest',
     broker='kafka://localhost:9092',
     store='rocksdb://',
-    version=20,
-    topic_partitions=8,
+    version=1,
+    topic_partitions=4,
 )
 
 counts = app.Table('counts', default=int)

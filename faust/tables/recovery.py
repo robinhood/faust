@@ -41,12 +41,6 @@ class Recovery(Service):
     #: Set of active tps.
     active_tps: Set[TP]
 
-    #: Set of all table tps.
-    tps: Set[TP]
-
-    #: Mapping of tps by table.
-    tps_by_table: MutableMapping[CollectionT, Set[TP]]
-
     #: Mapping from TP to table
     tp_to_table: MutableMapping[TP, CollectionT]
 
@@ -87,11 +81,9 @@ class Recovery(Service):
         self.app = app
         self.tables = cast(TableManager, tables)
 
-        self.tps = set()
         self.standby_tps = set()
         self.active_tps = set()
 
-        self.tps_by_table = defaultdict(set)
         self.tp_to_table = {}
         self.active_offsets = Counter()
         self.standby_offsets = Counter()
@@ -127,43 +119,27 @@ class Recovery(Service):
         # Flush buffers when stopping.
         self.flush_buffers()
 
-    def add_active(self, tp: TP) -> None:
-        table = self.tables._changelogs[tp.topic]
+    def add_active(self, table: CollectionT, tp: TP) -> None:
         self.active_tps.add(tp)
         self._add(table, tp, self.active_offsets)
 
-    def remove_active(self, tp: TP) -> None:
-        table = self.tables._changelogs[tp.topic]
-        self.active_tps.discard(tp)
-        self.active_offsets.pop(tp, None)
-        self.active_highwaters.pop(tp, None)
-        self._remove(table, tp)
-
-    def add_standby(self, tp: TP) -> None:
+    def add_standby(self, table: CollectionT, tp: TP) -> None:
         table = self.tables._changelogs[tp.topic]
         self.standby_tps.add(tp)
         self._add(table, tp, self.standby_offsets)
 
-    def remove_standby(self, tp: TP) -> None:
-        table = self.tables._changelogs[tp.topic]
-        self.standby_tps.discard(tp)
-        self.standby_offsets.pop(tp, None)
-        self.standby_highwaters.pop(tp, None)
-        self._remove(table, tp)
-
     def _add(self, table: CollectionT, tp: TP, offsets: Counter[TP]) -> None:
-        self.tps_by_table[table].add(tp)
         self.tp_to_table[tp] = table
-        self.tps.add(tp)
         persisted_offset = table.persisted_offset(tp)
         if persisted_offset is not None:
             offsets[tp] = persisted_offset
         offsets.setdefault(tp, -1)
 
-    def _remove(self, table: CollectionT, tp: TP) -> None:
-        self.tps_by_table[table].discard(tp)
-        self.tp_to_table.pop(tp, None)
-        self.tps.discard(tp)
+    def revoke(self, tp: TP) -> None:
+        self.standby_offsets.pop(tp, None)
+        self.standby_highwaters.pop(tp, None)
+        self.active_offsets.pop(tp, None)
+        self.active_highwaters.pop(tp, None)
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.flush_buffers()
@@ -173,27 +149,31 @@ class Recovery(Service):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        standby_tps = self.app.assignor.assigned_standbys()
-        assigned_tps = self.app.assignor.assigned_actives()
+        assigned_standbys = self.app.assignor.assigned_standbys()
+        assigned_actives = self.app.assignor.assigned_actives()
 
         for tp in revoked:
-            if tp in self.active_tps:
-                self.remove_active(tp)
-            elif tp in self.standby_tps:
-                self.remove_standby(tp)
+            self.revoke(tp)
 
-        for tp in newly_assigned:
+        self.standby_tps.clear()
+        self.active_tps.clear()
+
+        for tp in assigned_standbys:
             table = self.tables._changelogs.get(tp.topic)
             if table is not None:
-                if await table.need_active_standby_for(tp):
-                    if tp in standby_tps:
-                        self.remove_active(tp)
-                        self.add_standby(tp)
-                    elif tp in assigned_tps:
-                        self.remove_standby(tp)
-                        self.add_active(tp)
-                    else:
-                        pass   # belongs to agent?
+                self.add_standby(table, tp)
+        for tp in assigned_actives:
+            table = self.tables._changelogs.get(tp.topic)
+            if table is not None:
+                self.add_active(table, tp)
+
+        active_offsets = {
+            tp: offset
+            for tp, offset in self.active_offsets.items()
+            if tp in self.active_tps
+        }
+        self.active_offsets.clear()
+        self.active_offsets.update(active_offsets)
 
         self.signal_recovery_reset.clear()
         self.signal_recovery_start.set()

@@ -34,7 +34,7 @@ class Store(StoreT, Service):
     def __init__(self,
                  url: Union[str, URL],
                  app: AppT,
-                 table: CollectionT = None,
+                 table: CollectionT,
                  *,
                  table_name: str = '',
                  key_type: ModelArg = None,

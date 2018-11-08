@@ -386,13 +386,6 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             if not id:
                 raise ImproperlyConfigured('App requires an id!')
 
-    async def on_stop(self) -> None:
-        if self._producer is not None:
-            self.log.info('Flush producer buffer...')
-            await self._producer.flush()
-
-        await self._maybe_close_http_client()
-
     async def _maybe_close_http_client(self) -> None:
         if self._http_client:
             await self._http_client.close()
@@ -901,6 +894,26 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
         """
         return await self.topics.commit(topics)
 
+    async def on_stop(self) -> None:
+        if self._consumer is not None:
+            consumer = self._consumer
+            assignment = consumer.assignment()
+            if assignment:
+                await self.tables.on_partitions_revoked(assignment)
+                consumer.stop_flow()
+                self.flow_control.suspend()
+                consumer.pause_partitions(assignment)
+                self.flow_control.clear()
+                await self._stop_fetcher()
+                if self.conf.stream_wait_empty:
+                    self.log.info('Wait for streams...')
+                    await self.consumer.wait_empty()
+        if self._producer is not None:
+            self.log.info('Flush producer buffer...')
+            await self._producer.flush()
+
+        await self._maybe_close_http_client()
+
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.
 
@@ -941,6 +954,9 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
                     if self.conf.stream_wait_empty:
                         on_timeout.info('consumer.wait_empty()')
                         await self.consumer.wait_empty()
+                    on_timeout.info('producer.flush()')
+                    if self._producer is not None:
+                        await self._producer.flush()
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
                 on_timeout.info('+send signal: on_partitions_revoked')

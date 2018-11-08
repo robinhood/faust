@@ -1,5 +1,4 @@
 """Message transport using :pypi:`aiokafka`."""
-import asyncio
 from typing import (
     Any,
     AsyncIterator,
@@ -439,12 +438,12 @@ class Consumer(base.Consumer):
 
     async def _perform_seek(self) -> None:
         read_offset = self._read_offset
-        self._consumer.seek_to_committed()
-        tps = self._consumer.assignment()
-        wait_res = await self.wait(
-            asyncio.gather(*[self._consumer.committed(tp) for tp in tps]))
-        offsets = zip(tps, wait_res.result)
-        committed_offsets = dict(filter(lambda x: x[1] is not None, offsets))
+        _committed_offsets = await self._consumer.seek_to_committed()
+        committed_offsets = {
+            _ensure_TP(tp): offset
+            for tp, offset in _committed_offsets.items()
+            if offset is not None
+        }
         read_offset.update(committed_offsets)
         self._committed_offset.update(committed_offsets)
 
