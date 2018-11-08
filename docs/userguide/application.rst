@@ -504,7 +504,7 @@ Agent Arguments
     of ``100`` means you can process up to hundred RSS feeds at the same time.
 
     Adding concurrency to your agent also means it will process events
-    in the topic *out of order*, and snould you rewind the stream that order
+    in the topic *out of order*, and should you rewind the stream that order
     may differ when processing the events a second time.
 
     .. admonition:: Concurrency and tables
