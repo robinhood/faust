@@ -135,7 +135,7 @@ ROUTER_TYPE = 'faust.app.router:Router'
 TOPIC_TYPE = 'faust:Topic'
 
 #: Path to HTTP client class, providing the default for :setting:`HttpClient`.
-HTTP_CLIENT_TYPE = 'faust.types.web.HttpClientT'
+HTTP_CLIENT_TYPE = 'aiohttp.client:ClientSession'
 
 #: Path to Monitor sensor class, providing the default for :setting:`Monitor`.
 MONITOR_TYPE = 'faust.sensors:Monitor'

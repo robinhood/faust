@@ -3,7 +3,7 @@ import typing
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional, Type, Union
 
-from aiohttp.client import ClientSession
+from aiohttp.client import ClientSession as HttpClientT
 from mode import Seconds, ServiceT
 from yarl import URL
 
@@ -36,15 +36,6 @@ ViewGetHandler = Callable[..., Awaitable[Response]]
 RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
 PageArg = Union[Type[View], ViewGetHandler]
 RouteDecoratorRet = Callable[[PageArg], PageArg]
-
-
-class HttpClientT(ClientSession):
-
-    def __init_subclass__(cls) -> None:
-        # defining this method here just ignores the annoying
-        # "Inheritance class HttpClientT from ClientSession is discouraged"
-        # warning.
-        ...
 
 
 class CacheBackendT(ServiceT):

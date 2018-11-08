@@ -4,6 +4,7 @@ from pathlib import Path
 import faust
 import mode
 import pytest
+from aiohttp.client import ClientSession
 from faust import App
 from faust.assignor import LeaderAssignor, PartitionAssignor
 from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
@@ -12,7 +13,6 @@ from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
 from faust.types import settings
-from faust.types.app import HttpClientT
 from yarl import URL
 
 
@@ -87,7 +87,7 @@ class test_settings:
         assert conf.LeaderAssignor is LeaderAssignor
         assert conf.Router is Router
         assert conf.Topic is faust.Topic
-        assert conf.HttpClient is HttpClientT
+        assert conf.HttpClient is ClientSession
         assert conf.Monitor is Monitor
 
     def test_reply_prefix_unique(self):
