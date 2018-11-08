@@ -359,7 +359,9 @@ class Store(base.SerializedStore):
         return self.with_suffix(p.with_name(f'{p.name}-{partition}'))
 
     def with_suffix(self, path: Path, *, suffix: str = '.db') -> Path:
-        return path.with_suffix(suffix)
+        # Path.with_suffix should not be used as this will
+        # not work if the table name has dots in it (Issue #184).
+        return path.with_name(f'{path.name}{suffix}')
 
     @property
     def path(self) -> Path:
