@@ -43,6 +43,9 @@ class Producer(Service, ProducerT):
                             partition: Optional[int]) -> RecordMetadata:
         raise NotImplementedError()
 
+    async def flush(self) -> None:
+        ...
+
     async def create_topic(self,
                            topic: str,
                            partitions: int,

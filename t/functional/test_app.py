@@ -53,7 +53,7 @@ class test_settings:
         assert conf.producer_partitioner is None
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
-        assert not conf.stream_wait_empty
+        assert conf.stream_wait_empty
         assert not conf.stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions
 

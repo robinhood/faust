@@ -90,7 +90,7 @@ class test_App:
         assert s.channel.app == app
 
     def test_new_producer(self, *, app):
-        del(app.producer)
+        app._producer = None
         transport = app._transport = Mock(
             name='transport',
             autospec=Transport,
@@ -112,6 +112,7 @@ class test_App:
     @pytest.mark.asyncio
     async def test_on_stop(self, *, app):
         app._http_client = Mock(name='http_client', close=AsyncMock())
+        app._producer = Mock(name='producer', flush=AsyncMock())
         await app.on_stop()
         app._http_client.close.assert_called_once_with()
         app._http_client = None
@@ -269,6 +270,7 @@ class test_App:
     @pytest.mark.asyncio
     async def test_timer(self, *, app):
         did_execute = Mock(name='did_execute')
+        app._producer = Mock(name='producer', flush=AsyncMock())
 
         @app.timer(0.1)
         async def foo():

@@ -37,6 +37,7 @@ class test_Store:
         return MyStore(
             url='foo://',
             app=app,
+            table=Mock(name='table'),
             key_serializer='json',
             value_serializer='json')
 
@@ -125,7 +126,11 @@ class test_SerializedStore:
 
     @pytest.fixture
     def store(self, *, app):
-        return MySerializedStore(url='foo://', app=app)
+        return MySerializedStore(
+            url='foo://',
+            app=app,
+            table=Mock(name='table'),
+        )
 
     def test_apply_changelog_batch(self, *, store):
         event = Mock(name='event', autospec=Event)

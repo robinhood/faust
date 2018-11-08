@@ -1158,6 +1158,10 @@ class App(AppT, ServiceProxy, ServiceCallbacks):
             self._producer = self._new_producer()
         return self._producer
 
+    @producer.setter
+    def producer(self, producer: ProducerT) -> None:
+        self._producer = producer
+
     @property
     def consumer(self) -> ConsumerT:
         if self._consumer is None:

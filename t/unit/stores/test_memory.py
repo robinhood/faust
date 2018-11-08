@@ -9,7 +9,7 @@ class test_Store:
 
     @pytest.fixture
     def store(self, *, app):
-        return Store(url='memory://', app=app)
+        return Store(url='memory://', app=app, table=Mock(name='table'))
 
     def test_clear(self, *, store):
         store.data['foo'] = 1
