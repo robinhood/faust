@@ -1,12 +1,14 @@
-.. _changelog:
+.. _changelog-1.2:
 
 ==============================
  Change history for Faust 1.2
 ==============================
 
 This document contain change notes for bugfix releases in
-the Faust 1.2 series. If you're looking for previous releases,
-please visit the :ref:`history` section.
+the Faust 1.2.x series. If you're looking for changes in the latest
+series, please visit the latest :ref:`changelog`.
+
+For even older releases you can visit the :ref:`history` section.
 
 .. _version-1.2.2:
 
