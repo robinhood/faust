@@ -3,7 +3,6 @@ import asyncio
 import pytest
 from faust import App, Channel, Record
 from faust.agents.actor import Actor
-from faust.agents.agent import Agent, AgentService
 from faust.agents.models import ReqRepRequest, ReqRepResponse
 from faust.agents.replies import ReplyConsumer
 from faust.events import Event
@@ -24,12 +23,14 @@ class Word(Record):
 class test_AgentService:
 
     @pytest.fixture
-    def agent(self):
-        return Mock(name='agent', autospec=Agent)
+    def agent(self, *, app):
 
-    @pytest.fixture
-    def service(self, *, agent):
-        return AgentService(agent)
+        @app.agent()
+        async def myagent(stream):
+            async for value in stream:
+                yield value
+
+        return myagent
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize('concurrency,index,expected_index', [
@@ -37,99 +38,99 @@ class test_AgentService:
         (10, 3, 3),
     ])
     async def test_start_one(self, concurrency, index, expected_index, *,
-                             agent, service):
+                             agent):
         agent.concurrency = concurrency
         agent._start_task = AsyncMock(name='_start_task')
 
         tps = {TP('foo', 0)}
-        await service._start_one(index=index, active_partitions=tps)
+        await agent._start_one(index=index, active_partitions=tps)
         agent._start_task.assert_called_once_with(
             index=expected_index,
             active_partitions=tps,
             stream=None,
             channel=None,
-            beacon=service.beacon,
+            beacon=agent.beacon,
         )
 
     @pytest.mark.asyncio
-    async def test_start_for_partitions(self, *, service):
-        service._start_one_supervised = AsyncMock(name='_start_one')
-        s = service._start_one_supervised.return_value = Mock(name='service')
-        s.maybe_start = AsyncMock(name='service.maybe_start')
+    async def test_start_for_partitions(self, *, agent):
+        agent._start_one_supervised = AsyncMock(name='_start_one')
+        s = agent._start_one_supervised.return_value = Mock(name='service')
+        s.maybe_start = AsyncMock(name='agent.maybe_start')
         tps = {TP('foo', 3)}
-        await service._start_for_partitions(tps)
-        service._start_one_supervised.assert_called_once_with(None, tps)
+        await agent._start_for_partitions(tps)
+        agent._start_one_supervised.assert_called_once_with(None, tps)
 
     @pytest.mark.asyncio
-    async def test_on_start(self, *, service):
-        service._new_supervisor = Mock(name='new_supervisor')
-        service._on_start_supervisor = AsyncMock(name='on_start_supervisor')
-        await service.on_start()
+    async def test_on_start(self, *, agent):
+        agent._new_supervisor = Mock(name='new_supervisor')
+        agent._on_start_supervisor = AsyncMock(name='on_start_supervisor')
+        await agent.on_start()
 
-        service._new_supervisor.assert_called_once_with()
-        assert service.supervisor is service._new_supervisor()
-        service._on_start_supervisor.assert_called_once_with()
+        agent._new_supervisor.assert_called_once_with()
+        assert agent.supervisor is agent._new_supervisor()
+        agent._on_start_supervisor.assert_called_once_with()
 
-    def test_new_supervisor(self, *, service):
-        strategy = service._get_supervisor_strategy = Mock(name='strategy')
-        s = service._new_supervisor()
+    def test_new_supervisor(self, *, agent):
+        strategy = agent._get_supervisor_strategy = Mock(name='strategy')
+        s = agent._new_supervisor()
         strategy.assert_called_once_with()
         strategy.return_value.assert_called_once_with(
             max_restarts=100.0,
             over=1.0,
-            replacement=service._replace_actor,
-            loop=service.loop,
-            beacon=service.beacon,
+            replacement=agent._replace_actor,
+            loop=agent.loop,
+            beacon=agent.beacon,
         )
         assert s is strategy()()
 
-    def test_get_supervisor_strategy(self, *, service, agent):
+    def test_get_supervisor_strategy(self, *, agent):
         agent.supervisor_strategy = 100
-        assert service._get_supervisor_strategy() == 100
+        assert agent._get_supervisor_strategy() == 100
         agent.supervisor_strategy = None
         agent.app = Mock(name='app', autospec=App)
-        assert (service._get_supervisor_strategy() is
+        assert (agent._get_supervisor_strategy() is
                 agent.app.conf.agent_supervisor)
 
     @pytest.mark.asyncio
-    async def test_on_start_supervisor(self, *, service, agent):
+    async def test_on_start_supervisor(self, *, agent):
         agent.concurrency = 10
-        service._get_active_partitions = Mock(name='_get_active_partitions')
-        service._start_one = AsyncMock(name='_start_one')
-        service.supervisor = Mock(
+        agent._get_active_partitions = Mock(name='_get_active_partitions')
+        agent._start_one = AsyncMock(name='_start_one')
+        agent.supervisor = Mock(
             name='supervisor',
             autospec=SupervisorStrategy,
             start=AsyncMock(),
         )
-        await service._on_start_supervisor()
+        await agent._on_start_supervisor()
 
-        aref = service._start_one.coro.return_value
+        aref = agent._start_one.coro.return_value
 
-        service._start_one.coro.assert_has_calls([
+        agent._start_one.coro.assert_has_calls([
             call(index=i,
                  channel=aref.stream.channel if i else None,
-                 active_partitions=service._get_active_partitions())
+                 active_partitions=agent._get_active_partitions())
             for i in range(10)
         ])
-        service.supervisor.add.assert_has_calls([
-            call(service._start_one.coro()) for i in range(10)
+        agent.supervisor.add.assert_has_calls([
+            call(agent._start_one.coro()) for i in range(10)
         ])
-        service.supervisor.start.assert_called_once_with()
+        agent.supervisor.start.assert_called_once_with()
 
-    def test_get_active_partitions(self, *, service, agent):
+    def test_get_active_partitions(self, *, agent):
         agent.isolated_partitions = None
-        assert service._get_active_partitions() is None
+        assert agent._get_active_partitions() is None
         agent.isolated_partitions = True
-        assert service._get_active_partitions() == set()
+        assert agent._get_active_partitions() == set()
         assert agent._pending_active_partitions == set()
 
     @pytest.mark.asyncio
-    async def test_replace_actor(self, *, service):
+    async def test_replace_actor(self, *, agent):
         aref = Mock(name='aref', autospec=Actor)
-        service._start_one = AsyncMock(name='_start_one')
-        assert (await service._replace_actor(aref, 101) ==
-                service._start_one.coro())
-        service._start_one.assert_called_once_with(
+        agent._start_one = AsyncMock(name='_start_one')
+        assert (await agent._replace_actor(aref, 101) ==
+                agent._start_one.coro())
+        agent._start_one.assert_called_once_with(
             index=101,
             active_partitions=aref.active_partitions,
             stream=aref.stream,
@@ -137,26 +138,25 @@ class test_AgentService:
         )
 
     @pytest.mark.asyncio
-    async def test_on_stop(self, *, service):
-        service._stop_supervisor = AsyncMock(name='_stop_supervisor')
-        await service.on_stop()
-        service._stop_supervisor.assert_called_once_with()
+    async def test_on_stop(self, *, agent):
+        agent._stop_supervisor = AsyncMock(name='_stop_supervisor')
+        await agent.on_stop()
+        agent._stop_supervisor.assert_called_once_with()
 
     @pytest.mark.asyncio
-    async def test_stop_supervisor(self, *, service):
-        supervisor = service.supervisor = Mock(
+    async def test_stop_supervisor(self, *, agent):
+        supervisor = agent.supervisor = Mock(
             name='supervisor',
             autospec=SupervisorStrategy,
             stop=AsyncMock(),
         )
-        await service._stop_supervisor()
-        assert service.supervisor is None
-        supervisor.stop.assert_called_once_with()
-        await service._stop_supervisor()
+        await agent._stop_supervisor()
+        assert agent.supervisor is None
+        await agent._stop_supervisor()
         supervisor.stop.assert_called_once_with()
 
-    def test_label(self, *, service):
-        assert label(service)
+    def test_label(self, *, agent):
+        assert label(agent)
 
 
 class test_Agent:

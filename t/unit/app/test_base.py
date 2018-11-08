@@ -333,11 +333,11 @@ class test_App:
     @pytest.mark.asyncio
     async def test_maybe_start_client(self, *, app):
         app.start_client = AsyncMock(name='start_client')
-        app.started = True
+        app._started.set()
         await app.maybe_start_client()
         app.start_client.assert_not_called()
 
-        app.started = False
+        app._started.clear()
         await app.maybe_start_client()
         app.start_client.assert_called_once_with()
 

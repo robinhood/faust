@@ -4,11 +4,7 @@ from faust import Event, Stream, Table, Topic
 from faust.transport.consumer import Consumer
 from faust.transport.producer import Producer
 from faust.types import Message, TP
-from faust.sensors.monitor import (
-    Monitor,
-    MonitorService,
-    TableState,
-)
+from faust.sensors.monitor import Monitor, TableState
 from mode.utils.mocks import AsyncMock, Mock
 
 TP1 = TP('foo', 0)
@@ -298,19 +294,19 @@ class test_Monitor:
 
     @pytest.mark.asyncio
     async def test_service_sampler(self, *, mon):
-        service = MonitorService(mon)
+        mon = Monitor()
 
         i = 0
         mon.events_runtime = []
-        service.sleep = AsyncMock(name='sleep')
+        mon.sleep = AsyncMock(name='sleep')
 
         def on_cleanup():
             nonlocal i
             mon.events_runtime.append(i + 0.34)
             i += 1
             if i > 10:
-                service._stopped.set()
+                mon._stopped.set()
         mon._cleanup = Mock(name='_cleanup')
         mon._cleanup.side_effect = on_cleanup
 
-        await service._sampler(service)
+        await mon._sampler(mon)
