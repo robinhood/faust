@@ -1,5 +1,5 @@
 import asyncio
-import collections
+import collections.abc
 import pytest
 from faust.agents import Agent
 from faust.agents.actor import Actor, AsyncIterableActor, AwaitableActor
@@ -25,7 +25,7 @@ class test_Actor:
 
     @pytest.fixture()
     def it(self):
-        it = Mock(name='it', autospec=collections.Iterator)
+        it = Mock(name='it', autospec=collections.abc.Iterator)
         it.__aiter__ = Mock(name='it.__aiter__')
         it.__await__ = Mock(name='it.__await__')
         return it
