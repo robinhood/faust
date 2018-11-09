@@ -192,7 +192,7 @@ class Collection(Service, CollectionT):
         self.data.reset_state()
 
     def _send_changelog(self,
-                        event: EventT,
+                        event: Optional[EventT],
                         key: Any,
                         value: Any,
                         key_serializer: CodecArg = 'json',
@@ -405,11 +405,11 @@ class Collection(Service, CollectionT):
              window.delta(self._relative_event(event), d)),
         )
 
-    async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        await self.data.on_partitions_assigned(self, assigned)
-
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        await self.data.on_partitions_revoked(self, revoked)
+    async def on_rebalance(self,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
+        await self.data.on_rebalance(self, assigned, revoked, newly_assigned)
 
     async def on_changelog_event(self, event: EventT) -> None:
         if self._on_changelog_event:

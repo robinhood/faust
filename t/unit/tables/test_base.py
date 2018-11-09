@@ -56,15 +56,6 @@ class test_Collection:
     def test_hash(self, *, table):
         assert hash(table)
 
-    def test_get_store_custom_StateStore(self, *, table):
-        table.StateStore = Mock(name='StateStore', autospec=Store)
-        table._data = None
-        ret = table._get_store()
-        table.StateStore.assert_called_once_with(
-            url=None, app=table.app, loop=table.loop,
-        )
-        assert ret is table.StateStore()
-
     @pytest.mark.asyncio
     async def test_on_start(self, *, table):
         table.changelog_topic = Mock(
@@ -107,23 +98,21 @@ class test_Collection:
         data.reset_state.assert_called_once_with()
 
     def test_send_changelog(self, *, table):
-        with patch('faust.tables.base.current_event') as current_event:
-            table._send_changelog('k', 'v')
-            current_event.return_value._attach.assert_called_once_with(
-                table.changelog_topic,
-                'k',
-                'v',
-                partition=current_event.return_value.message.partition,
-                key_serializer='json',
-                value_serializer='json',
-                callback=table._on_changelog_sent,
-            )
+        event = Mock(name='event')
+        table._send_changelog(event, 'k', 'v')
+        event._attach.assert_called_once_with(
+            table.changelog_topic,
+            'k',
+            'v',
+            partition=event.message.partition,
+            key_serializer='json',
+            value_serializer='json',
+            callback=table._on_changelog_sent,
+        )
 
     def test_send_changelog__no_current_event(self, *, table):
-        with patch('faust.tables.base.current_event') as current_event:
-            current_event.return_value = None
-            with pytest.raises(RuntimeError):
-                table._send_changelog('k', 'v')
+        with pytest.raises(RuntimeError):
+            table._send_changelog(None, 'k', 'v')
 
     def test_on_changelog_sent(self, *, table):
         fut = Mock(name='future', autospec=asyncio.Future)
@@ -309,25 +298,15 @@ class test_Collection:
         assert table._windowed_delta('k', 303.3, event=event) == 101.1
 
     @pytest.mark.asyncio
-    async def test_on_partitions_assigned(self, *, table):
+    async def test_on_rebalance(self, *, table):
         table._data = Mock(
             name='data',
             autospec=Store,
-            on_partitions_assigned=AsyncMock(),
+            on_rebalance=AsyncMock(),
         )
-        await table.on_partitions_assigned({TP1})
-        table._data.on_partitions_assigned.assert_called_once_with(
-            table, {TP1})
-
-    @pytest.mark.asyncio
-    async def test_on_partitions_revoked(self, *, table):
-        table._data = Mock(
-            name='data',
-            autospec=Store,
-            on_partitions_revoked=AsyncMock(),
-        )
-        await table.on_partitions_revoked({TP1})
-        table._data.on_partitions_revoked.assert_called_once_with(table, {TP1})
+        await table.on_rebalance({TP1}, set(), set())
+        table._data.on_rebalance.assert_called_once_with(
+            table, {TP1}, set(), set())
 
     @pytest.mark.asyncio
     async def test_on_changelog_event(self, *, table):

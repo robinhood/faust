@@ -61,12 +61,11 @@ class Store(StoreT, Service):
     async def need_active_standby_for(self, tp: TP) -> bool:
         return True
 
-    async def on_partitions_assigned(self, table: CollectionT,
-                                     assigned: Set[TP]) -> None:
-        ...
-
-    async def on_partitions_revoked(self, table: CollectionT,
-                                    revoked: Set[TP]) -> None:
+    async def on_rebalance(self,
+                           table: CollectionT,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
         ...
 
     def _encode_key(self, key: Any) -> bytes:

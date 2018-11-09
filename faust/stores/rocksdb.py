@@ -249,24 +249,30 @@ class Store(base.SerializedStore):
         for db in self._dbs_for_key(key):
             db.delete(key)
 
-    async def on_partitions_revoked(self, table: CollectionT,
-                                    revoked: Set[TP]) -> None:
-        for tp in revoked:
+    async def on_rebalance(self,
+                           table: CollectionT,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
+        self.revoke_partitions(table, revoked)
+        await self.assign_partitions(table, newly_assigned)
+
+    def revoke_partitions(self, table: CollectionT, tps: Set[TP]) -> None:
+        for tp in tps:
             if tp.topic in table.changelog_topic.topics:
                 db = self._dbs.pop(tp.partition, None)
                 if db is not None:
                     del(db)
         import gc
         gc.collect()  # XXX RocksDB has no .close() method :X
-        self._key_index.clear()
 
-    async def on_partitions_assigned(self, table: CollectionT,
-                                     assigned: Set[TP]) -> None:
-        self._key_index.clear()
+    async def assign_partitions(self,
+                                table: CollectionT,
+                                tps: Set[TP]) -> None:
         standby_tps = self.app.assignor.assigned_standbys()
         my_topics = table.changelog_topic.topics
 
-        for tp in assigned:
+        for tp in tps:
             if tp.topic in my_topics and tp not in standby_tps:
                 for i in range(5):
                     try:

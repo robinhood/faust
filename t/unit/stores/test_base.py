@@ -53,16 +53,11 @@ class test_Store:
         assert await store.need_active_standby_for(TP('foo', 0))
 
     @pytest.mark.asyncio
-    async def test_on_partitions_assigned(self, *, store):
-        await store.on_partitions_assigned(
+    async def test_on_rebalance(self, *, store):
+        await store.on_rebalance(
             Mock(name='table', autospec=Table),
             set(),
-        )
-
-    @pytest.mark.asyncio
-    async def test_on_partitions_revoked(self, *, store):
-        await store.on_partitions_revoked(
-            Mock(name='table', autospec=Table),
+            set(),
             set(),
         )
 

@@ -77,11 +77,9 @@ class StoreT(ServiceT, MutableMapping):
         ...
 
     @abc.abstractmethod
-    async def on_partitions_assigned(self, table: CollectionT,
-                                     assigned: Set[TP]) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def on_partitions_revoked(self, table: CollectionT,
-                                    revoked: Set[TP]) -> None:
+    async def on_rebalance(self,
+                           table: CollectionT,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
         ...

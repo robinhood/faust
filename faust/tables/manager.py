@@ -103,8 +103,7 @@ class TableManager(Service, TableManagerT, FastUserDict):
                            newly_assigned: Set[TP]) -> None:
         self._recovery_started.set()  # cannot add more tables.
         for table in self.values():
-            await table.on_partitions_revoked(revoked)
-            await table.on_partitions_assigned(newly_assigned)
+            await table.on_rebalance(assigned, revoked, newly_assigned)
 
         await self._update_channels()
         await self.recovery.on_rebalance(assigned, revoked, newly_assigned)
