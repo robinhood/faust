@@ -901,8 +901,8 @@ Use the ``on_configured`` signal to configure your app:
 
     @app.on_configured.connect
     def configure(app, conf, **kwargs):
-        conf.broker_url = os.environ.get('FAUST_BROKER')
-        conf.store_url = os.environ.get('STORE_URL')
+        conf.broker = os.environ.get('FAUST_BROKER')
+        conf.store = os.environ.get('STORE_URL')
 
 .. signal:: App.on_before_configured
 
