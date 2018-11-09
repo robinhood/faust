@@ -2,22 +2,35 @@
 import operator
 import typing
 from datetime import datetime
-from typing import Any, Callable, Iterator, Optional, cast
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Iterator,
+    NoReturn,
+    Optional,
+    Type,
+    Union,
+    cast,
+    overload,
+)
 
 from mode import Seconds
-from mode.utils.collections import FastUserDict
 
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
 from faust.types import EventT, FieldDescriptorT
 from faust.types.tables import (
+    KT,
     RecoverCallback,
     RelativeArg,
     RelativeHandler,
     TableT,
+    VT,
     WindowSetT,
     WindowWrapperT,
 )
+from faust.types.windows import WindowRange
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from .table import Table
@@ -27,7 +40,7 @@ else:
 __all__ = ['WindowSet', 'WindowWrapper']
 
 
-class WindowSet(WindowSetT, FastUserDict):
+class WindowSet(WindowSetT[KT, VT]):
     """Represents the windows available for table key.
 
     ``Table[k]`` returns WindowSet since ``k`` can exist in multiple
@@ -53,7 +66,7 @@ class WindowSet(WindowSetT, FastUserDict):
     """
 
     def __init__(self,
-                 key: Any,
+                 key: KT,
                  table: TableT,
                  wrapper: WindowWrapperT,
                  event: EventT = None) -> None:
@@ -64,83 +77,103 @@ class WindowSet(WindowSetT, FastUserDict):
         self.data = table  # provides underlying mapping in FastUserDict
 
     def apply(self,
-              op: Callable[[Any, Any], Any],
-              value: Any,
-              event: EventT = None) -> WindowSetT:
+              op: Callable[[VT, VT], VT],
+              value: VT,
+              event: EventT = None) -> WindowSetT[KT, VT]:
         table = cast(Table, self.table)
         timestamp = self.wrapper.get_timestamp(event or self.event)
         table._apply_window_op(op, self.key, value, timestamp)
         return self
 
-    def value(self, event: EventT = None) -> Any:
+    def value(self, event: EventT = None) -> VT:
         return cast(Table, self.table)._windowed_timestamp(
             self.key, self.wrapper.get_timestamp(event or self.event))
 
-    def now(self) -> Any:
+    def now(self) -> VT:
         return cast(Table, self.table)._windowed_now(self.key)
 
-    def current(self, event: EventT = None) -> Any:
+    def current(self, event: EventT = None) -> VT:
         t = cast(Table, self.table)
         return t._windowed_timestamp(
             self.key, t._relative_event(event or self.event))
 
-    def delta(self, d: Seconds, event: EventT = None) -> Any:
+    def delta(self, d: Seconds, event: EventT = None) -> VT:
         table = cast(Table, self.table)
         return table._windowed_delta(self.key, d, event or self.event)
 
-    def __getitem__(self, w: Any) -> Any:
+    @overload
+    def __getitem__(self, w: EventT) -> WindowSetT[KT, VT]: ...  # noqa
+
+    @overload  # noqa
+    def __getitem__(self, w: WindowRange) -> VT: ...  # noqa
+
+    def __getitem__(self, w: Union[EventT, WindowRange]) -> VT:  # noqa
         # wrapper[key][event] returns WindowSet with event already set.
         if isinstance(w, EventT):
             return type(self)(self.key, self.table, self.wrapper, w)
         # wrapper[key][window_range] returns value for that range.
         return self.table[self.key, w]
 
-    def __setitem__(self, w: Any, value: Any) -> None:
+    @overload  # noqa
+    def __setitem__(self, w: EventT, value: VT) -> NoReturn: ...  # noqa
+
+    @overload  # noqa
+    def __setitem__(self, w: WindowRange, value: VT) -> None: ...  # noqa
+
+    def __setitem__(self,  # noqa
+                    w: Union[EventT, WindowRange],
+                    value: VT) -> None:
         if isinstance(w, EventT):
             raise NotImplementedError(
                 'Cannot set WindowSet key, when key is an event')
         self.table[self.key, w] = value
 
-    def __delitem__(self, w: Any) -> None:
+    @overload  # noqa
+    def __delitem__(self, w: EventT) -> NoReturn: ...  # noqa
+
+    @overload  # noqa
+    def __delitem__(self, w: WindowRange) -> None: ...  # noqa
+
+    def __delitem__(self, w: Union[EventT, WindowRange]) -> None:  # noqa
         if isinstance(w, EventT):
             raise NotImplementedError(
                 'Cannot delete WindowSet key, when key is an event')
         del self.table[self.key, w]
 
-    def __iadd__(self, other: Any) -> Any:
+    def __iadd__(self, other: VT) -> WindowSetT:
         return self.apply(operator.add, other)
 
-    def __isub__(self, other: Any) -> Any:
+    def __isub__(self, other: VT) -> WindowSetT:
         return self.apply(operator.sub, other)
 
-    def __imul__(self, other: Any) -> Any:
+    def __imul__(self, other: VT) -> WindowSetT:
         return self.apply(operator.mul, other)
 
-    def __itruediv__(self, other: Any) -> Any:
+    def __itruediv__(self, other: VT) -> WindowSetT:
         return self.apply(operator.truediv, other)
 
-    def __ifloordiv__(self, other: Any) -> Any:
+    def __ifloordiv__(self, other: VT) -> WindowSetT:
         return self.apply(operator.floordiv, other)
 
-    def __imod__(self, other: Any) -> Any:
+    def __imod__(self, other: VT) -> WindowSetT:
         return self.apply(operator.mod, other)
 
-    def __ipow__(self, other: Any) -> Any:
+    def __ipow__(self, other: VT) -> WindowSetT:
         return self.apply(operator.pow, other)
 
-    def __ilshift__(self, other: Any) -> Any:
+    def __ilshift__(self, other: VT) -> WindowSetT:
         return self.apply(operator.lshift, other)
 
-    def __irshift__(self, other: Any) -> Any:
+    def __irshift__(self, other: VT) -> WindowSetT:
         return self.apply(operator.rshift, other)
 
-    def __iand__(self, other: Any) -> Any:
+    def __iand__(self, other: VT) -> WindowSetT:
         return self.apply(operator.and_, other)
 
-    def __ixor__(self, other: Any) -> Any:
+    def __ixor__(self, other: VT) -> WindowSetT:
         return self.apply(operator.xor, other)
 
-    def __ior__(self, other: Any) -> Any:
+    def __ior__(self, other: VT) -> WindowSetT:
         return self.apply(operator.or_, other)
 
     def __repr__(self) -> str:
@@ -154,6 +187,7 @@ class WindowWrapper(WindowWrapperT):
     accessed, instead :class:`WindowSet` is returned so that
     the values can be further reduced to the wanted time period.
     """
+    ValueType: ClassVar[Type[WindowSetT]] = WindowSet
 
     def __init__(self, table: TableT, *,
                  relative_to: RelativeArg = None) -> None:
@@ -201,7 +235,7 @@ class WindowWrapper(WindowWrapperT):
         return self.table._windowed_contains(key, self.get_timestamp())
 
     def __getitem__(self, key: Any) -> WindowSetT:
-        return WindowSet(key, self.table, self, current_event())
+        return self.ValueType(key, self.table, self, current_event())
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if not isinstance(value, WindowSetT):

@@ -108,6 +108,7 @@ Tables
     faust.tables.base
     faust.tables.manager
     faust.tables.recovery
+    faust.tables.sets
     faust.tables.table
     faust.tables.wrappers
 

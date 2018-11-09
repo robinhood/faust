@@ -10,10 +10,12 @@ from typing import (
     MutableMapping,
     Optional,
     Set,
+    TypeVar,
     Union,
 )
 
 from mode import Seconds, ServiceT
+from mode.utils.collections import FastUserDict, ManagedUserDict
 from yarl import URL
 
 from .events import EventT
@@ -21,7 +23,6 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TP
 from .windows import WindowT
-
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -52,6 +53,10 @@ RelativeArg = Optional[Union[
     datetime,
     float,
 ]]
+CollectionTps = MutableMapping['CollectionT', Set[TP]]
+
+KT = TypeVar('KT')
+VT = TypeVar('VT')
 
 
 class CollectionT(ServiceT, JoinableT):
@@ -128,14 +133,17 @@ class CollectionT(ServiceT, JoinableT):
         ...
 
     @abc.abstractmethod
+    async def on_recovery_completed(self,
+                                    active_tps: Set[TP],
+                                    standby_tps: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
     async def call_recover_callbacks(self) -> None:
         ...
 
 
-CollectionTps = MutableMapping[CollectionT, Set[TP]]
-
-
-class TableT(CollectionT, MutableMapping):
+class TableT(CollectionT, ManagedUserDict[KT, VT]):
 
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':
@@ -162,7 +170,7 @@ class TableT(CollectionT, MutableMapping):
         ...
 
 
-class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
+class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
     app: AppT
 
     @abc.abstractmethod
@@ -186,14 +194,14 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
         ...
 
 
-class WindowSetT(MutableMapping):
+class WindowSetT(FastUserDict[KT, VT]):
     key: Any
     table: TableT
     event: Optional[EventT]
 
     @abc.abstractmethod
     def __init__(self,
-                 key: Any,
+                 key: KT,
                  table: TableT,
                  wrapper: 'WindowWrapperT',
                  event: EventT = None) -> None:
@@ -201,73 +209,73 @@ class WindowSetT(MutableMapping):
 
     @abc.abstractmethod
     def apply(self,
-              op: Callable[[Any, Any], Any],
-              value: Any,
+              op: Callable[[VT, VT], VT],
+              value: VT,
               event: EventT = None) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def value(self, event: EventT = None) -> Any:
+    def value(self, event: EventT = None) -> VT:
         ...
 
     @abc.abstractmethod
-    def current(self, event: EventT = None) -> Any:
+    def current(self, event: EventT = None) -> VT:
         ...
 
     @abc.abstractmethod
-    def now(self) -> Any:
+    def now(self) -> VT:
         ...
 
     @abc.abstractmethod
-    def delta(self, d: Seconds, event: EventT = None) -> Any:
+    def delta(self, d: Seconds, event: EventT = None) -> VT:
         ...
 
     @abc.abstractmethod
-    def __iadd__(self, other: Any) -> Any:
+    def __iadd__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __isub__(self, other: Any) -> Any:
+    def __isub__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __imul__(self, other: Any) -> Any:
+    def __imul__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __itruediv__(self, other: Any) -> Any:
+    def __itruediv__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __ifloordiv__(self, other: Any) -> Any:
+    def __ifloordiv__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __imod__(self, other: Any) -> Any:
+    def __imod__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __ipow__(self, other: Any) -> Any:
+    def __ipow__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __ilshift__(self, other: Any) -> Any:
+    def __ilshift__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __irshift__(self, other: Any) -> Any:
+    def __irshift__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __iand__(self, other: Any) -> Any:
+    def __iand__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __ixor__(self, other: Any) -> Any:
+    def __ixor__(self, other: VT) -> 'WindowSetT':
         ...
 
     @abc.abstractmethod
-    def __ior__(self, other: Any) -> Any:
+    def __ior__(self, other: VT) -> 'WindowSetT':
         ...
 
 
