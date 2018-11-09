@@ -52,11 +52,11 @@ class InvalidTZ(Exception):
     """Isoformat date does not have a valid timezone."""
 
 
-def parse(datestring: str) -> datetime:
+def parse(datetime_string: str) -> datetime:
     """Parse and convert ISO 8601 string into a datetime object."""
-    m = RE_ISO8601.match(datestring)
+    m = RE_ISO8601.match(datetime_string)
     if not m:
-        raise ValueError('unable to parse date string %r' % datestring)
+        raise ValueError('unable to parse date string %r' % datetime_string)
     groups = cast(Mapping[str, str], m.groupdict())
     return datetime(
         int(groups['year']),
