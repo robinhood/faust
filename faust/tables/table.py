@@ -58,8 +58,8 @@ class Table(TableT, Collection, ManagedUserDict):
         self._sensor_on_get(self, key)
 
     def on_key_set(self, key: Any, value: Any) -> None:
-        self._send_changelog(key, value)
         event = current_event()
+        self._send_changelog(event, key, value)
         if event is not None:
             partition = event.message.partition
             self._maybe_set_key_ttl(key, partition)
@@ -69,8 +69,8 @@ class Table(TableT, Collection, ManagedUserDict):
                 'Setting table key from outside of stream iteration')
 
     def on_key_del(self, key: Any) -> None:
-        self._send_changelog(key, value=None, value_serializer='raw')
         event = current_event()
+        self._send_changelog(event, key, value=None, value_serializer='raw')
         if event is not None:
             partition = event.message.partition
             self._maybe_del_key_ttl(key, partition)

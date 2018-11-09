@@ -194,11 +194,11 @@ class Collection(Service, CollectionT):
         self.data.reset_state()
 
     def _send_changelog(self,
+                        event: EventT,
                         key: Any,
                         value: Any,
                         key_serializer: CodecArg = 'json',
                         value_serializer: CodecArg = 'json') -> None:
-        event = current_event()
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
         cast(Event, event)._attach(
