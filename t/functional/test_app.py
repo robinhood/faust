@@ -278,7 +278,7 @@ class test_settings:
             app.finalize()
 
     def test_compat_url(self):
-        assert self.App(url='foo').conf.broker == URL('foo')
+        assert self.App(url='foo').conf.broker == URL('kafka://foo')
 
     def test_compat_client_id(self):
         with pytest.warns(FutureWarning):
@@ -319,3 +319,9 @@ class test_settings:
         assert app.conf.topic_partitions == 39
         app.conf.topic_replication_factor = 40
         assert app.conf.topic_replication_factor == 40
+
+    def test_broker_with_no_scheme_set(self):
+        app = self.App(broker='example.com:3123')
+        assert app.conf.broker.scheme == settings.DEFAULT_BROKER_SCHEME
+        assert app.conf.broker.host == 'example.com'
+        assert app.conf.broker.port == 3123

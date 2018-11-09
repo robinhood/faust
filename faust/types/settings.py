@@ -80,6 +80,9 @@ faust_version: str = symbol_by_name('faust:__version__')
 #: Broker URL, used as default for :setting:`broker`.
 BROKER_URL = 'kafka://localhost:9092'
 
+#: Default transport used when no scheme specified.
+DEFAULT_BROKER_SCHEME = 'kafka'
+
 #: Table storage URL, used as default for :setting:`store`.
 STORE_URL = 'memory://'
 
@@ -591,7 +594,10 @@ class Settings(abc.ABC):
 
     @broker.setter
     def broker(self, broker: Union[URL, str]) -> None:
-        self._broker = URL(broker)
+        broker_url = URL(broker)
+        if not broker_url.scheme:
+            broker_url = URL(f'{DEFAULT_BROKER_SCHEME}://{broker}')
+        self._broker = broker_url
 
     @property
     def store(self) -> URL:
