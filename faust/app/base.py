@@ -881,6 +881,23 @@ class App(AppT, Service):
                 **kwargs))
         return table.using_window(window) if window else table
 
+    def SetTable(self,
+                 name: str,
+                 *,
+                 window: WindowT = None,
+                 partitions: int = None,
+                 help: str = None,
+                 **kwargs: Any) -> TableT:
+        table = self.tables.add(
+            self.conf.SetTable(
+                self,
+                name=name,
+                beacon=self.beacon,
+                partitions=partitions,
+                help=help,
+                **kwargs))
+        return table.using_window(window) if window else table
+
     def page(self, path: str, *,
              base: Type[View] = View,
              name: str = None) -> Callable[[PageArg], Type[View]]:
