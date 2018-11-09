@@ -336,6 +336,9 @@ async def test_ack(app):
         event = mock_stream_event_ack(s)
         break
     assert event
+    # need one sleep on Python 3.7.0
+    # need two sleeps on Python 3.7.1 :-/
+    await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
     event.ack.assert_called_with()
 
@@ -370,7 +373,10 @@ async def test_acked_when_raising(app):
             assert value == 1
             raise RuntimeError
     assert event1
-    await asyncio.sleep(0)
+    # need one sleep on Python 3.7.0
+    # need two sleeps on Python 3.7.1 :-/
+    await asyncio.sleep(0)  # needed for some reason
+    await asyncio.sleep(0)  # needed for some reason
     event1.ack.assert_called_with()
 
     event2 = None
@@ -380,7 +386,10 @@ async def test_acked_when_raising(app):
             assert value == 2
             raise RuntimeError
     assert event2
-    await asyncio.sleep(0)
+    # need one sleep on Python 3.7.0
+    # need two sleeps on Python 3.7.1 :-/
+    await asyncio.sleep(0)  # needed for some reason
+    await asyncio.sleep(0)  # needed for some reason
     event2.ack.assert_called_with()
 
 
