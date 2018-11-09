@@ -52,6 +52,10 @@ please visit the :ref:`history` section.
 
 - **RocksDB**: Fixed issue with having "." in table names (Issue #184).
 
+- **App**: Allow :setting:`broker` URL setting without scheme.
+
+    The default scheme for an URL like "localhost:9092" is ``kafka://``.
+
 - **App**: Adds :signal:`App.on_rebalance_complete` signal.
 
 - **App**: Adds :signal:`App.on_before_shutdown` signal.
