@@ -138,27 +138,25 @@ class Collection(Service, CollectionT):
         return object.__hash__(self)
 
     def _get_store(self) -> StoreT:
-        if self._data is None:
-            app = self.app
-            if self.StateStore is not None:
-                self._data = self.StateStore(url=None, app=app, loop=self.loop)
-            else:
-                url = self._store or self.app.conf.store
-                self._data = stores.by_url(url)(
-                    url, app, self,
-                    table_name=self.name,
-                    key_type=self.key_type,
-                    value_type=self.value_type,
-                    loop=self.loop)
-            self.add_dependency(self._data)
-        return cast(StoreT, self._data)
+        app = self.app
+        url = self._store or app.conf.store
+        return cast(StoreT, stores.by_url(url)(
+            url, app, self,
+            table_name=self.name,
+            key_type=self.key_type,
+            value_type=self.value_type,
+            loop=self.loop,
+        ))
 
     @property  # type: ignore
     @no_type_check  # XXX https://github.com/python/mypy/issues/4125
     def data(self) -> StoreT:
-        return self._get_store()
+        if self._data is None:
+            self._data = self._get_store()
+        return self._data
 
     async def on_start(self) -> None:
+        await self.add_runtime_dependency(self.data)
         await self.changelog_topic.maybe_declare()
 
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:

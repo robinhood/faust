@@ -5,13 +5,11 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    ClassVar,
     Iterable,
     Mapping,
     MutableMapping,
     Optional,
     Set,
-    Type,
     Union,
 )
 
@@ -20,7 +18,6 @@ from mode.utils.compat import Counter
 from yarl import URL
 
 from .events import EventT
-from .stores import StoreT
 from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TP
@@ -60,8 +57,6 @@ RelativeArg = Optional[Union[
 
 
 class CollectionT(ServiceT, JoinableT):
-    StateStore: ClassVar[Optional[Type[StoreT]]] = None
-
     app: AppT
     name: str
     default: Any  # noqa: E704
