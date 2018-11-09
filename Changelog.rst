@@ -12,7 +12,7 @@ please visit the :ref:`history` section.
 
 1.3.0
 =====
-:release-date: 2018-11-08 3:44 P.M PST
+:release-date: 2018-11-08 4:49 P.M PST
 :release-by: Ask Solem (:github_user:`ask`)
 
 - **Requirements**
