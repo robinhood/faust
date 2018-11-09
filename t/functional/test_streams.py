@@ -336,8 +336,8 @@ async def test_ack(app):
         event = mock_stream_event_ack(s)
         break
     assert event
-    # need one sleep on Python 3.7.0
-    # need two sleeps on Python 3.7.1 :-/
+    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
     await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
     event.ack.assert_called_with()
@@ -356,6 +356,9 @@ async def test_noack(app):
         event = mock_stream_event_ack(new_s)
         break
     assert event
+    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+    await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
     event.ack.assert_not_called()
 
@@ -373,8 +376,8 @@ async def test_acked_when_raising(app):
             assert value == 1
             raise RuntimeError
     assert event1
-    # need one sleep on Python 3.7.0
-    # need two sleeps on Python 3.7.1 :-/
+    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
     await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
     event1.ack.assert_called_with()
@@ -386,8 +389,8 @@ async def test_acked_when_raising(app):
             assert value == 2
             raise RuntimeError
     assert event2
-    # need one sleep on Python 3.7.0
-    # need two sleeps on Python 3.7.1 :-/
+    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
     await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
     event2.ack.assert_called_with()
