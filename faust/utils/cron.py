@@ -1,9 +1,10 @@
 import datetime
 import time
 from croniter.croniter import croniter
+from typing import Any
 
 
-def secs_for_next(cron_format: str, tz: any = None) -> float:
+def secs_for_next(cron_format: str, tz: Any = None) -> float:
     now_ts = time.time()
     # If we have a tz object we'll make now timezone aware, and
     # if not will set now to be the current timestamp (tz
