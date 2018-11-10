@@ -52,7 +52,7 @@ from faust.channels import Channel, ChannelT
 from faust.exceptions import ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
-from faust.utils import venusian, cron
+from faust.utils import cron, venusian
 from faust.web import drivers as web_drivers
 from faust.web.cache import backends as cache_backends
 from faust.web.views import View
@@ -803,7 +803,7 @@ class App(AppT, Service):
 
         return _inner
 
-    def crontab(self, cron_format: str, tz: any = None,
+    def crontab(self, cron_format: str, tz: Any = None,
                 on_leader: bool = False) -> Callable:
         """Define an async def function to be run at the fixed times,
         defined by the cron format.
@@ -840,7 +840,7 @@ class App(AppT, Service):
             @self.task
             @wraps(fun)
             async def cron_starter(*args: Any) -> None:
-                while not self.should_stop:                    
+                while not self.should_stop:
                     await asyncio.sleep(cron.secs_for_next(cron_format, tz))
 
                     should_run = not on_leader or self.is_leader()
