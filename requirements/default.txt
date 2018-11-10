@@ -6,3 +6,4 @@ mode>=2.0.3,<3.0
 terminaltables>=3.1,<4.0
 venusian>=1.1,<2.0
 yarl>=1.0,<2.0
+croniter>=0.3.16

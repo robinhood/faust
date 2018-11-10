@@ -1,8 +1,8 @@
 .. _guide-tasks:
 
-============================================
- Tasks, Timers, Web Views, and CLI Commands
-============================================
+======================================================
+ Tasks, Timers, Cron Jobs, Web Views, and CLI Commands
+======================================================
 
 .. contents::
     :local:
@@ -54,6 +54,36 @@ A timer is a task that executes every ``n`` seconds:
 
 After starting the worker, and it's operational, the above timer will print
 something every minute.
+
+.. _tasks-cron-jobs:
+
+Cron Jobs
+=========
+
+A cron job is a task that executes according to a crontab format,
+usually at fixed times:
+
+.. sourcecode:: python
+
+    @app.crontab('0 20 * * *')
+    async def every_dat_at_8_pm():
+        print('WAKE UP ONCE A DAY')
+
+
+After starting the worker, and it's operational, the above cron job will print
+something every day at 8pm.
+
+``crontab`` takes 1 mandatory argument ``cron_format`` and 2 optional arguments:
+
+- ``tz``, represents the timezone. Defaults to None which gives behaves as UTC.
+- ``on_leader``, boolean defaults to False, only run on leader?
+
+.. sourcecode:: python
+
+    @app.crontab('0 20 * * *', tz=pytz.timezone('US/Pacific'), on_leader=True)
+    async def every_dat_at_8_pm_pacific():
+        print('WAKE UP AT 8:00pm PACIFIC TIME ONLY ON THE LEADER WORKER')
+
 
 .. _tasks-web-views:
 

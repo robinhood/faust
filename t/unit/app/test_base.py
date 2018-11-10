@@ -279,6 +279,22 @@ class test_App:
         await foo()
         did_execute.assert_called_once_with()
 
+    @pytest.mark.asyncio
+    async def test_crontab(self, *, app):
+        did_execute = Mock(name='did_execute')
+        app._producer = Mock(name='producer', flush=AsyncMock())
+
+        with patch('faust.app.base.cron') as cron:
+            cron.secs_for_next.return_value = 0.1
+
+            @app.crontab('* * * * *')
+            async def foo():
+                did_execute()
+                await app.stop()
+
+            await foo()
+            did_execute.assert_called_once_with()
+
     def test_service(self, *, app):
 
         @app.service

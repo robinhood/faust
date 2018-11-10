@@ -190,6 +190,13 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def crontab(self,
+                cron_format: str,
+                tz: any = None,
+                on_leader: bool = False) -> Callable:
+        ...
+
+    @abc.abstractmethod
     def service(self, cls: Type[ServiceT]) -> Type[ServiceT]:
         ...
 
