@@ -15,13 +15,13 @@ tz_unaware_topic = app.topic('tz_unaware_topic', value_type=Model)
 
 
 @app.agent(tz_unaware_topic)
-async def print_every_minute(stream):
+async def consume(stream):
     async for record in stream:
         print(f'record: {record}')
 
 
 @app.crontab('*/1 * * * *', on_leader=True)
-async def publish_every_2secs():
+async def publish_every_minute():
     print('-- We should send a message every minute --')
     print(f'Sending message at: {datetime.now()}')
     msg = Model(random=round(random(), 2))

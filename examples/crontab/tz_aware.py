@@ -20,13 +20,13 @@ tz_aware_topic = app.topic('tz_aware_topic', value_type=Model)
 
 
 @app.agent(tz_aware_topic)
-async def print_every_minute(stream):
+async def consume(stream):
     async for record in stream:
         print(f'record: {record}')
 
 
 @app.crontab('16 20 * * *', tz=pacific, on_leader=True)
-async def publish_every_2secs():
+async def publish_at_8_20_pm_pacific():
     print('-- This should be sent at 20:16 Pacific time --')
     print(f'Sending message at: {datetime.now()}')
     msg = Model(random=round(random(), 2))
