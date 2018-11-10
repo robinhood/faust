@@ -791,9 +791,10 @@ class App(AppT, Service):
             async def around_timer(*args: Any) -> None:
                 while not self.should_stop:
                     await self.sleep(interval_s)
-                    should_run = not on_leader or self.is_leader()
-                    if should_run:
-                        await fun(*args)  # type: ignore
+                    if not self.should_stop:
+                        should_run = not on_leader or self.is_leader()
+                        if should_run:
+                            await fun(*args)  # type: ignore
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]

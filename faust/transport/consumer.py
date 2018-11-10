@@ -494,20 +494,21 @@ class Consumer(Service, ConsumerT):
                 # Sleeping because sometimes getmany is called in a loop
                 # never releasing to the event loop
                 await self.sleep(0)
-                async for tp, message in ait:
-                    offset = message.offset
-                    r_offset = get_read_offset(tp)
-                    if r_offset is None or offset > r_offset:
-                        if commit_every is not None:
-                            if self._n_acked >= commit_every:
-                                self._n_acked = 0
-                                await self.commit()
-                        await callback(message)
-                        set_read_offset(tp, offset)
-                    else:
-                        self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
-                                     offset, message.key, message.value)
-                unset_flag(flag_consumer_fetching)
+                if not self.should_stop:
+                    async for tp, message in ait:
+                        offset = message.offset
+                        r_offset = get_read_offset(tp)
+                        if r_offset is None or offset > r_offset:
+                            if commit_every is not None:
+                                if self._n_acked >= commit_every:
+                                    self._n_acked = 0
+                                    await self.commit()
+                            await callback(message)
+                            set_read_offset(tp, offset)
+                        else:
+                            self.log.dev('DROPPED MESSAGE ROFF %r: k=%r v=%r',
+                                         offset, message.key, message.value)
+                    unset_flag(flag_consumer_fetching)
 
         except self.consumer_stopped_errors:
             if self.transport.app.should_stop:
