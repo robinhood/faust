@@ -394,6 +394,61 @@ You can override this default behavior when accessing data in the table:
   latest window for a given timestamp and we have no way of modifying this
   behavior.
 
+Iterating over keys/values/items in a windowed table.
+-----------------------------------------------------
+
+Some users may want to dump the contents of a windowed table.
+This is problematic due to how keys in windowed tables are stored,
+the underlying storage will actually store multiple values for the same
+key, depending on how many window ranges the key falls into.
+
+If storing word counts in hourly windows, the underlying storage will have
+"windowed keys" which are tuples of ``(key, window_range)``. This means
+lookups for key in any given window is fast, but makes iterating
+over keys problematic.
+
+If you want to dump out the contents of a windowed table, say the current
+count for every key, then the solution is to keep a second table
+to use as the source for keys in the windowed table:
+
+.. sourcecode:: python
+
+    import faust
+
+    class Withdrawal(faust.Record, isodates=True, serializer='json'):
+        user: str
+        country: str
+        amount: float
+        date: datetime = None
+
+    app = faust.App(
+        'faust-withdrawals',
+        broker='kafka://127.0.0.1:9092',
+        store='rocksdb://',
+        origin='examples.withdrawals',
+        topic_partitions=4,
+    )
+    withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+
+    # Windowed table: cannot iterate over keys/items/values.
+    country_to_total = app.Table(
+        'country_to_total', default=int,
+    ).tumbling(10.0, expires=10.0).relative_to_stream()
+
+    # Index table: used as source of keys for iteration.
+    country_index = app.Table('country_index')
+
+    @app.agent()
+    async def track_country_withdrawal(withdrawals):
+        async for withdrawal in withdrawals.group_by(Withdrawal.country):
+            country_to_total[withdrawal.country] += withdrawal.amount
+            country_index[withdrawal.country] = 1
+
+    @app.timer(2.0)
+    async def _dump_withdrawals_by_country():
+        for key in country_index.keys():
+            current_windowed_value = country_to_total[key].now()
+            print(f'WITHDRAWALS IN {country}: {current_windowed_value}')
 
 "Out of Order" Events
 ---------------------
