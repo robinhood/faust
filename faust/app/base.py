@@ -10,6 +10,7 @@ import inspect
 import re
 import typing
 import warnings
+from datetime import tzinfo
 from functools import wraps
 from itertools import chain
 from typing import (
@@ -803,7 +804,7 @@ class App(AppT, Service):
 
         return _inner
 
-    def crontab(self, cron_format: str, tz: Any = None,
+    def crontab(self, cron_format: str, tz: tzinfo = None,
                 on_leader: bool = False) -> Callable:
         """Define an async def function to be run at the fixed times,
         defined by the cron format.
