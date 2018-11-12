@@ -1,8 +1,20 @@
 """Using :pypi:`terminaltables` to draw ANSI tables."""
 import sys
-from typing import Any, IO, Sequence, Type
+from operator import itemgetter
+from typing import (
+    Any,
+    Callable,
+    IO,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    Type,
+    cast,
+)
 
 from mode.utils import logging
+from mode.utils import text
 from mode.utils.compat import isatty
 from terminaltables import AsciiTable, SingleTable
 from terminaltables.base_table import BaseTable as Table
@@ -58,3 +70,22 @@ def logtable(data: TableDataT,
 
 def _get_best_table_type(tty: bool) -> Type[Table]:
     return SingleTable if tty else AsciiTable
+
+
+def dict_as_ansitable(d: Mapping,
+                      *,
+                      key: str = 'Key',
+                      value: str = 'Value',
+                      sort: bool = False,
+                      sortkey: Callable[[Any], Any] = itemgetter(0),
+                      target: IO = sys.stdout,
+                      title: str = None) -> str:
+    header = [text.title(key), text.title(value)]
+    data = cast(Iterable[List[str]], d.items())
+    data = list(sorted(data, key=sortkey)) if sort else list(data)
+    if sort:
+        data = list(sorted(data, key=sortkey))
+    return table(
+        [header] + list(data),
+        title=text.title(title) if title is not None else '',
+    ).table

@@ -204,6 +204,7 @@ class SerializedStore(Store):
 
     def _keys_decoded(self) -> Iterator:
         for key in self._iterkeys():
+            print('KEY ENCODED: %r' % (key,))
             yield self._decode_key(key)
 
     def values(self) -> ValuesView:
