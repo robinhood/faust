@@ -205,13 +205,13 @@ class Conductor(ConductorT, Service):
         # streams.  This way we won't have N subscription requests at the
         # start.
         await self.sleep(2.0)
+        if not self.should_stop:
+            # tell the consumer to subscribe to the topics.
+            await self.app.consumer.subscribe(await self._update_indices())
+            notify(self._subscription_done)
 
-        # tell the consumer to subscribe to the topics.
-        await self.app.consumer.subscribe(await self._update_indices())
-        notify(self._subscription_done)
-
-        # Now we wait for changes
-        ev = self._subscription_changed = asyncio.Event(loop=self.loop)
+            # Now we wait for changes
+            ev = self._subscription_changed = asyncio.Event(loop=self.loop)
         while not self.should_stop:
             # Wait for something to add/remove topics from subscription.
             await ev.wait()

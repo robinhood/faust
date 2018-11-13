@@ -71,8 +71,9 @@ class TableManager(Service, TableManagerT, FastUserDict):
 
     async def on_start(self) -> None:
         await self.sleep(1.0)
-        await self._update_channels()
-        await self.recovery.start()
+        if not self.should_stop:
+            await self._update_channels()
+            await self.recovery.start()
 
     async def _update_channels(self) -> None:
         for table in self.values():

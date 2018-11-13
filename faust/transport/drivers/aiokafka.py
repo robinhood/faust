@@ -318,6 +318,8 @@ class Consumer(base.Consumer):
         else:
             # We should still release to the event loop
             await self.sleep(1)
+            if self.should_stop:
+                return
         create_message = ConsumerMessage  # localize
 
         # records' contain mapping from TP to list of messages.
