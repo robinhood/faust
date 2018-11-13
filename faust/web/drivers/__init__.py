@@ -7,6 +7,7 @@ __all__ = ['by_name', 'by_url']
 
 DRIVERS: FactoryMapping[Type[Web]] = FactoryMapping(
     aiohttp='faust.web.drivers.aiohttp:Web',
+    vibora='faust.web.drivers.vibora:Web',
 )
 DRIVERS.include_setuptools_namespace('faust.web.drivers')
 by_name = DRIVERS.by_name
