@@ -442,7 +442,10 @@ class Consumer(base.Consumer):
             for tp, offset in _committed_offsets.items()
             if offset is not None
         }
-        read_offset.update(committed_offsets)
+        read_offset.update({
+            tp: offset if offset else None
+            for tp, offset in committed_offsets.items()
+        })
         self._committed_offset.update(committed_offsets)
 
     async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
@@ -527,7 +530,7 @@ class Consumer(base.Consumer):
         # reset livelock detection
         self._last_batch = None
         # set new read offset so we will reread messages
-        self._read_offset[_ensure_TP(partition)] = offset
+        self._read_offset[_ensure_TP(partition)] = offset if offset else None
         self._consumer.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
