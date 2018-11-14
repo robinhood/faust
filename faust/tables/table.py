@@ -4,10 +4,12 @@ from operator import itemgetter
 from typing import (
     Any,
     Callable,
+    Dict,
     IO,
     Iterable,
     List,
     MutableMapping,
+    MutableSet,
     Optional,
     Set,
     cast,
@@ -23,7 +25,7 @@ from mode.utils.collections import (
 
 from faust import windows
 from faust.streams import current_event
-from faust.types import TP
+from faust.types import EventT, TP
 from faust.types.tables import CollectionT, TableT, WindowWrapperT
 from faust.types.stores import StoreT
 from faust.types.windows import WindowT
@@ -114,13 +116,15 @@ class Table(TableT, Collection, ManagedUserDict):
         ).table
 
 
+OPERATION_ADD = 0x1
+OPERATION_DISCARD = 0x2
+
+
 class ChangeloggedSet(ManagedUserSet):
 
     table: Table
     key: Any
-
-    OPERATION_ADD = 0x1
-    OPERATION_DISCARD = 0x2
+    data: MutableSet
 
     def __init__(self,
                  table: Table,
@@ -135,13 +139,13 @@ class ChangeloggedSet(ManagedUserSet):
         event = current_event()
         self.manager.mark_changed(self.key)
         self.table._send_changelog(
-            event, (self.OPERATION_ADD, self.key), value)
+            event, (OPERATION_ADD, self.key), value)
 
     def on_discard(self, value: Any) -> None:
         event = current_event()
         self.manager.mark_changed(self.key)
         self.table._send_changelog(
-            event, (self.OPERATION_DISCARD, self.key), value)
+            event, (OPERATION_DISCARD, self.key), value)
 
 
 class ChangeloggedSetManager(Service, FastUserDict):
@@ -152,7 +156,7 @@ class ChangeloggedSetManager(Service, FastUserDict):
     _storage: Optional[StoreT] = None
     _dirty: Set[Any]
 
-    def __init__(self, table: Table, **kwargs) -> None:
+    def __init__(self, table: Table, **kwargs: Any) -> None:
         self.table = table
         self.data = {}
         self._dirty = set()
@@ -213,7 +217,7 @@ class ChangeloggedSetManager(Service, FastUserDict):
         self._dirty.clear()
 
     @Service.task(2.0)
-    async def _periodic_flush(self):
+    async def _periodic_flush(self) -> None:
         await self.flush_to_storage()
 
     @property
@@ -222,6 +226,34 @@ class ChangeloggedSetManager(Service, FastUserDict):
             self._storage = self.table._new_store_by_url(
                 self.table._store or self.table.app.conf.store)
         return self._storage
+
+    def apply_changelog_batch(self,
+                              batch: Iterable[EventT],
+                              to_key: Callable[[Any], Any],
+                              to_value: Callable[[Any], Any]) -> None:
+        tp_offsets: Dict[TP, int] = {}
+        for event in batch:
+            tp, offset = event.message.tp, event.message.offset
+            tp_offsets[tp] = (
+                offset if tp not in tp_offsets
+                else max(offset, tp_offsets[tp])
+            )
+
+            if event.key is None:
+                raise RuntimeError('Changelog key cannot be None')
+
+            operation, key = event.key
+            value = event.value
+            if operation == OPERATION_ADD:
+                self[key].data.add(value)
+            elif operation == OPERATION_DISCARD:
+                self[key].data.discard(value)
+            else:
+                raise NotImplementedError(
+                    f'Unknown operation {operation}: key={event.key!r}')
+
+        for tp, offset in tp_offsets.items():
+            self.set_persisted_offset(tp, offset)
 
 
 class SetTable(Table):
