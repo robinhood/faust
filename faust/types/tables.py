@@ -10,6 +10,7 @@ from typing import (
     MutableMapping,
     Optional,
     Set,
+    TypeVar,
     Union,
 )
 
@@ -22,7 +23,6 @@ from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TP
 from .windows import WindowT
-
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -54,6 +54,10 @@ RelativeArg = Optional[Union[
     datetime,
     float,
 ]]
+CollectionTps = MutableMapping['CollectionT', Set[TP]]
+
+KT = TypeVar('KT')
+VT = TypeVar('VT')
 
 
 class CollectionT(ServiceT, JoinableT):
@@ -140,10 +144,7 @@ class CollectionT(ServiceT, JoinableT):
         ...
 
 
-CollectionTps = MutableMapping[CollectionT, Set[TP]]
-
-
-class TableT(CollectionT, MutableMapping):
+class TableT(CollectionT, MutableMapping[KT, VT]):
 
     @abc.abstractmethod
     def using_window(self, window: WindowT) -> 'WindowWrapperT':
