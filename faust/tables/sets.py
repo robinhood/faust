@@ -4,9 +4,9 @@ from typing import (
     Dict,
     Iterable,
     MutableMapping,
-    MutableSet,
     Optional,
     Set,
+    Union,
 )
 
 from mode import Service
@@ -23,13 +23,14 @@ __all__ = ['SetTable']
 
 OPERATION_ADD: int = 0x1
 OPERATION_DISCARD: int = 0x2
+OPERATION_UPDATE: int = 0xF
 
 
 class ChangeloggedSet(ManagedUserSet):
 
     table: Table
     key: Any
-    data: MutableSet
+    data: Set
 
     def __init__(self,
                  table: Table,
@@ -51,6 +52,12 @@ class ChangeloggedSet(ManagedUserSet):
         self.manager.mark_changed(self.key)
         self.table._send_changelog(
             event, (OPERATION_DISCARD, self.key), value)
+
+    def on_change(self, added: Set, removed: Set) -> None:
+        event = current_event()
+        self.manager.mark_changed(self.key)
+        self.table._send_changelog(
+            event, (OPERATION_UPDATE, self.key), [added, removed])
 
 
 class ChangeloggedSetManager(Service, FastUserDict):
@@ -148,11 +155,17 @@ class ChangeloggedSetManager(Service, FastUserDict):
                 raise RuntimeError('Changelog key cannot be None')
 
             operation, key = event.key
-            value = event.value
+            value: Union[Any, Iterable[Iterable]] = event.value
             if operation == OPERATION_ADD:
                 self[key].data.add(value)
             elif operation == OPERATION_DISCARD:
                 self[key].data.discard(value)
+            elif operation == OPERATION_UPDATE:
+                added: Iterable[Any]
+                removed: Iterable[Any]
+                added, removed = value
+                self[key].data |= set(added)
+                self[key].data -= set(removed)
             else:
                 raise NotImplementedError(
                     f'Unknown operation {operation}: key={event.key!r}')
