@@ -3,10 +3,11 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    List,
     MutableMapping,
     Optional,
     Set,
-    Union,
+    cast,
 )
 
 from mode import Service
@@ -14,7 +15,7 @@ from mode.utils.collections import FastUserDict, ManagedUserSet
 
 from faust.streams import current_event
 from faust.types import EventT, TP
-from faust.types.tables import CollectionT
+from faust.types.tables import CollectionT, KT, VT
 from faust.types.stores import StoreT
 
 from .table import Table
@@ -26,7 +27,7 @@ OPERATION_DISCARD: int = 0x2
 OPERATION_UPDATE: int = 0xF
 
 
-class ChangeloggedSet(ManagedUserSet):
+class ChangeloggedSet(ManagedUserSet[VT]):
 
     table: Table
     key: Any
@@ -41,52 +42,52 @@ class ChangeloggedSet(ManagedUserSet):
         self.key = key
         self.data = set()
 
-    def on_add(self, value: Any) -> None:
+    def on_add(self, value: VT) -> None:
         event = current_event()
         self.manager.mark_changed(self.key)
         self.table._send_changelog(
             event, (OPERATION_ADD, self.key), value)
 
-    def on_discard(self, value: Any) -> None:
+    def on_discard(self, value: VT) -> None:
         event = current_event()
         self.manager.mark_changed(self.key)
         self.table._send_changelog(
             event, (OPERATION_DISCARD, self.key), value)
 
-    def on_change(self, added: Set, removed: Set) -> None:
+    def on_change(self, added: Set[VT], removed: Set[VT]) -> None:
         event = current_event()
         self.manager.mark_changed(self.key)
         self.table._send_changelog(
             event, (OPERATION_UPDATE, self.key), [added, removed])
 
 
-class ChangeloggedSetManager(Service, FastUserDict):
+class ChangeloggedSetManager(FastUserDict[KT, VT], Service):
 
-    table: Table
-    data: MutableMapping
+    table: Table[KT, VT]
+    data: MutableMapping[KT, ChangeloggedSet[VT]]
 
     _storage: Optional[StoreT] = None
-    _dirty: Set[Any]
+    _dirty: Set[KT]
 
-    def __init__(self, table: Table, **kwargs: Any) -> None:
+    def __init__(self, table: Table[KT, VT], **kwargs: Any) -> None:
         self.table = table
         self.data = {}
         self._dirty = set()
         Service.__init__(self, **kwargs)
 
-    def mark_changed(self, key: Any) -> None:
+    def mark_changed(self, key: KT) -> None:
         self._dirty.add(key)
 
-    def __getitem__(self, key: Any) -> ChangeloggedSet:
+    def __getitem__(self, key: KT) -> ChangeloggedSet[VT]:
         if key in self.data:
             return self.data[key]
         s = self.data[key] = ChangeloggedSet(self.table, self, key)
         return s
 
-    def __setitem__(self, key: Any, value: Any) -> None:
+    def __setitem__(self, key: KT, value: VT) -> None:
         raise NotImplementedError(f'{self._table_type_name}: cannot set key')
 
-    def __delitem__(self, key: Any) -> None:
+    def __delitem__(self, key: KT) -> None:
         raise NotImplementedError(f'{self._table_type_name}: cannot del key')
 
     @property
@@ -154,16 +155,20 @@ class ChangeloggedSetManager(Service, FastUserDict):
             if event.key is None:
                 raise RuntimeError('Changelog key cannot be None')
 
-            operation, key = event.key
-            value: Union[Any, Iterable[Iterable]] = event.value
+            operation, key_ = event.key
+            key = cast(KT, key_)
+            value: Any = event.value
             if operation == OPERATION_ADD:
-                self[key].data.add(value)
+                element = cast(VT, value)
+                self[key].data.add(element)
             elif operation == OPERATION_DISCARD:
-                self[key].data.discard(value)
+                element = cast(VT, value)
+                self[key].data.discard(element)
             elif operation == OPERATION_UPDATE:
-                added: Iterable[Any]
-                removed: Iterable[Any]
-                added, removed = value
+                tup = cast(Iterable[List[VT]], value)
+                added: List[VT]
+                removed: List[VT]
+                added, removed = tup
                 self[key].data |= set(added)
                 self[key].data -= set(removed)
             else:
@@ -174,12 +179,12 @@ class ChangeloggedSetManager(Service, FastUserDict):
             self.set_persisted_offset(tp, offset)
 
 
-class SetTable(Table):
+class SetTable(Table[KT, VT]):
 
     def _new_store(self) -> StoreT:
         return ChangeloggedSetManager(self)
 
-    def __getitem__(self, key: Any) -> Any:
+    def __getitem__(self, key: KT) -> ChangeloggedSet[VT]:
         # FastUserDict looks up using `key in self.data`
         # but we are a defaultdict.
         return self.data[key]
