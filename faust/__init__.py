@@ -121,7 +121,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from .sensors import Monitor, Sensor                        # noqa: E402
     from .serializers import Codec                              # noqa: E402
     from .streams import Stream, StreamT, current_event         # noqa: E402
-    from .tables.table import SetTable, Table                   # noqa: E402
+    from .tables.table import Table                             # noqa: E402
+    from .tables.sets import SetTable                           # noqa: E402
     from .topics import Topic, TopicT                           # noqa: E402
     from .types.settings import Settings                        # noqa: E402
     from .windows import (                                      # noqa: E402
@@ -183,7 +184,8 @@ all_by_module: Mapping[str, Sequence[str]] = {
         'StreamT',
         'current_event',
     ],
-    'faust.tables.table': ['SetTable', 'Table'],
+    'faust.tables.sets': ['SetTable'],
+    'faust.tables.table': ['Table'],
     'faust.topics': ['Topic', 'TopicT'],
     'faust.types.settings': ['Settings'],
     'faust.windows': [
