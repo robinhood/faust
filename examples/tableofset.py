@@ -2,11 +2,13 @@ import faust
 from faust.cli import argument
 
 app = faust.App(
-    'table-of-sets',
+    'table-of-sets-windowed',
     origin='examples.tableofset',
 )
 
-table = app.SetTable('people', value_type=str)
+table = app.SetTable(
+    'people', value_type=str,
+).hopping(30.0, 5.0)
 
 joining_topic = app.topic('people_joining', key_type=str, value_type=str)
 leaving_topic = app.topic('people_leaving', key_type=str, value_type=str)
@@ -44,7 +46,7 @@ async def leaving(self, location: str, name: str):
 
 @app.timer(10.0)
 async def _dump():
-    print('TABLE NOW: %s' % (table.as_ansitable(),))
+    print('TABLE NOW: %s' % (table['Starbucks'].now(),))
 
 
 if __name__ == '__main__':

@@ -5,9 +5,11 @@ from datetime import datetime
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Iterator,
     NoReturn,
     Optional,
+    Type,
     Union,
     cast,
     overload,
@@ -185,6 +187,7 @@ class WindowWrapper(WindowWrapperT):
     accessed, instead :class:`WindowSet` is returned so that
     the values can be further reduced to the wanted time period.
     """
+    ValueType: ClassVar[Type[WindowSetT]] = WindowSet
 
     def __init__(self, table: TableT, *,
                  relative_to: RelativeArg = None) -> None:
@@ -232,7 +235,7 @@ class WindowWrapper(WindowWrapperT):
         return self.table._windowed_contains(key, self.get_timestamp())
 
     def __getitem__(self, key: Any) -> WindowSetT:
-        return WindowSet(key, self.table, self, current_event())
+        return self.ValueType(key, self.table, self, current_event())
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if not isinstance(value, WindowSetT):

@@ -1,7 +1,7 @@
 """Table (key/value changelog stream)."""
 import sys
 from operator import itemgetter
-from typing import Any, Callable, IO, Iterable, List, cast
+from typing import Any, Callable, ClassVar, IO, Iterable, List, Type, cast
 
 from mode import Seconds
 from mode.utils import text
@@ -12,21 +12,22 @@ from faust.types.tables import KT, TableT, VT, WindowWrapperT
 from faust.types.windows import WindowT
 from faust.utils import terminal
 
+from . import wrappers
 from .base import Collection
-from .wrappers import WindowWrapper
 
 __all__ = ['Table']
 
 
 class Table(TableT[KT, VT], Collection):
     """Table (non-windowed)."""
+    WindowWrapper: ClassVar[Type[WindowWrapperT]] = wrappers.WindowWrapper
 
     def using_window(self, window: WindowT) -> WindowWrapperT:
         self.window = window
         self._changelog_compacting = True
         self._changelog_deleting = True
         self._changelog_topic = None  # will reset on next property access
-        return WindowWrapper(self)
+        return self.WindowWrapper(self)
 
     def hopping(self, size: Seconds, step: Seconds,
                 expires: Seconds = None) -> WindowWrapperT:

@@ -13,10 +13,11 @@ from typing import (
 
 from mode import Service
 
+from faust.stores.base import Store
 from faust.streams import current_event
 from faust.types import EventT, TP
-from faust.types.tables import CollectionT
 from faust.types.stores import StoreT
+from faust.types.tables import CollectionT
 
 from .table import Table
 
@@ -45,7 +46,7 @@ class ChangeloggedObject:
         ...
 
 
-class ChangeloggedObjectManager(StoreT):
+class ChangeloggedObjectManager(Store):
 
     ValueType: ClassVar[Type[ChangeloggedObject]]
 
@@ -57,6 +58,7 @@ class ChangeloggedObjectManager(StoreT):
 
     def __init__(self, table: Table, **kwargs: Any) -> None:
         self.table = table
+        self.table_name = self.table.name
         self.data = {}
         self._dirty = set()
         Service.__init__(self, **kwargs)
@@ -124,6 +126,10 @@ class ChangeloggedObjectManager(StoreT):
     async def _periodic_flush(self) -> None:
         self.flush_to_storage()
 
+    def reset_state(self) -> None:
+        # delegate to underlying RocksDB store.
+        self.storage.reset_state()
+
     @property
     def storage(self) -> StoreT:
         if self._storage is None:
@@ -147,7 +153,8 @@ class ChangeloggedObjectManager(StoreT):
                 raise RuntimeError('Changelog key cannot be None')
 
             operation, key = event.key
-            value: Any = event.value
+            key = to_key(key)
+            value: Any = to_value(event.value)
             self[key].apply_changelog_event(operation, value)
 
         for tp, offset in tp_offsets.items():
