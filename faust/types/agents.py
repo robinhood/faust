@@ -22,6 +22,7 @@ from typing import (
 )
 
 from mode import ServiceT, SupervisorStrategyT
+from mode.utils.collections import ManagedUserDict
 
 from .codecs import CodecArg
 from .core import K, V
@@ -250,7 +251,7 @@ class AgentT(ServiceT):
         ...
 
 
-class AgentManagerT(ServiceT, MutableMapping[str, AgentT]):
+class AgentManagerT(ServiceT, ManagedUserDict[str, AgentT]):
     app: AppT
 
     @abc.abstractmethod

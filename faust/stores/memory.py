@@ -8,12 +8,11 @@ from typing import (
     Set,
     Tuple,
 )
-from mode.utils.collections import FastUserDict
 from faust.types import EventT, TP
 from . import base
 
 
-class Store(base.Store, FastUserDict):
+class Store(base.Store):
     """Table storage using an in-memory dictionary."""
 
     def on_init(self) -> None:

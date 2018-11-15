@@ -5,7 +5,6 @@ from typing import Any, Callable, IO, Iterable, List, cast
 
 from mode import Seconds
 from mode.utils import text
-from mode.utils.collections import ManagedUserDict
 
 from faust import windows
 from faust.streams import current_event
@@ -19,7 +18,7 @@ from .wrappers import WindowWrapper
 __all__ = ['Table']
 
 
-class Table(TableT[KT, VT], Collection, ManagedUserDict):
+class Table(TableT[KT, VT], Collection):
     """Table (non-windowed)."""
 
     def using_window(self, window: WindowT) -> WindowWrapperT:

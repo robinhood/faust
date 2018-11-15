@@ -4,13 +4,14 @@ from typing import (
     Any,
     Callable,
     Iterable,
-    MutableMapping,
     Optional,
     Set,
+    TypeVar,
     Union,
 )
 
 from mode import ServiceT
+from mode.utils.collections import FastUserDict
 from yarl import URL
 
 from .codecs import CodecArg
@@ -28,8 +29,11 @@ else:
 
 __all__ = ['StoreT']
 
+KT = TypeVar('KT')
+VT = TypeVar('VT')
 
-class StoreT(ServiceT, MutableMapping):
+
+class StoreT(ServiceT, FastUserDict[KT, VT]):
 
     url: URL
     app: AppT
@@ -68,8 +72,8 @@ class StoreT(ServiceT, MutableMapping):
 
     @abc.abstractmethod
     def apply_changelog_batch(self, batch: Iterable[EventT],
-                              to_key: Callable[[Any], Any],
-                              to_value: Callable[[Any], Any]) -> None:
+                              to_key: Callable[[Any], KT],
+                              to_value: Callable[[Any], VT]) -> None:
         ...
 
     @abc.abstractmethod
