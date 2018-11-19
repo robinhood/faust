@@ -188,12 +188,15 @@ class Recovery(Service):
         self.log.info('Resuming flow...')
         consumer.resume_flow()
         app.flow_control.resume()
-        self.log.info('Seek stream partitions to committed offsets.')
-        await self._wait(consumer.perform_seek())
-        self.completed.set()
         assignment = consumer.assignment()
-        self.log.dev('Resume stream partitions')
-        consumer.resume_partitions(assignment)
+        if assignment:
+            self.log.info('Seek stream partitions to committed offsets.')
+            await self._wait(consumer.perform_seek())
+            self.log.dev('Resume stream partitions')
+            consumer.resume_partitions(assignment)
+        else:
+            self.log.info('Resuming streams with empty assignment')
+        self.completed.set()
         # finally make sure the fetcher is running.
         await app._fetcher.maybe_start()
         app.rebalancing = False
@@ -338,10 +341,11 @@ class Recovery(Service):
             callback_coros.append(table.call_recover_callbacks())
         if callback_coros:
             await asyncio.wait(callback_coros)
-        self.log.info('Seek stream partitions to committed offsets.')
-        await consumer.perform_seek()
-        self.completed.set()
         assignment = consumer.assignment()
+        if assignment:
+            self.log.info('Seek stream partitions to committed offsets.')
+            await consumer.perform_seek()
+        self.completed.set()
         self.log.dev('Resume stream partitions')
         consumer.resume_partitions({
             tp for tp in assignment
