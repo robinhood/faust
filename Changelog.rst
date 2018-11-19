@@ -8,6 +8,16 @@ This document contain change notes for bugfix releases in
 the Faust 1.3 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.3.1:
+
+1.3.1
+=====
+:release-date: 2018-11-15 4:12 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Tables**: Fixed problem with table recovery hanging on
+  changelog topics having only a single entry.
+
 .. _version-1.3.0:
 
 1.3.0

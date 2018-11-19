@@ -19,7 +19,6 @@ from typing import (
 )
 
 from mode import Seconds, ServiceT
-from mode.utils.compat import Counter
 from yarl import URL
 
 from .events import EventT
@@ -47,7 +46,6 @@ __all__ = [
     'WindowedItemsViewT',
     'WindowedValuesViewT',
     'WindowWrapperT',
-    'ChangelogReaderT',
     'ChangelogEventCallback',
     'CollectionTps',
 ]
@@ -190,14 +188,6 @@ class TableManagerT(ServiceT, MutableMapping[str, CollectionT]):
     @abc.abstractmethod
     def changelog_topics(self) -> Set[str]:
         ...
-
-
-class ChangelogReaderT(ServiceT):
-    table: CollectionT
-    app: AppT
-
-    tps: Set[TP]
-    offsets: Counter[TP]
 
 
 class WindowSetT(MutableMapping):
