@@ -29,6 +29,11 @@ def wtable(*, table):
 
 
 @pytest.fixture
+def iwtable(*, table):
+    return table.hopping(60, 1, 3600.0, key_index=True)
+
+
+@pytest.fixture
 def event():
     return Mock(name='event', autospec=Event)
 
@@ -41,9 +46,9 @@ class test_WindowSet:
 
     def test_constructor(self, *, event, table, wset, wtable):
         assert wset.key == 'k'
-        assert wset.table == table
-        assert wset.wrapper == wtable
-        assert wset.event == event
+        assert wset.table is table
+        assert wset.wrapper is wtable
+        assert wset.event is event
 
     def test_apply(self, *, wset, event):
         Mock(name='event2', autospec=Event)
@@ -268,9 +273,13 @@ class test_WindowWrapper:
             'foo', wtable.get_timestamp(),
         )
 
-    def test_len(self, *, wtable):
-        wtable.table = {1: 'A', 2: 'B'}
-        assert len(wtable) == 2
+    def test_len(self, *, iwtable):
+        iwtable.key_index_table = {1: 'A', 2: 'B'}
+        assert len(iwtable) == 2
+
+    def test_len__no_key_index_raises(self, *, wtable):
+        with pytest.raises(NotImplementedError):
+            len(wtable)
 
     @pytest.mark.parametrize('input', [
         datetime.now(),
