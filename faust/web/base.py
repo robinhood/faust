@@ -146,6 +146,10 @@ class Web(Service):
         ...
 
     @abc.abstractmethod
+    async def read_request_content(self, request: 'Request') -> _bytes:
+        ...
+
+    @abc.abstractmethod
     async def wsgi(self) -> Any:
         ...
 

@@ -40,8 +40,8 @@ from .web import (
     CacheBackendT,
     HttpClientT,
     PageArg,
-    RoutedViewGetHandler,
     View,
+    ViewDecorator,
     Web,
 )
 from .windows import WindowT
@@ -222,7 +222,7 @@ class AppT(ServiceT):
                     shard_param: str = None,
                     *,
                     query_param: str = None,
-                    match_info: str = None) -> RoutedViewGetHandler:
+                    match_info: str = None) -> ViewDecorator:
         ...
 
     @abc.abstractmethod

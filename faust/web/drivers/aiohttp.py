@@ -15,7 +15,7 @@ from typing import (
 )
 
 from aiohttp import __version__ as aiohttp_version
-from aiohttp.web import Application, Response, json_response
+from aiohttp.web import Application, Request, Response, json_response
 from mode.threads import ServiceThread
 from mode.utils.compat import want_str
 from mode.utils.futures import notify
@@ -136,6 +136,9 @@ class Web(base.Web):
             content_type=content_type,
         )
         return cast(base.Response, response)
+
+    async def read_request_content(self, request: base.Request) -> _bytes:
+        return await cast(Request, request).content.read()
 
     def route(self, pattern: str, handler: Callable) -> None:
         self.web_app.router.add_route(
