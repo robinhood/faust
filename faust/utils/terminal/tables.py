@@ -88,4 +88,5 @@ def dict_as_ansitable(d: Mapping,
     return table(
         [header] + list(data),
         title=text.title(title) if title is not None else '',
+        target=target,
     ).table
