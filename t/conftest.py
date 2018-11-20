@@ -1,6 +1,8 @@
 import asyncio
+import time
+from typing import NamedTuple
 import pytest
-from mode.utils.mocks import MagicMock
+from mode.utils.mocks import MagicMock, patch
 
 sentinel = object()
 
@@ -63,3 +65,26 @@ class _patching(object):
         value = self._value_or_mock(value, new, name, dic, **kwargs)
         self.monkeypatch.setitem(dic, name, value)
         return value
+
+
+class TimeMarks(NamedTuple):
+    time: float = None
+    monotonic: float = None
+
+
+@pytest.yield_fixture()
+def freeze_time(event_loop, request):
+    marks = request.node.get_closest_marker('time')
+    timestamp = time.time()
+    monotimestamp = time.monotonic()
+
+    with patch('time.time') as time_:
+        with patch('time.monotonic') as monotonic_:
+            options = TimeMarks(**{
+                **{'time': timestamp,
+                   'monotonic': monotimestamp},
+                **((marks.kwargs or {}) if marks else {}),
+            })
+            time_.return_value = options.time
+            monotonic_.return_value = options.monotonic
+            yield options

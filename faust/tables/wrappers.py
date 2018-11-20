@@ -72,20 +72,29 @@ class WindowedItemsView(WindowedItemsViewT):
         table = cast(Table, wrapper.table)
         timestamp = wrapper.get_timestamp(self.event)
         for key in wrapper._keys():
-            yield key, table._windowed_timestamp(key, timestamp)
+            try:
+                yield key, table._windowed_timestamp(key, timestamp)
+            except KeyError:
+                pass
 
     def now(self) -> Iterator[Tuple[Any, Any]]:
         wrapper = cast(WindowWrapper, self._mapping)
         table = cast(Table, wrapper.table)
         for key in wrapper._keys():
-            yield key, table._windowed_now(key)
+            try:
+                yield key, table._windowed_now(key)
+            except KeyError:
+                pass
 
     def current(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
         wrapper = cast(WindowWrapper, self._mapping)
         table = cast(Table, wrapper.table)
         timestamp = table._relative_event(event or self.event)
         for key in wrapper._keys():
-            yield key, table._windowed_timestamp(key, timestamp)
+            try:
+                yield key, table._windowed_timestamp(key, timestamp)
+            except KeyError:
+                pass
 
     def delta(self,
               d: Seconds,
@@ -93,7 +102,10 @@ class WindowedItemsView(WindowedItemsViewT):
         wrapper = cast(WindowWrapper, self._mapping)
         table = cast(Table, wrapper.table)
         for key in wrapper._keys():
-            yield key, table._windowed_delta(key, d, event or self.event)
+            try:
+                yield key, table._windowed_delta(key, d, event or self.event)
+            except KeyError:
+                pass
 
 
 class WindowedValuesView(WindowedValuesViewT):
@@ -109,26 +121,38 @@ class WindowedValuesView(WindowedValuesViewT):
         table = cast(Table, wrapper.table)
         timestamp = wrapper.get_timestamp(self.event)
         for key in wrapper._keys():
-            yield table._windowed_timestamp(key, timestamp)
+            try:
+                yield table._windowed_timestamp(key, timestamp)
+            except KeyError:
+                pass
 
     def now(self) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
         table = cast(Table, wrapper.table)
         for key in wrapper._keys():
-            yield table._windowed_now(key)
+            try:
+                yield table._windowed_now(key)
+            except KeyError:
+                pass
 
     def current(self, event: EventT = None) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
         table = cast(Table, wrapper.table)
         timestamp = table._relative_event(event or self.event)
         for key in wrapper._keys():
-            yield table._windowed_timestamp(key, timestamp)
+            try:
+                yield table._windowed_timestamp(key, timestamp)
+            except KeyError:
+                pass
 
     def delta(self, d: Seconds, event: EventT = None) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
         table = cast(Table, wrapper.table)
         for key in wrapper._keys():
-            yield table._windowed_delta(key, d, event or self.event)
+            try:
+                yield table._windowed_delta(key, d, event or self.event)
+            except KeyError:
+                pass
 
 
 class WindowSet(WindowSetT, FastUserDict):
@@ -262,13 +286,18 @@ class WindowWrapper(WindowWrapperT):
     accessed, instead :class:`WindowSet` is returned so that
     the values can be further reduced to the wanted time period.
     """
+    key_index: bool = False
     key_index_table: Optional[TableT] = None
 
     def __init__(self, table: TableT, *,
                  relative_to: RelativeArg = None,
-                 key_index: bool = False) -> None:
+                 key_index: bool = False,
+                 key_index_table: TableT = None) -> None:
         self.table = table
-        if key_index:
+        self.key_index = key_index
+        self.key_index_table = key_index_table
+
+        if self.key_index and self.key_index_table is None:
             self.key_index_table = self.table.app.Table(
                 f'{self.table.name}-key_index', value_type=int)
         self._get_relative_timestamp = self._relative_handler(relative_to)
@@ -277,6 +306,8 @@ class WindowWrapper(WindowWrapperT):
         return type(self)(
             table=self.table,
             relative_to=relative_to or self._get_relative_timestamp,
+            key_index=self.key_index,
+            key_index_table=self.key_index_table,
         )
 
     @property
@@ -297,14 +328,14 @@ class WindowWrapper(WindowWrapperT):
 
     def get_timestamp(self, event: EventT = None) -> float:
         event = event or current_event()
-        if event is None:
-            raise TypeError('Operation outside of stream iteration')
         get_relative_timestamp = self.get_relative_timestamp
         if get_relative_timestamp:
             timestamp = get_relative_timestamp(event)
             if isinstance(timestamp, datetime):
                 return timestamp.timestamp()
             return timestamp
+        if event is None:
+            raise RuntimeError('Operation outside of stream iteration')
         return event.message.timestamp
 
     def on_recover(self, fun: RecoverCallback) -> RecoverCallback:
@@ -337,9 +368,6 @@ class WindowWrapper(WindowWrapperT):
         self.on_del_key(key)
         cast(Table, self.table)._del_windowed(key, self.get_timestamp())
 
-    def __iter__(self) -> Iterator:
-        return iter(self.table)
-
     def __len__(self) -> int:
         if self.key_index_table is not None:
             return len(self.key_index_table)
@@ -360,6 +388,9 @@ class WindowWrapper(WindowWrapperT):
             return relative_to
         raise ImproperlyConfigured(
             f'Relative cannot be type {type(relative_to)}')
+
+    def __iter__(self) -> Iterator:
+        return self._keys()
 
     def keys(self) -> KeysView:
         return WindowedKeysView(self)

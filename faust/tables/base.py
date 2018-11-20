@@ -1,9 +1,9 @@
 """Base class Collection for Table and future data structures."""
 import abc
+import time
 from collections import defaultdict
 from datetime import datetime
 from heapq import heappop, heappush
-from time import time
 from typing import (
     Any,
     Callable,
@@ -362,19 +362,20 @@ class Collection(Service, CollectionT):
         # get current timestamp
         event = event if event is not None else current_event()
         if event is None:
-            return time()
+            return time.time()
         return self._partition_latest_timestamp[event.message.partition]
 
     def _relative_event(self, event: EventT = None) -> float:
+        event = event if event is not None else current_event()
         # get event timestamp
         if event is None:
-            raise RuntimeError('Outside of stream iteration')
+            raise RuntimeError('Operation outside of stream iteration')
         return event.message.timestamp
 
     def _relative_field(self, field: FieldDescriptorT) -> RelativeHandler:
         def to_value(event: EventT = None) -> Union[float, datetime]:
             if event is None:
-                raise RuntimeError('Outside of stream iteration')
+                raise RuntimeError('Operation outside of stream iteration')
             return field.getattr(cast(ModelT, event.value))
 
         return to_value
