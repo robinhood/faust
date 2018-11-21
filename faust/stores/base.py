@@ -1,6 +1,7 @@
 """Base class for table storage drivers."""
 import abc
 from collections.abc import ItemsView, KeysView, ValuesView
+from contextlib import suppress
 from typing import (
     Any,
     Callable,
@@ -39,8 +40,8 @@ class Store(StoreT, Service):
                  table_name: str = '',
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
-                 key_serializer: CodecArg = 'json',
-                 value_serializer: CodecArg = 'json',
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.url = URL(url)
@@ -49,8 +50,27 @@ class Store(StoreT, Service):
         self.table_name = table_name
         self.key_type = key_type
         self.value_type = value_type
+
+        # Setting Serializers from key_type and value_type
+        # Possible values json and raw
+        # Fallback to json
         self.key_serializer = key_serializer
         self.value_serializer = value_serializer
+        with suppress(AttributeError):
+            self.key_serializer = key_type._options.serializer  # type: ignore
+        if key_type is bytes:
+            self.key_serializer = 'raw'
+        elif (self.key_serializer is None or
+              self.key_serializer not in ['raw', 'json']):
+            self.key_serializer = 'json'
+        with suppress(AttributeError):
+            self.value_serializer = \
+                value_type._options.serializer  # type: ignore
+        if value_type is bytes:
+            self.value_serializer = 'raw'
+        elif (self.value_serializer is None or
+              self.value_serializer not in ['raw', 'json']):
+            self.value_serializer = 'json'
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         raise NotImplementedError('In-memory store only, does not persist.')
