@@ -1,4 +1,5 @@
 import operator
+import random
 from datetime import datetime
 
 import faust
@@ -7,7 +8,7 @@ from faust.events import Event
 from faust.exceptions import ImproperlyConfigured
 from faust.tables.wrappers import WindowSet
 from faust.types import Message
-from mode.utils.mocks import Mock
+from mode.utils.mocks import Mock, patch
 
 DATETIME = datetime.utcnow()
 DATETIME_TS = DATETIME.timestamp()
@@ -29,8 +30,21 @@ def wtable(*, table):
 
 
 @pytest.fixture
+def iwtable(*, table):
+    return table.hopping(60, 1, 3600.0, key_index=True)
+
+
+@pytest.fixture
 def event():
     return Mock(name='event', autospec=Event)
+
+
+@pytest.yield_fixture()
+def current_event(*, freeze_time):
+    with patch('faust.tables.wrappers.current_event') as current_event:
+        with patch('faust.tables.base.current_event', current_event):
+            current_event.return_value.message.timestamp = freeze_time.time
+            yield current_event
 
 
 class test_WindowSet:
@@ -41,9 +55,9 @@ class test_WindowSet:
 
     def test_constructor(self, *, event, table, wset, wtable):
         assert wset.key == 'k'
-        assert wset.table == table
-        assert wset.wrapper == wtable
-        assert wset.event == event
+        assert wset.table is table
+        assert wset.wrapper is wtable
+        assert wset.event is event
 
     def test_apply(self, *, wset, event):
         Mock(name='event2', autospec=Event)
@@ -268,9 +282,17 @@ class test_WindowWrapper:
             'foo', wtable.get_timestamp(),
         )
 
-    def test_len(self, *, wtable):
-        wtable.table = {1: 'A', 2: 'B'}
-        assert len(wtable) == 2
+    def test_len__no_key_index_raises(self, *, wtable):
+        with pytest.raises(NotImplementedError):
+            len(wtable)
+
+    def test_as_ansitable__raises(self, *, wtable):
+        with pytest.raises(NotImplementedError):
+            wtable.as_ansitable()
+
+    def test_keys_raises(self, *, wtable):
+        with pytest.raises(NotImplementedError):
+            list(wtable._keys())
 
     @pytest.mark.parametrize('input', [
         datetime.now(),
@@ -285,3 +307,166 @@ class test_WindowWrapper:
     def test_relative_handler__invalid_handler(self, *, wtable):
         with pytest.raises(ImproperlyConfigured):
             wtable._relative_handler(object())
+
+
+class test_WindowWrapper_using_key_index:
+    TABLE_DATA = {
+        'foobar': 'AUNIQSTR',
+        'xuzzy': 'BUNIQSTR',
+    }
+
+    TABLE_DATA_DELTA = {
+        'foobar': 'AUNIQSTRdelta1',
+        'xuzzy': 'BUNIQSTRdelta1',
+    }
+
+    @pytest.fixture
+    def wset(self, *, iwtable, event):
+        return WindowSet('k', iwtable.table, iwtable, event)
+
+    @pytest.fixture()
+    def data(self, *, freeze_time, iwtable):
+        iwtable.key_index_table = {k: 1 for k in self.TABLE_DATA}
+        iwtable.table._data = {}
+        for w in iwtable.table._window_ranges(freeze_time.time):
+            iwtable.table._data.update({
+                (k, w): v
+                for k, v in self.TABLE_DATA.items()
+            })
+        return iwtable.table._data
+
+    @pytest.fixture()
+    def data_with_30s_delta(self, *, freeze_time, iwtable, data):
+        window = iwtable.table.window
+        for key, value in self.TABLE_DATA.items():
+            data[(key, window.delta(freeze_time.time, 30))] = value + 'delta1'
+
+    @pytest.fixture()
+    def remove_a_key(self, *, iwtable, data):
+        remove_key = random.choice(list(self.TABLE_DATA))
+        items_leftover = {
+            k: v for
+            k, v in self.TABLE_DATA.items()
+            if k != remove_key
+        }
+        iwtable.table._data = {
+            k: v
+            for k, v in iwtable.table._data.items()
+            if k[0] != remove_key
+        }
+        return items_leftover
+
+    def test_len(self, *, iwtable):
+        iwtable.key_index_table = {1: 'A', 2: 'B'}
+        assert len(iwtable) == 2
+
+    def test_as_ansitable(self, *, iwtable, data):
+        table = iwtable.relative_to_now().as_ansitable()
+        assert table
+        assert 'foobar' in table
+        assert 'AUNIQSTR' in table
+
+    def test_items(self, *, iwtable, data):
+        assert sorted(list(iwtable.relative_to_now().items())) == sorted(
+            list(self.TABLE_DATA.items()))
+
+    def test_items_keys_in_index_not_in_table(self, *, iwtable, remove_a_key):
+        assert sorted(list(iwtable.relative_to_now().items())) == sorted(
+            list(remove_a_key.items()))
+
+    def test_items_now(self, *, iwtable, data):
+        assert sorted(list(iwtable.items().now())) == sorted(
+            list(self.TABLE_DATA.items()))
+
+    def test_items_now_keys_in_index_not_in_table(
+            self, *, iwtable, remove_a_key):
+        assert sorted(list(iwtable.items().now())) == sorted(
+            list(remove_a_key.items()))
+
+    def test_items_current(self, *, iwtable, data, current_event):
+        assert sorted(list(iwtable.items().current())) == sorted(
+            list(self.TABLE_DATA.items()))
+
+    def test_items_current_keys_in_index_not_in_table(
+            self, *, iwtable, remove_a_key, current_event):
+        assert sorted(list(iwtable.items().current())) == sorted(
+            list(remove_a_key.items()))
+
+    def test_items_delta(self, *, iwtable, data_with_30s_delta, current_event):
+        assert sorted(list(iwtable.items().delta(30))) == sorted(
+            list(self.TABLE_DATA_DELTA.items()))
+
+    def test_items_delta_key_not_in_table(
+            self, *, iwtable,
+            data_with_30s_delta, remove_a_key, current_event):
+        expected = {
+            k: v for k, v in self.TABLE_DATA_DELTA.items()
+            if k in remove_a_key
+        }
+        assert sorted(list(iwtable.items().delta(30))) == sorted(
+            list(expected.items()))
+
+    def test_keys(self, *, iwtable, data):
+        assert sorted(list(iwtable.relative_to_now().keys())) == sorted(
+            list(self.TABLE_DATA))
+
+    def test_iter(self, *, iwtable, data):
+        assert sorted(list(iwtable.relative_to_now())) == sorted(
+            list(self.TABLE_DATA))
+
+    def test_values(self, *, iwtable, data):
+        assert sorted(list(iwtable.relative_to_now().values())) == sorted(
+            list(self.TABLE_DATA.values()))
+
+    def test_values_keys_in_index_not_in_table(self, *, iwtable, remove_a_key):
+        assert sorted(list(iwtable.relative_to_now().values())) == sorted(
+            list(remove_a_key.values()))
+
+    def test_values_now(self, *, iwtable, data):
+        assert sorted(list(iwtable.values().now())) == sorted(
+            list(self.TABLE_DATA.values()))
+
+    def test_values_now_keys_in_index_not_in_table(
+            self, *, iwtable, remove_a_key):
+        assert sorted(list(iwtable.values().now())) == sorted(
+            list(remove_a_key.values()))
+
+    def test_values_current(self, *, iwtable, data, current_event):
+        assert sorted(list(iwtable.values().current())) == sorted(
+            list(self.TABLE_DATA.values()))
+
+    def test_values_current_keys_in_index_not_in_table(
+            self, *, iwtable, remove_a_key, current_event):
+        assert sorted(list(iwtable.values().current())) == sorted(
+            list(remove_a_key.values()))
+
+    def test_values_delta(
+            self, *, iwtable, data_with_30s_delta, current_event):
+        assert sorted(list(iwtable.values().delta(30))) == sorted(
+            list(self.TABLE_DATA_DELTA.values()))
+
+    def test_values_delta_key_not_in_table(
+            self, *, iwtable,
+            data_with_30s_delta, remove_a_key, current_event):
+        expected = {
+            k: v for k, v in self.TABLE_DATA_DELTA.items()
+            if k in remove_a_key
+        }
+        assert sorted(list(iwtable.values().delta(30))) == sorted(
+            list(expected.values()))
+
+    def test_setitem(self, *, wset):
+        wset.table = {}
+        wset.wrapper.key_index_table = {}
+        wset[30.3] = 'val'
+        assert wset.table[(wset.key, 30.3)] == 'val'
+        assert wset.key in wset.wrapper.key_index_table
+        wset[30.3] = 'val2'
+        assert wset.table[(wset.key, 30.3)] == 'val2'
+
+    def test_delitem(self, *, wset):
+        wset.table = {(wset.key, 30.3): 'val'}
+        wset.wrapper.key_index_table = {wset.key: 1}
+        del(wset[30.3])
+        assert not wset.table
+        assert not wset.wrapper.key_index_table

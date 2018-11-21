@@ -83,8 +83,8 @@ from faust.types.web import (
     PageArg,
     Request,
     Response,
-    RoutedViewGetHandler,
-    ViewGetHandler,
+    ViewDecorator,
+    ViewHandlerFun,
     Web,
 )
 from faust.types.windows import WindowT
@@ -912,7 +912,7 @@ class App(AppT, Service):
                     raise TypeError(
                         'When decorating class, it must be subclass of View')
             if view is None:
-                view = view_base.from_handler(cast(ViewGetHandler, fun))
+                view = view_base.from_handler(cast(ViewHandlerFun, fun))
             view.view_name = name or view.__name__
             view.view_path = path
             self.web.add_view(view)
@@ -925,8 +925,8 @@ class App(AppT, Service):
                     shard_param: str = None,
                     *,
                     query_param: str = None,
-                    match_info: str = None) -> RoutedViewGetHandler:
-        def _decorator(fun: ViewGetHandler) -> ViewGetHandler:
+                    match_info: str = None) -> ViewDecorator:
+        def _decorator(fun: ViewHandlerFun) -> ViewHandlerFun:
             if shard_param is not None:
                 warnings.warn(DeprecationWarning(W_DEPRECATED_SHARD_PARAM))
                 if query_param:

@@ -1,4 +1,5 @@
 """Class-based views."""
+from functools import wraps
 from typing import (
     Any,
     Awaitable,
@@ -10,14 +11,14 @@ from typing import (
     no_type_check,
 )
 
-from faust.types import AppT
-from faust.types.web import ViewGetHandler
+from faust.types import AppT, ModelT
+from faust.types.web import ViewDecorator, ViewHandlerFun
 
 from . import exceptions
 from .base import Request, Response, Web
 from .exceptions import WebError
 
-__all__ = ['View']
+__all__ = ['View', 'gives_model', 'takes_model']
 
 _bytes = bytes   # need alias for method named `bytes`
 
@@ -37,7 +38,7 @@ class View:
     methods: Mapping[str, Callable[[Request], Awaitable]]
 
     @classmethod
-    def from_handler(cls, fun: ViewGetHandler) -> Type['View']:
+    def from_handler(cls, fun: ViewHandlerFun) -> Type['View']:
         if not callable(fun):
             raise TypeError(f'View handler must be callable, not {fun!r}')
         return type(fun.__name__, (cls,), {
@@ -124,6 +125,9 @@ class View:
               status: int = 200) -> Response:
         return self.web.bytes(value, content_type=content_type, status=status)
 
+    async def read_request_content(self, request: Request) -> _bytes:
+        return await self.web.read_request_content(request)
+
     def bytes_to_response(self, s: _bytes) -> Response:
         return self.web.bytes_to_response(s)
 
@@ -140,3 +144,27 @@ class View:
 
     def error(self, status: int, reason: str, **kwargs: Any) -> Response:
         return self.json({'error': reason, **kwargs}, status=status)
+
+
+def takes_model(Model: Type[ModelT]) -> ViewDecorator:
+    def _decorate_view(fun: ViewHandlerFun) -> ViewHandlerFun:
+        @wraps(fun)
+        async def _inner(view: View, request: Request,
+                         *args: Any, **kwargs: Any) -> Response:
+            data: bytes = await view.read_request_content(request)
+            obj: ModelT = Model.loads(data)
+            return await fun(view, request, obj, *args, **kwargs)
+        return _inner
+    return _decorate_view
+
+
+def gives_model(Model: Type[ModelT]) -> ViewDecorator:
+    def _decorate_view(fun: ViewHandlerFun) -> ViewHandlerFun:
+        @wraps(fun)
+        async def _inner(view: View, request: Request,
+                         *args: Any, **kwargs: Any) -> Response:
+            response: Any
+            response = await fun(view, request, *args, **kwargs)
+            return view.json(response)
+        return _inner
+    return _decorate_view

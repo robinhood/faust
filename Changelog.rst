@@ -8,6 +8,33 @@ This document contain change notes for bugfix releases in
 the Faust 1.3 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.3.2:
+
+1.3.2
+=====
+:release-date: 2018-11-19 1:11 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 2.0.4 <mode:version-2.0.4>`.
+
+- Fixed crash in ``perform_seek`` when worker was not assigned any partitions.
+
+- Fixed missing ``await`` in ``Consumer.wait_empty``.
+
+- Fixed hang after rebalance when not using tables.
+
+.. _version-1.3.1:
+
+1.3.1
+=====
+:release-date: 2018-11-15 4:12 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Tables**: Fixed problem with table recovery hanging on
+  changelog topics having only a single entry.
+
 .. _version-1.3.0:
 
 1.3.0

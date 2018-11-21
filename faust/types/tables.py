@@ -5,13 +5,18 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    ItemsView,
     Iterable,
+    Iterator,
+    KeysView,
     Mapping,
     MutableMapping,
     Optional,
     Set,
+    Tuple,
     TypeVar,
     Union,
+    ValuesView,
 )
 
 from mode import Seconds, ServiceT
@@ -39,6 +44,8 @@ __all__ = [
     'TableT',
     'TableManagerT',
     'WindowSetT',
+    'WindowedItemsViewT',
+    'WindowedValuesViewT',
     'WindowWrapperT',
     'ChangelogEventCallback',
     'CollectionTps',
@@ -146,27 +153,24 @@ class CollectionT(ServiceT, JoinableT):
 class TableT(CollectionT, ManagedUserDict[KT, VT]):
 
     @abc.abstractmethod
-    def using_window(self, window: WindowT) -> 'WindowWrapperT':
+    def using_window(self, window: WindowT, *,
+                     key_index: bool = False) -> 'WindowWrapperT':
         ...
 
     @abc.abstractmethod
     def hopping(self, size: Seconds, step: Seconds,
-                expires: Seconds = None) -> 'WindowWrapperT':
+                expires: Seconds = None,
+                key_index: bool = False) -> 'WindowWrapperT':
         ...
 
     @abc.abstractmethod
     def tumbling(self, size: Seconds,
-                 expires: Seconds = None) -> 'WindowWrapperT':
+                 expires: Seconds = None,
+                 key_index: bool = False) -> 'WindowWrapperT':
         ...
 
     @abc.abstractmethod
-    def as_ansitable(self,
-                     *,
-                     key: str = 'Key',
-                     value: str = 'Value',
-                     sort: bool = False,
-                     sortkey: Callable[[Any], Any] = lambda x: x,
-                     title: str = 'Title') -> str:
+    def as_ansitable(self, **kwargs: Any) -> str:
         ...
 
 
@@ -279,6 +283,58 @@ class WindowSetT(FastUserDict[KT, VT]):
         ...
 
 
+class WindowedItemsViewT(ItemsView):
+
+    @abc.abstractmethod
+    def __init__(self,
+                 mapping: 'WindowWrapperT',
+                 event: EventT = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def __iter__(self) -> Iterator[Tuple[Any, Any]]:
+        ...
+
+    @abc.abstractmethod
+    def now(self) -> Iterator[Tuple[Any, Any]]:
+        ...
+
+    @abc.abstractmethod
+    def current(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
+        ...
+
+    @abc.abstractmethod
+    def delta(self,
+              d: Seconds,
+              event: EventT = None) -> Iterator[Tuple[Any, Any]]:
+        ...
+
+
+class WindowedValuesViewT(ValuesView):
+
+    @abc.abstractmethod
+    def __init__(self,
+                 mapping: 'WindowWrapperT',
+                 event: EventT = None) -> None:
+        ...
+
+    @abc.abstractmethod
+    def __iter__(self) -> Iterator[Any]:
+        ...
+
+    @abc.abstractmethod
+    def now(self) -> Iterator[Any]:
+        ...
+
+    @abc.abstractmethod
+    def current(self, event: EventT = None) -> Iterator[Any]:
+        ...
+
+    @abc.abstractmethod
+    def delta(self, d: Seconds, event: EventT = None) -> Iterator[Any]:
+        ...
+
+
 class WindowWrapperT(MutableMapping):
     table: TableT
 
@@ -314,6 +370,14 @@ class WindowWrapperT(MutableMapping):
 
     @abc.abstractmethod
     def __getitem__(self, key: Any) -> WindowSetT:
+        ...
+
+    @abc.abstractmethod
+    def keys(self) -> KeysView:
+        ...
+
+    @abc.abstractmethod
+    def as_ansitable(self, **kwargs: Any) -> str:
         ...
 
     @property

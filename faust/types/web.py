@@ -5,6 +5,7 @@ from typing import Any, Awaitable, Callable, Optional, Type, Union
 
 from aiohttp.client import ClientSession as HttpClientT
 from mode import Seconds, ServiceT
+from mypy_extensions import Arg, KwArg, VarArg
 from yarl import URL
 
 if typing.TYPE_CHECKING:
@@ -22,8 +23,9 @@ __all__ = [
     'Request',
     'Response',
     'View',
-    'ViewGetHandler',
-    'RoutedViewGetHandler',
+    'ViewHandlerMethod',
+    'ViewHandlerFun',
+    'ViewDecorator',
     'PageArg',
     'HttpClientT',
     'Web',
@@ -32,9 +34,24 @@ __all__ = [
     'BlueprintT',
 ]
 
-ViewGetHandler = Callable[..., Awaitable[Response]]
-RoutedViewGetHandler = Callable[[ViewGetHandler], ViewGetHandler]
-PageArg = Union[Type[View], ViewGetHandler]
+#: View method:
+#:   `async def x(self, request: Request, *args, **kwargs) -> Response:`
+ViewHandlerMethod = Callable[
+    [Arg(Request), VarArg(Any), KwArg(Any)],
+    Awaitable[Response],
+]
+
+#: View method:
+#:   `async def x(view: View, request: Request, *args, **kwargs) -> Response:`
+ViewHandlerFun = Callable[
+    [Arg(View), Arg(Request), VarArg(Any), KwArg(Any)],
+    Awaitable[Response],
+]
+
+ViewGetHandler = ViewHandlerFun  # XXX compat
+ViewDecorator = Callable[[ViewHandlerFun], ViewHandlerFun]
+RoutedViewGetHandler = ViewDecorator  # XXX compat
+PageArg = Union[Type[View], ViewHandlerFun]
 RouteDecoratorRet = Callable[[PageArg], PageArg]
 
 

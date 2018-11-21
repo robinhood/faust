@@ -1,16 +1,13 @@
 """Table (key/value changelog stream)."""
-import sys
-from operator import itemgetter
-from typing import Any, Callable, ClassVar, IO, Iterable, List, Type, cast
+from typing import Any, ClassVar, Type
 
 from mode import Seconds
-from mode.utils import text
 
 from faust import windows
 from faust.streams import current_event
 from faust.types.tables import KT, TableT, VT, WindowWrapperT
 from faust.types.windows import WindowT
-from faust.utils import terminal
+from faust.utils.terminal.tables import dict_as_ansitable
 
 from . import wrappers
 from .base import Collection
@@ -22,20 +19,29 @@ class Table(TableT[KT, VT], Collection):
     """Table (non-windowed)."""
     WindowWrapper: ClassVar[Type[WindowWrapperT]] = wrappers.WindowWrapper
 
-    def using_window(self, window: WindowT) -> WindowWrapperT:
+    def using_window(self, window: WindowT, *,
+                     key_index: bool = False) -> WindowWrapperT:
         self.window = window
         self._changelog_compacting = True
         self._changelog_deleting = True
         self._changelog_topic = None  # will reset on next property access
-        return self.WindowWrapper(self)
+        return self.WindowWrapper(self, key_index=key_index)
 
     def hopping(self, size: Seconds, step: Seconds,
-                expires: Seconds = None) -> WindowWrapperT:
-        return self.using_window(windows.HoppingWindow(size, step, expires))
+                expires: Seconds = None,
+                key_index: bool = False) -> WindowWrapperT:
+        return self.using_window(
+            windows.HoppingWindow(size, step, expires),
+            key_index=key_index,
+        )
 
     def tumbling(self, size: Seconds,
-                 expires: Seconds = None) -> WindowWrapperT:
-        return self.using_window(windows.TumblingWindow(size, expires))
+                 expires: Seconds = None,
+                 key_index: bool = False) -> WindowWrapperT:
+        return self.using_window(
+            windows.TumblingWindow(size, expires),
+            key_index=key_index,
+        )
 
     def __missing__(self, key: KT) -> VT:
         if self.default is not None:
@@ -79,20 +85,9 @@ class Table(TableT[KT, VT], Collection):
             raise TypeError(
                 'Deleting table key from outside of stream iteration')
 
-    def as_ansitable(self,
-                     *,
-                     key: str = 'Key',
-                     value: str = 'Value',
-                     sort: bool = False,
-                     sortkey: Callable[[Any], Any] = itemgetter(0),
-                     target: IO = sys.stdout,
-                     title: str = '{table.name}') -> str:
-        header = [text.title(key), text.title(value)]
-        data = cast(Iterable[List[str]], dict(self).items())
-        data = list(sorted(data, key=sortkey)) if sort else list(data)
-        if sort:
-            data = list(sorted(data, key=sortkey))
-        return terminal.table(
-            [header] + list(data),
-            title=text.title(title.format(table=self)),
-        ).table
+    def as_ansitable(self, title: str = '{table.name}',
+                     **kwargs: Any) -> str:
+        return dict_as_ansitable(
+            self,
+            title=title.format(table=self),
+            **kwargs)

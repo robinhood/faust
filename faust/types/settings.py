@@ -265,7 +265,7 @@ class Settings(abc.ABC):
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
-    loghandlers: List[logging.StreamHandler]
+    loghandlers: List[logging.Handler]
     producer_linger_ms: int = PRODUCER_LINGER_MS
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
@@ -367,7 +367,7 @@ class Settings(abc.ABC):
             tabledir: Union[Path, str] = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
-            loghandlers: List[logging.StreamHandler] = None,
+            loghandlers: List[logging.Handler] = None,
             table_cleanup_interval: Seconds = None,
             table_standby_replicas: int = None,
             topic_replication_factor: int = None,

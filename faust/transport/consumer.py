@@ -300,7 +300,7 @@ class Consumer(Service, ConsumerT):
             self._waiting_for_ack = asyncio.Future(loop=self.loop)
             try:
                 # wait for `ack()` to wake us up
-                asyncio.wait_for(
+                await asyncio.wait_for(
                     self._waiting_for_ack, loop=self.loop, timeout=1)
             except (asyncio.TimeoutError,
                     asyncio.CancelledError):  # pragma: no cover

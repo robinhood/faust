@@ -397,58 +397,61 @@ You can override this default behavior when accessing data in the table:
 Iterating over keys/values/items in a windowed table.
 -----------------------------------------------------
 
-Some users may want to dump the contents of a windowed table.
-This is problematic due to how keys in windowed tables are stored,
-the underlying storage will actually store multiple values for the same
-key, depending on how many window ranges the key falls into.
+.. note::
 
-If storing word counts in hourly windows, the underlying storage will have
-"windowed keys" which are tuples of ``(key, window_range)``. This means
-lookups for key in any given window is fast, but makes iterating
-over keys problematic.
+    Tables are distributed across workers, so when iterating over table
+    contents you will only see the partitions assigned to the current worker.
 
-If you want to dump out the contents of a windowed table, say the current
-count for every key, then the solution is to keep a second table
-to use as the source for keys in the windowed table:
+    Iterating over all the keys in a table will require you to visit
+    all workers, which is highly impractical in a production system.
 
-.. sourcecode:: python
+    For this reason table iteration is mostly used in debugging
+    and observing your system.
 
-    import faust
+To iterate over the keys/items/values in windowed table you may
+add the ``key_index`` option to enable support for it:
 
-    class Withdrawal(faust.Record, isodates=True, serializer='json'):
-        user: str
-        country: str
-        amount: float
-        date: datetime = None
+.. code-block:: python
 
-    app = faust.App(
-        'faust-withdrawals',
-        broker='kafka://127.0.0.1:9092',
-        store='rocksdb://',
-        origin='examples.withdrawals',
-        topic_partitions=4,
-    )
-    withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
+    windowed_table = app.Table(
+        'name',
+        default=int,
+    ).hopping(10, 5, expires=timedelta(minutes=10), key_index=True)
 
-    # Windowed table: cannot iterate over keys/items/values.
-    country_to_total = app.Table(
-        'country_to_total', default=int,
-    ).tumbling(10.0, expires=10.0).relative_to_stream()
+Adding the key index means we keep a second table as an index of the
+keys present in the table. Whenever a new key is added we add the key to
+the key index, similarly whenever a key is deleted we also delete it from the
+index.
 
-    # Index table: used as source of keys for iteration.
-    country_index = app.Table('country_index')
+This enables fast iteration over the keys, items and values in the windowed
+table, with the caveat that those keys may not exist in all windows.
 
-    @app.agent()
-    async def track_country_withdrawal(withdrawals):
-        async for withdrawal in withdrawals.group_by(Withdrawal.country):
-            country_to_total[withdrawal.country] += withdrawal.amount
-            country_index[withdrawal.country] = 1
+The table iterator views (``.keys()``/``.items()``/``.values()``)
+will be time-relative to the stream by default, unless you have changed
+the time-relativity using the ``.relative_to_now`` or
+``relative_to_timestamp`` modifiers:
 
-    @app.timer(2.0)
-    async def _dump_withdrawals_by_country():
-        for key in country_index.keys():
-            current_windowed_value = country_to_total[key].now()
-            print(f'WITHDRAWALS IN {country}: {current_windowed_value}')
+.. code-block:: python
+
+    # Show keys present relative to time of current event in stream:
+    print(list(windowed_table.keys()))
+
+    # Show items present relative to time of current event in stream:
+    print(list(windowed_table.items()))
+
+    # Show values present relative to time of current event in stream:
+    print(list(windowed_table.values()))
+
+You can also manually specify the time-relativity:
+
+.. code-block:: python
+
+    # Change time-relativity to current wall-clock time,
+    # and show a list of items present in that window.
+    print(list(windowed_table.relative_to_now().items()))
+
+    # Get items present 30 seconds ago:
+    print(list(windowed_table.relative_to_now().items().delta(30.0)))
 
 "Out of Order" Events
 ---------------------
