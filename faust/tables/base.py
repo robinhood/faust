@@ -226,8 +226,12 @@ class Collection(Service, CollectionT):
             key,
             value,
             partition=event.message.partition,
-            key_serializer=key_serializer,
-            value_serializer=value_serializer,
+            key_serializer=(self.key_serializer
+                            if key_serializer is None
+                            else key_serializer),
+            value_serializer=(self.value_serializer
+                              if value_serializer is None
+                              else value_serializer),
             callback=self._on_changelog_sent,
         )
 
