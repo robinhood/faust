@@ -35,14 +35,14 @@ __all__ = [
 ]
 
 #: View method:
-#:   `async def x(self, request: Request, *args, **kwargs) -> Response:`
+#: ``async def x(self, request: Request, *args, **kwargs) -> Response:``
 ViewHandlerMethod = Callable[
     [Arg(Request), VarArg(Any), KwArg(Any)],
     Awaitable[Response],
 ]
 
 #: View method:
-#:   `async def x(view: View, request: Request, *args, **kwargs) -> Response:`
+#: ``async def x(view: View, request: Request, *args, **kwargs) -> Response:``
 ViewHandlerFun = Callable[
     [Arg(View), Arg(Request), VarArg(Any), KwArg(Any)],
     Awaitable[Response],
