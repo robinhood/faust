@@ -39,8 +39,8 @@ class Store(StoreT, Service):
                  table_name: str = '',
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
-                 key_serializer: CodecArg = 'json',
-                 value_serializer: CodecArg = 'json',
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.url = URL(url)
@@ -49,8 +49,6 @@ class Store(StoreT, Service):
         self.table_name = table_name
         self.key_type = key_type
         self.value_type = value_type
-        self.key_serializer = key_serializer
-        self.value_serializer = value_serializer
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         raise NotImplementedError('In-memory store only, does not persist.')

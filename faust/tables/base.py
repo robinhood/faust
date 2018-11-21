@@ -1,6 +1,7 @@
 """Base class Collection for Table and future data structures."""
 import abc
 import time
+from contextlib import suppress
 from collections import defaultdict
 from datetime import datetime
 from heapq import heappop, heappush
@@ -118,6 +119,12 @@ class Collection(Service, CollectionT):
         self.standby_buffer_size = standby_buffer_size or recovery_buffer_size
         assert self.recovery_buffer_size > 0 and self.standby_buffer_size > 0
 
+        # Setting Serializers from key_type and value_type
+        # Possible values json and raw
+        # Fallback to json
+        self.key_serializer = self._serializer_from_type(self.key_type)
+        self.value_serializer = self._serializer_from_type(self.value_type)
+
         # Table key expiration
         self._partition_timestamp_keys = defaultdict(set)
         self._partition_timestamps = defaultdict(list)
@@ -132,6 +139,15 @@ class Collection(Service, CollectionT):
         self._sensor_on_set = self.app.sensors.on_table_set
         self._sensor_on_del = self.app.sensors.on_table_del
 
+    def _serializer_from_type(
+            self, typ: Optional[ModelArg]) -> Optional[CodecArg]:
+        if typ is bytes:
+            return 'raw'
+        serializer = None
+        with suppress(AttributeError):
+            serializer = typ._options.serializer  # type: ignore
+        return serializer or 'json'
+
     def __hash__(self) -> int:
         # We have to override MutableMapping __hash__, so that this table
         # can be registered in the app.tables mapping.
@@ -144,6 +160,8 @@ class Collection(Service, CollectionT):
             url, app, self,
             table_name=self.name,
             key_type=self.key_type,
+            key_serializer=self.key_serializer,
+            value_serializer=self.value_serializer,
             value_type=self.value_type,
             loop=self.loop,
         ))
@@ -195,10 +213,14 @@ class Collection(Service, CollectionT):
                         event: Optional[EventT],
                         key: Any,
                         value: Any,
-                        key_serializer: CodecArg = 'json',
-                        value_serializer: CodecArg = 'json') -> None:
+                        key_serializer: CodecArg = None,
+                        value_serializer: CodecArg = None) -> None:
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
+        if key_serializer is None:
+            key_serializer = self.key_serializer
+        if value_serializer is None:
+            value_serializer = self.value_serializer
         cast(Event, event)._attach(
             self.changelog_topic,
             key,
@@ -317,8 +339,8 @@ class Collection(Service, CollectionT):
             self._changelog_topic_name(),
             key_type=self.key_type,
             value_type=self.value_type,
-            key_serializer='json',
-            value_serializer='json',
+            key_serializer=self.key_serializer,
+            value_serializer=self.value_serializer,
             partitions=self.partitions,
             retention=retention,
             compacting=compacting,
