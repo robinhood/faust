@@ -164,6 +164,12 @@ BROKER_HEARTBEAT_INTERVAL = 3.0
 #: not advanced.
 BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
 
+#: The maximum number of records returned in a single call to poll().
+#: If you find that your application needs more time to process messages
+#: you may want to adjust max_poll_records to tune the number of records
+#: that must be handled on every loop iteration.
+BROKER_MAX_POLL_RECORDS = None
+
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
 TABLE_CLEANUP_INTERVAL = 30.0
@@ -250,6 +256,7 @@ class Settings(abc.ABC):
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
+    broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
     id_format: str = '{id}-v{self.version}'
     key_serializer: CodecArg = 'raw'
     value_serializer: CodecArg = 'json'
@@ -294,6 +301,7 @@ class Settings(abc.ABC):
     _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
+    _broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
     _producer_partitioner: Optional[PartitionerT] = None
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
@@ -354,6 +362,7 @@ class Settings(abc.ABC):
             broker_session_timeout: Seconds = None,
             broker_heartbeat_interval: Seconds = None,
             broker_check_crcs: bool = None,
+            broker_max_poll_records: int = None,
             agent_supervisor: SymbolArg[Type[SupervisorStrategyT]] = None,
             store: Union[str, URL] = None,
             cache: Union[str, URL] = None,
@@ -448,6 +457,7 @@ class Settings(abc.ABC):
             self.broker_commit_every = broker_commit_every
         if broker_check_crcs is not None:
             self.broker_check_crcs = broker_check_crcs
+        self.broker_max_poll_records = broker_max_poll_records
         if key_serializer is not None:
             self.key_serializer = key_serializer
         if value_serializer is not None:
@@ -685,6 +695,14 @@ class Settings(abc.ABC):
     @broker_commit_livelock_soft_timeout.setter
     def broker_commit_livelock_soft_timeout(self, value: Seconds) -> None:
         self._broker_commit_livelock_soft_timeout = want_seconds(value)
+
+    @property
+    def broker_max_poll_records(self) -> int:
+        return self._broker_max_poll_records
+
+    @broker_max_poll_records.setter
+    def broker_max_poll_records(self, value: int) -> None:
+        self._broker_max_poll_records = value
 
     @property
     def producer_partitioner(self) -> Optional[PartitionerT]:

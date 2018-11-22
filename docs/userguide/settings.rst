@@ -1284,3 +1284,15 @@ Example using a class::
 Example using the string path to a class::
 
     app = faust.App(..., Monitor='myproj.monitors.Monitor')
+
+.. setting:: broker_max_poll_records
+``broker_max_poll_records``
+-----------------------
+
+:type: :class:`int`
+:default: ``None``
+
+The maximum number of records returned in a single call to poll().
+If you find that your application needs more time to process messages
+you may want to adjust broker_max_poll_records to tune the number of records
+that must be handled on every loop iteration.
