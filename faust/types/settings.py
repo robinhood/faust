@@ -146,6 +146,9 @@ MONITOR_TYPE = 'faust.sensors:Monitor'
 #: Default Kafka Client ID.
 BROKER_CLIENT_ID = f'faust-{faust_version}'
 
+#: Kafka consumer request timeout (``request_timeout_ms``).
+BROKER_REQUEST_TIMEOUT = 40.0
+
 #: How often we commit acknowledged messages: every n messages.
 #: Used as the default value for :setting:`broker_commit_every`.
 BROKER_COMMIT_EVERY = 10_000
@@ -290,6 +293,7 @@ class Settings(abc.ABC):
     _datadir: Path
     _tabledir: Path
     _agent_supervisor: Type[SupervisorStrategyT]
+    _broker_request_timeout: float = BROKER_REQUEST_TIMEOUT
     _broker_session_timeout: float = BROKER_SESSION_TIMEOUT
     _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
@@ -348,6 +352,7 @@ class Settings(abc.ABC):
             version: int = None,
             broker: Union[str, URL] = None,
             broker_client_id: str = None,
+            broker_request_timeout: Seconds = None,
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
@@ -431,6 +436,8 @@ class Settings(abc.ABC):
         # datadir is a format string that can contain e.g. {conf.id}
         self.datadir = datadir or DATADIR
         self.tabledir = tabledir or TABLEDIR
+        if broker_request_timeout is not None:
+            self.broker_request_timeout = want_seconds(broker_request_timeout)
         self.broker_commit_interval = (
             broker_commit_interval or self._broker_commit_interval)
         self.broker_commit_livelock_soft_timeout = (
@@ -653,6 +660,14 @@ class Settings(abc.ABC):
     @tabledir.setter
     def tabledir(self, tabledir: Union[Path, str]) -> None:
         self._tabledir = self._prepare_tabledir(tabledir)
+
+    @property
+    def broker_request_timeout(self) -> float:
+        return self._broker_request_timeout
+
+    @broker_request_timeout.setter
+    def broker_request_timeout(self, value: Seconds) -> None:
+        self._broker_request_timeout = want_seconds(value)
 
     @property
     def broker_session_timeout(self) -> float:

@@ -235,6 +235,7 @@ class Consumer(base.Consumer):
             max_poll_records=None,
             max_partition_fetch_bytes=1048576 * 4,
             fetch_max_wait_ms=1500,
+            request_timeout_ms=int(conf.broker_request_timeout * 1000.0),
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
@@ -251,6 +252,7 @@ class Consumer(base.Consumer):
             client_id=app.conf.broker_client_id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
+            request_timeout_ms=int(app.conf.broker_request_timeout * 1000.0),
             enable_auto_commit=True,
             auto_offset_reset='earliest',
             check_crcs=app.conf.broker_check_crcs,
