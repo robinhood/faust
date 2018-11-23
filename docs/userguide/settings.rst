@@ -1287,7 +1287,7 @@ Example using the string path to a class::
 
 .. setting:: broker_max_poll_records
 ``broker_max_poll_records``
------------------------
+---------------------------
 
 :type: :class:`int`
 :default: ``None``

@@ -168,7 +168,7 @@ BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
 #: If you find that your application needs more time to process messages
 #: you may want to adjust max_poll_records to tune the number of records
 #: that must be handled on every loop iteration.
-BROKER_MAX_POLL_RECORDS = None
+BROKER_MAX_POLL_RECORDS = 500
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
@@ -457,7 +457,8 @@ class Settings(abc.ABC):
             self.broker_commit_every = broker_commit_every
         if broker_check_crcs is not None:
             self.broker_check_crcs = broker_check_crcs
-        self.broker_max_poll_records = broker_max_poll_records
+        if broker_max_poll_records is not None:
+            self.broker_max_poll_records = broker_max_poll_records
         if key_serializer is not None:
             self.key_serializer = key_serializer
         if value_serializer is not None:
