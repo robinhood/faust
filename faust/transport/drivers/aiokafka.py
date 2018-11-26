@@ -233,7 +233,7 @@ class Consumer(base.Consumer):
             enable_auto_commit=False,
             auto_offset_reset='earliest',
             max_poll_records=None,
-            max_partition_fetch_bytes=1048576 * 4,
+            max_partition_fetch_bytes=conf.consumer_max_fetch_size,
             fetch_max_wait_ms=1500,
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),

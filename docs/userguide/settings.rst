@@ -485,6 +485,22 @@ Increase this if you experience the cluster being in a state of constantly
 rebalancing, but make sure you also increase the
 :setting:`broker_heartbeat_interval` at the same time.
 
+.. _settings-consumer:
+
+Advanced Consumer Settings
+==========================
+
+.. setting:: consumer_max_fetch_size
+
+``consumer_max_fetch_size``
+---------------------------
+
+:type: :class:`int`
+:default: ``4*1024**2``
+
+The maximum amount of data per-partition the server will return. This size
+must be at least as large as the maximum message size.
+
 .. _settings-producer:
 
 Advanced Producer Settings
@@ -603,6 +619,7 @@ and can be used as a template for your own partitioner:
         index &= 0x7fffffff
         index %= len(all_partitions)
         return all_partitions[index]
+
 
 .. _settings-table:
 

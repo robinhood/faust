@@ -192,6 +192,10 @@ STREAM_RECOVERY_DELAY = 10.0
 #: is added in a later version.
 STREAM_PUBLISH_ON_COMMIT = False
 
+#: Maximum size of a request in bytes in the consumer.
+#: Used as the default value for :setting:`max_fetch_size`.
+CONSUMER_MAX_FETCH_SIZE = 4 * 1024 ** 2
+
 #: Minimum time to batch before sending out messages from the producer.
 #: Used as the default value for :setting:`linger_ms`.
 PRODUCER_LINGER_MS = 0
@@ -270,6 +274,7 @@ class Settings(abc.ABC):
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
+    consumer_max_fetch_size: int = CONSUMER_MAX_FETCH_SIZE
     producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
     web_enabled: bool
     web_bind: str = WEB_BIND
@@ -389,6 +394,7 @@ class Settings(abc.ABC):
             producer_max_request_size: int = None,
             producer_compression_type: str = None,
             producer_partitioner: SymbolArg[PartitionerT] = None,
+            consumer_max_fetch_size: int = None,
             web_bind: str = None,
             web_port: int = None,
             web_host: str = None,
@@ -485,6 +491,8 @@ class Settings(abc.ABC):
             self.producer_compression_type = producer_compression_type
         if producer_partitioner is not None:
             self.producer_partitioner = producer_partitioner
+        if consumer_max_fetch_size is not None:
+            self.consumer_max_fetch_size = consumer_max_fetch_size
         if web_bind is not None:
             self.web_bind = web_bind
         if web_port is not None:
