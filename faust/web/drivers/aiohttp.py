@@ -12,6 +12,7 @@ from aiohttp.web import (
     UnixSite,
     json_response,
 )
+
 from faust.types import AppT
 from faust.utils import json as _json
 from faust.web import base
