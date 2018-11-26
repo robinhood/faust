@@ -497,6 +497,23 @@ The maximum number of records returned in a single call to poll().
 If you find that your application needs more time to process messages
 you may want to adjust :setting:`broker_max_poll_records` to tune the
 number of records that must be handled on every loop iteration.
+
+.. _settings-consumer:
+
+Advanced Consumer Settings
+==========================
+
+.. setting:: consumer_max_fetch_size
+
+``consumer_max_fetch_size``
+---------------------------
+
+:type: :class:`int`
+:default: ``4*1024**2``
+
+The maximum amount of data per-partition the server will return. This size
+must be at least as large as the maximum message size.
+
 .. _settings-producer:
 
 Advanced Producer Settings
@@ -615,6 +632,7 @@ and can be used as a template for your own partitioner:
         index &= 0x7fffffff
         index %= len(all_partitions)
         return all_partitions[index]
+
 
 .. _settings-table:
 
