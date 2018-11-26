@@ -1,23 +1,24 @@
 """Web driver using :pypi:`aiohttp`."""
 import asyncio
-from http import HTTPStatus
+from functools import partial
 from pathlib import Path
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    ClassVar,
-    Mapping,
-    Optional,
-    Tuple,
-    Union,
-    cast,
+from socket import (
+    IPPROTO_TCP,
+    SOL_SOCKET,
+    SO_REUSEADDR,
+    SO_REUSEPORT,
+    TCP_NODELAY,
+    socket,
 )
+from typing import Any, Callable, Optional, Union, cast
 
-from vibora import JsonResponse, Response, Vibora
+from vibora import Vibora
 from vibora.__version__ import __version__ as vibora_version
+from vibora.hooks import Events
+from vibora.responses import JsonResponse, Response
+from vibora.router.router import Route  # noqa
+from vibora.server import Request
 from mode.threads import ServiceThread
-from mode.utils.compat import want_str
 from mode.utils.futures import notify
 
 from faust.types import AppT
@@ -25,11 +26,83 @@ from faust.web import base
 
 __all__ = ['Web']
 
-CONTENT_SEPARATOR: bytes = b'\r\n\r\n'
-HEADER_SEPARATOR: bytes = b'\r\n'
-HEADER_KEY_VALUE_SEPARATOR: bytes = b': '
-
 _bytes = bytes
+
+
+class Worker:
+
+    def __init__(self, app, bind, port, sock=None) -> None:
+        self.app = app
+        self.bind = bind
+        self.port = port
+        self.socket = sock
+        self._handler = None
+        self._srv = None
+
+    async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
+        app = self.app
+        if not self.socket:
+            self.socket = socket()
+            self.socket.setsockopt(SOL_SOCKET, SO_REUSEPORT, 1)
+            self.socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            self.socket.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
+            self.socket.bind(((self.bind, self.port)))
+
+        app.initialize()
+
+        await app.call_hooks(
+            Events.BEFORE_SERVER_START,
+            components=app.components,
+        )
+
+        def _handler(*args, **kwargs):
+            return app.handler(*args, **kwargs)
+
+        handler = self._handler = partial(
+            _handler,
+            app=app,
+            loop=loop,
+            worker=self,
+        )
+        ss = self._srv = loop.create_server(
+            handler,
+            sock=self.socket,
+            reuse_port=True,
+            backlog=1000,
+        )
+
+        await ss
+        await app.call_hooks(
+            Events.AFTER_SERVER_START,
+            components=app.components,
+        )
+
+    async def stop_server(self, loop, timeout=30):
+        await self.app.call_hooks(
+            Events.BEFORE_SERVER_STOP,
+            components=self.app.components,
+        )
+
+        for connection in self.app.connections.copy():
+            connection.stop()
+
+        while timeout:
+            all_closed = True
+            for connection in self.app.connections:
+                if not connection.is_closed():
+                    all_closed = False
+                    break
+            if all_closed:
+                break
+            timeout -= 1
+            await asyncio.sleep(1)
+
+    async def _connect_tcp(self,
+                           loop: asyncio.AbstractEventLoop,
+                           handler: Any) -> asyncio.AbstractServer:
+        server = await loop.create_server(
+            handler, self.app.conf.web_bind, self.app.conf.web_port)
+        return server
 
 
 class ServerThread(ServiceThread):
@@ -73,28 +146,15 @@ class Web(base.Web):
     driver_version = f'vibora={vibora_version}'
     handler_shutdown_timeout: float = 60.0
 
-    content_separator: ClassVar[bytes] = CONTENT_SEPARATOR
-    header_separator: ClassVar[bytes] = HEADER_SEPARATOR
-    header_key_value_separator: ClassVar[bytes] = HEADER_KEY_VALUE_SEPARATOR
-
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[ServerThread] = None
-
-    _transport_schemes: Mapping[
-        str,
-        Callable[[asyncio.AbstractEventLoop, Any],
-                 Awaitable[asyncio.AbstractServer]],
-    ]
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self.web_app: Vibora = Vibora()
+        self.web_app.debug_mode = True
         self._srv: Any = None
         self._handler: Any = None
-        self._transport_schemes = {
-            'tcp': self._connect_tcp,
-            'unix': self._connect_unix,
-        }
 
     async def on_start(self) -> None:
         self.init_server()
@@ -136,9 +196,17 @@ class Web(base.Web):
         )
         return cast(base.Response, response)
 
+    async def read_request_content(self, request: base.Request) -> _bytes:
+        return await cast(Request, request).content.read()
+
     def route(self, pattern: str, handler: Callable) -> None:
-        self.web_app.router.add_route(
-            '*', pattern, self._wrap_into_asyncdef(handler))
+        print('ROUTE: %r -> %r' % (pattern, handler))
+        # self.web_app.router.add_route(Route(
+        #    app=self.web_app,
+        #    pattern=pattern.encode(),
+        #    handler=self._wrap_into_asyncdef(handler),
+        # ))
+        print('REVERSE NOW: %r' % (self.web_app.router.reverse_index,))
 
     def _wrap_into_asyncdef(self, handler: Callable) -> Callable:
         # get rid of pesky "DeprecationWarning: Bare functions are
@@ -157,92 +225,44 @@ class Web(base.Web):
         self.web_app.router.add_static(prefix, str(path), **kwargs)
 
     def bytes_to_response(self, s: _bytes) -> base.Response:
-        status_code, _, payload = s.partition(self.content_separator)
-        headers, _, body = payload.partition(self.content_separator)
-
+        status, headers, body = self._bytes_to_response(s)
         response = Response(
             body=body,
-            status=HTTPStatus(int(status_code)),
-            headers=dict(self._splitheader(h) for h in headers.splitlines()),
+            status=status,
+            headers=headers,
         )
         return cast(base.Response, response)
 
-    def _splitheader(self, header: _bytes) -> Tuple[str, str]:
-        key, value = header.split(self.header_key_value_separator, 1)
-        return want_str(key.strip()), want_str(value.strip())
-
     def response_to_bytes(self, response: base.Response) -> _bytes:
         resp = cast(Response, response)
-        return self.content_separator.join([
-            str(resp.status).encode(),
-            self.content_separator.join([
-                self._headers_serialize(resp),
-                resp.body,
-            ]),
-        ])
-
-    def _headers_serialize(self, response: Response) -> _bytes:
-        return self.header_separator.join(
-            self.header_key_value_separator.join([
-                k if isinstance(k, _bytes) else k.encode('ascii'),
-                v if isinstance(v, _bytes) else v.encode('latin-1'),
-            ])
-            for k, v in response.headers.items()
+        return self._response_to_bytes(
+            resp.status,
+            resp.headers,
+            resp.body,
         )
 
     async def start_server(self, loop: asyncio.AbstractEventLoop) -> None:
-        handler = self._handler = self.web_app.make_handler()
-        self._srv = await self.create_server(loop, handler)
-
-    async def create_server(self,
-                            loop: asyncio.AbstractEventLoop,
-                            handler: Any) -> asyncio.AbstractServer:
-        transport = self.app.conf.web_transport
-        return await self._transport_schemes[transport.scheme](loop, handler)
-
-    async def _connect_tcp(self,
-                           loop: asyncio.AbstractEventLoop,
-                           handler: Any) -> asyncio.AbstractServer:
-        server = await loop.create_server(
-            handler, self.app.conf.web_bind, self.app.conf.web_port)
-        self.log.info('Serving on %s', self.url)
-        return server
-
-    async def _connect_unix(self,
-                            loop: asyncio.AbstractEventLoop,
-                            handler: Any) -> asyncio.AbstractServer:
-        server = await loop.create_unix_server(
-            handler, self.app.conf.web_transport.path)
-        self.log.info('Serving on %s', self.app.conf.web_transport.path)
-        return server
+        worker = self._handler = Worker(
+            app=self.web_app,
+            bind=self.app.conf.web_bind,
+            port=self.app.conf.web_port,
+        )
+        await worker.start_server(loop)
 
     async def stop_server(self, loop: asyncio.AbstractEventLoop) -> None:
-        await self._stop_server()
-        await self._shutdown_webapp()
-        await self._shutdown_handler()
+        await self._shutdown_handler(loop)
         await self._cleanup_app()
 
-    async def _stop_server(self) -> None:
-        if self._srv is not None:
-            self.log.info('Closing server')
-            self._srv.close()
-            self.log.info('Waiting for server to close handle')
-            await self._srv.wait_closed()
-
-    async def _shutdown_webapp(self) -> None:
-        if self.web_app is not None:
-            self.log.info('Shutting down web application')
-            await self.web_app.shutdown()
-
-    async def _shutdown_handler(self) -> None:
+    async def _shutdown_handler(self, loop: asyncio.AbstractEventLoop) -> None:
         if self._handler is not None:
             self.log.info('Waiting for handler to shut down')
-            await self._handler.shutdown(self.handler_shutdown_timeout)
+            await self._handler.stop_server(
+                loop, timeout=self.handler_shutdown_timeout)
 
     async def _cleanup_app(self) -> None:
         if self.web_app is not None:
             self.log.info('Cleanup')
-            await self.web_app.cleanup()
+            self.web_app.clean_up()
 
     @property
     def _app(self) -> Vibora:

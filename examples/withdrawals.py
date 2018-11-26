@@ -35,6 +35,7 @@ app = faust.App(
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=8,
+    web='vibora://',
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
@@ -75,6 +76,11 @@ async def produce(self, max_latency: float, max_messages: int):
             self.say(f'+SEND {i}')
         if max_latency:
             await asyncio.sleep(random.uniform(0, max_latency))
+
+
+@app.page('/foo/')
+async def foo(web):
+    return web.text('foo')
 
 
 def generate_withdrawals_dict(n: int = None):
