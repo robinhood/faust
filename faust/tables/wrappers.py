@@ -48,111 +48,90 @@ __all__ = [
 
 class WindowedKeysView(KeysView):
 
-    def __init__(self, mapping: 'WindowWrapperT') -> None:
+    def __init__(self,
+                 mapping: WindowWrapperT,
+                 event: EventT = None) -> None:
         self._mapping = mapping
+        self.event = event
 
     def __iter__(self) -> Iterator:
         wrapper = cast(WindowWrapper, self._mapping)
-        return wrapper._keys()
+        for key, _ in wrapper._items(self.event):
+            yield key
 
     def __len__(self) -> int:
         return len(self._mapping)
+
+    def now(self) -> Iterator[Any]:
+        wrapper = cast(WindowWrapper, self._mapping)
+        for key, _ in wrapper._items_now():
+            yield key
+
+    def current(self, event: EventT = None) -> Iterator[Any]:
+        wrapper = cast(WindowWrapper, self._mapping)
+        for key, _ in wrapper._items_current(event or self.event):
+            yield key
+
+    def delta(self, d: Seconds, event: EventT = None) -> Iterator[Any]:
+        wrapper = cast(WindowWrapper, self._mapping)
+        for key, _ in wrapper._items_delta(d, event or self.event):
+            yield key
 
 
 class WindowedItemsView(WindowedItemsViewT):
 
     def __init__(self,
-                 mapping: 'WindowWrapperT',
+                 mapping: WindowWrapperT,
                  event: EventT = None) -> None:
         self._mapping = mapping
         self.event = event
 
     def __iter__(self) -> Iterator[Tuple[Any, Any]]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        timestamp = wrapper.get_timestamp(self.event)
-        for key in wrapper._keys():
-            try:
-                yield key, table._windowed_timestamp(key, timestamp)
-            except KeyError:
-                pass
+        return wrapper._items(self.event)
 
     def now(self) -> Iterator[Tuple[Any, Any]]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        for key in wrapper._keys():
-            try:
-                yield key, table._windowed_now(key)
-            except KeyError:
-                pass
+        return wrapper._items_now()
 
     def current(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        timestamp = table._relative_event(event or self.event)
-        for key in wrapper._keys():
-            try:
-                yield key, table._windowed_timestamp(key, timestamp)
-            except KeyError:
-                pass
+        return wrapper._items_current(event or self.event)
 
     def delta(self,
               d: Seconds,
               event: EventT = None) -> Iterator[Tuple[Any, Any]]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        for key in wrapper._keys():
-            try:
-                yield key, table._windowed_delta(key, d, event or self.event)
-            except KeyError:
-                pass
+        return wrapper._items_delta(d, event or self.event)
 
 
 class WindowedValuesView(WindowedValuesViewT):
 
     def __init__(self,
-                 mapping: 'WindowWrapperT',
+                 mapping: WindowWrapperT,
                  event: EventT = None) -> None:
         self._mapping = mapping
         self.event = event
 
     def __iter__(self) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        timestamp = wrapper.get_timestamp(self.event)
-        for key in wrapper._keys():
-            try:
-                yield table._windowed_timestamp(key, timestamp)
-            except KeyError:
-                pass
+        for _, value in wrapper._items(self.event):
+            yield value
 
     def now(self) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        for key in wrapper._keys():
-            try:
-                yield table._windowed_now(key)
-            except KeyError:
-                pass
+        for _, value in wrapper._items_now():
+            yield value
 
     def current(self, event: EventT = None) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        timestamp = table._relative_event(event or self.event)
-        for key in wrapper._keys():
-            try:
-                yield table._windowed_timestamp(key, timestamp)
-            except KeyError:
-                pass
+        for _, value in wrapper._items_current(event or self.event):
+            yield value
 
     def delta(self, d: Seconds, event: EventT = None) -> Iterator[Any]:
         wrapper = cast(WindowWrapper, self._mapping)
-        table = cast(Table, wrapper.table)
-        for key in wrapper._keys():
-            try:
-                yield table._windowed_delta(key, d, event or self.event)
-            except KeyError:
-                pass
+        for _, value in wrapper._items_delta(d, event or self.event):
+            yield value
 
 
 class WindowSet(WindowSetT, FastUserDict):
@@ -410,6 +389,42 @@ class WindowWrapper(WindowWrapperT):
 
     def items(self, event: EventT = None) -> ItemsView:
         return WindowedItemsView(self, event or current_event())
+
+    def _items(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
+        table = cast(Table, self.table)
+        timestamp = self.get_timestamp(event)
+        for key in self._keys():
+            try:
+                yield key, table._windowed_timestamp(key, timestamp)
+            except KeyError:
+                pass
+
+    def _items_now(self) -> Iterator[Tuple[Any, Any]]:
+        table = cast(Table, self.table)
+        for key in self._keys():
+            try:
+                yield key, table._windowed_now(key)
+            except KeyError:
+                pass
+
+    def _items_current(
+            self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
+        table = cast(Table, self.table)
+        timestamp = table._relative_event(event)
+        for key in self._keys():
+            try:
+                yield key, table._windowed_timestamp(key, timestamp)
+            except KeyError:
+                pass
+
+    def _items_delta(self, d: Seconds,
+                     event: EventT = None) -> Iterator[Any]:
+        table = cast(Table, self.table)
+        for key in self._keys():
+            try:
+                yield key, table._windowed_delta(key, d, event)
+            except KeyError:
+                pass
 
     def as_ansitable(self, title: str = '{table.name}',
                      **kwargs: Any) -> str:
