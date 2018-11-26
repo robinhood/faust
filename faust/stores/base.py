@@ -49,6 +49,8 @@ class Store(StoreT, Service):
         self.table_name = table_name
         self.key_type = key_type
         self.value_type = value_type
+        self.key_serializer = key_serializer
+        self.value_serializer = value_serializer
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         raise NotImplementedError('In-memory store only, does not persist.')
