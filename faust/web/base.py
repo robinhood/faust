@@ -1,6 +1,7 @@
 """Base interface for Web server and views."""
 import abc
 import socket
+from http import HTTPStatus
 from pathlib import Path
 from typing import (
     Any,
@@ -8,6 +9,7 @@ from typing import (
     ClassVar,
     Iterable,
     List,
+    Mapping,
     MutableMapping,
     Tuple,
     Type,
@@ -15,6 +17,7 @@ from typing import (
 )
 from urllib.parse import quote
 from mode import Service
+from mode.utils.compat import want_str
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
 from faust.types import AppT
@@ -38,6 +41,10 @@ DEFAULT_BLUEPRINTS: _BPList = [
     ('/router', 'faust.web.apps.router:blueprint'),
     ('/table', 'faust.web.apps.tables.blueprint'),
 ]
+
+CONTENT_SEPARATOR: bytes = b'\r\n\r\n'
+HEADER_SEPARATOR: bytes = b'\r\n'
+HEADER_KEY_VALUE_SEPARATOR: bytes = b': '
 
 
 class Response:
@@ -98,6 +105,10 @@ class Web(Service):
 
     blueprints: BlueprintManager
 
+    content_separator: ClassVar[bytes] = CONTENT_SEPARATOR
+    header_separator: ClassVar[bytes] = HEADER_SEPARATOR
+    header_key_value_separator: ClassVar[bytes] = HEADER_KEY_VALUE_SEPARATOR
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         self.app = app
         self.views = {}
@@ -130,9 +141,43 @@ class Web(Service):
     def bytes_to_response(self, s: _bytes) -> Response:
         ...
 
+    def _bytes_to_response(
+            self, s: _bytes) -> Tuple[HTTPStatus, Mapping, _bytes]:
+        status_code, _, payload = s.partition(self.content_separator)
+        headers, _, body = payload.partition(self.content_separator)
+
+        return (
+            HTTPStatus(int(status_code)),
+            dict(self._splitheader(h) for h in headers.splitlines()),
+            body,
+        )
+
+    def _splitheader(self, header: _bytes) -> Tuple[str, str]:
+        key, value = header.split(self.header_key_value_separator, 1)
+        return want_str(key.strip()), want_str(value.strip())
+
     @abc.abstractmethod
     def response_to_bytes(self, response: Response) -> _bytes:
         ...
+
+    def _response_to_bytes(
+            self, status: int, headers: Mapping, body: _bytes) -> _bytes:
+        return self.content_separator.join([
+            str(status).encode(),
+            self.content_separator.join([
+                self._headers_serialize(headers),
+                body,
+            ]),
+        ])
+
+    def _headers_serialize(self, headers: Mapping) -> _bytes:
+        return self.header_separator.join(
+            self.header_key_value_separator.join([
+                k if isinstance(k, _bytes) else k.encode('ascii'),
+                v if isinstance(v, _bytes) else v.encode('latin-1'),
+            ])
+            for k, v in headers.items()
+        )
 
     @abc.abstractmethod
     def route(self, pattern: str, handler: Callable) -> None:
