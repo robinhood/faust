@@ -51,5 +51,7 @@ Contributors
 +---------------------+---------------------------------------+
 | Mika Eloranta       | <mel@aiven.io>                        |
 +---------------------+---------------------------------------+
-| Omar Rayward        |  <orayward@yahoo.com>                 |
+| Omar Rayward        | <orayward@yahoo.com>                  |
++---------------------+---------------------------------------+
+| Alexander Oberegger | <alexander.oberegger@smaxtec.com>     |
 +---------------------+---------------------------------------+
