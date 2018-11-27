@@ -221,6 +221,7 @@ CLI
 
     faust.cli.agents
     faust.cli.base
+    faust.cli.clean_versions
     faust.cli.completion
     faust.cli.faust
     faust.cli.model
