@@ -57,6 +57,8 @@ class test_settings:
         assert conf.stream_wait_empty
         assert not conf.stream_ack_cancelled_tasks
         assert conf.stream_ack_exceptions
+        assert (conf.broker_max_poll_records ==
+                settings.BROKER_MAX_POLL_RECORDS)
 
         assert not conf.autodiscover
         assert conf.origin is None
@@ -167,6 +169,7 @@ class test_settings:
                                  web_transport='udp://',
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
+                                 broker_max_poll_records=1000,
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -189,6 +192,7 @@ class test_settings:
             broker_commit_interval=broker_commit_interval,
             broker_commit_livelock_soft_timeout=livelock_soft_timeout,
             broker_check_crcs=broker_check_crcs,
+            broker_max_poll_records=broker_max_poll_records,
             producer_partitioner=producer_partitioner,
             table_cleanup_interval=table_cleanup_interval,
             key_serializer=key_serializer,
@@ -254,6 +258,7 @@ class test_settings:
         assert conf.worker_redirect_stdouts == worker_redirect_stdouts
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)
+        assert conf.broker_max_poll_records == broker_max_poll_records
         return app
 
     def test_custom_host_port_to_canonical(self,
