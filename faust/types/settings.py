@@ -655,7 +655,16 @@ class Settings(abc.ABC):
 
     @property
     def appdir(self) -> Path:
-        return self.datadir / f'v{self.version}'
+        return self._versiondir(self.version)
+
+    def _versiondir(self, version: int) -> Path:
+        return self.datadir / f'v{version}'
+
+    def find_old_versiondirs(self) -> Iterable[Path]:
+        for version in reversed(range(0, self.version)):
+            path = self._versiondir(version)
+            if path.is_dir():
+                yield path
 
     @property
     def tabledir(self) -> Path:
