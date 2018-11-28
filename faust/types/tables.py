@@ -377,6 +377,14 @@ class WindowWrapperT(MutableMapping):
         ...
 
     @abc.abstractmethod
+    def on_set_key(self, key: Any, value: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_del_key(self, key: Any) -> None:
+        ...
+
+    @abc.abstractmethod
     def as_ansitable(self, **kwargs: Any) -> str:
         ...
 
