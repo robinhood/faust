@@ -1,9 +1,12 @@
 from itertools import count
 
+import aredis
 import pytest
 import faust
 from faust.exceptions import ImproperlyConfigured
 from faust.web import Blueprint, View
+from faust.web.cache import backends
+from faust.web.cache.backends import redis
 
 DEFAULT_TIMEOUT = 361.363
 VIEW_B_TIMEOUT = 64.3
@@ -287,3 +290,31 @@ async def model_value(response, **kwargs):
 @pytest.fixture()
 def bp(app):
     blueprint.register(app, url_prefix='/test/')
+
+
+class test_RedisScheme:
+
+    def test_single_client(self, app):
+        url = 'redis://123.123.123.123:3636//1'
+        Backend = backends.by_url(url)
+        assert Backend is redis.CacheBackend
+        backend = Backend(app, url=url)
+        assert isinstance(backend, redis.CacheBackend)
+        client = backend._new_client()
+        assert isinstance(client, aredis.StrictRedis)
+        pool = client.connection_pool
+        assert pool.connection_kwargs['host'] == backend.url.host
+        assert pool.connection_kwargs['port'] == backend.url.port
+        assert pool.connection_kwargs['db'] == 1
+
+    def test_cluster_client(self, app):
+        url = 'rediscluster://123.123.123.123:3636//1'
+        Backend = backends.by_url(url)
+        assert Backend is redis.CacheBackend
+        backend = Backend(app, url=url)
+        assert isinstance(backend, redis.CacheBackend)
+        client = backend._new_client()
+        assert isinstance(client, aredis.StrictRedisCluster)
+        pool = client.connection_pool
+        assert {'host': backend.url.host,
+                'port': 3636} in pool.nodes.startup_nodes
