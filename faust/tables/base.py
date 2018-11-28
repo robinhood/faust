@@ -153,11 +153,12 @@ class Collection(Service, CollectionT):
         # can be registered in the app.tables mapping.
         return object.__hash__(self)
 
-    def _get_store(self) -> StoreT:
-        app = self.app
-        url = self._store or app.conf.store
+    def _new_store(self) -> StoreT:
+        return self._new_store_by_url(self._store or self.app.conf.store)
+
+    def _new_store_by_url(self, url: Union[str, URL]) -> StoreT:
         return cast(StoreT, stores.by_url(url)(
-            url, app, self,
+            url, self.app, self,
             table_name=self.name,
             key_type=self.key_type,
             key_serializer=self.key_serializer,
@@ -170,7 +171,7 @@ class Collection(Service, CollectionT):
     @no_type_check  # XXX https://github.com/python/mypy/issues/4125
     def data(self) -> StoreT:
         if self._data is None:
-            self._data = self._get_store()
+            self._data = self._new_store()
         return self._data
 
     async def on_start(self) -> None:
@@ -182,10 +183,6 @@ class Collection(Service, CollectionT):
         assert fun not in self._recover_callbacks
         self._recover_callbacks.add(fun)
         return fun
-
-    async def call_recover_callbacks(self) -> None:
-        for fun in self._recover_callbacks:
-            await fun()
 
     def info(self) -> Mapping[str, Any]:
         # Used to recreate object in .clone()
@@ -237,7 +234,7 @@ class Collection(Service, CollectionT):
         #
         # Kafka Streams has a global ".checkpoint" file, but we store
         # it in each individual RocksDB database file.
-        # Eevery partition in the table will have its own database file,
+        # Every partition in the table will have its own database file,
         #  this is required as partitions can easily move from and to
         #  machine as nodes die and recover.
         res: RecordMetadata = fut.result()
@@ -433,6 +430,15 @@ class Collection(Service, CollectionT):
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
         await self.data.on_rebalance(self, assigned, revoked, newly_assigned)
+
+    async def on_recovery_completed(self,
+                                    active_tps: Set[TP],
+                                    standby_tps: Set[TP]) -> None:
+        await self.call_recover_callbacks()
+
+    async def call_recover_callbacks(self) -> None:
+        for fun in self._recover_callbacks:
+            await fun()
 
     async def on_changelog_event(self, event: EventT) -> None:
         if self._on_changelog_event:

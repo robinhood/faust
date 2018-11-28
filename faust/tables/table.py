@@ -1,23 +1,23 @@
 """Table (key/value changelog stream)."""
-from typing import Any
+from typing import Any, ClassVar, Type
 
 from mode import Seconds
-from mode.utils.collections import ManagedUserDict
 
 from faust import windows
 from faust.streams import current_event
-from faust.types.tables import TableT, WindowWrapperT
+from faust.types.tables import KT, TableT, VT, WindowWrapperT
 from faust.types.windows import WindowT
 from faust.utils.terminal.tables import dict_as_ansitable
 
+from . import wrappers
 from .base import Collection
-from .wrappers import WindowWrapper
 
 __all__ = ['Table']
 
 
-class Table(TableT, Collection, ManagedUserDict):
+class Table(TableT[KT, VT], Collection):
     """Table (non-windowed)."""
+    WindowWrapper: ClassVar[Type[WindowWrapperT]] = wrappers.WindowWrapper
 
     def using_window(self, window: WindowT, *,
                      key_index: bool = False) -> WindowWrapperT:
@@ -25,7 +25,7 @@ class Table(TableT, Collection, ManagedUserDict):
         self._changelog_compacting = True
         self._changelog_deleting = True
         self._changelog_topic = None  # will reset on next property access
-        return WindowWrapper(self, key_index=key_index)
+        return self.WindowWrapper(self, key_index=key_index)
 
     def hopping(self, size: Seconds, step: Seconds,
                 expires: Seconds = None,
@@ -43,27 +43,27 @@ class Table(TableT, Collection, ManagedUserDict):
             key_index=key_index,
         )
 
-    def __missing__(self, key: Any) -> Any:
+    def __missing__(self, key: KT) -> VT:
         if self.default is not None:
             return self.default()
         raise KeyError(key)
 
-    def _has_key(self, key: Any) -> bool:
+    def _has_key(self, key: KT) -> bool:
         return key in self
 
-    def _get_key(self, key: Any) -> Any:
+    def _get_key(self, key: KT) -> VT:
         return self[key]
 
-    def _set_key(self, key: Any, value: Any) -> None:
+    def _set_key(self, key: KT, value: VT) -> None:
         self[key] = value
 
-    def _del_key(self, key: Any) -> None:
+    def _del_key(self, key: KT) -> None:
         del self[key]
 
-    def on_key_get(self, key: Any) -> None:
+    def on_key_get(self, key: KT) -> None:
         self._sensor_on_get(self, key)
 
-    def on_key_set(self, key: Any, value: Any) -> None:
+    def on_key_set(self, key: KT, value: VT) -> None:
         event = current_event()
         self._send_changelog(event, key, value)
         if event is not None:
@@ -74,7 +74,7 @@ class Table(TableT, Collection, ManagedUserDict):
             raise TypeError(
                 'Setting table key from outside of stream iteration')
 
-    def on_key_del(self, key: Any) -> None:
+    def on_key_del(self, key: KT) -> None:
         event = current_event()
         self._send_changelog(event, key, value=None, value_serializer='raw')
         if event is not None:

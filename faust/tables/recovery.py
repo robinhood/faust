@@ -41,6 +41,9 @@ class Recovery(Service):
     #: Set of active tps.
     active_tps: Set[TP]
 
+    actives_for_table: MutableMapping[CollectionT, Set[TP]]
+    standbys_for_table: MutableMapping[CollectionT, Set[TP]]
+
     #: Mapping from TP to table
     tp_to_table: MutableMapping[TP, CollectionT]
 
@@ -97,6 +100,9 @@ class Recovery(Service):
         self.buffer_sizes = {}
         self.recovery_delay = self.app.conf.stream_recovery_delay
 
+        self.actives_for_table = defaultdict(set)
+        self.standbys_for_table = defaultdict(set)
+
         super().__init__(**kwargs)
 
     @property
@@ -123,11 +129,12 @@ class Recovery(Service):
 
     def add_active(self, table: CollectionT, tp: TP) -> None:
         self.active_tps.add(tp)
+        self.actives_for_table[table].add(tp)
         self._add(table, tp, self.active_offsets)
 
     def add_standby(self, table: CollectionT, tp: TP) -> None:
-        table = self.tables._changelogs[tp.topic]
         self.standby_tps.add(tp)
+        self.standbys_for_table[table].add(tp)
         self._add(table, tp, self.standby_offsets)
 
     def _add(self, table: CollectionT, tp: TP, offsets: Counter[TP]) -> None:
@@ -159,6 +166,8 @@ class Recovery(Service):
 
         self.standby_tps.clear()
         self.active_tps.clear()
+        self.actives_for_table.clear()
+        self.standbys_for_table.clear()
 
         for tp in assigned_standbys:
             table = self.tables._changelogs.get(tp.topic)
@@ -336,9 +345,13 @@ class Recovery(Service):
         self.log.info('Restore complete!')
         await self.app.on_rebalance_complete.send()
         # This needs to happen if all goes well
-        callback_coros = []
-        for table in self.tables.values():
-            callback_coros.append(table.call_recover_callbacks())
+        callback_coros = [
+            table.on_recovery_completed(
+                self.actives_for_table[table],
+                self.standbys_for_table[table],
+            )
+            for table in self.tables.values()
+        ]
         if callback_coros:
             await asyncio.wait(callback_coros)
         assignment = consumer.assignment()

@@ -3,7 +3,6 @@ import asyncio
 from typing import Any, MutableMapping, Optional, Set
 
 from mode import Service
-from mode.utils.collections import FastUserDict
 from mode.utils.queues import ThrowableQueue
 
 from faust.types import AppT, ChannelT, TP
@@ -16,7 +15,7 @@ __all__ = [
 ]
 
 
-class TableManager(Service, TableManagerT, FastUserDict):
+class TableManager(Service, TableManagerT):
     """Manage tables used by Faust worker."""
 
     _channels: MutableMapping[CollectionT, ChannelT]

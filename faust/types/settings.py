@@ -113,8 +113,8 @@ TABLE_MANAGER_TYPE = 'faust.tables.TableManager'
 #: Path to table class, used as default for :setting:`Table`.
 TABLE_TYPE = 'faust.Table'
 
-#: Path to set class, used as default for :setting:`Set`.
-SET_TYPE = 'faust.Set'
+#: Path to "table of sets" class, used as default for :setting:`SetTable`.
+SET_TABLE_TYPE = 'faust.SetTable'
 
 #: Path to serializer registry class, used as the default for
 #: :setting:`Serializers`.
@@ -310,6 +310,7 @@ class Settings(abc.ABC):
     _Agent: Type[AgentT]
     _Stream: Type[StreamT]
     _Table: Type[TableT]
+    _SetTable: Type[TableT]
     _TableManager: Type[TableManagerT]
     _Serializers: Type[RegistryT]
     _Worker: Type[WorkerT]
@@ -407,6 +408,7 @@ class Settings(abc.ABC):
             Agent: SymbolArg[Type[AgentT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
+            SetTable: SymbolArg[Type[TableT]] = None,
             TableManager: SymbolArg[Type[TableManagerT]] = None,
             Serializers: SymbolArg[Type[RegistryT]] = None,
             Worker: SymbolArg[Type[WorkerT]] = None,
@@ -523,7 +525,7 @@ class Settings(abc.ABC):
         self.Agent = Agent or AGENT_TYPE
         self.Stream = Stream or STREAM_TYPE
         self.Table = Table or TABLE_TYPE
-        self.Set = Set or SET_TYPE
+        self.SetTable = SetTable or SET_TABLE_TYPE
         self.TableManager = TableManager or TABLE_MANAGER_TYPE
         self.Serializers = Serializers or REGISTRY_TYPE
         self.Worker = Worker or WORKER_TYPE
@@ -787,6 +789,14 @@ class Settings(abc.ABC):
     @Table.setter
     def Table(self, Table: SymbolArg[Type[TableT]]) -> None:
         self._Table = symbol_by_name(Table)
+
+    @property
+    def SetTable(self) -> Type[TableT]:
+        return self._SetTable
+
+    @SetTable.setter
+    def SetTable(self, SetTable: SymbolArg[Type[TableT]]) -> None:
+        self._SetTable = symbol_by_name(SetTable)
 
     @property
     def TableManager(self) -> Type[TableManagerT]:

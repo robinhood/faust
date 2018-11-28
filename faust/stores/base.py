@@ -10,6 +10,7 @@ from typing import (
     Set,
     Tuple,
     Union,
+    cast,
 )
 
 from mode import Service
@@ -24,11 +25,12 @@ from faust.types import (
     StoreT,
     TP,
 )
+from faust.types.stores import KT, VT
 
 __all__ = ['Store', 'SerializedStore']
 
 
-class Store(StoreT, Service):
+class Store(StoreT[KT, VT], Service):
     """Base class for table storage drivers."""
 
     def __init__(self,
@@ -68,22 +70,22 @@ class Store(StoreT, Service):
                            newly_assigned: Set[TP]) -> None:
         ...
 
-    def _encode_key(self, key: Any) -> bytes:
-        key = self.app.serializers.dumps_key(
+    def _encode_key(self, key: KT) -> bytes:
+        key_bytes = self.app.serializers.dumps_key(
             self.key_type, key, serializer=self.key_serializer)
-        if key is None:
+        if key_bytes is None:
             raise TypeError('Table key cannot be None')
-        return key
+        return key_bytes
 
-    def _encode_value(self, value: Any) -> Optional[bytes]:
+    def _encode_value(self, value: VT) -> Optional[bytes]:
         return self.app.serializers.dumps_value(
             self.value_type, value, serializer=self.value_serializer)
 
-    def _decode_key(self, key: Optional[bytes]) -> Any:
-        return self.app.serializers.loads_key(
-            self.key_type, key, serializer=self.key_serializer)
+    def _decode_key(self, key: Optional[bytes]) -> KT:
+        return cast(KT, self.app.serializers.loads_key(
+            self.key_type, key, serializer=self.key_serializer))
 
-    def _decode_value(self, value: Optional[bytes]) -> Any:
+    def _decode_value(self, value: Optional[bytes]) -> VT:
         return self.app.serializers.loads_value(
             self.value_type, value, serializer=self.value_serializer)
 
@@ -122,7 +124,7 @@ class _SerializedStoreItemsView(ItemsView):
         yield from self._mapping._items_decoded()
 
 
-class SerializedStore(Store):
+class SerializedStore(Store[KT, VT]):
     """Base class for table storage drivers requiring serialization."""
 
     @abc.abstractmethod
@@ -164,8 +166,8 @@ class SerializedStore(Store):
         ...
 
     def apply_changelog_batch(self, batch: Iterable[EventT],
-                              to_key: Callable[[Any], Any],
-                              to_value: Callable[[Any], Any]) -> None:
+                              to_key: Callable[[Any], KT],
+                              to_value: Callable[[Any], VT]) -> None:
         for event in batch:
             key = event.message.key
             if key is None:
@@ -178,45 +180,45 @@ class SerializedStore(Store):
                 # keys/values are already JSON serialized in the message
                 self._set(key, value)
 
-    def __getitem__(self, key: Any) -> Any:
+    def __getitem__(self, key: KT) -> VT:
         value = self._get(self._encode_key(key))
         if value is None:
             raise KeyError(key)
         return self._decode_value(value)
 
-    def __setitem__(self, key: Any, value: Any) -> None:
+    def __setitem__(self, key: KT, value: VT) -> None:
         return self._set(self._encode_key(key), self._encode_value(value))
 
-    def __delitem__(self, key: Any) -> None:
+    def __delitem__(self, key: KT) -> None:
         return self._del(self._encode_key(key))
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> Iterator[KT]:
         yield from self._keys_decoded()
 
     def __len__(self) -> int:
         return self._size()
 
-    def __contains__(self, key: Any) -> bool:
+    def __contains__(self, key: KT) -> bool:
         return self._contains(self._encode_key(key))
 
     def keys(self) -> KeysView:
         return _SerializedStoreKeysView(self)
 
-    def _keys_decoded(self) -> Iterator:
+    def _keys_decoded(self) -> Iterator[KT]:
         for key in self._iterkeys():
             yield self._decode_key(key)
 
     def values(self) -> ValuesView:
         return _SerializedStoreValuesView(self)
 
-    def _values_decoded(self) -> Iterator:
+    def _values_decoded(self) -> Iterator[VT]:
         for value in self._itervalues():
             yield self._decode_value(value)
 
     def items(self) -> ItemsView:
         return _SerializedStoreItemsView(self)
 
-    def _items_decoded(self) -> Iterator[Tuple[Any, Any]]:
+    def _items_decoded(self) -> Iterator[Tuple[KT, VT]]:
         for key, value in self._iteritems():
             yield self._decode_key(key), self._decode_value(value)
 
