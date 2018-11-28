@@ -8,6 +8,18 @@ This document contain change notes for bugfix releases in
 the Faust 1.3 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.3.3:
+
+1.3.3
+=====
+:release-date: 2018-11-28 1:34 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Web**: Redis cache backend now works with ``rediscluster://``.
+
+    No longer passing the ``db`` argument to ``aredis.StrictRedisCluster``,
+    as this would crash with an error saying it's not supported.
+
 .. _version-1.3.2:
 
 1.3.2
