@@ -107,6 +107,7 @@ Tables
     faust.tables
     faust.tables.base
     faust.tables.manager
+    faust.tables.objects
     faust.tables.recovery
     faust.tables.sets
     faust.tables.table
