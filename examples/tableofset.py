@@ -4,14 +4,16 @@ from faust.cli import argument
 app = faust.App(
     'table-of-sets-windowed',
     origin='examples.tableofset',
+    topic_partitions=4,
+    version=2,
 )
 
 table = app.SetTable(
     'people', value_type=str,
-).hopping(30.0, 5.0)
+)
 
-joining_topic = app.topic('people_joining', key_type=str, value_type=str)
-leaving_topic = app.topic('people_leaving', key_type=str, value_type=str)
+joining_topic = app.topic('people_joining2', key_type=str, value_type=str)
+leaving_topic = app.topic('people_leaving2', key_type=str, value_type=str)
 
 
 @app.agent(joining_topic)
@@ -19,6 +21,7 @@ async def join(stream):
     async for key, name in stream.items():
         print(f'- {name.capitalize()} joined {key}')
         table[key].add(name)
+        print('TABLE CUR %r' % (table[key],))
 
 
 @app.agent(leaving_topic)
@@ -26,6 +29,7 @@ async def leave(stream):
     async for key, name in stream.items():
         print(f'- {name.capitalize()} left {key}')
         table[key].discard(name)
+        print('TABLE CUR %r' % (table[key],))
 
 
 @app.command(
@@ -46,7 +50,7 @@ async def leaving(self, location: str, name: str):
 
 @app.timer(10.0)
 async def _dump():
-    print('TABLE NOW: %s' % (table['Starbucks'].now(),))
+    print('TABLE NOW:\n%s' % (table.as_ansitable(),))
 
 
 if __name__ == '__main__':

@@ -39,6 +39,7 @@ class SetWindowSet(wrappers.WindowSet):
         timestamp = self.wrapper.get_timestamp(event or self.event)
         key = self.key
         get_ = table._get_key
+        self.wrapper.on_set_key(key, element)
         # apply set operation to every window within range of timestamp.
         for window_range in table._window_ranges(timestamp):
             set_wrapper = get_((key, window_range))
