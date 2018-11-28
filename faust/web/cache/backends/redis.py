@@ -1,5 +1,6 @@
 import socket
 import typing
+from enum import Enum
 from typing import Any, Mapping, Optional, Type, Union
 
 from mode.utils.compat import want_bytes
@@ -20,6 +21,11 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from aredis import StrictRedis as RedisClientT
 else:
     class RedisClientT: ...  # noqa
+
+
+class RedisScheme(Enum):
+    SINGLE_NODE = "redis"
+    CLUSTER = "rediscluster"
 
 
 class CacheBackend(base.CacheBackend):
@@ -71,8 +77,8 @@ class CacheBackend(base.CacheBackend):
             return {}
         else:
             return {
-                'redis': aredis.StrictRedis,
-                'rediscluster': aredis.StrictRedisCluster,
+                RedisScheme.SINGLE_NODE.value: aredis.StrictRedis,
+                RedisScheme.CLUSTER.value: aredis.StrictRedisCluster,
             }
 
     async def _get(self, key: str) -> Optional[bytes]:
@@ -111,21 +117,24 @@ class CacheBackend(base.CacheBackend):
             max_connections_per_node: str = None,
             **kwargs: Any) -> RedisClientT:
         Client = self._client_by_scheme[url.scheme]
-        return Client(
-            host=url.host,
-            port=url.port,
-            db=self._db_from_path(url.path),
-            password=url.password,
-            connect_timeout=self._float_from_str(
+        client_kwargs = {
+            "host": url.host,
+            "port": url.port,
+            "db": self._db_from_path(url.path),
+            "password": url.password,
+            "connect_timeout": self._float_from_str(
                 connect_timeout, self.connect_timeout),
-            stream_timeout=self._float_from_str(
+            "stream_timeout": self._float_from_str(
                 stream_timeout, self.stream_timeout),
-            max_connections=self._int_from_str(
+            "max_connections": self._int_from_str(
                 max_connections, self.max_connections),
-            max_connections_per_node=self._int_from_str(
+            "max_connections_per_node": self._int_from_str(
                 max_connections_per_node, self.max_connections_per_node),
-            skip_full_coverage_check=True,
-        )
+            "skip_full_coverage_check": True
+        }
+        if url.scheme == RedisScheme.CLUSTER.value:
+            del client_kwargs["db"]
+        return Client(**client_kwargs)
 
     def _int_from_str(self,
                       val: str = None,
