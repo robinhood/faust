@@ -24,8 +24,8 @@ else:
 
 
 class RedisScheme(Enum):
-    SINGLE_NODE = "redis"
-    CLUSTER = "rediscluster"
+    SINGLE_NODE = 'redis'
+    CLUSTER = 'rediscluster'
 
 
 class CacheBackend(base.CacheBackend):
@@ -117,24 +117,33 @@ class CacheBackend(base.CacheBackend):
             max_connections_per_node: str = None,
             **kwargs: Any) -> RedisClientT:
         Client = self._client_by_scheme[url.scheme]
-        client_kwargs = {
-            "host": url.host,
-            "port": url.port,
-            "db": self._db_from_path(url.path),
-            "password": url.password,
-            "connect_timeout": self._float_from_str(
+        return Client(**self._prepare_client_kwargs(
+            url,
+            host=url.host,
+            port=url.port,
+            db=self._db_from_path(url.path),
+            password=url.password,
+            connect_timeout=self._float_from_str(
                 connect_timeout, self.connect_timeout),
-            "stream_timeout": self._float_from_str(
+            stream_timeout=self._float_from_str(
                 stream_timeout, self.stream_timeout),
-            "max_connections": self._int_from_str(
+            max_connections=self._int_from_str(
                 max_connections, self.max_connections),
-            "max_connections_per_node": self._int_from_str(
+            max_connections_per_node=self._int_from_str(
                 max_connections_per_node, self.max_connections_per_node),
-            "skip_full_coverage_check": True
-        }
+            skip_full_coverage_check=True,
+        ))
+
+    def _prepare_client_kwargs(self, url: URL, **kwargs: Any) -> Mapping:
         if url.scheme == RedisScheme.CLUSTER.value:
-            del client_kwargs["db"]
-        return Client(**client_kwargs)
+            return self._as_cluster_kwargs(**kwargs)
+        return kwargs
+
+    def _as_cluster_kwargs(self,
+                           db: str = None,
+                           **kwargs: Any) -> Mapping:
+        # Redis Cluster does not support db as argument.
+        return kwargs
 
     def _int_from_str(self,
                       val: str = None,
