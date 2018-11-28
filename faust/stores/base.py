@@ -41,8 +41,8 @@ class Store(StoreT[KT, VT], Service):
                  table_name: str = '',
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
-                 key_serializer: CodecArg = 'json',
-                 value_serializer: CodecArg = 'json',
+                 key_serializer: CodecArg = None,
+                 value_serializer: CodecArg = None,
                  **kwargs: Any) -> None:
         Service.__init__(self, **kwargs)
         self.url = URL(url)

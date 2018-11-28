@@ -280,6 +280,19 @@ class Consumer(Service, ConsumerT):
                     notify(self._waiting_for_ack)
         return False
 
+    async def _wait_for_ack(self, timeout: float) -> None:
+        # arm future so that `ack()` can wake us up
+        self._waiting_for_ack = asyncio.Future(loop=self.loop)
+        try:
+            # wait for `ack()` to wake us up
+            await asyncio.wait_for(
+                self._waiting_for_ack, loop=self.loop, timeout=1)
+        except (asyncio.TimeoutError,
+                asyncio.CancelledError):  # pragma: no cover
+            pass
+        finally:
+            self._waiting_for_ack = None
+
     @Service.transitions_to(CONSUMER_WAIT_EMPTY)
     async def wait_empty(self) -> None:
         """Wait for all messages that started processing to be acked."""
@@ -295,18 +308,8 @@ class Consumer(Service, ConsumerT):
             await self.commit()
             if not self._unacked_messages:
                 break
+            await self._wait_for_ack(timeout=1)
 
-            # arm future so that `ack()` can wake us up
-            self._waiting_for_ack = asyncio.Future(loop=self.loop)
-            try:
-                # wait for `ack()` to wake us up
-                await asyncio.wait_for(
-                    self._waiting_for_ack, loop=self.loop, timeout=1)
-            except (asyncio.TimeoutError,
-                    asyncio.CancelledError):  # pragma: no cover
-                pass
-            finally:
-                self._waiting_for_ack = None
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
         await self.commit()
 

@@ -485,6 +485,18 @@ Increase this if you experience the cluster being in a state of constantly
 rebalancing, but make sure you also increase the
 :setting:`broker_heartbeat_interval` at the same time.
 
+.. setting:: broker_max_poll_records
+
+``broker_max_poll_records``
+---------------------------
+
+:type: :class:`int`
+:default: ``None``
+
+The maximum number of records returned in a single call to poll().
+If you find that your application needs more time to process messages
+you may want to adjust :setting:`broker_max_poll_records` to tune the
+number of records that must be handled on every loop iteration.
 .. _settings-producer:
 
 Advanced Producer Settings
@@ -1284,3 +1296,4 @@ Example using a class::
 Example using the string path to a class::
 
     app = faust.App(..., Monitor='myproj.monitors.Monitor')
+

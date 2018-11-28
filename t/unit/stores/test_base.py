@@ -125,6 +125,8 @@ class test_SerializedStore:
             url='foo://',
             app=app,
             table=Mock(name='table'),
+            key_serializer='json',
+            value_serializer='json',
         )
 
     def test_apply_changelog_batch(self, *, store):

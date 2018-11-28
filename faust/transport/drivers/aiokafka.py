@@ -232,7 +232,7 @@ class Consumer(base.Consumer):
             partition_assignment_strategy=[self._assignor],
             enable_auto_commit=False,
             auto_offset_reset='earliest',
-            max_poll_records=None,
+            max_poll_records=conf.broker_max_poll_records,
             max_partition_fetch_bytes=1048576 * 4,
             fetch_max_wait_ms=1500,
             check_crcs=conf.broker_check_crcs,
@@ -252,6 +252,7 @@ class Consumer(base.Consumer):
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             enable_auto_commit=True,
+            max_poll_records=app.conf.broker_max_poll_records,
             auto_offset_reset='earliest',
             check_crcs=app.conf.broker_check_crcs,
             security_protocol="SSL" if app.conf.ssl_context else "PLAINTEXT",
