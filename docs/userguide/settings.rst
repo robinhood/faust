@@ -1068,6 +1068,29 @@ Example using the string path to a class::
 
     app = App(..., Table='myproj.tables.Table')
 
+.. setting:: SetTable
+
+``SetTable``
+------------
+
+:type: ``Union[str, Type[TableT]]``
+:default: ``"faust.SetTable"``
+
+The :class:`~faust.SetTable` class to use for table-of-set tables,
+or the fully-qualified path to one (supported
+by :func:`~mode.utils.imports.symbol_by_name`).
+
+Example using a class::
+
+    class MySetTable(faust.SetTable):
+        ...
+
+    app = App(..., Table=MySetTable)
+
+Example using the string path to a class::
+
+    app = App(..., Table='myproj.tables.MySetTable')
+
 .. setting:: TableManager
 
 ``TableManager``
