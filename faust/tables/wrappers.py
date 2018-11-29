@@ -278,7 +278,7 @@ class WindowWrapper(WindowWrapperT):
 
         if self.key_index and self.key_index_table is None:
             self.key_index_table = self.table.app.Table(
-                f'{self.table.name}-key_index', value_type=int)
+                f'{self.table.name}-key_index', value_type=int, key_type=self.table.key_type)
         self._get_relative_timestamp = self._relative_handler(relative_to)
 
     def clone(self, relative_to: RelativeArg) -> WindowWrapperT:
