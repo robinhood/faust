@@ -45,3 +45,7 @@ class SameNode(FaustError):
 
 class ProducerSendError(FaustError):
     """Error while sending attached messages prior to commit"""
+
+
+class ConsumerNotStarted(FaustError):
+    """Error trying to perform operation on consumer not started."""

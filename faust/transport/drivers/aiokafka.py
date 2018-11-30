@@ -1,11 +1,9 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
-from inspect import isawaitable
 from typing import (
     Any,
     AsyncIterator,
     Awaitable,
-    Callable,
     ClassVar,
     Dict,
     Iterable,
@@ -41,14 +39,15 @@ from rhkafka.errors import (
 )
 from rhkafka.partitioner.default import DefaultPartitioner
 from rhkafka.protocol.metadata import MetadataRequest_v1
-from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
-from mode.threads import ServiceThread
+from mode import Service, flight_recorder, get_logger
+from mode.threads import QueueServiceThread
 from mode.utils.compat import OrderedDict
-from mode.utils.futures import StampedeWrapper, notify
+from mode.utils.futures import StampedeWrapper
 from mode.utils.locks import Event
+from mode.utils.times import Seconds, want_seconds
 from yarl import URL
 
-from faust.exceptions import ProducerSendError
+from faust.exceptions import ConsumerNotStarted, ProducerSendError
 from faust.transport import base
 from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
@@ -191,12 +190,20 @@ class Consumer(base.Consumer):
         tps.difference_update(self._paused_partitions)
         return tps
 
+    def _create_consumer(
+            self,
+            loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
+        transport = cast(Transport, self.transport)
+        if self.app.client_only:
+            return self._create_client_consumer(transport, loop=loop)
+        else:
+            return self._create_worker_consumer(transport, loop=loop)
+
     def _create_worker_consumer(
             self,
-            app: AppT,
             transport: 'Transport',
             loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
-        conf = app.conf
+        conf = self.app.conf
         self._assignor = self.app.assignor
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
@@ -219,20 +226,20 @@ class Consumer(base.Consumer):
 
     def _create_client_consumer(
             self,
-            app: AppT,
             transport: 'Transport',
             loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
+        conf = self.app.conf
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
-            client_id=app.conf.broker_client_id,
+            client_id=conf.broker_client_id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             enable_auto_commit=True,
-            max_poll_records=app.conf.broker_max_poll_records,
+            max_poll_records=conf.broker_max_poll_records,
             auto_offset_reset='earliest',
-            check_crcs=app.conf.broker_check_crcs,
-            security_protocol="SSL" if app.conf.ssl_context else "PLAINTEXT",
-            ssl_context=app.conf.ssl_context,
+            check_crcs=conf.broker_check_crcs,
+            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
+            ssl_context=conf.ssl_context,
         )
 
     async def create_topic(self,
@@ -480,6 +487,9 @@ class Consumer(base.Consumer):
     async def position(self, tp: TP) -> Optional[int]:
         return await self._thread.position(tp)
 
+    async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        return await self._thread.seek_wait(partitions)
+
     async def _seek_to_beginning(self, *partitions: TP) -> None:
         self.log.dev('SEEK TO BEGINNING: %r', partitions)
         self._read_offset.update((_ensure_TP(tp), None) for tp in partitions)
@@ -513,87 +523,21 @@ class Consumer(base.Consumer):
         self._thread.close()
 
 
-class ConsumerThread(ServiceThread):
-    consumer: Consumer
-    _consumer_started: Optional[asyncio.Future] = None
+class ConsumerThread(QueueServiceThread):
     app: AppT
+    consumer: Consumer
     _consumer: Optional[aiokafka.AIOKafkaConsumer] = None
-    _method_queue: Optional[asyncio.Queue] = None
 
     def __init__(self, consumer: Consumer, **kwargs: Any) -> None:
         self.consumer = consumer
-        transport = consumer.transport
+        transport = self.consumer.transport
         self.app = transport.app
         self._rebalance_listener = consumer.RebalanceListener(self)
         super().__init__(**kwargs)
 
-    @property
-    def method_queue(self) -> asyncio.Queue:
-        if self._method_queue is None:
-            self._method_queue = asyncio.Queue(loop=self.thread_loop)
-        return self._method_queue
-
-    async def call_method(self,
-                          method: Callable[..., Awaitable],
-                          *args: Any,
-                          **kwargs: Any) -> Any:
-        future = self.parent_loop.create_future()
-        await self.method_queue.put((future, method, args, kwargs))
-        return await future
-
-    @Service.task
-    async def _method_handler(self) -> None:
-        while not self.should_stop:
-            future, method, args, kwargs = await self.method_queue.get()
-            try:
-                result = method(*args, **kwargs)
-                if isawaitable(result):
-                    result = await result
-                future.set_result(result)
-            except BaseException as exc:
-                future.set_exception(exc)
-
-    @Service.task
-    async def _keepalive(self) -> None:
-        while not self.should_stop:
-            await asyncio.sleep(1)
-
-    async def start(self) -> None:  # pragma: no cover
-        self._consumer_started = asyncio.Future(loop=self.parent_loop)
-        await super().start()
-        # thread exceptions do not propagate to the main thread, so we
-        # need some way to communicate socket open errors, such as "port in
-        # use", back to the parent thread.  The _port_open future is set to
-        # an exception state when that happens, and awaiting will propagate
-        # the error to the parent thread.
-        if not self.should_stop:
-            try:
-                await self._consumer_started
-            finally:
-                self._consumer_started = None
-
-    async def crash(self, exc: BaseException) -> None:
-        if self._consumer_started and not self._consumer_started.done():
-            # .start() will raise
-            self._consumer_started.set_exception(exc)
-        await super().crash(exc)
-
     async def on_start(self) -> None:
-        app = self.app
-        consumer = self.consumer
-        transport = cast(Transport, consumer.transport)
-        if self.app.client_only:
-            self._consumer = consumer._create_client_consumer(
-                app, transport, loop=self.thread_loop)
-        else:
-            self._consumer = consumer._create_worker_consumer(
-                app, transport, loop=self.thread_loop)
-        await self._ensure_consumer().start()
-        notify(self._consumer_started)  # <- .start() can return now
-
-    async def on_thread_stop(self) -> None:
-        if self._consumer is not None:
-            await self._consumer.stop()
+        self._consumer = self.consumer._create_consumer(loop=self.thread_loop)
+        await self._consumer.start()
 
     def close(self) -> None:
         if self._consumer is not None:
@@ -635,27 +579,41 @@ class ConsumerThread(ServiceThread):
 
     async def subscribe(self, topics: Iterable[str]) -> None:
         # XXX pattern does not work :/
-        await self.call_method(
+        await self.call_thread(
             self._ensure_consumer().subscribe,
             topics=set(topics),
             listener=self._rebalance_listener,
         )
 
     async def seek_to_committed(self) -> Mapping[TP, int]:
-        return await self.call_method(
+        return await self.call_thread(
             self._ensure_consumer().seek_to_committed)
 
     async def commit(self, tps: Any) -> Any:
-        return await self.call_method(
+        return await self.call_thread(
             self._ensure_consumer().commit, tps)
 
     async def position(self, tp: TP) -> Optional[int]:
-        return await self.call_method(
+        return await self.call_thread(
             self._ensure_consumer().position, tp)
 
     async def seek_to_beginning(self, *partitions: _TopicPartition) -> None:
-        await self.call_method(
+        await self.call_thread(
             self._ensure_consumer().seek_to_beginning, *partitions)
+
+    async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        consumer = self._ensure_consumer()
+        await self.call_thread(self._seek_wait, consumer, partitions)
+
+    async def _seek_wait(self,
+                         consumer: Consumer,
+                         partitions: Mapping[TP, int]) -> None:
+        for tp, offset in partitions.items():
+            self.log.dev('SEEK %r -> %r', tp, offset)
+            consumer.seek(tp, offset)
+        await asyncio.gather(*[
+            consumer.position(tp) for tp in partitions
+        ])
 
     def seek(self, partition: TP, offset: int) -> None:
         self._ensure_consumer().seek(partition, offset)
@@ -668,16 +626,16 @@ class ConsumerThread(ServiceThread):
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
-        return await self.call_method(
+        return await self.call_thread(
             self._ensure_consumer().beginning_offsets, partitions)
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
-        return await self.call_method(
+        return await self.call_thread(
             self._ensure_consumer().end_offsets, partitions)
 
     def _ensure_consumer(self) -> aiokafka.AIOKafkaConsumer:
         if self._consumer is None:
-            raise RuntimeError('Consumer thread not yet started')
+            raise ConsumerNotStarted('Consumer thread not yet started')
         return self._consumer
 
     async def getmany(self,
@@ -688,7 +646,7 @@ class ConsumerThread(ServiceThread):
         fetcher = _consumer._fetcher
         if _consumer._closed or fetcher._closed:
             raise ConsumerStoppedError()
-        return await self.call_method(
+        return await self.call_thread(
             fetcher.fetched_records,
             active_partitions,
             timeout=timeout,
@@ -708,7 +666,7 @@ class ConsumerThread(ServiceThread):
         consumer = self.consumer
         transport = cast(Transport, consumer.transport)
         _consumer = self._ensure_consumer()
-        await self.call_method(
+        await self.call_thread(
             transport._create_topic,
             consumer,
             _consumer._client,

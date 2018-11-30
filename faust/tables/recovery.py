@@ -417,13 +417,14 @@ class Recovery(Service):
                             offsets: Counter[TP],
                             title: str) -> None:
         # Seek to new offsets
+        new_offsets = {}
         for tp in tps:
             offset = offsets[tp]
             if offset == -1:
                 offset = 0
-            # FIXME Remove check when fixed offset-1 discrepancy
-            await consumer.seek(tp, offset)
-            assert await consumer.position(tp) == offset
+            new_offsets[tp] = offset
+        # FIXME Remove check when fixed offset-1 discrepancy
+        await consumer.seek_wait(new_offsets)
 
     @Service.task
     async def _slurp_changelogs(self) -> None:

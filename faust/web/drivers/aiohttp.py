@@ -18,7 +18,6 @@ from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import Application, Request, Response, json_response
 from mode.threads import ServiceThread
 from mode.utils.compat import want_str
-from mode.utils.futures import notify
 
 from faust.types import AppT
 from faust.web import base
@@ -34,34 +33,13 @@ _bytes = bytes
 
 
 class ServerThread(ServiceThread):
-    _port_open: Optional[asyncio.Future] = None
 
     def __init__(self, web: 'Web', **kwargs: Any) -> None:
         self.web = web
         super().__init__(**kwargs)
 
-    async def start(self) -> None:  # pragma: no cover
-        self._port_open = asyncio.Future(loop=self.parent_loop)
-        await super().start()
-        # thread exceptions do not propagate to the main thread, so we
-        # need some way to communicate socket open errors, such as "port in
-        # use", back to the parent thread.  The _port_open future is set to
-        # an exception state when that happens, and awaiting will propagate
-        # the error to the parent thread.
-        if not self.should_stop:
-            try:
-                await self._port_open
-            finally:
-                self._port_open = None
-
     async def on_start(self) -> None:
         await self.web.start_server(self.loop)
-        notify(self._port_open)  # <- .start() can return now
-
-    async def crash(self, exc: BaseException) -> None:
-        if self._port_open and not self._port_open.done():
-            self._port_open.set_exception(exc)  # <- .start() will raise
-        await super().crash(exc)
 
     async def on_thread_stop(self) -> None:
         # on_stop() executes in parent thread, on_thread_stop in the thread.
