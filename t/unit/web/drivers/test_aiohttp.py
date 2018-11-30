@@ -17,22 +17,13 @@ class test_ServerThread:
         assert thread.web is web
 
     @pytest.mark.asyncio
-    async def test_on_start(self, *, thread):
-        thread.web.start_server = AsyncMock(name='web.start_server')
-        thread._port_open = asyncio.Future()
-        await thread.on_start()
-
-        assert thread._port_open.done()
-        thread.web.start_server.assert_called_once_with(thread.loop)
-
-    @pytest.mark.asyncio
     async def test_crash(self, *, thread):
-        thread._port_open = asyncio.Future()
+        thread._thread_running = asyncio.Future()
         exc = RuntimeError()
         await thread.crash(exc)
-        assert thread._port_open.exception() is exc
+        assert thread._thread_running.exception() is exc
 
-        thread._port_open = None
+        thread._thread_running = None
         await thread.crash(exc)
 
     @pytest.mark.asyncio

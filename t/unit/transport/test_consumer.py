@@ -74,6 +74,9 @@ class MyConsumer(Consumer):
     async def seek(self, *args, **kwargs):
         ...
 
+    async def seek_wait(self, *args, **kwargs):
+        ...
+
     async def subscribe(self, *args, **kwargs):
         ...
 
