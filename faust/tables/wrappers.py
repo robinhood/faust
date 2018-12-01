@@ -9,7 +9,6 @@ from typing import (
     ItemsView,
     Iterator,
     KeysView,
-    NoReturn,
     Optional,
     Tuple,
     Type,
@@ -20,6 +19,7 @@ from typing import (
 )
 
 from mode import Seconds
+from mypy_extensions import NoReturn
 
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event
@@ -42,7 +42,7 @@ from faust.utils.terminal.tables import dict_as_ansitable
 if typing.TYPE_CHECKING:  # pragma: no cover
     from .table import Table
 else:
-    class Table: ...  # noqa
+    class Table: ...     # noqa
 
 __all__ = [
     'WindowSet',
