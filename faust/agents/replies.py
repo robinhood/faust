@@ -50,6 +50,8 @@ class BarrierState(asyncio.Future):
     a group of coroutines have completed.
     """
 
+    reply_to: str
+
     #: This is the size while the messages are being sent.
     #: (it's a tentative total, added to until the total is finalized).
     size: int = 0
@@ -69,6 +71,7 @@ class BarrierState(asyncio.Future):
 
     def __init__(self, reply_to: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)
+        self.reply_to = reply_to
         self.pending = set()
         loop: asyncio.AbstractEventLoop = self._loop  # type: ignore
         self._results = asyncio.Queue(maxsize=1000, loop=loop)

@@ -48,6 +48,7 @@ from faust.types import (
     Message,
     MessageSentCallback,
     ModelArg,
+    ModelT,
     RecordMetadata,
     StreamT,
     TP,
@@ -66,7 +67,12 @@ from faust.types.agents import (
 )
 
 from .actor import Actor, AsyncIterableActor, AwaitableActor
-from .models import ReqRepRequest, ReqRepResponse
+from .models import (
+    ModelReqRepRequest,
+    ModelReqRepResponse,
+    ReqRepRequest,
+    ReqRepResponse,
+)
 from .replies import BarrierState, ReplyPromise
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -579,15 +585,21 @@ class Agent(AgentT, Service):
 
     async def _reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
         assert req.reply_to
+        response = self._response_class(value)(
+            key=key,
+            value=value,
+            correlation_id=req.correlation_id,
+        )
         await self.app.send(
             req.reply_to,
             key=None,
-            value=ReqRepResponse(
-                key=key,
-                value=value,
-                correlation_id=req.correlation_id,
-            ),
+            value=response,
         )
+
+    def _response_class(self, value: Any) -> Type[ReqRepResponse]:
+        if isinstance(value, ModelT):
+            return ModelReqRepResponse
+        return ReqRepResponse
 
     async def cast(self,
                    value: V = None,
@@ -642,11 +654,16 @@ class Agent(AgentT, Service):
             raise TypeError('Missing reply_to argument')
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
-        return ReqRepRequest(
+        return self._request_class(value)(
             value=value,
             reply_to=topic_name,
             correlation_id=correlation_id,
         )
+
+    def _request_class(self, value: V) -> Type[ReqRepRequest]:
+        if isinstance(value, ModelT):
+            return ModelReqRepRequest
+        return ReqRepRequest
 
     async def send(self,
                    *,
