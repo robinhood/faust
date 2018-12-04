@@ -628,8 +628,8 @@ class ConsumerThread(QueueServiceThread):
         return self._ensure_consumer().highwater(tp)
 
     def topic_partitions(self, topic: str) -> Optional[int]:
-        coordinator = self._ensure_consumer()._coordinator
-        return coordinator._metadata_snapshot.get(topic)
+        if self._consumer is not None:
+            return self._consumer._coordinator._metadata_snapshot.get(topic)
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:

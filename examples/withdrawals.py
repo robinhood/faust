@@ -52,7 +52,7 @@ async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
         import time
         print('+ SLEEP: %r' % (asyncio.get_event_loop(),))
-        time.sleep(10)
+        time.sleep(1)
         print('- SLEEP')
         user_to_total[withdrawal.user] += withdrawal.amount
 
