@@ -1,4 +1,5 @@
 """Message transport using :pypi:`aiokafka`."""
+import asyncio
 from typing import (
     Any,
     AsyncIterator,
@@ -38,15 +39,16 @@ from rhkafka.errors import (
 )
 from rhkafka.partitioner.default import DefaultPartitioner
 from rhkafka.protocol.metadata import MetadataRequest_v1
-from mode import Seconds, Service, flight_recorder, get_logger, want_seconds
+from mode import Service, flight_recorder, get_logger
+from mode.threads import QueueServiceThread
 from mode.utils.compat import OrderedDict
 from mode.utils.futures import StampedeWrapper
 from mode.utils.locks import Event
+from mode.utils.times import Seconds, want_seconds
 from yarl import URL
 
-from faust.exceptions import ProducerSendError
+from faust.exceptions import ConsumerNotStarted, ProducerSendError
 from faust.transport import base
-from faust.transport.consumer import CONSUMER_SEEKING
 from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 from faust.utils import terminal
@@ -131,53 +133,26 @@ class _TopicBuffer(Iterator):
 class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
     # kafka's ridiculous class based callback interface makes this hacky.
 
-    def __init__(self, consumer: ConsumerT) -> None:
-        self.consumer: ConsumerT = consumer
+    def __init__(self, thread: 'ConsumerThread') -> None:
+        self._thread: 'ConsumerThread' = thread
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
-        self.consumer.app.rebalancing = True
-        # see comment in on_partitions_assigned
-        consumer = cast(Consumer, self.consumer)
-        _revoked = cast(Set[TP], set(revoked))
-        # remove revoked partitions from active + paused tps.
-        if consumer._active_partitions is not None:
-            consumer._active_partitions.difference_update(_revoked)
-        consumer._paused_partitions.difference_update(_revoked)
-        # start callback chain of assigned callbacks.
-        await consumer.on_partitions_revoked(set(_revoked))
+        await self._thread.on_partitions_revoked(revoked)
 
     async def on_partitions_assigned(
             self, assigned: Iterable[_TopicPartition]) -> None:
-        # have to cast to Consumer since ConsumerT interface does not
-        # have this attribute (mypy currently thinks a Callable instance
-        # variable is an instance method).  Furthermore we have to cast
-        # the Kafka TopicPartition namedtuples to our description,
-        # that way they are typed and decoupled from the actual client
-        # implementation.
-        consumer = cast(Consumer, self.consumer)
-        _assigned = set(assigned)
-        # remove recently revoked tps from set of paused tps.
-        consumer._paused_partitions.intersection_update(_assigned)
-        # cache set of assigned partitions
-        cast(Set[TP], consumer._set_active_tps(_assigned))
-        # start callback chain of assigned callbacks.
-        #   need to copy set at this point, since we cannot have
-        #   the callbacks mutate our active list.
-        consumer._last_batch = None
-        await consumer.on_partitions_assigned(_assigned)
+        await self._thread.on_partitions_assigned(assigned)
 
 
 class Consumer(base.Consumer):
     """Kafka consumer using :pypi:`aiokafka`."""
-
     logger = logger
 
     RebalanceListener: ClassVar[Type[ConsumerRebalanceListener]]
     RebalanceListener = ConsumerRebalanceListener
 
-    _consumer: aiokafka.AIOKafkaConsumer
-    _rebalance_listener: ConsumerRebalanceListener
+    _thread: 'ConsumerThread'
     _active_partitions: Optional[Set[_TopicPartition]]
     _paused_partitions: Set[_TopicPartition]
     fetch_timeout: float = 10.0
@@ -190,16 +165,14 @@ class Consumer(base.Consumer):
     can_resume_flow: Event
 
     def on_init(self) -> None:
-        app = self.transport.app
-        transport = cast(Transport, self.transport)
-        self._rebalance_listener = self.RebalanceListener(self)
-        if app.client_only:
-            self._consumer = self._create_client_consumer(app, transport)
-        else:
-            self._consumer = self._create_worker_consumer(app, transport)
         self._active_partitions = None
         self._paused_partitions = set()
         self.can_resume_flow = Event()
+        self._thread = ConsumerThread(
+            self,
+            loop=self.loop,
+            beacon=self.beacon,
+        )
 
     async def on_restart(self) -> None:
         self.on_init()
@@ -208,7 +181,7 @@ class Consumer(base.Consumer):
         tps = self._active_partitions
         if tps is None:
             # need aiokafka._TopicPartition, not faust.TP
-            return self._set_active_tps(self._consumer.assignment())
+            return self._set_active_tps(self.assignment())
         return tps
 
     def _set_active_tps(self,
@@ -217,14 +190,23 @@ class Consumer(base.Consumer):
         tps.difference_update(self._paused_partitions)
         return tps
 
+    def _create_consumer(
+            self,
+            loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
+        transport = cast(Transport, self.transport)
+        if self.app.client_only:
+            return self._create_client_consumer(transport, loop=loop)
+        else:
+            return self._create_worker_consumer(transport, loop=loop)
+
     def _create_worker_consumer(
             self,
-            app: AppT,
-            transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
-        conf = app.conf
+            transport: 'Transport',
+            loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
+        conf = self.app.conf
         self._assignor = self.app.assignor
         return aiokafka.AIOKafkaConsumer(
-            loop=self.loop,
+            loop=loop,
             client_id=conf.broker_client_id,
             group_id=conf.id,
             bootstrap_servers=server_list(
@@ -244,19 +226,20 @@ class Consumer(base.Consumer):
 
     def _create_client_consumer(
             self,
-            app: AppT,
-            transport: 'Transport') -> aiokafka.AIOKafkaConsumer:
+            transport: 'Transport',
+            loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
+        conf = self.app.conf
         return aiokafka.AIOKafkaConsumer(
-            loop=self.loop,
-            client_id=app.conf.broker_client_id,
+            loop=loop,
+            client_id=conf.broker_client_id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
             enable_auto_commit=True,
-            max_poll_records=app.conf.broker_max_poll_records,
+            max_poll_records=conf.broker_max_poll_records,
             auto_offset_reset='earliest',
-            check_crcs=app.conf.broker_check_crcs,
-            security_protocol="SSL" if app.conf.ssl_context else "PLAINTEXT",
-            ssl_context=app.conf.ssl_context,
+            check_crcs=conf.broker_check_crcs,
+            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
+            ssl_context=conf.ssl_context,
         )
 
     async def create_topic(self,
@@ -270,9 +253,7 @@ class Consumer(base.Consumer):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        await cast(Transport, self.transport)._create_topic(
-            self,
-            self._consumer._client,
+        await self._thread.create_topic(
             topic,
             partitions,
             replication,
@@ -285,34 +266,25 @@ class Consumer(base.Consumer):
         )
 
     async def on_start(self) -> None:
-        self.beacon.add(self._consumer)
-        await self._consumer.start()
+        await self._thread.start()
 
     async def subscribe(self, topics: Iterable[str]) -> None:
-        # XXX pattern does not work :/
-        self._consumer.subscribe(
-            topics=set(topics),
-            listener=self._rebalance_listener,
-        )
+        await self._thread.subscribe(topics=topics)
 
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
+        if not self.flow_active:
+            await self.wait(self.can_resume_flow)
         # Implementation for the Fetcher service.
-        _consumer = self._consumer
-        fetcher = _consumer._fetcher
-        if _consumer._closed or fetcher._closed:
-            raise ConsumerStoppedError()
         active_partitions = self._get_active_partitions()
         _next = next
 
         records: RecordMap = {}
-        if not self.flow_active:
-            await self.wait(self.can_resume_flow)
         if active_partitions:
             # Fetch records only if active partitions to avoid the risk of
             # fetching all partitions in the beginning when none of the
             # partitions is paused/resumed.
-            records = await fetcher.fetched_records(
+            records = await self._thread.getmany(
                 active_partitions,
                 timeout=timeout,
             )
@@ -386,7 +358,7 @@ class Consumer(base.Consumer):
                     continue
                 tp, record = item  # type: ignore
                 if tp in active_partitions:
-                    highwater_mark = self._consumer.highwater(tp)
+                    highwater_mark = self._thread.highwater(tp)
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
                     timestamp: Optional[int] = record.timestamp
@@ -428,16 +400,13 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await super().on_stop()  # wait_empty
         await self.commit()
-        await self._consumer.stop()
+        await self._thread.stop()
         transport = cast(Transport, self.transport)
         transport._topic_waiters.clear()
 
     async def perform_seek(self) -> None:
-        await self.transition_with(CONSUMER_SEEKING, self._perform_seek())
-
-    async def _perform_seek(self) -> None:
         read_offset = self._read_offset
-        _committed_offsets = await self._consumer.seek_to_committed()
+        _committed_offsets = await self._thread.seek_to_committed()
         committed_offsets = {
             _ensure_TP(tp): offset
             for tp, offset in _committed_offsets.items()
@@ -479,7 +448,7 @@ class Consumer(base.Consumer):
                 return False
             with flight_recorder(self.log, timeout=300.0) as on_timeout:
                 on_timeout.info('+aiokafka_consumer.commit()')
-                await self._consumer.commit(commitable)
+                await self._thread.commit(commitable)
                 on_timeout.info('-aiokafka._consumer.commit()')
             self._committed_offset.update(commitable_offsets)
             self.app.monitor.on_tp_commit(commitable_offsets)
@@ -516,12 +485,15 @@ class Consumer(base.Consumer):
         self._paused_partitions.difference_update(tpset)
 
     async def position(self, tp: TP) -> Optional[int]:
-        return await self._consumer.position(tp)
+        return await self._thread.position(tp)
+
+    async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        return await self._thread.seek_wait(partitions)
 
     async def _seek_to_beginning(self, *partitions: TP) -> None:
         self.log.dev('SEEK TO BEGINNING: %r', partitions)
         self._read_offset.update((_ensure_TP(tp), None) for tp in partitions)
-        await self._consumer.seek_to_beginning(*(
+        await self._thread.seek_to_beginning(*(
             self._new_topicpartition(tp.topic, tp.partition)
             for tp in partitions
         ))
@@ -532,24 +504,182 @@ class Consumer(base.Consumer):
         self._last_batch = None
         # set new read offset so we will reread messages
         self._read_offset[_ensure_TP(partition)] = offset if offset else None
-        self._consumer.seek(partition, offset)
+        self._thread.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
-        return cast(Set[TP], self._consumer.assignment())
+        return self._thread.assignment()
 
     def highwater(self, tp: TP) -> int:
-        return self._consumer.highwater(tp)
+        return self._thread.highwater(tp)
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
-        return await self._consumer.beginning_offsets(partitions)
+        return await self._thread.earliest_offsets(*partitions)
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
-        return await self._consumer.end_offsets(partitions)
+        return await self._thread.highwaters(*partitions)
 
     def close(self) -> None:
-        self._consumer.set_close()
-        self._consumer._coordinator.set_close()
+        self._thread.close()
+
+
+class ConsumerThread(QueueServiceThread):
+    app: AppT
+    consumer: Consumer
+    _consumer: Optional[aiokafka.AIOKafkaConsumer] = None
+
+    def __init__(self, consumer: Consumer, **kwargs: Any) -> None:
+        self.consumer = consumer
+        transport = self.consumer.transport
+        self.app = transport.app
+        self._rebalance_listener = consumer.RebalanceListener(self)
+        super().__init__(**kwargs)
+
+    async def on_start(self) -> None:
+        self._consumer = self.consumer._create_consumer(loop=self.thread_loop)
+        await self._consumer.start()
+
+    def close(self) -> None:
+        if self._consumer is not None:
+            self._consumer.set_close()
+            self._consumer._coordinator.set_close()
+
+    async def on_partitions_revoked(
+            self, revoked: Iterable[_TopicPartition]) -> None:
+        self.consumer.app.rebalancing = True
+        # see comment in on_partitions_assigned
+        consumer = self.consumer
+        _revoked = cast(Set[TP], set(revoked))
+        # remove revoked partitions from active + paused tps.
+        if consumer._active_partitions is not None:
+            consumer._active_partitions.difference_update(_revoked)
+        consumer._paused_partitions.difference_update(_revoked)
+        # start callback chain of assigned callbacks.
+        await consumer.on_partitions_revoked(set(_revoked))
+
+    async def on_partitions_assigned(
+            self, assigned: Iterable[_TopicPartition]) -> None:
+        # have to cast to Consumer since ConsumerT interface does not
+        # have this attribute (mypy currently thinks a Callable instance
+        # variable is an instance method).  Furthermore we have to cast
+        # the Kafka TopicPartition namedtuples to our description,
+        # that way they are typed and decoupled from the actual client
+        # implementation.
+        consumer = self.consumer
+        _assigned = set(assigned)
+        # remove recently revoked tps from set of paused tps.
+        consumer._paused_partitions.intersection_update(_assigned)
+        # cache set of assigned partitions
+        cast(Set[TP], consumer._set_active_tps(_assigned))
+        # start callback chain of assigned callbacks.
+        #   need to copy set at this point, since we cannot have
+        #   the callbacks mutate our active list.
+        consumer._last_batch = None
+        await consumer.on_partitions_assigned(_assigned)
+
+    async def subscribe(self, topics: Iterable[str]) -> None:
+        # XXX pattern does not work :/
+        await self.call_thread(
+            self._ensure_consumer().subscribe,
+            topics=set(topics),
+            listener=self._rebalance_listener,
+        )
+
+    async def seek_to_committed(self) -> Mapping[TP, int]:
+        return await self.call_thread(
+            self._ensure_consumer().seek_to_committed)
+
+    async def commit(self, tps: Any) -> Any:
+        return await self.call_thread(
+            self._ensure_consumer().commit, tps)
+
+    async def position(self, tp: TP) -> Optional[int]:
+        return await self.call_thread(
+            self._ensure_consumer().position, tp)
+
+    async def seek_to_beginning(self, *partitions: _TopicPartition) -> None:
+        await self.call_thread(
+            self._ensure_consumer().seek_to_beginning, *partitions)
+
+    async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        consumer = self._ensure_consumer()
+        await self.call_thread(self._seek_wait, consumer, partitions)
+
+    async def _seek_wait(self,
+                         consumer: Consumer,
+                         partitions: Mapping[TP, int]) -> None:
+        for tp, offset in partitions.items():
+            self.log.dev('SEEK %r -> %r', tp, offset)
+            consumer.seek(tp, offset)
+        await asyncio.gather(*[
+            consumer.position(tp) for tp in partitions
+        ])
+
+    def seek(self, partition: TP, offset: int) -> None:
+        self._ensure_consumer().seek(partition, offset)
+
+    def assignment(self) -> Set[TP]:
+        return cast(Set[TP], self._ensure_consumer().assignment())
+
+    def highwater(self, tp: TP) -> int:
+        return self._ensure_consumer().highwater(tp)
+
+    async def earliest_offsets(self,
+                               *partitions: TP) -> MutableMapping[TP, int]:
+        return await self.call_thread(
+            self._ensure_consumer().beginning_offsets, partitions)
+
+    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+        return await self.call_thread(
+            self._ensure_consumer().end_offsets, partitions)
+
+    def _ensure_consumer(self) -> aiokafka.AIOKafkaConsumer:
+        if self._consumer is None:
+            raise ConsumerNotStarted('Consumer thread not yet started')
+        return self._consumer
+
+    async def getmany(self,
+                      active_partitions: Set[_TopicPartition],
+                      timeout: float) -> RecordMap:
+        # Implementation for the Fetcher service.
+        _consumer = self._ensure_consumer()
+        fetcher = _consumer._fetcher
+        if _consumer._closed or fetcher._closed:
+            raise ConsumerStoppedError()
+        return await self.call_thread(
+            fetcher.fetched_records,
+            active_partitions,
+            timeout=timeout,
+        )
+
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 30.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
+                           ensure_created: bool = False) -> None:
+        consumer = self.consumer
+        transport = cast(Transport, consumer.transport)
+        _consumer = self._ensure_consumer()
+        await self.call_thread(
+            transport._create_topic,
+            consumer,
+            _consumer._client,
+            topic,
+            partitions,
+            replication,
+            config=config,
+            timeout=int(want_seconds(timeout) * 1000.0),
+            retention=int(want_seconds(retention) * 1000.0),
+            compacting=compacting,
+            deleting=deleting,
+            ensure_created=ensure_created,
+        )
 
 
 class Producer(base.Producer):

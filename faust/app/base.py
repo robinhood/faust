@@ -49,7 +49,7 @@ from faust.agents import (
     SinkT,
 )
 from faust.channels import Channel, ChannelT
-from faust.exceptions import ImproperlyConfigured, SameNode
+from faust.exceptions import ConsumerNotStarted, ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import venusian
@@ -1045,19 +1045,7 @@ class App(AppT, Service):
         return await self.topics.commit(topics)
 
     async def on_stop(self) -> None:
-        if self._consumer is not None:
-            consumer = self._consumer
-            assignment = consumer.assignment()
-            if assignment:
-                await self.tables.on_partitions_revoked(assignment)
-                consumer.stop_flow()
-                self.flow_control.suspend()
-                consumer.pause_partitions(assignment)
-                self.flow_control.clear()
-                await self._stop_fetcher()
-                if self.conf.stream_wait_empty:
-                    self.log.info('Wait for streams...')
-                    await self.consumer.wait_empty()
+        await self._stop_consumer()
         # send shutdown signal
         await self.on_before_shutdown.send()
         if self._producer is not None:
@@ -1065,6 +1053,25 @@ class App(AppT, Service):
             await self._producer.flush()
 
         await self._maybe_close_http_client()
+
+    async def _stop_consumer(self) -> None:
+        if self._consumer is not None:
+            consumer = self._consumer
+            try:
+                assignment = consumer.assignment()
+            except ConsumerNotStarted:
+                pass
+            else:
+                if assignment:
+                    await self.tables.on_partitions_revoked(assignment)
+                    consumer.stop_flow()
+                    self.flow_control.suspend()
+                    consumer.pause_partitions(assignment)
+                    self.flow_control.clear()
+                    await self._stop_fetcher()
+                    if self.conf.stream_wait_empty:
+                        self.log.info('Wait for streams...')
+                        await self.consumer.wait_empty()
 
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.

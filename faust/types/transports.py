@@ -169,6 +169,10 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    async def seek_wait(self, partitions: Mapping[TP, int]) -> None:
+        ...
+
+    @abc.abstractmethod
     async def commit(self, topics: TPorTopicSet = None) -> bool:
         ...
 
