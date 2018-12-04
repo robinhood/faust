@@ -40,7 +40,7 @@ from rhkafka.errors import (
 from rhkafka.partitioner.default import DefaultPartitioner
 from rhkafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, flight_recorder, get_logger
-from mode.threads import QueueServiceThread
+from mode.threads import MethodQueue, QueueServiceThread
 from mode.utils.compat import OrderedDict
 from mode.utils.futures import StampedeWrapper
 from mode.utils.locks import Event
@@ -164,10 +164,19 @@ class Consumer(base.Consumer):
     flow_active: bool = True
     can_resume_flow: Event
 
+    #: Main thread method queue.
+    #: The consumer is running in a separate thread, and so we send
+    #: requests to it via a queue.
+    #: Sometimes the thread needs to call code owned by the main thread,
+    #: such as App.on_partitions_revoked, and in that case the thread
+    #: uses this method queue.
+    _method_queue: MethodQueue
+
     def on_init(self) -> None:
         self._active_partitions = None
         self._paused_partitions = set()
         self.can_resume_flow = Event()
+        self._method_queue = MethodQueue(loop=self.loop, beacon=self.beacon)
         self._thread = ConsumerThread(
             self,
             loop=self.loop,
@@ -266,7 +275,32 @@ class Consumer(base.Consumer):
         )
 
     async def on_start(self) -> None:
+        await self._method_queue.start()
         await self._thread.start()
+
+    async def threadsafe_partitions_revoked(
+            self,
+            receiver_loop: asyncio.AbstractEventLoop,
+            revoked: Set[TP]) -> None:
+        promise = await self._method_queue.call(
+            receiver_loop.create_future(),
+            self.on_partitions_revoked,
+            revoked,
+        )
+        # wait for main-thread to finish processing request
+        await promise
+
+    async def threadsafe_partitions_assigned(
+            self,
+            receiver_loop: asyncio.AbstractEventLoop,
+            assigned: Set[TP]) -> None:
+        promise = await self._method_queue.call(
+            receiver_loop.create_future(),
+            self.on_partitions_assigned,
+            assigned,
+        )
+        # wait for main-thread to finish processing request
+        await promise
 
     async def subscribe(self, topics: Iterable[str]) -> None:
         await self._thread.subscribe(topics=topics)
@@ -379,9 +413,10 @@ class Consumer(base.Consumer):
                         tp,
                     )
 
-    def _records_to_topic_index(self,
-                                records: RecordMap,
-                                active_partitions: Set[TP]) -> TopicIndexMap:
+    def _records_to_topic_index(
+            self,
+            records: RecordMap,
+            active_partitions: Set[_TopicPartition]) -> TopicIndexMap:
         topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             try:
@@ -400,6 +435,7 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await super().on_stop()  # wait_empty
         await self.commit()
+        await self._method_queue.stop()
         await self._thread.stop()
         transport = cast(Transport, self.transport)
         transport._topic_waiters.clear()
@@ -549,7 +585,7 @@ class ConsumerThread(QueueServiceThread):
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
-        self.consumer.app.rebalancing = True
+        self.consumer.app.rebalancing = True  # set as early as possible
         # see comment in on_partitions_assigned
         consumer = self.consumer
         _revoked = cast(Set[TP], set(revoked))
@@ -558,7 +594,8 @@ class ConsumerThread(QueueServiceThread):
             consumer._active_partitions.difference_update(_revoked)
         consumer._paused_partitions.difference_update(_revoked)
         # start callback chain of assigned callbacks.
-        await consumer.on_partitions_revoked(set(_revoked))
+        await consumer.threadsafe_partitions_revoked(
+            self.thread_loop, _revoked)
 
     async def on_partitions_assigned(
             self, assigned: Iterable[_TopicPartition]) -> None:
@@ -578,7 +615,8 @@ class ConsumerThread(QueueServiceThread):
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
         consumer._last_batch = None
-        await consumer.on_partitions_assigned(_assigned)
+        await consumer.threadsafe_partitions_assigned(
+            self.thread_loop, _assigned)
 
     async def subscribe(self, topics: Iterable[str]) -> None:
         # XXX pattern does not work :/
