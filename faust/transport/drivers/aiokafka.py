@@ -630,6 +630,7 @@ class ConsumerThread(QueueServiceThread):
     def topic_partitions(self, topic: str) -> Optional[int]:
         if self._consumer is not None:
             return self._consumer._coordinator._metadata_snapshot.get(topic)
+        return None
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
