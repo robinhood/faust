@@ -682,7 +682,7 @@ to remove the bottleneck of sending messages on commit.
 ``stream_recovery_delay``
 -------------------------
 :type: ``Union[float, datetime.timedelta]``
-:default: ``10.0``
+:default: ``3.0``
 
 Number of seconds to sleep before continuing after rebalance.
 We wait for a bit to allow for more nodes to join/leave before
