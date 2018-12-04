@@ -83,6 +83,9 @@ class MyConsumer(Consumer):
     async def _commit(self, offsets) -> bool:
         ...
 
+    def topic_partitions(self, topic):
+        ...
+
     def _new_topicpartition(self, topic, partition) -> TP:
         return TP(topic, partition)
 
