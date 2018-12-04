@@ -27,6 +27,7 @@ from yarl import URL
 from faust import stores
 from faust import joins
 from faust.events import Event
+from faust.exceptions import PartitionsMismatch
 from faust.streams import current_event
 from faust.types import (
     AppT,
@@ -53,6 +54,15 @@ from faust.types.windows import WindowRange, WindowT
 __all__ = ['Collection']
 
 TABLE_CLEANING = 'CLEANING'
+
+E_SOURCE_PARTITIONS_MISMATCH = """\
+The source topic {source_topic!r} for table {table_name!r}
+has {source_n} partitions, but the changelog
+topic {change_topic!r} has {change_n} partitions.
+
+Please make sure the topics have the same number of partitions
+by configuring Kafka correctly.
+"""
 
 
 class Collection(Service, CollectionT):
@@ -214,6 +224,7 @@ class Collection(Service, CollectionT):
                         value_serializer: CodecArg = None) -> None:
         if event is None:
             raise RuntimeError('Cannot modify table outside of agent/stream.')
+        self._verify_source_topic_partitions(event)
         if key_serializer is None:
             key_serializer = self.key_serializer
         if value_serializer is None:
@@ -227,6 +238,24 @@ class Collection(Service, CollectionT):
             value_serializer=value_serializer,
             callback=self._on_changelog_sent,
         )
+
+    def _verify_source_topic_partitions(self, event: EventT) -> None:
+        source_topic = event.message.topic
+        change_topic = self.changelog_topic.get_topic_name()
+        source_n = self.app.consumer.topic_partitions(source_topic)
+        if source_n is not None:
+            change_n = self.app.consumer.topic_partitions(change_topic)
+            if change_n is not None:
+                if source_n != change_n:
+                    raise PartitionsMismatch(
+                        E_SOURCE_PARTITIONS_MISMATCH.format(
+                            source_topic=source_topic,
+                            table_name=self.name,
+                            source_n=source_n,
+                            change_topic=change_topic,
+                            change_n=change_n,
+                        ),
+                    )
 
     def _on_changelog_sent(self, fut: FutureMessage) -> None:
         # This is what keeps the offset in RocksDB so that at startup

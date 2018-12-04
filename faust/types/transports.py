@@ -190,6 +190,10 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
+    def topic_partitions(self, topic: str) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
     def close(self) -> None:
         ...
 

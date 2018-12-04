@@ -8,6 +8,8 @@ __all__ = [
     'DecodeError',
     'KeyDecodeError',
     'ValueDecodeError',
+    'ConsumerNotStarted',
+    'PartitionsMismatch',
 ]
 
 
@@ -49,3 +51,7 @@ class ProducerSendError(FaustError):
 
 class ConsumerNotStarted(FaustError):
     """Error trying to perform operation on consumer not started."""
+
+
+class PartitionsMismatch(FaustError):
+    """Number of partitions between related topics differ."""

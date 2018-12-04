@@ -512,6 +512,9 @@ class Consumer(base.Consumer):
     def highwater(self, tp: TP) -> int:
         return self._thread.highwater(tp)
 
+    def topic_partitions(self, topic: str) -> Optional[int]:
+        return self._thread.topic_partitions(topic)
+
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
         return await self._thread.earliest_offsets(*partitions)
@@ -623,6 +626,10 @@ class ConsumerThread(QueueServiceThread):
 
     def highwater(self, tp: TP) -> int:
         return self._ensure_consumer().highwater(tp)
+
+    def topic_partitions(self, topic: str) -> Optional[int]:
+        coordinator = self._ensure_consumer()._coordinator
+        return coordinator._metadata_snapshot.get(topic)
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
