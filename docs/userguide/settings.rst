@@ -409,6 +409,18 @@ You shouldn't have to set this manually.
 The client id is used to identify the software used, and is not usually
 configured by the user.
 
+.. setting:: broker_request_timeout
+
+``broker_request_timeout``
+--------------------------
+
+.. versionadded:: 1.4.0
+
+:type: :class:`int`
+:default: ``40.0`` (fourty seconds)
+
+Kafka client request timeout.
+
 .. setting:: broker_commit_every
 
 ``broker_commit_every``

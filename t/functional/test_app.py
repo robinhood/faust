@@ -38,6 +38,7 @@ class test_settings:
         assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
+        assert conf.broker_request_timeout == settings.BROKER_REQUEST_TIMEOUT
         assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
         assert (conf.broker_heartbeat_interval ==
                 settings.BROKER_HEARTBEAT_INTERVAL)
@@ -142,6 +143,7 @@ class test_settings:
                                  broker_client_id='client id',
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
+                                 broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
                                  broker_session_timeout=30303.30,
                                  broker_commit_every=202,
@@ -186,6 +188,7 @@ class test_settings:
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
+            broker_request_timeout=broker_request_timeout,
             broker_session_timeout=broker_session_timeout,
             broker_heartbeat_interval=broker_heartbeat_interval,
             broker_commit_every=broker_commit_every,
@@ -230,6 +233,7 @@ class test_settings:
             assert conf.tabledir == Path(str(tabledir))
         else:
             assert conf.tabledir.relative_to(conf.appdir) == Path(tabledir)
+        assert conf.broker_request_timeout == broker_request_timeout
         assert conf.broker_heartbeat_interval == broker_heartbeat_interval
         assert conf.broker_session_timeout == broker_session_timeout
         assert conf.broker_commit_every == broker_commit_every
