@@ -244,7 +244,7 @@ class Consumer(base.Consumer):
             client_id=conf.broker_client_id,
             bootstrap_servers=server_list(
                 transport.url, transport.default_port),
-            request_timeout_ms=int(app.conf.broker_request_timeout * 1000.0),
+            request_timeout_ms=int(conf.broker_request_timeout * 1000.0),
             enable_auto_commit=True,
             max_poll_records=conf.broker_max_poll_records,
             auto_offset_reset='earliest',
