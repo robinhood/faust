@@ -396,15 +396,23 @@ class Agent(AgentT, Service):
     def test_context(self,
                      channel: ChannelT = None,
                      supervisor_strategy: SupervisorStrategyT = None,
+                     on_error: AgentErrorHandler = None,
                      **kwargs: Any) -> AgentTestWrapperT:  # pragma: no cover
         # flow control into channel queues are disabled at startup,
         # so need to resume that.
         self.app.flow_control.resume()
+
+        async def on_agent_error(agent: AgentT, exc: BaseException) -> None:
+            if on_error is not None:
+                await on_error(agent, exc)
+            await agent.crash_test_agent(exc)
+
         return self.clone(
             cls=AgentTestWrapper,
             channel=channel if channel is not None else self.app.channel(),
             supervisor_strategy=supervisor_strategy or CrashingSupervisor,
             original_channel=self.channel,
+            on_error=on_agent_error,
             **kwargs)
 
     def _prepare_channel(self,
@@ -552,10 +560,8 @@ class Agent(AgentT, Service):
 
             # Mark ActorRef as dead, so that supervisor thread
             # can start a new one.
-            assert aref.supervisor is not None
             await aref.crash(exc)
             self.supervisor.wakeup()
-
             raise
 
     async def _slurp(self, res: ActorRefT, it: AsyncIterator) -> None:
@@ -867,14 +873,15 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
     def stream(self, *args: Any, **kwargs: Any) -> StreamT:
         return self._stream.get_active_stream()
 
-    async def on_stop(self) -> None:
-        self.results.clear()
-        await super().on_stop()
-
     async def _on_value_processed(self, value: Any) -> None:
         async with self.new_value_processed:
             self.results[self.processed_offset] = value
             self.processed_offset += 1
+            self.new_value_processed.notify_all()
+
+    async def crash_test_agent(self, exc: BaseException) -> None:
+        self._crash(exc)
+        async with self.new_value_processed:
             self.new_value_processed.notify_all()
 
     async def put(self,
@@ -898,6 +905,8 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
         if wait:
             async with self.new_value_processed:
                 await self.new_value_processed.wait()
+                if self._crash_reason:
+                    raise self._crash_reason from self._crash_reason
         return event
 
     def to_message(self,
