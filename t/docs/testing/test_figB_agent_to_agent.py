@@ -18,6 +18,14 @@ async def bar(stream):
         yield value + 'YOLO'
 
 
+@app.agent()
+async def baz(stream):
+    async for value in stream:
+        if value == 'hey':
+            raise KeyError('foo')
+        yield value
+
+
 @pytest.fixture()
 def test_app():
     app.finalize()
@@ -47,3 +55,14 @@ async def test_bar(test_app):
     async with bar.test_context() as agent:
         event = await agent.put('hey')
         assert agent.results[event.message.offset] == 'heyYOLO'
+
+
+@pytest.mark.asyncio()
+async def test_agent_with_error(test_app):
+    async with baz.test_context() as agent:
+        event = await agent.put('foo')
+        assert agent.results[event.message.offset] == 'foo'
+        event = await agent.put('bar')
+        assert agent.results[event.message.offset] == 'bar'
+        with pytest.raises(KeyError):
+            event = await agent.put('hey')
