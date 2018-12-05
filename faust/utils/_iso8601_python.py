@@ -42,10 +42,10 @@ __all__ = ['parse']
 RE_ISO8601: Pattern = re.compile(  # noqa
     r'(?P<year>[0-9]{4})(-(?P<month>[0-9]{1,2})(-(?P<day>[0-9]{1,2})'
     r'((?P<separator>.)(?P<hour>[0-9]{2}):(?P<minute>[0-9]{2})'
-    '(:(?P<second>[0-9]{2})(\.(?P<microsecond>[0-9]+))?)?'
-    r'(?P<timezone>Z|(([-+])([0-9]{2}):([0-9]{2})))?)?)?)?')
+    r'(:(?P<second>[0-9]{2})(\.(?P<microsecond>[0-9]+))?)?'
+    r'(?P<timezone>Z|(([-+])([0-9]{2}).?([0-9]{2})))?)?)?)?')
 RE_TIMEZONE: Pattern = re.compile(
-    '(?P<prefix>[+-])(?P<hours>[0-9]{2}).(?P<minutes>[0-9]{2})')
+    '(?P<prefix>[+-])(?P<hours>[0-9]{2}).?(?P<minutes>[0-9]{2})$')
 
 
 class InvalidTZ(Exception):
