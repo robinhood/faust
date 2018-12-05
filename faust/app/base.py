@@ -1089,7 +1089,7 @@ class App(AppT, Service):
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
-                await self.tables.on_partitions_revoked(revoked)
+                self.tables.on_partitions_revoked(revoked)
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')

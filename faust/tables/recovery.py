@@ -150,7 +150,7 @@ class Recovery(Service):
         self.active_offsets.pop(tp, None)
         self.active_highwaters.pop(tp, None)
 
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+    def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.flush_buffers()
         self.signal_recovery_reset.set()
 
