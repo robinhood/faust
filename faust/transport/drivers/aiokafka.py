@@ -277,8 +277,8 @@ class Consumer(base.Consumer):
         )
 
     async def on_start(self) -> None:
-        await self._method_queue.start()
-        await self._thread.start()
+        await self.add_runtime_dependency(self._method_queue)
+        await self.add_runtime_dependency(self._thread)
 
     async def threadsafe_partitions_revoked(
             self,
@@ -437,8 +437,6 @@ class Consumer(base.Consumer):
     async def on_stop(self) -> None:
         await super().on_stop()  # wait_empty
         await self.commit()
-        await self._method_queue.stop()
-        await self._thread.stop()
         transport = cast(Transport, self.transport)
         transport._topic_waiters.clear()
 
