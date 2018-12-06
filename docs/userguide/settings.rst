@@ -603,7 +603,7 @@ durability of records that are sent. The following settings are common:
   long as at least one in-sync replica remains alive. This is the strongest
   available guarantee.
 
-.. settings:: producer_request_timeout
+.. setting:: producer_request_timeout
 
 ``producer_request_timeout``
 ----------------------------
