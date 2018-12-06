@@ -815,15 +815,14 @@ class App(AppT, Service):
         list of cronjobs started with the app.
 
         Arguments:
-            cron_format (str): The cron spec defining fixed times to run the
-            decorated function.
+            cron_format: The cron spec defining fixed times to run the
+                decorated function.
 
-            timezone (tzinfo) = None: The timezone to be taken into account for
-            the cron jobs. If not set value from :setting:`timezone` will be
-            taken.
+        Keyword Arguments:
+            timezone: The timezone to be taken into account for the cron jobs.
+                If not set value from :setting:`timezone` will be taken.
 
-            on_leader (bool) = False: Should the cron job only run on the
-            leader?
+            on_leader: Should the cron job only run on the leader?
 
         Example:
             >>> @app.crontab(cron_format='30 18 * * *',
