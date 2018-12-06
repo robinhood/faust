@@ -80,6 +80,7 @@ class test_Spinner:
 
 def test_SpinnerHandler():
     s = Mock(name='spinner', autospec=Spinner)
+    s.stopped = False
     handler = SpinnerHandler(spinner=s)
     assert handler.spinner is s
     handler.emit(Mock(name='logrecord', autospec=logging.LogRecord))

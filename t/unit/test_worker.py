@@ -94,7 +94,6 @@ class test_Worker:
         worker.say = Mock(name='say')
         worker._on_startup_end_spinner()
         spinner.finish.assert_called_once_with()
-        assert worker.spinner is None
         worker.say.assert_called_once_with(' 😊')
 
     def test_on_startup_end_spinner__no_spinner(self, worker):
@@ -112,7 +111,6 @@ class test_Worker:
         worker.say = Mock(name='say')
         worker._on_startup_end_spinner()
         spinner.finish.assert_called_once_with()
-        assert worker.spinner is None
         worker.say.assert_called_once_with(' OK ^')
 
     def test_on_shutdown_immediately(self, worker):
@@ -189,7 +187,7 @@ class test_Worker:
         worker._say = Mock(name='say')
         await worker.on_execute()
         worker._setproctitle.assert_called_with('init')
-        worker._say.assert_called_with('starting➢ ', end='')
+        worker._say.assert_called_with('starting➢ ', end='', flush=True)
         worker.spinner = None
         await worker.on_execute()
 
