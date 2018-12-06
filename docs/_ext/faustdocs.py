@@ -25,6 +25,7 @@ APPDIRECT = {
     'agent',
     'task',
     'timer',
+    'crontab',
     'stream',
     'Table',
     'Set',

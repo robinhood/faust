@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import typing
+from datetime import tzinfo
 from typing import (
     Any,
     AsyncIterable,
@@ -187,6 +188,13 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
+        ...
+
+    @abc.abstractmethod
+    def crontab(self,
+                cron_format: str,
+                tz: tzinfo = None,
+                on_leader: bool = False) -> Callable:
         ...
 
     @abc.abstractmethod
