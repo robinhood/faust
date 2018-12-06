@@ -502,6 +502,8 @@ rebalancing, but make sure you also increase the
 ``broker_max_poll_records``
 ---------------------------
 
+.. versionadded:: 1.4
+
 :type: :class:`int`
 :default: ``None``
 
@@ -519,6 +521,8 @@ Advanced Consumer Settings
 
 ``consumer_max_fetch_size``
 ---------------------------
+
+.. versionadded:: 1.4
 
 :type: :class:`int`
 :default: ``4*1024**2``

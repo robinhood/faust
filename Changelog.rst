@@ -54,6 +54,13 @@ please visit the :ref:`history` section.
 
     Contributed by Matthew Stump (:github_user:`mstump`).
 
+- **App**: New :setting:`producer_request_timeout` setting.
+
+    Controls when producer batch requests expire, and when we give up
+    sending batches as producer requests fail.
+
+    This setting has been increased to 20 minutes by default.
+
 - **Web**: :pypi:`aiohttp` driver now uses ``AppRunner`` to start the web
   server.
 
