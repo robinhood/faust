@@ -1,97 +1,132 @@
 .. _changelog:
 
 ==============================
- Change history for Faust 1.3
+ Change history for Faust 1.4
 ==============================
 
 This document contain change notes for bugfix releases in
-the Faust 1.3 series. If you're looking for previous releases,
+the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
-.. _version-1.3.2:
+.. _version-1.4.0:
 
-1.3.2
+1.4.0
 =====
-:release-date: 2018-11-19 1:11 P.M PST
-:release-by: Ask Solem (:github_user:`ask`)
+:release-date: TBA
+:release-by: TBA
 
 - **Requirements**
 
-    + Now depends on :ref:`Mode 2.0.4 <mode:version-2.0.4>`.
+    + Now depends on :ref:`Mode 3.0.0 <mode:version-3.0.0>`.
 
-- Fixed crash in ``perform_seek`` when worker was not assigned any partitions.
+- **Worker**: The Kafka consumer is now running in a separate thread.
 
-- Fixed missing ``await`` in ``Consumer.wait_empty``.
+    The Kafka heartbeat background corutine sends heartbeats every 3.0 seconds,
+    and if those are missed rebalancing occurs.
 
-- Fixed hang after rebalance when not using tables.
+    This patch moves the :pypi:`aiokafka` library inside a separate thread,
+    this way it can send responsive heartbeats and operate even when agents
+    call blocking functions such as ``time.sleep(60)`` for every event.
 
-.. _version-1.3.1:
+- **Table**: Experimental support for tables where values are sets.
 
-1.3.1
-=====
-:release-date: 2018-11-15 4:12 P.M PST
-:release-by: Ask Solem (:github_user:`ask`)
+    The new ``app.SetTable`` constructor creates a table where values are sets.
+    Example uses include keeping track of users at a location:
+    ``table[location].add(user_id)``.
 
-- **Tables**: Fixed problem with table recovery hanging on
-  changelog topics having only a single entry.
+    Supports all set operations: ``add``, ``discard``, ``intersection``,
+    ``union``, ``symmetric_difference``, ``difference``, etc.
 
-.. _version-1.3.0:
+    Sets are kept in memory for fast operation, and this way we also avoid
+    the overhead of constantly serializing/deserializing the data to RocksDB.
+    Instead we periodically flush changes to RocksDB, and populate the sets
+    from disk at worker startup/table recovery.
 
-1.3.0
-=====
-:release-date: 2018-11-08 4:49 P.M PST
-:release-by: Ask Solem (:github_user:`ask`)
+- **App**: New :setting:`broker_request_timeout` setting.
 
-- **Requirements**
+    Contributed by Martin Maillard (:github_user:`martinmaillard`).
 
-    + Now depends on :ref:`Mode 2.0.3 <mode:version-2.0.3>`.
+- **App**: New :setting:`broker_max_poll_records` setting.
 
-    + Now depends on :mod:`robinhood-aiokafka` 1.4.19
+    Contributed by Alexander Oberegger (:github_user:`aoberegg`).
 
-- **App**: Refactored rebalancing and table recovery (Issue #185).
+- **App**: New :setting:`consumer_max_fetch_size` setting.
 
-    This optimizes the rebalancing callbacks for greater stability.
+    Contributed by Matthew Stump (:github_user:`mstump`).
 
-    Table recovery was completely rewritten to do as little as possible
-    during actual rebalance.  This should increase stability and reduce
-    the chance of rebalancing loops.
+- **Web**: :pypi:`aiohttp` driver now uses ``AppRunner`` to start the web
+  server.
 
-    We no longer attempt to cancel recovery during rebalance,
-    so this should also fix problems with hanging during recovery.
+    Contributed by Mattias Karlsson (:github_user:`stevespark`).
 
-- **App**: Adds new :setting:`stream_recovery_delay` setting.
+- **Agent**: Fixed RPC example (Issue #155).
 
-    In this version we are experimenting with sleeping for 10.0 seconds
-    after rebalance, to allow for more nodes to join/leave before resuming
-    the streams.
+    Contributed by Mattias Karlsson (:github_user:`stevespark`).
 
-    This adds some startup delay, but is in general unnoticeable in
-    production.
+- **Table**: Added support for iterating over windowed tables.
 
-- **Windowing**: Fixed several edge cases in windowed tables.
+    See :ref:`windowed-table-iter`.
 
-    Fix contributed by Omar Rayward (:github_user:`omarrayward`).
+    This requires us to keep a second table for the key index, so support
+    for windowed table iteration requires you to set a ``use_index=True``
+    setting for the table:
 
-- **App**: Skip table recovery on rebalance when no tables defined.
+    .. sourcecode:: python
 
-- **RocksDB**: Iterating over table keys/items/values now skips
-  standby partitions.
+        windowed_table = app.Table(
+            'name',
+            default=int,
+        ).hopping(10, 5, expires=timedelta(minutes=10), key_index=True)
 
-- **RocksDB**: Fixed issue with having "." in table names (Issue #184).
+    After enabling the ``key_index=True`` setting you may iterate over
+    keys/items/values in the table:
 
-- **App**: Allow :setting:`broker` URL setting without scheme.
+    .. sourcecode:: python
 
-    The default scheme for an URL like "localhost:9092" is ``kafka://``.
+        for key in windowed_table.keys():
+            print(key)
 
-- **App**: Adds :signal:`App.on_rebalance_complete` signal.
+        for key, value in windowed_table.items():
+            print(key, value)
 
-- **App**: Adds :signal:`App.on_before_shutdown` signal.
+        for value in windowed_table.values():
+            print(key, value)
 
-- **Misc**: Support for Python 3.8 by importing from `collections.abc`.
+    The ``items`` and ``values`` views can also select time-relative
+    iteration:
 
-- **Misc**: Got rid of :pypi:`aiohttp` deprecation warnings.
+    .. sourcecode:: python
 
-- **Documentation and examples**: Improvements contributed by:
+        for key, value in windowed_table.items().delta(30):
+            print(key, value)
+        for key, value in windowed_table.items().now():
+            print(key, value)
+        for key, value in windowed_table.items().current():
+            print(key, value)
 
-    - Martin Maillard (:github_user:`martinmaillard`).
-    - Omar Rayward (:github_user:`omarrayward`).
+- **Table**: Now raises error if source topic has mismatching
+   number of partitions with changelog topic. (Issue #137).
+
+- **Table**: Allow using raw serializer in tables.
+
+    You can now control the serialization format for changelog tables,
+    using the ``key_serializer`` and ``value_serializer`` keyword
+    arguments to ``app.Table(...)``.
+
+    Contributed by Matthias Wutte (:github_user:`wuttem`).
+
+- **Worker**: Fixed spinner output at shutdown.
+
+- **Models**: ``isodates`` option now correctly parses
+  timezones without separator such as `-0500`.
+
+- **Testing**: Calling ``AgentTestWrapper.put`` now propagates exceptions
+  raised in the agent.
+
+- **App**: Default value for :setting:`stream_recovery_delay` is now 3.0
+  seconds.
+
+- **CLI**: New command "clean_versions" used to delete old version directories
+  (Issue #68).
+
+- **Web**: Added view decorators: ``takes_model`` and ``gives_model``.

@@ -394,6 +394,8 @@ You can override this default behavior when accessing data in the table:
   latest window for a given timestamp and we have no way of modifying this
   behavior.
 
+.. _windowed-table-iter:
+
 Iterating over keys/values/items in a windowed table.
 -----------------------------------------------------
 
