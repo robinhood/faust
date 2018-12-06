@@ -61,6 +61,10 @@ class Spinner:
     def stop(self) -> None:
         self.stopped = True
 
+    def reset(self) -> None:
+        self.stopped = False
+        self.count = 0
+
     def write(self, s: str) -> None:
         if self.file.isatty():
             self._print(f'{self.bell * self.width}{s.ljust(self.width)}')
@@ -98,5 +102,5 @@ class SpinnerHandler(logging.Handler):
 
     def emit(self, _record: logging.LogRecord) -> None:
         # the spinner is only in effect with WARN level and below.
-        if self.spinner:
+        if self.spinner and not self.spinner.stopped:
             self.spinner.update()

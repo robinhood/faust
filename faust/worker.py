@@ -219,7 +219,6 @@ class Worker(mode.Worker):
                 self.say(' 😊')
             else:
                 self.say(' OK ^')
-            self.spinner = None
         else:
             self.log.info('Ready')
 
@@ -267,9 +266,14 @@ class Worker(mode.Worker):
         # This is called as soon as we start
         self._setproctitle('init')
         if self.spinner and self.spinner.file.isatty():
-            self._say('starting➢ ', end='')
-        else:
-            self._say('starting^', end='')
+            self._say('starting➢ ', end='', flush=True)
+
+    def on_worker_shutdown(self) -> None:
+        # This is called when we start the shutdown process.
+        self._setproctitle('stopping')
+        if self.spinner and self.spinner.file.isatty():
+            self.spinner.reset()
+            self._say('stopping➢ ', end='', flush=True)
 
     def on_setup_root_logger(self, logger: logging.Logger, level: int) -> None:
         # This is used to set up the terminal progress spinner
