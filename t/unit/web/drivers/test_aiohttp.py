@@ -83,8 +83,19 @@ class test_Web:
     @pytest.mark.asyncio
     async def test_start_server(self, *, app, web):
         web.web_app = Mock(name='web.web_app', autospec=Application)
+        web._runner = Mock(name='runner', setup=AsyncMock())
+        web._create_site = Mock(
+            name='create_site',
+            return_value=Mock(
+                start=AsyncMock(),
+            ),
+        )
+
         await web.start_server()
-        assert len(web._runner.sites) > 0
+
+        web._runner.setup.assert_called_once_with()
+        web._create_site.assert_called_once_with()
+        web._create_site().start.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_stop_server(self, *, web):
