@@ -110,7 +110,7 @@ APP_REPR = '''
 # Venusian (pypi): This is used for "autodiscovery" of user code,
 # CLI commands, and much more.
 # Named after same concept from Django: the Django Admin autodiscover function
-# that finds custom admin configuration in ``app.admin.py`` modules.
+# that finds custom admin configuration in ``{app}/admin.py`` modules.
 
 SCAN_AGENT = 'faust.agent'
 SCAN_COMMAND = 'faust.command'
@@ -176,11 +176,8 @@ please use the `query_param` keyword argument instead.
 # 3) With parens and arguments
 #   @app.task(on_leader=True)
 #
-# This means @app.task is a multi-level wrapper that attempts to do the
-# right thing based on how it's used.
-#
-# That's just life with Python decorators, all the frameworks do it,
-# but we have to additionally type it.
+# This means @app.task attempts to do the right thing depending
+# on how it's used. All the frameworks do this, but we have to also type it.
 TaskDecoratorRet = Union[
     Callable[[TaskArg], TaskArg],
     TaskArg,
