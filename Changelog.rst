@@ -17,7 +17,7 @@ please visit the :ref:`history` section.
 
 - **Requirements**
 
-    + Now depends on :ref:`Mode 3.0.0 <mode:version-3.0.0>`.
+    + Now depends on :ref:`Mode 3.0.1 <mode:version-3.0.1>`.
 
 - **Worker**: The Kafka consumer is now running in a separate thread.
 
