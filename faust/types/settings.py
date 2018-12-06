@@ -5,7 +5,7 @@ import socket
 import ssl
 import typing
 import warnings
-from datetime import timedelta
+from datetime import timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import (
     Any,
@@ -76,6 +76,8 @@ Should appear before calling app.topic/@app.agent/etc.
 
 # XXX mypy borks if we do `from faust import __version__`
 faust_version: str = symbol_by_name('faust:__version__')
+
+TIMEZONE = timezone.utc
 
 #: Broker URL, used as default for :setting:`broker`.
 BROKER_URL = 'kafka://localhost:9092'
@@ -290,6 +292,7 @@ class Settings(abc.ABC):
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
     consumer_max_fetch_size: int = CONSUMER_MAX_FETCH_SIZE
     producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
+    timezone: tzinfo = TIMEZONE
     web_enabled: bool
     web_bind: str = WEB_BIND
     web_port: int = WEB_PORT
@@ -384,6 +387,7 @@ class Settings(abc.ABC):
             cache: Union[str, URL] = None,
             web: Union[str, URL] = None,
             web_enabled: bool = True,
+            timezone: tzinfo = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
             canonical_url: Union[str, URL] = None,
@@ -473,6 +477,9 @@ class Settings(abc.ABC):
                 broker_heartbeat_interval)
         self.table_cleanup_interval = (
             table_cleanup_interval or self._table_cleanup_interval)
+
+        if timezone is not None:
+            self.timezone = timezone
 
         if broker_commit_every is not None:
             self.broker_commit_every = broker_commit_every

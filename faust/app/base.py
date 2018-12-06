@@ -802,7 +802,8 @@ class App(AppT, Service):
 
         return _inner
 
-    def crontab(self, cron_format: str, tz: tzinfo = None,
+    def crontab(self, cron_format: str, *,
+                timezone: tzinfo = None,
                 on_leader: bool = False) -> Callable:
         """Define an async def function to be run at the fixed times,
         defined by the cron format.
@@ -817,15 +818,16 @@ class App(AppT, Service):
             cron_format (str): The cron spec defining fixed times to run the
             decorated function.
 
-            tz (tzinfo) = None: The timezone to be taken into account for
-            the cron jobs
+            timezone (tzinfo) = None: The timezone to be taken into account for
+            the cron jobs. If not set value from :setting:`timezone` will be
+            taken.
 
             on_leader (bool) = False: Should the cron job only run on the
             leader?
 
         Example:
             >>> @app.crontab(cron_format='30 18 * * *',
-                             tz=pytz.timezone('US/Pacific'))
+                             timezone=pytz.timezone('US/Pacific'))
             >>> async def every_6_30_pm_pacific():
             ...     print('IT IS 6:30pm')
 
@@ -839,8 +841,9 @@ class App(AppT, Service):
             @self.task
             @wraps(fun)
             async def cron_starter(*args: Any) -> None:
+                _tz = self.conf.timezone if timezone is None else timezone
                 while not self.should_stop:
-                    await asyncio.sleep(cron.secs_for_next(cron_format, tz))
+                    await self.sleep(cron.secs_for_next(cron_format, _tz))
 
                     should_run = not on_leader or self.is_leader()
                     if should_run:

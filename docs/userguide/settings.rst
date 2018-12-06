@@ -240,6 +240,18 @@ and so on.
     like number of partitions for a source topic; we may only consume from
     them. To mark a topic as internal, use: ``app.topic(..., internal=True)``.
 
+.. setting:: timezone
+
+``timezone``
+------------
+
+:type: :class:`datetime.tzinfo`
+:default: ``UTC``
+
+The timezone used for date-related functionality such as cronjobs.
+
+.. versionadded:: 1.4
+
 .. setting:: datadir
 
 ``datadir``

@@ -4,6 +4,7 @@ from pathlib import Path
 import faust
 import mode
 import pytest
+import pytz
 from aiohttp.client import ClientSession
 from faust import App
 from faust.assignor import LeaderAssignor, PartitionAssignor
@@ -47,6 +48,7 @@ class test_settings:
         assert (conf.broker_commit_livelock_soft_timeout ==
                 settings.BROKER_LIVELOCK_SOFT)
         assert conf.broker_check_crcs
+        assert conf.timezone is settings.TIMEZONE
         assert conf.table_cleanup_interval == settings.TABLE_CLEANUP_INTERVAL
         assert conf.reply_to_prefix == settings.REPLY_TO_PREFIX
         assert conf.reply_expires == settings.REPLY_EXPIRES
@@ -175,6 +177,7 @@ class test_settings:
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  broker_max_poll_records=1000,
+                                 timezone=pytz.timezone('US/Eastern'),
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -215,6 +218,7 @@ class test_settings:
             stream_ack_exceptions=stream_ack_exceptions,
             stream_publish_on_commit=stream_publish_on_commit,
             stream_recovery_delay=stream_recovery_delay,
+            timezone=timezone,
             web_bind=web_bind,
             web_port=web_port,
             web_host=web_host,
@@ -260,6 +264,7 @@ class test_settings:
         assert conf.stream_ack_exceptions == stream_ack_exceptions
         assert conf.stream_publish_on_commit == stream_publish_on_commit
         assert conf.stream_recovery_delay == stream_recovery_delay
+        assert conf.timezone is timezone
         assert conf.web_bind == web_bind
         assert conf.web_port == web_port
         assert conf.web_host == web_host

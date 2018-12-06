@@ -191,9 +191,8 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def crontab(self,
-                cron_format: str,
-                tz: tzinfo = None,
+    def crontab(self, cron_format: str, *,
+                timezone: tzinfo = None,
                 on_leader: bool = False) -> Callable:
         ...
 
