@@ -42,6 +42,26 @@ please visit the :ref:`history` section.
     Instead we periodically flush changes to RocksDB, and populate the sets
     from disk at worker startup/table recovery.
 
+- **App**: Adds support for crontab tasks.
+
+    You can now define periodic tasks using cron-syntax:
+
+    .. sourcecode:: python
+        @app.crontab('*/1 * * * *', on_leader=True)
+        async def publish_every_minute():
+            print('-- We should send a message every minute --')
+            print(f'Sending message at: {datetime.now()}')
+            msg = Model(random=round(random(), 2))
+            await tz_unaware_topic.send(value=msg).
+
+    See :ref:`task-cron-jobs` for more information.
+
+    Contributed by Omar Rayward (:github_user:`omarrayward`).
+
+- **App**: New :setting:`timezone` setting.
+
+    This setting is currently used as the default timezone for crontab tasks.
+
 - **App**: New :setting:`broker_request_timeout` setting.
 
     Contributed by Martin Maillard (:github_user:`martinmaillard`).
