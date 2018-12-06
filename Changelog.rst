@@ -47,6 +47,7 @@ please visit the :ref:`history` section.
     You can now define periodic tasks using cron-syntax:
 
     .. sourcecode:: python
+
         @app.crontab('*/1 * * * *', on_leader=True)
         async def publish_every_minute():
             print('-- We should send a message every minute --')
