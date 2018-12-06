@@ -29,6 +29,7 @@ class Producer(Service, ProducerT):
         self.acks = conf.producer_acks
         self.max_request_size = conf.producer_max_request_size
         self.compression_type = conf.producer_compression_type
+        self.request_timeout = conf.producer_request_timeout
         self.ssl_context = conf.ssl_context
         self.partitioner = conf.producer_partitioner
         super().__init__(loop=loop or self.transport.loop, **kwargs)

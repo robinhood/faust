@@ -224,6 +224,10 @@ PRODUCER_MAX_REQUEST_SIZE = 1_000_000
 #: compression). Default: None.
 PRODUCER_COMPRESSION_TYPE: Optional[str] = None
 
+#: Producer request timeout is the number of seconds before we give
+#: up sending message batches.
+PRODUCER_REQUEST_TIMEOUT: float = 1200.0  # 20 minutes.
+
 #: The number of acknowledgments the producer requires the leader to have
 #: received before considering a request complete. This controls the
 #: durability of records that are sent. The following settings are common:
@@ -312,6 +316,7 @@ class Settings(abc.ABC):
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
     _broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
     _producer_partitioner: Optional[PartitionerT] = None
+    _producer_request_timeout: Seconds = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
     _table_cleanup_interval: float = TABLE_CLEANUP_INTERVAL
     _reply_expires: float = REPLY_EXPIRES
@@ -409,6 +414,7 @@ class Settings(abc.ABC):
             producer_max_request_size: int = None,
             producer_compression_type: str = None,
             producer_partitioner: SymbolArg[PartitionerT] = None,
+            producer_request_timeout: Seconds = None,
             consumer_max_fetch_size: int = None,
             web_bind: str = None,
             web_port: int = None,
@@ -511,6 +517,8 @@ class Settings(abc.ABC):
             self.producer_compression_type = producer_compression_type
         if producer_partitioner is not None:
             self.producer_partitioner = producer_partitioner
+        if producer_request_timeout is not None:
+            self.producer_request_timeout = producer_request_timeout
         if consumer_max_fetch_size is not None:
             self.consumer_max_fetch_size = consumer_max_fetch_size
         if web_bind is not None:
@@ -747,6 +755,14 @@ class Settings(abc.ABC):
     def producer_partitioner(
             self, handler: Optional[SymbolArg[PartitionerT]]) -> None:
         self._producer_partitioner = symbol_by_name(handler)
+
+    @property
+    def producer_request_timeout(self) -> float:
+        return self._producer_request_timeout
+
+    @producer_request_timeout.setter
+    def producer_request_timeout(self, timeout: Seconds) -> None:
+        self._producer_request_timeout = want_seconds(timeout)
 
     @property
     def table_cleanup_interval(self) -> float:

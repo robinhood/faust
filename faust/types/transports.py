@@ -216,6 +216,7 @@ class ProducerT(ServiceT):
     compression_type: Optional[str]
     ssl_context: Optional[ssl.SSLContext]
     partitioner: Optional[PartitionerT]
+    request_timeout: float
 
     @abc.abstractmethod
     def __init__(self, transport: 'TransportT',

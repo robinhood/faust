@@ -599,6 +599,21 @@ durability of records that are sent. The following settings are common:
   long as at least one in-sync replica remains alive. This is the strongest
   available guarantee.
 
+.. settings:: producer_request_timeout
+
+``producer_request_timeout``
+----------------------------
+
+.. versionadded:: 1.4
+
+:type: :class:`float`, :class:`datetime.timedelta`
+:default: ``1200.0`` (20 minutes)
+
+Timeout for producer operations.
+This is set high by default, as this is also the time when producer batches
+expire and will no longer be retried.
+
+
 .. setting:: producer_partitioner
 
 ``producer_partitioner``

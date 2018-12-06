@@ -751,6 +751,7 @@ class Producer(base.Producer):
             security_protocol='SSL' if self.ssl_context else 'PLAINTEXT',
             ssl_context=self.ssl_context,
             partitioner=self.partitioner or DefaultPartitioner(),
+            request_timeout_ms=int(self.request_timeout * 1000),
         )
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:
