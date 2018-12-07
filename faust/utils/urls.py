@@ -18,6 +18,7 @@ def urllist(arg: Union[URL, str, List[URL]], *,
 
 
 def ensure_scheme(default_scheme: Optional[str], url: Union[str, URL]) -> URL:
+    scheme: Optional[str] = None
     if default_scheme:
         if isinstance(url, URL):
             scheme = url.scheme
@@ -26,5 +27,4 @@ def ensure_scheme(default_scheme: Optional[str], url: Union[str, URL]) -> URL:
             scheme = _scheme if has_scheme else None
         if not scheme:
             return URL(f'{default_scheme}://{url}')
-        return URL(url)
-    return url
+    return URL(url)
