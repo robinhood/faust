@@ -1111,7 +1111,7 @@ class App(AppT, Service):
                 pass
             else:
                 if assignment:
-                    await self.tables.on_partitions_revoked(assignment)
+                    self.tables.on_partitions_revoked(assignment)
                     consumer.stop_flow()
                     self.flow_control.suspend()
                     consumer.pause_partitions(assignment)
