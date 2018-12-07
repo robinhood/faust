@@ -472,6 +472,93 @@ resolution order, as demonstrated by this example:
     assert (point.x, point.y, point.z) == (10, 20, 30)
 
 
+Blessed Keys and polymorphic fields
+-----------------------------------
+
+Models can contain fields that are other models, such as in this example
+where an account has a user:
+
+.. sourcecode:: python
+
+    class User(faust.Record):
+        id: str
+        first_name: str
+        last_name: str
+
+    class Account(faust.Record, decimals=True):
+        user: User
+        balance: Decimal
+
+This is a strict relationship, the value for Account.user can only
+ever be a ``User`` class.
+
+Faust records also support polymorphic fields, where the type of
+the field is decided at runtime. Consider an Article model having
+a list of assets:
+
+.. sourcecode:: python
+
+
+    class Asset(faust.Record):
+        url: str
+        type: str
+
+
+    class ImageAsset(faust.Record):
+        type = 'image'
+
+    class VideoAsset(faust.Record):
+        runtime_seconds: float
+        type = 'video'
+
+    class Article(faust.Record, allow_blessed_key=True):
+        assets: List[Asset]
+
+
+How does this work? What is a *blessed key*?
+The answer is in how Faust models are serialized and deserialized.
+
+When serializing a Faust model we always add a special key,
+let's look at the Account object we defined above,
+and how the payloads are generated:
+
+.. sourcecode:: pycon
+
+    >>> user = User(
+    ...    id='07ecaebf-48c4-4c9e-92ad-d16d2f4a9a19',
+    ...    first_name='Franz',
+    ...    last_name='Kafka',
+    ... )
+    >>> account = Account(
+    ...    user=user,
+    ...    balance='12.3',
+    )
+    >>> from pprint import pprint
+    >>> pprint(account.to_representation())
+    {
+        '__faust': {'ns': 't.Account'},
+        'balance': Decimal('12.3'),
+        'user': {
+            '__faust': {'ns': 't.User'},
+            'first_name': 'Franz',
+            'id': '07ecaebf-48c4-4c9e-92ad-d16d2f4a9a19',
+            'last_name': 'Kafka',
+        },
+    }
+
+
+The *blessed key* here is the ``__faust`` key, it describes what model
+class was used when serializing it.  When we allow the blessed key to be used,
+we allow it to be reconstructed using that same class.
+
+When you define a module in Python code, Faust will automatically
+keep an index of model name to class, which we then use to look up a model
+class by name.  For this to work, you must have imported the module where your
+model is defined before you deserialize the payload.
+
+When using blessed keys it's extremely important that you do not rename
+classes, or old data cannot be deserialized.
+
 Reference
 ~~~~~~~~~
 
