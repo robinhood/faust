@@ -31,7 +31,7 @@ class test_settings:
     def test_defaults(self):
         app = self.App()
         conf = app.conf
-        assert conf.broker == URL(settings.BROKER_URL)
+        assert conf.broker == [URL(settings.BROKER_URL)]
         assert conf.store == URL(settings.STORE_URL)
         assert conf.cache == URL(settings.CACHE_URL)
         assert conf.web == URL(settings.WEB_URL)
@@ -107,8 +107,9 @@ class test_settings:
         self.assert_config_equivalent()
 
     def test_broker_as_URL(self):
-        app = self.assert_config_equivalent(broker=URL('ckafka://'))
-        assert isinstance(app.conf.broker, URL)
+        app = self.assert_config_equivalent(broker='ckafka://')
+        assert isinstance(app.conf.broker, list)
+        assert app.conf.broker[0] == URL('ckafka://')
 
     def test_store_as_URL(self):
         app = self.assert_config_equivalent(store=URL('moo://'))
@@ -228,7 +229,7 @@ class test_settings:
         )
         conf = app.conf
         assert conf.id == app.conf._prepare_id(id)
-        assert conf.broker == URL(str(broker))
+        assert conf.broker == [URL(broker)]
         assert conf.store == URL(str(store))
         assert conf.cache == URL(str(cache))
         assert conf.web == URL(str(web))
@@ -297,7 +298,7 @@ class test_settings:
             app.finalize()
 
     def test_compat_url(self):
-        assert self.App(url='foo').conf.broker == URL('kafka://foo')
+        assert self.App(url='foo').conf.broker == [URL('kafka://foo')]
 
     def test_compat_client_id(self):
         with pytest.warns(FutureWarning):
@@ -341,6 +342,7 @@ class test_settings:
 
     def test_broker_with_no_scheme_set(self):
         app = self.App(broker='example.com:3123')
-        assert app.conf.broker.scheme == settings.DEFAULT_BROKER_SCHEME
-        assert app.conf.broker.host == 'example.com'
-        assert app.conf.broker.port == 3123
+        url = app.conf.broker[0]
+        assert url.scheme == settings.DEFAULT_BROKER_SCHEME
+        assert url.host == 'example.com'
+        assert url.port == 3123

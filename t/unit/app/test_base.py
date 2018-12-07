@@ -102,7 +102,7 @@ class test_App:
         by_url = patching('faust.transport.by_url')
         assert app._new_transport() is by_url.return_value.return_value
         assert app.transport is by_url.return_value.return_value
-        by_url.assert_called_with(app.conf.broker)
+        by_url.assert_called_with(app.conf.broker[0])
         by_url.return_value.assert_called_with(
             app.conf.broker, app, loop=app.loop)
         app.transport = 10
@@ -483,7 +483,7 @@ class test_AppConfiguration:
         on_before.assert_called_with(app, signal=app.on_before_configured)
         on_config.assert_called_with(app, app.conf, signal=app.on_configured)
         on_after.assert_called_with(app, signal=app.on_after_configured)
-        assert app.conf.broker == URL('kafka://foo')
+        assert app.conf.broker == [URL('kafka://foo')]
         assert app.conf.stream_buffer_maxsize == 1
 
     def test_finalize__no_id(self, *, app):

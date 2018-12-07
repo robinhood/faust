@@ -10,12 +10,7 @@ faust/transport/drivers/aiokafka.py
 """
 import asyncio
 import typing
-from typing import (
-    Any,
-    ClassVar,
-    Type,
-    Union,
-)
+from typing import Any, ClassVar, List, Type
 
 from mode.services import ServiceT
 from yarl import URL
@@ -61,10 +56,10 @@ class Transport(TransportT):
     driver_version: str
 
     def __init__(self,
-                 url: Union[str, URL],
+                 url: List[URL],
                  app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
-        self.url = URL(url)
+        self.url = url
         self.app = app
         self.loop = loop or asyncio.get_event_loop()
 

@@ -1247,7 +1247,7 @@ class App(AppT, Service):
         return self.transport.create_conductor(beacon=self.beacon)
 
     def _new_transport(self) -> TransportT:
-        return transport.by_url(self.conf.broker)(
+        return transport.by_url(self.conf.broker[0])(
             self.conf.broker, self, loop=self.loop)
 
     def _new_cache_backend(self) -> CacheBackendT:

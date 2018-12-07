@@ -11,6 +11,7 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    List,
     Mapping,
     MutableMapping,
     MutableSet,
@@ -305,7 +306,7 @@ class TransportT(abc.ABC):
     app: AppT
 
     #: The URL to use for this transport (e.g. kafka://localhost).
-    url: URL
+    url: List[URL]
 
     #: String identifying the underlying driver used for this transport.
     #: E.g. for :pypi:`aiokafka` this could be "aiokafka 0.4.1".
@@ -315,7 +316,7 @@ class TransportT(abc.ABC):
 
     @abc.abstractmethod
     def __init__(self,
-                 url: Union[str, URL],
+                 url: List[URL],
                  app: AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...

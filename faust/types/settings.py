@@ -26,6 +26,7 @@ from mode.utils.logging import Severity
 from yarl import URL
 
 from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
+from faust.utils.urls import urllist
 
 from ._env import DATADIR, WEB_BIND, WEB_PORT, WEB_TRANSPORT
 from .agents import AgentT
@@ -304,7 +305,7 @@ class Settings(abc.ABC):
     _origin: Optional[str] = None
     _name: str
     _version: int = 1
-    _broker: URL
+    _broker: List[URL]
     _store: URL
     _cache: URL
     _web: URL
@@ -372,7 +373,7 @@ class Settings(abc.ABC):
             id: str,
             *,
             version: int = None,
-            broker: Union[str, URL] = None,
+            broker: Union[str, URL, List[URL]] = None,
             broker_client_id: str = None,
             broker_request_timeout: Seconds = None,
             broker_commit_every: int = None,
@@ -632,15 +633,12 @@ class Settings(abc.ABC):
         self._version = version
 
     @property
-    def broker(self) -> URL:
+    def broker(self) -> List[URL]:
         return self._broker
 
     @broker.setter
-    def broker(self, broker: Union[URL, str]) -> None:
-        broker_url = URL(broker)
-        if not broker_url.scheme:
-            broker_url = URL(f'{DEFAULT_BROKER_SCHEME}://{broker}')
-        self._broker = broker_url
+    def broker(self, broker: Union[URL, str, List[URL]]) -> None:
+        self._broker = urllist(broker, default_scheme=DEFAULT_BROKER_SCHEME)
 
     @property
     def store(self) -> URL:

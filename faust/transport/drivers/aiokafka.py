@@ -76,12 +76,9 @@ _TPTypes = Union[TP, _TopicPartition]
 logger = get_logger(__name__)
 
 
-def server_list(url: URL, default_port: int) -> str:
-    # remove the scheme
-    servers = str(url).split('://', 1)[1]
-    # add default ports
-    return ';'.join(host if ':' in host else f'{host}:{default_port}'
-                    for host in servers.split(';'))
+def server_list(urls: List[URL], default_port: int) -> List[str]:
+    default_host = '127.0.0.1'
+    return [f'{u.host or default_host}:{u.port or default_port}' for u in urls]
 
 
 def _ensure_TP(tp: _TPTypes) -> TP:

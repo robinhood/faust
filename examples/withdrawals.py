@@ -31,7 +31,7 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 app = faust.App(
     'faust-withdrawals',
-    broker='kafka://127.0.0.1:9092',
+    broker='kafka://',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=8,
