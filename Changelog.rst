@@ -59,6 +59,12 @@ please visit the :ref:`history` section.
 
     Contributed by Omar Rayward (:github_user:`omarrayward`).
 
+- **App**: Providing multiple URLs to the :setting:`broker` setting
+  now works as expected.
+
+    To facilitiate this change ``app.conf.broker`` is now
+    ``List[URL]`` instead of a single :class:`~yarl.URL`.
+
 - **App**: New :setting:`timezone` setting.
 
     This setting is currently used as the default timezone for crontab tasks.
