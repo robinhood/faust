@@ -33,7 +33,7 @@ from mode import (
 )
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.futures import maybe_async
-from mode.utils.objects import canoname, qualname
+from mode.utils.objects import canonshortname, qualname
 from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
@@ -183,7 +183,7 @@ class Agent(AgentT, Service):
                  **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
-        self.name = name or canoname(self.fun)
+        self.name = name or canonshortname(self.fun)
         # key-type/value_type arguments only apply when a channel
         # is not set
         if key_type is not None:
