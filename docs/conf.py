@@ -52,7 +52,7 @@ globals().update(conf.build_config(
     html_logo='images/logo.png',
     html_favicon='images/favicon.ico',
     html_prepend_sidebars=[],
-    include_intersphinx={'python', 'sphinx'},
+    include_intersphinx={'sphinx'},
     extra_extensions=[
         'sphinx.ext.napoleon',
         'sphinxcontrib.asyncio',
@@ -63,13 +63,20 @@ globals().update(conf.build_config(
     extra_intersphinx_mapping={
         'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
-        'click': ('http://click.pocoo.org/6/', None),
+        'aredis': ('https://aredis.readthedocs.io/en/latest/', None),
+        'click': ('https://click.palletsprojects.com/en/latest/', None),
+        'kafka-python': (
+            'https://kafka-python.readthedocs.io/en/master/', None),
         'mode': ('https://mode.readthedocs.io/en/latest/', None),
         'mypy': ('https://mypy.readthedocs.io/en/latest/', None),
-        'rocksdb': ('http://python-rocksdb.readthedocs.io/en/latest/', None),
+        'pytest': ('https://pytest.readthedocs.io/en/latest/', None),
+        'python': ('https://docs.python.org/dev/', None),
+        'rocksdb': ('https://python-rocksdb.readthedocs.io/en/latest/', None),
+        'statsd': ('https://statsd.readthedocs.io/en/latest/', None),
         'terminaltables': ('https://robpol86.github.io/terminaltables/', None),
-        'venusian': ('http://venusian.readthedocs.io/en/latest/', None),
-        'yarl': ('http://yarl.readthedocs.io/en/latest/', None),
+        'uvloop': ('https://uvloop.readthedocs.io', None),
+        'venusian': ('https://venusian.readthedocs.io/en/latest/', None),
+        'yarl': ('https://yarl.readthedocs.io/en/latest/', None),
     },
     # django_settings='testproj.settings',
     # from pathlib import Path
