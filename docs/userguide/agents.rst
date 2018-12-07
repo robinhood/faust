@@ -612,7 +612,7 @@ in a list with orering preserved:
     processed and returns them as a list in the original order.
 
     The :keyword:`await` will continue only after the map sequence is over,
-    and all results are accounted for, so do not attempt to use use ``join``
+    and all results are accounted for, so do not attempt to use ``join``
     together with infinite data structures ;-)
 
     .. sourcecode:: python
