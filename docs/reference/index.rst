@@ -15,7 +15,6 @@ Faust
 
     faust
     faust.exceptions
-    faust.app
     faust.channels
     faust.events
     faust.joins

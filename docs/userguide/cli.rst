@@ -368,13 +368,22 @@ A "worker" starts a single instance of a Faust application.
 
     Blocking detector timeout (requires --debug).
 
+.. cmdoption:: --without-web
+
+    Do not start embedded web server.
+
 .. cmdoption:: --web-host, -h
 
     Canonical host name for the web server.
 
 .. cmdoption:: --web-port, -p
 
-    Port to run web server on.
+    Port to run web server on (default is 6066).
+
+.. cmdoption:: --web-bind, -b
+
+    Network mask to bind web server to (default is "0.0.0.0" - all
+    interfaces).
 
 .. cmdoption:: --console-port
 

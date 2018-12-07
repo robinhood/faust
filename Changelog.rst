@@ -55,7 +55,7 @@ please visit the :ref:`history` section.
             msg = Model(random=round(random(), 2))
             await tz_unaware_topic.send(value=msg).
 
-    See :ref:`task-cron-jobs` for more information.
+    See :ref:`tasks-cron-jobs` for more information.
 
     Contributed by Omar Rayward (:github_user:`omarrayward`).
 
