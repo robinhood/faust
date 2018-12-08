@@ -12,8 +12,8 @@ please visit the :ref:`history` section.
 
 1.4.0
 =====
-:release-date: TBA
-:release-by: TBA
+:release-date: 2018-12-07 4:29 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
 
 - **Requirements**
 
