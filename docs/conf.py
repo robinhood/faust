@@ -145,6 +145,7 @@ napoleon_use_keyword = True
 
 applehelp_bundle_id = 'Faust'
 epub_identifier = 'Faust'
+latex_engine = 'xelatex'
 latex_elements = {
     'inputenc': '',
     'utf8extra': '',
