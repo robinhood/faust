@@ -7,6 +7,7 @@ from typing import (
     AsyncIterable,
     Awaitable,
     Callable,
+    ClassVar,
     Iterable,
     Mapping,
     MutableSequence,
@@ -68,12 +69,45 @@ __all__ = [
 TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
 
 
+class BootStrategyT:
+    app: 'AppT'
+    enable_web: bool
+    enable_kafka: bool
+    enable_kafka_producer: bool
+    enable_kafka_consumer: bool
+    enable_sensors: bool
+
+    @abc.abstractmethod
+    def __init__(self, app: 'AppT', *,
+                 enable_web: bool = None,
+                 enable_kafka: bool = True,
+                 enable_kafka_producer: bool = None,
+                 enable_kafka_consumer: bool = None,
+                 enable_sensors: bool = True) -> None:
+        ...
+
+    @abc.abstractmethod
+    def server(self) -> Iterable[ServiceT]:
+        ...
+
+    @abc.abstractmethod
+    def client_only(self) -> Iterable[ServiceT]:
+        ...
+
+    @abc.abstractmethod
+    def producer_only(self) -> Iterable[ServiceT]:
+        ...
+
+
 class AppT(ServiceT):
     """Abstract type for the Faust application.
 
     See Also:
         :class:`faust.App`.
     """
+
+    BootStrategy: ClassVar[Type[BootStrategyT]]
+    boot_strategy: BootStrategyT
 
     #: Set to true when the app is finalized (can read configuration).
     finalized: bool = False

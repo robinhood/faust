@@ -59,7 +59,7 @@ from faust.web.cache import backends as cache_backends
 from faust.web.views import View
 
 from faust.types._env import STRICT
-from faust.types.app import AppT, TaskArg
+from faust.types.app import AppT, BootStrategyT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
 from faust.types.core import K, V
@@ -185,6 +185,115 @@ TaskDecoratorRet = Union[
 ]
 
 
+class BootStrategy(BootStrategyT):
+
+    def __init__(self, app: AppT, *,
+                 enable_web: bool = None,
+                 enable_kafka: bool = True,
+                 enable_kafka_producer: bool = None,
+                 enable_kafka_consumer: bool = None,
+                 enable_sensors: bool = True) -> None:
+        self.app = app
+        if enable_web is None:
+            enable_web = self.app.conf.web_enabled
+        self.enable_web = enable_web
+        self.enable_kafka = enable_kafka
+        if enable_kafka_producer is None:
+            enable_kafka_producer = self.enable_kafka
+        self.enable_kafka_producer = enable_kafka_producer
+        if enable_kafka_consumer is None:
+            enable_kafka_consumer = self.enable_kafka
+        self.enable_kafka_consumer = enable_kafka_consumer
+        self.enable_sensors = enable_sensors
+
+    def server(self) -> Iterable[ServiceT]:
+        return cast(
+            Iterable[ServiceT],
+            chain(
+                # Sensors (Sensor): always start first and stop last.
+                self.sensors(),
+                # Web
+                self.web_server(),
+                # Producer: always stop after Consumer.
+                self.kafka_producer(),
+                # Consumer: always stop after Conductor
+                self.kafka_consumer(),
+                # AgentManager starts agents (app.agents)
+                self.agents(),
+                # Conductor (transport.Conductor))
+                self.kafka_conductor(),
+                # Table Manager (app.TableManager)
+                self.tables(),
+            ),
+        )
+
+    def client_only(self) -> Iterable[ServiceT]:
+        return cast(
+            Iterable[ServiceT],
+            chain(
+                self.kafka_producer(),
+                self.kafka_client_consumer(),
+                self.kafka_conductor(),
+                [self.app._fetcher],
+            ),
+        )
+
+    def producer_only(self) -> Iterable[ServiceT]:
+        return cast(
+            Iterable[ServiceT],
+            chain(
+                self.web_server(),
+                self.kafka_producer(),
+            ),
+        )
+
+    def sensors(self) -> Iterable[ServiceT]:
+        if self.enable_sensors:
+            return self.app.sensors
+        return []
+
+    def kafka_producer(self) -> Iterable[ServiceT]:
+        if self.enable_kafka_producer:
+            return [self.app.producer]
+        return []
+
+    def kafka_consumer(self) -> Iterable[ServiceT]:
+        if self.enable_kafka_consumer:
+            return [
+                self.app.consumer,
+                # Leader Assignor (assignor.LeaderAssignor)
+                self.app._leader_assignor,
+                # Reply Consumer (ReplyConsumer)
+                self.app._reply_consumer,
+            ]
+        return []
+
+    def kafka_client_consumer(self) -> Iterable[ServiceT]:
+        return [
+            self.app.consumer,
+            self.app._reply_consumer,
+        ]
+
+    def agents(self) -> Iterable[ServiceT]:
+        return [self.app.agents]
+
+    def kafka_conductor(self) -> Iterable[ServiceT]:
+        if self.enable_kafka_consumer:
+            return [self.app.topics]
+        return []
+
+    def web_server(self) -> Iterable[ServiceT]:
+        if self.enable_web:
+            return list(self.web_components()) + [self.app.web]
+        return []
+
+    def web_components(self) -> Iterable[ServiceT]:
+        return [self.app.cache]
+
+    def tables(self) -> Iterable[ServiceT]:
+        return [self.app.tables]
+
+
 class App(AppT, Service):
     """Faust Application.
 
@@ -198,6 +307,7 @@ class App(AppT, Service):
         :ref:`application-configuration` -- for supported keyword arguments.
 
     """
+    BootStrategy = BootStrategy
 
     #: Set this to True if app should only start the services required to
     #: operate as an RPC client (producer and simple reply consumer).
@@ -292,6 +402,8 @@ class App(AppT, Service):
         # such as Django integration).
         self.fixups = self._init_fixups()
 
+        self.boot_strategy = self.BootStrategy(self)
+
         Service.__init__(self, loop=loop, beacon=beacon)
 
     def _init_signals(self) -> None:
@@ -342,37 +454,6 @@ class App(AppT, Service):
         return list(fixups(self))
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
-        # Client-Only: Boots up enough services to be able to
-        # produce to topics and receive replies from topics.
-        # XXX Need better way to do RPC
-        if self.producer_only:
-            return self._components_producer_only()
-        if self.client_only:
-            return self._components_client()
-        # Server: Starts everything.
-        return self._components_server()
-
-    def _components_producer_only(self) -> Iterable[ServiceT]:
-        return cast(Iterable[ServiceT], chain(
-            self._web_components_when_enabled(),
-            [self.producer],
-        ))
-
-    def _components_client(self) -> Iterable[ServiceT]:
-        # Returns the components started when running in Client-Only mode.
-        return cast(Iterable[ServiceT], (
-            self.producer,
-            self.consumer,
-            self._reply_consumer,
-            self.topics,
-            self._fetcher,
-        ))
-
-    def _components_server(self) -> Iterable[ServiceT]:
-        # Returns the components started when running normally (Server mode).
-        # Note: has side effects: adds the monitor to the app's list of
-        # sensors.
-
         # Add the main Monitor sensor.
         # The beacon is also reattached in case the monitor
         # was created by the user.
@@ -380,43 +461,12 @@ class App(AppT, Service):
         self.monitor.loop = self.loop
         self.sensors.add(self.monitor)
 
-        # Then return the list of "subservices",
-        # those that'll be started when the app starts,
-        # stopped when the app stops,
-        # etc...
-        return cast(
-            Iterable[ServiceT],
-            chain(
-                # Sensors (Sensor): always start first and stop last.
-                self.sensors,
-                # Web
-                self._web_components_when_enabled(),
-                # Producer: always stop after Consumer.
-                [self.producer],
-                # Consumer: always stop after Conductor
-                [self.consumer],
-                # Leader Assignor (assignor.LeaderAssignor)
-                [self._leader_assignor],
-                # Reply Consumer (ReplyConsumer)
-                [self._reply_consumer],
-                # AgentManager starts agents (app.agents)
-                [self.agents],
-                # Conductor (transport.Conductor))
-                [self.topics],
-                # Table Manager (app.TableManager)
-                [self.tables],
-            ),
-        )
-
-    def _web_components_when_enabled(self) -> Iterable[ServiceT]:
-        if self.conf.web_enabled:
-            return [
-                # Optional cache backend.
-                self.cache,
-                # Web server
-                self.web,
-            ]
-        return []
+        if self.producer_only:
+            return self.boot_strategy.producer_only()
+        elif self.client_only:
+            return self.boot_strategy.client_only()
+        else:
+            return self.boot_strategy.server()
 
     async def on_first_start(self) -> None:
         if not self.agents and not self.producer_only:
