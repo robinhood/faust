@@ -149,11 +149,6 @@ latex_engine = 'xelatex'
 latex_elements = {
     'inputenc': '',
     'utf8extra': '',
-    'preamble': r'''
-
-\usepackage{fontspec}
-\setsansfont{Arial}
-\setromanfont{Arial}
-\setmonofont{DejaVu Sans Mono}
-''',
+    'sphinxsetup':
+        r'verbatimwithframe=false, VerbatimColor={rgb}{0.47, 0.41, 0.47}',
 }
