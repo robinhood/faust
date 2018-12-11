@@ -8,6 +8,15 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.1:
+
+1.4.1
+=====
+:release-date: 2018-12-10 4:49 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Web**: Disable :pypi:`aiohttp` access logs for performance.
+
 .. _version-1.4.0:
 
 1.4.0
