@@ -48,7 +48,7 @@ class Web(base.Web):
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self.web_app: Application = Application()
-        self._runner: AppRunner = AppRunner(self.web_app)
+        self._runner: AppRunner = AppRunner(self.web_app, access_log=None)
 
     async def on_start(self) -> None:
         self.init_server()
