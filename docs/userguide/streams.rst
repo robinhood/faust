@@ -441,7 +441,7 @@ time with no events received it will still process what it has gathered.
 ``enumerate()`` -- Count values
 -------------------------------
 
-Use :meth:`Stream.aenumerate()` to keep a count of the number of values
+Use :meth:`Stream.enumerate()` to keep a count of the number of values
 seen so far in a stream.
 
 This operation works exactly like the Python :func:`enumerate` function, but
