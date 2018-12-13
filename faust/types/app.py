@@ -71,10 +71,7 @@ TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
 
 class BootStrategyT:
     app: 'AppT'
-    enable_web: bool
     enable_kafka: bool
-    enable_kafka_producer: bool
-    enable_kafka_consumer: bool
     enable_sensors: bool
 
     @abc.abstractmethod
@@ -84,6 +81,33 @@ class BootStrategyT:
                  enable_kafka_producer: bool = None,
                  enable_kafka_consumer: bool = None,
                  enable_sensors: bool = True) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def enable_web(self) -> bool:
+        ...
+
+    @enable_web.setter
+    def enable_web(self, enabled: bool) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def enable_kafka_producer(self) -> bool:
+        ...
+
+    @enable_kafka_producer.setter
+    def enable_kafka_producer(self, enabled: bool) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def enable_kafka_consumer(self) -> bool:
+        ...
+
+    @enable_kafka_consumer.setter
+    def enable_kafka_consumer(self, enabled: bool) -> None:
         ...
 
     @abc.abstractmethod

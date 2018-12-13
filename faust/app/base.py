@@ -186,6 +186,9 @@ TaskDecoratorRet = Union[
 
 
 class BootStrategy(BootStrategyT):
+    _enable_web: Optional[bool] = None
+    _enable_kafka_consumer: Optional[bool] = None
+    _enable_kafka_producer: Optional[bool] = None
 
     def __init__(self, app: AppT, *,
                  enable_web: bool = None,
@@ -193,16 +196,36 @@ class BootStrategy(BootStrategyT):
                  enable_kafka_producer: bool = None,
                  enable_kafka_consumer: bool = None,
                  enable_sensors: bool = True) -> None:
-        self._enable_web = enable_web
         self.app = app
+
         self.enable_kafka = enable_kafka
-        if enable_kafka_producer is None:
-            enable_kafka_producer = self.enable_kafka
-        self.enable_kafka_producer = enable_kafka_producer
-        if enable_kafka_consumer is None:
-            enable_kafka_consumer = self.enable_kafka
-        self.enable_kafka_consumer = enable_kafka_consumer
+        if enable_kafka_producer is not None:
+            self.enable_kafka_producer = enable_kafka_producer
+        if enable_kafka_consumer is not None:
+            self.enable_kafka_consumer = enable_kafka_consumer
+        if enable_web is not None:
+            self.enable_web = enable_web
         self.enable_sensors = enable_sensors
+
+    @property
+    def enable_kafka_consumer(self) -> bool:
+        if self._enable_kafka_consumer is None:
+            return self.enable_kafka
+        return self._enable_kafka_consumer
+
+    @enable_kafka_consumer.setter
+    def enable_kafka_consumer(self, enabled: bool) -> None:
+        self._enable_kafka_consumer = enabled
+
+    @property
+    def enable_kafka_producer(self) -> bool:
+        if self._enable_kafka_producer is None:
+            return self.enable_kafka
+        return self._enable_kafka_producer
+
+    @enable_kafka_producer.setter
+    def enable_kafka_producer(self, enabled: bool) -> None:
+        self._enable_kafka_producer = enabled
 
     @property
     def enable_web(self) -> bool:
@@ -215,45 +238,39 @@ class BootStrategy(BootStrategyT):
         self._enable_web = enabled
 
     def server(self) -> Iterable[ServiceT]:
-        return cast(
-            Iterable[ServiceT],
-            chain(
-                # Sensors (Sensor): always start first and stop last.
-                self.sensors(),
-                # Producer: always stop after Consumer.
-                self.kafka_producer(),
-                # Web
-                self.web_server(),
-                # Consumer: always stop after Conductor
-                self.kafka_consumer(),
-                # AgentManager starts agents (app.agents)
-                self.agents(),
-                # Conductor (transport.Conductor))
-                self.kafka_conductor(),
-                # Table Manager (app.TableManager)
-                self.tables(),
-            ),
+        return self._chain(
+            # Sensors (Sensor): always start first and stop last.
+            self.sensors(),
+            # Producer: always stop after Consumer.
+            self.kafka_producer(),
+            # Web
+            self.web_server(),
+            # Consumer: always stop after Conductor
+            self.kafka_consumer(),
+            # AgentManager starts agents (app.agents)
+            self.agents(),
+            # Conductor (transport.Conductor))
+            self.kafka_conductor(),
+            # Table Manager (app.TableManager)
+            self.tables(),
         )
 
     def client_only(self) -> Iterable[ServiceT]:
-        return cast(
-            Iterable[ServiceT],
-            chain(
-                self.kafka_producer(),
-                self.kafka_client_consumer(),
-                self.kafka_conductor(),
-                [self.app._fetcher],
-            ),
+        return self._chain(
+            self.kafka_producer(),
+            self.kafka_client_consumer(),
+            self.kafka_conductor(),
+            [self.app._fetcher],
         )
 
     def producer_only(self) -> Iterable[ServiceT]:
-        return cast(
-            Iterable[ServiceT],
-            chain(
-                self.web_server(),
-                self.kafka_producer(),
-            ),
+        return self._chain(
+            self.web_server(),
+            self.kafka_producer(),
         )
+
+    def _chain(self, *arguments: Iterable[ServiceT]) -> Iterable[ServiceT]:
+        return cast(Iterable[ServiceT], chain(*arguments))
 
     def sensors(self) -> Iterable[ServiceT]:
         if self.enable_sensors:
