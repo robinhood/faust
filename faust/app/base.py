@@ -193,10 +193,8 @@ class BootStrategy(BootStrategyT):
                  enable_kafka_producer: bool = None,
                  enable_kafka_consumer: bool = None,
                  enable_sensors: bool = True) -> None:
+        self._enable_web = enable_web
         self.app = app
-        if enable_web is None:
-            enable_web = self.app.conf.web_enabled
-        self.enable_web = enable_web
         self.enable_kafka = enable_kafka
         if enable_kafka_producer is None:
             enable_kafka_producer = self.enable_kafka
@@ -205,6 +203,16 @@ class BootStrategy(BootStrategyT):
             enable_kafka_consumer = self.enable_kafka
         self.enable_kafka_consumer = enable_kafka_consumer
         self.enable_sensors = enable_sensors
+
+    @property
+    def enable_web(self) -> bool:
+        if self._enable_web is None:
+            return self.app.conf.web_enabled
+        return self._enable_web
+
+    @enable_web.setter
+    def enable_web(self, enabled: bool) -> None:
+        self._enable_web = enabled
 
     def server(self) -> Iterable[ServiceT]:
         return cast(

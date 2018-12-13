@@ -11,16 +11,15 @@ class OtherService(Service):
 class test_AppService:
 
     def test_on_init_dependencies(self, *, app):
-        app._components_client = Mock(name='components_client')
-        app._components_server = Mock(name='components_server')
+        app.boot_strategy = Mock(name='boot_strategy')
         app.client_only = True
-        assert app.on_init_dependencies() == app._components_client()
+        assert app.on_init_dependencies() == app.boot_strategy.client_only()
 
         app.client_only = False
-        assert app.on_init_dependencies() == app._components_server()
+        assert app.on_init_dependencies() == app.boot_strategy.server()
 
     def test_components_client(self, *, app):
-        assert list(app._components_client()) == [
+        assert list(app.boot_strategy.client_only()) == [
             app.producer,
             app.consumer,
             app._reply_consumer,
@@ -29,7 +28,7 @@ class test_AppService:
         ]
 
     def test_components_server(self, *, app):
-        components = list(app._components_server())
+        components = list(app.boot_strategy.server())
         expected_components = list(app.sensors)
         expected_components.extend([
             app.cache,
