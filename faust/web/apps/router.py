@@ -1,5 +1,6 @@
 """HTTP endpoint showing partition routing destinations."""
 from faust import web
+from faust.web.exceptions import ServiceUnavailable
 
 __all__ = ['TableList', 'TableDetail', 'TableKeyDetail', 'blueprint']
 
@@ -33,4 +34,9 @@ class TableKeyDetail(web.View):
                   name: str,
                   key: str) -> web.Response:
         router = self.app.router
-        return self.json(str(router.key_store(name, key)))
+        try:
+            dest_url = router.key_store(name, key)
+        except KeyError:
+            raise ServiceUnavailable()
+        else:
+            return self.json(str(dest_url))

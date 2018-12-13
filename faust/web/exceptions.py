@@ -87,3 +87,8 @@ class UnsupportedMediaType(WebError):
 class Throttled(WebError):
     code = http.HTTPStatus.TOO_MANY_REQUESTS
     detail = 'Request was throttled.'
+
+
+class ServiceUnavailable(WebError):
+    code = http.HTTPStatus.SERVICE_UNAVAILABLE
+    detail = 'Service unavailable. Try again later.'

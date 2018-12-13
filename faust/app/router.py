@@ -8,6 +8,7 @@ from faust.types.core import K
 from faust.types.router import HostToPartitionMap, RouterT
 from faust.types.tables import CollectionT
 from faust.types.web import Request, Response, Web
+from faust.web.exceptions import ServiceUnavailable
 
 
 class Router(RouterT):
@@ -47,7 +48,10 @@ class Router(RouterT):
     async def route_req(self, table_name: str, key: K, web: Web,
                         request: Request) -> Response:
         app = self.app
-        dest_url: URL = app.router.key_store(table_name, key)
+        try:
+            dest_url: URL = app.router.key_store(table_name, key)
+        except KeyError:
+            raise ServiceUnavailable()
         dest_ident = (host, port) = self._urlident(dest_url)
         if dest_ident == self._urlident(app.conf.canonical_url):
             raise SameNode()
