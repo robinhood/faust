@@ -220,10 +220,10 @@ class BootStrategy(BootStrategyT):
             chain(
                 # Sensors (Sensor): always start first and stop last.
                 self.sensors(),
-                # Web
-                self.web_server(),
                 # Producer: always stop after Consumer.
                 self.kafka_producer(),
+                # Web
+                self.web_server(),
                 # Consumer: always stop after Conductor
                 self.kafka_consumer(),
                 # AgentManager starts agents (app.agents)
