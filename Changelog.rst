@@ -8,6 +8,28 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.2
+
+1.4.2
+=====
+:release-date: 2018-12-14 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Agent**: Allow ``yield`` in agents that use ``Stream.take`` (Issue #237).
+
+- **App**: Fixed error "future for different event loop" when web views
+           send messages to Kafka at startup.
+
+- **Table**: Table views now return HTTP 503 status code during startup
+  when table routing information not available.
+
+- **App**: New ``App.BootStrategy`` class now decides what services
+  are started when starting the app.
+
+- Documentation fixes by:
+
+    - Robert Krzyzanowski (:github_user:`robertzk`).
+
 .. _version-1.4.1:
 
 1.4.1
