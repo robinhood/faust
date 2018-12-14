@@ -120,7 +120,7 @@ Add a simple page returning a JSON structure by adding this to your app module:
     @app.page('/count/')
     async def get_count(self, request):
         # update the counter
-        count[0] + 1
+        count[0] += 1
         # and return it.
         return self.json({
             'count': count[0],
