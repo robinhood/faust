@@ -186,56 +186,37 @@ TaskDecoratorRet = Union[
 
 
 class BootStrategy(BootStrategyT):
-    _enable_web: Optional[bool] = None
-    _enable_kafka_consumer: Optional[bool] = None
-    _enable_kafka_producer: Optional[bool] = None
+
+    enable_kafka: bool = True
+    # We want these to take default from `enable_kafka`
+    # attribute, but still want to allow subclasses to define
+    # them like this:
+    #   class MyBoot(BootStrategy):
+    #       enable_kafka_consumer = False
+    enable_kafka_consumer: Optional[bool] = None
+    enable_kafka_producer: Optional[bool] = None
+
+    enable_web: Optional[bool] = None
+    enable_sensors: bool = True
 
     def __init__(self, app: AppT, *,
                  enable_web: bool = None,
-                 enable_kafka: bool = True,
+                 enable_kafka: bool = None,
                  enable_kafka_producer: bool = None,
                  enable_kafka_consumer: bool = None,
-                 enable_sensors: bool = True) -> None:
+                 enable_sensors: bool = None) -> None:
         self.app = app
 
-        self.enable_kafka = enable_kafka
+        if enable_kafka is not None:
+            self.enable_kafka = enable_kafka
         if enable_kafka_producer is not None:
             self.enable_kafka_producer = enable_kafka_producer
         if enable_kafka_consumer is not None:
             self.enable_kafka_consumer = enable_kafka_consumer
         if enable_web is not None:
             self.enable_web = enable_web
-        self.enable_sensors = enable_sensors
-
-    @property
-    def enable_kafka_consumer(self) -> bool:
-        if self._enable_kafka_consumer is None:
-            return self.enable_kafka
-        return self._enable_kafka_consumer
-
-    @enable_kafka_consumer.setter
-    def enable_kafka_consumer(self, enabled: bool) -> None:
-        self._enable_kafka_consumer = enabled
-
-    @property
-    def enable_kafka_producer(self) -> bool:
-        if self._enable_kafka_producer is None:
-            return self.enable_kafka
-        return self._enable_kafka_producer
-
-    @enable_kafka_producer.setter
-    def enable_kafka_producer(self, enabled: bool) -> None:
-        self._enable_kafka_producer = enabled
-
-    @property
-    def enable_web(self) -> bool:
-        if self._enable_web is None:
-            return self.app.conf.web_enabled
-        return self._enable_web
-
-    @enable_web.setter
-    def enable_web(self, enabled: bool) -> None:
-        self._enable_web = enabled
+        if enable_sensors is not None:
+            self.enable_sensors = enable_sensors
 
     def server(self) -> Iterable[ServiceT]:
         return self._chain(
@@ -278,12 +259,17 @@ class BootStrategy(BootStrategyT):
         return []
 
     def kafka_producer(self) -> Iterable[ServiceT]:
-        if self.enable_kafka_producer:
+        if self._should_enable_kafka_producer():
             return [self.app.producer]
         return []
 
+    def _should_enable_kafka_producer(self) -> bool:
+        if self.enable_kafka_producer is None:
+            return self.enable_kafka
+        return self.enable_kafka_producer
+
     def kafka_consumer(self) -> Iterable[ServiceT]:
-        if self.enable_kafka_consumer:
+        if self._should_enable_kafka_consumer():
             return [
                 self.app.consumer,
                 # Leader Assignor (assignor.LeaderAssignor)
@@ -292,6 +278,11 @@ class BootStrategy(BootStrategyT):
                 self.app._reply_consumer,
             ]
         return []
+
+    def _should_enable_kafka_consumer(self) -> bool:
+        if self.enable_kafka_consumer is None:
+            return self.enable_kafka
+        return self.enable_kafka_consumer
 
     def kafka_client_consumer(self) -> Iterable[ServiceT]:
         return [
@@ -303,14 +294,19 @@ class BootStrategy(BootStrategyT):
         return [self.app.agents]
 
     def kafka_conductor(self) -> Iterable[ServiceT]:
-        if self.enable_kafka_consumer:
+        if self._should_enable_kafka_consumer():
             return [self.app.topics]
         return []
 
     def web_server(self) -> Iterable[ServiceT]:
-        if self.enable_web:
+        if self._should_enable_web():
             return list(self.web_components()) + [self.app.web]
         return []
+
+    def _should_enable_web(self) -> bool:
+        if self.enable_web is None:
+            return self.app.conf.web_enabled
+        return self.enable_web
 
     def web_components(self) -> Iterable[ServiceT]:
         return [self.app.cache]

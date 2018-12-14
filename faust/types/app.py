@@ -71,8 +71,18 @@ TaskArg = Union[Callable[['AppT'], Awaitable], Callable[[], Awaitable]]
 
 class BootStrategyT:
     app: 'AppT'
-    enable_kafka: bool
-    enable_sensors: bool
+
+    enable_kafka: bool = True
+    # We want these to take default from `enable_kafka`
+    # attribute, but still want to allow subclasses to define
+    # them like this:
+    #   class MyBoot(BootStrategy):
+    #       enable_kafka_consumer = False
+    enable_kafka_consumer: Optional[bool] = None
+    enable_kafka_producer: Optional[bool] = None
+
+    enable_web: Optional[bool] = None
+    enable_sensors: bool = True
 
     @abc.abstractmethod
     def __init__(self, app: 'AppT', *,
@@ -81,33 +91,6 @@ class BootStrategyT:
                  enable_kafka_producer: bool = None,
                  enable_kafka_consumer: bool = None,
                  enable_sensors: bool = True) -> None:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def enable_web(self) -> bool:
-        ...
-
-    @enable_web.setter
-    def enable_web(self, enabled: bool) -> None:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def enable_kafka_producer(self) -> bool:
-        ...
-
-    @enable_kafka_producer.setter
-    def enable_kafka_producer(self, enabled: bool) -> None:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def enable_kafka_consumer(self) -> bool:
-        ...
-
-    @enable_kafka_consumer.setter
-    def enable_kafka_consumer(self, enabled: bool) -> None:
         ...
 
     @abc.abstractmethod
