@@ -573,11 +573,8 @@ class Agent(AgentT, Service):
             if stream is None:
                 stream = res.stream.get_active_stream()
             event = stream.current_event
-            if event is not None:
-                if isinstance(event.value, ReqRepRequest):
-                    await self._reply(event.key, value, event.value)
-            else:
-                raise TypeError('Stream has no current event')
+            if event is not None and isinstance(event.value, ReqRepRequest):
+                await self._reply(event.key, value, event.value)
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
