@@ -459,7 +459,7 @@ optional starting point argument.
 
 .. seealso::
 
-    - The :func:`faust.utils.aiter.enumerate` function -- for a general version
+    - The :func:`faust.utils.aiter.aenumerate` function -- for a general version
       of :func:`enumerate` that let you enumerate any async iterator, not just
       streams.
 
