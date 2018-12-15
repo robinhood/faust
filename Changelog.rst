@@ -8,7 +8,7 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
-.. _version-1.4.2
+.. _version-1.4.2:
 
 1.4.2
 =====
