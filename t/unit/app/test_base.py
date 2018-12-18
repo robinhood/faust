@@ -1,4 +1,5 @@
 import re
+import collections
 import faust
 from faust.agents import Agent
 from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
@@ -189,12 +190,29 @@ class test_App:
         with pytest.raises(ImproperlyConfigured):
             app._discovery_modules()
 
-    def test_new_scanner(self, *, app):
+    def test_discover_ignore(self, *, app):
         with patch('faust.app.base.venusian') as venusian:
-            pat = re.compile('^foo')
-            scanner = app._new_scanner(pat)
-            venusian.Scanner.assert_called_with(ignore=[pat.search])
-            assert scanner is venusian.Scanner()
+            app.conf.origin = 'faust'
+            app.conf.autodiscover = ['re', 'collections']
+            app.discover(categories=['faust.agent'], ignore=['re', 'faust'])
+
+            assert venusian.Scanner().scan.assert_has_calls([
+                call(
+                    re,
+                    categories=('faust.agent', ),
+                    ignore=['re', 'faust'],
+                ),
+                call(
+                    faust,
+                    categories=('faust.agent', ),
+                    ignore=['re', 'faust'],
+                ),
+                call(
+                    collections,
+                    categories=('faust.agent', ),
+                    ignore=['re', 'faust'],
+                ),
+            ], any_order=True) is None
 
     def test_main(self, *, app):
         with patch('faust.cli.faust.cli') as cli:
