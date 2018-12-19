@@ -15,6 +15,15 @@ please visit the :ref:`history` section.
 :release-date: 2018-12-19 12:49 P.M PDT
 :release-by: Ask Solem (:github_user:`ask`)
 
+- **Requirements**
+
+    + Now depends on :ref:`Mode 3.0.5 <mode:version-3.0.5>`.
+
+        Fixed compatibility with :pypi:`colorlog`,
+        thanks to Ryan Whitten (:github_user:`rwhitten577`).
+
+    + Now compatible with :pypi:`yarl` 1.3.x.
+
 - **Agent**: Allow ``yield`` in agents that use ``Stream.take`` (Issue #237).
 
 - **App**: Fixed error "future for different event loop" when web views
