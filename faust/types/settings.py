@@ -449,11 +449,11 @@ class Settings(abc.ABC):
         if origin is not None:
             self.origin = origin
         self.id = id
-        self.broker = url or broker or BROKER_URL
+        self.broker = self._first_not_none(url, broker, BROKER_URL)
         self.ssl_context = ssl_context
-        self.store = store or STORE_URL
-        self.cache = cache or CACHE_URL
-        self.web = web or WEB_URL
+        self.store = self._first_not_none(store, STORE_URL)
+        self.cache = self._first_not_none(cache, CACHE_URL)
+        self.web = self._first_not_none(web, WEB_URL)
         self.web_enabled = web_enabled
         if autodiscover is not None:
             self.autodiscover = autodiscover
@@ -581,6 +581,11 @@ class Settings(abc.ABC):
             old_value = object.__getattribute__(self, key)
             self._warn_already_configured_key(key, value, old_value)
         object.__setattr__(self, key, value)
+
+    def _first_not_none(self, *args: Any) -> Any:
+        for v in args:
+            if v is not None:
+                return v
 
     def _prepare_id(self, id: str) -> str:
         if self.version > 1:
