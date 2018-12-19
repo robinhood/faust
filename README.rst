@@ -8,7 +8,7 @@
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 1.4.1
+:Version: 1.4.2
 :Web: http://faust.readthedocs.io/
 :Download: http://pypi.org/project/faust
 :Source: http://github.com/robinhood/faust
@@ -607,7 +607,7 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported by opening an issue or contacting one or more of the project maintainers.
 
 This Code of Conduct is adapted from the Contributor Covenant,
-version 1.4.1 available at http://contributor-covenant.org/version/1/2/0/.
+version 1.4.2 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
 
