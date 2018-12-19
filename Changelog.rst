@@ -12,7 +12,7 @@ please visit the :ref:`history` section.
 
 1.4.2
 =====
-:release-date: 2018-12-14 P.M PDT
+:release-date: 2018-12-19 12:49 P.M PDT
 :release-by: Ask Solem (:github_user:`ask`)
 
 - **Agent**: Allow ``yield`` in agents that use ``Stream.take`` (Issue #237).
