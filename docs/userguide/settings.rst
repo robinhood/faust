@@ -959,6 +959,8 @@ By default this will bind to all interfaces.
 This option is usually set by :option:`faust worker --web-bind`,
 not by passing it as a keyword argument to :class:`app`.
 
+.. setting:: web_in_thread
+
 ``web_in_thread``
 -----------------
 
