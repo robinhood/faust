@@ -73,6 +73,7 @@ class test_Web:
     @pytest.mark.asyncio
     async def test_on_start(self, *, web):
         web.add_dependency = Mock(name='add_dependency')
+        web.app.conf.web_in_thread = True
         with patch('faust.web.drivers.aiohttp.ServerThread') as ServerThread:
             await web.on_start()
             ServerThread.assert_called_once_with(
