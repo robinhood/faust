@@ -36,7 +36,7 @@ class test_settings:
         assert conf.cache == URL(settings.CACHE_URL)
         assert conf.web == URL(settings.WEB_URL)
         assert conf.web_enabled
-        assert conf.web_in_thread
+        assert not conf.web_in_thread
         assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
@@ -176,7 +176,7 @@ class test_settings:
                                  web_port=6069,
                                  web_host='localhost',
                                  web_transport='udp://',
-                                 web_in_thread=False,
+                                 web_in_thread=True,
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  broker_max_poll_records=1000,
@@ -237,7 +237,7 @@ class test_settings:
         assert conf.cache == URL(str(cache))
         assert conf.web == URL(str(web))
         assert not conf.web_enabled
-        assert not conf.web_in_thread
+        assert conf.web_in_thread
         assert conf.autodiscover == autodiscover
         assert conf.canonical_url == URL(str(canonical_url))
         assert conf.broker_client_id == broker_client_id

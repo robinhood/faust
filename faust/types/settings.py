@@ -298,7 +298,7 @@ class Settings(abc.ABC):
     web_bind: str = WEB_BIND
     web_port: int = WEB_PORT
     web_host: str = socket.gethostname()
-    web_in_thread: bool = True
+    web_in_thread: bool = False
     worker_redirect_stdouts: bool = True
     worker_redirect_stdouts_level: Severity = 'WARN'
 
