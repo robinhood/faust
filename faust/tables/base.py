@@ -289,7 +289,7 @@ class Collection(Service, CollectionT):
                     (partition, timestamp), None)
                 if keys_to_remove:
                     for key in keys_to_remove:
-                        del self.data[key]
+                        self.data.pop(key, None)
 
     def _should_expire_keys(self) -> bool:
         window = self.window
