@@ -166,6 +166,7 @@ class Worker(mode.Worker):
                  loop: asyncio.AbstractEventLoop = None,
                  redirect_stdouts: bool = None,
                  redirect_stdouts_level: int = None,
+                 logging_config: Dict = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.sensors = set(sensors or [])
@@ -174,6 +175,8 @@ class Worker(mode.Worker):
             redirect_stdouts = app.conf.worker_redirect_stdouts
         if redirect_stdouts_level is None:
             redirect_stdouts_level = app.conf.worker_redirect_stdouts_level
+        if logging_config is None:
+            logging_config = app.conf.logging_config
         super().__init__(
             *services,
             debug=debug,
@@ -187,6 +190,7 @@ class Worker(mode.Worker):
             console_port=console_port,
             redirect_stdouts=redirect_stdouts,
             redirect_stdouts_level=redirect_stdouts_level,
+            logging_config=logging_config,
             loop=loop,
             **kwargs)
         self.spinner = terminal.Spinner(file=self.stdout)

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
+    Dict,
     Iterable,
     List,
     Optional,
@@ -286,6 +287,7 @@ class Settings(abc.ABC):
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
+    logging_config: Optional[Dict] = None
     loghandlers: List[logging.Handler]
     producer_linger_ms: int = PRODUCER_LINGER_MS
     producer_max_batch_size: int = PRODUCER_MAX_BATCH_SIZE
@@ -397,6 +399,7 @@ class Settings(abc.ABC):
             tabledir: Union[Path, str] = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
+            logging_config: Dict = None,
             loghandlers: List[logging.Handler] = None,
             table_cleanup_interval: Seconds = None,
             table_standby_replicas: int = None,
@@ -502,6 +505,8 @@ class Settings(abc.ABC):
             self.topic_partitions = topic_partitions
         if reply_create_topic is not None:
             self.reply_create_topic = reply_create_topic
+        if logging_config is not None:
+            self.logging_config = logging_config
         self.loghandlers = loghandlers if loghandlers is not None else []
         if stream_buffer_maxsize is not None:
             self.stream_buffer_maxsize = stream_buffer_maxsize

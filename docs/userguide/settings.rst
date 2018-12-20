@@ -295,6 +295,16 @@ be considered to be relative to the :setting:`datadir` setting.
 The format string used to generate the final :setting:`id` value by combining
 it with the :setting:`version` parameter.
 
+.. setting:: logging_config
+
+``logging_config``
+------------------
+
+.. versionadded:: 1.5.0
+
+Optional dictionary for logging configuration, as supported
+by :func:`logging.config.dictConfig`.
+
 .. setting:: loghandlers
 
 ``loghandlers``
