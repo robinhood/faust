@@ -298,6 +298,7 @@ class Settings(abc.ABC):
     web_bind: str = WEB_BIND
     web_port: int = WEB_PORT
     web_host: str = socket.gethostname()
+    web_in_thread: bool = True
     worker_redirect_stdouts: bool = True
     worker_redirect_stdouts_level: Severity = 'WARN'
 
@@ -425,6 +426,7 @@ class Settings(abc.ABC):
             web_port: int = None,
             web_host: str = None,
             web_transport: Union[str, URL] = None,
+            web_in_thread: bool = None,
             worker_redirect_stdouts: bool = None,
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
@@ -537,6 +539,8 @@ class Settings(abc.ABC):
             self.web_host = web_host
         if web_transport is not None:
             self.web_transport = web_transport
+        if web_in_thread is not None:
+            self.web_in_thread = web_in_thread
         if worker_redirect_stdouts is not None:
             self.worker_redirect_stdouts = worker_redirect_stdouts
         if worker_redirect_stdouts_level is not None:

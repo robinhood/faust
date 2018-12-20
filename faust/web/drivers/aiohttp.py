@@ -15,6 +15,7 @@ from aiohttp.web import (
 from faust.types import AppT
 from faust.utils import json as _json
 from faust.web import base
+from mode import Service
 from mode.threads import ServiceThread
 
 __all__ = ['Web']
@@ -36,6 +37,19 @@ class ServerThread(ServiceThread):
         await self.web.stop_server()
 
 
+class Server(Service):
+
+    def __init__(self, web: 'Web', **kwargs: Any) -> None:
+        self.web = web
+        super().__init__(**kwargs)
+
+    async def on_start(self) -> None:
+        await self.web.start_server()
+
+    async def on_stop(self) -> None:
+        await self.web.stop_server()
+
+
 class Web(base.Web):
     """Web server and framework implemention using :pypi:`aiohttp`."""
 
@@ -43,7 +57,7 @@ class Web(base.Web):
     handler_shutdown_timeout: float = 60.0
 
     #: We serve the web server in a separate thread (and separate event loop).
-    _thread: Optional[ServerThread] = None
+    _thread: Optional[Service] = None
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
@@ -52,11 +66,8 @@ class Web(base.Web):
 
     async def on_start(self) -> None:
         self.init_server()
-        self._thread = ServerThread(
-            self,
-            loop=self.loop,
-            beacon=self.beacon,
-        )
+        server_cls = ServerThread if self.app.conf.web_in_thread else Server
+        self._thread = server_cls(self, loop=self.loop, beacon=self.beacon)
         self.add_dependency(self._thread)
 
     async def wsgi(self) -> Any:

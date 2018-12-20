@@ -959,6 +959,25 @@ By default this will bind to all interfaces.
 This option is usually set by :option:`faust worker --web-bind`,
 not by passing it as a keyword argument to :class:`app`.
 
+``web_in_thread``
+-----------------
+
+.. versionadded:: 1.5
+
+:type: :class:`bool`
+:default: :const:`False`
+
+Run the web server in a separate thread.
+
+Use this if you have a large value for :setting:`stream_buffer_maxsize`
+and want the web server to be responsive when the worker is otherwise
+busy processing streams.
+
+.. note::
+
+    Running the web server in a separate thread means web views
+    and agents will not share the same event loop.
+
 .. _settings-agent:
 
 Advanced Agent Settings
