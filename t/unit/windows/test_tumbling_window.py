@@ -14,12 +14,12 @@ class test_TumblingWindow:
 
         # tumbling windows only have one range
         base_range = tumbling.ranges(0)[0]
-        base_range_end = base_range.end
+        base_range_end = base_range[1]
 
         compare_range = tumbling.ranges(base_range_end)[0]
 
-        assert base_range.start == compare_range.start
-        assert base_range.end == compare_range.end
+        assert base_range[0] == compare_range[0]
+        assert base_range[1] == compare_range[1]
 
     def test_earliest_and_current_range_are_the_same(self):
         size = 57

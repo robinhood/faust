@@ -1,19 +1,18 @@
 import abc
 from datetime import timezone
-from typing import List, NamedTuple, Optional
+from typing import List, Optional, Tuple
 
 from mode import Seconds
 
 __all__ = ['WindowRange', 'WindowT']
 
 
-class WindowRange(NamedTuple):
-    start: float
-    end: float
+WindowRange = Tuple[float, float]
 
 
 def WindowRange_from_start(start: float, size: float) -> WindowRange:
-    return WindowRange(start=start, end=start + size - 0.1)
+    end = start + size - 0.1
+    return (start, end)
 
 
 class WindowT(abc.ABC):

@@ -58,7 +58,7 @@ class HoppingWindow(Window):
         return closest_step - self.size + self.step
 
     def _stale_before(self, latest_timestamp: float, expires: float) -> float:
-        return self.current(latest_timestamp - expires).start
+        return self.current(latest_timestamp - expires)[0]
 
 
 class TumblingWindow(HoppingWindow):
@@ -100,8 +100,7 @@ class SlidingWindow(Window):
                 s1.ts - before <= s2.ts AND s2.ts <= s1.ts + after
         """
         return [
-            WindowRange(
-                start=timestamp - self.before, end=timestamp + self.after),
+            (timestamp - self.before, timestamp + self.after),
         ]
 
     def stale(self, timestamp: float, latest_timestamp: float) -> bool:

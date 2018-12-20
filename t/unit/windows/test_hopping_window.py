@@ -13,8 +13,8 @@ class test_HoppingWindow:
         window_ranges = window.ranges(timestamp)
         assert len(window_ranges) == 2
         for range in window_ranges:
-            assert range.start <= timestamp
-            assert range.end > timestamp
+            assert range[0] <= timestamp
+            assert range[1] > timestamp
 
     def test_current_range_is_latest_range(self):
         size = 57
