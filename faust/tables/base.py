@@ -299,17 +299,18 @@ class Collection(Service, CollectionT):
         if not self._should_expire_keys():
             return
         _, window_range = key
-        heappush(self._partition_timestamps[partition], window_range.end)
+        _, range_end = window_range
+        heappush(self._partition_timestamps[partition], range_end)
         self._partition_latest_timestamp[partition] = max(
-            self._partition_latest_timestamp[partition], window_range.end)
-        self._partition_timestamp_keys[(partition, window_range.end)].add(key)
+            self._partition_latest_timestamp[partition], range_end)
+        self._partition_timestamp_keys[(partition, range_end)].add(key)
 
     def _maybe_del_key_ttl(self, key: Any, partition: int) -> None:
         if not self._should_expire_keys():
             return
         _, window_range = key
-        ts_keys = self._partition_timestamp_keys.get((partition,
-                                                      window_range.end))
+        ts_keys = self._partition_timestamp_keys.get(
+            (partition, window_range[1]))
         if ts_keys is not None:
             ts_keys.discard(key)
 
