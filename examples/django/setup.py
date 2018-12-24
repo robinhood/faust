@@ -106,7 +106,7 @@ setup(
     entry_points={
         'console_scripts': [
             'proj = proj.__main__:main',
-            'proj-faust = faustproj.app:main',
+            'proj-faust = faustapp.__main__:main',
         ],
     },
 )
