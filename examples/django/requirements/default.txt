@@ -1,2 +1,4 @@
-faust
-tulipcore
+django
+faust[rocksdb]
+eventlet
+aioeventlet

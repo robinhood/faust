@@ -2,7 +2,7 @@ import os
 import faust
 
 # make sure the gevent event loop is used as early as possible.
-os.environ.setdefault('FAUST_LOOP', 'gevent')
+os.environ.setdefault('FAUST_LOOP', 'eventlet')
 
 # set the default Django settings module for the 'faust' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'proj.settings')
