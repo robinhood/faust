@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Python Stream processing."""
-# :copyright: (c) 2017-2018, Robinhood Markets, Inc.
+# :copyright: (c) 2017-2019, Robinhood Markets, Inc.
 #             All rights reserved.
 # :license:   BSD (3 Clause), see LICENSE for more details.
 
