@@ -825,8 +825,8 @@ Add a callback to be called when partitions are revoked:
     from faust.types import AppT, TP
 
     @app.on_partitions_revoked.connect
-    async def on_partitions_assigned(app: AppT,
-                                     revoked: Set[TP], **kwargs) -> None:
+    async def on_partitions_revoked(app: AppT,
+                                    revoked: Set[TP], **kwargs) -> None:
         print(f'Partitions are being revoked: {revoked}')
 
 Using ``app`` as an instance when connecting here means we will only be called
