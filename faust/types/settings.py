@@ -209,9 +209,9 @@ STREAM_PUBLISH_ON_COMMIT = False
 #: Used as the default value for :setting:`max_fetch_size`.
 CONSUMER_MAX_FETCH_SIZE = 4 * 1024 ** 2
 
-#: Where the consumer should start reading offsets when there is no initial offset,
-#: or the stored offset no longer exists, e.g. when starting a new consumer
-#: for the first time. Options include ['earliest', 'latest', 'none'].
+#: Where the consumer should start reading offsets when there is no initial
+#: offset, or the stored offset no longer exists, e.g. when starting a new
+#: consumer for the first time. Options include 'earliest', 'latest', 'none'.
 #: Used as default value for :setting:`consumer_auto_offset_reset`.
 CONSUMER_AUTO_OFFSET_RESET = 'earliest'
 

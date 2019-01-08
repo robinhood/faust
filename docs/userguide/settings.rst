@@ -555,7 +555,7 @@ must be at least as large as the maximum message size.
 .. setting:: consumer_auto_offset_reset
 
 ``consumer_auto_offset_reset``
----------------------------
+------------------------------
 
 :type: :class:`string`
 :default: ``earliest``
