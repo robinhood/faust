@@ -337,6 +337,9 @@ class Stream(StreamT[T_co], Service):
                 buffer_consuming = self.loop.create_future()
                 try:
                     yield list(buffer)
+                except BaseException:
+                    self._processors.remove(add_to_buffer)
+                    raise
                 finally:
                     buffer.clear()
                     for event in events:
