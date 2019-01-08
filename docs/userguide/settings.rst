@@ -552,6 +552,18 @@ Advanced Consumer Settings
 The maximum amount of data per-partition the server will return. This size
 must be at least as large as the maximum message size.
 
+.. setting:: consumer_auto_offset_reset
+
+``consumer_auto_offset_reset``
+---------------------------
+
+:type: :class:`string`
+:default: ``earliest``
+
+Where the consumer should start reading messages from when there is no initial
+offset, or the stored offset no longer exists, e.g. when starting a new
+consumer for the first time. Options include 'earliest', 'latest', 'none'.
+
 .. _settings-producer:
 
 Advanced Producer Settings
