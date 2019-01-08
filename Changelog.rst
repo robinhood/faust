@@ -8,6 +8,17 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.3:
+
+1.4.3
+=====
+:release-date: TBA
+:release-date: TBA
+
+- **Examples**: Fixed Django example so that it's working properly.
+
+    Contributed by Thibault Serot (:github_user:`thibserot`).
+
 .. _version-1.4.2:
 
 1.4.2
