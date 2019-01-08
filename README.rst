@@ -495,6 +495,13 @@ https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
 .. _getting-help:
 
+
+What kafka versions faust supports?
+---------------------------------------
+
+Faust supports kafka with version >= 0.10.
+
+
 Getting Help
 ============
 
