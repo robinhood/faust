@@ -298,6 +298,7 @@ class Stream(StreamT[T_co], Service):
         buffer_full = asyncio.Event(loop=self.loop)
         buffer_consumed = asyncio.Event(loop=self.loop)
         timeout = want_seconds(within) if within else None
+        stream_enable_acks: bool = self.enable_acks
 
         buffer_consuming: Optional[asyncio.Future] = None
 
@@ -326,26 +327,36 @@ class Stream(StreamT[T_co], Service):
                 await self.wait(buffer_consumed)
             return value
 
-        self.add_processor(add_to_buffer)
-        self._enable_passive(cast(ChannelT, channel_it))
-        while not self.should_stop:
-            # wait until buffer full, or timeout
-            await self.wait_for_stopped(buffer_full, timeout=timeout)
-            if buffer:
-                # make sure background thread does not add new times to
-                # budfer while we read.
-                buffer_consuming = self.loop.create_future()
-                try:
-                    yield list(buffer)
-                finally:
-                    buffer.clear()
-                    for event in events:
-                        await self.ack(event)
-                    events.clear()
-                    # allow writing to buffer again
-                    notify(buffer_consuming)
-                    buffer_full.clear()
-                    buffer_consumed.set()
+        try:
+            # Disable acks to ensure this method acks manually
+            # events only after they are consumed by the user
+            self.enable_acks = False
+
+            self.add_processor(add_to_buffer)
+            self._enable_passive(cast(ChannelT, channel_it))
+
+            while not self.should_stop:
+                # wait until buffer full, or timeout
+                await self.wait_for_stopped(buffer_full, timeout=timeout)
+                if buffer:
+                    # make sure background thread does not add new times to
+                    # budfer while we read.
+                    buffer_consuming = self.loop.create_future()
+                    try:
+                        yield list(buffer)
+                    finally:
+                        buffer.clear()
+                        for event in events:
+                            await self.ack(event)
+                        events.clear()
+                        # allow writing to buffer again
+                        notify(buffer_consuming)
+                        buffer_full.clear()
+                        buffer_consumed.set()
+
+        finally:
+            # Restore last behaviour of "enable_acks"
+            self.enable_acks = stream_enable_acks
 
     def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         """Enumerate values received on this stream.

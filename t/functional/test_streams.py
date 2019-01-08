@@ -480,3 +480,25 @@ async def test_stop_stops_related_streams(app):
     assert s1.should_stop
     assert s2.should_stop
     assert s3.should_stop
+
+
+@pytest.mark.asyncio
+async def test_take(app):
+    s = new_stream(app)
+    assert s.enable_acks is True
+    await s.channel.send(value=1)
+    event = None
+    async for value in s.take(1, within=1):
+        assert value == [1]
+        assert s.enable_acks is False
+        event = mock_stream_event_ack(s)
+        break
+
+    assert event
+    # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+    # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+    await asyncio.sleep(0)  # needed for some reason
+    await asyncio.sleep(0)  # needed for some reason
+
+    event.ack.assert_called_with()
+    assert s.enable_acks is True
