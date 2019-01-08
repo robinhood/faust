@@ -28,14 +28,10 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
     amount: float
     date: datetime = None
 
-    def to_representation(self):
-        print('FOO')
-        return super().to_representation()
-
 
 app = faust.App(
     'faust-withdrawals',
-    broker='kafka://',
+    broker='confluent://',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=8,

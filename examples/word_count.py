@@ -7,7 +7,7 @@ WORDS = ['the', 'quick', 'brown', 'fox']
 
 app = faust.App(
     'word-counts',
-    broker='kafka://localhost:9092',
+    broker='confluent://localhost:9092',
     store='rocksdb://',
     version=1,
     topic_partitions=8,
