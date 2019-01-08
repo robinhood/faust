@@ -1,7 +1,7 @@
 from decimal import Decimal
 import faust
 from faust.types import StreamT
-from faustapp import app
+from faustapp.app import app
 from .models import Account
 
 

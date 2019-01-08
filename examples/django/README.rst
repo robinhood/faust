@@ -26,7 +26,7 @@ Directory Layout
     and can be used to start a Faust worker for your Django project by doing::
 
         $ python setup.py develop
-        $ faust-proj worker -l info
+        $ proj-faust worker -l info
 
 - ``accounts/``
 
