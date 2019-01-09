@@ -51,7 +51,7 @@ The Celery task above can be rewritten in Faust like this:
         async for op in stream:
             yield op.x + op.y
 
-    @app.command
+    @app.command()
     async def produce():
         await add.send(value=AddOperation(2, 2))
 
