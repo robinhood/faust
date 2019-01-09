@@ -355,8 +355,6 @@ class App(AppT, Service):
     # Cache is created on demand: use `.cache` property.
     _cache: Optional[CacheBackendT] = None
 
-    _assignor: Optional[PartitionAssignorT] = None
-
     # Monitor is created on demand: use `.monitor` property.
     _monitor: Optional[Monitor] = None
 
