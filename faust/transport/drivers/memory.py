@@ -60,12 +60,11 @@ class Consumer(base.Consumer):
     async def subscribe(self, topics: Iterable[str]) -> None:
         await cast(Transport, self.transport).subscribe(topics)
 
-    async def getmany(self, *partitions: TP,
+    async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         transport = cast(Transport, self.transport)
         max_per_partition = 100
-        if not partitions:
-            partitions = tuple(self.assignment())
+        partitions = tuple(self.assignment())
 
         if not partitions:
             if await self.wait_for_stopped(transport._subscription_ready):
@@ -91,8 +90,8 @@ class Consumer(base.Consumer):
     async def perform_seek(self) -> None:
         ...
 
-    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
-        ...
+    async def _commit(self, offsets: Mapping[TP, int]) -> bool:
+        return True
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
         ...
