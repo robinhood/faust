@@ -1,6 +1,7 @@
 """Message transport using :pypi:`aiokafka`."""
 import asyncio
 import typing
+from collections import defaultdict
 from enum import Enum
 from typing import (
     Any,
@@ -55,14 +56,9 @@ from faust.types.transports import ConsumerT, ProducerT
 from faust.utils import terminal
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
-try:
-    import confluent_kafka
-    from confluent_kafka import TopicPartition as _TopicPartition
-    from confluent_kafka import KafkaException
-except ImportError:
-    confluent_kafka = None
-    class _TopicPartition: ...              # noqa
-    class KafkaException(Exception): ...    # noqa
+import confluent_kafka
+from confluent_kafka import TopicPartition as _TopicPartition
+from confluent_kafka import KafkaException
 
 if typing.TYPE_CHECKING:
     from confluent_kafka import Consumer as _Consumer
@@ -102,7 +98,7 @@ _TPTypes = Union[TP, _TopicPartition]
 logger = get_logger(__name__)
 
 
-def server_list(urls: List[URL], default_port: int) -> List[str]:
+def server_list(urls: List[URL], default_port: int) -> str:
     default_host = '127.0.0.1'
     return ','.join([
         f'{u.host or default_host}:{u.port or default_port}' for u in urls])
@@ -110,6 +106,10 @@ def server_list(urls: List[URL], default_port: int) -> List[str]:
 
 def _ensure_TP(tp: _TPTypes) -> TP:
     return tp if isinstance(tp, TP) else TP(tp.topic, tp.partition)
+
+
+def _ensure_TPset(tps: Iterable[_TPTypes]) -> Set[TP]:
+    return {_ensure_TP(tp) for tp in tps}
 
 
 class _TopicBuffer(Iterator):
@@ -161,14 +161,14 @@ class ConsumerRebalanceListener:
         self._thread: 'ConsumerThread' = thread
 
     async def on_partitions_revoked(
-            self, consumer, revoked: Iterable[_TopicPartition]) -> None:
-        print('ON PARTITIONS REVOKED')
-        await self._thread.on_partitions_revoked(revoked)
+            self, revoked: Iterable[_TopicPartition]) -> None:
+        await self._thread.on_partitions_revoked(
+            {TP(tp.topic, tp.partition) for tp in revoked})
 
     async def on_partitions_assigned(
-            self, consumer, assigned: Iterable[_TopicPartition]) -> None:
-        print('ON PARTITIONS ASSIGNED')
-        await self._thread.on_partitions_assigned(assigned)
+            self, assigned: Iterable[_TopicPartition]) -> None:
+        await self._thread.on_partitions_assigned(
+            {TP(tp.topic, tp.partition) for tp in assigned})
 
 
 class Consumer(base.Consumer):
@@ -179,8 +179,8 @@ class Consumer(base.Consumer):
     RebalanceListener = ConsumerRebalanceListener
 
     _thread: 'ConsumerThread'
-    _active_partitions: Optional[Set[_TopicPartition]]
-    _paused_partitions: Set[_TopicPartition]
+    _active_partitions: Optional[Set[TP]]
+    _paused_partitions: Set[TP]
     fetch_timeout: float = 10.0
 
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = (
@@ -215,15 +215,14 @@ class Consumer(base.Consumer):
     def _get_active_partitions(self) -> Set[_TopicPartition]:
         tps = self._active_partitions
         if tps is None:
-            # need aiokafka._TopicPartition, not faust.TP
             return self._set_active_tps(self.assignment())
+        assert all(isinstance(x, TP) for x in tps)
         return tps
 
-    def _set_active_tps(self,
-                        tps: Set[_TopicPartition]) -> Set[_TopicPartition]:
-        tps = self._active_partitions = set(tps)  # copy!
-        tps.difference_update(self._paused_partitions)
-        return tps
+    def _set_active_tps(self, tps: Set[TP]) -> Set[TP]:
+        xtps = self._active_partitions = _ensure_TPset(tps)  # copy
+        xtps.difference_update(self._paused_partitions)
+        return xtps
 
     def _create_consumer(
             self,
@@ -421,28 +420,35 @@ class Consumer(base.Consumer):
                     highwater_mark = self._thread.highwater(tp)
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
-                    timestamp: Optional[int] = record.timestamp
+                    timestamp_type: int
+                    timestamp: Optional[int]
+                    timestamp_type, timestamp = record.timestamp()
                     timestamp_s: float = cast(float, None)
                     if timestamp is not None:
                         timestamp_s = timestamp / 1000.0
-                    yield tp, create_message(
-                        record.topic,
-                        record.partition,
-                        record.offset,
+                    key = record.key()
+                    key_size = len(key) if key is not None else 0
+                    value = record.value()
+                    value_size = len(value) if value is not None else 0
+                    message = create_message(
+                        record.topic(),
+                        record.partition(),
+                        record.offset(),
                         timestamp_s,
-                        record.timestamp_type,
-                        record.key,
-                        record.value,
-                        record.checksum,
-                        record.serialized_key_size,
-                        record.serialized_value_size,
+                        timestamp_type,
+                        key,
+                        value,
+                        None,
+                        key_size,
+                        value_size,
                         tp,
                     )
+                    yield tp, message
 
     def _records_to_topic_index(
             self,
             records: RecordMap,
-            active_partitions: Set[_TopicPartition]) -> TopicIndexMap:
+            active_partitions: Set[TP]) -> TopicIndexMap:
         topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             try:
@@ -488,28 +494,25 @@ class Consumer(base.Consumer):
         self.log.dev('COMMITTING OFFSETS:\n%s', table)
         try:
             assignment = self.assignment()
-            commitable: Dict[TP, OffsetAndMetadata] = {}
-            revoked: Dict[TP, OffsetAndMetadata] = {}
+            revoked: Dict[TP, int] = {}
             commitable_offsets: Dict[TP, int] = {}
-            for tp, (offset, meta) in offsets.items():
-                offset_and_metadata = self._new_offsetandmetadata(offset, meta)
+            for tp, (offset, _) in offsets.items():
                 if tp in assignment:
                     commitable_offsets[tp] = offset
-                    commitable[tp] = offset_and_metadata
                 else:
-                    revoked[tp] = offset_and_metadata
+                    revoked[tp] = offset
             if revoked:
                 self.log.info(
                     'Discarded commit for revoked partitions that '
                     'will be eventually processed again: %r',
                     revoked,
                 )
-            if not commitable:
+            if not commitable_offsets:
                 return False
             with flight_recorder(self.log, timeout=300.0) as on_timeout:
-                on_timeout.info('+aiokafka_consumer.commit()')
-                await self._thread.commit(commitable)
-                on_timeout.info('-aiokafka._consumer.commit()')
+                on_timeout.info('+confluent_consumer.commit()')
+                await self._thread.commit(commitable_offsets)
+                on_timeout.info('-confluent_consumer.commit()')
             self._committed_offset.update(commitable_offsets)
             self.app.monitor.on_tp_commit(commitable_offsets)
             self._last_batch = None
@@ -535,12 +538,12 @@ class Consumer(base.Consumer):
         self.can_resume_flow.set()
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
-        tpset = set(tps)
+        tpset = _ensure_TPset(tps)
         self._get_active_partitions().difference_update(tpset)
         self._paused_partitions.update(tpset)
 
     def resume_partitions(self, tps: Iterable[TP]) -> None:
-        tpset = set(tps)
+        tpset = _ensure_TPset(tps)
         self._get_active_partitions().update(tps)
         self._paused_partitions.difference_update(tpset)
 
@@ -590,6 +593,7 @@ class ConsumerThread(QueueServiceThread):
     app: AppT
     consumer: Consumer
     _consumer: Optional[_Consumer] = None
+    _assigned: bool = False
 
     def __init__(self, consumer: Consumer, **kwargs: Any) -> None:
         self.consumer = consumer
@@ -605,11 +609,11 @@ class ConsumerThread(QueueServiceThread):
         ...
 
     async def on_partitions_revoked(
-            self, revoked: Iterable[_TopicPartition]) -> None:
+            self, revoked: Iterable[TP]) -> None:
         self.consumer.app.rebalancing = True  # set as early as possible
         # see comment in on_partitions_assigned
         consumer = self.consumer
-        _revoked = cast(Set[TP], set(revoked))
+        _revoked = _ensure_TPset(revoked)
         # remove revoked partitions from active + paused tps.
         if consumer._active_partitions is not None:
             consumer._active_partitions.difference_update(_revoked)
@@ -627,11 +631,11 @@ class ConsumerThread(QueueServiceThread):
         # that way they are typed and decoupled from the actual client
         # implementation.
         consumer = self.consumer
-        _assigned = set(assigned)
+        _assigned = _ensure_TPset(assigned)
         # remove recently revoked tps from set of paused tps.
         consumer._paused_partitions.intersection_update(_assigned)
         # cache set of assigned partitions
-        cast(Set[TP], consumer._set_active_tps(_assigned))
+        consumer._set_active_tps(_assigned)
         # start callback chain of assigned callbacks.
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
@@ -644,20 +648,56 @@ class ConsumerThread(QueueServiceThread):
         await self.call_thread(
             self._ensure_consumer().subscribe,
             topics=list(topics),
-            on_assign=self._rebalance_listener.on_partitions_assigned,
-            on_revoke=self._rebalance_listener.on_partitions_revoked,
+            on_assign=self._on_assign,
+            on_revoke=self._on_revoke,
         )
-        print('CONSUME')
-        print(self._ensure_consumer().poll(timeout=10))
-        print('CONSUMED')
+        while not self._assigned:
+            self.log.info('Still waiting for assignment...')
+            self._ensure_consumer().poll(timeout=1)
+
+    def _on_assign(self,
+                   consumer: _Consumer,
+                   assigned: List[_TopicPartition]) -> None:
+        self._assigned = True
+        self.thread_loop.run_until_complete(
+            self._rebalance_listener.on_partitions_assigned(assigned))
+
+    def _on_revoke(self,
+                   consumer: _Consumer,
+                   revoked: List[_TopicPartition]) -> None:
+        self.thread_loop.run_until_complete(
+            self._rebalance_listener.on_partitions_revoked(revoked))
 
     async def seek_to_committed(self) -> Mapping[TP, int]:
-        return await self.call_thread(
-            self._ensure_consumer().seek_to_committed)
+        return await self.call_thread(self._seek_to_committed)
 
-    async def commit(self, tps: Any) -> Any:
+    async def _seek_to_committed(self) -> Mapping[TP, int]:
+        consumer = self._ensure_consumer()
+        assignment = consumer.assignment()
+        committed = consumer.committed(assignment)
+        for tp in committed:
+            consumer.seek(tp)
+        return {_ensure_TP(tp): tp.offset for tp in committed}
+
+    async def _committed_offsets(
+            self, partitions: List[TP]) -> MutableMapping[TP, int]:
+        consumer = self._ensure_consumer()
+        committed = consumer.committed(
+            [_TopicPartition(tp[0], tp[1]) for tp in partitions])
+        return {
+            TP(tp.topic, tp.partition): tp.offset
+            for tp in committed
+        }
+
+    async def commit(self, tps: Mapping[TP, int]) -> Any:
         return await self.call_thread(
-            self._ensure_consumer().commit, tps)
+            self._ensure_consumer().commit,
+            offsets=[
+                _TopicPartition(tp.topic, tp.partition, offset=offset)
+                for tp, offset in tps.items()
+            ],
+            asynchronous=False,
+        )
 
     async def position(self, tp: TP) -> Optional[int]:
         return await self.call_thread(
@@ -685,24 +725,45 @@ class ConsumerThread(QueueServiceThread):
         self._ensure_consumer().seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
-        return cast(Set[TP], self._ensure_consumer().assignment())
+        return _ensure_TPset(self._ensure_consumer().assignment())
 
     def highwater(self, tp: TP) -> int:
-        return self._ensure_consumer().highwater(tp)
+        _, hw = self._ensure_consumer().get_watermark_offsets(
+            _TopicPartition(tp.topic, tp.partition), cached=True)
+        return hw
 
     def topic_partitions(self, topic: str) -> Optional[int]:
-        if self._consumer is not None:
-            return self._consumer._coordinator._metadata_snapshot.get(topic)
+        # XXX NotImplemented
         return None
 
     async def earliest_offsets(self,
                                *partitions: TP) -> MutableMapping[TP, int]:
-        return await self.call_thread(
-            self._ensure_consumer().beginning_offsets, partitions)
+        if not partitions:
+            return {}
+        return await self.call_thread(self._earliest_offsets, partitions)
+
+    async def _earliest_offsets(
+            self, partitions: List[TP]) -> MutableMapping[TP, int]:
+        consumer = self._ensure_consumer()
+        return {
+            tp: consumer.get_watermark_offsets(
+                _TopicPartition(tp[0], tp[1]))[0]
+            for tp in partitions
+        }
 
     async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
-        return await self.call_thread(
-            self._ensure_consumer().end_offsets, partitions)
+        if not partitions:
+            return {}
+        return await self.call_thread(self._highwaters, partitions)
+
+    async def _highwaters(
+            self, partitions: List[TP]) -> MutableMapping[TP, int]:
+        consumer = self._ensure_consumer()
+        return {
+            tp: consumer.get_watermark_offsets(
+                _TopicPartition(tp[0], tp[1]))[1]
+            for tp in partitions
+        }
 
     def _ensure_consumer(self) -> aiokafka.AIOKafkaConsumer:
         if self._consumer is None:
@@ -710,14 +771,20 @@ class ConsumerThread(QueueServiceThread):
         return self._consumer
 
     async def getmany(self,
-                      active_partitions: Set[_TopicPartition],
+                      active_partitions: Set[TP],
                       timeout: float) -> RecordMap:
         # Implementation for the Fetcher service.
         _consumer = self._ensure_consumer()
-        return await self.call_thread(
-            _consumer.poll,
+        messages = await self.call_thread(
+            _consumer.consume,
+            num_messages=10000,
             timeout=timeout,
         )
+        records: RecordMap = defaultdict(list)
+        for message in messages:
+            tp = TP(message.topic(), message.partition())
+            records[tp].append(message)
+        return records
 
     async def create_topic(self,
                            topic: str,
@@ -776,7 +843,7 @@ class ProducerThread(QueueServiceThread):
 
     def __init__(self, producer: 'Producer', **kwargs: Any) -> None:
         self.producer = producer
-        self.transport = self.producer.transport
+        self.transport = cast(Transport, self.producer.transport)
         self.app = self.transport.app
         super().__init__(**kwargs)
 
@@ -789,7 +856,8 @@ class ProducerThread(QueueServiceThread):
         })
 
     async def flush(self) -> None:
-        self._producer.flush()
+        if self._producer is not None:
+            self._producer.flush()
 
     async def on_thread_stop(self) -> None:
         if self._producer is not None:
@@ -797,6 +865,8 @@ class ProducerThread(QueueServiceThread):
 
     def produce(self, topic: str, key: bytes, value: bytes, partition: int,
                 on_delivery: Callable) -> None:
+        if self._producer is None:
+            raise RuntimeError('Producer not started')
         if partition is not None:
             self._producer.produce(
                 topic, key, value, partition, on_delivery=on_delivery,
@@ -809,7 +879,7 @@ class ProducerThread(QueueServiceThread):
 
     @Service.task
     async def _background_flush(self) -> None:
-        producer = self._producer
+        producer = cast(_Producer, self._producer)
         _size = producer.__len__
         _flush = producer.flush
         _poll = producer.poll
@@ -827,9 +897,8 @@ class ProducerThread(QueueServiceThread):
                 finally:
                     self._flush_soon = None
                 if not stopped:
-                    print('FLUSH NOW!!!')
                     _flush(timeout=100)
-                    _poll(timeout=0)
+                    _poll(timeout=1)
                     await _sleep(0)
 
 
