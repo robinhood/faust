@@ -12,21 +12,9 @@ import sys
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    IO,
-    Iterable,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Dict, IO, Iterable, Mapping, Optional, Set, Union
 
 import mode
-from rhkafka.structs import TopicPartition as _TopicPartition
 from mode import ServiceT, get_logger
 from mode.utils.logging import formatter
 
@@ -45,8 +33,6 @@ __all__ = ['Worker']
 #: Name prefix of process in ps/top listings.
 PSIDENT = '[Faust:Worker]'
 
-TP_TYPES: Tuple[Type, ...] = (TP, _TopicPartition)
-
 logger = get_logger(__name__)
 
 
@@ -61,14 +47,14 @@ def format_log_arguments(arg: Any) -> Any:  # pragma: no cover
                 title='Subscription',
                 headers=['Topic', 'Descriptions'],
             )
-        elif isinstance(first_v, TP_TYPES):
+        elif isinstance(first_v, TP):
             return '\n' + terminal.logtable(
                 [(k.topic, k.partition, v) for k, v in arg.items()],
                 title='Topic Partition Map',
                 headers=['topic', 'partition', 'offset'],
             )
     elif arg and isinstance(arg, (set, list)):
-        if isinstance(next(iter(arg)), TP_TYPES):
+        if isinstance(next(iter(arg)), TP):
             topics: Dict[str, Set[int]] = defaultdict(set)
             for tp in arg:
                 topics[tp.topic].add(tp.partition)
