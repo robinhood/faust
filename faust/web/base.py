@@ -1,6 +1,7 @@
 """Base interface for Web server and views."""
 import abc
 import socket
+from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
 from typing import (
@@ -11,6 +12,7 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
+    Optional,
     Tuple,
     Type,
     Union,
@@ -239,8 +241,42 @@ class Web(Service):
 class Request:
     """HTTP Request."""
 
+    content_type: str
+    charset: str
+    content_length: Optional[int]
+    host: str
+    headers: MutableMapping[str, Any]
     method: str
+    scheme: str
+    secure: bool
+    remote: str
+    path_qs: str
+    path: str
+    raw_path: str
     url: URL
+    rel_url: URL
+    query_string: str
+    keep_alive: bool
+    body_exists: bool
+
+    if_modified_since: Optional[datetime]
+    if_unmodified_since: Optional[datetime]
+    if_range: Optional[datetime]
+
+    def can_read_body(self) -> bool:
+        ...
+
+    async def read(self) -> bytes:
+        ...
+
+    async def text(self) -> str:
+        ...
+
+    async def json(self) -> Any:
+        ...
+
+    async def post(self) -> Mapping[str, str]:
+        ...
 
     @property
     def match_info(self) -> MutableMapping[str, str]:
@@ -248,4 +284,8 @@ class Request:
 
     @property
     def query(self) -> MutableMapping[str, str]:
+        ...
+
+    @property
+    def cookies(self) -> Mapping[str, Any]:
         ...
