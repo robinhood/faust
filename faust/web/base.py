@@ -259,6 +259,8 @@ class Request:
     keep_alive: bool
     body_exists: bool
 
+    user: Any
+
     if_modified_since: Optional[datetime]
     if_unmodified_since: Optional[datetime]
     if_range: Optional[datetime]
