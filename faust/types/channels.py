@@ -76,6 +76,7 @@ class ChannelT(AsyncIterator):
                    key: K = None,
                    value: V = None,
                    partition: int = None,
+                   timestamp: float = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -88,6 +89,7 @@ class ChannelT(AsyncIterator):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:

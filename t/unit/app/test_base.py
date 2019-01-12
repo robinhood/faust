@@ -71,7 +71,7 @@ async def test_send(
     else:
         expected_key = None
     expected_sender.assert_called_with(
-        expected_topic, expected_key, event.dumps(), partition=None,
+        expected_topic, expected_key, event.dumps(), partition=None, timestamp=None,
     )
 
 

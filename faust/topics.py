@@ -150,6 +150,7 @@ class Topic(Channel, TopicT):
                    key: K = None,
                    value: V = None,
                    partition: int = None,
+                   timestamp: float = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -163,6 +164,7 @@ class Topic(Channel, TopicT):
                     key,
                     value,
                     partition=partition,
+                    timestamp=timestamp,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
@@ -171,6 +173,7 @@ class Topic(Channel, TopicT):
             key,
             value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -339,7 +342,8 @@ class Topic(Channel, TopicT):
             topic = self.get_topic_name()
         key: bytes = cast(bytes, message.key)
         value: bytes = cast(bytes, message.value)
-        logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
+        timestamp: int = cast(float, message.timestamp)
+        logger.debug('send: topic=%r key=%r value=%r timestamp=%r', topic, key, value, timestamp)
         assert topic is not None
         producer = await self._get_producer()
         state = app.sensors.on_send_initiated(
@@ -349,12 +353,12 @@ class Topic(Channel, TopicT):
             valsize=len(value) if value else 0)
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
-                topic, key, value, partition=message.partition)
+                topic, key, value, partition=message.partition, timestamp=timestamp)
             app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
         else:
             fut2 = await producer.send(
-                topic, key, value, partition=message.partition)
+                topic, key, value, partition=message.partition, timestamp=timestamp)
             cast(asyncio.Future, fut2).add_done_callback(
                 cast(Callable, partial(self._on_published, message=fut)))
             return fut2
