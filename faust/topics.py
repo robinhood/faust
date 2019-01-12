@@ -342,7 +342,7 @@ class Topic(Channel, TopicT):
             topic = self.get_topic_name()
         key: bytes = cast(bytes, message.key)
         value: bytes = cast(bytes, message.value)
-        timestamp: int = cast(float, message.timestamp)
+        timestamp: float = cast(float, message.timestamp)
         logger.debug('send: topic=%r key=%r value=%r timestamp=%r', topic, key, value, timestamp)
         assert topic is not None
         producer = await self._get_producer()

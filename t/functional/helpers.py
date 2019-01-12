@@ -34,7 +34,7 @@ def message(key=None, value=None,
         partition=partition,
         offset=offset,
         timestamp=timestamp or time(),
-        timestamp_type=0,
+        timestamp_type=1 if timestamp else 0,
         checksum=checksum,
     )
 
