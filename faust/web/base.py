@@ -241,18 +241,7 @@ class Web(Service):
 class Request:
     """HTTP Request."""
 
-    content_type: str
-    charset: str
-    content_length: Optional[int]
-    host: str
-    headers: MutableMapping[str, Any]
     method: str
-    scheme: str
-    secure: bool
-    remote: str
-    path_qs: str
-    path: str
-    raw_path: str
     url: URL
     rel_url: URL
     query_string: str
@@ -281,11 +270,11 @@ class Request:
         ...
 
     @property
-    def match_info(self) -> MutableMapping[str, str]:
+    def match_info(self) -> Mapping[str, str]:
         ...
 
     @property
-    def query(self) -> MutableMapping[str, str]:
+    def query(self) -> Mapping[str, str]:
         ...
 
     @property

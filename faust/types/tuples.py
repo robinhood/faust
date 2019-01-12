@@ -58,6 +58,7 @@ class PendingMessage(NamedTuple):
     key: K
     value: V
     partition: Optional[int]
+    timestamp: Optional[float]
     key_serializer: CodecArg
     value_serializer: CodecArg
     callback: Optional[MessageSentCallback]
@@ -73,12 +74,14 @@ def _PendingMessage_to_Message(p: PendingMessage) -> 'Message':
     topic = cast(str, p.topic)
     partition = cast(int, p.partition) or 0
     tp = TP(topic, partition)
+    timestamp = cast(float, p.timestamp) or time()
+    timestamp_type = 1 if p.timestamp else 0
     return Message(
         topic,
         partition,
         -1,
-        timestamp=time(),
-        timestamp_type=0,
+        timestamp=timestamp,
+        timestamp_type=timestamp_type,
         key=p.key,
         value=p.value,
         checksum=None,

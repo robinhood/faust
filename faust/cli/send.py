@@ -54,6 +54,7 @@ class send(AppCommand):
                   value_type: str = None,
                   value_serializer: str = None,
                   partition: int = 1,
+                  timestamp: float = None,
                   repeat: int = 1,
                   min_latency: float = 0.0,
                   max_latency: float = 0.0,
@@ -69,6 +70,7 @@ class send(AppCommand):
                 key=key,
                 value=value,
                 partition=partition,
+                timestamp=timestamp,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
             )

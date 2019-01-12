@@ -74,7 +74,7 @@ class Stresser(object):
         await asyncio.wait([self._start_worker(worker)
                             for worker in start_workers],
                            loop=self.loop, return_when=asyncio.ALL_COMPLETED)
-        asyncio.ensure_future(self._run_stresser(), loop=loop)
+        asyncio.ensure_future(self._run_stresser(), loop=self.loop)
 
     async def _start_worker(self, worker):
         assert worker in self.workers

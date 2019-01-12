@@ -263,8 +263,7 @@ class Conductor(ConductorT, Service):
             if topic.active_partitions is not None:
                 # Isolated Partitions: One agent per partition.
                 if topic.active_partitions:
-                    if assigned:
-                        assert topic.active_partitions.issubset(assigned)
+                    assert topic.active_partitions.issubset(assigned)
                     for tp in topic.active_partitions:
                         tp_index[tp].add(topic)
             else:

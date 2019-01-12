@@ -1099,6 +1099,7 @@ class App(AppT, Service):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -1110,6 +1111,8 @@ class App(AppT, Service):
             value: Message value.
             partition: Specific partition to send to.
                 If not set the partition will be chosen by the partitioner.
+            timestamp: Epoch seconds (from Jan 1 1970
+                UTC) to use as the message timestamp. Defaults to current time.
             key_serializer: Serializer to use (if value is not model).
             value_serializer: Serializer to use (if value is not model).
             callback: Called after the message is fully delivered to the
@@ -1130,6 +1133,7 @@ class App(AppT, Service):
             key=key,
             value=value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
