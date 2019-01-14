@@ -578,6 +578,8 @@ must be at least as large as the maximum message size.
 ``consumer_auto_offset_reset``
 ------------------------------
 
+.. versionadded:: 1.5
+
 :type: :class:`string`
 :default: ``earliest``
 
