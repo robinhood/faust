@@ -25,15 +25,15 @@ matrix:
   - python: 3.6.0
     env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y
     os: linux
-    dist: xenial
+    dist: trusty
   - python: 3.6.1
     env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y
     os: linux
-    dist: xenial
+    dist: trusty
   - python: 3.6.2
     env: TOXENV=3.6 IDENT="3.6.2" RUN_SUITE=y
     os: linux
-    dist: xenial
+    dist: trusty
   - python: 3.6.3
     env: TOXENV=3.6 IDENT="3.6.3" RUN_SUITE=y
     os: linux
