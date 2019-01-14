@@ -1062,7 +1062,8 @@ class App(AppT, Service):
                     return await self.router.route_req(table.name, key,
                                                        view.web, request)
                 except SameNode:
-                    return await fun(view, request, *args, **kwargs)
+                    return await fun(  # type: ignore
+                        view, request, *args, **kwargs)
 
             return get
 

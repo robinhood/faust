@@ -61,5 +61,7 @@ Contributors
 +---------------------+---------------------------------------+
 | Mattias Karlsson    | <mattias@hemmabolan.se>               |
 +---------------------+---------------------------------------+
-| Matthias Wutte       | <matthias.wutte@smaxtec.com>         |
+| Matthias Wutte      | <matthias.wutte@smaxtec.com>          |
++---------------------+---------------------------------------+
+| Thibault Serot      | <thibserot@gmail.com>                 |
 +---------------------+---------------------------------------+

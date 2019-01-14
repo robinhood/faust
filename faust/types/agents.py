@@ -7,6 +7,7 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
+    Coroutine,
     Generic,
     Iterable,
     List,
@@ -54,9 +55,10 @@ __all__ = [
 _T = TypeVar('_T')
 AgentErrorHandler = Callable[['AgentT', BaseException], Awaitable]
 AgentFun = Callable[
-    [Union[AsyncIterator, StreamT]],
-    Union[Awaitable, AsyncIterable],
+    [StreamT],
+    Union[Coroutine[Any, Any, None], Awaitable[None], AsyncIterable],
 ]
+
 
 #: A sink can be: Agent, Channel
 #: or callable/async callable taking value as argument.
