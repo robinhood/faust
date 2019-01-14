@@ -152,6 +152,7 @@ Types
     faust.types.channels
     faust.types.codecs
     faust.types.core
+    faust.types.enums
     faust.types.events
     faust.types.fixups
     faust.types.joins

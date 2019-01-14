@@ -130,6 +130,10 @@ class AppT(ServiceT):
     # This flag is set by App._on_partitions_assigned
     unassigned: bool = False
 
+    #: Set to true when app is executing within a worker instance.
+    # This flag is set in faust/worker.py
+    in_worker: bool = False
+
     on_configured: SyncSignal[Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()
     on_after_configured: SyncSignal = SyncSignal()
@@ -419,4 +423,9 @@ class AppT(ServiceT):
 
     @web.setter
     def web(self, web: Web) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def in_transaction(self) -> bool:
         ...

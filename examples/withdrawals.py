@@ -31,11 +31,12 @@ class Withdrawal(faust.Record, isodates=True, serializer='json'):
 
 app = faust.App(
     'faust-withdrawals',
-    version=3,
+    version=4,
     broker='aiokafka://',
     store='rocksdb://',
     origin='examples.withdrawals',
     topic_partitions=4,
+    processing_guarantee='exactly_once',
 )
 withdrawals_topic = app.topic('withdrawals', value_type=Withdrawal)
 
@@ -51,7 +52,6 @@ country_to_total = app.Table(
 @app.agent(withdrawals_topic)
 async def track_user_withdrawal(withdrawals):
     async for withdrawal in withdrawals:
-        print('WITHDRAWAL: %r' % (withdrawal,))
         user_to_total[withdrawal.user] += withdrawal.amount
 
 

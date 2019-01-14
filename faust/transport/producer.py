@@ -9,19 +9,22 @@ The Producer is responsible for:
 import asyncio
 from typing import Any, Awaitable, Mapping, Optional
 from mode import Seconds, Service
+from faust.types import AppT
 from faust.types.tuples import RecordMetadata, TP
-from faust.types.transports import ProducerT, TransportT
+from faust.types.transports import ProducerT, TransactionProducerT, TransportT
 
 __all__ = ['Producer']
 
 
 class Producer(Service, ProducerT):
     """Base Producer."""
+    app: AppT
 
     def __init__(self, transport: TransportT,
                  loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:
         self.transport = transport
+        self.app = self.transport.app
         conf = self.transport.app.conf
         self.client_id = conf.broker_client_id
         self.linger_ms = conf.producer_linger_ms
@@ -62,3 +65,28 @@ class Producer(Service, ProducerT):
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
+
+
+class TransactionProducer(Producer, TransactionProducerT):
+
+    def __init__(self, transport: TransportT,
+                 loop: asyncio.AbstractEventLoop = None,
+                 *,
+                 partition: int,
+                 **kwargs: Any) -> None:
+        self.partition = partition
+        super().__init__(transport, loop, **kwargs)
+
+    async def commit(self, offsets: Mapping[TP, int], group_id: str,
+                     start_new_transaction: bool = True) -> None:
+        conf = self.app.conf
+        raise NotImplementedError(
+            f'This transport does not support {conf.processing_guarantee}')
+
+    @property
+    def transaction_id(self) -> str:
+        return f'{self.app.conf.id}-{self.partition}'
+
+    @property
+    def label(self) -> str:
+        return f'{type(self).__name__}-{self.partition}'

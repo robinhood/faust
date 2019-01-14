@@ -181,6 +181,10 @@ class Worker(mode.Worker):
             **kwargs)
         self.spinner = terminal.Spinner(file=self.stdout)
 
+    async def on_start(self) -> None:
+        self.app.in_worker = True
+        await super().on_start()
+
     def _on_sigint(self) -> None:
         self._flag_as_shutdown_by_signal()
         super()._on_sigint()

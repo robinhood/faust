@@ -129,6 +129,27 @@ preferred.
 Optional backend used for memcached-style caching.
 URL can be: ``redis://host``, ``rediscluster://host``, or ``memory://``.
 
+.. setting:: processing_guarantee
+
+``processing_guarantee``
+------------------------
+
+.. versionadded:: 1.5
+
+:type: ``str``
+:default: ``at_least_once``
+
+The processing guarantee that should be used.
+
+Possible values are "at_least_once" (default) and "exactly_once".
+Note that if exactly-once processing is enabled consumers are configured with
+``isolation.level="read_committed"`` and producers are configured with
+``retries=Integer.MAX_VALUE`` and ``enable.idempotence=true`` per default.
+Note that by default exactly-once processing requires a cluster of at least
+three brokers what is the recommended setting for production.
+For development you can change this, by adjusting broker setting
+``transaction.state.log.replication.factor`` to the number of brokers you want to use.
+
 .. setting:: autodiscover
 
 ``autodiscover``

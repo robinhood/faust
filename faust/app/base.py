@@ -62,6 +62,7 @@ from faust.types.app import AppT, BootStrategyT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
 from faust.types.core import K, V
+from faust.types.enums import ProcessingGuarantee
 from faust.types.models import ModelArg
 from faust.types.router import RouterT
 from faust.types.serializers import RegistryT
@@ -1141,13 +1142,45 @@ class App(AppT, Service):
             callback=callback,
         )
 
+    async def _send(self, topic: str,
+                    key: Optional[bytes], value: Optional[bytes],
+                    partition: int = None) -> Awaitable[RecordMetadata]:
+        if self.in_transaction:
+            return await self.consumer.transactions.send(
+                topic, key, value, partition)
+        else:
+            producer = await self.maybe_start_producer()
+            return await producer.send(topic, key, value, partition)
+
+    async def _send_and_wait(self, topic: str,
+                             key: Optional[bytes], value: Optional[bytes],
+                             partition: int = None) -> RecordMetadata:
+        if self.in_transaction:
+            return await self.consumer.transactions.send_and_wait(
+                topic, key, value, partition)
+        else:
+            producer = await self.maybe_start_producer()
+            return await producer.send_and_wait(topic, key, value, partition)
+
+    @cached_property
+    def in_transaction(self) -> bool:
+        return (
+            self.in_worker and
+            self.conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
+        )
+
     @stampede
     async def maybe_start_producer(self) -> ProducerT:
         """Ensure producer is started."""
-        producer = self.producer
-        # producer may also have been started by app.start()
-        await producer.maybe_start()
-        return producer
+        if self.in_transaction:
+            # return TransactionManager when
+            # processing_guarantee="exactly_once" enabled.
+            return self.consumer.transactions
+        else:
+            producer = self.producer
+            # producer may also have been started by app.start()
+            await producer.maybe_start()
+            return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         """Commit offset for acked messages in specified topics'.
@@ -1201,16 +1234,17 @@ class App(AppT, Service):
         session_timeout = self.conf.broker_session_timeout * 0.95
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
+            consumer = self.consumer
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
                 self.tables.on_partitions_revoked(revoked)
-                assignment = self.consumer.assignment()
+                assignment = consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
-                    self.consumer.stop_flow()
+                    consumer.stop_flow()
                     self.flow_control.suspend()
                     on_timeout.info('consumer.pause_partitions')
-                    self.consumer.pause_partitions(assignment)
+                    consumer.pause_partitions(assignment)
                     # Every agent instance has an incoming buffer of messages
                     # (a asyncio.Queue) -- we clear those to make sure
                     # agents will not start processing them.
@@ -1226,10 +1260,12 @@ class App(AppT, Service):
                     # we need to wait for them.
                     if self.conf.stream_wait_empty:
                         on_timeout.info('consumer.wait_empty()')
-                        await self.consumer.wait_empty()
+                        await consumer.wait_empty()
                     on_timeout.info('producer.flush()')
                     if self._producer is not None:
                         await self._producer.flush()
+
+                    await consumer.transactions.on_partitions_revoked(revoked)
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
                 on_timeout.info('+send signal: on_partitions_revoked')
@@ -1277,6 +1313,7 @@ class App(AppT, Service):
         self._assignment = assigned
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
+            consumer = self.consumer
             try:
                 on_timeout.info('agents.on_rebalance()')
                 await self.agents.on_rebalance(revoked, newly_assigned)
@@ -1285,9 +1322,12 @@ class App(AppT, Service):
                 on_timeout.info('topics.wait_for_subscriptions()')
                 await self.topics.wait_for_subscriptions()
                 on_timeout.info('consumer.pause_partitions()')
-                self.consumer.pause_partitions(assigned)
+                consumer.pause_partitions(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
+                on_timeout.info('transactions.on_rebalance()')
+                await consumer.transactions.on_rebalance(
+                    assigned, revoked, newly_assigned)
                 on_timeout.info('tables.on_rebalance()')
                 await self.tables.on_rebalance(
                     assigned, revoked, newly_assigned)

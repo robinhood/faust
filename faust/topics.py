@@ -339,6 +339,7 @@ class Topic(Channel, TopicT):
             topic = self.get_topic_name()
         key: bytes = cast(bytes, message.key)
         value: bytes = cast(bytes, message.value)
+        partition: Optional[int] = message.partition
         logger.debug('send: topic=%r key=%r value=%r', topic, key, value)
         assert topic is not None
         producer = await self._get_producer()
@@ -349,22 +350,30 @@ class Topic(Channel, TopicT):
             valsize=len(value) if value else 0)
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
-                topic, key, value, partition=message.partition)
+                topic, key, value, partition=partition)
             app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
         else:
-            fut2 = await producer.send(
-                topic, key, value, partition=message.partition)
-            cast(asyncio.Future, fut2).add_done_callback(
-                cast(Callable, partial(self._on_published, message=fut)))
+            fut2 = cast(asyncio.Future, await producer.send(
+                topic, key, value, partition=partition))
+            callback = partial(
+                self._on_published,
+                message=fut,
+                state=state,
+                producer=producer,
+            )
+            fut2.add_done_callback(cast(Callable, callback))
             return fut2
 
     def _on_published(self, fut: asyncio.Future,
-                      message: FutureMessage) -> None:
+                      message: FutureMessage,
+                      producer: ProducerT,
+                      state: Any) -> None:
         res: RecordMetadata = fut.result()
         message.set_result(res)
         if message.message.callback:
             message.message.callback(message)
+        self.app.sensors.on_send_completed(producer, state)
 
     def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
         if key is not None:

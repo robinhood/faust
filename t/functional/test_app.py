@@ -14,6 +14,7 @@ from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
 from faust.types import settings
+from faust.types.enums import ProcessingGuarantee
 from yarl import URL
 
 
@@ -39,6 +40,7 @@ class test_settings:
         assert not conf.web_in_thread
         assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
+        assert conf.processing_guarantee == settings.PROCESSING_GUARANTEE
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_request_timeout == settings.BROKER_REQUEST_TIMEOUT
         assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
@@ -151,6 +153,7 @@ class test_settings:
                                  broker_client_id='client id',
                                  datadir='/etc/faust/',
                                  tabledir='/var/faust/',
+                                 processing_guarantee='exactly_once',
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
                                  broker_session_timeout=30303.30,
@@ -201,6 +204,7 @@ class test_settings:
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
+            processing_guarantee=processing_guarantee,
             broker_request_timeout=broker_request_timeout,
             broker_session_timeout=broker_session_timeout,
             broker_heartbeat_interval=broker_heartbeat_interval,
@@ -252,6 +256,7 @@ class test_settings:
             assert conf.tabledir == Path(str(tabledir))
         else:
             assert conf.tabledir.relative_to(conf.appdir) == Path(tabledir)
+        assert conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
         assert conf.broker_request_timeout == broker_request_timeout
         assert conf.broker_heartbeat_interval == broker_heartbeat_interval
         assert conf.broker_session_timeout == broker_session_timeout

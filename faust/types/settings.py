@@ -33,6 +33,7 @@ from ._env import DATADIR, WEB_BIND, WEB_PORT, WEB_TRANSPORT
 from .agents import AgentT
 from .assignor import LeaderAssignorT, PartitionAssignorT
 from .codecs import CodecArg
+from .enums import ProcessingGuarantee
 from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
@@ -95,6 +96,8 @@ CACHE_URL = 'memory://'
 
 #: Web driver URL, used as default for setting:`web`.
 WEB_URL = 'aiohttp://'
+
+PROCESSING_GUARANTEE = ProcessingGuarantee.AT_LEAST_ONCE
 
 #: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
@@ -322,6 +325,7 @@ class Settings(abc.ABC):
     _canonical_url: URL = cast(URL, None)
     _datadir: Path
     _tabledir: Path
+    _processing_guarantee: ProcessingGuarantee = PROCESSING_GUARANTEE
     _agent_supervisor: Type[SupervisorStrategyT]
     _broker_request_timeout: float = BROKER_REQUEST_TIMEOUT
     _broker_session_timeout: float = BROKER_SESSION_TIMEOUT
@@ -398,6 +402,7 @@ class Settings(abc.ABC):
             cache: Union[str, URL] = None,
             web: Union[str, URL] = None,
             web_enabled: bool = True,
+            processing_guarantee: Union[str, ProcessingGuarantee] = None,
             timezone: tzinfo = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
@@ -468,6 +473,8 @@ class Settings(abc.ABC):
         self.cache = self._first_not_none(cache, CACHE_URL)
         self.web = self._first_not_none(web, WEB_URL)
         self.web_enabled = web_enabled
+        if processing_guarantee is not None:
+            self.processing_guarantee = processing_guarantee
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
@@ -727,6 +734,15 @@ class Settings(abc.ABC):
     @tabledir.setter
     def tabledir(self, tabledir: Union[Path, str]) -> None:
         self._tabledir = self._prepare_tabledir(tabledir)
+
+    @property
+    def processing_guarantee(self) -> ProcessingGuarantee:
+        return self._processing_guarantee
+
+    @processing_guarantee.setter
+    def processing_guarantee(self,
+                             value: Union[str, ProcessingGuarantee]) -> None:
+        self._processing_guarantee = ProcessingGuarantee(value)
 
     @property
     def broker_request_timeout(self) -> float:

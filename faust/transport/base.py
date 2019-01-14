@@ -21,12 +21,14 @@ from faust.types.transports import (
     ConsumerCallback,
     ConsumerT,
     ProducerT,
+    TransactionManagerT,
+    TransactionProducerT,
     TransportT,
 )
 
 from .conductor import Conductor
-from .consumer import Consumer, Fetcher
-from .producer import Producer
+from .consumer import Consumer, Fetcher, TransactionManager
+from .producer import Producer, TransactionProducer
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -46,6 +48,12 @@ class Transport(TransportT):
     #: Producer subclass used for this transport.
     Producer: ClassVar[Type[ProducerT]]
     Producer = Producer
+
+    TransactionProducer: ClassVar[Type[TransactionProducerT]]
+    TransactionProducer = TransactionProducer
+
+    TransactionManager: ClassVar[Type[TransactionManagerT]]
+    TransactionManager = TransactionManager
 
     Conductor: ClassVar[Type[ConductorT]]
     Conductor = Conductor
@@ -69,6 +77,22 @@ class Transport(TransportT):
 
     def create_producer(self, **kwargs: Any) -> ProducerT:
         return self.Producer(self, **kwargs)
+
+    def create_transaction_producer(self,
+                                    partition: int,
+                                    **kwargs: Any) -> TransactionProducerT:
+        return self.TransactionProducer(self, partition=partition, **kwargs)
+
+    def create_transaction_manager(self,
+                                   consumer: ConsumerT,
+                                   producer: ProducerT,
+                                   **kwargs: Any) -> TransactionManagerT:
+        return self.TransactionManager(
+            self,
+            consumer=consumer,
+            producer=producer,
+            **kwargs,
+        )
 
     def create_conductor(self, **kwargs: Any) -> ConductorT:
         return self.Conductor(app=self.app, loop=self.loop, **kwargs)
