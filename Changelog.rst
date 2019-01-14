@@ -8,16 +8,30 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
-.. _version-1.4.3:
+.. _version-1.5.0:
 
-1.4.3
+1.5.0
 =====
 :release-date: TBA
-:release-date: TBA
+:release-by: TBA
 
-- **Examples**: Fixed Django example so that it's working properly.
+- **App**: New :setting:`consumer_auto_offset_reset` setting.
 
-    Contributed by Thibault Serot (:github_user:`thibserot`).
+    Contributed by Ryan Whitten (:github_user:`rwhitten577`).
+
+- **App**: Autodiscovery now ignores modules matching "*test*" (Issue #242).
+
+    Contributed by Chris Seto (:github_user:`chrisseto`).
+
+- **Stream**: Fixed deadlock when using ``Stream.take`` to buffer events
+  (Issue #262).
+
+    Contributed by Nimi Wariboko Jr (:github_user:`nemosupremo`).
+
+- Documentation improvements by:
+
+    - Thibault Serot (:github_user:`thibserot`).
+    - oucb (:github_user:`oucb`).
 
 .. _version-1.4.2:
 
