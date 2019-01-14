@@ -53,6 +53,27 @@ the semi-comma:
 
     aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
+Available Transports
+~~~~~~~~~~~~~~~~~~~~
+
+- ``kafka://``
+
+    Alias to ``aiokafka://``
+
+- ``aiokafka://``
+
+    The recommended transport using the :pypi:`aiokafka` client.
+
+    Limitations: None
+
+- ``confluent://``
+
+    Experimental transport using the :pypi:`confluent-kafka` client.
+
+    Limitations: Does not do sticky partition assignment (not
+        suitable for tables), and do not create any necessary internal
+        topics (you have to create them manually).
+
 .. setting:: ssl_context
 
 ``ssl_context``
