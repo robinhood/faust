@@ -53,6 +53,10 @@ from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
+if not hasattr(aiokafka, '__robinhood__'):
+    raise RuntimeError(
+        'Please install robinhood-aiokafka, not aiokafka')
+
 logger = get_logger(__name__)
 
 
