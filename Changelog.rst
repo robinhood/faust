@@ -28,10 +28,32 @@ please visit the :ref:`history` section.
 
     Contributed by Nimi Wariboko Jr (:github_user:`nemosupremo`).
 
-- Documentation improvements by:
+.. _version-1.4.3:
 
-    - Thibault Serot (:github_user:`thibserot`).
-    - oucb (:github_user:`oucb`).
+1.4.3
+=====
+:release-date: 2019-01-14 03:01 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+  + Require series 0.4.x of :pypi:`robinhood-aiokafka`.
+
+    - Recently version 0.5.0 was released but this has not been tested
+      in production yet, so we have pinned Faust 1.4.x to aiokafka 0.4.x.
+      For more information see Issue #277.
+
+  + Test requirements now depends on :pypi:`pytest` greater than 3.6.
+
+    Contributed by Michael Seifert (:github_user:`seifertm`).
+
+- **Documentation improvements by**:
+
+    + Allison Wang (:github_user:`allisonwang`).
+    + Thibault Serot (:github_user:`thibserot`).
+    + oucb (:github_user:`oucb`).
+
+- **CI**: Added CPython 3.7.2 and 3.6.8 to Travis CI build matrix.
 
 .. _version-1.4.2:
 
