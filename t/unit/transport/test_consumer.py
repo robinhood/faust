@@ -35,8 +35,12 @@ class test_Fetcher:
 
 class MyConsumer(Consumer):
 
+    def __init__(self, *args, **kwargs) -> None:
+        self.current_assignment = set()
+        super().__init__(*args, **kwargs)
+
     def assignment(self):
-        ...
+        return self.current_assignment
 
     async def create_topic(self, *args, **kwargs):
         ...
@@ -69,6 +73,18 @@ class MyConsumer(Consumer):
         ...
 
     def resume_flow(self, *args, **kwargs):
+        ...
+
+    async def _getmany(self, *args, **kwargs):
+        ...
+
+    async def _seek(self, *args, **kwargs):
+        ...
+
+    def _to_message(self, *args, **kwargs):
+        ...
+
+    async def seek_to_committed(self, *args, **kwargs):
         ...
 
     async def seek(self, *args, **kwargs):
@@ -309,13 +325,14 @@ class test_Consumer:
     @pytest.mark.asyncio
     async def test_commit_offsets(self, *, consumer):
         consumer._commit = AsyncMock(name='_commit')
+        consumer.current_assignment.update({TP1, TP2})
         await consumer._commit_offsets({
             TP1: 3003,
             TP2: 6006,
         })
         consumer._commit.assert_called_once_with({
-            TP1: (3003, ''),
-            TP2: (6006, ''),
+            TP1: 3003,
+            TP2: 6006,
         })
 
     def test_filter_tps_with_pending_acks(self, *, consumer):
