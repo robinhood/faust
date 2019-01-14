@@ -65,7 +65,8 @@ class test_settings:
         assert conf.stream_ack_exceptions
         assert (conf.broker_max_poll_records ==
                 settings.BROKER_MAX_POLL_RECORDS)
-
+        assert (conf.consumer_auto_offset_reset ==
+                settings.CONSUMER_AUTO_OFFSET_RESET)
         assert not conf.autodiscover
         assert conf.origin is None
         assert conf.key_serializer == 'raw'
@@ -183,6 +184,7 @@ class test_settings:
                                  broker_max_poll_records=1000,
                                  timezone=pytz.timezone('US/Eastern'),
                                  logging_config={'foo': 10},  # noqa
+                                 consumer_auto_offset_reset='latest',
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -232,6 +234,7 @@ class test_settings:
             worker_redirect_stdouts=worker_redirect_stdouts,
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
             logging_config=logging_config,
+            consumer_auto_offset_reset=consumer_auto_offset_reset,
         )
         conf = app.conf
         assert conf.id == app.conf._prepare_id(id)
@@ -282,6 +285,7 @@ class test_settings:
                 worker_redirect_stdouts_level)
         assert conf.broker_max_poll_records == broker_max_poll_records
         assert conf.logging_config == logging_config
+        assert conf.consumer_auto_offset_reset == consumer_auto_offset_reset
         return app
 
     def test_custom_host_port_to_canonical(self,

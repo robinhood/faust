@@ -7,7 +7,6 @@ Everything starts here.
 import asyncio
 import importlib
 import inspect
-import re
 import typing
 import warnings
 from datetime import tzinfo
@@ -355,8 +354,6 @@ class App(AppT, Service):
     # Cache is created on demand: use `.cache` property.
     _cache: Optional[CacheBackendT] = None
 
-    _assignor: Optional[PartitionAssignorT] = None
-
     # Monitor is created on demand: use `.monitor` property.
     _monitor: Optional[Monitor] = None
 
@@ -608,7 +605,7 @@ class App(AppT, Service):
         for fixup in self.fixups:
             modules |= set(fixup.autodiscover_modules())
         if modules:
-            scanner = self._new_scanner(*[re.compile(pat) for pat in ignore])
+            scanner = venusian.Scanner()
             for name in modules:
                 try:
                     module = importlib.import_module(name)
@@ -617,6 +614,7 @@ class App(AppT, Service):
                         f'Unknown module {name} in App.conf.autodiscover list')
                 scanner.scan(
                     module,
+                    ignore=ignore,
                     categories=tuple(categories),
                 )
 
@@ -635,10 +633,6 @@ class App(AppT, Service):
             if self.conf.origin:
                 modules.append(self.conf.origin)
         return modules
-
-    def _new_scanner(self, *ignore: Pattern,
-                     **kwargs: Any) -> venusian.Scanner:
-        return venusian.Scanner(ignore=[pat.search for pat in ignore])
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
@@ -1064,7 +1058,8 @@ class App(AppT, Service):
                     return await self.router.route_req(table.name, key,
                                                        view.web, request)
                 except SameNode:
-                    return await fun(view, request, *args, **kwargs)
+                    return await fun(  # type: ignore
+                        view, request, *args, **kwargs)
 
             return get
 

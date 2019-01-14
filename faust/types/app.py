@@ -16,6 +16,7 @@ from typing import (
     Set,
     Type,
     Union,
+    no_type_check,
 )
 
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
@@ -224,6 +225,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    @no_type_check
     def task(self, fun: TaskArg) -> Callable:
         ...
 

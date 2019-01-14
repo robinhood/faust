@@ -327,14 +327,13 @@ class Stream(StreamT[T_co], Service):
                 await self.wait(buffer_consumed)
             return value
 
+        # Disable acks to ensure this method acks manually
+        # events only after they are consumed by the user
+        self.enable_acks = False
+
+        self.add_processor(add_to_buffer)
+        self._enable_passive(cast(ChannelT, channel_it))
         try:
-            # Disable acks to ensure this method acks manually
-            # events only after they are consumed by the user
-            self.enable_acks = False
-
-            self.add_processor(add_to_buffer)
-            self._enable_passive(cast(ChannelT, channel_it))
-
             while not self.should_stop:
                 # wait until buffer full, or timeout
                 await self.wait_for_stopped(buffer_full, timeout=timeout)
@@ -357,6 +356,7 @@ class Stream(StreamT[T_co], Service):
         finally:
             # Restore last behaviour of "enable_acks"
             self.enable_acks = stream_enable_acks
+            self._processors.remove(add_to_buffer)
 
     def enumerate(self, start: int = 0) -> AsyncIterable[Tuple[int, T_co]]:
         """Enumerate values received on this stream.

@@ -1,7 +1,7 @@
 import abc
 import typing
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional, Type, Union
+from typing import Any, Awaitable, Callable, Coroutine, Optional, Type, Union
 
 from aiohttp.client import ClientSession as HttpClientT
 from mode import Seconds, ServiceT
@@ -39,10 +39,17 @@ ViewHandlerMethod = Callable[
     Awaitable[Response],
 ]
 
-ViewHandlerFun = Callable[
-    [Arg(View), Arg(Request), VarArg(Any), KwArg(Any)],
-    Awaitable[Response],
+ViewHandler2ArgsFun = Callable[
+    [Arg(View), Arg(Request)],
+    Union[Coroutine[Any, Any, Response], Awaitable[Response]],
 ]
+
+ViewHandlerVarArgsFun = Callable[
+    [Arg(View), Arg(Request), VarArg(Any), KwArg(Any)],
+    Union[Coroutine[Any, Any, Response], Awaitable[Response]],
+]
+
+ViewHandlerFun = Union[ViewHandler2ArgsFun, ViewHandlerVarArgsFun]
 
 ViewGetHandler = ViewHandlerFun  # XXX compat
 ViewDecorator = Callable[[ViewHandlerFun], ViewHandlerFun]
