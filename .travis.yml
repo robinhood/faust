@@ -6,73 +6,73 @@ env:
   - PYTHONUNBUFFERED=yes
 matrix:
   include:
-  - python: 3.7.0
+  - python: 3.7.2
     env: TOXENV=flake8
     os: linux
     dist: xenial
-  - python: 3.7.0
+  - python: 3.7.2
     env: TOXENV=typecheck
     os: linux
     dist: xenial
-  - python: 3.7.0
+  - python: 3.7.2
     env: TOXENV=apicheck
     os: linux
     dist: xenial
-  - python: 3.7.0
+  - python: 3.7.2
     env: TOXENV=configcheck
     os: linux
     dist: xenial
   - python: 3.6.0
-    env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.1
-    env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.2
-    env: TOXENV=3.6 IDENT="3.6.2" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.2" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.3
-    env: TOXENV=3.6 IDENT="3.6.3" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.3" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.4
-    env: TOXENV=3.6 IDENT="3.6.4" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.4" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.5
-    env: TOXENV=3.6 IDENT="3.6.5" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.5" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.6
-    env: TOXENV=3.6 IDENT="3.6.6" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.6" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.7
-    env: TOXENV=3.6 IDENT="3.6.7" RUN_SUITE=y USE_PYENV=y
+    env: TOXENV=3.6 IDENT="3.6.7" RUN_SUITE=y
     os: linux
+    dist: xenial
   - python: 3.6.8
-    env: TOXENV=3.6 IDENT="3.6.8" RUN_SUITE=y USE_PYENV=n
+    env: TOXENV=3.6 IDENT="3.6.8" RUN_SUITE=y
     os: linux
     dist: xenial
   - python: 3.7.0
-    env: TOXENV=3.7 IDENT="3.7.0" RUN_SUITE=y USE_PYENV=n
+    env: TOXENV=3.7 IDENT="3.7.0" RUN_SUITE=y
     os: linux
     dist: xenial
   - python: 3.7.1
-    env: TOXENV=3.7 IDENT="3.7.1" RUN_SUITE=y USE_PYENV=n
+    env: TOXENV=3.7 IDENT="3.7.1" RUN_SUITE=y
     os: linux
     dist: xenial
   - python: 3.7.2
-    env: TOXENV=3.7 IDENT="3.7.2" RUN_SUITE=y USE_PYENV=n
+    env: TOXENV=3.7 IDENT="3.7.2" RUN_SUITE=y
     os: linux
     dist: xenial
 before_install:
 install:
 - |
-  if [[ $USE_PYENV ]]; then
-      git clone https://github.com/yyuu/pyenv.git ~/.pyenv
-      PYENV_ROOT="$HOME/.pyenv"
-      PATH="$PYENV_ROOT/bin:$PATH"
-      eval "$(pyenv init -)"
-      pyenv install "${IDENT}"
-      pyenv global "${IDENT}"
-  fi
 - travis_retry pip install -U tox
 after_success:
 - |
