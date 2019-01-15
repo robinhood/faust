@@ -303,8 +303,16 @@ class Store(base.SerializedStore):
         except KeyError:
             return self._dbs.values()
 
+    def _dbs_for_actives(self) -> Iterator[DB]:
+        actives = self.app.assignor.assigned_actives()
+        topic = self.table._changelog_topic_name()
+        for partition, db in self._dbs.items():
+            tp = TP(topic=topic, partition=partition)
+            if tp in actives:
+                yield db
+
     def _size(self) -> int:
-        return sum(self._size1(db) for db in self._dbs.values())
+        return sum(self._size1(db) for db in self._dbs_for_actives())
 
     def _visible_keys(self, db: DB) -> Iterator[bytes]:
         it = db.iterkeys()  # noqa: B301
@@ -328,28 +336,16 @@ class Store(base.SerializedStore):
         return sum(1 for _ in self._visible_keys(db))
 
     def _iterkeys(self) -> Iterator[bytes]:
-        actives = self.app.assignor.assigned_actives()
-        topic = self.table._changelog_topic_name()
-        for partition, db in self._dbs.items():
-            tp = TP(topic=topic, partition=partition)
-            if tp in actives:
-                yield from self._visible_keys(db)
+        for db in self.dbs_for_actives():
+            yield from self._visible_keys(db)
 
     def _itervalues(self) -> Iterator[bytes]:
-        actives = self.app.assignor.assigned_actives()
-        topic = self.table._changelog_topic_name()
-        for partition, db in self._dbs.items():
-            tp = TP(topic=topic, partition=partition)
-            if tp in actives:
-                yield from self._visible_values(db)
+        for db in self._dbs_for_actives():
+            yield from self._visible_values(db)
 
     def _iteritems(self) -> Iterator[Tuple[bytes, bytes]]:
-        actives = self.app.assignor.assigned_actives()
-        topic = self.table._changelog_topic_name()
-        for partition, db in self._dbs.items():
-            tp = TP(topic=topic, partition=partition)
-            if tp in actives:
-                yield from self._visible_items(db)
+        for db in self._dbs_for_actives():
+            yield from self._visible_items(db)
 
     def _clear(self) -> None:
         raise NotImplementedError('TODO')  # XXX cannot reset tables
