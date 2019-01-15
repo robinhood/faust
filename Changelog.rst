@@ -70,6 +70,13 @@ please visit the :ref:`history` section.
 
     Contributed by Nimi Wariboko Jr (:github_user:`nemosupremo`).
 
+- **Stream**: Fixed acking behavior of ``Stream.take`` (Issue #266).
+
+    When ``take`` is buffering the events should be acked after processing
+    the buffer is complete, instead it was acking when adding into the buffer.
+
+    Fix contributed by Amit Ripshtos (:github_user:`amitripshtos`).
+
 - **Typing**: Added type stubs for ``faust.web.Request``.
 
 - **Typing**: Fixed type stubs for ``@app.agent`` decorator.
