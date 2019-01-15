@@ -100,7 +100,7 @@ else:
     class Event: ...       # noqa
     class WorkerT: ...     # noqa
 
-__all__ = ['App']
+__all__ = ['App', 'BootStrategy']
 
 #: Format string for ``repr(app)``.
 APP_REPR = '''
