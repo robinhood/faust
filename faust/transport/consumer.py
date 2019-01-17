@@ -10,7 +10,7 @@ The Consumer is responsible for:
 
    - Receives messages and calls the callback for every message received.
 
-   - Keeps track of the message and it's acked/unacked status.
+   - Keeps track of the message and its acked/unacked status.
 
    - The Conductor forwards the message to all Streams that subscribes
      to the topic the message was sent to.
@@ -90,7 +90,7 @@ from faust.types.transports import (
 from faust.utils import terminal
 from faust.utils.functional import consecutive_numbers
 
-from .utils import TopicBuffer, TopicIndexMap
+from .utils import TopicBuffer as _TopicBuffer, TopicIndexMap
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -139,7 +139,7 @@ class Fetcher(Service):
                     await asyncio.wait_for(self._drainer, timeout=1.0)
                 except StopIteration:
                     # Task is cancelled right before coro stops.
-                    pass
+                    break
                 except asyncio.CancelledError:
                     break
                 except asyncio.TimeoutError:
@@ -193,26 +193,34 @@ class TransactionManager(Service, TransactionManagerT):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        producers = self._producers
         revoked_partitions: Set[int] = {tp.partition for tp in revoked}
         assigned_partitions: Set[int] = {tp.partition for tp in newly_assigned}
 
         # Stop producers for revoked partitions.
+        self.log.info(
+            'Stopping transactional producers for revoked partitions...')
+        await self._stop_producers(revoked_partitions)
+
+        # Start produers for assigned partitions
+        self.log.info(
+            'Starting transactional producers for assigned partitions...')
+        await self._start_producers(assigned_partitions)
+
+    async def _stop_producers(self, partitions: Iterable[int]) -> None:
+        producers = self._producers
         producers_to_stop: List[TransactionProducerT] = []
-        for revoked_partition in revoked_partitions:
-            producer = producers.pop(revoked_partition, None)
+        for partition in partitions:
+            producer = producers.pop(partition, None)
             if producer is not None:
                 producers_to_stop.append(producer)
         if producers_to_stop:
-            self.log.info(
-                'Stopping transactional producers for revoked partitions...')
             await asyncio.gather(*[
                 producer.stop() for producer in producers_to_stop
             ])
 
-        self.log.info(
-            'Starting transactional producers for assigned partitions...')
-        for partition in assigned_partitions:
+    async def _start_producers(self, partitions: Iterable[int]) -> None:
+        producers = self._producers
+        for partition in partitions:
             producers[partition] = await self._start_new_producer(partition)
 
     async def _start_new_producer(
@@ -298,6 +306,8 @@ class Consumer(Service, ConsumerT):
     app: AppT
 
     logger = logger
+
+    TopicBuffer: ClassVar[Type[_TopicBuffer]] = _TopicBuffer
 
     #: Tuple of exception types that may be raised when the
     #: underlying consumer driver is stopped.
@@ -429,7 +439,7 @@ class Consumer(Service, ConsumerT):
             self,
             records: RecordMap,
             active_partitions: Set[TP]) -> TopicIndexMap:
-        return TopicBuffer.map_from_records(records)
+        return self.TopicBuffer.map_from_records(records)
 
     @abc.abstractmethod
     async def _commit(
