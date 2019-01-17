@@ -1265,7 +1265,9 @@ class App(AppT, Service):
                     if self._producer is not None:
                         await self._producer.flush()
 
-                    await consumer.transactions.on_partitions_revoked(revoked)
+                    if self.in_transaction:
+                        await consumer.transactions.on_partitions_revoked(
+                            revoked)
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
                 on_timeout.info('+send signal: on_partitions_revoked')
@@ -1326,8 +1328,9 @@ class App(AppT, Service):
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
                 on_timeout.info('transactions.on_rebalance()')
-                await consumer.transactions.on_rebalance(
-                    assigned, revoked, newly_assigned)
+                if self.in_transaction:
+                    await consumer.transactions.on_rebalance(
+                        assigned, revoked, newly_assigned)
                 on_timeout.info('tables.on_rebalance()')
                 await self.tables.on_rebalance(
                     assigned, revoked, newly_assigned)
