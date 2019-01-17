@@ -759,7 +759,8 @@ class Consumer(Service, ConsumerT):
 
         # Go over the ack list in each topic/partition
         commit_tps = list(self._filter_tps_with_pending_acks(topics))
-        did_commit = await self._commit_tps(commit_tps, start_new_transaction)
+        did_commit = await self._commit_tps(
+            commit_tps, start_new_transaction=start_new_transaction)
 
         self.app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
@@ -776,7 +777,8 @@ class Consumer(Service, ConsumerT):
                 await self.crash(exc)
             else:
                 return await self._commit_offsets(
-                    commit_offsets, start_new_transaction)
+                    commit_offsets,
+                    start_new_transaction=start_new_transaction)
         return False
 
     def _filter_committable_offsets(self, tps: Iterable[TP]) -> Dict[TP, int]:
@@ -839,7 +841,9 @@ class Consumer(Service, ConsumerT):
             on_timeout.info('+consumer.commit()')
             if self.in_transaction:
                 did_commit = await self.transactions.commit(
-                    commitable_offsets, start_new_transaction)
+                    commitable_offsets,
+                    start_new_transaction=start_new_transaction,
+                )
             else:
                 did_commit = await self._commit(commitable_offsets)
             on_timeout.info('-consumer.commit()')

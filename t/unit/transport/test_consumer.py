@@ -105,6 +105,9 @@ class MyConsumer(Consumer):
     def _new_topicpartition(self, topic, partition) -> TP:
         return TP(topic, partition)
 
+    def key_partition(self, *args, **kwargs):
+        ...
+
 
 class test_Consumer:
 
@@ -205,7 +208,7 @@ class test_Consumer:
     async def test_wait_empty(self, *, consumer):
         consumer._unacked_messages = {Mock(autospec=Message)}
 
-        def on_commit():
+        def on_commit(start_new_transaction=True):
             for _ in range(10):
                 yield
             consumer._unacked_messages.clear()
@@ -241,7 +244,10 @@ class test_Consumer:
         }
         await consumer.force_commit({TP1})
         oci.assert_called_once_with(consumer)
-        consumer._commit_tps.assert_called_once_with([TP1])
+        consumer._commit_tps.assert_called_once_with(
+            [TP1],
+            start_new_transaction=True,
+        )
         occ.assert_called_once_with(consumer, oci())
 
     @pytest.mark.asyncio
@@ -253,16 +259,19 @@ class test_Consumer:
             TP1: 4,
             TP2: 30,
         }
-        await consumer._commit_tps({TP1, TP2})
+        await consumer._commit_tps(
+            {TP1, TP2},
+            start_new_transaction=False,
+        )
 
         consumer._handle_attached.assert_called_once_with({
             TP1: 4,
             TP2: 30,
         })
-        consumer._commit_offsets.assert_called_once_with({
-            TP1: 4,
-            TP2: 30,
-        })
+        consumer._commit_offsets.assert_called_once_with(
+            {TP1: 4, TP2: 30},
+            start_new_transaction=False,
+        )
 
     @pytest.mark.asyncio
     async def test_commit_tps__ProducerSendError(self, *, consumer):
@@ -274,7 +283,10 @@ class test_Consumer:
             TP1: 4,
             TP2: 30,
         }
-        await consumer._commit_tps({TP1, TP2})
+        await consumer._commit_tps(
+            {TP1, TP2},
+            start_new_transaction=True,
+        )
 
         consumer.crash.assert_called_once_with(exc)
 
@@ -282,7 +294,10 @@ class test_Consumer:
     async def test_commit_tps__no_commitable(self, *, consumer):
         consumer._filter_commitable_offsets = Mock(name='filt')
         consumer._filter_commitable_offsets.return_value = {}
-        await consumer._commit_tps({TP1, TP2})
+        await consumer._commit_tps(
+            {TP1, TP2},
+            start_new_transaction=True,
+        )
 
     def test_filter_committable_offsets(self, *, consumer):
         consumer._acked = {

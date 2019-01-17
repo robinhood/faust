@@ -29,15 +29,20 @@ class test_Topic:
     def message_empty_value(self):
         return Mock(name='message', value=None, autospec=Message)
 
-    def test_on_published(self, *, topic):
+    def test_on_published(self, *, topic, app):
+        app.sensors.on_send_completed = Mock(name='on_send_completed')
+        producer = Mock(name='producer')
+        state = Mock(name='state')
         fut = Mock(name='fut', autospec=asyncio.Future)
         message = Mock(name='message', autospec=Message)
-        topic._on_published(fut, message)
+        topic._on_published(fut, message, producer, state)
+        app.sensors.on_send_completed.assert_called_once_with(
+            producer, state)
         fut.result.assert_called_once_with()
         message.set_result.assert_called_once_with(fut.result())
         message.message.callback.assert_called_once_with(message)
         message.message.callback = None
-        topic._on_published(fut, message)
+        topic._on_published(fut, message, producer, state)
 
     def test_aiter_when_iterator(self, *, topic):
         topic.is_iterator = True
