@@ -8,7 +8,7 @@
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 1.4.2
+:Version: 1.5.0b1
 :Web: http://faust.readthedocs.io/
 :Download: http://pypi.org/project/faust
 :Source: http://github.com/robinhood/faust
@@ -264,7 +264,7 @@ command-line by using brackets. Separate multiple bundles using the comma:
 
     $ pip install "faust[rocksdb]"
 
-    $ pip install "faust[rocksdb,uvloop,fast]"
+    $ pip install "faust[rocksdb,uvloop,fast,redis]"
 
 The following bundles are available:
 
@@ -278,6 +278,12 @@ Stores
 
 
 .. _`RocksDB`: http://rocksdb.org
+
+Caching
+~~~~~~~
+
+:``faust[redis]``:
+    for using `Redis_` as a simple caching backend (memcache-style).
 
 Optimization
 ~~~~~~~~~~~~
@@ -487,6 +493,12 @@ You may need to increase the limit for the maximum number of open files. The
 following post explains how to do so on OS X:
 https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 
+
+What kafka versions faust supports?
+---------------------------------------
+
+Faust supports kafka with version >= 0.10.
+
 .. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
 
 .. _`quickstart`: http://faust.readthedocs.io/en/latest/playbooks/quickstart.html
@@ -494,13 +506,6 @@ https://blog.dekstroza.io/ulimit-shenanigans-on-osx-el-capitan/
 .. _`User Guide`: http://faust.readthedocs.io/en/latest/userguide/index.html
 
 .. _getting-help:
-
-
-What kafka versions faust supports?
----------------------------------------
-
-Faust supports kafka with version >= 0.10.
-
 
 Getting Help
 ============
@@ -614,7 +619,7 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported by opening an issue or contacting one or more of the project maintainers.
 
 This Code of Conduct is adapted from the Contributor Covenant,
-version 1.4.2 available at http://contributor-covenant.org/version/1/2/0/.
+version 1.2.0 available at http://contributor-covenant.org/version/1/2/0/.
 
 .. _`introduction`: http://faust.readthedocs.io/en/latest/introduction.html
 
