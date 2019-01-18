@@ -65,6 +65,7 @@ class ModelOptions(abc.ABC):
     allow_blessed_key: bool = False  # XXX compat
     isodates: bool = False
     decimals: bool = False
+    validation: bool = False
     coercions: CoercionMapping = cast(CoercionMapping, None)
 
     # If we set `attr = None` mypy will think the values can be None
