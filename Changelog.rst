@@ -19,6 +19,21 @@ please visit the :ref:`history` section.
 
     - Now depends on :pypi:`robinhood-aiokafka` 0.5.1
 
+- **App**: Sending messages API now supports a ``timestamp`` argument
+  (Issue #276).
+
+    When sending messages you can now specify the timestamp
+    of the message:
+
+    .. sourcecode:: python
+
+        await topic.send(key=key, value=value, timestamp=custom_timestamp)
+
+    If no timestamp is provided the current time will be used
+    (:func:`time.time`).
+
+    Contributed by Miha Troha (:github_user:`mihatroha`).
+
 - **App**: New :setting:`consumer_auto_offset_reset` setting (Issue #267).
 
     Contributed by Ryan Whitten (:github_user:`rwhitten577`).
