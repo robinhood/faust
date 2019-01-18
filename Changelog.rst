@@ -8,6 +8,31 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.4:
+
+1.4.4
+=====
+:release-date: 2019-01-18 01:10 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 3.0.7 <mode:version-3.0.7>`.
+
+- **App**: App now starts even if there are no agents defined.
+
+- **Table**: Added new flags to detect if actives/standbys are ready.
+
+    - ``app.tables.actives_ready``
+
+        Set to :const:`True` when active tables are recovered from
+        and are ready to use.
+
+    - ``app.tables.standbys_ready``
+
+        Set to :const:`True` when standbys are up to date after
+        recovery.
+
 .. _version-1.4.3:
 
 1.4.3
