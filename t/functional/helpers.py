@@ -26,7 +26,11 @@ async def is_empty(it, *, timeout=0.01):
 
 def message(key=None, value=None,
             *,
-            topic='topic', partition=0, timestamp=None, offset=1, checksum=None):
+            topic='topic',
+            partition=0,
+            timestamp=None,
+            offset=1,
+            checksum=None):
     return Message(
         key=key,
         value=value,

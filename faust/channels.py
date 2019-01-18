@@ -206,8 +206,9 @@ class Channel(ChannelT):
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(
-            self.as_future_message(key, value, partition, timestamp, key_serializer,
-                                   value_serializer, callback))
+            self.as_future_message(
+                key, value, partition, timestamp,
+                key_serializer, value_serializer, callback))
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:

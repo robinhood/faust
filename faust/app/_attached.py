@@ -120,8 +120,9 @@ class Attachments:
         # tuples.
         buf = self._pending[message.tp]
         chan = self.app.topic(channel) if isinstance(channel, str) else channel
-        fut = chan.as_future_message(key, value, partition, timestamp, key_serializer,
-                                     value_serializer, callback)
+        fut = chan.as_future_message(
+            key, value, partition, timestamp,
+            key_serializer, value_serializer, callback)
         # Note: Since FutureMessage have members that are unhashable
         # we wrap it in an Unordered object to stop heappush from crashing.
         # Unordered simply orders by random order, which is fine

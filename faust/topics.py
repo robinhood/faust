@@ -343,7 +343,8 @@ class Topic(Channel, TopicT):
         key: bytes = cast(bytes, message.key)
         value: bytes = cast(bytes, message.value)
         timestamp: float = cast(float, message.timestamp)
-        logger.debug('send: topic=%r key=%r value=%r timestamp=%r', topic, key, value, timestamp)
+        logger.debug('send: topic=%r key=%r value=%r timestamp=%r',
+                     topic, key, value, timestamp)
         assert topic is not None
         producer = await self._get_producer()
         state = app.sensors.on_send_initiated(
@@ -353,12 +354,18 @@ class Topic(Channel, TopicT):
             valsize=len(value) if value else 0)
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
-                topic, key, value, partition=message.partition, timestamp=timestamp)
+                topic, key, value,
+                partition=message.partition,
+                timestamp=timestamp,
+            )
             app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
         else:
             fut2 = await producer.send(
-                topic, key, value, partition=message.partition, timestamp=timestamp)
+                topic, key, value,
+                partition=message.partition,
+                timestamp=timestamp,
+            )
             cast(asyncio.Future, fut2).add_done_callback(
                 cast(Callable, partial(self._on_published, message=fut)))
             return fut2
