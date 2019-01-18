@@ -371,6 +371,8 @@ class Recovery(Service):
         # finally make sure the fetcher is running.
         await self.app._fetcher.maybe_start()
         self.tables.on_actives_ready()
+        if not self.app.assignor.assigned_standbys():
+            self.tables.on_standbys_ready()
         self.app.on_rebalance_end()
         self.log.info('Worker ready')
 
