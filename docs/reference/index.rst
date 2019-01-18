@@ -81,6 +81,7 @@ Models
     :maxdepth: 1
 
     faust.models.base
+    faust.models.fields
     faust.models.record
 
 Sensors

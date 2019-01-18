@@ -130,7 +130,7 @@ instance.
     When using Kafka, stopping or starting new workers will trigger a
     rebalancing operation that require all workers to stop stream processing.
 
-    See :ref:`worker-deploy` for more information.
+    See :ref:`worker-cluster` for more information.
 
 .. _worker-process-signals:
 

@@ -55,7 +55,7 @@ or whenever you just want a quick way to define data.
 
 In Faust we use models to:
 
-- Describing the data used in streams (topic keys and values).
+- Describe the data used in streams (topic keys and values).
 - HTTP requests (POST data).
 
 For example here's a topic where both keys and values are points:
@@ -374,19 +374,15 @@ Coercion
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When using JSON we automatically convert :class:`~datetime.datetime`
-fields into ISO-8601 text format, but we won't deserialize them
-back into :class:`~datetime.datetime`.
-
-It's simply impossible to distinguish date strings
-from ordinary strings, but you may use the ``isodates`` setting
-to automatically convert all :class:`~datetime.datetime` fields:
+fields into ISO-8601 text format, and automatically convert
+back into into :class:`~datetime.datetime` when deserializing.
 
 .. sourcecode:: python
 
     from datetime import datetime
     import faust
 
-    class Account(faust.Record, isodates=True, serializer='json'):
+    class Account(faust.Record, serializer='json'):
         date_joined: datetime
 
 :class:`~decimal.Decimal`
@@ -396,15 +392,14 @@ JSON doesn't have a high precision decimal field type
 so if you require high precision you must use :class:`~decimal.Decimal`.
 
 The built-in JSON encoder will convert these to strings in the json
-payload, so to have them automatically converted back into decimals
-you must enable the ``decimals=True`` option:
+payload, that way we do not lose any precision.
 
 .. sourcecode:: python
 
     from decimal import Decimal
     import faust
 
-    class Order(faust.Record, decimals=True, serializer='json'):
+    class Order(faust.Record, serializer='json'):
         price: Decimal
         quantity: Decimal
 
@@ -523,7 +518,7 @@ Felds can refer to other models, such as an account with a user field:
         first_name: str
         last_name: str
 
-    class Account(faust.Record, decimals=True):
+    class Account(faust.Record):
         user: User
         balance: Decimal
 
@@ -611,6 +606,117 @@ define a new model class we add it to this index.
     For the same reason you should not be renaming classes
     without having a strategy to do so in a forward compatible manner.
 
+Validation
+~~~~~~~~~~
+
+For models there is no validation of data by default:
+if you have a field described as an int, it will happily accept a string
+or any other object that you pass to it:
+
+.. sourcecode:: pycon
+
+    >>> class Person(faust.Record):
+    ...    age: int
+    ...
+
+    >>> p = Person(age="foo")
+    >>> p.age
+    "foo"
+
+However, there is an option that will enable validation
+for all common JSON fields (:class:`int`, :class:`float`, :class:`str`, etc.), and some
+commonly used Python ones (:class:`~datetime.datetime`,
+:class:`~decimal.Decimal`, etc.)
+
+.. sourcecode:: pycon
+
+    >>> class Person(faust.Record, validation=True):
+    ...     age: int
+
+    >>> p = Person(age="foo")
+
+.. sourcecode:: pytb
+
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      ValidationError: Invalid type for int field 'age': 'foo' (str)
+
+For things like web forms raising an error automatically is not a good solution,
+as the client will usually want a list of all errors.
+
+So in web views we suggest disabling automatic validation,
+and instead manually validating the model by calling ``model.validate()``.
+to get a list of :class:`ValidationError` instances.
+
+.. sourcecode:: pycon
+
+    >>> class Person(faust.Record):
+    ...     age: int
+    ...     name: str
+
+    >>> p = Person(age="Gordon Gekko", name="32")
+    >>> p.validate()
+    [
+      ('age': ValidationError(
+            "Invalid type for int field 'age': 'Gordon Gekko' (str)"),
+      ('name': ValidationError(
+            "Invalid type for str field 'name': 32 (int)")),
+    ]
+
+Advanced Validation
+~~~~~~~~~~~~~~~~~~~
+
+If you have a field you want validation for,
+you may explicitly define the field descriptor for the field you want
+validation on (note: this will override the built-in
+validation for that field). This will also enable you to access
+more validation options, such as the maximum number of characters
+for a string, or a minmum value for an integer:
+
+.. sourcecode:: python
+
+    class Person(faust.Record, validation=True):
+        age: int = IntegerField(min_value=18, max_value=99)
+        name: str
+
+
+Custom field types
+~~~~~~~~~~~~~~~~~~
+
+You may define a custom :class:`~faust.models.FieldDescriptor` subclass
+to perform your own validation:
+
+.. sourcecode:: python
+
+    from faust.exceptions import ValidationError
+    from faust.models import field_type
+
+    class ChoiceField(FieldDescriptor[str]):
+
+        def __init__(self, choices: List[str], **kwargs: Any) -> None:
+            self.choices = choices
+            # Must pass any custom args to init,
+            # so we pass the choices keyword argument also here.
+            super().__init__(choices=choices, **kwargs)
+
+        def validate(self, value: str) -> Iterable[ValidationError]:
+            if value not in self.choices:
+                choices = ', '.join(self.choices)
+                yield self.validation_error(
+                    f'{self.field} must be one of {choices}')
+
+
+After defining the subclass you may use it to define model fields:
+
+.. sourcecode:: pycon
+
+    >>> class Order(faust.Record):
+    ...    side: str = ChoiceField(['SELL', 'BUY'])
+
+    >>> Order(side='LEFT')
+    faust.exceptions.ValidationError: (
+        'side must be one of SELL, BUY', <ChoiceField: Order.side: str>)
+
 Reference
 ~~~~~~~~~
 
@@ -657,12 +763,6 @@ Serialization/Deserialization
         :noindex:
 
     .. autoattribute:: models
-        :noindex:
-
-    .. autoattribute:: decimals
-        :noindex:
-
-    .. autoattribute:: isodates
         :noindex:
 
     .. autoattribute:: coercions
