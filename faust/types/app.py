@@ -326,6 +326,14 @@ class AppT(ServiceT):
     def on_webserver_init(self, web: Web) -> None:
         ...
 
+    @abc.abstractmethod
+    def on_rebalance_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_end(self) -> None:
+        ...
+
     @property
     def conf(self) -> Settings:
         ...
