@@ -219,6 +219,7 @@ class Model(ModelT):
                           allow_blessed_key: bool = None,
                           decimals: bool = None,
                           coercions: CoercionMapping = None,
+                          validation: bool = None,
                           **kwargs: Any) -> None:
         # Python 3.6 added the new __init_subclass__ function that
         # makes it possible to initialize subclasses without using
@@ -238,6 +239,7 @@ class Model(ModelT):
             allow_blessed_key,
             decimals,
             coercions,
+            validation,
         )
 
     @classmethod
@@ -249,7 +251,8 @@ class Model(ModelT):
                        abstract: bool = False,
                        allow_blessed_key: bool = None,
                        decimals: bool = None,
-                       coercions: CoercionMapping = None) -> None:
+                       coercions: CoercionMapping = None,
+                       validation: bool = None) -> None:
         # Can set serializer/namespace/etc. using:
         #    class X(Record, serializer='json', namespace='com.vandelay.X'):
         #        ...
@@ -280,6 +283,8 @@ class Model(ModelT):
             options.decimals = decimals
         if allow_blessed_key is not None:
             options.allow_blessed_key = allow_blessed_key
+        if validation is not None:
+            options.validation = validation
 
         options.namespace = namespace or canoname(cls)
 
