@@ -84,4 +84,4 @@ please visit the :ref:`history` section.
 - **Documentation**: Improvements by:
 
     + Amit Rip (:github_user:`amitripshtos`).
-
+    + Sebastian Roll (:github_user:`SebastianRoll`).
