@@ -582,7 +582,7 @@ class ConsumerThread(QueueServiceThread):
 
     async def on_partitions_revoked(
             self, revoked: Iterable[_TopicPartition]) -> None:
-        self.consumer.app.on_revoked_set_flags()
+        self.consumer.app.on_rebalance_start()
         # see comment in on_partitions_assigned
         consumer = self.consumer
         _revoked = cast(Set[TP], set(revoked))
