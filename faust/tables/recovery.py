@@ -68,6 +68,7 @@ class Recovery(Service):
 
     completed: Event
     in_recovery: bool = False
+    standbys_pending: bool = False
     recovery_delay: float
 
     #: Changelog event buffers by table.
@@ -208,7 +209,9 @@ class Recovery(Service):
         self.completed.set()
         # finally make sure the fetcher is running.
         await app._fetcher.maybe_start()
-        app.rebalancing = False
+        self.tables.on_actives_ready()
+        self.tables.on_standbys_ready()
+        app.on_rebalance_end()
         self.log.info('Worker ready')
 
     @Service.task
@@ -242,6 +245,7 @@ class Recovery(Service):
                     continue
 
                 self.in_recovery = True
+                self.standbys_pending = True
                 # Must flush any buffers before starting rebalance.
                 self.flush_buffers()
                 await self._wait(self.app._producer.flush())
@@ -366,7 +370,8 @@ class Recovery(Service):
         })
         # finally make sure the fetcher is running.
         await self.app._fetcher.maybe_start()
-        self.app.rebalancing = False
+        self.tables.on_actives_ready()
+        self.app.on_rebalance_end()
         self.log.info('Worker ready')
 
     async def _build_highwaters(self,
@@ -474,6 +479,8 @@ class Recovery(Service):
                 self.flush_buffers()
                 self.in_recovery = False
                 self.signal_recovery_end.set()
+            if self.standbys_pending and not self.standby_remaining_total():
+                self.tables.on_standbys_ready()
 
     def flush_buffers(self) -> None:
         for table, buffer in self.buffers.items():

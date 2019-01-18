@@ -1181,6 +1181,13 @@ class App(AppT, Service):
                         self.log.info('Wait for streams...')
                         await self.consumer.wait_empty()
 
+    def on_rebalance_start(self) -> None:
+        self.rebalancing = True
+        self.tables.on_rebalance_start()
+
+    def on_rebalance_end(self) -> None:
+        self.rebalancing = False
+
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.
 

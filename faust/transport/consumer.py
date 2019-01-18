@@ -347,7 +347,7 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self.app.rebalancing = True  # set as early as possible
+        self.app.on_rebalance_start()
         # see comment in on_partitions_assigned
         # remove revoked partitions from active + paused tps.
         if self._active_partitions is not None:
