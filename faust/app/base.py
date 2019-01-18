@@ -487,12 +487,6 @@ class App(AppT, Service):
             return self.boot_strategy.server()
 
     async def on_first_start(self) -> None:
-        if not self.agents and not self.producer_only:
-            # XXX I can imagine use cases where an app is useful
-            #     without agents, but use this as more of an assertion
-            #     to make sure agents are registered correctly. [ask]
-            raise ImproperlyConfigured(
-                'Attempting to start app that has no agents')
         self._create_directories()
 
     async def on_start(self) -> None:
