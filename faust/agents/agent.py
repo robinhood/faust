@@ -610,7 +610,12 @@ class Agent(AgentT, Service):
                    key: K = None,
                    partition: int = None,
                    timestamp: float = None) -> None:
-        await self.send(key=key, value=value, partition=partition, timestamp=timestamp)
+        await self.send(
+            key=key,
+            value=value,
+            partition=partition,
+            timestamp=timestamp,
+        )
 
     async def ask(self,
                   value: V = None,
@@ -903,7 +908,11 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
             value = self._create_req(key, value, reply_to, correlation_id)
         channel = cast(ChannelT, self.stream().channel)
         message = self.to_message(
-            key, value, partition=partition, offset=self.sent_offset, timestamp=timestamp)
+            key, value,
+            partition=partition,
+            offset=self.sent_offset,
+            timestamp=timestamp,
+        )
         event: EventT = await channel.decode(message)
         await channel.put(event)
         self.sent_offset += 1
@@ -918,7 +927,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                    key: K,
                    value: V,
                    *,
-                   partition: Optional[int] = 0,
+                   partition: Optional[int] = None,
                    offset: int = 0,
                    timestamp: float = None,
                    timestamp_type: int = 0) -> Message:
