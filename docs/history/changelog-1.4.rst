@@ -10,6 +10,15 @@ series, please visit the latest :ref:`changelog`.
 
 For even older releases you can visit the :ref:`history` section.
 
+.. _version-1.4.5:
+
+1.4.5
+=====
+:release-date: 2019-01-18 02:15 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- Fixed typo in 1.4.4 release (on_recovery_set_flags -> on_rebalance_start).
+
 .. _version-1.4.4:
 
 1.4.4
