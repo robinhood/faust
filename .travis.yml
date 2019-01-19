@@ -70,10 +70,19 @@ matrix:
     env: TOXENV=3.7 IDENT="3.7.2" RUN_SUITE=y
     os: linux
     dist: xenial
+  - python: 3.7.2
+    env: TOXENV=3.7 RUN_SUITE=y
+    os: windows
+    language: sh
+    before_install:
+        - choco install python --version=3.7.2
+        - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
+        - python -m pip install --upgrade pip wheel
+
 before_install:
 install:
 - |
-- travis_retry pip install -U tox
+- python -m pip install -U tox
 after_success:
 - |
   if [[ ! -z "$IDENT" ]]; then
