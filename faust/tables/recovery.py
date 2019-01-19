@@ -8,6 +8,7 @@ from mode.services import WaitArgT
 from mode.utils.compat import Counter
 from mode.utils.locks import Event
 
+from faust.exceptions import ConsistencyError
 from faust.types import AppT, EventT, TP
 from faust.types.tables import CollectionT, TableManagerT
 from faust.types.transports import ConsumerT
@@ -17,6 +18,14 @@ if typing.TYPE_CHECKING:
     from .manager import TableManager
 else:
     class TableManager: ...  # noqa
+
+E_PERSISTED_OFFSET = """\
+The persisted offset for changelog topic partition {0} is higher
+than the last offset in that topic (highwater) ({1} > {2}).
+
+Most likely you have removed data from the topics without
+removing the RocksDB database file for this partition.
+"""
 
 
 class ServiceStopped(Exception):
@@ -259,6 +268,16 @@ class Recovery(Service):
                 await self._wait(self._build_offsets(
                     consumer, assigned_active_tps, active_offsets, 'active'))
 
+                for tp in assigned_active_tps:
+                    if active_offsets[tp] > active_highwaters[tp]:
+                        raise ConsistencyError(
+                            E_PERSISTED_OFFSET.format(
+                                tp,
+                                active_offsets[tp],
+                                active_highwaters[tp],
+                            ),
+                        )
+
                 self.log.dev('Build offsets for standby partitions')
                 await self._wait(self._build_offsets(
                     consumer, assigned_standby_tps,
@@ -310,6 +329,16 @@ class Recovery(Service):
                             'standby',
                         ),
                     )
+
+                    for tp in standby_tps:
+                        if standby_offsets[tp] >= standby_highwaters[tp]:
+                            raise ConsistencyError(
+                                E_PERSISTED_OFFSET.format(
+                                    tp,
+                                    standby_offsets[tp],
+                                    standby_highwaters[tp],
+                                ),
+                            )
 
                     self.log.dev('Resume standby partitions')
                     consumer.resume_partitions(standby_tps)
