@@ -546,7 +546,7 @@ class test_Agent:
         agent.send = AsyncMock(name='send')
         await agent.cast('value', key='key', partition=303)
         agent.send.assert_called_once_with(
-            key='key', value='value', partition=303)
+            key='key', value='value', partition=303, timestamp=None)
 
     @pytest.mark.asyncio
     async def test_ask(self, *, agent):
@@ -577,6 +577,7 @@ class test_Agent:
             reply_to=agent.app.conf.reply_to,
             correlation_id='correlation_id',
             force=True,
+            timestamp=None,
         )
         agent.app._reply_consumer.add.assert_called_once_with(
             pp.correlation_id, pp)
@@ -589,6 +590,7 @@ class test_Agent:
             value='value',
             key='key',
             partition=303,
+            timestamp=None,
             reply_to='reply_to',
             correlation_id='correlation_id',
             force=True,
@@ -597,7 +599,12 @@ class test_Agent:
         agent._create_req.assert_called_once_with(
             'key', 'value', 'reply_to', 'correlation_id')
         agent.channel.send.assert_called_once_with(
-            key='key', value=agent._create_req(), partition=303, force=True)
+            key='key',
+            value=agent._create_req(),
+            partition=303,
+            timestamp=None,
+            force=True,
+        )
 
         assert res.reply_to == agent._create_req().reply_to
         assert res.correlation_id == agent._create_req().correlation_id
@@ -629,6 +636,7 @@ class test_Agent:
             key=b'key',
             value=b'value',
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -645,6 +653,7 @@ class test_Agent:
             key=b'key',
             value=agent._create_req(),
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             force=True,
@@ -666,6 +675,7 @@ class test_Agent:
             key=b'key',
             value=b'value',
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -680,6 +690,7 @@ class test_Agent:
             key=b'key',
             value=b'value',
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             force=True,

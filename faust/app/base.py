@@ -101,7 +101,7 @@ else:
     class Event: ...       # noqa
     class WorkerT: ...     # noqa
 
-__all__ = ['App']
+__all__ = ['App', 'BootStrategy']
 
 #: Format string for ``repr(app)``.
 APP_REPR = '''
@@ -488,12 +488,6 @@ class App(AppT, Service):
             return self.boot_strategy.server()
 
     async def on_first_start(self) -> None:
-        if not self.agents and not self.producer_only:
-            # XXX I can imagine use cases where an app is useful
-            #     without agents, but use this as more of an assertion
-            #     to make sure agents are registered correctly. [ask]
-            raise ImproperlyConfigured(
-                'Attempting to start app that has no agents')
         self._create_directories()
 
     async def on_start(self) -> None:
@@ -1106,6 +1100,7 @@ class App(AppT, Service):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -1117,6 +1112,8 @@ class App(AppT, Service):
             value: Message value.
             partition: Specific partition to send to.
                 If not set the partition will be chosen by the partitioner.
+            timestamp: Epoch seconds (from Jan 1 1970
+                UTC) to use as the message timestamp. Defaults to current time.
             key_serializer: Serializer to use (if value is not model).
             value_serializer: Serializer to use (if value is not model).
             callback: Called after the message is fully delivered to the
@@ -1137,6 +1134,7 @@ class App(AppT, Service):
             key=key,
             value=value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -1219,6 +1217,13 @@ class App(AppT, Service):
                     if self.conf.stream_wait_empty:
                         self.log.info('Wait for streams...')
                         await self.consumer.wait_empty()
+
+    def on_rebalance_start(self) -> None:
+        self.rebalancing = True
+        self.tables.on_rebalance_start()
+
+    def on_rebalance_end(self) -> None:
+        self.rebalancing = False
 
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.

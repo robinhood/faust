@@ -478,17 +478,30 @@ class Producer(base.Producer):
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
-                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
+                   partition: Optional[int],
+                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
         try:
+            timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
             return cast(Awaitable[RecordMetadata], await self._producer.send(
-                topic, value, key=key, partition=partition))
+                topic, value,
+                key=key,
+                partition=partition,
+                timestamp_ms=timestamp_ms,
+            ))
         except KafkaError as exc:
             raise ProducerSendError(f'Error while sending: {exc!r}') from exc
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
-                            partition: Optional[int]) -> RecordMetadata:
-        fut = await self.send(topic, key=key, value=value, partition=partition)
+                            partition: Optional[int],
+                            timestamp: Optional[float]) -> RecordMetadata:
+        fut = await self.send(
+            topic,
+            key=key,
+            value=value,
+            partition=partition,
+            timestamp=timestamp,
+        )
         return await fut
 
     async def flush(self) -> None:

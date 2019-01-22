@@ -1,4 +1,5 @@
 import socket
+import sys
 from pathlib import Path
 
 import faust
@@ -16,6 +17,15 @@ from faust.tables import TableManager
 from faust.types import settings
 from faust.types.enums import ProcessingGuarantee
 from yarl import URL
+
+TABLEDIR: Path
+DATADIR: Path
+if sys.platform == 'win32':
+    TABLEDIR = Path('c:/Program Files/Faust/')
+    DATADIR = Path('c:/Temporary Files/Faust/')
+else:
+    DATADIR = Path('/etc/faust/')
+    TABLEDIR = Path('/var/faust/')
 
 
 def _dummy_partitioner(a, b, c):
@@ -129,12 +139,12 @@ class test_settings:
         assert isinstance(app.conf.web, URL)
 
     def test_datadir_as_Path(self):
-        app = self.assert_config_equivalent(datadir=Path('/etc/moo'))
+        app = self.assert_config_equivalent(datadir=DATADIR)
         assert isinstance(app.conf.datadir, Path)
 
     def test_tabledir_is_relative_to_path(self):
         app = self.assert_config_equivalent(
-            datadir='/etc/faust',
+            datadir=str(DATADIR),
             tabledir='moo',
         )
         assert app.conf.tabledir == app.conf.appdir / Path('moo')
@@ -151,8 +161,8 @@ class test_settings:
                                  origin='faust',
                                  canonical_url='http://example.com/',
                                  broker_client_id='client id',
-                                 datadir='/etc/faust/',
-                                 tabledir='/var/faust/',
+                                 datadir=str(DATADIR),
+                                 tabledir=str(TABLEDIR),
                                  processing_guarantee='exactly_once',
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,

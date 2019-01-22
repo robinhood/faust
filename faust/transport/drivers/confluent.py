@@ -490,10 +490,12 @@ class Producer(base.Producer):
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
-                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
+                   partition: Optional[int],
+                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
         fut = ProducerProduceFuture(loop=self.loop)
         self._quick_produce(
             topic, value, key, partition,
+            timestamp=int(timestamp * 1000) if timestamp else timestamp,
             on_delivery=fut.set_from_on_delivery,
         )
         return cast(Awaitable[RecordMetadata], fut)
@@ -505,8 +507,9 @@ class Producer(base.Producer):
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
-                            partition: Optional[int]) -> RecordMetadata:
-        fut = await self.send(topic, key, value, partition)
+                            partition: Optional[int],
+                            timestamp: Optional[float]) -> RecordMetadata:
+        fut = await self.send(topic, key, value, partition, timestamp)
         return await fut
 
     async def flush(self) -> None:

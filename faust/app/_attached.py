@@ -67,6 +67,7 @@ class Attachments:
                         key: K = None,
                         value: V = None,
                         partition: int = None,
+                        timestamp: float = None,
                         key_serializer: CodecArg = None,
                         value_serializer: CodecArg = None,
                         callback: MessageSentCallback = None,
@@ -85,6 +86,7 @@ class Attachments:
                     key,
                     value,
                     partition=partition,
+                    timestamp=timestamp,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
@@ -94,6 +96,7 @@ class Attachments:
             key,
             value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -105,6 +108,7 @@ class Attachments:
             key: K,
             value: V,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -116,8 +120,9 @@ class Attachments:
         # tuples.
         buf = self._pending[message.tp]
         chan = self.app.topic(channel) if isinstance(channel, str) else channel
-        fut = chan.as_future_message(key, value, partition, key_serializer,
-                                     value_serializer, callback)
+        fut = chan.as_future_message(
+            key, value, partition, timestamp,
+            key_serializer, value_serializer, callback)
         # Note: Since FutureMessage have members that are unhashable
         # we wrap it in an Unordered object to stop heappush from crashing.
         # Unordered simply orders by random order, which is fine

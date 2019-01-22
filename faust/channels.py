@@ -154,6 +154,7 @@ class Channel(ChannelT):
                    key: K = None,
                    value: V = None,
                    partition: int = None,
+                   timestamp: float = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -163,6 +164,7 @@ class Channel(ChannelT):
             key,
             value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -173,6 +175,7 @@ class Channel(ChannelT):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
@@ -184,6 +187,7 @@ class Channel(ChannelT):
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
                 partition=partition,
+                timestamp=timestamp,
                 callback=callback,
                 # Python 3.6.0: NamedTuple doesn't support optional fields
                 # [ask]
@@ -197,12 +201,14 @@ class Channel(ChannelT):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(
-            self.as_future_message(key, value, partition, key_serializer,
-                                   value_serializer, callback))
+            self.as_future_message(
+                key, value, partition, timestamp,
+                key_serializer, value_serializer, callback))
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:

@@ -177,6 +177,9 @@ class TableT(CollectionT, ManagedUserDict[KT, VT]):
 class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
     app: AppT
 
+    actives_ready: bool
+    standbys_ready: bool
+
     @abc.abstractmethod
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         ...

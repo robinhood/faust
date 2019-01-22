@@ -101,7 +101,6 @@ async def xxx_through(app):
     orig = new_stream(app)
     channel = app.channel(loop=app.loop)
     stream = orig.through(channel)
-
     for i in range(100):
         await orig.channel.deliver(message(key=i, value=i * 2))
 

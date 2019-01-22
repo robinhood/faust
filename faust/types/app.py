@@ -301,6 +301,7 @@ class AppT(ServiceT):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -330,6 +331,14 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def on_webserver_init(self, web: Web) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_end(self) -> None:
         ...
 
     @property

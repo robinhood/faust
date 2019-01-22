@@ -1,4 +1,4 @@
-:Version: 1.4.2
+:Version: 1.5.0b1
 :Web: http://faust.readthedocs.io/
 :Download: http://pypi.org/project/faust
 :Source: http://github.com/robinhood/faust

@@ -55,3 +55,7 @@ class ConsumerNotStarted(FaustError):
 
 class PartitionsMismatch(FaustError):
     """Number of partitions between related topics differ."""
+
+
+class ConsistencyError(FaustError):
+    """Persisted table offset is out of sync with changelog topic highwater."""
