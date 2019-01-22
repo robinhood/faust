@@ -1,3 +1,3 @@
-from .base import App
+from .base import App, BootStrategy
 
-__all__ = ['App']
+__all__ = ['App', 'BootStrategy']
