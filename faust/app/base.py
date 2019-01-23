@@ -25,6 +25,7 @@ from typing import (
     Optional,
     Pattern,
     Set,
+    Tuple,
     Type,
     Union,
     cast,
@@ -903,10 +904,10 @@ class App(AppT, Service):
                 _tz = self.conf.timezone if timezone is None else timezone
                 while not self.should_stop:
                     await self.sleep(cron.secs_for_next(cron_format, _tz))
-
-                    should_run = not on_leader or self.is_leader()
-                    if should_run:
-                        await fun(*args)  # type: ignore
+                    if not self.should_stop:
+                        should_run = not on_leader or self.is_leader()
+                        if should_run:
+                            await fun(*args)  # type: ignore
 
             return cast(TaskArg, cron_starter)
 
@@ -1035,16 +1036,19 @@ class App(AppT, Service):
                     query_param: str = None,
                     match_info: str = None) -> ViewDecorator:
         def _decorator(fun: ViewHandlerFun) -> ViewHandlerFun:
+            _query_param = query_param
             if shard_param is not None:
                 warnings.warn(DeprecationWarning(W_DEPRECATED_SHARD_PARAM))
                 if query_param:
                     raise TypeError(
                         'Cannot specify shard_param and query_param')
+                _query_param = shard_param
+            if _query_param is None and match_info is None:
+                raise TypeError('Need one of query_param or shard_param')
 
             @wraps(fun)
             async def get(view: View, request: Request,
                           *args: Any, **kwargs: Any) -> Response:
-                _query_param = query_param or shard_param
                 if match_info:
                     key = request.match_info[match_info]
                 elif _query_param:
@@ -1064,8 +1068,6 @@ class App(AppT, Service):
                 *options: Any,
                 base: Optional[Type[AppCommand]] = None,
                 **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
-        if options is None and base is None and kwargs is None:
-            raise TypeError('Use parens in @app.command(), not @app.command.')
         _base: Type[AppCommand]
         if base is None:
             from faust.cli import base as cli_base
@@ -1140,26 +1142,6 @@ class App(AppT, Service):
             callback=callback,
         )
 
-    async def _send(self, topic: str,
-                    key: Optional[bytes], value: Optional[bytes],
-                    partition: int = None) -> Awaitable[RecordMetadata]:
-        if self.in_transaction:
-            return await self.consumer.transactions.send(
-                topic, key, value, partition)
-        else:
-            producer = await self.maybe_start_producer()
-            return await producer.send(topic, key, value, partition)
-
-    async def _send_and_wait(self, topic: str,
-                             key: Optional[bytes], value: Optional[bytes],
-                             partition: int = None) -> RecordMetadata:
-        if self.in_transaction:
-            return await self.consumer.transactions.send_and_wait(
-                topic, key, value, partition)
-        else:
-            producer = await self.maybe_start_producer()
-            return await producer.send_and_wait(topic, key, value, partition)
-
     @cached_property
     def in_transaction(self) -> bool:
         return (
@@ -1193,11 +1175,13 @@ class App(AppT, Service):
         await self._stop_consumer()
         # send shutdown signal
         await self.on_before_shutdown.send()
-        if self._producer is not None:
-            self.log.info('Flush producer buffer...')
-            await self._producer.flush()
-
+        await self._producer_flush(self.log)
         await self._maybe_close_http_client()
+
+    async def _producer_flush(self, logger: Any) -> None:
+        if self._producer is not None:
+            logger.info('Flush producer buffer...')
+            await self._producer.flush()
 
     async def _stop_consumer(self) -> None:
         if self._consumer is not None:
@@ -1214,9 +1198,13 @@ class App(AppT, Service):
                     consumer.pause_partitions(assignment)
                     self.flow_control.clear()
                     await self._stop_fetcher()
-                    if self.conf.stream_wait_empty:
-                        self.log.info('Wait for streams...')
-                        await self.consumer.wait_empty()
+                    await self._consumer_wait_empty(consumer, self.log)
+
+    async def _consumer_wait_empty(
+            self, consumer: ConsumerT, logger: Any) -> None:
+        if self.conf.stream_wait_empty:
+            logger.info('Wait for streams...')
+            await consumer.wait_empty()
 
     def on_rebalance_start(self) -> None:
         self.rebalancing = True
@@ -1263,13 +1251,8 @@ class App(AppT, Service):
                     # already started working on an event.
                     #
                     # we need to wait for them.
-                    if self.conf.stream_wait_empty:
-                        on_timeout.info('consumer.wait_empty()')
-                        await consumer.wait_empty()
-                    on_timeout.info('producer.flush()')
-                    if self._producer is not None:
-                        await self._producer.flush()
-
+                    await self._consumer_wait_empty(consumer, on_timeout)
+                    await self._producer_flush(on_timeout)
                     if self.in_transaction:
                         await consumer.transactions.on_partitions_revoked(
                             revoked)
@@ -1309,15 +1292,8 @@ class App(AppT, Service):
         session_timeout = self.conf.broker_session_timeout * 0.95
         self.unassigned = not assigned
 
-        revoked: Set[TP]
-        newly_assigned: Set[TP]
-        if self._assignment is not None:
-            revoked = self._assignment - assigned
-            newly_assigned = assigned - self._assignment
-        else:
-            revoked = set()
-            newly_assigned = assigned
-        self._assignment = assigned
+        revoked, newly_assigned = self._update_assignment(assigned)
+
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             consumer = self.consumer
@@ -1345,6 +1321,19 @@ class App(AppT, Service):
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)
                 await self.crash(exc)
+
+    def _update_assignment(
+            self, assigned: Set[TP]) -> Tuple[Set[TP], Set[TP]]:
+        revoked: Set[TP]
+        newly_assigned: Set[TP]
+        if self._assignment is not None:
+            revoked = self._assignment - assigned
+            newly_assigned = assigned - self._assignment
+        else:
+            revoked = set()
+            newly_assigned = assigned
+        self._assignment = assigned
+        return revoked, newly_assigned
 
     def _new_producer(self) -> ProducerT:
         return self.transport.create_producer(beacon=self.beacon)

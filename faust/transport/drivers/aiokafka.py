@@ -397,10 +397,7 @@ class Producer(base.Producer):
 
     logger = logger
 
-    _producer: aiokafka.AIOKafkaProducer
-
-    def on_init(self) -> None:
-        self._producer = self._new_producer()
+    _producer: Optional[aiokafka.AIOKafkaProducer] = None
 
     def _settings_default(self) -> Mapping[str, Any]:
         transport = cast(Transport, self.transport)
@@ -436,9 +433,6 @@ class Producer(base.Producer):
             await consumer.crash(exc)
         await self.crash(exc)
 
-    async def on_restart(self) -> None:
-        self.on_init()
-
     async def create_topic(self,
                            topic: str,
                            partitions: int,
@@ -452,6 +446,8 @@ class Producer(base.Producer):
                            ensure_created: bool = False) -> None:
         _retention = (int(want_seconds(retention) * 1000.0)
                       if retention else None)
+        if self._producer is None:
+            raise RuntimeError('Producer service not yet started')
         await cast(Transport, self.transport)._create_topic(
             self,
             self._producer.client,
@@ -467,19 +463,24 @@ class Producer(base.Producer):
         )
 
     async def on_start(self) -> None:
-        self.beacon.add(self._producer)
+        producer = self._producer = self._new_producer()
+        self.beacon.add(producer)
         self._last_batch = None
-        await self._producer.start()
+        await producer.start()
 
     async def on_stop(self) -> None:
         cast(Transport, self.transport)._topic_waiters.clear()
         self._last_batch = None
-        await self._producer.stop()
+        producer, self._producer = self._producer, None
+        if producer is not None:
+            await producer.stop()
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+        if self._producer is None:
+            raise RuntimeError('Producer service not yet started')
         try:
             timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
             return cast(Awaitable[RecordMetadata], await self._producer.send(
@@ -505,9 +506,12 @@ class Producer(base.Producer):
         return await fut
 
     async def flush(self) -> None:
-        await self._producer.flush()
+        if self._producer is not None:
+            await self._producer.flush()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
+        if self._producer is None:
+            raise RuntimeError('Producer service not yet started')
         partition = self._producer._partition(
             topic,
             partition=None,
@@ -523,20 +527,26 @@ class TransactionProducer(Producer, base.TransactionProducer):
 
     async def on_start(self) -> None:
         await super().on_start()
+        if self._producer is None:
+            raise RuntimeError('This should never happen...')
         await self._producer.begin_transaction()
 
     async def commit(self, offsets: Mapping[TP, int], group_id: str,
                      start_new_transaction: bool = True) -> None:
+        if self._producer is None:
+            raise RuntimeError('Producer service not yet started')
         await self._producer.send_offsets_to_transaction(offsets, group_id)
         await self._producer.commit_transaction()
         if start_new_transaction:
             await self._producer.begin_transaction()
 
     async def on_stop(self) -> None:
-        if self._producer._txn_manager.is_in_transaction():
-            self.log.info(
-                'Still in transaction: Aborting current transaction...')
-            await self._producer.abort_transaction()
+        if self._producer is not None:
+            if self._producer._txn_manager.is_in_transaction():
+                self.log.info(
+                    'Still in transaction: Aborting current transaction...')
+                await self._producer.abort_transaction()
+        await super().on_stop()
 
     def _settings_extra(self) -> Mapping[str, Any]:
         return {

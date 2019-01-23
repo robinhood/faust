@@ -8,6 +8,7 @@ import pytest
 import pytz
 from aiohttp.client import ClientSession
 from faust import App
+from faust.app import BootStrategy
 from faust.assignor import LeaderAssignor, PartitionAssignor
 from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 from faust.app.router import Router
@@ -373,3 +374,87 @@ class test_settings:
         assert url.scheme == settings.DEFAULT_BROKER_SCHEME
         assert url.host == 'example.com'
         assert url.port == 3123
+
+
+class test_BootStrategy:
+
+    def test_init(self, *, app):
+        assert not BootStrategy(app, enable_web=False).enable_web
+        assert BootStrategy(app, enable_web=True).enable_web
+        assert not BootStrategy(app, enable_kafka=False).enable_kafka
+        assert BootStrategy(app, enable_kafka=True).enable_kafka
+        assert not BootStrategy(
+            app, enable_kafka_producer=False,
+        ).enable_kafka_producer
+        assert BootStrategy(
+            app, enable_kafka_producer=True,
+        ).enable_kafka_producer
+        assert not BootStrategy(
+            app, enable_kafka_consumer=False,
+        ).enable_kafka_consumer
+        assert BootStrategy(
+            app, enable_kafka_consumer=True,
+        ).enable_kafka_consumer
+        assert not BootStrategy(app, enable_sensors=False).enable_sensors
+        assert BootStrategy(app, enable_sensors=True).enable_sensors
+
+    def test_sensors(self, *, app):
+        assert BootStrategy(app, enable_sensors=True).sensors() is app.sensors
+        assert not BootStrategy(app, enable_sensors=False).sensors()
+
+    def test_kafka_consumer(self, *, app):
+        assert BootStrategy(
+            app, enable_kafka_consumer=True).kafka_consumer()
+        assert BootStrategy(
+            app, enable_kafka_consumer=True).kafka_conductor()
+        assert not BootStrategy(
+            app, enable_kafka_consumer=False).kafka_consumer()
+        assert not BootStrategy(
+            app, enable_kafka_consumer=False).kafka_conductor()
+        assert BootStrategy(
+            app, enable_kafka=True).kafka_consumer()
+        assert BootStrategy(
+            app, enable_kafka=True).kafka_conductor()
+        assert not BootStrategy(
+            app, enable_kafka=False).kafka_consumer()
+        assert not BootStrategy(
+            app, enable_kafka=False).kafka_conductor()
+
+    def test_kafka_producer(self, *, app):
+        assert BootStrategy(
+            app, enable_kafka_producer=True).kafka_producer()
+        assert not BootStrategy(
+            app, enable_kafka_producer=False).kafka_producer()
+        assert BootStrategy(
+            app, enable_kafka=True).kafka_producer()
+        assert BootStrategy(
+            app, enable_kafka_producer=None).kafka_producer()
+        assert not BootStrategy(
+            app, enable_kafka=False).kafka_producer()
+
+    def test_web_server(self, *, app):
+        assert BootStrategy(app, enable_web=True).web_server()
+        assert not BootStrategy(app, enable_web=False).web_server()
+        assert BootStrategy(app, enable_web=True).web_server()
+        assert not BootStrategy(app, enable_web=False).web_server()
+        assert BootStrategy(app, enable_web=None).web_server()
+
+    def test_disable_kafka(self, *, app):
+        class B(BootStrategy):
+            enable_kafka = False
+
+        b = B(app)
+        assert not b.enable_kafka
+        assert not b.kafka_conductor()
+        assert not b.kafka_consumer()
+        assert not b.kafka_producer()
+
+    def test_disable_kafka_consumer(self, *, app):
+        class B(BootStrategy):
+            enable_kafka_consumer = False
+
+        b = B(app)
+        assert b.enable_kafka
+        assert not b.kafka_conductor()
+        assert not b.kafka_consumer()
+        assert b.kafka_producer()

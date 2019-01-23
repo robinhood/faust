@@ -239,14 +239,16 @@ class TransactionManager(Service, TransactionManagerT):
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
-                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
+                   partition: Optional[int],
+                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
         p: int = self.consumer.key_partition(topic, key, partition)
-        return await self._producers[p].send(topic, key, value, p)
+        return await self._producers[p].send(topic, key, value, p, timestamp)
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
-                            partition: Optional[int]) -> RecordMetadata:
-        fut = await self.send(topic, key, value, partition)
+                            partition: Optional[int],
+                            timestamp: Optional[float]) -> RecordMetadata:
+        fut = await self.send(topic, key, value, partition, timestamp)
         return await fut
 
     async def commit(self, offsets: Mapping[TP, int],
