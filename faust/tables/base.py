@@ -464,6 +464,7 @@ class Collection(Service, CollectionT):
     async def on_recovery_completed(self,
                                     active_tps: Set[TP],
                                     standby_tps: Set[TP]) -> None:
+        await self.data.on_recovery_completed(active_tps, standby_tps)
         await self.call_recover_callbacks()
 
     async def call_recover_callbacks(self) -> None:
@@ -510,7 +511,7 @@ class Collection(Service, CollectionT):
         return v
 
     def _human_channel(self) -> str:
-        return f'{type(self.__name__)}: {self.name}'
+        return f'{type(self).__name__}: {self.name}'
 
     def _repr_info(self) -> str:
         return self.name

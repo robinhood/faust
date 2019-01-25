@@ -238,7 +238,7 @@ class Web(Service):
         return self.app.conf.canonical_url
 
 
-class Request:
+class Request(abc.ABC):
     """HTTP Request."""
 
     method: str
@@ -254,29 +254,37 @@ class Request:
     if_unmodified_since: Optional[datetime]
     if_range: Optional[datetime]
 
+    @abc.abstractmethod
     def can_read_body(self) -> bool:
         ...
 
+    @abc.abstractmethod
     async def read(self) -> bytes:
         ...
 
+    @abc.abstractmethod
     async def text(self) -> str:
         ...
 
+    @abc.abstractmethod
     async def json(self) -> Any:
         ...
 
+    @abc.abstractmethod
     async def post(self) -> Mapping[str, str]:
         ...
 
     @property
+    @abc.abstractmethod
     def match_info(self) -> Mapping[str, str]:
         ...
 
     @property
+    @abc.abstractmethod
     def query(self) -> Mapping[str, str]:
         ...
 
     @property
+    @abc.abstractmethod
     def cookies(self) -> Mapping[str, Any]:
         ...

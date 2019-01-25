@@ -334,12 +334,7 @@ class Topic(Channel, TopicT):
                               wait: bool = False) -> Awaitable[RecordMetadata]:
         app = self.app
         message: PendingMessage = fut.message
-        if isinstance(message.channel, str):
-            topic = message.channel
-        elif isinstance(message.channel, TopicT):
-            topic = cast(TopicT, message.channel).get_topic_name()
-        else:
-            topic = self.get_topic_name()
+        topic = self._topic_name_or_default(message.channel)
         key: bytes = cast(bytes, message.key)
         value: bytes = cast(bytes, message.value)
         partition: Optional[int] = message.partition
@@ -376,6 +371,15 @@ class Topic(Channel, TopicT):
             fut2.add_done_callback(cast(Callable, callback))
             return fut2
 
+    def _topic_name_or_default(
+            self, obj: Optional[Union[str, ChannelT]]) -> str:
+        if isinstance(obj, str):
+            return obj
+        elif isinstance(obj, TopicT):
+            return cast(TopicT, obj).get_topic_name()
+        else:
+            return self.get_topic_name()
+
     def _on_published(self, fut: asyncio.Future,
                       message: FutureMessage,
                       producer: ProducerT,
@@ -408,14 +412,14 @@ class Topic(Channel, TopicT):
         await self.declare()
 
     async def declare(self) -> None:
+        partitions = self.partitions
+        if partitions is None:
+            partitions = self.app.conf.topic_partitions
+        replicas = self.replicas
+        if not replicas:
+            replicas = self.app.conf.topic_replication_factor
         producer = await self._get_producer()
         for topic in self.topics:
-            partitions = self.partitions
-            if partitions is None:
-                partitions = self.app.conf.topic_partitions
-            replicas = self.replicas
-            if not replicas:
-                replicas = self.app.conf.topic_replication_factor
             await producer.create_topic(
                 topic=topic,
                 partitions=partitions,

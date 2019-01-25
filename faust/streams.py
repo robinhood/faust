@@ -307,24 +307,28 @@ class Stream(StreamT[T_co], Service):
         # We add this processor to populate the buffer, and the stream
         # is passively consumed in the background (enable_passive below).
         async def add_to_buffer(value: T) -> T:
-            # buffer_consuming is set when consuming buffer after timeout.
-            nonlocal buffer_consuming
-            if buffer_consuming is not None:
-                try:
-                    await buffer_consuming
-                finally:
-                    buffer_consuming = None
-            buffer_add(cast(T_co, value))
-            event = self.current_event
-            if event is not None:
-                event_add(event)
-            if buffer_size() >= max_:
-                # signal that the buffer is full and should be emptied.
-                buffer_full.set()
-                # strict wait for buffer to be consumed after buffer full.
-                # (if max_ is 1000, we are not allowed to return 1001 values.)
-                buffer_consumed.clear()
-                await self.wait(buffer_consumed)
+            try:
+                # buffer_consuming is set when consuming buffer after timeout.
+                nonlocal buffer_consuming
+                if buffer_consuming is not None:
+                    try:
+                        await buffer_consuming
+                    finally:
+                        buffer_consuming = None
+                buffer_add(cast(T_co, value))
+                event = self.current_event
+                if event is not None:
+                    event_add(event)
+                if buffer_size() >= max_:
+                    # signal that the buffer is full and should be emptied.
+                    buffer_full.set()
+                    # strict wait for buffer to be consumed after buffer full.
+                    # If max is 1000, we are not allowed to return 1001 values.
+                    buffer_consumed.clear()
+                    await self.wait(buffer_consumed)
+            except Exception as exc:
+                self.log.exception('Error adding to take buffer: %r', exc)
+                await self.crash(exc)
             return value
 
         # Disable acks to ensure this method acks manually

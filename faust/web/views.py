@@ -152,7 +152,7 @@ def takes_model(Model: Type[ModelT]) -> ViewDecorator:
         async def _inner(view: View, request: Request,
                          *args: Any, **kwargs: Any) -> Response:
             data: bytes = await view.read_request_content(request)
-            obj: ModelT = Model.loads(data)
+            obj: ModelT = Model.loads(data, serializer='json')
             return await fun(  # type: ignore
                 view, request, obj, *args, **kwargs)
         return _inner

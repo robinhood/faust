@@ -147,6 +147,34 @@ class test_Event:
         )
         assert result is app._attachments.put()
 
+    @pytest.mark.asyncio
+    async def test__send(self, *, event, app):
+        app._attachments.maybe_put = AsyncMock(name='maybe_put')
+        callback = Mock(name='callback')
+        await event._send(
+            channel='chan',
+            key=b'k',
+            value=b'v',
+            partition=4,
+            timestamp=33.31234,
+            key_serializer='kser',
+            value_serializer='vser',
+            callback=callback,
+            force=True,
+        )
+
+        app._attachments.maybe_put.assert_called_once_with(
+            'chan',
+            b'k',
+            b'v',
+            4,
+            33.31234,
+            'kser',
+            'vser',
+            callback,
+            force=True,
+        )
+
     def test_repr(self, *, event):
         assert repr(event)
 

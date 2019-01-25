@@ -14,10 +14,10 @@ from .monitor import Monitor, TPOffsetMapping
 
 try:
     import statsd
-except ImportError:
+except ImportError:  # pragma: no cover
     statsd = None
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from statsd import StatsClient
 else:
     class StatsClient: ...  # noqa

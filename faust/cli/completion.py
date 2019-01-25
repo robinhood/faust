@@ -4,9 +4,9 @@ from .base import AppCommand
 
 try:
     import click_completion
-except ImportError:
+except ImportError:  # pragma: no cover
     click_completion = None  # noqa
-else:
+else:  # pragma: no cover
     click_completion.init()
 
 

@@ -25,3 +25,13 @@ async def test_Join(join_cls, fields):
 
     with pytest.raises(NotImplementedError):
         await j.process(Mock(name='event', autospec=Event))
+
+
+def test_eq_ne():
+    stream = Mock(name='stream', autospec=Stream)
+    assert (InnerJoin(stream=stream, fields=(User.id,)) ==
+            InnerJoin(stream=stream, fields=(User.id,)))
+    assert (InnerJoin(stream=stream, fields=(User.id,)) !=
+            Join(stream=stream, fields=(User.id,)))
+    assert (InnerJoin(stream=stream, fields=(User.name,)) !=
+            InnerJoin(stream=stream, fields=(User.id,)))

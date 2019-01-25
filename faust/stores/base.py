@@ -48,7 +48,7 @@ class Store(StoreT[KT, VT], Service):
         self.url = URL(url)
         self.app = app
         self.table = table
-        self.table_name = table_name
+        self.table_name = table_name or self.table.name
         self.key_type = key_type
         self.value_type = value_type
         self.key_serializer = key_serializer
@@ -68,6 +68,11 @@ class Store(StoreT[KT, VT], Service):
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        ...
+
+    async def on_recovery_completed(self,
+                                    active_tps: Set[TP],
+                                    standby_tps: Set[TP]) -> None:
         ...
 
     def _encode_key(self, key: KT) -> bytes:

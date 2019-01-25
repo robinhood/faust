@@ -30,6 +30,7 @@ omit =
     */faust/utils/functional.py
     */faust/utils/kafka/*
     */faust/utils/iso8601.py
+    */faust/utils/platforms.py
     */faust/types/*
     */faust/__main__.py
 
@@ -56,6 +57,10 @@ omit =
     */faust/app/_attached.py
 exclude_lines =
     # Have to re-enable the standard pragma
+    if\ typing\.TYPE_CHECKING\:
+
     pragma: no cover
+
+    if sys.platform == 'win32':
 
     \@abc\.abstractmethod

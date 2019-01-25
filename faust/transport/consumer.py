@@ -535,27 +535,6 @@ class Consumer(Service, ConsumerT):
 
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
-        if not self.flow_active:
-            await self.wait(self.can_resume_flow)
-        # Implementation for the Fetcher service.
-        active_partitions = self._get_active_partitions()
-        _next = next
-
-        records: RecordMap = {}
-        if active_partitions:
-            # Fetch records only if active partitions to avoid the risk of
-            # fetching all partitions in the beginning when none of the
-            # partitions is paused/resumed.
-            records = await self._getmany(
-                active_partitions=active_partitions,
-                timeout=timeout,
-            )
-        else:
-            # We should still release to the event loop
-            await self.sleep(1)
-            if self.should_stop:
-                return
-
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,
         # normal order of iteration would be to process each
@@ -599,9 +578,13 @@ class Consumer(Service, ConsumerT):
         # has 1 partition, then t2 will end up being starved most of the time.
         #
         # We solve this by going round-robin through each topic.
+        records, active_partitions = await self._wait_next_records(timeout)
+        if records is None or self.should_stop:
+            return
         topic_index = self._records_to_topic_index(records, active_partitions)
         to_remove: Set[str] = set()
         sentinel = object()
+        _next = next
 
         to_message = self._to_message  # localize
 
@@ -626,6 +609,27 @@ class Consumer(Service, ConsumerT):
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
                     yield tp, to_message(tp, record)
+
+    async def _wait_next_records(
+            self, timeout: float) -> Tuple[Optional[RecordMap], Set[TP]]:
+        if not self.flow_active:
+            await self.wait(self.can_resume_flow)
+        # Implementation for the Fetcher service.
+        active_partitions = self._get_active_partitions()
+
+        records: RecordMap = {}
+        if active_partitions:
+            # Fetch records only if active partitions to avoid the risk of
+            # fetching all partitions in the beginning when none of the
+            # partitions is paused/resumed.
+            records = await self._getmany(
+                active_partitions=active_partitions,
+                timeout=timeout,
+            )
+        else:
+            # We should still release to the event loop
+            await self.sleep(1)
+        return records, active_partitions
 
     @abc.abstractmethod
     def _to_message(self, tp: TP, record: Any) -> ConsumerMessage:
@@ -745,8 +749,7 @@ class Consumer(Service, ConsumerT):
             # set commit_fut to None so that next call will commit.
             fut, self._commit_fut = self._commit_fut, None
             # notify followers that the commit is done.
-            if fut is not None and not fut.done():
-                fut.set_result(None)
+            notify(fut)
 
     async def maybe_wait_for_commit_to_finish(self) -> bool:
         # Only one coroutine allowed to commit at a time,
