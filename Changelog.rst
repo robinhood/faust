@@ -8,6 +8,19 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.6:
+
+1.4.6
+=====
+:release-date: 2019-01-29 01:52 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **App**: Better support for custom boot strategies by having
+  the app start without waiting for recovery when no tables started.
+
+- **Docs**: Fixed doc build after intersphinx
+     URL https://click.palletsprojects.com/en/latest no longer works.
+
 .. _version-1.4.5:
 
 1.4.5
