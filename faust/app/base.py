@@ -496,8 +496,9 @@ class App(AppT, Service):
         self.finalize()
 
     async def on_started(self) -> None:
-        # Wait for table recovery to complete (returns True if app stopped)
-        if not await self._wait_for_table_recovery_completed():
+        await self._wait_for_table_recovery_completed()
+        if not self.should_stop:
+
             # Add all asyncio.Tasks, like timers, etc.
             await self.on_started_init_extra_tasks()
 
@@ -510,10 +511,9 @@ class App(AppT, Service):
             if self.on_startup_finished:
                 await self.on_startup_finished()
 
-    async def _wait_for_table_recovery_completed(self) -> bool:
-        if not self.producer_only and not self.client_only:
-            return await self.wait_for_stopped(self.tables.recovery.completed)
-        return False
+    async def _wait_for_table_recovery_completed(self) -> None:
+        if self.tables.started:
+            await self.wait_for_stopped(self.tables.recovery.completed)
 
     async def on_started_init_extra_tasks(self) -> None:
         for task in self._tasks:

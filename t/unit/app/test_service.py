@@ -66,10 +66,7 @@ class test_AppService:
         app.on_started_init_extra_tasks = AsyncMock(name='osiet')
         app.on_started_init_extra_services = AsyncMock(name='osies')
         app.on_startup_finished = None
-        app._wait_for_table_recovery_completed.coro.return_value = True
-        await app.on_started()
-
-        app._wait_for_table_recovery_completed.coro.return_value = False
+        assert not app.should_stop
         await app.on_started()
 
         app.on_started_init_extra_tasks.assert_called_once_with()
@@ -83,6 +80,7 @@ class test_AppService:
     @pytest.mark.asyncio
     async def test_wait_for_table_recovery_completed(self, *, app):
         app.wait_for_stopped = AsyncMock(name='wait_for_stopped')
+        app.tables._started.set()
         await app._wait_for_table_recovery_completed()
         app.wait_for_stopped.assert_called_once_with(
             app.tables.recovery.completed)
