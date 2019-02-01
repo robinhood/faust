@@ -1,6 +1,7 @@
 """Agent implementation."""
 import asyncio
 import typing
+from contextvars import ContextVar
 from time import time
 from typing import (
     Any,
@@ -137,6 +138,14 @@ __all__ = ['Agent']
 #
 # TIP: Sinks can also be added as an argument to the ``@agent`` decorator:
 #      ``@app.agent(sinks=[other_agent])``.
+
+
+_current_agent: ContextVar[AgentT]
+_current_agent = ContextVar('current_agent')
+
+
+def current_agent() -> Optional[AgentT]:
+    return _current_agent.get(None)
 
 
 class Agent(AgentT, Service):
@@ -549,6 +558,7 @@ class Agent(AgentT, Service):
 
     async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
         # This executes the agent task itself, and does exception handling.
+        _current_agent.set(self)
         try:
             await coro
         except asyncio.CancelledError:

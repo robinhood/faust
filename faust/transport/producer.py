@@ -74,9 +74,9 @@ class TransactionProducer(Producer, TransactionProducerT):
     def __init__(self, transport: TransportT,
                  loop: asyncio.AbstractEventLoop = None,
                  *,
-                 partition: int,
+                 transaction_group: str,
                  **kwargs: Any) -> None:
-        self.partition = partition
+        self.transaction_group = transaction_group
         super().__init__(transport, loop, **kwargs)
 
     async def commit(self, offsets: Mapping[TP, int], group_id: str,
@@ -87,8 +87,8 @@ class TransactionProducer(Producer, TransactionProducerT):
 
     @property
     def transaction_id(self) -> str:
-        return f'{self.app.conf.id}-{self.partition}'
+        return f'{self.app.conf.id}-{self.transaction_group}'
 
     @property
     def label(self) -> str:
-        return f'{type(self).__name__}-{self.partition}'
+        return f'{type(self).__name__}-{self.transaction_group}'

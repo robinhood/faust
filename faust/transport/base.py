@@ -79,9 +79,10 @@ class Transport(TransportT):
         return self.Producer(self, **kwargs)
 
     def create_transaction_producer(self,
-                                    partition: int,
+                                    transaction_group: str,
                                     **kwargs: Any) -> TransactionProducerT:
-        return self.TransactionProducer(self, partition=partition, **kwargs)
+        return self.TransactionProducer(
+            self, transaction_group=transaction_group, **kwargs)
 
     def create_transaction_manager(self,
                                    consumer: ConsumerT,

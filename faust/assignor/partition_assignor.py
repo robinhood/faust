@@ -65,6 +65,8 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _standby_tps: Set[TP]
     _tps_url: MutableMapping[TP, str]
 
+    _topic_to_group_id: MutableMapping[str, int]
+
     def __init__(self, app: AppT, replicas: int = 0) -> None:
         AbstractPartitionAssignor.__init__(self)
         self.app = app
@@ -76,6 +78,10 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._tps_url = {}
         self._active_tps = set()
         self._standby_tps = set()
+        self._topic_to_group_id = {}
+
+    def get_topic_group(self, topic: str) -> int:
+        return self._topic_to_group_id[topic]
 
     @property
     def changelog_distribution(self) -> HostToPartitionMap:
@@ -202,8 +208,11 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             for member_id in member_metadata
         }
 
-        for num_partitions, topic_groups in copartitioned_groups.items():
+        for group_id, (num_partitions, topic_groups) in enumerate(sorted(
+                copartitioned_groups.items())):
             for topics in topic_groups:
+                for topic in topics:
+                    self._topic_to_group_id[topic] = group_id
                 assert len(topics) > 0 and num_partitions > 0
                 # Get assignment for unique copartitioned group
                 assgn = cluster_assgn.copartitioned_assignments(topics)

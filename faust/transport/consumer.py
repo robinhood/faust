@@ -164,7 +164,7 @@ class Fetcher(Service):
 
 class TransactionManager(Service, TransactionManagerT):
     app: AppT
-    _producers: MutableMapping[int, TransactionProducerT]
+    _producers: MutableMapping[TP, List[TransactionProducerT]]
 
     def __init__(self, transport: TransportT,
                  *,
@@ -175,7 +175,7 @@ class TransactionManager(Service, TransactionManagerT):
         self.app = self.transport.app
         self.consumer = consumer
         self.default_producer = producer
-        self._producers = {}
+        self._producers = defaultdict(list)
         super().__init__(**kwargs)
 
     async def on_stop(self) -> None:
@@ -279,6 +279,13 @@ class TransactionManager(Service, TransactionManagerT):
             await asyncio.gather(*[
                 producer.flush() for producer in self._producers.values()
             ])
+
+    def _all_producers(self) -> Iterable[TransactionProducerT]:
+        return [
+            producer
+            for producer_list in self._producers.values()
+            for producer in producer_list
+        ]
 
     async def create_topic(self,
                            topic: str,

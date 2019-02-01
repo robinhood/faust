@@ -131,13 +131,13 @@ class ProducerT(ServiceT):
 
 class TransactionProducerT(ProducerT):
 
-    partition: int
+    transaction_group: str
 
     @abc.abstractmethod
     def __init__(self, transport: 'TransportT',
                  loop: asyncio.AbstractEventLoop = None,
                  *,
-                 partition: int,
+                 transaction_group: str,
                  **kwargs: Any) -> None:
         ...
 
@@ -407,7 +407,7 @@ class TransportT(abc.ABC):
 
     @abc.abstractmethod
     def create_transaction_producer(self,
-                                    partition: int,
+                                    transaction_group: str,
                                     **kwargs: Any) -> TransactionProducerT:
         ...
 
