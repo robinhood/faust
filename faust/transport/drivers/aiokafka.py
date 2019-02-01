@@ -52,7 +52,6 @@ from faust.types.transports import (
     ConsumerT,
     PartitionerT,
     ProducerT,
-    TransactionProducerT,
 )
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
@@ -418,14 +417,22 @@ class Producer(base.Producer):
         }
 
     def _settings_extra(self) -> Mapping[str, Any]:
+        if self.app.in_transaction:
+            return {'acks': 'all'}
         return {}
 
     def _new_producer(self) -> aiokafka.AIOKafkaProducer:
-        return aiokafka.AIOKafkaProducer(
+        return self._producer_type(
             loop=self.loop,
             **{**self._settings_default(),
                **self._settings_extra()},
         )
+
+    @property
+    def _producer_type(self) -> Type[aiokafka.BaseProducer]:
+        if self.app.in_transaction:
+            return aiokafka.MultiTXNProducer
+        return aiokafka.AIOKafkaProducer
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:
         consumer = self.transport.app.consumer
@@ -478,7 +485,9 @@ class Producer(base.Producer):
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         if self._producer is None:
             raise RuntimeError('Producer service not yet started')
         try:
@@ -488,6 +497,7 @@ class Producer(base.Producer):
                 key=key,
                 partition=partition,
                 timestamp_ms=timestamp_ms,
+                transactional_id=transactional_id,
             ))
         except KafkaError as exc:
             raise ProducerSendError(f'Error while sending: {exc!r}') from exc
@@ -495,13 +505,16 @@ class Producer(base.Producer):
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         fut = await self.send(
             topic,
             key=key,
             value=value,
             partition=partition,
             timestamp=timestamp,
+            transactional_id=transactional_id,
         )
         return await fut
 
@@ -523,39 +536,6 @@ class Producer(base.Producer):
         return TP(topic, partition)
 
 
-class TransactionProducer(Producer, base.TransactionProducer):
-
-    async def on_start(self) -> None:
-        await super().on_start()
-        if self._producer is None:
-            raise RuntimeError('This should never happen...')
-        await self._producer.begin_transaction()
-
-    async def commit(self, offsets: Mapping[TP, int], group_id: str,
-                     start_new_transaction: bool = True) -> None:
-        if self._producer is None:
-            raise RuntimeError('Producer service not yet started')
-        await self._producer.send_offsets_to_transaction(offsets, group_id)
-        await self._producer.commit_transaction()
-        if start_new_transaction:
-            await self._producer.begin_transaction()
-
-    async def on_stop(self) -> None:
-        if self._producer is not None:
-            if self._producer._txn_manager.is_in_transaction():
-                self.log.info(
-                    'Still in transaction: Aborting current transaction...')
-                await self._producer.abort_transaction()
-        await super().on_stop()
-
-    def _settings_extra(self) -> Mapping[str, Any]:
-        return {
-            'enable_idempotence': True,
-            'acks': 'all',
-            'transactional_id': self.transaction_id,
-        }
-
-
 class Transport(base.Transport):
     """Kafka transport using :pypi:`aiokafka`."""
 
@@ -563,8 +543,6 @@ class Transport(base.Transport):
     Consumer = Consumer
     Producer: ClassVar[Type[ProducerT]]
     Producer = Producer
-    TransactionProducer: ClassVar[Type[TransactionProducerT]]
-    TransactionProducer = TransactionProducer
 
     default_port = 9092
     driver_version = f'aiokafka={aiokafka.__version__}'

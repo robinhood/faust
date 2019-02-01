@@ -140,7 +140,7 @@ __all__ = ['Agent']
 #      ``@app.agent(sinks=[other_agent])``.
 
 
-_current_agent: ContextVar[AgentT]
+_current_agent: ContextVar[Optional[AgentT]]
 _current_agent = ContextVar('current_agent')
 
 

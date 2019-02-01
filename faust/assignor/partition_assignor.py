@@ -80,7 +80,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._standby_tps = set()
         self._topic_to_group_id = {}
 
-    def get_topic_group(self, topic: str) -> int:
+    def group_for_topic(self, topic: str) -> int:
         return self._topic_to_group_id[topic]
 
     @property

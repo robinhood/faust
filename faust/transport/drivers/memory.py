@@ -147,14 +147,18 @@ class Producer(base.Producer):
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         res = await self.send_and_wait(topic, key, value, partition, timestamp)
         return cast(Awaitable[RecordMetadata], done_future(res))
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         return await cast(Transport, self.transport).send(
             topic, value, key, partition, timestamp)
 

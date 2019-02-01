@@ -2,7 +2,6 @@
 import asyncio
 import typing
 from collections import defaultdict
-from contextvars import ContextVar
 from typing import (
     Any,
     Callable,
@@ -136,9 +135,6 @@ class Conductor(ConductorT, Service):
 
     logger = logger
 
-    _current_transaction_group: ContextVar[str]
-    _current_transaction_group = ContextVar('current_transaction_group')
-
     #: Fast index to see if Topic is registered.
     _topics: MutableSet[TopicT]
 
@@ -186,12 +182,6 @@ class Conductor(ConductorT, Service):
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         return await self.app.consumer.commit(topics)
-
-    def current_transaction_group(self) -> Optional[str]:
-        return self._current_transaction_group.get(None)
-
-    def set_current_transaction_group(self, group_id: str) -> None:
-        self._current_transaction_group.set(group_id)
 
     def acks_enabled_for(self, topic: str) -> bool:
         return topic in self._acking_topics

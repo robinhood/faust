@@ -61,6 +61,7 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSet,
+    NamedTuple,
     Optional,
     Set,
     Tuple,
@@ -84,7 +85,6 @@ from faust.types.transports import (
     ProducerT,
     TPorTopicSet,
     TransactionManagerT,
-    TransactionProducerT,
     TransportT,
 )
 from faust.utils import terminal
@@ -111,6 +111,12 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 logger = get_logger(__name__)
 
 RecordMap = Mapping[TP, List[Any]]
+
+
+class TopicPartitionGroup(NamedTuple):
+    topic: str
+    partition: int
+    group: int
 
 
 def ensure_TP(tp: Any) -> TP:
@@ -164,7 +170,8 @@ class Fetcher(Service):
 
 class TransactionManager(Service, TransactionManagerT):
     app: AppT
-    _producers: MutableMapping[TP, List[TransactionProducerT]]
+
+    transactional_id_format = '{tpg.group}-{tpg.partition}'
 
     def __init__(self, transport: TransportT,
                  *,
@@ -174,118 +181,101 @@ class TransactionManager(Service, TransactionManagerT):
         self.transport = transport
         self.app = self.transport.app
         self.consumer = consumer
-        self.default_producer = producer
-        self._producers = defaultdict(list)
+        self.producer = producer
         super().__init__(**kwargs)
-
-    async def on_stop(self) -> None:
-        if self._producers:
-            await asyncio.gather(*[
-                producer.stop() for producer in self._producers.values()
-            ])
-        self._producers.clear()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         # flush all producers
-        await self.flush()
+        await self.producer.flush()
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        revoked_partitions: Set[int] = {tp.partition for tp in revoked}
-        assigned_partitions: Set[int] = {tp.partition for tp in newly_assigned}
-
         # Stop producers for revoked partitions.
         self.log.info(
             'Stopping transactional producers for revoked partitions...')
-        await self._stop_producers(revoked_partitions)
+        await self._stop_transactions(
+            self._tps_to_transactional_ids(revoked))
 
         # Start produers for assigned partitions
         self.log.info(
             'Starting transactional producers for assigned partitions...')
-        await self._start_producers(assigned_partitions)
+        await self._start_transactions(
+            self._tps_to_transactional_ids(newly_assigned))
 
-    async def _stop_producers(self, partitions: Iterable[int]) -> None:
-        producers = self._producers
-        producers_to_stop: List[TransactionProducerT] = []
-        for partition in partitions:
-            producer = producers.pop(partition, None)
-            if producer is not None:
-                producers_to_stop.append(producer)
-        if producers_to_stop:
-            await asyncio.gather(*[
-                producer.stop() for producer in producers_to_stop
-            ])
+    async def _stop_transactions(self, tids: Iterable[str]) -> None:
+        producer = self.producer
+        for transactional_id in tids:
+            await producer.abort_transaction(transactional_id)
 
-    async def _start_producers(self, partitions: Iterable[int]) -> None:
-        producers = self._producers
-        for partition in partitions:
-            producers[partition] = await self._start_new_producer(partition)
+    async def _start_transactions(self, tids: Iterable[str]) -> None:
+        producer = self.producer
+        for transactional_id in tids:
+            await producer.begin_transaction(transactional_id)
 
-    async def _start_new_producer(
-            self, partition: int) -> TransactionProducerT:
-        assert partition is not None
-        producer: TransactionProducerT
-        assert partition not in self._producers
-        producer = self._new_producer(partition)
-        await producer.start()
-        return producer
+    def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
+        return {
+            self.transactional_id_format.format(tpg)
+            for tpg in self._tps_to_tpgs(tps)
+        }
 
-    def _new_producer(self, partition: int) -> TransactionProducerT:
-        return self.transport.create_transaction_producer(
-            partition, beacon=self.beacon, loop=self.loop,
-        )
+    def _tps_to_tpgs(self, tps: Set[TP]) -> Set[TopicPartitionGroup]:
+        assignor = self.app.assignor
+        return {
+            TopicPartitionGroup(
+                tp.topic,
+                tp.partition,
+                assignor.group_for_topic(tp.topic),
+            )
+            for tp in tps
+        }
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         p: int = self.consumer.key_partition(topic, key, partition)
-        return await self._producers[p].send(topic, key, value, p, timestamp)
+        group = self.app.assignor.group_for_topic(topic)
+        transactional_id = f'{group}-{partition}'
+        return await self.producer.send(
+            topic, key, value, p, timestamp,
+            transactional_id=transactional_id,
+        )
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         fut = await self.send(topic, key, value, partition, timestamp)
         return await fut
 
     async def commit(self, offsets: Mapping[TP, int],
                      start_new_transaction: bool = True) -> bool:
-        producers = self._producers
+        producer = self.producer
         group_id = self.app.conf.id
-        group_by_partitions: MutableMapping[int, MutableMapping[TP, int]]
-        group_by_partitions = defaultdict(dict)
+        by_transactional_id: MutableMapping[str, MutableMapping[TP, int]]
+        by_transactional_id = defaultdict(dict)
 
         for tp, offset in offsets.items():
-            group_by_partitions[tp.partition][tp] = offset
+            group = self.app.assignor.group_for_topic(tp.topic)
+            transactional_id = f'{group}-{tp.partition}'
+            by_transactional_id[transactional_id][tp] = offset
 
-        if group_by_partitions:
-            await asyncio.gather(*[
-                producers[partition].commit(
-                    partition_offsets, group_id,
+        if by_transactional_id:
+            for transactional_id, offsets in by_transactional_id.items():
+                await producer.commit(
+                    transactional_id, offsets, group_id,
                     start_new_transaction=start_new_transaction,
                 )
-                for partition, partition_offsets in group_by_partitions.items()
-            ])
         return True
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
-
-    async def flush(self) -> None:
-        if self._producers:
-            await asyncio.gather(*[
-                producer.flush() for producer in self._producers.values()
-            ])
-
-    def _all_producers(self) -> Iterable[TransactionProducerT]:
-        return [
-            producer
-            for producer_list in self._producers.values()
-            for producer in producer_list
-        ]
 
     async def create_topic(self,
                            topic: str,

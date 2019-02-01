@@ -44,7 +44,6 @@ __all__ = [
     'ProducerT',
     'ConductorT',
     'TransactionManagerT',
-    'TransactionProducerT',
     'TransportT',
 ]
 
@@ -96,14 +95,18 @@ class ProducerT(ServiceT):
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         ...
 
     @abc.abstractmethod
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         ...
 
     @abc.abstractmethod
@@ -126,29 +129,6 @@ class ProducerT(ServiceT):
 
     @abc.abstractmethod
     async def flush(self) -> None:
-        ...
-
-
-class TransactionProducerT(ProducerT):
-
-    transaction_group: str
-
-    @abc.abstractmethod
-    def __init__(self, transport: 'TransportT',
-                 loop: asyncio.AbstractEventLoop = None,
-                 *,
-                 transaction_group: str,
-                 **kwargs: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def commit(self, offsets: Mapping[TP, int], group_id: str,
-                     start_new_transaction: bool = True) -> None:
-        ...
-
-    @property
-    @abc.abstractmethod
-    def transaction_id(self) -> str:
         ...
 
 
@@ -365,9 +345,6 @@ class TransportT(abc.ABC):
     #: The Producer class used for this type of transport.
     Producer: ClassVar[Type[ProducerT]]
 
-    #: The TransactionProducer class used for transactions.
-    TransactionProducer: ClassVar[Type[TransactionProducerT]]
-
     #: The TransactionManager class used for managing multiple transactions.
     TransactionManager: ClassVar[Type[TransactionManagerT]]
 
@@ -403,12 +380,6 @@ class TransportT(abc.ABC):
 
     @abc.abstractmethod
     def create_producer(self, **kwargs: Any) -> ProducerT:
-        ...
-
-    @abc.abstractmethod
-    def create_transaction_producer(self,
-                                    transaction_group: str,
-                                    **kwargs: Any) -> TransactionProducerT:
         ...
 
     @abc.abstractmethod

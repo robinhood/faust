@@ -26,7 +26,6 @@ from .transports import (
     ConsumerT,
     ProducerT,
     TransactionManagerT,
-    TransactionProducerT,
     TransportT,
 )
 from .tuples import (
@@ -102,7 +101,6 @@ __all__ = [
     'ConsumerT',
     'ProducerT',
     'TransactionManagerT',
-    'TransactionProducerT',
     'TransportT',
 
     # types.tuples

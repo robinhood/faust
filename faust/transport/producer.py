@@ -11,7 +11,7 @@ from typing import Any, Awaitable, Mapping, Optional
 from mode import Seconds, Service
 from faust.types import AppT
 from faust.types.tuples import RecordMetadata, TP
-from faust.types.transports import ProducerT, TransactionProducerT, TransportT
+from faust.types.transports import ProducerT, TransportT
 
 __all__ = ['Producer']
 
@@ -40,13 +40,17 @@ class Producer(Service, ProducerT):
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         raise NotImplementedError()
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         raise NotImplementedError()
 
     async def flush(self) -> None:
@@ -67,28 +71,3 @@ class Producer(Service, ProducerT):
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
-
-
-class TransactionProducer(Producer, TransactionProducerT):
-
-    def __init__(self, transport: TransportT,
-                 loop: asyncio.AbstractEventLoop = None,
-                 *,
-                 transaction_group: str,
-                 **kwargs: Any) -> None:
-        self.transaction_group = transaction_group
-        super().__init__(transport, loop, **kwargs)
-
-    async def commit(self, offsets: Mapping[TP, int], group_id: str,
-                     start_new_transaction: bool = True) -> None:
-        conf = self.app.conf
-        raise NotImplementedError(
-            f'This transport does not support {conf.processing_guarantee}')
-
-    @property
-    def transaction_id(self) -> str:
-        return f'{self.app.conf.id}-{self.transaction_group}'
-
-    @property
-    def label(self) -> str:
-        return f'{type(self).__name__}-{self.transaction_group}'
