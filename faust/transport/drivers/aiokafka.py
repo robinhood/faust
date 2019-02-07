@@ -308,22 +308,18 @@ class AIOKafkaConsumerThread(ConsumerThread):
             self._ensure_consumer().beginning_offsets, partitions)
 
     async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
-
         return await self.call_thread(self._highwaters, partitions)
 
     async def _highwaters(self, partitions: List[TP]) -> Mapping[TP, int]:
         consumer = self._ensure_consumer()
         if self.consumer.in_transaction:
             return {
-                tp: self._lso_to_highwater(consumer.last_stable_offset(tp))
+                tp: consumer.last_stable_offset(tp)
                 for tp in partitions
             }
         else:
             return cast(Mapping[TP, int],
                         await consumer.end_offsets(partitions))
-
-    def _lso_to_highwater(self, lso: int) -> int:
-        return lso - 1 if lso and lso > 0 else lso
 
     def _ensure_consumer(self) -> aiokafka.AIOKafkaConsumer:
         if self._consumer is None:
@@ -415,6 +411,31 @@ class Producer(base.Producer):
             'partitioner': self.partitioner or DefaultPartitioner(),
             'request_timeout_ms': int(self.request_timeout * 1000),
         }
+
+    async def begin_transaction(self, transactional_id: str) -> None:
+        await self._producer.begin_transaction(transactional_id)
+
+    async def commit_transaction(self, transactional_id: str) -> None:
+        await self._producer.commit_transaction(transactional_id)
+
+    async def abort_transaction(self, transactional_id: str) -> None:
+        await self._producer.abort_transaction(transactional_id)
+
+    async def maybe_abort_transaction(self, transactional_id: str) -> None:
+        await self._producer.maybe_abort_transaction(transactional_id)
+
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        await self._producer.maybe_begin_transaction(transactional_id)
+
+    async def commit(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        await self._producer.commit(
+            tid_to_offset_map, group_id,
+            start_new_transaction=start_new_transaction,
+        )
 
     def _settings_extra(self) -> Mapping[str, Any]:
         if self.app.in_transaction:

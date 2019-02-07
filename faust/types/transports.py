@@ -134,7 +134,7 @@ class ProducerT(ServiceT):
 
 class TransactionManagerT(ProducerT):
     consumer: 'ConsumerT'
-    default_producer: 'ProducerT'
+    producer: 'ProducerT'
 
     @abc.abstractmethod
     def __init__(self,

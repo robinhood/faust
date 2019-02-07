@@ -331,7 +331,7 @@ class Recovery(Service):
                     )
 
                     for tp in standby_tps:
-                        if standby_offsets[tp] >= standby_highwaters[tp]:
+                        if standby_offsets[tp] > standby_highwaters[tp]:
                             raise ConsistencyError(
                                 E_PERSISTED_OFFSET.format(
                                     tp,

@@ -328,7 +328,7 @@ class test_TransactionManager:
             deleting=True,
             ensure_created=True,
         )
-        manager.default_producer.create_topic.assert_called_once_with(
+        manager.producer.create_topic.assert_called_once_with(
             'topic', 100, 3,
             config={'C': 1},
             timeout=30.0,

@@ -1,6 +1,6 @@
 """Client Assignment."""
 import copy
-from typing import List, MutableMapping, Sequence, Set, Tuple
+from typing import List, Mapping, MutableMapping, Sequence, Set, Tuple
 from faust.models import Record
 from faust.types import TP
 from faust.types.assignor import HostToPartitionMap
@@ -83,7 +83,7 @@ class ClientAssignment(Record,
                        namespace='@ClientAssignment'):
     """Client Assignment data model."""
 
-    actives: MutableMapping[str, List[int]]  # Topic -> Partition
+    actives: MutableMapping[str, List[int]]   # Topic -> Partition
     standbys: MutableMapping[str, List[int]]  # Topic -> Partition
 
     @property
@@ -152,3 +152,4 @@ class ClientMetadata(Record,
     assignment: ClientAssignment
     url: str
     changelog_distribution: HostToPartitionMap
+    topic_groups: Mapping[str, int]

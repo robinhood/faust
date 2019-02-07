@@ -184,9 +184,11 @@ class TransactionManager(Service, TransactionManagerT):
         self.producer = producer
         super().__init__(**kwargs)
 
-    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        # flush all producers
+    async def flush(self) -> None:
         await self.producer.flush()
+
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        await self.flush()
 
     async def on_rebalance(self,
                            assigned: Set[TP],
@@ -196,31 +198,31 @@ class TransactionManager(Service, TransactionManagerT):
         self.log.info(
             'Stopping transactional producers for revoked partitions...')
         await self._stop_transactions(
-            self._tps_to_transactional_ids(revoked))
+            sorted(self._tps_to_transactional_ids(revoked)))
 
         # Start produers for assigned partitions
         self.log.info(
             'Starting transactional producers for assigned partitions...')
         await self._start_transactions(
-            self._tps_to_transactional_ids(newly_assigned))
+            sorted(self._tps_to_transactional_ids(newly_assigned)))
 
     async def _stop_transactions(self, tids: Iterable[str]) -> None:
         producer = self.producer
         for transactional_id in tids:
-            await producer.abort_transaction(transactional_id)
+            await producer.maybe_abort_transaction(transactional_id)
 
     async def _start_transactions(self, tids: Iterable[str]) -> None:
         producer = self.producer
         for transactional_id in tids:
-            await producer.begin_transaction(transactional_id)
+            await producer.maybe_begin_transaction(transactional_id)
 
     def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
         return {
-            self.transactional_id_format.format(tpg)
-            for tpg in self._tps_to_tpgs(tps)
+            self.transactional_id_format.format(tpg=tpg)
+            for tpg in self._tps_to_active_tpgs(tps)
         }
 
-    def _tps_to_tpgs(self, tps: Set[TP]) -> Set[TopicPartitionGroup]:
+    def _tps_to_active_tpgs(self, tps: Set[TP]) -> Set[TopicPartitionGroup]:
         assignor = self.app.assignor
         return {
             TopicPartitionGroup(
@@ -229,6 +231,7 @@ class TransactionManager(Service, TransactionManagerT):
                 assignor.group_for_topic(tp.topic),
             )
             for tp in tps
+            if not assignor.is_standby(tp)
         }
 
     async def send(self, topic: str, key: Optional[bytes],
@@ -267,11 +270,8 @@ class TransactionManager(Service, TransactionManagerT):
             by_transactional_id[transactional_id][tp] = offset
 
         if by_transactional_id:
-            for transactional_id, offsets in by_transactional_id.items():
-                await producer.commit(
-                    transactional_id, offsets, group_id,
-                    start_new_transaction=start_new_transaction,
-                )
+            await producer.commit(by_transactional_id, group_id,
+                                  start_new_transaction=start_new_transaction)
         return True
 
     def key_partition(self, topic: str, key: bytes) -> TP:
@@ -288,7 +288,7 @@ class TransactionManager(Service, TransactionManagerT):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        return await self.default_producer.create_topic(
+        return await self.producer.create_topic(
             topic, partitions, replication,
             config=config,
             timeout=timeout,
