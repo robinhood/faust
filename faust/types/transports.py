@@ -131,6 +131,34 @@ class ProducerT(ServiceT):
     async def flush(self) -> None:
         ...
 
+    @abc.abstractmethod
+    async def begin_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def abort_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def stop_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        ...
+
 
 class TransactionManagerT(ProducerT):
     consumer: 'ConsumerT'
@@ -161,6 +189,32 @@ class TransactionManagerT(ProducerT):
     async def commit(self, offsets: Mapping[TP, int],
                      start_new_transaction: bool = True) -> bool:
         ...
+
+    async def begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def commit_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def abort_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def stop_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        raise NotImplementedError()
 
 
 class ConsumerT(ServiceT):

@@ -71,3 +71,29 @@ class Producer(Service, ProducerT):
 
     def key_partition(self, topic: str, key: bytes) -> TP:
         raise NotImplementedError()
+
+    async def begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def commit_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def abort_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def stop_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        raise NotImplementedError()

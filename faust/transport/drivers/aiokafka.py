@@ -421,13 +421,13 @@ class Producer(base.Producer):
     async def abort_transaction(self, transactional_id: str) -> None:
         await self._producer.abort_transaction(transactional_id)
 
-    async def maybe_abort_transaction(self, transactional_id: str) -> None:
-        await self._producer.maybe_abort_transaction(transactional_id)
+    async def stop_transaction(self, transactional_id: str) -> None:
+        await self._producer.stop_transaction(transactional_id)
 
     async def maybe_begin_transaction(self, transactional_id: str) -> None:
         await self._producer.maybe_begin_transaction(transactional_id)
 
-    async def commit(
+    async def commit_transactions(
             self,
             tid_to_offset_map: Mapping[str, Mapping[TP, int]],
             group_id: str,

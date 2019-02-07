@@ -209,7 +209,7 @@ class TransactionManager(Service, TransactionManagerT):
     async def _stop_transactions(self, tids: Iterable[str]) -> None:
         producer = self.producer
         for transactional_id in tids:
-            await producer.maybe_abort_transaction(transactional_id)
+            await producer.stop_transaction(transactional_id)
 
     async def _start_transactions(self, tids: Iterable[str]) -> None:
         producer = self.producer
@@ -242,7 +242,7 @@ class TransactionManager(Service, TransactionManagerT):
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         p: int = self.consumer.key_partition(topic, key, partition)
         group = self.app.assignor.group_for_topic(topic)
-        transactional_id = f'{group}-{partition}'
+        transactional_id = f'{group}-{p}'
         return await self.producer.send(
             topic, key, value, p, timestamp,
             transactional_id=transactional_id,
@@ -270,8 +270,10 @@ class TransactionManager(Service, TransactionManagerT):
             by_transactional_id[transactional_id][tp] = offset
 
         if by_transactional_id:
-            await producer.commit(by_transactional_id, group_id,
-                                  start_new_transaction=start_new_transaction)
+            await producer.commit_transactions(
+                by_transactional_id, group_id,
+                start_new_transaction=start_new_transaction,
+            )
         return True
 
     def key_partition(self, topic: str, key: bytes) -> TP:

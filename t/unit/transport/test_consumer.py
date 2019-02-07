@@ -124,6 +124,11 @@ class test_TransactionManager:
             name='producer',
             spec=Producer,
             create_topic=AsyncMock(),
+            stop_transaction=AsyncMock(),
+            maybe_begin_transaction=AsyncMock(),
+            commit_transactions=AsyncMock(),
+            send=AsyncMock(),
+            flush=AsyncMock(),
         )
 
     @pytest.fixture()
@@ -143,28 +148,6 @@ class test_TransactionManager:
         )
 
     @pytest.mark.asyncio
-    async def test_on_stop(self, *, manager):
-        manager._producers = {
-            0: Mock(),
-            1: Mock(),
-            2: Mock(),
-        }
-        p = dict(manager._producers)
-        with patch('asyncio.gather', AsyncMock()) as gather:
-            await manager.on_stop()
-            gather.assert_called_once_with(
-                p[0].stop(),
-                p[1].stop(),
-                p[2].stop(),
-            )
-        assert not manager._producers
-
-    @pytest.mark.asyncio
-    async def test_on_stop__no_producers(self, *, manager):
-        manager._producers = {}
-        await manager.on_stop()
-
-    @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, manager):
         manager.flush = AsyncMock()
         await manager.on_partitions_revoked({TP1})
@@ -172,78 +155,59 @@ class test_TransactionManager:
 
     @pytest.mark.asyncio
     async def test_on_rebalance(self, *, manager):
-        manager._stop_producers = AsyncMock()
-        manager._start_producers = AsyncMock()
+        TP3_group = 0
+        TP2_group = 2
+        manager.app.assignor._topic_groups = {
+            TP3.topic: TP3_group,
+            TP2.topic: TP2_group,
+        }
+
+        assert TP3.topic != TP2.topic  # must be different topics
+        manager._stop_transactions = AsyncMock()
+        manager._start_transactions = AsyncMock()
 
         assigned = {TP2}
-        revoked = {TP1}
+        revoked = {TP3}
         newly_assigned = {TP2}
         await manager.on_rebalance(assigned, revoked, newly_assigned)
 
-        manager._stop_producers.assert_called_once_with({TP1.partition})
-        manager._start_producers.assert_called_once_with({TP2.partition})
+        manager._stop_transactions.assert_called_once_with(
+            [f'{TP3_group}-{TP3.partition}'])
+        manager._start_transactions.assert_called_once_with(
+            [f'{TP2_group}-{TP2.partition}'])
 
     @pytest.mark.asyncio
-    async def test__stop_producers__empty(self, *, manager):
-        manager._producers = {}
-        await manager._stop_producers({0, 1, 2})
+    async def test__stop_transactions(self, *, manager, producer):
+        await manager._stop_transactions(['0-0', '1-0'])
+        producer.stop_transaction.assert_has_calls([
+            call('0-0'),
+            call.coro('0-0'),
+            call('1-0'),
+            call.coro('1-0'),
+        ])
 
     @pytest.mark.asyncio
-    async def test__stop_producers(self, *, manager):
-        manager._producers = {
-            0: Mock(),
-            1: Mock(),
-            3: Mock(),
-        }
-        p = dict(manager._producers)
-
-        with patch('asyncio.gather', AsyncMock()) as gather:
-            await manager._stop_producers({0, 1})
-            gather.assert_called_once_with(
-                p[0].stop(),
-                p[1].stop(),
-            )
-
-        assert manager._producers == {3: p[3]}
-
-    @pytest.mark.asyncio
-    async def test_start_producers(self, *, manager):
+    async def test_start_transactions(self, *, manager, producer):
         manager._start_new_producer = AsyncMock()
-        await manager._start_producers({0, 1})
-        assert manager._producers == {
-            0: manager._start_new_producer.coro.return_value,
-            1: manager._start_new_producer.coro.return_value,
+        await manager._start_transactions(['0-0', '1-0'])
+        producer.maybe_begin_transaction.assert_has_calls([
+            call('0-0'),
+            call.coro('0-0'),
+            call('1-0'),
+            call.coro('1-0'),
+        ])
+
+    @pytest.mark.asyncio
+    async def test_send(self, *, manager, producer):
+        manager.app.assignor._topic_groups = {
+            't': 3,
         }
-
-    @pytest.mark.asyncio
-    async def test__start_new_producer(self, *, manager):
-        manager._new_producer = Mock(
-            return_value=Mock(
-                start=AsyncMock(),
-            ),
-        )
-        ret = await manager._start_new_producer(4)
-        manager._new_producer.assert_called_once_with(4)
-        ret.start.assert_called_once_with()
-        assert ret is manager._new_producer()
-
-    @pytest.mark.asyncio
-    async def test__new_producer(self, *, manager):
-        p = manager._new_producer(5)
-        manager.transport.create_transaction_producer.assert_called_once_with(
-            5, beacon=manager.beacon, loop=manager.loop,
-        )
-        assert p is manager.transport.create_transaction_producer()
-
-    @pytest.mark.asyncio
-    async def test_send(self, *, manager):
-        manager._producers[1] = Mock(send=AsyncMock())
         manager.consumer.key_partition.return_value = 1
 
         await manager.send('t', 'k', 'v', partition=None, timestamp=None)
         manager.consumer.key_partition.assert_called_once_with('t', 'k', None)
-        manager._producers[1].send.assert_called_once_with(
-            't', 'k', 'v', 1, None,
+        producer.send.assert_called_once_with(
+            't', 'k', 'v', 1, None, transactional_id='3-1',
         )
 
     @pytest.mark.asyncio
@@ -261,39 +225,38 @@ class test_TransactionManager:
         )
 
     @pytest.mark.asyncio
-    async def test_commit(self, *, manager):
-        p = manager._producers = {
-            0: Mock(name='p0', commit=AsyncMock()),
-            1: Mock(name='p1', commit=AsyncMock()),
-            3: Mock(name='p3', commit=AsyncMock()),
-            6: Mock(name='p6', commit=AsyncMock()),
+    async def test_commit(self, *, manager, producer):
+        manager.app.assignor._topic_groups = {
+            'foo': 1,
+            'bar': 2,
         }
-        with patch('asyncio.gather', AsyncMock()) as gather:
-            await manager.commit(
-                {
+        await manager.commit(
+            {
+                TP('foo', 0): 3003,
+                TP('bar', 0): 3004,
+                TP('foo', 3): 4004,
+                TP('foo', 1): 4005,
+            },
+            start_new_transaction=False,
+        )
+        producer.commit_transactions.assert_called_once_with(
+            {
+                '1-0': {
                     TP('foo', 0): 3003,
-                    TP('bar', 0): 3004,
+                },
+                '1-3': {
                     TP('foo', 3): 4004,
+                },
+                '1-1': {
                     TP('foo', 1): 4005,
                 },
-                start_new_transaction=False,
-            )
-            p[0].commit.assert_called_once_with(
-                {TP('foo', 0): 3003, TP('bar', 0): 3004},
-                'testid',
-                start_new_transaction=False,
-            )
-            p[3].commit_assert_called_once_with(
-                {TP('foo', 3): 4004},
-                'testid',
-                start_new_transaction=False,
-            )
-            p[1].commit_assert_called_once_with(
-                {TP('foo', 1): 4005},
-                'testid',
-                start_new_transaction=False,
-            )
-            gather.assert_called_once()
+                '2-0': {
+                    TP('bar', 0): 3004,
+                },
+            },
+            'testid',
+            start_new_transaction=False,
+        )
 
     @pytest.mark.asyncio
     async def test_commit__empty(self, *, manager):
@@ -304,16 +267,9 @@ class test_TransactionManager:
             manager.key_partition('topic', 'key')
 
     @pytest.mark.asyncio
-    async def test_flush(self, *, manager):
-        p = manager._producers = {
-            0: Mock(name='p0', flush=AsyncMock()),
-            1: Mock(name='p1', flush=AsyncMock()),
-        }
-        with patch('asyncio.gather', AsyncMock()) as gather:
-            await manager.flush()
-            p[0].flush.assert_called_once_with()
-            p[1].flush.assert_called_once_with()
-            gather.assert_called_once()
+    async def test_flush(self, *, manager, producer):
+        await manager.flush()
+        producer.flush.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_create_topic(self, *, manager):
@@ -337,11 +293,6 @@ class test_TransactionManager:
             deleting=True,
             ensure_created=True,
         )
-
-    @pytest.mark.asyncio
-    async def test_flush__empty(self, *, manager):
-        manager._producers.clear()
-        await manager.flush()
 
 
 class MockedConsumerAbstractMethods:
