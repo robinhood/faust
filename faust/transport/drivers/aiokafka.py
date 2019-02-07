@@ -413,26 +413,26 @@ class Producer(base.Producer):
         }
 
     async def begin_transaction(self, transactional_id: str) -> None:
-        await self._producer.begin_transaction(transactional_id)
+        await self._ensure_producer().begin_transaction(transactional_id)
 
     async def commit_transaction(self, transactional_id: str) -> None:
-        await self._producer.commit_transaction(transactional_id)
+        await self._ensure_producer().commit_transaction(transactional_id)
 
     async def abort_transaction(self, transactional_id: str) -> None:
-        await self._producer.abort_transaction(transactional_id)
+        await self._ensure_producer().abort_transaction(transactional_id)
 
     async def stop_transaction(self, transactional_id: str) -> None:
-        await self._producer.stop_transaction(transactional_id)
+        await self._ensure_producer().stop_transaction(transactional_id)
 
     async def maybe_begin_transaction(self, transactional_id: str) -> None:
-        await self._producer.maybe_begin_transaction(transactional_id)
+        await self._ensure_producer().maybe_begin_transaction(transactional_id)
 
     async def commit_transactions(
             self,
             tid_to_offset_map: Mapping[str, Mapping[TP, int]],
             group_id: str,
             start_new_transaction: bool = True) -> None:
-        await self._producer.commit(
+        await self._ensure_producer().commit(
             tid_to_offset_map, group_id,
             start_new_transaction=start_new_transaction,
         )
@@ -474,11 +474,10 @@ class Producer(base.Producer):
                            ensure_created: bool = False) -> None:
         _retention = (int(want_seconds(retention) * 1000.0)
                       if retention else None)
-        if self._producer is None:
-            raise RuntimeError('Producer service not yet started')
+        producer = self._ensure_producer()
         await cast(Transport, self.transport)._create_topic(
             self,
-            self._producer.client,
+            producer.client,
             topic,
             partitions,
             replication,
@@ -489,6 +488,11 @@ class Producer(base.Producer):
             deleting=deleting,
             ensure_created=ensure_created,
         )
+
+    def _ensure_producer(self) -> aiokafka.BaseProducer:
+        if self._producer is None:
+            raise RuntimeError('Producer service not yet started')
+        return self._producer
 
     async def on_start(self) -> None:
         producer = self._producer = self._new_producer()
@@ -509,11 +513,10 @@ class Producer(base.Producer):
                    timestamp: Optional[float],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
-        if self._producer is None:
-            raise RuntimeError('Producer service not yet started')
+        producer = self._ensure_producer()
         try:
             timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
-            return cast(Awaitable[RecordMetadata], await self._producer.send(
+            return cast(Awaitable[RecordMetadata], await producer.send(
                 topic, value,
                 key=key,
                 partition=partition,
@@ -544,9 +547,8 @@ class Producer(base.Producer):
             await self._producer.flush()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
-        if self._producer is None:
-            raise RuntimeError('Producer service not yet started')
-        partition = self._producer._partition(
+        producer = self._ensure_producer()
+        partition = producer._partition(
             topic,
             partition=None,
             key=None,

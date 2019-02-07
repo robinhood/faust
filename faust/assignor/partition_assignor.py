@@ -122,7 +122,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                         ClientMetadata.loads(
                             self._decompress(assignment.user_data)))
         self._assignment = metadata.assignment
-        self._topic_groups = metadata.topic_groups
+        self._topic_groups = dict(metadata.topic_groups)
         self._active_tps = self._assignment.active_tps
         self._standby_tps = self._assignment.standby_tps
         self.changelog_distribution = metadata.changelog_distribution
