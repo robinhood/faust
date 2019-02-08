@@ -11,7 +11,7 @@ from faust.web import base
 from faust.web.drivers.aiohttp import Server, ServerThread
 
 if sys.platform == 'win32':
-    DATAPATH = r'\\opt\\data'
+    DATAPATH = 'c:/Program Files/Faust/data'
 else:
     DATAPATH = '/opt/data'
 
