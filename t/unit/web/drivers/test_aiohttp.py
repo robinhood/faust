@@ -160,7 +160,7 @@ class test_Web:
         web.web_app = Mock(name='web.web_app', autospec=Application)
         web.add_static('/prefix/', Path(DATAPATH), kw1=3)
         web.web_app.router.add_static.assert_called_once_with(
-            '/prefix/', DATAPATH, kw1=3,
+            '/prefix/', str(Path(DATAPATH)), kw1=3,
         )
 
     def test__create_site(self, *, web, app):
