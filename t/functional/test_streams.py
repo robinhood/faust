@@ -184,7 +184,7 @@ async def test_events(app):
             break
     await stream.stop()
     await asyncio.sleep(0)  # have to sleep twice here for all events to be
-    await asyncio.sleep(0)  # acked for some reason
+    await asyncio.sleep(0.5)  # acked for some reason
     assert_events_acked(events)
 
 
