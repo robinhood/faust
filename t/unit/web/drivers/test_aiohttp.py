@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,11 @@ from yarl import URL
 
 from faust.web import base
 from faust.web.drivers.aiohttp import Server, ServerThread
+
+if sys.platform == 'win32':
+    DATAPATH = r'\\opt\\data'
+else:
+    DATAPATH = '/opt/data'
 
 
 @pytest.fixture
@@ -152,9 +158,9 @@ class test_Web:
 
     def test_add_static(self, *, web):
         web.web_app = Mock(name='web.web_app', autospec=Application)
-        web.add_static('/prefix/', Path('/opt/data'), kw1=3)
+        web.add_static('/prefix/', Path(DATAPATH), kw1=3)
         web.web_app.router.add_static.assert_called_once_with(
-            '/prefix/', '/opt/data', kw1=3,
+            '/prefix/', DATAPATH, kw1=3,
         )
 
     def test__create_site(self, *, web, app):
