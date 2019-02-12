@@ -1,4 +1,5 @@
 import pytest
+from faust.types import TP
 from mode.utils.mocks import AsyncMock, Mock
 
 
@@ -68,3 +69,22 @@ class test_AgentManager:
         assert set(many._by_topic['t1']) == {agent1, agent2}
         assert set(many._by_topic['t2']) == {agent2}
         assert set(many._by_topic['t3']) == {agent2}
+
+    @pytest.mark.asyncio
+    async def test_on_rebalance(self, *, many, agent1, agent2):
+        many.update_topic_index()
+        revoked = {TP('t1', 0), TP('t1', 1), TP('t4', 3)}
+        newly_assigned = {TP('t2', 0)}
+        await many.on_rebalance(
+            revoked=revoked,
+            newly_assigned=newly_assigned,
+        )
+        agent1.on_partitions_revoked.assert_called_once_with(
+            {TP('t1', 0), TP('t1', 1)},
+        )
+        agent2.on_partitions_revoked.assert_called_once_with(
+            {TP('t1', 0), TP('t1', 1)},
+        )
+        agent2.on_partitions_assigned.assert_called_once_with(
+            newly_assigned,
+        )

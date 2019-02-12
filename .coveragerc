@@ -29,6 +29,8 @@ omit =
     # not needed
     */faust/utils/functional.py
     */faust/utils/kafka/*
+    */faust/utils/iso8601.py
+    */faust/utils/platforms.py
     */faust/types/*
     */faust/__main__.py
 
@@ -36,10 +38,29 @@ omit =
     */faust/app/router.py
     */faust/windows.py
 
-    # deprecataed
+    # for allison
+    */faust/sensors/datadog.py
+
+    # these have incorrect coverage reported by coverage.py :(
+    */faust/__init__.py
+    */faust/exceptions.py
+    */faust/models/__init__.py
+    */faust/serializers/__init__.py
+    */faust/web/__init__.py
+    */faust/web/exceptions.py
+    */faust/web/cache/__init__.py
+    */faust/web/cache/exceptions.py
+    */faust/web/cache/backends/__init__.py
+    */faust/utils/__init__.py
+
+    # deprecated
     */faust/app/_attached.py
 exclude_lines =
     # Have to re-enable the standard pragma
+    if\ typing\.TYPE_CHECKING\:
+
     pragma: no cover
+
+    if sys.platform == 'win32':
 
     \@abc\.abstractmethod

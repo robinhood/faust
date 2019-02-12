@@ -1,16 +1,24 @@
 import re
+import collections
 import faust
 from faust.agents import Agent
 from faust.app.base import SCAN_AGENT, SCAN_PAGE, SCAN_TASK
 from faust.assignor.leader_assignor import LeaderAssignor, LeaderAssignorT
 from faust.channels import Channel, ChannelT
-from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
+from faust.cli.base import AppCommand
+from faust.exceptions import (
+    AlreadyConfiguredWarning,
+    ConsumerNotStarted,
+    ImproperlyConfigured,
+    SameNode,
+)
 from faust.fixups.base import Fixup
 from faust.sensors.monitor import Monitor
 from faust.serializers import codecs
 from faust.transport.base import Transport
 from faust.transport.conductor import Conductor
 from faust.transport.consumer import Consumer, Fetcher
+from faust.types import TP
 from faust.types.models import ModelT
 from faust.types.settings import Settings
 from mode import Service
@@ -25,6 +33,11 @@ CONFIG_DICT = {
     'stream_buffer_maxsize': 1,
 }
 CONFIG_PATH = 't.unit.app.test_base.ConfigClass'
+
+TP1 = TP('foo', 0)
+TP2 = TP('bar', 1)
+TP3 = TP('baz', 2)
+TP4 = TP('xuz', 3)
 
 
 class ConfigClass:
@@ -71,7 +84,9 @@ async def test_send(
     else:
         expected_key = None
     expected_sender.assert_called_with(
-        expected_topic, expected_key, event.dumps(), partition=None,
+        expected_topic, expected_key, event.dumps(),
+        partition=None,
+        timestamp=None,
     )
 
 
@@ -116,6 +131,208 @@ class test_App:
         app._http_client.close.assert_called_once_with()
         app._http_client = None
         await app.on_stop()
+        app._producer = None
+        await app.on_stop()
+
+    @pytest.mark.asyncio
+    async def test_stop_consumer__wait_empty_enabled(self, *, app):
+        app.conf.stream_wait_empty = True
+        await self.assert_stop_consumer(app)
+        app._consumer.wait_empty.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_stop_consumer__wait_empty_disabled(self, *, app):
+        app.conf.stream_wait_empty = False
+        await self.assert_stop_consumer(app)
+        app.consumer.wait_empty.assert_not_called()
+
+    async def assert_stop_consumer(self, app):
+        consumer = app._consumer = Mock(
+            wait_empty=AsyncMock(),
+        )
+        consumer.assignment.return_value = set()
+        app.tables = Mock()
+        app.flow_control = Mock()
+        app._stop_fetcher = AsyncMock()
+        await app._stop_consumer()
+
+        consumer.assignment.side_effect = ConsumerNotStarted()
+        await app._stop_consumer()
+
+        consumer.assignment.side_effect = None
+        assigned = {TP('foo', 0), TP('bar', 1)}
+        consumer.assignment.return_value = assigned
+
+        await app._stop_consumer()
+        app.tables.on_partitions_revoked.assert_called_once_with(assigned)
+        consumer.stop_flow.assert_called_once_with()
+        app.flow_control.suspend.assert_called_once_with()
+        app._stop_fetcher.assert_called_once_with()
+
+    def test_on_rebalance_start_end(self, *, app):
+        app.tables = Mock()
+        assert not app.rebalancing
+
+        app.on_rebalance_start()
+        assert app.rebalancing
+        app.tables.on_rebalance_start.assert_called_once_with()
+
+        app.on_rebalance_end()
+        assert not app.rebalancing
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_revoked(self, *, app):
+        app.on_partitions_revoked = Mock(send=AsyncMock())
+        consumer = app.consumer = Mock(
+            wait_empty=AsyncMock(),
+            transactions=Mock(
+                on_partitions_revoked=AsyncMock(),
+            ),
+        )
+        app.tables = Mock()
+        app.flow_control = Mock()
+        app._producer = Mock(flush=AsyncMock())
+        revoked = {TP('foo', 0), TP('bar', 1)}
+        ass = app.consumer.assignment.return_value = {TP('foo', 0)}
+
+        app.in_transaction = False
+        await app._on_partitions_revoked(revoked)
+
+        app.on_partitions_revoked.send.assert_called_once_with(revoked)
+        consumer.stop_flow.assert_called_once_with()
+        app.flow_control.suspend.assert_called_once_with()
+        consumer.pause_partitions.assert_called_once_with(ass)
+        app.flow_control.clear.assert_called_once_with()
+        consumer.wait_empty.assert_called_once_with()
+        app._producer.flush.assert_called_once_with()
+        consumer.transactions.on_partitions_revoked.assert_not_called()
+
+        app.in_transaction = True
+        await app._on_partitions_revoked(revoked)
+        consumer.transactions.on_partitions_revoked.assert_called_once_with(
+            revoked)
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_revoked__no_assignment(self, *, app):
+        app.on_partitions_revoked = Mock(send=AsyncMock())
+        app.consumer = Mock()
+        app.tables = Mock()
+        revoked = {TP('foo', 0), TP('bar', 1)}
+        app.consumer.assignment.return_value = set()
+        await app._on_partitions_revoked(revoked)
+
+        app.on_partitions_revoked.send.assert_called_once_with(revoked)
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_revoked__crashes(self, *, app):
+        app.on_partitions_revoked = Mock(send=AsyncMock())
+        app.crash = AsyncMock()
+        app.consumer = Mock()
+        app.tables = Mock()
+        revoked = {TP('foo', 0), TP('bar', 1)}
+        app.consumer.assignment.side_effect = RuntimeError()
+        await app._on_partitions_revoked(revoked)
+
+        app.crash.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_revoked__when_stopped(self, *, app):
+        app._stopped.set()
+        app._on_rebalance_when_stopped = AsyncMock()
+        await app._on_partitions_revoked(set())
+        app._on_rebalance_when_stopped.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_stop_fetcher(self, *, app):
+        app._fetcher = Mock(stop=AsyncMock())
+        await app._stop_fetcher()
+        app._fetcher.stop.assert_called_once_with()
+        app._fetcher.service_reset.assert_called_once_with()
+
+    def test_on_rebalance_when_stopped(self, *, app):
+        app.consumer = Mock()
+        app._on_rebalance_when_stopped()
+        app.consumer.close.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_assigned__when_stopped(self, *, app):
+        app._stopped.set()
+        app._on_rebalance_when_stopped = AsyncMock()
+        await app._on_partitions_assigned(set())
+        app._on_rebalance_when_stopped.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_assigned(self, *, app):
+        app._assignment = {TP('foo', 1), TP('bar', 2)}
+        app.on_partitions_assigned = Mock(send=AsyncMock())
+        app.consumer = Mock(
+            transactions=Mock(
+                on_rebalance=AsyncMock(),
+            ),
+        )
+        app.agents = Mock(
+            on_rebalance=AsyncMock(),
+        )
+        app.tables = Mock(
+            on_rebalance=AsyncMock(),
+        )
+        app.topics = Mock(
+            wait_for_subscriptions=AsyncMock(),
+            on_partitions_assigned=AsyncMock(),
+        )
+
+        assigned = {TP('foo', 1), TP('baz', 3)}
+        revoked = {TP('bar', 2)}
+        newly_assigned = {TP('baz', 3)}
+
+        app.in_transaction = False
+        await app._on_partitions_assigned(assigned)
+
+        app.agents.on_rebalance.assert_called_once_with(
+            revoked, newly_assigned)
+        app.topics.wait_for_subscriptions.assert_called_once_with()
+        app.consumer.pause_partitions.assert_called_once_with(assigned)
+        app.topics.on_partitions_assigned.assert_called_once_with(assigned)
+        app.consumer.transactions.on_rebalance.assert_not_called()
+        app.tables.on_rebalance.assert_called_once_with(
+            assigned, revoked, newly_assigned)
+        app.on_partitions_assigned.send.assert_called_once_with(assigned)
+
+        app.in_transaction = True
+        app._assignment = {TP('foo', 1), TP('bar', 2)}
+        await app._on_partitions_assigned(assigned)
+        app.consumer.transactions.on_rebalance.assert_called_once_with(
+            assigned, revoked, newly_assigned)
+
+    @pytest.mark.asyncio
+    async def test_on_partitions_assigned__crashes(self, *, app):
+        app._assignment = {TP('foo', 1), TP('bar', 2)}
+        app.on_partitions_assigned = Mock(send=AsyncMock())
+        app.consumer = Mock()
+        app.agents = Mock(
+            on_rebalance=AsyncMock(),
+        )
+        app.agents.on_rebalance.coro.side_effect = RuntimeError()
+        app.crash = AsyncMock()
+
+        await app._on_partitions_assigned(set())
+        app.crash.assert_called_once()
+
+    @pytest.mark.parametrize('prev,new,expected_revoked,expected_assigned', [
+        (None, {TP1, TP2}, set(), {TP1, TP2}),
+        (set(), set(), set(), set()),
+        (set(), {TP1, TP2}, set(), {TP1, TP2}),
+        ({TP1, TP2}, {TP1, TP2}, set(), set()),
+        ({TP1, TP2}, {TP1, TP3, TP4}, {TP2}, {TP3, TP4}),
+    ])
+    def test_update_assignment(
+            self, prev, new, expected_revoked, expected_assigned,
+            *, app):
+        app._assignment = prev
+        revoked, newly_assigned = app._update_assignment(new)
+        assert revoked == expected_revoked
+        assert newly_assigned == expected_assigned
+        assert app._assignment == new
 
     def test_worker_init(self, *, app):
         on_worker_init = app.on_worker_init.connect(
@@ -178,6 +395,11 @@ class test_App:
         app.conf.autodiscover = ['a', 'b', 'c']
         assert app._discovery_modules() == ['a', 'b', 'c', 'faust']
 
+    def test_discovery_modules__list_no_origin(self, *, app):
+        app.conf.origin = None
+        app.conf.autodiscover = ['a', 'b', 'c']
+        assert app._discovery_modules() == ['a', 'b', 'c']
+
     def test_discovery_modules__disabled(self, *, app):
         app.conf.origin = 'faust'
         app.conf.autodiscover = False
@@ -189,12 +411,29 @@ class test_App:
         with pytest.raises(ImproperlyConfigured):
             app._discovery_modules()
 
-    def test_new_scanner(self, *, app):
+    def test_discover_ignore(self, *, app):
         with patch('faust.app.base.venusian') as venusian:
-            pat = re.compile('^foo')
-            scanner = app._new_scanner(pat)
-            venusian.Scanner.assert_called_with(ignore=[pat.search])
-            assert scanner is venusian.Scanner()
+            app.conf.origin = 'faust'
+            app.conf.autodiscover = ['re', 'collections']
+            app.discover(categories=['faust.agent'], ignore=['re', 'faust'])
+
+            assert venusian.Scanner().scan.assert_has_calls([
+                call(
+                    re,
+                    categories=('faust.agent', ),
+                    ignore=['re', 'faust'],
+                ),
+                call(
+                    faust,
+                    categories=('faust.agent', ),
+                    ignore=['re', 'faust'],
+                ),
+                call(
+                    collections,
+                    categories=('faust.agent', ),
+                    ignore=['re', 'faust'],
+                ),
+            ], any_order=True) is None
 
     def test_main(self, *, app):
         with patch('faust.cli.faust.cli') as cli:
@@ -267,6 +506,18 @@ class test_App:
             assert foo in app._tasks
 
     @pytest.mark.asyncio
+    async def test_task__on_leader(self, *, app):
+        @app.task(on_leader=True)
+        async def mytask(app):
+            return app
+
+        app.is_leader = Mock(return_value=False)
+        assert await mytask() is None
+
+        app.is_leader = Mock(return_value=True)
+        assert await mytask() is app
+
+    @pytest.mark.asyncio
     async def test_timer(self, *, app):
         did_execute = Mock(name='did_execute')
         app._producer = Mock(name='producer', flush=AsyncMock())
@@ -278,6 +529,66 @@ class test_App:
 
         await foo()
         did_execute.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_timer__sleep_stopped(self, *, app):
+        did_execute = Mock(name='did_execute')
+        app.sleep = AsyncMock()
+
+        def on_sleep(seconds):
+            app._stopped.set()
+
+        app.sleep.coro.side_effect = on_sleep
+
+        @app.timer(0.1)
+        async def foo():
+            did_execute()
+
+        await foo()
+
+    @pytest.mark.asyncio
+    async def test_timer__on_leader_not_leader(self, *, app):
+        did_execute = Mock(name='did_execute')
+        app.is_leader = Mock(return_value=False)
+        app.sleep = AsyncMock()
+
+        def on_sleep(seconds):
+            if app.sleep.call_count >= 3:
+                app._stopped.set()
+        # cannot use list side_effect arg as it causes
+        # StopIteration to be raised.
+        app.sleep.coro.side_effect = on_sleep
+
+        @app.timer(300.0, on_leader=True)
+        async def foo():
+            did_execute()
+
+        await foo()
+
+        assert app.sleep.call_count == 3
+        did_execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_timer__on_leader_is_leader(self, *, app):
+        did_execute = Mock(name='did_execute')
+        app.is_leader = Mock(return_value=True)
+        app.sleep = AsyncMock()
+
+        def on_sleep(seconds):
+            if app.sleep.call_count >= 3:
+                app._stopped.set()
+        # cannot use list side_effect arg as it causes
+        # StopIteration to be raised.
+        app.sleep.coro.side_effect = on_sleep
+
+        @app.timer(300.0, on_leader=True)
+        async def foo(app):
+            did_execute()
+
+        await foo()
+
+        assert app.sleep.call_count == 3
+        assert did_execute.call_count == 2
 
     @pytest.mark.asyncio
     async def test_crontab(self, *, app):
@@ -294,6 +605,50 @@ class test_App:
 
             await foo()
             did_execute.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_crontab__on_leader_not_leader(self, *, app):
+        did_execute = Mock(name='did_execute')
+        with patch('faust.app.base.cron') as cron:
+            cron.secs_for_next.return_value = 0.1
+
+            @app.crontab('* * * * *', on_leader=True)
+            async def foo():
+                did_execute()
+
+        app.is_leader = Mock(return_value=False)
+        app.sleep = AsyncMock()
+
+        def on_sleep(seconds):
+            if app.sleep.call_count >= 3:
+                app._stopped.set()
+        app.sleep.coro.side_effect = on_sleep
+
+        await foo()
+        assert app.sleep.call_count == 3
+        did_execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_crontab__on_leader_is_leader(self, *, app):
+        did_execute = Mock(name='did_execute')
+        with patch('faust.app.base.cron') as cron:
+            cron.secs_for_next.return_value = 0.1
+
+            @app.crontab('* * * * *', on_leader=True)
+            async def foo(app):
+                did_execute()
+
+        app.is_leader = Mock(return_value=True)
+        app.sleep = AsyncMock()
+
+        def on_sleep(seconds):
+            if app.sleep.call_count >= 3:
+                app._stopped.set()
+        app.sleep.coro.side_effect = on_sleep
+
+        await foo()
+        assert app.sleep.call_count == 3
+        assert did_execute.call_count == 2
 
     def test_service(self, *, app):
 
@@ -315,6 +670,10 @@ class test_App:
         table = app.Table('name')
         assert app.tables.data['name'] is table
 
+    def test_SetTable(self, *, app):
+        table = app.SetTable('name')
+        assert app.tables.data['name'] is table
+
     def test_page(self, *, app):
 
         with patch('faust.app.base.venusian') as venusian:
@@ -327,17 +686,87 @@ class test_App:
 
             venusian.attach.assert_called_once_with(view, category=SCAN_PAGE)
 
-    def test_table_route(self, *, app):
+    def test_page__view_class_but_not_view(self, *, app):
+        with pytest.raises(TypeError):
+            @app.page('/foo')
+            class Foo:
+                ...
+
+    @pytest.mark.asyncio
+    async def test_table_route__query_param(self, *, app):
         table = app.Table('foo')
+        view = Mock()
+        request = Mock()
+        app.router.route_req = AsyncMock()
 
         @app.table_route(table, query_param='q')
-        async def view(self, request):
-            ...
+        async def routed(self, request):
+            return 42
+
+        request.query = {'q': 'KEY'}
+
+        ret = await routed(view, request)
+        assert ret is app.router.route_req.coro.return_value
+
+        app.router.route_req.coro.side_effect = SameNode()
+        ret = await routed(view, request)
+        assert ret == 42
+
+    @pytest.mark.asyncio
+    async def test_table_route__match_info(self, *, app):
+        table = app.Table('foo')
+        view = Mock()
+        request = Mock()
+        app.router.route_req = AsyncMock()
+
+        @app.table_route(table, match_info='q')
+        async def routed(self, request):
+            return 42
+
+        request.match_info = {'q': 'KEY'}
+
+        ret = await routed(view, request)
+        assert ret is app.router.route_req.coro.return_value
+
+        app.router.route_req.coro.side_effect = SameNode()
+        ret = await routed(view, request)
+        assert ret == 42
+
+    def test_table_route__compat_shard_param(self, *, app):
+        table = app.Table('foo')
+        with pytest.warns(DeprecationWarning):
+            @app.table_route(table, shard_param='x')
+            async def view(self, request):
+                ...
+
+    def test_table_route__query_param_and_shard_param(self, *, app):
+        table = app.Table('foo')
+        with pytest.raises(TypeError):
+            @app.table_route(table, query_param='q', shard_param='x')
+            async def view(self, request):
+                ...
+
+    def test_table_route__missing_param(self, *, app):
+        table = app.Table('foo')
+        with pytest.raises(TypeError):
+            @app.table_route(table)
+            async def view(self, request):
+                ...
 
     def test_command(self, *, app):
         @app.command()
         async def foo():
             ...
+
+    def test_command__with_base(self, *, app):
+        class MyBase(AppCommand):
+            ...
+
+        @app.command(base=MyBase)
+        async def foo():
+            ...
+
+        assert issubclass(foo, MyBase)
 
     @pytest.mark.asyncio
     async def test_start_client(self, *, app):
@@ -381,6 +810,16 @@ class test_App:
         app.conf.datadir.mkdir.assert_called_once_with(exist_ok=True)
         app.conf.appdir.mkdir.assert_called_once_with(exist_ok=True)
         app.conf.tabledir.mkdir.assert_called_once_with(exist_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_maybe_start_producer(self, *, app):
+        app.in_transaction = True
+        assert await app.maybe_start_producer() is app.consumer.transactions
+
+        app.in_transaction = False
+        app.producer = Mock(maybe_start=AsyncMock())
+        assert await app.maybe_start_producer() is app.producer
+        app.producer.maybe_start.coro.assert_called_once_with()
 
     def test_repr(self, *, app):
         assert repr(app)
@@ -426,6 +865,13 @@ class test_App:
     def test_label(self, *, app):
         assert app.label
 
+    def test_cache(self, *, app):
+        assert app.cache
+        assert app.cache is app._cache
+        obj = object()
+        app.cache = obj
+        assert app.cache is obj
+
     def test_http_client(self, *, app):
         app.conf.HttpClient = Mock(name='HttpClient')
         assert app._http_client is None
@@ -434,6 +880,10 @@ class test_App:
         assert client is app.conf.HttpClient()
         assert app._http_client is client
         assert app.http_client is client
+
+        obj = object()
+        app.http_client = obj
+        assert app.http_client is obj
 
     def test_leader_assignor(self, *, app):
         leader_assignor = app._leader_assignor
@@ -467,6 +917,12 @@ class test_AppConfiguration:
         on_before = app.on_before_configured.connect(Mock(name='on_before'))
         on_config = app.on_configured.connect(Mock(name='on_config'))
         on_after = app.on_after_configured.connect(Mock(name='on_after'))
+
+        app.configured = False
+        app.finalized = False
+        app.config_from_object(config_source)
+        app._conf = None
+        app.finalized = True
 
         app.configured = False
         with pytest.warns(AlreadyConfiguredWarning):
@@ -512,3 +968,13 @@ class test_AppConfiguration:
         with pytest.warns(AlreadyConfiguredWarning):
             with pytest.raises(ImproperlyConfigured):
                 app.config_from_object(config)
+
+    @pytest.mark.asyncio
+    async def test_wait_for_table_recovery__producer_only(self, *, app):
+        app.producer_only = True
+        assert await app._wait_for_table_recovery_completed() is False
+
+    @pytest.mark.asyncio
+    async def test_wait_for_table_recovery__client_only(self, *, app):
+        app.client_only = True
+        assert await app._wait_for_table_recovery_completed() is False

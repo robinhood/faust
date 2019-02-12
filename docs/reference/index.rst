@@ -126,6 +126,7 @@ Transports
     faust.transport.drivers
     faust.transport.drivers.aiokafka
     faust.transport.drivers.memory
+    faust.transport.utils
 
 Assignor
 ========
@@ -151,6 +152,7 @@ Types
     faust.types.channels
     faust.types.codecs
     faust.types.core
+    faust.types.enums
     faust.types.events
     faust.types.fixups
     faust.types.joins

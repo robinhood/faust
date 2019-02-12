@@ -30,6 +30,7 @@ class test_Event:
             key=event.key,
             value=event.value,
             partition=3,
+            timestamp=None,
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -39,6 +40,7 @@ class test_Event:
             event.key,
             event.value,
             3,
+            None,
             'kser',
             'vset',
             callback,
@@ -52,6 +54,7 @@ class test_Event:
         await event.send(
             channel='chan',
             partition=3,
+            timestamp=None,
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -61,6 +64,7 @@ class test_Event:
             event.key,
             event.value,
             3,
+            None,
             'kser',
             'vset',
             callback,
@@ -76,6 +80,7 @@ class test_Event:
             key=event.key,
             value=event.value,
             partition=3,
+            timestamp=1234,
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -85,6 +90,7 @@ class test_Event:
             event.key,
             event.value,
             3,
+            1234,
             'kser',
             'vset',
             callback,
@@ -98,6 +104,7 @@ class test_Event:
         await event.forward(
             channel='chan',
             partition=3,
+            timestamp=None,
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -107,6 +114,7 @@ class test_Event:
             event.message.key,
             event.message.value,
             3,
+            None,
             'kser',
             'vset',
             callback,
@@ -121,6 +129,7 @@ class test_Event:
             key=b'k',
             value=b'v',
             partition=3,
+            timestamp=None,
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -131,11 +140,40 @@ class test_Event:
             b'k',
             b'v',
             partition=3,
+            timestamp=None,
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
         )
         assert result is app._attachments.put()
+
+    @pytest.mark.asyncio
+    async def test__send(self, *, event, app):
+        app._attachments.maybe_put = AsyncMock(name='maybe_put')
+        callback = Mock(name='callback')
+        await event._send(
+            channel='chan',
+            key=b'k',
+            value=b'v',
+            partition=4,
+            timestamp=33.31234,
+            key_serializer='kser',
+            value_serializer='vser',
+            callback=callback,
+            force=True,
+        )
+
+        app._attachments.maybe_put.assert_called_once_with(
+            'chan',
+            b'k',
+            b'v',
+            4,
+            33.31234,
+            'kser',
+            'vser',
+            callback,
+            force=True,
+        )
 
     def test_repr(self, *, event):
         assert repr(event)

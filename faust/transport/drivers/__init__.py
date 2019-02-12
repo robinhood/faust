@@ -7,6 +7,7 @@ __all__ = ['by_name', 'by_url']
 
 TRANSPORTS: FactoryMapping[Type[TransportT]] = FactoryMapping(
     aiokafka='faust.transport.drivers.aiokafka:Transport',
+    confluent='faust.transport.drivers.confluent:Transport',
     kafka='faust.transport.drivers.aiokafka:Transport',
     memory='faust.transport.drivers.memory:Transport',
 )

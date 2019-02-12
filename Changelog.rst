@@ -1,217 +1,103 @@
 .. _changelog:
 
 ==============================
- Change history for Faust 1.4
+ Change history for Faust 1.5
 ==============================
 
 This document contain change notes for bugfix releases in
-the Faust 1.4 series. If you're looking for previous releases,
+the Faust 1.5 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
-.. _version-1.4.3:
+.. _version-1.5.0:
 
-1.4.3
+1.5.0
 =====
 :release-date: TBA
-:release-date: TBA
-
-- **Examples**: Fixed Django example so that it's working properly.
-
-    Contributed by Thibault Serot (:github_user:`thibserot`).
-
-.. _version-1.4.2:
-
-1.4.2
-=====
-:release-date: 2018-12-19 12:49 P.M PDT
-:release-by: Ask Solem (:github_user:`ask`)
+:release-by: TBA
 
 - **Requirements**
 
-    + Now depends on :ref:`Mode 3.0.5 <mode:version-3.0.5>`.
+    - Now depends on :pypi:`robinhood-aiokafka` 0.5.1
 
-        Fixed compatibility with :pypi:`colorlog`,
-        thanks to Ryan Whitten (:github_user:`rwhitten577`).
+- **App**: Sending messages API now supports a ``timestamp`` argument
+  (Issue #276).
 
-    + Now compatible with :pypi:`yarl` 1.3.x.
-
-- **Agent**: Allow ``yield`` in agents that use ``Stream.take`` (Issue #237).
-
-- **App**: Fixed error "future for different event loop" when web views
-           send messages to Kafka at startup.
-
-- **Table**: Table views now return HTTP 503 status code during startup
-  when table routing information not available.
-
-- **App**: New ``App.BootStrategy`` class now decides what services
-  are started when starting the app.
-
-- Documentation fixes by:
-
-    - Robert Krzyzanowski (:github_user:`robertzk`).
-
-.. _version-1.4.1:
-
-1.4.1
-=====
-:release-date: 2018-12-10 4:49 P.M PDT
-:release-by: Ask Solem (:github_user:`ask`)
-
-- **Web**: Disable :pypi:`aiohttp` access logs for performance.
-
-.. _version-1.4.0:
-
-1.4.0
-=====
-:release-date: 2018-12-07 4:29 P.M PDT
-:release-by: Ask Solem (:github_user:`ask`)
-
-- **Requirements**
-
-    + Now depends on :ref:`Mode 3.0 <mode:version-3.0.0>`.
-
-- **Worker**: The Kafka consumer is now running in a separate thread.
-
-    The Kafka heartbeat background corutine sends heartbeats every 3.0 seconds,
-    and if those are missed rebalancing occurs.
-
-    This patch moves the :pypi:`aiokafka` library inside a separate thread,
-    this way it can send responsive heartbeats and operate even when agents
-    call blocking functions such as ``time.sleep(60)`` for every event.
-
-- **Table**: Experimental support for tables where values are sets.
-
-    The new ``app.SetTable`` constructor creates a table where values are sets.
-    Example uses include keeping track of users at a location:
-    ``table[location].add(user_id)``.
-
-    Supports all set operations: ``add``, ``discard``, ``intersection``,
-    ``union``, ``symmetric_difference``, ``difference``, etc.
-
-    Sets are kept in memory for fast operation, and this way we also avoid
-    the overhead of constantly serializing/deserializing the data to RocksDB.
-    Instead we periodically flush changes to RocksDB, and populate the sets
-    from disk at worker startup/table recovery.
-
-- **App**: Adds support for crontab tasks.
-
-    You can now define periodic tasks using cron-syntax:
+    When sending messages you can now specify the timestamp
+    of the message:
 
     .. sourcecode:: python
 
-        @app.crontab('*/1 * * * *', on_leader=True)
-        async def publish_every_minute():
-            print('-- We should send a message every minute --')
-            print(f'Sending message at: {datetime.now()}')
-            msg = Model(random=round(random(), 2))
-            await tz_unaware_topic.send(value=msg).
+        await topic.send(key=key, value=value, timestamp=custom_timestamp)
 
-    See :ref:`tasks-cron-jobs` for more information.
+    If no timestamp is provided the current time will be used
+    (:func:`time.time`).
 
-    Contributed by Omar Rayward (:github_user:`omarrayward`).
+    Contributed by Miha Troha (:github_user:`mihatroha`).
 
-- **App**: Providing multiple URLs to the :setting:`broker` setting
-  now works as expected.
+- **App**: New :setting:`consumer_auto_offset_reset` setting (Issue #267).
 
-    To facilitiate this change ``app.conf.broker`` is now
-    ``List[URL]`` instead of a single :class:`~yarl.URL`.
+    Contributed by Ryan Whitten (:github_user:`rwhitten577`).
 
-- **App**: New :setting:`timezone` setting.
+- **App**: Web server is no longer running in a separate thread by default.
 
-    This setting is currently used as the default timezone for crontab tasks.
+    Running the web server in a separate thread is beneficial as it
+    will not be affected by backpressue in the main thread event loop,
+    but it also makes programming harder when it cannot share the loop
+    of the parent.
 
-- **App**: New :setting:`broker_request_timeout` setting.
+    If you want to run the web server in a separate thread, use the new
+    :setting:`web_in_thread` setting.
 
-    Contributed by Martin Maillard (:github_user:`martinmaillard`).
-
-- **App**: New :setting:`broker_max_poll_records` setting.
-
-    Contributed by Alexander Oberegger (:github_user:`aoberegg`).
-
-- **App**: New :setting:`consumer_max_fetch_size` setting.
-
-    Contributed by Matthew Stump (:github_user:`mstump`).
-
-- **App**: New :setting:`producer_request_timeout` setting.
-
-    Controls when producer batch requests expire, and when we give up
-    sending batches as producer requests fail.
-
-    This setting has been increased to 20 minutes by default.
-
-- **Web**: :pypi:`aiohttp` driver now uses ``AppRunner`` to start the web
+- **App**: New :setting:`web_in_thread` controls separate thread for web
   server.
 
-    Contributed by Mattias Karlsson (:github_user:`stevespark`).
+- **App**: New :setting:`logging_config` setting.
 
-- **Agent**: Fixed RPC example (Issue #155).
+- **App**: Autodiscovery now ignores modules matching "*test*" (Issue #242).
 
-    Contributed by Mattias Karlsson (:github_user:`stevespark`).
+    Contributed by Chris Seto (:github_user:`chrisseto`).
 
-- **Table**: Added support for iterating over windowed tables.
+- **Agent**: Fixes crash when worker assigned no partitions and having
+  the ``isolated_partitions`` flag enabled (Issue #181).
 
-    See :ref:`windowed-table-iter`.
+- **Table**: Fixes :exc:`KeyError` crash for already removed key.
 
-    This requires us to keep a second table for the key index, so support
-    for windowed table iteration requires you to set a ``use_index=True``
-    setting for the table:
+- **Table**: WindowRange is no longer a :class:`~typing.NamedTuple`.
 
-    .. sourcecode:: python
+    This will make it easier to avoid hashing mistakes such that
+    window ranges are never represented as both normal tuple and named tuple
+    variants in the table.
 
-        windowed_table = app.Table(
-            'name',
-            default=int,
-        ).hopping(10, 5, expires=timedelta(minutes=10), key_index=True)
+- **Transports**: Adds experimental ``confluent://`` transport.
 
-    After enabling the ``key_index=True`` setting you may iterate over
-    keys/items/values in the table:
+    This transport uses the :pypi:`confluent-kafka` client.
 
-    .. sourcecode:: python
+    It is not feature complete, and notably is missing sticky partition
+    assignment so you should not use this transport for tables.
 
-        for key in windowed_table.keys():
-            print(key)
+    .. warning::
 
-        for key, value in windowed_table.items():
-            print(key, value)
+        The ``confluent://`` transport is not recommended for production
+        use at this time as it has several limitations.
 
-        for value in windowed_table.values():
-            print(key, value)
+- **Stream**: Fixed deadlock when using ``Stream.take`` to buffer events
+  (Issue #262).
 
-    The ``items`` and ``values`` views can also select time-relative
-    iteration:
+    Contributed by Nimi Wariboko Jr (:github_user:`nemosupremo`).
 
-    .. sourcecode:: python
+- **Stream**: Fixed acking behavior of ``Stream.take`` (Issue #266).
 
-        for key, value in windowed_table.items().delta(30):
-            print(key, value)
-        for key, value in windowed_table.items().now():
-            print(key, value)
-        for key, value in windowed_table.items().current():
-            print(key, value)
+    When ``take`` is buffering the events should be acked after processing
+    the buffer is complete, instead it was acking when adding into the buffer.
 
-- **Table**: Now raises error if source topic has mismatching
-   number of partitions with changelog topic. (Issue #137).
+    Fix contributed by Amit Ripshtos (:github_user:`amitripshtos`).
 
-- **Table**: Allow using raw serializer in tables.
+- **Typing**: Added type stubs for ``faust.web.Request``.
 
-    You can now control the serialization format for changelog tables,
-    using the ``key_serializer`` and ``value_serializer`` keyword
-    arguments to ``app.Table(...)``.
+- **Typing**: Fixed type stubs for ``@app.agent`` decorator.
 
-    Contributed by Matthias Wutte (:github_user:`wuttem`).
+- **Documentation**: Improvements by:
 
-- **Worker**: Fixed spinner output at shutdown.
-
-- **Models**: ``isodates`` option now correctly parses
-  timezones without separator such as `-0500`.
-
-- **Testing**: Calling ``AgentTestWrapper.put`` now propagates exceptions
-  raised in the agent.
-
-- **App**: Default value for :setting:`stream_recovery_delay` is now 3.0
-  seconds.
-
-- **CLI**: New command "clean_versions" used to delete old version directories
-  (Issue #68).
-
-- **Web**: Added view decorators: ``takes_model`` and ``gives_model``.
+    + Amit Rip (:github_user:`amitripshtos`).
+    + Sebastian Roll (:github_user:`SebastianRoll`).
+    + Mousse (:github_user:`zibuyu1995`).

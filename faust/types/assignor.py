@@ -33,6 +33,10 @@ class PartitionAssignorT(abc.ABC):
         ...
 
     @abc.abstractmethod
+    def group_for_topic(self, topic: str) -> int:
+        ...
+
+    @abc.abstractmethod
     def assigned_standbys(self) -> Set[TP]:
         ...
 

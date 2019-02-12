@@ -1,11 +1,12 @@
 """Web driver using :pypi:`aiohttp`."""
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, cast
+from typing import Any, Callable, Mapping, Optional, Union, cast
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import (
     AppRunner,
     Application,
+    BaseSite,
     Request,
     Response,
     TCPSite,
@@ -59,10 +60,16 @@ class Web(base.Web):
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[Service] = None
 
+    _transport_handlers: Mapping[str, Callable[[], BaseSite]]
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self.web_app: Application = Application()
         self._runner: AppRunner = AppRunner(self.web_app, access_log=None)
+        self._transport_handlers = {
+            'tcp': self._new_transport_tcp,
+            'unix': self._new_transport_unix,
+        }
 
     async def on_start(self) -> None:
         self.init_server()
@@ -141,26 +148,29 @@ class Web(base.Web):
             resp.body,
         )
 
-    def _create_site(self) -> Optional[Union[TCPSite, UnixSite]]:
-        site = None
-        transport = self.app.conf.web_transport.scheme
+    def _create_site(self) -> BaseSite:
+        return self._new_transport(self.app.conf.web_transport.scheme)
 
-        if transport == 'tcp':
-            site = TCPSite(
-                self._runner,
-                self.app.conf.web_bind,
-                self.app.conf.web_port)
-        elif transport == 'unix':
-            site = UnixSite(self._runner, self.app.conf.web_transport.path)
+    def _new_transport(self, type_: str) -> BaseSite:
+        return self._transport_handlers[type_]()
 
-        return site
+    def _new_transport_tcp(self) -> BaseSite:
+        return TCPSite(
+            self._runner,
+            self.app.conf.web_bind,
+            self.app.conf.web_port,
+        )
+
+    def _new_transport_unix(self) -> BaseSite:
+        return UnixSite(
+            self._runner,
+            self.app.conf.web_transport.path,
+        )
 
     async def start_server(self) -> None:
         await self._runner.setup()
         site = self._create_site()
-
-        if site is not None:
-            await site.start()
+        await site.start()
 
     async def stop_server(self) -> None:
         if self._runner:

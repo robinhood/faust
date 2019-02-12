@@ -1,6 +1,5 @@
 from mode import Service, label
 from mode.utils.mocks import AsyncMock, Mock, call
-from faust.exceptions import ImproperlyConfigured
 import pytest
 
 
@@ -18,6 +17,9 @@ class test_AppService:
         app.client_only = False
         assert app.on_init_dependencies() == app.boot_strategy.server()
 
+        app.producer_only = True
+        assert app.on_init_dependencies() == app.boot_strategy.producer_only()
+
     def test_components_client(self, *, app):
         assert list(app.boot_strategy.client_only()) == [
             app.producer,
@@ -25,6 +27,13 @@ class test_AppService:
             app._reply_consumer,
             app.topics,
             app._fetcher,
+        ]
+
+    def test_components_producer_only(self, *, app):
+        assert list(app.boot_strategy.producer_only()) == [
+            app.cache,
+            app.web,
+            app.producer,
         ]
 
     def test_components_server(self, *, app):
@@ -53,16 +62,6 @@ class test_AppService:
         await app.on_first_start()
 
         app._create_directories.assert_called_once_with()
-
-    @pytest.mark.asyncio
-    async def test_on_first_start__no_agents_raises_error(self, *, app):
-        app.agents = {}
-        with pytest.raises(ImproperlyConfigured):
-            await app.on_first_start()
-
-        # but producer_only no agents is fine
-        app.producer_only = True
-        await app.on_first_start()
 
     @pytest.mark.asyncio
     async def test_on_start(self, *, app):

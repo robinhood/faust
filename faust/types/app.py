@@ -16,6 +16,7 @@ from typing import (
     Set,
     Type,
     Union,
+    no_type_check,
 )
 
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
@@ -129,6 +130,10 @@ class AppT(ServiceT):
     # This flag is set by App._on_partitions_assigned
     unassigned: bool = False
 
+    #: Set to true when app is executing within a worker instance.
+    # This flag is set in faust/worker.py
+    in_worker: bool = False
+
     on_configured: SyncSignal[Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()
     on_after_configured: SyncSignal = SyncSignal()
@@ -224,6 +229,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
+    @no_type_check
     def task(self, fun: TaskArg) -> Callable:
         ...
 
@@ -295,6 +301,7 @@ class AppT(ServiceT):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -324,6 +331,14 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     def on_webserver_init(self, web: Web) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_start(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_rebalance_end(self) -> None:
         ...
 
     @property
@@ -417,4 +432,9 @@ class AppT(ServiceT):
 
     @web.setter
     def web(self, web: Web) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def in_transaction(self) -> bool:
         ...

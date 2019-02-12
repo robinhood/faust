@@ -34,6 +34,19 @@ class TableManager(Service, TableManagerT):
         self._changelogs = {}
         self._recovery_started = asyncio.Event(loop=self.loop)
 
+        self.actives_ready = False
+        self.standbys_ready = False
+
+    def on_rebalance_start(self) -> None:
+        self.actives_ready = False
+        self.standbys_ready = False
+
+    def on_actives_ready(self) -> None:
+        self.actives_ready = True
+
+    def on_standbys_ready(self) -> None:
+        self.standbys_ready = True
+
     def __hash__(self) -> int:
         return object.__hash__(self)
 

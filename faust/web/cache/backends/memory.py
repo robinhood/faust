@@ -1,6 +1,7 @@
+import sys
+import time
 from contextlib import suppress
-from time import monotonic
-from typing import Dict, Generic, Optional, TypeVar
+from typing import Callable, Dict, Generic, Optional, TypeVar
 
 from mode.utils.compat import want_bytes
 
@@ -8,6 +9,12 @@ from . import base
 
 KT = TypeVar('KT')
 VT = TypeVar('VT')
+
+TIME_MONOTONIC: Callable[[], float]
+if sys.platform == 'win32':
+    TIME_MONOTONIC = time.time
+else:
+    TIME_MONOTONIC = time.monotonic
 
 
 class CacheStorage(Generic[KT, VT]):
@@ -20,7 +27,7 @@ class CacheStorage(Generic[KT, VT]):
     def get(self, key: KT) -> Optional[VT]:
         with suppress(KeyError):
             expires = self._expires[key]
-            now = monotonic()
+            now = TIME_MONOTONIC()
             if now - self._time_index[key] > expires:
                 self.delete(key)
                 return None
@@ -40,12 +47,13 @@ class CacheStorage(Generic[KT, VT]):
 
     def setex(self, key: KT, timeout: float, value: VT) -> None:
         self._expires[key] = timeout
-        self._time_index[key] = monotonic()
+        self._time_index[key] = TIME_MONOTONIC()
         self.set(key, value)
 
     def ttl(self, key: KT) -> Optional[float]:
         try:
-            return self._expires[key] - monotonic() - self._time_index[key]
+            return (
+                self._expires[key] - TIME_MONOTONIC() - self._time_index[key])
         except KeyError:
             return None
 

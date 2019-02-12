@@ -53,6 +53,27 @@ the semi-comma:
 
     aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
 
+Available Transports
+~~~~~~~~~~~~~~~~~~~~
+
+- ``kafka://``
+
+    Alias to ``aiokafka://``
+
+- ``aiokafka://``
+
+    The recommended transport using the :pypi:`aiokafka` client.
+
+    Limitations: None
+
+- ``confluent://``
+
+    Experimental transport using the :pypi:`confluent-kafka` client.
+
+    Limitations: Does not do sticky partition assignment (not
+        suitable for tables), and do not create any necessary internal
+        topics (you have to create them manually).
+
 .. setting:: ssl_context
 
 ``ssl_context``
@@ -107,6 +128,27 @@ preferred.
 
 Optional backend used for memcached-style caching.
 URL can be: ``redis://host``, ``rediscluster://host``, or ``memory://``.
+
+.. setting:: processing_guarantee
+
+``processing_guarantee``
+------------------------
+
+.. versionadded:: 1.5
+
+:type: ``str``
+:default: ``at_least_once``
+
+The processing guarantee that should be used.
+
+Possible values are "at_least_once" (default) and "exactly_once".
+Note that if exactly-once processing is enabled consumers are configured with
+``isolation.level="read_committed"`` and producers are configured with
+``retries=Integer.MAX_VALUE`` and ``enable.idempotence=true`` per default.
+Note that by default exactly-once processing requires a cluster of at least
+three brokers what is the recommended setting for production.
+For development you can change this, by adjusting broker setting
+``transaction.state.log.replication.factor`` to the number of brokers you want to use.
 
 .. setting:: autodiscover
 
@@ -551,6 +593,20 @@ Advanced Consumer Settings
 
 The maximum amount of data per-partition the server will return. This size
 must be at least as large as the maximum message size.
+
+.. setting:: consumer_auto_offset_reset
+
+``consumer_auto_offset_reset``
+------------------------------
+
+.. versionadded:: 1.5
+
+:type: :class:`string`
+:default: ``earliest``
+
+Where the consumer should start reading messages from when there is no initial
+offset, or the stored offset no longer exists, e.g. when starting a new
+consumer for the first time. Options include 'earliest', 'latest', 'none'.
 
 .. _settings-producer:
 

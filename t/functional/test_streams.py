@@ -4,6 +4,7 @@ from copy import copy
 import pytest
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import maybe_forward
+from mode import label
 from mode.utils.aiter import aiter, anext
 from mode.utils.mocks import AsyncMock, Mock
 
@@ -32,7 +33,7 @@ def _prepare_app(app):
 
 
 @pytest.mark.asyncio
-async def xxx_simple(app):
+async def test_simple(app):
     stream = new_stream(app)
     stream_it = aiter(stream)
     assert await channel_empty(stream.channel)
@@ -42,7 +43,7 @@ async def xxx_simple(app):
 
 
 @pytest.mark.asyncio
-async def xxx_async_iterator(app):
+async def test_async_iterator(app):
     stream = new_stream(app)
     for i in range(100):
         await stream.channel.deliver(message(key=i, value=i))
@@ -56,7 +57,7 @@ async def xxx_async_iterator(app):
 
 
 @pytest.mark.asyncio
-async def xxx_throw(app):
+async def test_throw(app):
     stream = new_stream(app)
     streamit = aiter(stream)
     await stream.channel.deliver(message(key='key', value='val'))
@@ -67,7 +68,7 @@ async def xxx_throw(app):
 
 
 @pytest.mark.asyncio
-async def xxx_enumerate(app):
+async def test_enumerate(app):
     stream = new_stream(app)
     for i in range(100):
         await stream.channel.deliver(message(key=i, value=i * 4))
@@ -81,7 +82,7 @@ async def xxx_enumerate(app):
 
 
 @pytest.mark.asyncio
-async def xxx_items(app):
+async def test_items(app):
     stream = new_stream(app)
     for i in range(100):
         await stream.channel.deliver(message(key=i, value=i * 2))
@@ -96,12 +97,11 @@ async def xxx_items(app):
 
 
 @pytest.mark.asyncio
-async def xxx_through(app):
+async def test_through(app):
     app._attachments.enabled = False
     orig = new_stream(app)
     channel = app.channel(loop=app.loop)
     stream = orig.through(channel)
-
     for i in range(100):
         await orig.channel.deliver(message(key=i, value=i * 2))
 
@@ -122,7 +122,7 @@ async def xxx_through(app):
     assert_events_acked(events)
 
 
-def xxx_through_with_concurrency_index(app):
+def test_through_with_concurrency_index(app):
     s = new_stream(app)
     s.concurrency_index = 0
 
@@ -130,14 +130,14 @@ def xxx_through_with_concurrency_index(app):
         s.through('foo')
 
 
-def xxx_through_twice(app):
+def test_through_twice(app):
     s = new_topic_stream(app)
     s.through('bar')
     with pytest.raises(ImproperlyConfigured):
         s.through('baz')
 
 
-def xxx_group_by_with_concurrency_index(app):
+def test_group_by_with_concurrency_index(app):
     s = new_stream(app)
     s.concurrency_index = 0
 
@@ -145,13 +145,13 @@ def xxx_group_by_with_concurrency_index(app):
         s.group_by(lambda s: s.foo)
 
 
-def xxx_group_by_callback_must_have_name(app):
+def test_group_by_callback_must_have_name(app):
     s = new_topic_stream(app)
     with pytest.raises(TypeError):
         s.group_by(lambda s: s.foo)
 
 
-def xxx_group_by_twice(app):
+def test_group_by_twice(app):
     s = new_topic_stream(app)
     s.group_by(lambda s: s.foo, name='foo')
     with pytest.raises(ImproperlyConfigured):
@@ -159,7 +159,7 @@ def xxx_group_by_twice(app):
 
 
 @pytest.mark.asyncio
-async def xxx_stream_over_iterable(app):
+async def test_stream_over_iterable(app):
     s = app.stream([0, 1, 2, 3, 4, 5])
     i = 0
     async for value in s:
@@ -168,7 +168,7 @@ async def xxx_stream_over_iterable(app):
 
 
 @pytest.mark.asyncio
-async def xxx_events(app):
+async def test_events(app):
     stream = new_stream(app)
     for i in range(100):
         await stream.channel.deliver(message(key=i, value=i * 2))
@@ -184,7 +184,7 @@ async def xxx_events(app):
             break
     await stream.stop()
     await asyncio.sleep(0)  # have to sleep twice here for all events to be
-    await asyncio.sleep(0)  # acked for some reason
+    await asyncio.sleep(0.5)  # acked for some reason
     assert_events_acked(events)
 
 
@@ -201,7 +201,7 @@ def assert_events_acked(events):
         raise
 
 
-class xxx_chained_streams:
+class test_chained_streams:
 
     def _chain(self, app):
         root = new_stream(app)
@@ -330,11 +330,16 @@ async def test_ack(app):
     s = new_stream(app)
     assert s.get_active_stream() is s
     await s.channel.send(value=1)
+    await s.channel.send(value=2)
     event = None
+    i = 1
     async for value in s:
-        assert value == 1
-        event = mock_stream_event_ack(s)
-        break
+        assert value == i
+        i += 1
+        last_to_ack = value == 2
+        event = mock_stream_event_ack(s, return_value=last_to_ack)
+        if value == 2:
+            break
     assert event
     # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
     # need two sleeps on Python 3.6.7 + 3.7.1 :-/
@@ -415,8 +420,8 @@ async def test_maybe_forward__when_concrete_value(app):
     s.channel.send.assert_called_once_with(value='foo')
 
 
-def mock_stream_event_ack(stream):
-    return mock_event_ack(stream.current_event)
+def mock_stream_event_ack(stream, return_value=False):
+    return mock_event_ack(stream.current_event, return_value=return_value)
 
 
 def mock_event_ack(event, return_value=False):
@@ -447,6 +452,10 @@ def test_repr(app):
 
 def test_repr__combined(app):
     assert repr(new_stream(app) & new_stream(app))
+
+
+def test_label(app):
+    assert label(new_stream(app))
 
 
 def test_iter_raises(app):
@@ -480,3 +489,25 @@ async def test_stop_stops_related_streams(app):
     assert s1.should_stop
     assert s2.should_stop
     assert s3.should_stop
+
+
+@pytest.mark.asyncio
+async def test_take(app):
+    async with new_stream(app) as s:
+        assert s.enable_acks is True
+        await s.channel.send(value=1)
+        event = None
+        async for value in s.take(1, within=1):
+            assert value == [1]
+            assert s.enable_acks is False
+            event = mock_stream_event_ack(s)
+            break
+
+        assert event
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+
+        event.ack.assert_called_with()
+        assert s.enable_acks is True

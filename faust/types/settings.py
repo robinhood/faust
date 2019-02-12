@@ -33,6 +33,7 @@ from ._env import DATADIR, WEB_BIND, WEB_PORT, WEB_TRANSPORT
 from .agents import AgentT
 from .assignor import LeaderAssignorT, PartitionAssignorT
 from .codecs import CodecArg
+from .enums import ProcessingGuarantee
 from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
@@ -95,6 +96,8 @@ CACHE_URL = 'memory://'
 
 #: Web driver URL, used as default for setting:`web`.
 WEB_URL = 'aiohttp://'
+
+PROCESSING_GUARANTEE = ProcessingGuarantee.AT_LEAST_ONCE
 
 #: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
@@ -209,6 +212,12 @@ STREAM_PUBLISH_ON_COMMIT = False
 #: Used as the default value for :setting:`max_fetch_size`.
 CONSUMER_MAX_FETCH_SIZE = 4 * 1024 ** 2
 
+#: Where the consumer should start reading offsets when there is no initial
+#: offset, or the stored offset no longer exists, e.g. when starting a new
+#: consumer for the first time. Options include 'earliest', 'latest', 'none'.
+#: Used as default value for :setting:`consumer_auto_offset_reset`.
+CONSUMER_AUTO_OFFSET_RESET = 'earliest'
+
 #: Minimum time to batch before sending out messages from the producer.
 #: Used as the default value for :setting:`linger_ms`.
 PRODUCER_LINGER_MS = 0
@@ -294,6 +303,7 @@ class Settings(abc.ABC):
     producer_acks: int = PRODUCER_ACKS
     producer_max_request_size: int = PRODUCER_MAX_REQUEST_SIZE
     consumer_max_fetch_size: int = CONSUMER_MAX_FETCH_SIZE
+    consumer_auto_offset_reset: str = CONSUMER_AUTO_OFFSET_RESET
     producer_compression_type: Optional[str] = PRODUCER_COMPRESSION_TYPE
     timezone: tzinfo = TIMEZONE
     web_enabled: bool
@@ -315,6 +325,7 @@ class Settings(abc.ABC):
     _canonical_url: URL = cast(URL, None)
     _datadir: Path
     _tabledir: Path
+    _processing_guarantee: ProcessingGuarantee = PROCESSING_GUARANTEE
     _agent_supervisor: Type[SupervisorStrategyT]
     _broker_request_timeout: float = BROKER_REQUEST_TIMEOUT
     _broker_session_timeout: float = BROKER_SESSION_TIMEOUT
@@ -391,6 +402,7 @@ class Settings(abc.ABC):
             cache: Union[str, URL] = None,
             web: Union[str, URL] = None,
             web_enabled: bool = True,
+            processing_guarantee: Union[str, ProcessingGuarantee] = None,
             timezone: tzinfo = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
@@ -425,6 +437,7 @@ class Settings(abc.ABC):
             producer_partitioner: SymbolArg[PartitionerT] = None,
             producer_request_timeout: Seconds = None,
             consumer_max_fetch_size: int = None,
+            consumer_auto_offset_reset: str = None,
             web_bind: str = None,
             web_port: int = None,
             web_host: str = None,
@@ -460,6 +473,8 @@ class Settings(abc.ABC):
         self.cache = self._first_not_none(cache, CACHE_URL)
         self.web = self._first_not_none(web, WEB_URL)
         self.web_enabled = web_enabled
+        if processing_guarantee is not None:
+            self.processing_guarantee = processing_guarantee
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
@@ -536,6 +551,8 @@ class Settings(abc.ABC):
             self.producer_request_timeout = producer_request_timeout
         if consumer_max_fetch_size is not None:
             self.consumer_max_fetch_size = consumer_max_fetch_size
+        if consumer_auto_offset_reset is not None:
+            self.consumer_auto_offset_reset = consumer_auto_offset_reset
         if web_bind is not None:
             self.web_bind = web_bind
         if web_port is not None:
@@ -717,6 +734,15 @@ class Settings(abc.ABC):
     @tabledir.setter
     def tabledir(self, tabledir: Union[Path, str]) -> None:
         self._tabledir = self._prepare_tabledir(tabledir)
+
+    @property
+    def processing_guarantee(self) -> ProcessingGuarantee:
+        return self._processing_guarantee
+
+    @processing_guarantee.setter
+    def processing_guarantee(self,
+                             value: Union[str, ProcessingGuarantee]) -> None:
+        self._processing_guarantee = ProcessingGuarantee(value)
 
     @property
     def broker_request_timeout(self) -> float:

@@ -238,54 +238,53 @@ class Web(Service):
         return self.app.conf.canonical_url
 
 
-class Request:
+class Request(abc.ABC):
     """HTTP Request."""
 
-    content_type: str
-    charset: str
-    content_length: Optional[int]
-    host: str
-    headers: MutableMapping[str, Any]
     method: str
-    scheme: str
-    secure: bool
-    remote: str
-    path_qs: str
-    path: str
-    raw_path: str
     url: URL
     rel_url: URL
     query_string: str
     keep_alive: bool
     body_exists: bool
 
+    user: Any
+
     if_modified_since: Optional[datetime]
     if_unmodified_since: Optional[datetime]
     if_range: Optional[datetime]
 
+    @abc.abstractmethod
     def can_read_body(self) -> bool:
         ...
 
+    @abc.abstractmethod
     async def read(self) -> bytes:
         ...
 
+    @abc.abstractmethod
     async def text(self) -> str:
         ...
 
+    @abc.abstractmethod
     async def json(self) -> Any:
         ...
 
+    @abc.abstractmethod
     async def post(self) -> Mapping[str, str]:
         ...
 
     @property
-    def match_info(self) -> MutableMapping[str, str]:
+    @abc.abstractmethod
+    def match_info(self) -> Mapping[str, str]:
         ...
 
     @property
-    def query(self) -> MutableMapping[str, str]:
+    @abc.abstractmethod
+    def query(self) -> Mapping[str, str]:
         ...
 
     @property
+    @abc.abstractmethod
     def cookies(self) -> Mapping[str, Any]:
         ...

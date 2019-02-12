@@ -3,7 +3,12 @@ import asyncio
 import pytest
 from faust import App, Channel, Record
 from faust.agents.actor import Actor
-from faust.agents.models import ReqRepRequest, ReqRepResponse
+from faust.agents.models import (
+    ModelReqRepRequest,
+    ModelReqRepResponse,
+    ReqRepRequest,
+    ReqRepResponse,
+)
 from faust.agents.replies import ReplyConsumer
 from faust.events import Event
 from faust.exceptions import ImproperlyConfigured
@@ -212,6 +217,13 @@ class test_Agent:
             @app.agent(isolated_partitions=True, concurrency=100)
             async def foo():
                 ...
+
+    def test_agent_call_reuse_stream(self, *, agent, app):
+        stream = app.stream('foo')
+        stream.concurrency_index = 1
+        stream.active_partitions = {1, 2}
+        actor = agent(stream=stream, index=1, active_partitions={1, 2})
+        assert actor.stream is stream
 
     def test_cancel(self, *, agent):
         actor1 = Mock(name='actor1')
@@ -546,7 +558,7 @@ class test_Agent:
         agent.send = AsyncMock(name='send')
         await agent.cast('value', key='key', partition=303)
         agent.send.assert_called_once_with(
-            key='key', value='value', partition=303)
+            key='key', value='value', partition=303, timestamp=None)
 
     @pytest.mark.asyncio
     async def test_ask(self, *, agent):
@@ -577,6 +589,7 @@ class test_Agent:
             reply_to=agent.app.conf.reply_to,
             correlation_id='correlation_id',
             force=True,
+            timestamp=None,
         )
         agent.app._reply_consumer.add.assert_called_once_with(
             pp.correlation_id, pp)
@@ -589,6 +602,7 @@ class test_Agent:
             value='value',
             key='key',
             partition=303,
+            timestamp=None,
             reply_to='reply_to',
             correlation_id='correlation_id',
             force=True,
@@ -597,7 +611,12 @@ class test_Agent:
         agent._create_req.assert_called_once_with(
             'key', 'value', 'reply_to', 'correlation_id')
         agent.channel.send.assert_called_once_with(
-            key='key', value=agent._create_req(), partition=303, force=True)
+            key='key',
+            value=agent._create_req(),
+            partition=303,
+            timestamp=None,
+            force=True,
+        )
 
         assert res.reply_to == agent._create_req().reply_to
         assert res.correlation_id == agent._create_req().correlation_id
@@ -615,6 +634,35 @@ class test_Agent:
             assert reqrep.reply_to == agent._get_strtopic()
             assert reqrep.correlation_id == 'vvv'
 
+    def test_create_req__model(self, *, agent):
+        agent._get_strtopic = Mock(name='_get_strtopic')
+        with patch('faust.agents.agent.uuid4') as uuid4:
+            uuid4.return_value = 'vvv'
+            value = Word('foo')
+            reqrep = agent._create_req(
+                key=b'key', value=value, reply_to='reply_to')
+            assert isinstance(reqrep, ReqRepRequest)
+
+            agent._get_strtopic.assert_called_once_with('reply_to')
+            assert isinstance(reqrep, ModelReqRepRequest)
+
+            assert reqrep.value is value
+            assert reqrep.reply_to == agent._get_strtopic()
+            assert reqrep.correlation_id == 'vvv'
+
+    def test_create_req__requires_reply_to(self, *, agent):
+        with pytest.raises(TypeError):
+            agent._create_req(
+                key=b'key', value=b'value', reply_to=None,
+            )
+
+    @pytest.mark.parametrize('value,expected_class', [
+        (b'value', ReqRepResponse),
+        (Word('foo'), ModelReqRepResponse),
+    ])
+    def test_response_class(self, value, expected_class, *, agent):
+        assert agent._response_class(value) is expected_class
+
     @pytest.mark.asyncio
     async def test_send(self, *, agent):
         agent.channel = Mock(
@@ -629,6 +677,7 @@ class test_Agent:
             key=b'key',
             value=b'value',
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -645,6 +694,7 @@ class test_Agent:
             key=b'key',
             value=agent._create_req(),
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             force=True,
@@ -666,6 +716,7 @@ class test_Agent:
             key=b'key',
             value=b'value',
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -680,6 +731,7 @@ class test_Agent:
             key=b'key',
             value=b'value',
             partition=303,
+            timestamp=None,
             key_serializer='raw',
             value_serializer='raw',
             force=True,

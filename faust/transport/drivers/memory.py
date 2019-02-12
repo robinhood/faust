@@ -60,12 +60,11 @@ class Consumer(base.Consumer):
     async def subscribe(self, topics: Iterable[str]) -> None:
         await cast(Transport, self.transport).subscribe(topics)
 
-    async def getmany(self, *partitions: TP,
+    async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
         transport = cast(Transport, self.transport)
         max_per_partition = 100
-        if not partitions:
-            partitions = tuple(self.assignment())
+        partitions = tuple(self.assignment())
 
         if not partitions:
             if await self.wait_for_stopped(transport._subscription_ready):
@@ -91,8 +90,8 @@ class Consumer(base.Consumer):
     async def perform_seek(self) -> None:
         ...
 
-    async def _commit(self, offsets: Mapping[TP, Tuple[int, str]]) -> bool:
-        ...
+    async def _commit(self, offsets: Mapping[TP, int]) -> bool:
+        return True
 
     def pause_partitions(self, tps: Iterable[TP]) -> None:
         ...
@@ -147,15 +146,21 @@ class Producer(base.Producer):
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
-                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
-        res = await self.send_and_wait(topic, key, value, partition)
+                   partition: Optional[int],
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        res = await self.send_and_wait(topic, key, value, partition, timestamp)
         return cast(Awaitable[RecordMetadata], done_future(res))
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
-                            partition: Optional[int]) -> RecordMetadata:
+                            partition: Optional[int],
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         return await cast(Transport, self.transport).send(
-            topic, value, key, partition)
+            topic, value, key, partition, timestamp)
 
 
 class Transport(base.Transport):
@@ -187,15 +192,16 @@ class Transport(base.Transport):
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
-                   partition: Optional[int]) -> RecordMetadata:
+                   partition: Optional[int],
+                   timestamp: Optional[float]) -> RecordMetadata:
         if partition is None:
             partition = 0
         message = Message(
             topic,
             partition=partition,
             offset=0,
-            timestamp=time(),
-            timestamp_type=0,
+            timestamp=timestamp or time(),
+            timestamp_type=1 if timestamp else 0,
             key=key,
             value=value,
             checksum=None,

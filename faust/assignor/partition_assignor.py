@@ -1,7 +1,15 @@
 """Partition assignor."""
 import zlib
 from collections import defaultdict
-from typing import Iterable, List, MutableMapping, Sequence, Set, cast
+from typing import (
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    Sequence,
+    Set,
+    cast,
+)
 
 from rhkafka.cluster import ClusterMetadata
 from rhkafka.coordinator.assignors.abstract import AbstractPartitionAssignor
@@ -64,6 +72,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
     _active_tps: Set[TP]
     _standby_tps: Set[TP]
     _tps_url: MutableMapping[TP, str]
+    _topic_groups: MutableMapping[str, int]
 
     def __init__(self, app: AppT, replicas: int = 0) -> None:
         AbstractPartitionAssignor.__init__(self)
@@ -76,6 +85,10 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         self._tps_url = {}
         self._active_tps = set()
         self._standby_tps = set()
+        self._topic_groups = {}
+
+    def group_for_topic(self, topic: str) -> int:
+        return self._topic_groups[topic]
 
     @property
     def changelog_distribution(self) -> HostToPartitionMap:
@@ -96,6 +109,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             assignment=self._assignment,
             url=str(self._url),
             changelog_distribution=self.changelog_distribution,
+            topic_groups=self._topic_groups,
         )
 
     @property
@@ -108,6 +122,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                         ClientMetadata.loads(
                             self._decompress(assignment.user_data)))
         self._assignment = metadata.assignment
+        self._topic_groups = dict(metadata.topic_groups)
         self._active_tps = self._assignment.active_tps
         self._standby_tps = self._assignment.standby_tps
         self.changelog_distribution = metadata.changelog_distribution
@@ -202,8 +217,13 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             for member_id in member_metadata
         }
 
-        for num_partitions, topic_groups in copartitioned_groups.items():
+        topic_to_group_id = {}
+
+        for group_id, (num_partitions, topic_groups) in enumerate(sorted(
+                copartitioned_groups.items())):
             for topics in topic_groups:
+                for topic in topics:
+                    topic_to_group_id[topic] = group_id
                 assert len(topics) > 0 and num_partitions > 0
                 # Get assignment for unique copartitioned group
                 assgn = cluster_assgn.copartitioned_assignments(topics)
@@ -219,13 +239,18 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                         copart_assn)
 
         changelog_distribution = self._get_changelog_distribution(assignments)
-        res = self._protocol_assignments(assignments, changelog_distribution)
+        res = self._protocol_assignments(
+            assignments,
+            changelog_distribution,
+            topic_to_group_id,
+        )
         return res
 
     def _protocol_assignments(
             self,
             assignments: ClientAssignmentMapping,
-            cl_distribution: HostToPartitionMap) -> MemberAssignmentMapping:
+            cl_distribution: HostToPartitionMap,
+            topic_groups: Mapping[str, int]) -> MemberAssignmentMapping:
         return {
             client: ConsumerProtocolMemberAssignment(
                 self.version,
@@ -236,6 +261,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                         assignment=assignment,
                         url=self._member_urls[client],
                         changelog_distribution=cl_distribution,
+                        topic_groups=topic_groups,
                     ).dumps(),
                 ),
             )
@@ -273,7 +299,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
 
     @property
     def version(self) -> int:
-        return 3
+        return 4
 
     def assigned_standbys(self) -> Set[TP]:
         return {

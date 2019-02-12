@@ -7,7 +7,6 @@ Everything starts here.
 import asyncio
 import importlib
 import inspect
-import re
 import typing
 import warnings
 from datetime import tzinfo
@@ -26,6 +25,7 @@ from typing import (
     Optional,
     Pattern,
     Set,
+    Tuple,
     Type,
     Union,
     cast,
@@ -63,6 +63,7 @@ from faust.types.app import AppT, BootStrategyT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
 from faust.types.core import K, V
+from faust.types.enums import ProcessingGuarantee
 from faust.types.models import ModelArg
 from faust.types.router import RouterT
 from faust.types.serializers import RegistryT
@@ -101,7 +102,7 @@ else:
     class Event: ...       # noqa
     class WorkerT: ...     # noqa
 
-__all__ = ['App']
+__all__ = ['App', 'BootStrategy']
 
 #: Format string for ``repr(app)``.
 APP_REPR = '''
@@ -355,8 +356,6 @@ class App(AppT, Service):
     # Cache is created on demand: use `.cache` property.
     _cache: Optional[CacheBackendT] = None
 
-    _assignor: Optional[PartitionAssignorT] = None
-
     # Monitor is created on demand: use `.monitor` property.
     _monitor: Optional[Monitor] = None
 
@@ -490,12 +489,6 @@ class App(AppT, Service):
             return self.boot_strategy.server()
 
     async def on_first_start(self) -> None:
-        if not self.agents and not self.producer_only:
-            # XXX I can imagine use cases where an app is useful
-            #     without agents, but use this as more of an assertion
-            #     to make sure agents are registered correctly. [ask]
-            raise ImproperlyConfigured(
-                'Attempting to start app that has no agents')
         self._create_directories()
 
     async def on_start(self) -> None:
@@ -608,7 +601,7 @@ class App(AppT, Service):
         for fixup in self.fixups:
             modules |= set(fixup.autodiscover_modules())
         if modules:
-            scanner = self._new_scanner(*[re.compile(pat) for pat in ignore])
+            scanner = venusian.Scanner()
             for name in modules:
                 try:
                     module = importlib.import_module(name)
@@ -617,6 +610,7 @@ class App(AppT, Service):
                         f'Unknown module {name} in App.conf.autodiscover list')
                 scanner.scan(
                     module,
+                    ignore=ignore,
                     categories=tuple(categories),
                 )
 
@@ -635,10 +629,6 @@ class App(AppT, Service):
             if self.conf.origin:
                 modules.append(self.conf.origin)
         return modules
-
-    def _new_scanner(self, *ignore: Pattern,
-                     **kwargs: Any) -> venusian.Scanner:
-        return venusian.Scanner(ignore=[pat.search for pat in ignore])
 
     def main(self) -> None:
         """Execute the :program:`faust` umbrella command using this app."""
@@ -914,10 +904,10 @@ class App(AppT, Service):
                 _tz = self.conf.timezone if timezone is None else timezone
                 while not self.should_stop:
                     await self.sleep(cron.secs_for_next(cron_format, _tz))
-
-                    should_run = not on_leader or self.is_leader()
-                    if should_run:
-                        await fun(*args)  # type: ignore
+                    if not self.should_stop:
+                        should_run = not on_leader or self.is_leader()
+                        if should_run:
+                            await fun(*args)  # type: ignore
 
             return cast(TaskArg, cron_starter)
 
@@ -1046,16 +1036,19 @@ class App(AppT, Service):
                     query_param: str = None,
                     match_info: str = None) -> ViewDecorator:
         def _decorator(fun: ViewHandlerFun) -> ViewHandlerFun:
+            _query_param = query_param
             if shard_param is not None:
                 warnings.warn(DeprecationWarning(W_DEPRECATED_SHARD_PARAM))
                 if query_param:
                     raise TypeError(
                         'Cannot specify shard_param and query_param')
+                _query_param = shard_param
+            if _query_param is None and match_info is None:
+                raise TypeError('Need one of query_param or shard_param')
 
             @wraps(fun)
             async def get(view: View, request: Request,
                           *args: Any, **kwargs: Any) -> Response:
-                _query_param = query_param or shard_param
                 if match_info:
                     key = request.match_info[match_info]
                 elif _query_param:
@@ -1064,7 +1057,8 @@ class App(AppT, Service):
                     return await self.router.route_req(table.name, key,
                                                        view.web, request)
                 except SameNode:
-                    return await fun(view, request, *args, **kwargs)
+                    return await fun(  # type: ignore
+                        view, request, *args, **kwargs)
 
             return get
 
@@ -1074,8 +1068,6 @@ class App(AppT, Service):
                 *options: Any,
                 base: Optional[Type[AppCommand]] = None,
                 **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
-        if options is None and base is None and kwargs is None:
-            raise TypeError('Use parens in @app.command(), not @app.command.')
         _base: Type[AppCommand]
         if base is None:
             from faust.cli import base as cli_base
@@ -1110,6 +1102,7 @@ class App(AppT, Service):
             key: K = None,
             value: V = None,
             partition: int = None,
+            timestamp: float = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -1121,6 +1114,8 @@ class App(AppT, Service):
             value: Message value.
             partition: Specific partition to send to.
                 If not set the partition will be chosen by the partitioner.
+            timestamp: Epoch seconds (from Jan 1 1970
+                UTC) to use as the message timestamp. Defaults to current time.
             key_serializer: Serializer to use (if value is not model).
             value_serializer: Serializer to use (if value is not model).
             callback: Called after the message is fully delivered to the
@@ -1141,18 +1136,31 @@ class App(AppT, Service):
             key=key,
             value=value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
         )
 
+    @cached_property
+    def in_transaction(self) -> bool:
+        return (
+            self.in_worker and
+            self.conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
+        )
+
     @stampede
     async def maybe_start_producer(self) -> ProducerT:
         """Ensure producer is started."""
-        producer = self.producer
-        # producer may also have been started by app.start()
-        await producer.maybe_start()
-        return producer
+        if self.in_transaction:
+            # return TransactionManager when
+            # processing_guarantee="exactly_once" enabled.
+            return self.consumer.transactions
+        else:
+            producer = self.producer
+            # producer may also have been started by app.start()
+            await producer.maybe_start()
+            return producer
 
     async def commit(self, topics: TPorTopicSet) -> bool:
         """Commit offset for acked messages in specified topics'.
@@ -1167,11 +1175,13 @@ class App(AppT, Service):
         await self._stop_consumer()
         # send shutdown signal
         await self.on_before_shutdown.send()
-        if self._producer is not None:
-            self.log.info('Flush producer buffer...')
-            await self._producer.flush()
-
+        await self._producer_flush(self.log)
         await self._maybe_close_http_client()
+
+    async def _producer_flush(self, logger: Any) -> None:
+        if self._producer is not None:
+            logger.info('Flush producer buffer...')
+            await self._producer.flush()
 
     async def _stop_consumer(self) -> None:
         if self._consumer is not None:
@@ -1188,9 +1198,20 @@ class App(AppT, Service):
                     consumer.pause_partitions(assignment)
                     self.flow_control.clear()
                     await self._stop_fetcher()
-                    if self.conf.stream_wait_empty:
-                        self.log.info('Wait for streams...')
-                        await self.consumer.wait_empty()
+                    await self._consumer_wait_empty(consumer, self.log)
+
+    async def _consumer_wait_empty(
+            self, consumer: ConsumerT, logger: Any) -> None:
+        if self.conf.stream_wait_empty:
+            logger.info('Wait for streams...')
+            await consumer.wait_empty()
+
+    def on_rebalance_start(self) -> None:
+        self.rebalancing = True
+        self.tables.on_rebalance_start()
+
+    def on_rebalance_end(self) -> None:
+        self.rebalancing = False
 
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.
@@ -1206,16 +1227,17 @@ class App(AppT, Service):
         session_timeout = self.conf.broker_session_timeout * 0.95
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
+            consumer = self.consumer
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
                 self.tables.on_partitions_revoked(revoked)
-                assignment = self.consumer.assignment()
+                assignment = consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
-                    self.consumer.stop_flow()
+                    consumer.stop_flow()
                     self.flow_control.suspend()
                     on_timeout.info('consumer.pause_partitions')
-                    self.consumer.pause_partitions(assignment)
+                    consumer.pause_partitions(assignment)
                     # Every agent instance has an incoming buffer of messages
                     # (a asyncio.Queue) -- we clear those to make sure
                     # agents will not start processing them.
@@ -1229,12 +1251,11 @@ class App(AppT, Service):
                     # already started working on an event.
                     #
                     # we need to wait for them.
-                    if self.conf.stream_wait_empty:
-                        on_timeout.info('consumer.wait_empty()')
-                        await self.consumer.wait_empty()
-                    on_timeout.info('producer.flush()')
-                    if self._producer is not None:
-                        await self._producer.flush()
+                    await self._consumer_wait_empty(consumer, on_timeout)
+                    await self._producer_flush(on_timeout)
+                    if self.in_transaction:
+                        await consumer.transactions.on_partitions_revoked(
+                            revoked)
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
                 on_timeout.info('+send signal: on_partitions_revoked')
@@ -1271,17 +1292,11 @@ class App(AppT, Service):
         session_timeout = self.conf.broker_session_timeout * 0.95
         self.unassigned = not assigned
 
-        revoked: Set[TP]
-        newly_assigned: Set[TP]
-        if self._assignment is not None:
-            revoked = self._assignment - assigned
-            newly_assigned = assigned - self._assignment
-        else:
-            revoked = set()
-            newly_assigned = assigned
-        self._assignment = assigned
+        revoked, newly_assigned = self._update_assignment(assigned)
+
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
+            consumer = self.consumer
             try:
                 on_timeout.info('agents.on_rebalance()')
                 await self.agents.on_rebalance(revoked, newly_assigned)
@@ -1290,9 +1305,13 @@ class App(AppT, Service):
                 on_timeout.info('topics.wait_for_subscriptions()')
                 await self.topics.wait_for_subscriptions()
                 on_timeout.info('consumer.pause_partitions()')
-                self.consumer.pause_partitions(assigned)
+                consumer.pause_partitions(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')
                 await self.topics.on_partitions_assigned(assigned)
+                on_timeout.info('transactions.on_rebalance()')
+                if self.in_transaction:
+                    await consumer.transactions.on_rebalance(
+                        assigned, revoked, newly_assigned)
                 on_timeout.info('tables.on_rebalance()')
                 await self.tables.on_rebalance(
                     assigned, revoked, newly_assigned)
@@ -1302,6 +1321,19 @@ class App(AppT, Service):
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)
                 await self.crash(exc)
+
+    def _update_assignment(
+            self, assigned: Set[TP]) -> Tuple[Set[TP], Set[TP]]:
+        revoked: Set[TP]
+        newly_assigned: Set[TP]
+        if self._assignment is not None:
+            revoked = self._assignment - assigned
+            newly_assigned = assigned - self._assignment
+        else:
+            revoked = set()
+            newly_assigned = assigned
+        self._assignment = assigned
+        return revoked, newly_assigned
 
     def _new_producer(self) -> ProducerT:
         return self.transport.create_producer(beacon=self.beacon)

@@ -1,6 +1,7 @@
 """Agent implementation."""
 import asyncio
 import typing
+from contextvars import ContextVar
 from time import time
 from typing import (
     Any,
@@ -137,6 +138,14 @@ __all__ = ['Agent']
 #
 # TIP: Sinks can also be added as an argument to the ``@agent`` decorator:
 #      ``@app.agent(sinks=[other_agent])``.
+
+
+_current_agent: ContextVar[Optional[AgentT]]
+_current_agent = ContextVar('current_agent')
+
+
+def current_agent() -> Optional[AgentT]:
+    return _current_agent.get(None)
 
 
 class Agent(AgentT, Service):
@@ -549,6 +558,7 @@ class Agent(AgentT, Service):
 
     async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
         # This executes the agent task itself, and does exception handling.
+        _current_agent.set(self)
         try:
             await coro
         except asyncio.CancelledError:
@@ -608,20 +618,28 @@ class Agent(AgentT, Service):
                    value: V = None,
                    *,
                    key: K = None,
-                   partition: int = None) -> None:
-        await self.send(key=key, value=value, partition=partition)
+                   partition: int = None,
+                   timestamp: float = None) -> None:
+        await self.send(
+            key=key,
+            value=value,
+            partition=partition,
+            timestamp=timestamp,
+        )
 
     async def ask(self,
                   value: V = None,
                   *,
                   key: K = None,
                   partition: int = None,
+                  timestamp: float = None,
                   reply_to: ReplyToArg = None,
                   correlation_id: str = None) -> Any:
         p = await self.ask_nowait(
             value,
             key=key,
             partition=partition,
+            timestamp=timestamp,
             reply_to=reply_to or self.app.conf.reply_to,
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
@@ -636,6 +654,7 @@ class Agent(AgentT, Service):
                          *,
                          key: K = None,
                          partition: int = None,
+                         timestamp: float = None,
                          reply_to: ReplyToArg = None,
                          correlation_id: str = None,
                          force: bool = False) -> ReplyPromise:
@@ -644,6 +663,7 @@ class Agent(AgentT, Service):
             key=key,
             value=req,
             partition=partition,
+            timestamp=timestamp,
             force=force,
         )
         return ReplyPromise(req.reply_to, req.correlation_id)
@@ -673,6 +693,7 @@ class Agent(AgentT, Service):
                    key: K = None,
                    value: V = None,
                    partition: int = None,
+                   timestamp: float = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -686,6 +707,7 @@ class Agent(AgentT, Service):
             key=key,
             value=value,
             partition=partition,
+            timestamp=timestamp,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             force=force,
@@ -885,6 +907,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                   value: V = None,
                   key: K = None,
                   partition: Optional[int] = None,
+                  timestamp: Optional[float] = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   *,
@@ -895,7 +918,11 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
             value = self._create_req(key, value, reply_to, correlation_id)
         channel = cast(ChannelT, self.stream().channel)
         message = self.to_message(
-            key, value, partition=partition, offset=self.sent_offset)
+            key, value,
+            partition=partition,
+            offset=self.sent_offset,
+            timestamp=timestamp,
+        )
         event: EventT = await channel.decode(message)
         await channel.put(event)
         self.sent_offset += 1

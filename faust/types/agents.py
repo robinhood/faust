@@ -7,6 +7,7 @@ from typing import (
     AsyncIterator,
     Awaitable,
     Callable,
+    Coroutine,
     Generic,
     Iterable,
     List,
@@ -54,9 +55,10 @@ __all__ = [
 _T = TypeVar('_T')
 AgentErrorHandler = Callable[['AgentT', BaseException], Awaitable]
 AgentFun = Callable[
-    [Union[AsyncIterator, StreamT]],
-    Union[Awaitable, AsyncIterable],
+    [StreamT],
+    Union[Coroutine[Any, Any, None], Awaitable[None], AsyncIterable],
 ]
+
 
 #: A sink can be: Agent, Channel
 #: or callable/async callable taking value as argument.
@@ -134,7 +136,11 @@ class AgentT(ServiceT):
         self.fun: AgentFun = fun
 
     @abc.abstractmethod
-    def __call__(self) -> ActorRefT:
+    def __call__(self, *,
+                 index: int = None,
+                 active_partitions: Set[TP] = None,
+                 stream: StreamT = None,
+                 channel: ChannelT = None) -> ActorRefT:
         ...
 
     @abc.abstractmethod
@@ -165,7 +171,8 @@ class AgentT(ServiceT):
                    value: V = None,
                    *,
                    key: K = None,
-                   partition: int = None) -> None:
+                   partition: int = None,
+                   timestamp: float = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -174,6 +181,7 @@ class AgentT(ServiceT):
                   *,
                   key: K = None,
                   partition: int = None,
+                  timestamp: float = None,
                   reply_to: ReplyToArg = None,
                   correlation_id: str = None) -> Any:
         ...
@@ -184,6 +192,7 @@ class AgentT(ServiceT):
                    key: K = None,
                    value: V = None,
                    partition: int = None,
+                   timestamp: float = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    reply_to: ReplyToArg = None,
@@ -281,6 +290,7 @@ class AgentTestWrapperT(AgentT, AsyncIterable):
                   value: V = None,
                   key: K = None,
                   partition: int = None,
+                  timestamp: float = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   *,

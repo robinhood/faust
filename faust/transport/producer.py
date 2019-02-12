@@ -9,6 +9,7 @@ The Producer is responsible for:
 import asyncio
 from typing import Any, Awaitable, Mapping, Optional
 from mode import Seconds, Service
+from faust.types import AppT
 from faust.types.tuples import RecordMetadata, TP
 from faust.types.transports import ProducerT, TransportT
 
@@ -17,11 +18,13 @@ __all__ = ['Producer']
 
 class Producer(Service, ProducerT):
     """Base Producer."""
+    app: AppT
 
     def __init__(self, transport: TransportT,
                  loop: asyncio.AbstractEventLoop = None,
                  **kwargs: Any) -> None:
         self.transport = transport
+        self.app = self.transport.app
         conf = self.transport.app.conf
         self.client_id = conf.broker_client_id
         self.linger_ms = conf.producer_linger_ms
@@ -36,12 +39,18 @@ class Producer(Service, ProducerT):
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
-                   partition: Optional[int]) -> Awaitable[RecordMetadata]:
+                   partition: Optional[int],
+                   timestamp: Optional[float],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         raise NotImplementedError()
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
-                            partition: Optional[int]) -> RecordMetadata:
+                            partition: Optional[int],
+                            timestamp: Optional[float],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         raise NotImplementedError()
 
     async def flush(self) -> None:
@@ -61,4 +70,30 @@ class Producer(Service, ProducerT):
         raise NotImplementedError()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
+        raise NotImplementedError()
+
+    async def begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def commit_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def abort_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def stop_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+        ...
+
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
         raise NotImplementedError()

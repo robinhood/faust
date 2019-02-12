@@ -51,7 +51,7 @@ The Celery task above can be rewritten in Faust like this:
         async for op in stream:
             yield op.x + op.y
 
-    @app.command
+    @app.command()
     async def produce():
         await add.send(value=AddOperation(2, 2))
 
@@ -61,7 +61,7 @@ The Celery task above can be rewritten in Faust like this:
 Faust also support storing state with the task (see :ref:`guide-tables`),
 and it supports leader election which is useful for things such as locks.
 
-**Learn more about Faust in the** :ref:`intro` **introduction page**
+**Learn more about Faust in the** :ref:`introduction` **introduction page**
     to read more about Faust, system requirements, installation instructions,
     community resources, and more.
 
