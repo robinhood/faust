@@ -204,7 +204,7 @@ class TransactionManager(Service, TransactionManagerT):
         self.log.info(
             'Starting transactional producers for assigned partitions...')
         await self._start_transactions(
-            sorted(self._tps_to_transactional_ids(newly_assigned)))
+            sorted(self._tps_to_transactional_ids(assigned)))
 
     async def _stop_transactions(self, tids: Iterable[str]) -> None:
         producer = self.producer
