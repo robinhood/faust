@@ -506,16 +506,18 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        T = self.app.traced
         self.app.on_rebalance_start()
         # see comment in on_partitions_assigned
         # remove revoked partitions from active + paused tps.
         if self._active_partitions is not None:
             self._active_partitions.difference_update(revoked)
         self._paused_partitions.difference_update(revoked)
-        await self._on_partitions_revoked(revoked)
+        await T(self._on_partitions_revoked, partitions=revoked)(revoked)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        T = self.app.traced
         # remove recently revoked tps from set of paused tps.
         self._paused_partitions.intersection_update(assigned)
         # cache set of assigned partitions
@@ -524,7 +526,7 @@ class Consumer(Service, ConsumerT):
         #   need to copy set at this point, since we cannot have
         #   the callbacks mutate our active list.
         self._last_batch = None
-        await self._on_partitions_assigned(assigned)
+        await T(self._on_partitions_assigned, partitions=assigned)(assigned)
 
     @abc.abstractmethod
     async def _getmany(self,
@@ -680,6 +682,7 @@ class Consumer(Service, ConsumerT):
     async def wait_empty(self) -> None:
         """Wait for all messages that started processing to be acked."""
         wait_count = 0
+        T = self.app.traced
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
             if not wait_count % 100_000:  # pragma: no cover
@@ -688,13 +691,13 @@ class Consumer(Service, ConsumerT):
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
-            await self.commit()
+            await T(self.commit)()
             if not self._unacked_messages:
                 break
-            await self._wait_for_ack(timeout=1)
+            await T(self._wait_for_ack)(timeout=1)
 
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
-        await self.commit_and_end_transactions()
+        await T(self.commit_and_end_transactions)()
 
     async def commit_and_end_transactions(self) -> None:
         await self.commit(start_new_transaction=False)

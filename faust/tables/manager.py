@@ -139,15 +139,16 @@ class TableManager(Service, TableManagerT):
             await table.stop()
 
     def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self.recovery.on_partitions_revoked(revoked)
+        self.app.traced(self.recovery.on_partitions_revoked)(revoked)
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
         self._recovery_started.set()  # cannot add more tables.
+        T = self.app.traced
         for table in self.values():
-            await table.on_rebalance(assigned, revoked, newly_assigned)
+            await T(table.on_rebalance)(assigned, revoked, newly_assigned)
 
-        await self._update_channels()
-        await self.recovery.on_rebalance(assigned, revoked, newly_assigned)
+        await T(self._update_channels)()
+        await T(self.recovery.on_rebalance)(assigned, revoked, newly_assigned)
