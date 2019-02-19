@@ -1,11 +1,11 @@
 """Tables (changelog stream)."""
 import asyncio
-from typing import Any, MutableMapping, Optional, Set
+from typing import Any, MutableMapping, Optional, Set, Tuple
 
 from mode import Service
 from mode.utils.queues import ThrowableQueue
 
-from faust.types import AppT, ChannelT, TP
+from faust.types import AppT, ChannelT, StoreT, TP
 from faust.types.tables import CollectionT, TableManagerT
 
 from .recovery import Recovery
@@ -22,6 +22,7 @@ class TableManager(Service, TableManagerT):
     _changelogs: MutableMapping[str, CollectionT]
     _recovery_started: asyncio.Event
     _changelog_queue: ThrowableQueue
+    _pending_persisted_offsets: MutableMapping[TP, Tuple[StoreT, int]]
 
     _recovery: Optional[Recovery] = None
 
@@ -36,6 +37,36 @@ class TableManager(Service, TableManagerT):
 
         self.actives_ready = False
         self.standbys_ready = False
+        self._pending_persisted_offsets = {}
+
+    def persist_offset_on_commit(self,
+                                 store: StoreT,
+                                 tp: TP,
+                                 offset: int) -> None:
+        """Mark the persisted offset for a TP to be saved on commit.
+
+        This is used for "exactly_once" processing guarantee.
+        Instead of writing the persisted offset to RocksDB when the message
+        is sent, we write it to disk when the offset is committed.
+        """
+        existing_entry = self._pending_persisted_offsets.get(tp)
+        if existing_entry is not None:
+            _, existing_offset = existing_entry
+            if offset < existing_offset:
+                return
+        self._pending_persisted_offsets[tp] = (store, offset)
+
+    def on_commit(self, offsets: MutableMapping[TP, int]) -> None:
+        # flush any pending persisted offsets added by
+        # persist_offset_on_commit
+        for tp in offsets:
+            self.on_commit_tp(tp)
+
+    def on_commit_tp(self, tp: TP) -> None:
+        entry = self._pending_persisted_offsets.get(tp)
+        if entry is not None:
+            store, offset = entry
+            store.set_persisted_offset(tp, offset)
 
     def on_rebalance_start(self) -> None:
         self.actives_ready = False

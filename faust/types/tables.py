@@ -24,6 +24,7 @@ from mode.utils.collections import FastUserDict, ManagedUserDict
 from yarl import URL
 
 from .events import EventT
+from .stores import StoreT
 from .streams import JoinableT
 from .topics import TopicT
 from .tuples import TP
@@ -186,6 +187,17 @@ class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
 
     @abc.abstractmethod
     def add(self, table: CollectionT) -> CollectionT:
+        ...
+
+    @abc.abstractmethod
+    def persist_offset_on_commit(self,
+                                 store: StoreT,
+                                 tp: TP,
+                                 offset: int) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_commit(self, offsets: MutableMapping[TP, int]) -> None:
         ...
 
     @abc.abstractmethod

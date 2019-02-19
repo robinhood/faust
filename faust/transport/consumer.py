@@ -861,6 +861,10 @@ class Consumer(Service, ConsumerT):
             else:
                 did_commit = await self._commit(commitable_offsets)
             on_timeout.info('-consumer.commit()')
+            if did_commit:
+                on_timeout.info('+tables.on_commit')
+                self.app.tables.on_commit(commitable_offsets)
+                on_timeout.info('-tables.on_commit')
         self._committed_offset.update(commitable_offsets)
         self.app.monitor.on_tp_commit(commitable_offsets)
         self._last_batch = None
