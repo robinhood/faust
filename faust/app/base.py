@@ -8,6 +8,7 @@ import asyncio
 import importlib
 import inspect
 import re
+import sys
 import typing
 import warnings
 from datetime import tzinfo
@@ -17,7 +18,9 @@ from typing import (
     Any,
     AsyncIterable,
     Awaitable,
-    Callable, Iterable,
+    Callable,
+    ContextManager,
+    Iterable,
     Iterator,
     List,
     Mapping,
@@ -34,10 +37,11 @@ from typing import (
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
+from mode.utils.compat import DummyContext
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import
 from mode.utils.logging import flight_recorder
-from mode.utils.objects import cached_property
+from mode.utils.objects import cached_property, shortlabel
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
 from mode.utils.types.trees import NodeT
 
@@ -376,6 +380,9 @@ class App(AppT, Service):
 
     #: Current assignment
     _assignment: Optional[Set[TP]] = None
+
+    #: Optional tracing support.
+    tracer: Any = None
 
     def __init__(self,
                  id: str,
@@ -803,6 +810,54 @@ class App(AppT, Service):
             return self._task(fun, on_leader=on_leader)
         return _inner(fun) if fun is not None else _inner
 
+    def trace(self, name: str, **extra_context: Any) -> ContextManager:
+        if self.tracer is None:
+            return DummyContext()
+        else:
+            return self.tracer.trace(name=name, **extra_context)
+
+    def traced(self, fun: Callable, name: str = None,
+               sample_rate: float = 1.0,
+               **context: Any) -> Callable:
+        assert fun
+        operation: str
+        if name:
+            operation = name
+        else:
+            obj = getattr(fun, '__self__', None)
+            if obj is not None:
+                operation = f'{shortlabel(obj)}-{fun.__name__}'
+            else:
+                operation = f'{fun.__name__}'
+
+        @wraps(fun)
+        def wrapped(*args: Any, **kwargs: Any) -> Any:
+            span = self.trace(operation, sample_rate=sample_rate, **context)
+            span.__enter__()
+            try:
+                ret = fun(*args, **kwargs)
+            except BaseException:
+                span.__exit__(*sys.exc_info())
+                raise
+            else:
+                if asyncio.iscoroutine(ret):
+                    # if async def method, we attach our span to
+                    # when it completes.
+                    async def corowrapped() -> Any:
+                        try:
+                            await ret
+                        except BaseException:
+                            span.__exit__(*sys.exc_info())
+                            raise
+                        else:
+                            span.__exit__(None, None, None)
+                    return corowrapped()
+                else:
+                    # for non async def method, we just exit the span.
+                    span.__exit__(None, None, None)
+                    return ret
+        return wrapped
+
     def _task(self, fun: TaskArg, on_leader: bool = False) -> TaskArg:
         app = self
 
@@ -1205,18 +1260,19 @@ class App(AppT, Service):
         if self.should_stop:
             return self._on_rebalance_when_stopped()
         session_timeout = self.conf.broker_session_timeout * 0.95
+        T = self.traced
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             try:
                 self.log.dev('ON PARTITIONS REVOKED')
-                self.tables.on_partitions_revoked(revoked)
+                T(self.tables.on_partitions_revoked)(revoked)
                 assignment = self.consumer.assignment()
                 if assignment:
                     on_timeout.info('flow_control.suspend()')
-                    self.consumer.stop_flow()
+                    T(self.consumer.stop_flow)()
                     self.flow_control.suspend()
                     on_timeout.info('consumer.pause_partitions')
-                    self.consumer.pause_partitions(assignment)
+                    T(self.consumer.pause_partitions)(assignment)
                     # Every agent instance has an incoming buffer of messages
                     # (a asyncio.Queue) -- we clear those to make sure
                     # agents will not start processing them.
@@ -1224,7 +1280,7 @@ class App(AppT, Service):
                     # This allows for large buffer sizes
                     # (stream_buffer_maxsize).
                     on_timeout.info('flow_control.clear()')
-                    self.flow_control.clear()
+                    T(self.flow_control.clear)()
 
                     # even if we clear, some of the agent instances may have
                     # already started working on an event.
@@ -1232,14 +1288,14 @@ class App(AppT, Service):
                     # we need to wait for them.
                     if self.conf.stream_wait_empty:
                         on_timeout.info('consumer.wait_empty()')
-                        await self.consumer.wait_empty()
+                        await T(self.consumer.wait_empty)()
                     on_timeout.info('producer.flush()')
                     if self._producer is not None:
-                        await self._producer.flush()
+                        await T(self._producer.flush)()
                 else:
                     self.log.dev('ON P. REVOKED NOT COMMITTING: NO ASSIGNMENT')
                 on_timeout.info('+send signal: on_partitions_revoked')
-                await self.on_partitions_revoked.send(revoked)
+                await T(self.on_partitions_revoked.send)(revoked)
                 on_timeout.info('-send signal: on_partitions_revoked')
             except Exception as exc:
                 on_timeout.info('on partitions revoked crashed: %r', exc)
@@ -1254,7 +1310,7 @@ class App(AppT, Service):
         self._fetcher.service_reset()
 
     def _on_rebalance_when_stopped(self) -> None:
-        self.consumer.close()
+        self.traced(self.consumer.close)()
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
@@ -1267,6 +1323,7 @@ class App(AppT, Service):
         """
         if self.should_stop:
             return self._on_rebalance_when_stopped()
+        T = self.traced
         # shave some time off so we timeout before the broker
         # (Kafka does not send error, it just logs)
         session_timeout = self.conf.broker_session_timeout * 0.95
@@ -1285,20 +1342,22 @@ class App(AppT, Service):
             self._on_revoked_timeout = on_timeout
             try:
                 on_timeout.info('agents.on_rebalance()')
-                await self.agents.on_rebalance(revoked, newly_assigned)
+                await T(self.agents.on_rebalance,
+                        revoked=revoked,
+                        newly_assigned=newly_assigned)(revoked, newly_assigned)
                 # Wait for transport.Conductor to finish
                 # calling Consumer.subscribe
                 on_timeout.info('topics.wait_for_subscriptions()')
-                await self.topics.wait_for_subscriptions()
+                await T(self.topics.wait_for_subscriptions)()
                 on_timeout.info('consumer.pause_partitions()')
-                self.consumer.pause_partitions(assigned)
+                T(self.consumer.pause_partitions)(assigned)
                 on_timeout.info('topics.on_partitions_assigned()')
-                await self.topics.on_partitions_assigned(assigned)
+                await T(self.topics.on_partitions_assigned)(assigned)
                 on_timeout.info('tables.on_rebalance()')
-                await self.tables.on_rebalance(
+                await T(self.tables.on_rebalance)(
                     assigned, revoked, newly_assigned)
                 on_timeout.info('+send signal: on_partitions_assigned')
-                await self.on_partitions_assigned.send(assigned)
+                await T(self.on_partitions_assigned.send)(assigned)
                 on_timeout.info('-send signal: on_partitions_assigned')
             except Exception as exc:
                 on_timeout.info('on partitions assigned crashed: %r', exc)
