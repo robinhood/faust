@@ -338,6 +338,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             fetcher.fetched_records,
             active_partitions,
             timeout=timeout,
+            max_records=_consumer._max_poll_records
         )
 
     async def create_topic(self,
