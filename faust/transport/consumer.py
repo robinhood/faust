@@ -74,6 +74,7 @@ from mode import Service, ServiceT, flight_recorder, get_logger
 from mode.threads import MethodQueue, QueueServiceThread
 from mode.utils.futures import notify
 from mode.utils.locks import Event
+from mode.utils.text import pluralize
 from mode.utils.times import Seconds
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
@@ -188,33 +189,47 @@ class TransactionManager(Service, TransactionManagerT):
         await self.producer.flush()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        await self.flush()
+        await self.app.traced(self.flush)()
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        T = self.app.traced
         # Stop producers for revoked partitions.
-        self.log.info(
-            'Stopping transactional producers for revoked partitions...')
-        await self._stop_transactions(
-            sorted(self._tps_to_transactional_ids(revoked)))
+        revoked_tids = list(sorted(self._tps_to_transactional_ids(revoked)))
+        if revoked_tids:
+            self.log.info(
+                'Stopping %r transactional %s for %r revoked %s...',
+                len(revoked_tids),
+                pluralize(len(revoked_tids), 'producer'),
+                len(revoked),
+                pluralize(len(revoked), 'partition'))
+            await T(self._stop_transactions, tids=revoked_tids)(revoked_tids)
 
         # Start produers for assigned partitions
-        self.log.info(
-            'Starting transactional producers for assigned partitions...')
-        await self._start_transactions(
-            sorted(self._tps_to_transactional_ids(assigned)))
+        assigned_tids = list(sorted(self._tps_to_transactional_ids(assigned)))
+        if assigned_tids:
+            self.log.info(
+                'Starting %r transactional %s for %r assigned %s...',
+                len(assigned_tids),
+                pluralize(len(assigned_tids), 'producer'),
+                len(assigned),
+                pluralize(len(assigned), 'partition'))
+            await T(self._start_transactions,
+                    tids=assigned_tids)(assigned_tids)
 
     async def _stop_transactions(self, tids: Iterable[str]) -> None:
+        T = self.app.traced
         producer = self.producer
         for transactional_id in tids:
-            await producer.stop_transaction(transactional_id)
+            await T(producer.stop_transaction)(transactional_id)
 
     async def _start_transactions(self, tids: Iterable[str]) -> None:
+        T = self.app.traced
         producer = self.producer
         for transactional_id in tids:
-            await producer.maybe_begin_transaction(transactional_id)
+            await T(producer.maybe_begin_transaction)(transactional_id)
 
     def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
         return {
