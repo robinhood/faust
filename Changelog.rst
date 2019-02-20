@@ -92,6 +92,11 @@ please visit the :ref:`history` section.
 
     Fix contributed by Amit Ripshtos (:github_user:`amitripshtos`).
 
+- **Transport**: Aiokafka was not limiting how many messages to read in
+   a fetch request (Issue #292).
+
+    Fix contributed by Miha Troha (:github_user:`mihatroha`).
+
 - **Typing**: Added type stubs for ``faust.web.Request``.
 
 - **Typing**: Fixed type stubs for ``@app.agent`` decorator.
