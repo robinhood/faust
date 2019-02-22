@@ -32,6 +32,7 @@ from typing import (
     Type,
     Union,
     cast,
+    ClassVar
 )
 
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
@@ -81,6 +82,7 @@ from faust.types.transports import (
     ProducerT,
     TPorTopicSet,
     TransportT,
+    SchedulingStrategyT
 )
 from faust.types.tuples import MessageSentCallback, RecordMetadata, TP
 from faust.types.web import (
@@ -94,6 +96,8 @@ from faust.types.web import (
     Web,
 )
 from faust.types.windows import WindowT
+
+from faust.transport.utils import TopicPartitionSchedulingStrategy
 
 from ._attached import Attachments
 
@@ -390,6 +394,7 @@ class App(AppT, Service):
                  config_source: Any = None,
                  loop: asyncio.AbstractEventLoop = None,
                  beacon: NodeT = None,
+                 SchedulingStrategy: ClassVar[Type[SchedulingStrategyT]] = TopicPartitionSchedulingStrategy,
                  **options: Any) -> None:
         # This is passed to the configuration in self.conf
         self._default_options = (id, options)
@@ -428,6 +433,10 @@ class App(AppT, Service):
         # initialize fixups (automatically applied extensions,
         # such as Django integration).
         self.fixups = self._init_fixups()
+
+        # A strategy which dictates the priority of topics and partitions for incoming records.
+        # A default strategy does first round-robin over topics and then round-robin over partitions.
+        self.SchedulingStrategy = SchedulingStrategy
 
         self.boot_strategy = self.BootStrategy(self)
 
@@ -1403,6 +1412,7 @@ class App(AppT, Service):
             on_partitions_revoked=self._on_partitions_revoked,
             on_partitions_assigned=self._on_partitions_assigned,
             beacon=self.beacon,
+            SchedulingStrategy=self.SchedulingStrategy,
         )
 
     def _new_conductor(self) -> ConductorT:

@@ -87,11 +87,12 @@ from faust.types.transports import (
     TPorTopicSet,
     TransactionManagerT,
     TransportT,
+    SchedulingStrategyT
 )
 from faust.utils import terminal
 from faust.utils.functional import consecutive_numbers
 
-from .utils import TopicBuffer as _TopicBuffer, TopicIndexMap
+from .utils import TopicPartitionSchedulingStrategy
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -323,8 +324,6 @@ class Consumer(Service, ConsumerT):
 
     logger = logger
 
-    TopicBuffer: ClassVar[Type[_TopicBuffer]] = _TopicBuffer
-
     #: Tuple of exception types that may be raised when the
     #: underlying consumer driver is stopped.
     consumer_stopped_errors: ClassVar[Tuple[Type[BaseException], ...]] = ()
@@ -385,6 +384,7 @@ class Consumer(Service, ConsumerT):
                  commit_interval: float = None,
                  commit_livelock_soft_timeout: float = None,
                  loop: asyncio.AbstractEventLoop = None,
+                 SchedulingStrategy: ClassVar[Type[SchedulingStrategyT]] = TopicPartitionSchedulingStrategy,
                  **kwargs: Any) -> None:
         assert callback is not None
         self.transport = transport
@@ -419,6 +419,7 @@ class Consumer(Service, ConsumerT):
             beacon=self.beacon,
             loop=self.loop,
         )
+        self.SchedulingStrategy = SchedulingStrategy
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         # We start the TransactionManager only if
@@ -451,11 +452,10 @@ class Consumer(Service, ConsumerT):
         xtps.difference_update(self._paused_partitions)
         return xtps
 
-    def _records_to_topic_index(
+    def _records_to_iterator(
             self,
-            records: RecordMap,
-            active_partitions: Set[TP]) -> TopicIndexMap:
-        return self.TopicBuffer.map_from_records(records)
+            records: RecordMap) -> SchedulingStrategyT:
+        return self.SchedulingStrategy(records)
 
     @abc.abstractmethod
     async def _commit(
@@ -597,29 +597,13 @@ class Consumer(Service, ConsumerT):
         records, active_partitions = await self._wait_next_records(timeout)
         if records is None or self.should_stop:
             return
-        topic_index = self._records_to_topic_index(records, active_partitions)
-        to_remove: Set[str] = set()
-        sentinel = object()
-        _next = next
+        sched_strategy = self._records_to_iterator(records)
 
         to_message = self._to_message  # localize
-
-        while topic_index:
-            if not self.flow_active:
-                break
-            for topic in to_remove:
-                topic_index.pop(topic, None)
-            for topic, messages in topic_index.items():
+        if self.flow_active:
+            for tp, record in sched_strategy.records_iterator():
                 if not self.flow_active:
                     break
-                item = _next(messages, sentinel)
-                if item is sentinel:
-                    # this topic is now empty,
-                    # but we cannot remove from dict while iterating over it,
-                    # so move that to the outer loop.
-                    to_remove.add(topic)
-                    continue
-                tp, record = item  # type: ignore
                 if tp in active_partitions:
                     highwater_mark = self.highwater(tp)
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)

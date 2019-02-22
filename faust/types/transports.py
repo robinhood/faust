@@ -21,6 +21,7 @@ from typing import (
     Type,
     Union,
     no_type_check,
+    Iterator
 )
 
 from mode import Seconds, ServiceT
@@ -446,3 +447,15 @@ class TransportT(abc.ABC):
     @abc.abstractmethod
     def create_conductor(self, **kwargs: Any) -> ConductorT:
         ...
+
+
+
+class SchedulingStrategyT:
+    @abc.abstractmethod
+    def __init__(self, records: Mapping[TP, List]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def records_iterator(self) -> Iterator[Tuple[TP, Any]]:
+        ...
+

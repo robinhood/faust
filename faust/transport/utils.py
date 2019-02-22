@@ -11,6 +11,7 @@ from typing import (
 )
 from mode.utils.compat import OrderedDict
 from faust.types import TP
+from faust.types.transports import SchedulingStrategyT
 
 # But we want to process records from topics in round-robin order.
 # We convert records into a mapping from topic-name to "chain-of-buffers":
@@ -19,21 +20,44 @@ from faust.types import TP
 # by doing: next(topic_index['topic_name'])
 TopicIndexMap = MutableMapping[str, 'TopicBuffer']
 
+class TopicPartitionSchedulingStrategy(SchedulingStrategyT):
+    def __init__(self, records: Mapping[TP, List]) -> None:
+        super().__init__(records)
+        self.topic_index = TopicPartitionSchedulingStrategy._map_from_records(records)
 
-class TopicBuffer(Iterator):
-    _buffers: Dict[TP, Iterator]
-    _it: Optional[Iterator]
-
-    @classmethod
-    def map_from_records(cls, records: Mapping[TP, List]) -> TopicIndexMap:
+    @staticmethod
+    def _map_from_records(records: Mapping[TP, List]) -> TopicIndexMap:
         topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             try:
                 entry = topic_index[tp.topic]
             except KeyError:
-                entry = topic_index[tp.topic] = cls()
+                entry = topic_index[tp.topic] = TopicBuffer()
             entry.add(tp, messages)
         return topic_index
+
+    def records_iterator(self) -> Iterator[Tuple[TP, Any]]:
+        to_remove: Set[str] = set()
+        sentinel = object()
+        _next = next
+        while self.topic_index:
+            for topic in to_remove:
+                self.topic_index.pop(topic, None)
+            for topic, messages in self.topic_index.items():
+                item = _next(messages, sentinel)
+                if item is sentinel:
+                    # this topic is now empty,
+                    # but we cannot remove from dict while iterating over it,
+                    # so move that to the outer loop.
+                    to_remove.add(topic)
+                    continue
+                tp, record = item  # type: ignore
+                yield tp, record
+
+
+class TopicBuffer(Iterator):
+    _buffers: Dict[TP, Iterator]
+    _it: Optional[Iterator]
 
     def __init__(self) -> None:
         # note: this is a regular dict, but ordered on Python 3.6
