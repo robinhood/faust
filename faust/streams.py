@@ -1,6 +1,7 @@
 """Streams."""
 import asyncio
 import reprlib
+import sys
 import typing
 import weakref
 from asyncio import CancelledError
@@ -11,6 +12,7 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
+    ContextManager,
     Iterable,
     Iterator,
     List,
@@ -25,7 +27,7 @@ from typing import (
     cast,
 )
 
-from mode import Seconds, Service, get_logger, want_seconds
+from mode import Seconds, Service, get_logger, shortlabel, want_seconds
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.compat import current_task
 from mode.utils.futures import maybe_async, notify
@@ -724,6 +726,10 @@ class Stream(StreamT[T_co], Service):
         acking_topics: Set[str] = self.app.topics._acking_topics
         on_message_in = self.app.sensors.on_message_in
         sleep = asyncio.sleep
+        trace = self.app.trace
+        _shortlabel = shortlabel
+        trace_stream_label = self.shortlabel
+        trace_context: Optional[ContextManager] = None
 
         try:
             while not self.should_stop:
@@ -751,6 +757,9 @@ class Stream(StreamT[T_co], Service):
                         channel_value = await chan_slow_get()
 
                     if isinstance(channel_value, event_cls):
+                        trace_context = trace(trace_stream_label)
+                        if trace_context is not None:
+                            trace_context.__enter__()
                         event = channel_value
                         message = event.message
                         topic = message.topic
@@ -787,25 +796,37 @@ class Stream(StreamT[T_co], Service):
 
                     # reduce using processors
                     for processor in processors:
-                        value = await _maybe_async(processor(value))
+                        with trace(_shortlabel(processor)):
+                            value = await _maybe_async(processor(value))
                     value = await on_merge(value)
                 try:
                     yield value
                 except CancelledError:
+                    if trace_context is not None:
+                        trace_context.__exit__(*sys.exc_info())
                     if not ack_cancelled_tasks:
                         do_ack = False
                     raise
                 except Exception:
+                    if trace_context is not None:
+                        trace_context.__exit__(*sys.exc_info())
                     if not ack_exceptions:
                         do_ack = False
                     raise
                 except GeneratorExit:
+                    if trace_context is not None:
+                        trace_context.__exit__(*sys.exc_info())
                     raise  # consumer did `break`
                 except BaseException:
                     # e.g. SystemExit/KeyboardInterrupt
+                    if trace_context is not None:
+                        trace_context.__exit__(*sys.exc_info())
                     if not ack_cancelled_tasks:
                         do_ack = False
                     raise
+                else:
+                    if trace_context is not None:
+                        trace_context.__exit__(None, None, None)
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:
