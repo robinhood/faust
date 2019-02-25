@@ -781,7 +781,8 @@ class App(AppT, Service):
     def task(self,
              fun: TaskArg = None,
              *,
-             on_leader: bool = False) -> TaskDecoratorRet:
+             on_leader: bool = False,
+             traced: bool = True) -> TaskDecoratorRet:
         """Define an async def function to be started with the app.
 
         This is like :meth:`timer` but a one-shot task only
@@ -803,77 +804,39 @@ class App(AppT, Service):
             ...     print('STARTING UP')
         """
         def _inner(fun: TaskArg) -> TaskArg:
-            return self._task(fun, on_leader=on_leader)
+            return self._task(fun, on_leader=on_leader, traced=traced)
         return _inner(fun) if fun is not None else _inner
 
-    def trace(self, name: str, **extra_context: Any) -> ContextManager:
-        if self.tracer is None:
-            return DummyContext()
-        else:
-            return self.tracer.trace(name=name, **extra_context)
-
-    def traced(self, fun: Callable, name: str = None,
-               sample_rate: float = 1.0,
-               **context: Any) -> Callable:
-        assert fun
-        operation: str
-        if name:
-            operation = name
-        else:
-            obj = getattr(fun, '__self__', None)
-            if obj is not None:
-                operation = f'{shortlabel(obj)}-{fun.__name__}'
-            else:
-                operation = f'{fun.__name__}'
-
-        @wraps(fun)
-        def wrapped(*args: Any, **kwargs: Any) -> Any:
-            span = self.trace(operation, sample_rate=sample_rate, **context)
-            span.__enter__()
-            try:
-                ret = fun(*args, **kwargs)
-            except BaseException:
-                span.__exit__(*sys.exc_info())
-                raise
-            else:
-                if asyncio.iscoroutine(ret):
-                    # if async def method, we attach our span to
-                    # when it completes.
-                    async def corowrapped() -> Any:
-                        try:
-                            await ret
-                        except BaseException:
-                            span.__exit__(*sys.exc_info())
-                            raise
-                        else:
-                            span.__exit__(None, None, None)
-                    return corowrapped()
-                else:
-                    # for non async def method, we just exit the span.
-                    span.__exit__(None, None, None)
-                    return ret
-        return wrapped
-
-    def _task(self, fun: TaskArg, on_leader: bool = False) -> TaskArg:
+    def _task(self, fun: TaskArg,
+              on_leader: bool = False,
+              traced: bool = False,
+              ) -> TaskArg:
         app = self
 
         @wraps(fun)
         async def _wrapped() -> None:
             should_run = app.is_leader() if on_leader else True
             if should_run:
-                # pass app only if decorated function takes an argument
-                if inspect.signature(fun).parameters:
-                    task_takes_app = cast(Callable[[AppT], Awaitable], fun)
-                    return await task_takes_app(app)
+                if traced:
+                    tracer = self.trace(shortlabel(fun))
                 else:
-                    task = cast(Callable[[], Awaitable], fun)
-                    return await task()
+                    tracer = DummyContext()
+                with tracer:
+                    # pass app only if decorated function takes an argument
+                    if inspect.signature(fun).parameters:
+                        task_takes_app = cast(Callable[[AppT], Awaitable], fun)
+                        return await task_takes_app(app)
+                    else:
+                        task = cast(Callable[[], Awaitable], fun)
+                        return await task()
 
         venusian.attach(_wrapped, category=SCAN_TASK)
         self._tasks.append(_wrapped)
         return _wrapped
 
-    def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
+    def timer(self, interval: Seconds,
+              on_leader: bool = False,
+              traced: bool = True) -> Callable:
         """Define an async def function to be run at periodic intervals.
 
         Like :meth:`task`, but executes periodically until the worker
@@ -900,7 +863,6 @@ class App(AppT, Service):
         interval_s = want_seconds(interval)
 
         def _inner(fun: TaskArg) -> TaskArg:
-            @self.task
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
                 while not self.should_stop:
@@ -908,19 +870,25 @@ class App(AppT, Service):
                     if not self.should_stop:
                         should_run = not on_leader or self.is_leader()
                         if should_run:
-                            await fun(*args)  # type: ignore
+                            if traced:
+                                tracer = self.trace(shortlabel(fun))
+                            else:
+                                tracer = DummyContext()
+                            with tracer:
+                                await fun(*args)  # type: ignore
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]
             # but we always call @app.task() - with parens, so return value is
             # always TaskArg.
-            return cast(TaskArg, around_timer)
+            return cast(TaskArg, self.task(around_timer, traced=False))
 
         return _inner
 
     def crontab(self, cron_format: str, *,
                 timezone: tzinfo = None,
-                on_leader: bool = False) -> Callable:
+                on_leader: bool = False,
+                traced: bool = True) -> Callable:
         """Define an async def function to be run at the fixed times,
         defined by the cron format.
 
@@ -953,7 +921,6 @@ class App(AppT, Service):
         """
 
         def _inner(fun: TaskArg) -> TaskArg:
-            @self.task
             @wraps(fun)
             async def cron_starter(*args: Any) -> None:
                 _tz = self.conf.timezone if timezone is None else timezone
@@ -962,9 +929,14 @@ class App(AppT, Service):
                     if not self.should_stop:
                         should_run = not on_leader or self.is_leader()
                         if should_run:
-                            await fun(*args)  # type: ignore
+                            if traced:
+                                tracer = self.trace(shortlabel(fun))
+                            else:
+                                tracer = DummyContext()
+                            with tracer:
+                                await fun(*args)  # type: ignore
 
-            return cast(TaskArg, cron_starter)
+            return cast(TaskArg, self.task(cron_starter, traced=False))
 
         return _inner
 
@@ -1150,6 +1122,54 @@ class App(AppT, Service):
         """Start the app in Client-Only mode if not started as Server."""
         if not self.started:
             await self.start_client()
+
+    def trace(self, name: str, **extra_context: Any) -> ContextManager:
+        if self.tracer is None:
+            return DummyContext()
+        else:
+            return self.tracer.trace(name=name, **extra_context)
+
+    def traced(self, fun: Callable, name: str = None,
+               sample_rate: float = 1.0,
+               **context: Any) -> Callable:
+        assert fun
+        operation: str
+        if name:
+            operation = name
+        else:
+            obj = getattr(fun, '__self__', None)
+            if obj is not None:
+                operation = f'{shortlabel(obj)}-{fun.__name__}'
+            else:
+                operation = f'{fun.__name__}'
+
+        @wraps(fun)
+        def wrapped(*args: Any, **kwargs: Any) -> Any:
+            span = self.trace(operation, sample_rate=sample_rate, **context)
+            span.__enter__()
+            try:
+                ret = fun(*args, **kwargs)
+            except BaseException:
+                span.__exit__(*sys.exc_info())
+                raise
+            else:
+                if asyncio.iscoroutine(ret):
+                    # if async def method, we attach our span to
+                    # when it completes.
+                    async def corowrapped() -> Any:
+                        try:
+                            await ret
+                        except BaseException:
+                            span.__exit__(*sys.exc_info())
+                            raise
+                        else:
+                            span.__exit__(None, None, None)
+                    return corowrapped()
+                else:
+                    # for non async def method, we just exit the span.
+                    span.__exit__(None, None, None)
+                    return ret
+        return wrapped
 
     async def send(
             self,
