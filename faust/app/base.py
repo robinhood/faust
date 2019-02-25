@@ -1139,9 +1139,9 @@ class App(AppT, Service):
         else:
             obj = getattr(fun, '__self__', None)
             if obj is not None:
-                operation = f'{shortlabel(obj)}-{fun.__name__}'
+                operation = f'{shortlabel(obj)}-{shortlabel(fun)}'
             else:
-                operation = f'{fun.__name__}'
+                operation = f'{shortlabel(fun)}'
 
         @wraps(fun)
         def wrapped(*args: Any, **kwargs: Any) -> Any:
