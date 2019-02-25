@@ -39,12 +39,23 @@ class test_BarrierState:
         assert not p.pending
         assert p.size == 0
 
-        await asyncio.gather(
-            self.adder(p),
-            self.fulfiller(p),
-            self.finalizer(p, 1.0),
-            self.consumer(p),
+        done, pending = await asyncio.wait(
+            [
+                self.adder(p),
+                self.fulfiller(p),
+                self.finalizer(p, 1.0),
+                self.consumer(p),
+            ],
+            timeout=5.0,
         )
+
+        if pending:
+            raise Exception(
+                f'Test did not return in 5s: '
+                f'  size={p.size}\n'
+                f'  total={p.total}\n',
+                f'  fulfilled={p.fulfilled}',
+                f'  pending={len(p.pending)}')
 
     @pytest.mark.asyncio
     async def test_sync_join(self):
