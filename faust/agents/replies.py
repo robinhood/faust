@@ -84,8 +84,8 @@ class BarrierState(asyncio.Future):
         self.total = self.size
         # The barrier may have been filled up already at this point,
         if self.fulfilled >= self.total:
-            print('RESULT SET BY FINALIZE: %r' % (self,))
             self.set_result(True)
+            self._results.put_nowait(None)  # always wake-up .iterate()
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
         # ReplyConsumer calls this whenever a new reply is received.
@@ -93,10 +93,10 @@ class BarrierState(asyncio.Future):
         self.fulfilled += 1
         if self.total:
             if self.fulfilled >= self.total:
-                print('RESULT SET BY FULFILL: %r' % (self,))
                 self.set_result(True)
+                self._results.put_nowait(None)  # always wake-up .iterate()
 
-    def get_nowait(self) -> ReplyTuple:
+    def get_nowait(self) -> Optional[ReplyTuple]:
         """Return next reply, or raise :exc:`asyncio.QueueEmpty`."""
         return self._results.get_nowait()
 
@@ -106,16 +106,17 @@ class BarrierState(asyncio.Future):
         get_nowait = self._results.get_nowait
         is_done = self.done
         while not is_done():
-            print('+AWAIT GET()')
-            yield await get()
-            print('-AWAIT GET')
+            value = await get()
+            if value is not None:
+                yield value
         while 1:
-            print('GET NOWAIT')
             try:
-                yield get_nowait()
+                value = get_nowait()
             except asyncio.QueueEmpty:
                 break
-        print('ITERATE DONE')
+            else:
+                if value is not None:
+                    yield value
 
 
 class ReplyConsumer(Service):
