@@ -96,9 +96,13 @@ class BarrierState(asyncio.Future):
                 self.set_result(True)
                 self._results.put_nowait(None)  # always wake-up .iterate()
 
-    def get_nowait(self) -> Optional[ReplyTuple]:
+    def get_nowait(self) -> ReplyTuple:
         """Return next reply, or raise :exc:`asyncio.QueueEmpty`."""
-        return self._results.get_nowait()
+        for _ in range(10):  # remove sentinels
+            value = self._results.get_nowait()
+            if value is not None:
+                return value
+        raise asyncio.QueueEmpty()
 
     async def iterate(self) -> AsyncIterator[ReplyTuple]:
         """Iterate over results as arrive."""
