@@ -106,12 +106,16 @@ class BarrierState(asyncio.Future):
         get_nowait = self._results.get_nowait
         is_done = self.done
         while not is_done():
+            print('+AWAIT GET()')
             yield await get()
+            print('-AWAIT GET')
         while 1:
+            print('GET NOWAIT')
             try:
                 yield get_nowait()
             except asyncio.QueueEmpty:
                 break
+        print('ITERATE DONE')
 
 
 class ReplyConsumer(Service):
