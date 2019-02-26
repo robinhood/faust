@@ -84,6 +84,7 @@ class BarrierState(asyncio.Future):
         self.total = self.size
         # The barrier may have been filled up already at this point,
         if self.fulfilled >= self.total:
+            print('RESULT SET BY FINALIZE: %r' % (self,))
             self.set_result(True)
 
     def fulfill(self, correlation_id: str, value: Any) -> None:
@@ -92,6 +93,7 @@ class BarrierState(asyncio.Future):
         self.fulfilled += 1
         if self.total:
             if self.fulfilled >= self.total:
+                print('RESULT SET BY FULFILL: %r' % (self,))
                 self.set_result(True)
 
     def get_nowait(self) -> ReplyTuple:

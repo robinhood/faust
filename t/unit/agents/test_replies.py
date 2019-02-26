@@ -51,11 +51,15 @@ class test_BarrierState:
 
         if pending:
             raise Exception(
-                f'Test did not return in 5s: '
+                f'Test did not return in 5s:\n'
+                f'  DONE_TASKS={done}\n'
+                f'  PENDING_TASKS={pending}\n'
                 f'  size={p.size}\n'
-                f'  total={p.total}\n',
-                f'  fulfilled={p.fulfilled}',
-                f'  pending={len(p.pending)}')
+                f'  total={p.total}\n'
+                f'  fulfilled={p.fulfilled}\n'
+                f'  pending={len(p.pending)}\n'
+                f'  done={p.done()}'
+                f'  result={p.result() if p.done() else None}')
 
     @pytest.mark.asyncio
     async def test_sync_join(self):
