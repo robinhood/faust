@@ -17,7 +17,20 @@ please visit the :ref:`history` section.
 
 - **Requirements**
 
-    - Now depends on :pypi:`robinhood-aiokafka` 0.5.1
+    + Now depends on :pypi:`robinhood-aiokafka` 0.5.2
+
+    + Now depends on :ref:`Mode 3.0.8 <mode:version-3.0.8>`.
+
+- **App**: Experimental support for "exactly-once" semantics.
+
+    This mode ensures tables and counts in tables/windows are consistent
+    even as nodes in the cluster are abruptly terminated.
+
+    To enable this mode set the :setting:`processing_guarantee` setting:
+
+    .. sourcecode:: python
+
+        App(processing_guarantee='exactly_once')
 
 - **App**: Sending messages API now supports a ``timestamp`` argument
   (Issue #276).
@@ -56,6 +69,9 @@ please visit the :ref:`history` section.
 - **App**: Autodiscovery now ignores modules matching "*test*" (Issue #242).
 
     Contributed by Chris Seto (:github_user:`chrisseto`).
+
+- **RocksDB**: ``len(table)`` now only counts databases for active partitions
+  (Issue #270).
 
 - **Agent**: Fixes crash when worker assigned no partitions and having
   the ``isolated_partitions`` flag enabled (Issue #181).
@@ -100,6 +116,43 @@ please visit the :ref:`history` section.
 - **Typing**: Added type stubs for ``faust.web.Request``.
 
 - **Typing**: Fixed type stubs for ``@app.agent`` decorator.
+
+- **Debugging**: Added `OpenTracing`_ hooks to streams/tasks/timers/crontabs
+   and rebalancing process.
+
+    To enable you have to define a custom ``Tracer`` class that will
+    record and publish the traces to systems such as `Jeager`_ or `Zipkin`_.
+
+    This class needs to have a ``.trace(name, **extra_context)`` context
+    manager:
+
+    .. sourcecode:: python
+
+        from typing import Any, ContextManager
+
+        class Tracer:
+
+            @contextmanager
+            def trace(self, name: str, **extra_context: Any) -> ContextManager:
+                with GLOBAL_TRACER.start_span(name) as span:
+                    for key, value in extra_context.items():
+                        span.set_tag(key, value)
+                    yield
+
+
+    After implementing the interface you need to set the ``app.tracer``
+    attribute:
+
+    .. sourcecode:: python
+
+        app = faust.App(...)
+        app.tracer = Tracer()
+
+    That's it! Now traces will go through your custom tracing implementation.
+
+.. _`OpenTracing`: https://opentracing.io
+.. _`Jeager`: https://www.jaegertracing.io
+.. _`Zipkin`: https://zipkin.io
 
 - **Documentation**: Improvements by:
 
