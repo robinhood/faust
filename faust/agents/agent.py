@@ -471,29 +471,45 @@ class Agent(AgentT, Service):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the agent
         # function is an `async def` function that yields)
+        return self.actor_from_stream(stream,
+                                      index=index,
+                                      active_partitions=active_partitions,
+                                      channel=channel)
+
+    def actor_from_stream(self,
+                          stream: Optional[StreamT],
+                          *,
+                          index: int = None,
+                          active_partitions: Set[TP] = None,
+                          channel: ChannelT = None) -> ActorRefT:
+        we_created_stream = False
+        actual_stream: StreamT
         if stream is None:
-            stream = self.stream(
+            actual_stream = self.stream(
                 channel=channel,
                 concurrency_index=index,
                 active_partitions=active_partitions,
             )
+            we_created_stream = True
         else:
             # reusing actor stream after agent restart
             assert stream.concurrency_index == index
             assert stream.active_partitions == active_partitions
-        return self.actor_from_stream(stream)
+            actual_stream = stream
 
-    def actor_from_stream(self, stream: StreamT) -> ActorRefT:
-        res = self.fun(stream)
-        typ = cast(Type[Actor],
-                   (AwaitableActor
-                    if isinstance(res, Awaitable) else AsyncIterableActor))
+        res = self.fun(actual_stream)
+        if isinstance(res, AsyncIterable):
+            if we_created_stream:
+                actual_stream.add_processor(self._maybe_unwrap_reply_request)
+            typ = cast(Type[Actor], AsyncIterableActor)
+        else:
+            typ = cast(Type[Actor], AwaitableActor)
         return typ(
             self,
-            stream,
+            actual_stream,
             res,
-            index=stream.concurrency_index,
-            active_partitions=stream.active_partitions,
+            index=actual_stream.concurrency_index,
+            active_partitions=actual_stream.active_partitions,
             loop=self.loop,
             beacon=self.beacon,
         )
@@ -518,7 +534,6 @@ class Agent(AgentT, Service):
             loop=self.loop,
             active_partitions=active_partitions,
             **kwargs)
-        s.add_processor(self._maybe_unwrap_reply_request)
         return s
 
     def _maybe_unwrap_reply_request(self, value: V) -> Any:
