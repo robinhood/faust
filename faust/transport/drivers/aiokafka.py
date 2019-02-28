@@ -48,6 +48,7 @@ from faust.transport.consumer import (
     ensure_TPset,
 )
 from faust.types import ConsumerMessage, RecordMetadata, TP
+from faust.types.auth import CredentialsT, SASLCredentials, SSLCredentials
 from faust.types.transports import (
     ConsumerT,
     PartitionerT,
@@ -183,6 +184,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
         if self.consumer.in_transaction:
             isolation_level = 'read_committed'
         self._assignor = self.app.assignor
+        auth_settings = credentials_to_aiokafka_auth(
+            conf.broker_credentials, conf.ssl_context)
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -199,9 +202,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
-            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
-            ssl_context=conf.ssl_context,
             isolation_level=isolation_level,
+            **auth_settings,
         )
 
     def _create_client_consumer(
@@ -209,6 +211,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             transport: 'Transport',
             loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
         conf = self.app.conf
+        auth_settings = credentials_to_aiokafka_auth(
+            conf.broker_credentials, conf.ssl_context)
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -219,8 +223,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             max_poll_records=conf.broker_max_poll_records,
             auto_offset_reset=conf.consumer_auto_offset_reset,
             check_crcs=conf.broker_check_crcs,
-            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
-            ssl_context=conf.ssl_context,
+            **auth_settings,
         )
 
     def close(self) -> None:
@@ -408,10 +411,13 @@ class Producer(base.Producer):
             'compression_type': self.compression_type,
             'on_irrecoverable_error': self._on_irrecoverable_error,
             'security_protocol': 'SSL' if self.ssl_context else 'PLAINTEXT',
-            'ssl_context': self.ssl_context,
             'partitioner': self.partitioner or DefaultPartitioner(),
             'request_timeout_ms': int(self.request_timeout * 1000),
         }
+
+    def _settings_auth(self) -> Mapping[str, Any]:
+        return credentials_to_aiokafka_auth(
+            self.credentials, self.ssl_context)
 
     async def begin_transaction(self, transactional_id: str) -> None:
         await self._ensure_producer().begin_transaction(transactional_id)
@@ -447,6 +453,7 @@ class Producer(base.Producer):
         return self._producer_type(
             loop=self.loop,
             **{**self._settings_default(),
+               **self._settings_auth(),
                **self._settings_extra()},
         )
 
@@ -704,3 +711,29 @@ class Transport(base.Transport):
         else:
             owner.log.info(f'Topic {topic} created.')
             return
+
+
+def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
+                                 ssl_context: Any = None) -> Mapping:
+    if credentials is not None:
+        if isinstance(credentials, SSLCredentials):
+            return {
+                'security_protocol': credentials.protocol.value,
+                'ssl_context': credentials.context,
+            }
+        elif isinstance(credentials, SASLCredentials):
+            return {
+                'security_protocol': credentials.protocol.value,
+                'sasl_mechanism': credentials.mechanism,
+                'sasl_plain_username': credentials.username,
+                'sasl_plain_password': credentials.password,
+            }
+        else:
+            raise RuntimeError(f'aiokafka does not support {credentials}')
+    elif ssl_context is not None:
+        return {
+            'security_protocol': 'SSL',
+            'ssl_context': ssl_context,
+        }
+    else:
+        return {'security_protocol': 'PLAINTEXT'}

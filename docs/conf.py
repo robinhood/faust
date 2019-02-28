@@ -152,3 +152,9 @@ latex_elements = {
     'sphinxsetup':
         r'verbatimwithframe=false, VerbatimColor={rgb}{0.47, 0.41, 0.47}',
 }
+
+ignored_settings = {'ssl_context'}
+
+
+def configcheck_should_ignore(setting):
+    return setting in ignored_settings

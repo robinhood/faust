@@ -149,6 +149,7 @@ Types
     faust.types.agents
     faust.types.app
     faust.types.assignor
+    faust.types.auth
     faust.types.channels
     faust.types.codecs
     faust.types.core

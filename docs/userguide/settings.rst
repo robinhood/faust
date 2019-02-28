@@ -74,31 +74,41 @@ Available Transports
         suitable for tables), and do not create any necessary internal
         topics (you have to create them manually).
 
-.. setting:: ssl_context
+.. setting:: broker_credentials
 
-``ssl_context``
----------------
+``broker_credentials``
+----------------------
 
-.. versionadded:: 1.1
+.. versionadded:: 1.5
 
-:type: ``ssl.SSLContext``
+:type: ``CredentialsT``
 :default: ``None``
+
+Specify the authentication mechanism to use when connecting to the
+broker.
+
+The default is to not use any authentication.
+
+You can enable SASL authentication:
+
+.. sourcecode:: python
+
+    app = faust.App(credentials=faust.SASLCredentials(username='x', password='y'))
+
+or SSL authentication:
 
 Provide an SSL context for the Kafka broker connections.
 
 Allows Faust to use a secure SSL/TLS connection for the Kafka connections
 and enabling certificate-based authentication.
 
-Providing the ``ssl_context`` parameter automatically switches all Kafka
-connections from ``PLAINTEXT`` to ``SSL``.
-
-.. sourcecode:: text
+.. sourcecode:: python
 
     import ssl
 
     ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile="ca.pem")
     ssl_context.load_cert_chain("client.cert", keyfile="client.key")
-    app = faust.App(..., ssl_context=ssl_context)
+    app = faust.App(..., broker_credentials=ssl_context)
 
 .. setting:: store
 

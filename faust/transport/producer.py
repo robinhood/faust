@@ -34,6 +34,7 @@ class Producer(Service, ProducerT):
         self.compression_type = conf.producer_compression_type
         self.request_timeout = conf.producer_request_timeout
         self.ssl_context = conf.ssl_context
+        self.credentials = conf.broker_credentials
         self.partitioner = conf.producer_partitioner
         super().__init__(loop=loop or self.transport.loop, **kwargs)
 

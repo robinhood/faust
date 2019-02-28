@@ -124,6 +124,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from .tables.table import Table                             # noqa: E402
     from .tables.sets import SetTable                           # noqa: E402
     from .topics import Topic, TopicT                           # noqa: E402
+    from .types.auth import SASLCredentials, SSLCredentials     # noqa: E402
     from .types.settings import Settings                        # noqa: E402
     from .windows import (                                      # noqa: E402
         HoppingWindow,
@@ -158,6 +159,8 @@ __all__ = [
     'Table',
     'Topic',
     'TopicT',
+    'SASLCredentials',
+    'SSLCredentials',
     'Settings',
     'HoppingWindow',
     'TumblingWindow',
@@ -187,6 +190,7 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.tables.sets': ['SetTable'],
     'faust.tables.table': ['Table'],
     'faust.topics': ['Topic', 'TopicT'],
+    'faust.types.auth': ['SASLCredentials', 'SSLCredentials'],
     'faust.types.settings': ['Settings'],
     'faust.windows': [
         'HoppingWindow',

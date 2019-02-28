@@ -32,6 +32,7 @@ from faust.utils.urls import urllist
 from ._env import DATADIR, WEB_BIND, WEB_PORT, WEB_TRANSPORT
 from .agents import AgentT
 from .assignor import LeaderAssignorT, PartitionAssignorT
+from .auth import CredentialsArg, CredentialsT, to_credentials
 from .codecs import CodecArg
 from .enums import ProcessingGuarantee
 from .router import RouterT
@@ -281,6 +282,7 @@ class Settings(abc.ABC):
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
     broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
+    _broker_credentials: Optional[CredentialsT] = None
     id_format: str = '{id}-v{self.version}'
     key_serializer: CodecArg = 'raw'
     value_serializer: CodecArg = 'json'
@@ -390,6 +392,7 @@ class Settings(abc.ABC):
             broker: Union[str, URL, List[URL]] = None,
             broker_client_id: str = None,
             broker_request_timeout: Seconds = None,
+            broker_credentials: CredentialsArg = None,
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
@@ -484,6 +487,8 @@ class Settings(abc.ABC):
         # datadir is a format string that can contain e.g. {conf.id}
         self.datadir = datadir or DATADIR
         self.tabledir = tabledir or TABLEDIR
+        if broker_credentials is not None:
+            self.broker_credentials = broker_credentials
         if broker_request_timeout is not None:
             self.broker_request_timeout = want_seconds(broker_request_timeout)
         self.broker_commit_interval = (
@@ -743,6 +748,14 @@ class Settings(abc.ABC):
     def processing_guarantee(self,
                              value: Union[str, ProcessingGuarantee]) -> None:
         self._processing_guarantee = ProcessingGuarantee(value)
+
+    @property
+    def broker_credentials(self) -> Optional[CredentialsT]:
+        return self._broker_credentials
+
+    @broker_credentials.setter
+    def broker_credentials(self, creds: CredentialsArg = None) -> None:
+        self._broker_credentials = to_credentials(creds)
 
     @property
     def broker_request_timeout(self) -> float:
