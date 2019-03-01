@@ -578,6 +578,13 @@ class Producer(base.Producer):
         )
         return TP(topic, partition)
 
+    def supports_headers(self) -> bool:
+        producer = self._ensure_producer()
+        client = producer.client
+        if client is None:
+            raise NotReady('Producer client not yet connected')
+        return client.api_version >= (0, 11)
+
 
 class Transport(base.Transport):
     """Kafka transport using :pypi:`aiokafka`."""
