@@ -190,6 +190,7 @@ class Agent(AgentT, Service):
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  isolated_partitions: bool = False,
+                 use_reply_headers: bool = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
@@ -215,6 +216,7 @@ class Agent(AgentT, Service):
         if self.isolated_partitions and self.concurrency > 1:
             raise ImproperlyConfigured(
                 'Agent concurrency must be 1 when using isolated partitions')
+        self.use_reply_headers = use_reply_headers
         Service.__init__(self)
 
     async def _start_one(self,
@@ -604,8 +606,21 @@ class Agent(AgentT, Service):
             if stream is None:
                 stream = res.stream.get_active_stream()
             event = stream.current_event
-            if event is not None and isinstance(event.value, ReqRepRequest):
-                await self._reply(event.key, value, event.value)
+            if event is not None:
+                headers = event.headers
+                reply_to: str = None
+                correlation_id: str = None
+                if isinstance(event.value, ReqRepRequest):
+                    req: ReqRepRequest = event.value
+                    reply_to = req.reply_to
+                    correlation_id = req.correlation_id
+                elif headers:
+                    reply_to = cast(str, headers.get('Faust-Ag-ReplyTo'))
+                    correlation_id = cast(
+                        str, headers.get('Faust-Ag-CorrelationId'))
+                if reply_to:
+                    await self._reply(
+                        event.key, value, reply_to, correlation_id)
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
@@ -617,15 +632,16 @@ class Agent(AgentT, Service):
             else:
                 await maybe_async(cast(Callable, sink)(value))
 
-    async def _reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
-        assert req.reply_to
+    async def _reply(self, key: Any, value: Any,
+                     reply_to: str, correlation_id: str) -> None:
+        assert reply_to
         response = self._response_class(value)(
             key=key,
             value=value,
-            correlation_id=req.correlation_id,
+            correlation_id=correlation_id,
         )
         await self.app.send(
-            req.reply_to,
+            reply_to,
             key=None,
             value=response,
         )
@@ -684,31 +700,47 @@ class Agent(AgentT, Service):
                          reply_to: ReplyToArg = None,
                          correlation_id: str = None,
                          force: bool = False) -> ReplyPromise:
-        req = self._create_req(key, value, reply_to, correlation_id)
+        if reply_to is None:
+            raise TypeError('Missing reply_to argument')
+        reply_to = self._get_strtopic(reply_to)
+        correlation_id = correlation_id or str(uuid4())
+        value, headers = self._create_req(
+            key, value, reply_to, correlation_id, headers)
         await self.channel.send(
             key=key,
-            value=req,
+            value=value,
             partition=partition,
             timestamp=timestamp,
             headers=headers,
             force=force,
         )
-        return ReplyPromise(req.reply_to, req.correlation_id)
+        return ReplyPromise(reply_to, correlation_id)
 
-    def _create_req(self,
-                    key: K = None,
-                    value: V = None,
-                    reply_to: ReplyToArg = None,
-                    correlation_id: str = None) -> ReqRepRequest:
+    def _create_req(
+            self,
+            key: K = None,
+            value: V = None,
+            reply_to: ReplyToArg = None,
+            correlation_id: str = None,
+            headers: HeadersArg = None) -> Tuple[V, Optional[HeadersArg]]:
         if reply_to is None:
             raise TypeError('Missing reply_to argument')
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
-        return self._request_class(value)(
-            value=value,
-            reply_to=topic_name,
-            correlation_id=correlation_id,
-        )
+        if self.use_reply_headers:
+            headers2 = self._add_to_headers(headers or {}, {
+                'Faust-Ag-ReplyTo': topic_name,
+                'Faust-Ag-CorrelationId': correlation_id,
+            })
+            return value, headers2
+        else:
+            # wrap value in envelope
+            req = self._request_class(value)(
+                value=value,
+                reply_to=topic_name,
+                correlation_id=correlation_id,
+            )
+            return req, headers
 
     def _request_class(self, value: V) -> Type[ReqRepRequest]:
         if isinstance(value, ModelT):
@@ -730,7 +762,8 @@ class Agent(AgentT, Service):
                    force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to topic used by agent."""
         if reply_to:
-            value = self._create_req(key, value, reply_to, correlation_id)
+            value, headers = self._create_req(
+                key, value, reply_to, correlation_id, headers)
         return await self.channel.send(
             key=key,
             value=value,
@@ -741,6 +774,25 @@ class Agent(AgentT, Service):
             value_serializer=value_serializer,
             force=force,
         )
+
+    def _add_to_headers(self,
+                        target: HeadersArg,
+                        headers: Mapping) -> HeadersArg:
+        if target is None:
+            target = []
+        if isinstance(target, MutableMapping):
+            target.update({k: v for k, v in headers.items()})
+        elif isinstance(target, Mapping):
+            target = dict(target)
+            target.update({k: v for k, v in headers.items()})
+        elif isinstance(target, list):
+            target.extend((h for h in headers.items()))
+        elif isinstance(target, tuple):
+            target += tuple(h for h in headers.items())
+        elif isinstance(target, Iterable):
+            target = list(target)
+            target.extend((h for h in headers.items()))
+        return target
 
     def _get_strtopic(self,
                       topic: Union[str, ChannelT, TopicT, AgentT]) -> str:
@@ -945,7 +997,8 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                   correlation_id: str = None,
                   wait: bool = True) -> EventT:
         if reply_to:
-            value = self._create_req(key, value, reply_to, correlation_id)
+            value, headers = self._create_req(
+                key, value, reply_to, correlation_id, headers)
         channel = cast(ChannelT, self.stream().channel)
         message = self.to_message(
             key, value,

@@ -725,6 +725,7 @@ class App(AppT, Service):
               supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None,
               isolated_partitions: bool = False,
+              use_reply_headers: bool = False,
               **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         """Create Agent from async def function.
 
@@ -758,6 +759,7 @@ class App(AppT, Service):
                 sink=sink,
                 isolated_partitions=isolated_partitions,
                 on_error=self._on_agent_error,
+                use_reply_headers=use_reply_headers,
                 help=fun.__doc__,
                 **kwargs)
             self.agents[agent.name] = agent
