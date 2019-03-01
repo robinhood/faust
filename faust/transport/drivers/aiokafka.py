@@ -39,7 +39,12 @@ from mode.utils.futures import StampedeWrapper
 from mode.utils.times import Seconds, want_seconds
 from yarl import URL
 
-from faust.exceptions import ConsumerNotStarted, ProducerSendError
+from faust.exceptions import (
+    ConsumerNotStarted,
+    ImproperlyConfigured,
+    NotReady,
+    ProducerSendError,
+)
 from faust.transport import base
 from faust.transport.consumer import (
     ConsumerThread,
@@ -500,7 +505,7 @@ class Producer(base.Producer):
 
     def _ensure_producer(self) -> aiokafka.BaseProducer:
         if self._producer is None:
-            raise RuntimeError('Producer service not yet started')
+            raise NotReady('Producer service not yet started')
         return self._producer
 
     async def on_start(self) -> None:
@@ -639,7 +644,7 @@ class Transport(base.Transport):
         nodes = [broker.nodeId for broker in client.cluster.brokers()]
         for node_id in nodes:
             if node_id is None:
-                raise RuntimeError('Not connected to Kafka Broker')
+                raise NotReady('Not connected to Kafka Broker')
             request = MetadataRequest_v1([])
             wait_result = await owner.wait(
                 client.send(node_id, request),
@@ -736,7 +741,8 @@ def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
                 'sasl_plain_password': credentials.password,
             }
         else:
-            raise RuntimeError(f'aiokafka does not support {credentials}')
+            raise ImproperlyConfigured(
+                f'aiokafka does not support {credentials}')
     elif ssl_context is not None:
         return {
             'security_protocol': 'SSL',
