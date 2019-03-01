@@ -33,6 +33,7 @@ from mode import (
     SupervisorStrategyT,
 )
 from mode.utils.aiter import aenumerate, aiter
+from mode.utils.compat import want_bytes, want_str
 from mode.utils.futures import maybe_async
 from mode.utils.objects import canonshortname, qualname
 from mode.utils.text import shorten_fqdn
@@ -615,9 +616,9 @@ class Agent(AgentT, Service):
                     reply_to = req.reply_to
                     correlation_id = req.correlation_id
                 elif headers:
-                    reply_to = cast(str, headers.get('Faust-Ag-ReplyTo'))
-                    correlation_id = cast(
-                        str, headers.get('Faust-Ag-CorrelationId'))
+                    reply_to = want_str(headers.get('Faust-Ag-ReplyTo'))
+                    correlation_id = want_str(headers.get(
+                        'Faust-Ag-CorrelationId'))
                 if reply_to is not None:
                     await self._reply(
                         event.key, value, reply_to, cast(str, correlation_id))
@@ -729,8 +730,8 @@ class Agent(AgentT, Service):
         correlation_id = correlation_id or str(uuid4())
         if self.use_reply_headers:
             headers2 = self._add_to_headers(headers or {}, {
-                'Faust-Ag-ReplyTo': topic_name,
-                'Faust-Ag-CorrelationId': correlation_id,
+                'Faust-Ag-ReplyTo': want_bytes(topic_name),
+                'Faust-Ag-CorrelationId': want_bytes(correlation_id),
             })
             return value, headers2
         else:
