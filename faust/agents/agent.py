@@ -608,8 +608,8 @@ class Agent(AgentT, Service):
             event = stream.current_event
             if event is not None:
                 headers = event.headers
-                reply_to: str = None
-                correlation_id: str = None
+                reply_to: Optional[str] = None
+                correlation_id: Optional[str] = None
                 if isinstance(event.value, ReqRepRequest):
                     req: ReqRepRequest = event.value
                     reply_to = req.reply_to
@@ -618,9 +618,9 @@ class Agent(AgentT, Service):
                     reply_to = cast(str, headers.get('Faust-Ag-ReplyTo'))
                     correlation_id = cast(
                         str, headers.get('Faust-Ag-CorrelationId'))
-                if reply_to:
+                if reply_to is not None:
                     await self._reply(
-                        event.key, value, reply_to, correlation_id)
+                        event.key, value, reply_to, cast(str, correlation_id))
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
