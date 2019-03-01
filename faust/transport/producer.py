@@ -96,3 +96,6 @@ class Producer(Service, ProducerT):
             group_id: str,
             start_new_transaction: bool = True) -> None:
         raise NotImplementedError()
+
+    def supports_headers(self) -> bool:
+        return False

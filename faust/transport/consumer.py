@@ -318,6 +318,9 @@ class TransactionManager(Service, TransactionManagerT):
             ensure_created=ensure_created,
         )
 
+    def supports_headers(self) -> bool:
+        return self.producer.supports_headers()
+
 
 class Consumer(Service, ConsumerT):
     """Base Consumer."""

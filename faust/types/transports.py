@@ -162,6 +162,10 @@ class ProducerT(ServiceT):
             start_new_transaction: bool = True) -> None:
         ...
 
+    @abc.abstractmethod
+    def supports_headers(self) -> bool:
+        ...
+
 
 class TransactionManagerT(ProducerT):
     consumer: 'ConsumerT'
@@ -198,19 +202,15 @@ class TransactionManagerT(ProducerT):
 
     async def commit_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def abort_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def stop_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def maybe_begin_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def commit_transactions(
             self,
