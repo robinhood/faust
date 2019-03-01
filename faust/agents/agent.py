@@ -778,7 +778,7 @@ class Agent(AgentT, Service):
 
     def _add_to_headers(self,
                         target: HeadersArg,
-                        headers: Mapping) -> HeadersArg:
+                        headers: Mapping[str, bytes]) -> HeadersArg:
         if target is None:
             target = []
         if isinstance(target, MutableMapping):
@@ -791,7 +791,7 @@ class Agent(AgentT, Service):
         elif isinstance(target, tuple):
             target += tuple(h for h in headers.items())
         elif isinstance(target, Iterable):
-            target = list(target)
+            target = list(cast(Iterable[Tuple[str, bytes]], target))
             target.extend((h for h in headers.items()))
         return target
 
