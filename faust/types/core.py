@@ -15,4 +15,4 @@ K = Optional[Union[bytes, ModelT, Any]]
 V = Union[bytes, ModelT, Any]
 
 
-HeadersArg = Union[Iterable[Tuple[Any, Any]], Mapping[Any, Any]]
+HeadersArg = Union[Iterable[Tuple[str, bytes]], Mapping[str, bytes]]
