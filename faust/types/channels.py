@@ -8,7 +8,7 @@ from mode.utils.futures import stampede
 from mode.utils.queues import ThrowableQueue
 
 from .codecs import CodecArg
-from .core import K, V
+from .core import HeadersArg, K, V
 from .tuples import (
     FutureMessage,
     Message,
@@ -77,6 +77,7 @@ class ChannelT(AsyncIterator):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -90,6 +91,7 @@ class ChannelT(AsyncIterator):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:

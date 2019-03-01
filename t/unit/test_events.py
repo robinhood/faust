@@ -19,7 +19,7 @@ class test_Event:
 
     @pytest.fixture
     def event(self, *, app, key, value, message):
-        return Event(app, key, value, message)
+        return Event(app, key, value, {}, message)
 
     @pytest.mark.asyncio
     async def test_send(self, *, event):
@@ -31,6 +31,7 @@ class test_Event:
             value=event.value,
             partition=3,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -41,6 +42,7 @@ class test_Event:
             event.value,
             3,
             None,
+            {'k': 'v'},
             'kser',
             'vset',
             callback,
@@ -51,6 +53,7 @@ class test_Event:
     async def test_send__USE_EXISTING_KEY_VALUE(self, *, event):
         callback = Mock(name='callback')
         event._send = AsyncMock(name='event._send')
+        event.headers = {'k': 'v'}
         await event.send(
             channel='chan',
             partition=3,
@@ -65,6 +68,7 @@ class test_Event:
             event.value,
             3,
             None,
+            event.headers,
             'kser',
             'vset',
             callback,
@@ -79,6 +83,7 @@ class test_Event:
             channel='chan',
             key=event.key,
             value=event.value,
+            headers={'k': 'v'},
             partition=3,
             timestamp=1234,
             key_serializer='kser',
@@ -91,6 +96,7 @@ class test_Event:
             event.value,
             3,
             1234,
+            {'k': 'v'},
             'kser',
             'vset',
             callback,
@@ -101,6 +107,7 @@ class test_Event:
     async def test_forward__USE_EXISTING_KEY_VALUE(self, *, event):
         callback = Mock(name='callback')
         event._send = AsyncMock(name='event._send')
+        event.message.headers = {'k1': 'v1'}
         await event.forward(
             channel='chan',
             partition=3,
@@ -115,6 +122,7 @@ class test_Event:
             event.message.value,
             3,
             None,
+            event.message.headers,
             'kser',
             'vset',
             callback,
@@ -130,6 +138,7 @@ class test_Event:
             value=b'v',
             partition=3,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -141,6 +150,7 @@ class test_Event:
             b'v',
             partition=3,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='kser',
             value_serializer='vset',
             callback=callback,
@@ -157,6 +167,7 @@ class test_Event:
             value=b'v',
             partition=4,
             timestamp=33.31234,
+            headers=[('k', 'v')],
             key_serializer='kser',
             value_serializer='vser',
             callback=callback,
@@ -169,6 +180,7 @@ class test_Event:
             b'v',
             4,
             33.31234,
+            [('k', 'v')],
             'kser',
             'vser',
             callback,

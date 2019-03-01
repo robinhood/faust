@@ -30,6 +30,7 @@ from .types import (
     CodecArg,
     EventT,
     FutureMessage,
+    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -155,6 +156,7 @@ class Channel(ChannelT):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -165,6 +167,7 @@ class Channel(ChannelT):
             value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -176,6 +179,7 @@ class Channel(ChannelT):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
@@ -188,6 +192,7 @@ class Channel(ChannelT):
                 value_serializer=value_serializer,
                 partition=partition,
                 timestamp=timestamp,
+                headers=headers,
                 callback=callback,
                 # Python 3.6.0: NamedTuple doesn't support optional fields
                 # [ask]
@@ -202,18 +207,19 @@ class Channel(ChannelT):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(
             self.as_future_message(
-                key, value, partition, timestamp,
+                key, value, partition, timestamp, headers,
                 key_serializer, value_serializer, callback))
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:
         event = self._create_event(
-            fut.message.key, fut.message.value,
+            fut.message.key, fut.message.value, fut.message.headers,
             message=_PendingMessage_to_Message(fut.message))
         await self.put(event)
         return await self._finalize_message(
@@ -241,7 +247,8 @@ class Channel(ChannelT):
 
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
-        return self._create_event(message.key, message.value, message=message)
+        return self._create_event(
+            message.key, message.value, message.headers, message=message)
 
     async def deliver(self, message: Message) -> None:  # pragma: no cover
         ...  # closure compiled at __init__
@@ -259,8 +266,12 @@ class Channel(ChannelT):
 
         return deliver
 
-    def _create_event(self, key: K, value: V, message: Message) -> EventT:
-        return Event(self.app, key, value, message)
+    def _create_event(self,
+                      key: K,
+                      value: V,
+                      headers: Optional[HeadersArg],
+                      message: Message) -> EventT:
+        return Event(self.app, key, value, headers, message)
 
     async def put(self, value: Any) -> None:
         root = self._root if self._root is not None else self

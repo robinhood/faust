@@ -23,7 +23,7 @@ from mode.utils.futures import done_future
 from mode.utils.imports import symbol_by_name
 
 from faust.transport import base
-from faust.types import Message, RecordMetadata, TP
+from faust.types import HeadersArg, Message, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 
 # XXX mypy borks on `import faust`
@@ -148,19 +148,22 @@ class Producer(base.Producer):
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
-        res = await self.send_and_wait(topic, key, value, partition, timestamp)
+        res = await self.send_and_wait(
+            topic, key, value, partition, timestamp, headers)
         return cast(Awaitable[RecordMetadata], done_future(res))
 
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
                             timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
         return await cast(Transport, self.transport).send(
-            topic, value, key, partition, timestamp)
+            topic, value, key, partition, timestamp, headers)
 
 
 class Transport(base.Transport):
@@ -193,7 +196,8 @@ class Transport(base.Transport):
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> RecordMetadata:
+                   timestamp: Optional[float],
+                   headers: Optional[HeadersArg]) -> RecordMetadata:
         if partition is None:
             partition = 0
         message = Message(
@@ -202,6 +206,7 @@ class Transport(base.Transport):
             offset=0,
             timestamp=timestamp or time(),
             timestamp_type=1 if timestamp else 0,
+            headers=headers,
             key=key,
             value=value,
             checksum=None,

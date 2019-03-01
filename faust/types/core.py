@@ -1,5 +1,5 @@
 import typing
-from typing import Any, Optional, Union
+from typing import Any, Iterable, Mapping, Optional, Tuple, Union
 
 if typing.TYPE_CHECKING:
     from .models import ModelT
@@ -13,3 +13,6 @@ K = Optional[Union[bytes, ModelT, Any]]
 
 #: Shorthand for the type of a value
 V = Union[bytes, ModelT, Any]
+
+
+HeadersArg = Union[Iterable[Tuple[Any, Any]], Mapping[Any, Any]]

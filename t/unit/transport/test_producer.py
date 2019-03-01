@@ -7,7 +7,7 @@ class ProducerTests:
     @pytest.mark.asyncio
     async def test_send(self, *, producer):
         with pytest.raises(NotImplementedError):
-            await producer.send('topic', 'key', 'value', 1, None)
+            await producer.send('topic', 'key', 'value', 1, None, {})
 
     @pytest.mark.asyncio
     async def test_flush(self, *, producer):
@@ -16,7 +16,7 @@ class ProducerTests:
     @pytest.mark.asyncio
     async def test_send_and_wait(self, *, producer):
         with pytest.raises(NotImplementedError):
-            await producer.send_and_wait('topic', 'key', 'value', 1, None)
+            await producer.send_and_wait('topic', 'key', 'value', 1, None, {})
 
     @pytest.mark.asyncio
     async def test_create_topic(self, *, producer):

@@ -4,6 +4,7 @@ from itertools import cycle
 from time import time
 from typing import Any, List, Optional, Set
 from faust.types import AppT, CodecT, EventT, Message as MessageT, StreamT, TP
+from faust.types.core import HeadersArg
 from mode import Service
 from mode.utils.aiter import aenumerate
 
@@ -159,7 +160,8 @@ class AgentCase(Service):
                   tp: TP = None,
                   **kwargs: Any) -> MessageT:
         # send first message
-        message = self.Message(tp=tp, key=key, value=bytes, **kwargs)
+        message = self.Message(
+            tp=tp, key=key, value=bytes, headers=None, **kwargs)
         await self.app.topics.on_message(message)
         return message
 
@@ -168,6 +170,7 @@ class AgentCase(Service):
                 offset: int = None,
                 timestamp: float = None,
                 timestamp_type: int = 1,
+                headers: Optional[HeadersArg] = None,
                 key: Optional[bytes] = None,
                 value: Optional[bytes] = None,
                 checksum: Optional[bytes] = None,
@@ -180,6 +183,7 @@ class AgentCase(Service):
             offset=self.next_offset(tp) if offset is None else offset,
             timestamp=time() if timestamp is None else timestamp,
             timestamp_type=timestamp_type,
+            headers=headers,
             key=key,
             value=value,
             checksum=checksum,

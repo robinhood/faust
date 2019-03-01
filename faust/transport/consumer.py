@@ -78,6 +78,7 @@ from mode.utils.text import pluralize
 from mode.utils.times import Seconds
 from faust.exceptions import ProducerSendError
 from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
+from faust.types.core import HeadersArg
 from faust.types.transports import (
     ConsumerCallback,
     ConsumerT,
@@ -253,13 +254,14 @@ class TransactionManager(Service, TransactionManagerT):
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         p: int = self.consumer.key_partition(topic, key, partition)
         group = self.app.assignor.group_for_topic(topic)
         transactional_id = f'{group}-{p}'
         return await self.producer.send(
-            topic, key, value, p, timestamp,
+            topic, key, value, p, timestamp, headers,
             transactional_id=transactional_id,
         )
 
@@ -267,9 +269,10 @@ class TransactionManager(Service, TransactionManagerT):
                             value: Optional[bytes],
                             partition: Optional[int],
                             timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
-        fut = await self.send(topic, key, value, partition, timestamp)
+        fut = await self.send(topic, key, value, partition, timestamp, headers)
         return await fut
 
     async def commit(self, offsets: Mapping[TP, int],

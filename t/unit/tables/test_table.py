@@ -27,8 +27,15 @@ def event():
     message = Message(topic='test-topic', key='key', value='value',
                       partition=3, offset=0, checksum=None,
                       timestamp=datetime.datetime.now().timestamp(),
-                      timestamp_type=0)
-    return Event(app='test-app', key='key', value='value', message=message)
+                      timestamp_type=0,
+                      headers={})
+    return Event(
+        app='test-app',
+        key='key',
+        value='value',
+        headers={},
+        message=message,
+    )
 
 
 class test_Table:

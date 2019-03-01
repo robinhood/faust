@@ -32,7 +32,7 @@ from faust.transport.consumer import (
     ensure_TP,
     ensure_TPset,
 )
-from faust.types import AppT, ConsumerMessage, RecordMetadata, TP
+from faust.types import AppT, ConsumerMessage, HeadersArg, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 
 import confluent_kafka
@@ -110,6 +110,7 @@ class Consumer(ThreadDelegateConsumer):
             record.offset(),
             timestamp_s,
             timestamp_type,
+            [],  # headers
             key,
             value,
             None,
@@ -492,6 +493,7 @@ class Producer(base.Producer):
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         fut = ProducerProduceFuture(loop=self.loop)
@@ -511,10 +513,11 @@ class Producer(base.Producer):
                             value: Optional[bytes],
                             partition: Optional[int],
                             timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
         fut = await self.send(
-            topic, key, value, partition, timestamp,
+            topic, key, value, partition, timestamp, headers,
         )
         return await fut
 

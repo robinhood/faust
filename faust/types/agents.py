@@ -26,7 +26,7 @@ from mode import ServiceT, SupervisorStrategyT
 from mode.utils.collections import ManagedUserDict
 
 from .codecs import CodecArg
-from .core import K, V
+from .core import HeadersArg, K, V
 from .events import EventT
 from .models import ModelArg
 from .streams import StreamT
@@ -172,7 +172,8 @@ class AgentT(ServiceT):
                    *,
                    key: K = None,
                    partition: int = None,
-                   timestamp: float = None) -> None:
+                   timestamp: float = None,
+                   headers: HeadersArg = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -182,6 +183,7 @@ class AgentT(ServiceT):
                   key: K = None,
                   partition: int = None,
                   timestamp: float = None,
+                  headers: HeadersArg = None,
                   reply_to: ReplyToArg = None,
                   correlation_id: str = None) -> Any:
         ...
@@ -193,6 +195,7 @@ class AgentT(ServiceT):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    reply_to: ReplyToArg = None,
@@ -291,6 +294,7 @@ class AgentTestWrapperT(AgentT, AsyncIterable):
                   key: K = None,
                   partition: int = None,
                   timestamp: float = None,
+                  headers: HeadersArg = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   *,
@@ -307,7 +311,8 @@ class AgentTestWrapperT(AgentT, AsyncIterable):
                    partition: int = 0,
                    offset: int = 0,
                    timestamp: float = None,
-                   timestamp_type: int = 0) -> Message:
+                   timestamp_type: int = 0,
+                   headers: HeadersArg = None) -> Message:
         ...
 
     @abc.abstractmethod

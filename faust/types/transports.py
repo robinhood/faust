@@ -26,6 +26,7 @@ from typing import (
 from mode import Seconds, ServiceT
 from yarl import URL
 
+from .core import HeadersArg
 from .channels import ChannelT
 from .tuples import Message, RecordMetadata, TP
 
@@ -96,6 +97,7 @@ class ProducerT(ServiceT):
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         ...
@@ -105,6 +107,7 @@ class ProducerT(ServiceT):
                             value: Optional[bytes],
                             partition: Optional[int],
                             timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
         ...

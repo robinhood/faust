@@ -29,7 +29,7 @@ from mode.utils.types.trees import NodeT
 from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
-from .core import K, V
+from .core import HeadersArg, K, V
 from .fixups import FixupT
 from .router import RouterT
 from .sensors import SensorDelegateT
@@ -302,6 +302,7 @@ class AppT(ServiceT):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:

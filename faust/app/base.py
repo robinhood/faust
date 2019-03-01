@@ -66,7 +66,7 @@ from faust.types._env import STRICT
 from faust.types.app import AppT, BootStrategyT, TaskArg
 from faust.types.assignor import LeaderAssignorT, PartitionAssignorT
 from faust.types.codecs import CodecArg
-from faust.types.core import K, V
+from faust.types.core import HeadersArg, K, V
 from faust.types.enums import ProcessingGuarantee
 from faust.types.models import ModelArg
 from faust.types.router import RouterT
@@ -1178,6 +1178,7 @@ class App(AppT, Service):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -1191,6 +1192,8 @@ class App(AppT, Service):
                 If not set the partition will be chosen by the partitioner.
             timestamp: Epoch seconds (from Jan 1 1970
                 UTC) to use as the message timestamp. Defaults to current time.
+            headers: Mapping of key/value pairs, or iterable of key value
+                pairs to use as headers for the message.
             key_serializer: Serializer to use (if value is not model).
             value_serializer: Serializer to use (if value is not model).
             callback: Called after the message is fully delivered to the
@@ -1212,6 +1215,7 @@ class App(AppT, Service):
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,

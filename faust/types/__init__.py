@@ -5,7 +5,7 @@ from .agents import AgentManagerT, AgentT
 from .app import AppT
 from .channels import ChannelT
 from .codecs import CodecArg, CodecT
-from .core import K, V
+from .core import HeadersArg, K, V
 from .enums import ProcessingGuarantee
 from .events import EventT
 from .fixups import FixupT
@@ -55,6 +55,7 @@ __all__ = [
     'CodecT',
 
     # types.core
+    'HeadersArg',
     'K',
     'V',
 

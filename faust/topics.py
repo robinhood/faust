@@ -30,6 +30,7 @@ from .types import (
     CodecArg,
     EventT,
     FutureMessage,
+    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -151,6 +152,7 @@ class Topic(Channel, TopicT):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -165,6 +167,7 @@ class Topic(Channel, TopicT):
                     value,
                     partition=partition,
                     timestamp=timestamp,
+                    headers=headers,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
@@ -174,6 +177,7 @@ class Topic(Channel, TopicT):
             value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -211,7 +215,7 @@ class Topic(Channel, TopicT):
             else:
                 try:
                     if message.value is None and self.allow_empty:
-                        return create_event(k, None, message)
+                        return create_event(k, None, message.headers, message)
                     v = loads_value(
                         value_type, message.value, serializer=value_serializer)
                 except ValueDecodeError as exc:
@@ -219,7 +223,7 @@ class Topic(Channel, TopicT):
                         raise
                     await self.on_value_decode_error(exc, message)
                 else:
-                    return create_event(k, v, message)
+                    return create_event(k, v, message.headers, message)
 
         return decode
 
@@ -339,6 +343,7 @@ class Topic(Channel, TopicT):
         value: bytes = cast(bytes, message.value)
         partition: Optional[int] = message.partition
         timestamp: float = cast(float, message.timestamp)
+        headers: Optional[HeadersArg] = message.headers
         logger.debug('send: topic=%r k=%r v=%r timestamp=%r partition=%r',
                      topic, key, value, timestamp, partition)
         assert topic is not None
@@ -353,6 +358,7 @@ class Topic(Channel, TopicT):
                 topic, key, value,
                 partition=partition,
                 timestamp=timestamp,
+                headers=headers,
             )
             app.sensors.on_send_completed(producer, state)
             return await self._finalize_message(fut, ret)
@@ -361,6 +367,7 @@ class Topic(Channel, TopicT):
                 topic, key, value,
                 partition=partition,
                 timestamp=timestamp,
+                headers=headers,
             ))
             callback = partial(
                 self._on_published,

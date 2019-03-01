@@ -9,7 +9,7 @@ The Producer is responsible for:
 import asyncio
 from typing import Any, Awaitable, Mapping, Optional
 from mode import Seconds, Service
-from faust.types import AppT
+from faust.types import AppT, HeadersArg
 from faust.types.tuples import RecordMetadata, TP
 from faust.types.transports import ProducerT, TransportT
 
@@ -42,6 +42,7 @@ class Producer(Service, ProducerT):
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         raise NotImplementedError()
@@ -50,6 +51,7 @@ class Producer(Service, ProducerT):
                             value: Optional[bytes],
                             partition: Optional[int],
                             timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
         raise NotImplementedError()

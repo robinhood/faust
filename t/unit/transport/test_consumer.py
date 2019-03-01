@@ -204,10 +204,11 @@ class test_TransactionManager:
         }
         manager.consumer.key_partition.return_value = 1
 
-        await manager.send('t', 'k', 'v', partition=None, timestamp=None)
+        await manager.send(
+            't', 'k', 'v', partition=None, headers=None, timestamp=None)
         manager.consumer.key_partition.assert_called_once_with('t', 'k', None)
         producer.send.assert_called_once_with(
-            't', 'k', 'v', 1, None, transactional_id='3-1',
+            't', 'k', 'v', 1, None, None, transactional_id='3-1',
         )
 
     @pytest.mark.asyncio
@@ -219,9 +220,9 @@ class test_TransactionManager:
             return done_future()
         manager.send = send
 
-        await manager.send_and_wait('t', 'k', 'v', 3, 43.2)
+        await manager.send_and_wait('t', 'k', 'v', 3, 43.2, {})
         on_send.assert_called_once_with(
-            't', 'k', 'v', 3, 43.2,
+            't', 'k', 'v', 3, 43.2, {},
         )
 
     @pytest.mark.asyncio

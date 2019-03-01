@@ -27,7 +27,7 @@ class test_Topic:
 
     @pytest.fixture
     def message_empty_value(self):
-        return Mock(name='message', value=None, autospec=Message)
+        return Mock(name='message', value=None, headers=[], autospec=Message)
 
     def test_init_key_serializer_taken_from_key_type(self, app):
         class M(Record, serializer='foobar'):
@@ -47,6 +47,7 @@ class test_Topic:
             value='bar',
             partition=130,
             timestamp=312.5134,
+            headers={'k': 'v'},
             key_serializer='json',
             value_serializer='json',
             callback=callback,
@@ -56,6 +57,7 @@ class test_Topic:
             topic.get_topic_name(),
             topic.prepare_key('foo', 'json'),
             topic.prepare_value('bar', 'json'),
+            headers={'k': 'v'},
             partition=130,
             timestamp=312.5134,
         )
@@ -71,6 +73,7 @@ class test_Topic:
                 value='v',
                 partition=3,
                 timestamp=312.41,
+                headers={'k': 'v'},
                 key_serializer='foo',
                 value_serializer='bar',
                 callback=callback,
@@ -83,6 +86,7 @@ class test_Topic:
                 'v',
                 partition=3,
                 timestamp=312.41,
+                headers={'k': 'v'},
                 key_serializer='foo',
                 value_serializer='bar',
                 callback=callback,
@@ -99,6 +103,7 @@ class test_Topic:
                 value='v',
                 partition=3,
                 timestamp=312.41,
+                headers={'k': 'v'},
                 key_serializer='foo',
                 value_serializer='bar',
                 callback=callback,
@@ -109,6 +114,7 @@ class test_Topic:
                 'v',
                 partition=3,
                 timestamp=312.41,
+                headers={'k': 'v'},
                 key_serializer='foo',
                 value_serializer='bar',
                 callback=callback,

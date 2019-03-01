@@ -45,6 +45,7 @@ from faust.types import (
     ChannelT,
     CodecArg,
     EventT,
+    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -639,12 +640,14 @@ class Agent(AgentT, Service):
                    *,
                    key: K = None,
                    partition: int = None,
-                   timestamp: float = None) -> None:
+                   timestamp: float = None,
+                   headers: HeadersArg = None) -> None:
         await self.send(
             key=key,
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
         )
 
     async def ask(self,
@@ -653,6 +656,7 @@ class Agent(AgentT, Service):
                   key: K = None,
                   partition: int = None,
                   timestamp: float = None,
+                  headers: HeadersArg = None,
                   reply_to: ReplyToArg = None,
                   correlation_id: str = None) -> Any:
         p = await self.ask_nowait(
@@ -660,6 +664,7 @@ class Agent(AgentT, Service):
             key=key,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             reply_to=reply_to or self.app.conf.reply_to,
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
@@ -675,6 +680,7 @@ class Agent(AgentT, Service):
                          key: K = None,
                          partition: int = None,
                          timestamp: float = None,
+                         headers: HeadersArg = None,
                          reply_to: ReplyToArg = None,
                          correlation_id: str = None,
                          force: bool = False) -> ReplyPromise:
@@ -684,6 +690,7 @@ class Agent(AgentT, Service):
             value=req,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             force=force,
         )
         return ReplyPromise(req.reply_to, req.correlation_id)
@@ -714,6 +721,7 @@ class Agent(AgentT, Service):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -728,6 +736,7 @@ class Agent(AgentT, Service):
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             force=force,
@@ -928,6 +937,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                   key: K = None,
                   partition: Optional[int] = None,
                   timestamp: Optional[float] = None,
+                  headers: HeadersArg = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   *,
@@ -942,6 +952,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
             partition=partition,
             offset=self.sent_offset,
             timestamp=timestamp,
+            headers=headers,
         )
         event: EventT = await channel.decode(message)
         await channel.put(event)
@@ -960,7 +971,8 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                    partition: Optional[int] = None,
                    offset: int = 0,
                    timestamp: float = None,
-                   timestamp_type: int = 0) -> Message:
+                   timestamp_type: int = 0,
+                   headers: HeadersArg = None) -> Message:
         try:
             topic_name = self._get_strtopic(self.original_channel)
         except ValueError:
@@ -971,6 +983,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
             offset=offset,
             timestamp=timestamp or time(),
             timestamp_type=timestamp_type,
+            headers=headers,
             key=key,
             value=value,
             checksum=b'',

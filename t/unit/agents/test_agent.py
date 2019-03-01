@@ -487,8 +487,8 @@ class test_Agent:
         word_req = ReqRepRequest(word, 'reply_to', 'correlation_id')
         message1 = Mock(name='message1', autospec=Message)
         message2 = Mock(name='message2', autospec=Message)
-        event1 = Event(app, None, word_req, message1)
-        event2 = Event(app, 'key', 'bar', message2)
+        event1 = Event(app, None, word_req, {}, message1)
+        event2 = Event(app, 'key', 'bar', {}, message2)
         values = [
             (event1, word),
             (event2, 'bar'),
@@ -558,7 +558,12 @@ class test_Agent:
         agent.send = AsyncMock(name='send')
         await agent.cast('value', key='key', partition=303)
         agent.send.assert_called_once_with(
-            key='key', value='value', partition=303, timestamp=None)
+            key='key',
+            value='value',
+            partition=303,
+            headers=None,
+            timestamp=None,
+        )
 
     @pytest.mark.asyncio
     async def test_ask(self, *, agent):
@@ -581,6 +586,7 @@ class test_Agent:
             key='key',
             partition=303,
             correlation_id='correlation_id',
+            headers={'k1': 'v1'},
         )
         agent.ask_nowait.assert_called_once_with(
             'val',
@@ -590,6 +596,7 @@ class test_Agent:
             correlation_id='correlation_id',
             force=True,
             timestamp=None,
+            headers={'k1': 'v1'},
         )
         agent.app._reply_consumer.add.assert_called_once_with(
             pp.correlation_id, pp)
@@ -603,6 +610,7 @@ class test_Agent:
             key='key',
             partition=303,
             timestamp=None,
+            headers=None,
             reply_to='reply_to',
             correlation_id='correlation_id',
             force=True,
@@ -616,6 +624,7 @@ class test_Agent:
             partition=303,
             timestamp=None,
             force=True,
+            headers=None,
         )
 
         assert res.reply_to == agent._create_req().reply_to
@@ -678,6 +687,7 @@ class test_Agent:
             value=b'value',
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -695,6 +705,7 @@ class test_Agent:
             value=agent._create_req(),
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             force=True,
@@ -717,6 +728,7 @@ class test_Agent:
             value=b'value',
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -732,6 +744,7 @@ class test_Agent:
             value=b'value',
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             force=True,

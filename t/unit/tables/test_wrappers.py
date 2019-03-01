@@ -140,6 +140,7 @@ class test_WindowSet:
         e = Event(app,
                   key='KK',
                   value='VV',
+                  headers={},
                   message=Mock(name='message', autospec=Message))
         ret = wset[e]
         assert isinstance(ret, WindowSet)
@@ -157,6 +158,7 @@ class test_WindowSet:
         e = Event(app,
                   key='KK',
                   value='VV',
+                  headers={},
                   message=Mock(name='message', autospec=Message))
         with pytest.raises(NotImplementedError):
             wset[e] = 'val'
@@ -170,6 +172,7 @@ class test_WindowSet:
         e = Event(app,
                   key='KK',
                   value='VV',
+                  headers={},
                   message=Mock(name='message', autospec=Message))
         with pytest.raises(NotImplementedError):
             del(wset[e])

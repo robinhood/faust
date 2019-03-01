@@ -47,7 +47,7 @@ from faust.transport.consumer import (
     ThreadDelegateConsumer,
     ensure_TPset,
 )
-from faust.types import ConsumerMessage, RecordMetadata, TP
+from faust.types import ConsumerMessage, HeadersArg, RecordMetadata, TP
 from faust.types.auth import CredentialsT, SASLCredentials, SSLCredentials
 from faust.types.transports import (
     ConsumerT,
@@ -136,6 +136,7 @@ class Consumer(ThreadDelegateConsumer):
             record.offset,
             timestamp_s,
             record.timestamp_type,
+            record.headers,
             record.key,
             record.value,
             record.checksum,
@@ -519,9 +520,12 @@ class Producer(base.Producer):
                    value: Optional[bytes],
                    partition: Optional[int],
                    timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
                    *,
                    transactional_id: str = None) -> Awaitable[RecordMetadata]:
         producer = self._ensure_producer()
+        if headers is not None and isinstance(headers, Mapping):
+            headers = list(headers.items())
         try:
             timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
             return cast(Awaitable[RecordMetadata], await producer.send(
@@ -529,6 +533,7 @@ class Producer(base.Producer):
                 key=key,
                 partition=partition,
                 timestamp_ms=timestamp_ms,
+                headers=headers,
                 transactional_id=transactional_id,
             ))
         except KafkaError as exc:
@@ -538,6 +543,7 @@ class Producer(base.Producer):
                             value: Optional[bytes],
                             partition: Optional[int],
                             timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
                             *,
                             transactional_id: str = None) -> RecordMetadata:
         fut = await self.send(
@@ -546,6 +552,7 @@ class Producer(base.Producer):
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             transactional_id=transactional_id,
         )
         return await fut
