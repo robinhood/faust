@@ -33,12 +33,22 @@ class test_Worker:
         assert w.sensors == set()
         assert w.workdir == Path.cwd()
         assert isinstance(w.spinner, terminal.Spinner)
+        w2 = Worker(app, redirect_stdouts=False)
+        assert not w2.redirect_stdouts
+        w3 = Worker(app, redirect_stdouts_level='DEBUG')
+        assert w3.redirect_stdouts_level == 10
+        w4 = Worker(app, logging_config={'foo': 1})
+        assert w4.logging_config == {'foo': 1}
 
     def test_set_sensors(self, app):
         assert Worker(app, sensors=[1, 2]).sensors == {1, 2}
 
     def test_set_workdir(self, app):
         assert Worker(app, workdir='/foo').workdir == Path('/foo')
+
+    @pytest.mark.asyncio
+    async def test_on_start(self, worker):
+        await worker.on_start()
 
     @pytest.mark.asyncio
     async def test_on_siginit(self, worker):

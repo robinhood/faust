@@ -27,6 +27,36 @@ class ProducerTests:
         with pytest.raises(NotImplementedError):
             producer.key_partition('topic', 'key')
 
+    @pytest.mark.asyncio
+    async def test_begin_transaction(self, *, producer):
+        with pytest.raises(NotImplementedError):
+            await producer.begin_transaction('tid')
+
+    @pytest.mark.asyncio
+    async def test_commit_transaction(self, *, producer):
+        with pytest.raises(NotImplementedError):
+            await producer.commit_transaction('tid')
+
+    @pytest.mark.asyncio
+    async def test_abort_transaction(self, *, producer):
+        with pytest.raises(NotImplementedError):
+            await producer.abort_transaction('tid')
+
+    @pytest.mark.asyncio
+    async def test_stop_transaction(self, *, producer):
+        with pytest.raises(NotImplementedError):
+            await producer.stop_transaction('tid')
+
+    @pytest.mark.asyncio
+    async def test_maybe_begin_transaction(self, *, producer):
+        with pytest.raises(NotImplementedError):
+            await producer.maybe_begin_transaction('tid')
+
+    @pytest.mark.asyncio
+    async def test_commit_transactions(self, *, producer):
+        with pytest.raises(NotImplementedError):
+            await producer.commit_transactions({}, 'gid')
+
 
 class test_Producer(ProducerTests):
 

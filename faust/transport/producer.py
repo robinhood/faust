@@ -80,19 +80,15 @@ class Producer(Service, ProducerT):
 
     async def commit_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def abort_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def stop_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def maybe_begin_transaction(self, transactional_id: str) -> None:
         raise NotImplementedError()
-        ...
 
     async def commit_transactions(
             self,
