@@ -757,10 +757,13 @@ class Stream(StreamT[T_co], Service):
                         channel_value = await chan_slow_get()
 
                     if isinstance(channel_value, event_cls):
-                        trace_context = trace(trace_stream_label)
+                        event = channel_value
+                        trace_context = trace(
+                            trace_stream_label,
+                            stream_headers=event.headers,
+                        )
                         if trace_context is not None:
                             trace_context.__enter__()
-                        event = channel_value
                         message = event.message
                         topic = message.topic
                         tp = message.tp

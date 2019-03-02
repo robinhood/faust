@@ -128,16 +128,36 @@ please visit the :ref:`history` section.
 
     .. sourcecode:: python
 
+        import opentracing
         from typing import Any, ContextManager
+        from faust.types.core import HeadersArg, merge_headers
 
         class Tracer:
 
             @contextmanager
-            def trace(self, name: str, **extra_context: Any) -> ContextManager:
-                with GLOBAL_TRACER.start_span(name) as span:
+            def trace(self, name: str, request_headers: Mapping,
+                      **extra_context: Any) -> ContextManager:
+                # request headers contain the uber-trace-id if any,
+                # you can use opentracing.Tracer.extract.
+
+                tracer: opentracing.Tracer = CREATE_TRACER()
+                with tracer.start_span(name) as span:
                     for key, value in extra_context.items():
                         span.set_tag(key, value)
                     yield
+
+            def trace_inject_headers(self, headers: HeadersArg) -> HeadersArg:
+                span: opentracing.Span = GET_CURRENT_SPAN()
+                if span is not None:
+                    carrier = {}
+                    tracer: opentracing.Tracer = span.tracer
+                    tracer.inject(
+                        span_context=span,
+                        format=opentracing.Format.HTTP_HEADERS,
+                        carrier=carrier,
+                    )
+                    return merge_headers(headers, carrier)
+                return headers
 
 
     After implementing the interface you need to set the ``app.tracer``

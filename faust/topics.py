@@ -353,6 +353,8 @@ class Topic(Channel, TopicT):
             topic,
             keysize=len(key) if key else 0,
             valsize=len(value) if value else 0)
+        if app.tracer:
+            headers = app.tracer.trace_inject_headers(headers)
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
                 topic, key, value,
