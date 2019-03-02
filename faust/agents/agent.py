@@ -68,6 +68,7 @@ from faust.types.agents import (
     ReplyToArg,
     SinkT,
 )
+from faust.types.core import merge_headers
 
 from .actor import Actor, AsyncIterableActor, AwaitableActor
 from .models import (
@@ -729,7 +730,7 @@ class Agent(AgentT, Service):
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
         if self.use_reply_headers:
-            headers2 = self._add_to_headers(headers or {}, {
+            headers2 = merge_headers(headers or {}, {
                 'Faust-Ag-ReplyTo': want_bytes(topic_name),
                 'Faust-Ag-CorrelationId': want_bytes(correlation_id),
             })
@@ -775,25 +776,6 @@ class Agent(AgentT, Service):
             value_serializer=value_serializer,
             force=force,
         )
-
-    def _add_to_headers(self,
-                        target: HeadersArg,
-                        headers: Mapping[str, bytes]) -> HeadersArg:
-        if target is None:
-            target = []
-        if isinstance(target, MutableMapping):
-            target.update({k: v for k, v in headers.items()})
-        elif isinstance(target, Mapping):
-            target = dict(target)
-            target.update({k: v for k, v in headers.items()})
-        elif isinstance(target, list):
-            target.extend((h for h in headers.items()))
-        elif isinstance(target, tuple):
-            target += tuple(h for h in headers.items())
-        elif isinstance(target, Iterable):
-            target = list(cast(Iterable[Tuple[str, bytes]], target))
-            target.extend((h for h in headers.items()))
-        return target
 
     def _get_strtopic(self,
                       topic: Union[str, ChannelT, TopicT, AgentT]) -> str:
