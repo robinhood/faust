@@ -538,6 +538,7 @@ class Agent(AgentT, Service):
             channel,
             loop=self.loop,
             active_partitions=active_partitions,
+            prefix=self.name,
             **kwargs)
         return s
 

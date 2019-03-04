@@ -110,6 +110,7 @@ class Stream(StreamT[T_co], Service):
                  prev: StreamT = None,
                  active_partitions: Set[TP] = None,
                  enable_acks: bool = True,
+                 prefix: str = '',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -126,6 +127,7 @@ class Stream(StreamT[T_co], Service):
         self._prev = prev
         self.active_partitions = active_partitions
         self.enable_acks = enable_acks
+        self.prefix = prefix
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
@@ -545,7 +547,10 @@ class Stream(StreamT[T_co], Service):
         if topic is not None:
             channel = topic
         else:
-            suffix = '-' + self.app.conf.id + '-' + name + '-repartition'
+            prefix = self.prefix
+            if prefix:
+                prefix = '-' + prefix.lstrip('-')
+            suffix = f'{prefix}-{self.app.conf.id}-{name}-repartition'
             p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
