@@ -1,6 +1,14 @@
 """Web driver using :pypi:`aiohttp`."""
 from pathlib import Path
-from typing import Any, Callable, Mapping, Optional, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Union,
+    cast,
+)
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import (
@@ -81,30 +89,60 @@ class Web(base.Web):
         self.init_server()
         return self.web_app
 
-    def text(self, value: str, *, content_type: str = None,
-             status: int = 200) -> base.Response:
+    def text(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> base.Response:
         response = Response(
             text=value,
             content_type=content_type,
             status=status,
+            reason=reason,
+            headers=headers,
         )
         return cast(base.Response, response)
 
-    def html(self, value: str, *, status: int = 200) -> base.Response:
-        return self.text(value, status=status, content_type='text/html')
+    def html(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> base.Response:
+        return self.text(
+            value,
+            status=status,
+            content_type=content_type or 'text/html',
+            reason=reason,
+            headers=headers,
+        )
 
-    def json(self, value: Any, *, status: int = 200) -> Any:
-        return json_response(value, status=status, dumps=_json.dumps)
+    def json(self, value: Any, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Any:
+        return json_response(
+            value,
+            content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
+            dumps=_json.dumps,
+        )
 
     def bytes(self,
               value: _bytes,
               *,
               content_type: str = None,
-              status: int = 200) -> base.Response:
+              status: int = 200,
+              reason: str = None,
+              headers: MutableMapping = None) -> base.Response:
         response = Response(
             body=value,
-            status=status,
             content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
         )
         return cast(base.Response, response)
 

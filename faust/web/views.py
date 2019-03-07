@@ -6,6 +6,7 @@ from typing import (
     Callable,
     ClassVar,
     Mapping,
+    MutableMapping,
     Type,
     cast,
     no_type_check,
@@ -108,22 +109,59 @@ class View:
     async def delete(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method DELETE not allowed.')
 
-    def text(self, value: str, *, content_type: str = None,
-             status: int = 200) -> Response:
-        return self.web.text(value, content_type=content_type, status=status)
+    def text(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Response:
+        return self.web.text(
+            value,
+            content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
+        )
 
-    def html(self, value: str, *, status: int = 200) -> Response:
-        return self.web.html(value, status=status)
+    def html(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Response:
+        return self.web.html(
+            value,
+            content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
+        )
 
-    def json(self, value: Any, *, status: int = 200) -> Response:
-        return self.web.json(value, status=status)
+    def json(self, value: Any, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Response:
+        return self.web.json(
+            value,
+            content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
+        )
 
     def bytes(self,
               value: _bytes,
               *,
               content_type: str = None,
-              status: int = 200) -> Response:
-        return self.web.bytes(value, content_type=content_type, status=status)
+              status: int = 200,
+              reason: str = None,
+              headers: MutableMapping = None) -> Response:
+        return self.web.bytes(
+            value,
+            content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
+        )
 
     async def read_request_content(self, request: Request) -> _bytes:
         return await self.web.read_request_content(request)
