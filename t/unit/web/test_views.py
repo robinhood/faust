@@ -83,31 +83,71 @@ class test_View:
         with pytest.raises(MethodNotAllowed):
             await view.delete(Mock(name='request', autospec=Request))
 
-    def test_text(self, view, web):
-        response = view.text('foo', content_type='app/json', status=101)
+    def test_text(self, *, view, web):
+        response = view.text(
+            'foo',
+            content_type='app/json',
+            status=101,
+            reason='foo',
+            headers={'k': 'v'},
+        )
         web.text.assert_called_once_with(
             'foo',
             content_type='app/json',
             status=101,
+            reason='foo',
+            headers={'k': 'v'},
         )
         assert response is web.text()
 
-    def test_html(self, view, web):
-        response = view.html('foo', status=101)
-        web.html.assert_called_once_with('foo', status=101)
+    def test_html(self, *, view, web):
+        response = view.html(
+            'foo',
+            status=101,
+            content_type='text/html',
+            reason='bar',
+            headers={'k': 'v'},
+        )
+        web.html.assert_called_once_with(
+            'foo',
+            status=101,
+            content_type='text/html',
+            reason='bar',
+            headers={'k': 'v'},
+        )
         assert response is web.html()
 
-    def test_json(self, view, web):
-        response = view.json('foo', status=101)
-        web.json.assert_called_once_with('foo', status=101)
+    def test_json(self, *, view, web):
+        response = view.json(
+            'foo',
+            status=101,
+            content_type='application/json',
+            reason='bar',
+            headers={'k': 'v'},
+        )
+        web.json.assert_called_once_with(
+            'foo',
+            status=101,
+            content_type='application/json',
+            reason='bar',
+            headers={'k': 'v'},
+        )
         assert response is web.json()
 
-    def test_bytes(self, view, web):
-        response = view.bytes('foo', content_type='app/json', status=101)
+    def test_bytes(self, *, view, web):
+        response = view.bytes(
+            'foo',
+            content_type='app/json',
+            status=101,
+            reason='foo',
+            headers={'k': 'v'},
+        )
         web.bytes.assert_called_once_with(
             'foo',
             content_type='app/json',
             status=101,
+            reason='foo',
+            headers={'k': 'v'},
         )
         assert response is web.bytes()
 
@@ -120,11 +160,21 @@ class test_View:
     def test_error(self, view, web):
         response = view.error(303, 'foo', arg='bharg')
         web.json.assert_called_once_with(
-            {'error': 'foo', 'arg': 'bharg'}, status=303)
+            {'error': 'foo', 'arg': 'bharg'},
+            status=303,
+            reason=None,
+            headers=None,
+            content_type=None,
+        )
         assert response is web.json()
 
     def test_notfound(self, view, web):
         response = view.notfound(arg='bharg')
         web.json.assert_called_once_with(
-            {'error': 'Not Found', 'arg': 'bharg'}, status=404)
+            {'error': 'Not Found', 'arg': 'bharg'},
+            status=404,
+            reason=None,
+            headers=None,
+            content_type=None,
+        )
         assert response is web.json()

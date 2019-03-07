@@ -51,23 +51,56 @@ class test_Web:
 
     def test_text(self, *, web):
         with patch('faust.web.drivers.aiohttp.Response') as Response:
-            resp = web.text('foo', content_type='app/json', status=303)
+            resp = web.text(
+                'foo',
+                content_type='app/json',
+                status=303,
+                reason='bar',
+                headers={'k': 'v'},
+            )
             Response.assert_called_once_with(
-                content_type='app/json', status=303, text='foo')
+                content_type='app/json',
+                status=303,
+                text='foo',
+                reason='bar',
+                headers={'k': 'v'},
+            )
             assert resp is Response()
 
     def test_html(self, *, web):
         with patch('faust.web.drivers.aiohttp.Response') as Response:
-            resp = web.html('foo', status=303)
+            resp = web.html(
+                'foo',
+                status=303,
+                content_type='text/html',
+                reason='bar',
+                headers={'k': 'v'},
+            )
             Response.assert_called_once_with(
-                content_type='text/html', status=303, text='foo')
+                content_type='text/html',
+                status=303,
+                text='foo',
+                reason='bar',
+                headers={'k': 'v'},
+            )
             assert resp is Response()
 
     def test_bytes(self, *, web):
         with patch('faust.web.drivers.aiohttp.Response') as Response:
-            resp = web.bytes(b'foo', content_type='app/json', status=303)
+            resp = web.bytes(
+                b'foo',
+                content_type='app/json',
+                status=303,
+                reason='bar',
+                headers={'k': 'v'},
+            )
             Response.assert_called_once_with(
-                body=b'foo', content_type='app/json', status=303)
+                body=b'foo',
+                content_type='app/json',
+                status=303,
+                reason='bar',
+                headers={'k': 'v'},
+            )
             assert resp is Response()
 
     @pytest.mark.asyncio

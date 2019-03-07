@@ -11,6 +11,7 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
+    Optional,
     Tuple,
     Type,
     Union,
@@ -58,6 +59,46 @@ class Response:
     @property
     @abc.abstractmethod
     def body(self) -> _bytes:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def headers(self) -> MutableMapping:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def content_length(self) -> Optional[int]:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def content_type(self) -> str:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def charset(self) -> Optional[str]:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def chunked(self) -> bool:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def compression(self) -> bool:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def keep_alive(self) -> Optional[bool]:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def body_length(self) -> int:
         ...
 
 
@@ -117,16 +158,27 @@ class Web(Service):
         Service.__init__(self, **kwargs)
 
     @abc.abstractmethod
-    def text(self, value: str, *, content_type: str = None,
-             status: int = 200) -> Response:
+    def text(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Response:
         ...
 
     @abc.abstractmethod
-    def html(self, value: str, *, status: int = 200) -> Response:
+    def html(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Response:
         ...
 
     @abc.abstractmethod
-    def json(self, value: Any, *, status: int = 200) -> Response:
+    def json(self, value: Any, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Response:
         ...
 
     @abc.abstractmethod
@@ -134,7 +186,9 @@ class Web(Service):
               value: _bytes,
               *,
               content_type: str = None,
-              status: int = 200) -> Response:
+              status: int = 200,
+              reason: str = None,
+              headers: MutableMapping = None) -> Response:
         ...
 
     @abc.abstractmethod
