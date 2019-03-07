@@ -220,6 +220,11 @@ class Agent(AgentT, Service):
         self.use_reply_headers = use_reply_headers
         Service.__init__(self)
 
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
+        # Agent service is now a child of app.
+        self.beacon.reattach(self.app.beacon)
+        return []
+
     async def _start_one(self,
                          *,
                          index: Optional[int] = None,
@@ -596,7 +601,6 @@ class Agent(AgentT, Service):
             # can start a new one.
             await aref.crash(exc)
             self.supervisor.wakeup()
-            raise
 
     async def _slurp(self, res: ActorRefT, it: AsyncIterator) -> None:
         # this is used when the agent returns an AsyncIterator,
