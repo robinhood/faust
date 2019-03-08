@@ -473,15 +473,15 @@ class Consumer(Service, ConsumerT):
     async def perform_seek(self) -> None:
         read_offset = self._read_offset
         _committed_offsets = await self.seek_to_committed()
+        read_offset.update({
+            tp: offset
+            for tp, offset in _committed_offsets.items()
+        })
         committed_offsets = {
             ensure_TP(tp): offset if offset else None
             for tp, offset in _committed_offsets.items()
             if offset is not None
         }
-        read_offset.update({
-            tp: offset if offset else None
-            for tp, offset in committed_offsets.items()
-        })
         self._committed_offset.update(committed_offsets)
 
     @abc.abstractmethod
