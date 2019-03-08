@@ -228,7 +228,9 @@ class Channel(ChannelT):
             fut.message.key, fut.message.value, fut.message.headers,
             message=_PendingMessage_to_Message(fut.message))
         await self.put(event)
-        topic, partition = tp = TP(fut.message.topic, fut.message.partition)
+        topic, partition = tp = TP(
+            fut.message.topic or '<anon>',
+            fut.message.partition or -1)
         return await self._finalize_message(
             fut, RecordMetadata(
                 topic=topic,
