@@ -183,6 +183,7 @@ Utils
     faust.utils.iso8601
     faust.utils.json
     faust.utils.platforms
+    faust.utils.tracing
     faust.utils.urls
     faust.utils.venusian
 

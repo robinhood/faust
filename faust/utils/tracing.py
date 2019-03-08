@@ -12,7 +12,9 @@ __all__ = [
     'noop_span',
     'set_current_span',
     'finish_span',
+    'operation_name_from_fun',
     'traced_from_parent_span',
+    'call_with_trace',
 ]
 
 if typing.TYPE_CHECKING:
