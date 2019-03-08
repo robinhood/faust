@@ -127,9 +127,9 @@ class test_Topic:
         fut = Mock(name='fut', autospec=asyncio.Future)
         message = Mock(name='message', autospec=Message)
         topic._on_published(fut, message, producer, state)
-        app.sensors.on_send_completed.assert_called_once_with(
-            producer, state)
         fut.result.assert_called_once_with()
+        app.sensors.on_send_completed.assert_called_once_with(
+            producer, state, fut.result())
         message.set_result.assert_called_once_with(fut.result())
         message.message.callback.assert_called_once_with(message)
         message.message.callback = None

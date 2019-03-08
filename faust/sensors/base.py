@@ -1,9 +1,10 @@
 """Base-interface for sensors."""
-from typing import Any, Iterator, Set
+from typing import Any, Iterator, Mapping, Set
 
 from mode import Service
 
-from faust.types import AppT, CollectionT, EventT, Message, StreamT, TP
+from faust.types import AppT, CollectionT, EventT, StreamT
+from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.sensors import SensorDelegateT, SensorT
 from faust.types.topics import TopicT
 from faust.types.transports import ConsumerT, ProducerT
@@ -73,12 +74,27 @@ class Sensor(SensorT, Service):
         ...
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
+                          message: PendingMessage,
                           keysize: int, valsize: int) -> Any:
         """About to send a message."""
         ...
 
-    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+    def on_send_completed(self,
+                          producer: ProducerT,
+                          state: Any,
+                          metadata: RecordMetadata) -> None:
         """Message successfully sent."""
+        ...
+
+    def on_send_error(self,
+                      producer: ProducerT,
+                      exc: BaseException,
+                      state: Any) -> None:
+        """Error while sending message."""
+        ...
+
+    def asdict(self) -> Mapping:
+        return {}
 
 
 class SensorDelegate(SensorDelegateT):
@@ -152,16 +168,27 @@ class SensorDelegate(SensorDelegateT):
             sensor.on_commit_completed(consumer, state[sensor])
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
+                          message: PendingMessage,
                           keysize: int, valsize: int) -> Any:
         return {
             sensor: sensor.on_send_initiated(
-                producer, topic, keysize, valsize)
+                producer, topic, message, keysize, valsize)
             for sensor in self._sensors
         }
 
-    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+    def on_send_completed(self,
+                          producer: ProducerT,
+                          state: Any,
+                          metadata: RecordMetadata) -> None:
         for sensor in self._sensors:
-            sensor.on_send_completed(producer, state[sensor])
+            sensor.on_send_completed(producer, state[sensor], metadata)
+
+    def on_send_error(self,
+                      producer: ProducerT,
+                      exc: BaseException,
+                      state: Any) -> None:
+        for sensor in self._sensors:
+            sensor.on_send_error(producer, exc, state[sensor])
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'

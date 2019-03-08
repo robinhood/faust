@@ -103,8 +103,9 @@ class test_StatsdMonitor:
 
     def test_on_send_initiated_completed(self, *, mon):
         producer = Mock(name='producer')
-        state = mon.on_send_initiated(producer, 'topic1', 321, 123)
-        mon.on_send_completed(producer, state)
+        state = mon.on_send_initiated(
+            producer, 'topic1', 'message', 321, 123)
+        mon.on_send_completed(producer, state, Mock(name='metadata'))
 
         mon.client.incr.assert_has_calls([
             call('topic.topic1.messages_sent', rate=mon.rate),

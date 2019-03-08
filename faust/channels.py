@@ -30,7 +30,6 @@ from .types import (
     CodecArg,
     EventT,
     FutureMessage,
-    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -41,6 +40,7 @@ from .types import (
     TP,
     V,
 )
+from .types.core import HeadersArg, OpenHeadersArg, prepare_headers
 from .types.tuples import _PendingMessage_to_Message
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -192,7 +192,7 @@ class Channel(ChannelT):
                 value_serializer=value_serializer,
                 partition=partition,
                 timestamp=timestamp,
-                headers=headers,
+                headers=self.prepare_headers(headers),
                 callback=callback,
                 # Python 3.6.0: NamedTuple doesn't support optional fields
                 # [ask]
@@ -200,6 +200,12 @@ class Channel(ChannelT):
                 offset=None,
             ),
         )
+
+    def prepare_headers(
+            self, headers: Optional[HeadersArg]) -> OpenHeadersArg:
+        if headers is not None:
+            return prepare_headers(headers)
+        return {}
 
     async def _send_now(
             self,

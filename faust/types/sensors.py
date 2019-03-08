@@ -9,7 +9,7 @@ from .streams import StreamT
 from .tables import CollectionT
 from .topics import TopicT
 from .transports import ConsumerT, ProducerT
-from .tuples import Message, TP
+from .tuples import Message, PendingMessage, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
     from .app import AppT
@@ -68,11 +68,22 @@ class SensorInterfaceT(abc.ABC):
 
     @abc.abstractmethod
     def on_send_initiated(self, producer: ProducerT, topic: str,
+                          message: PendingMessage,
                           keysize: int, valsize: int) -> Any:
         ...
 
     @abc.abstractmethod
-    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+    def on_send_completed(self,
+                          producer: ProducerT,
+                          state: Any,
+                          metadata: RecordMetadata) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_send_error(self,
+                      producer: ProducerT,
+                      exc: BaseException,
+                      state: Any) -> None:
         ...
 
 

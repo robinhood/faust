@@ -7,7 +7,6 @@ Everything starts here.
 import asyncio
 import importlib
 import inspect
-import sys
 import typing
 import warnings
 from datetime import tzinfo
@@ -34,6 +33,7 @@ from typing import (
     cast,
 )
 
+import opentracing
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
@@ -58,6 +58,13 @@ from faust.exceptions import ConsumerNotStarted, ImproperlyConfigured, SameNode
 from faust.fixups import FixupT, fixups
 from faust.sensors import Monitor, SensorDelegate
 from faust.utils import cron, venusian
+from faust.utils.tracing import (
+    call_with_trace,
+    noop_span,
+    operation_name_from_fun,
+    set_current_span,
+    traced_from_parent_span,
+)
 from faust.web import drivers as web_drivers
 from faust.web.cache import backends as cache_backends
 from faust.web.views import View
@@ -381,7 +388,8 @@ class App(AppT, Service):
     _assignment: Optional[Set[TP]] = None
 
     #: Optional tracing support.
-    tracer: Any = None
+    tracer: Optional[Any] = None
+    _rebalancing_span: Optional[opentracing.Span] = None
 
     def __init__(self,
                  id: str,
@@ -1125,53 +1133,42 @@ class App(AppT, Service):
         if not self.started:
             await self.start_client()
 
-    def trace(self, name: str, **extra_context: Any) -> ContextManager:
+    def trace(self,
+              name: str,
+              **extra_context: Any) -> ContextManager:
         if self.tracer is None:
             return DummyContext()
         else:
-            return self.tracer.trace(name=name, **extra_context)
+            return self.tracer.trace(
+                name=name,
+                **extra_context)
 
-    def traced(self, fun: Callable, name: str = None,
+    def traced(self, fun: Callable,
+               name: str = None,
                sample_rate: float = 1.0,
                **context: Any) -> Callable:
         assert fun
-        operation: str
-        if name:
-            operation = name
-        else:
-            obj = getattr(fun, '__self__', None)
-            if obj is not None:
-                operation = f'{shortlabel(obj)}-{shortlabel(fun)}'
-            else:
-                operation = f'{shortlabel(fun)}'
+        operation: str = name or operation_name_from_fun(fun)
 
         @wraps(fun)
         def wrapped(*args: Any, **kwargs: Any) -> Any:
-            span = self.trace(operation, sample_rate=sample_rate, **context)
-            span.__enter__()
-            try:
-                ret = fun(*args, **kwargs)
-            except BaseException:
-                span.__exit__(*sys.exc_info())
-                raise
-            else:
-                if asyncio.iscoroutine(ret):
-                    # if async def method, we attach our span to
-                    # when it completes.
-                    async def corowrapped() -> Any:
-                        try:
-                            await ret
-                        except BaseException:
-                            span.__exit__(*sys.exc_info())
-                            raise
-                        else:
-                            span.__exit__(None, None, None)
-                    return corowrapped()
-                else:
-                    # for non async def method, we just exit the span.
-                    span.__exit__(None, None, None)
-                    return ret
+            span = self.app.trace(operation,
+                                  sample_rate=sample_rate,
+                                  **context)
+            return call_with_trace(span, fun, None, *args, **kwargs)
         return wrapped
+
+    def _start_span_from_rebalancing(self, name: str) -> opentracing.Span:
+        rebalancing_span = self._rebalancing_span
+        if rebalancing_span is not None and self.tracer is not None:
+            span = self.tracer.get_tracer('_faust').start_span(
+                operation_name=name,
+                child_of=rebalancing_span,
+            )
+            set_current_span(span)
+            return span
+        else:
+            return noop_span()
 
     async def send(
             self,
@@ -1289,10 +1286,19 @@ class App(AppT, Service):
 
     def on_rebalance_start(self) -> None:
         self.rebalancing = True
+        self.rebalancing_count += 1
+        if self.tracer:
+            tracer = self.tracer.get_tracer('_faust')
+            self._rebalancing_span = tracer.start_span(
+                operation_name='rebalance',
+                tags={'rebalancing_count': self.rebalancing_count},
+            )
         self.tables.on_rebalance_start()
 
     def on_rebalance_end(self) -> None:
         self.rebalancing = False
+        if self._rebalancing_span:
+            self._rebalancing_span.finish()
 
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.
@@ -1306,7 +1312,7 @@ class App(AppT, Service):
         if self.should_stop:
             return self._on_rebalance_when_stopped()
         session_timeout = self.conf.broker_session_timeout * 0.95
-        T = self.traced
+        T = traced_from_parent_span()
         with flight_recorder(self.log, timeout=session_timeout) as on_timeout:
             self._on_revoked_timeout = on_timeout
             consumer = self.consumer
@@ -1356,7 +1362,7 @@ class App(AppT, Service):
         self._fetcher.service_reset()
 
     def _on_rebalance_when_stopped(self) -> None:
-        self.traced(self.consumer.close)()
+        self.consumer.close()
 
     async def _on_partitions_assigned(self, assigned: Set[TP]) -> None:
         """Handle new topic partition assignment.
@@ -1369,7 +1375,7 @@ class App(AppT, Service):
         """
         if self.should_stop:
             return self._on_rebalance_when_stopped()
-        T = self.traced
+        T = traced_from_parent_span()
         # shave some time off so we timeout before the broker
         # (Kafka does not send error, it just logs)
         session_timeout = self.conf.broker_session_timeout * 0.95

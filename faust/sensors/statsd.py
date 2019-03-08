@@ -7,7 +7,15 @@ from typing import Any, Pattern, cast
 from mode.utils.objects import cached_property
 
 from faust.exceptions import ImproperlyConfigured
-from faust.types import CollectionT, EventT, Message, StreamT, TP
+from faust.types import (
+    CollectionT,
+    EventT,
+    Message,
+    PendingMessage,
+    RecordMetadata,
+    StreamT,
+    TP,
+)
 from faust.types.transports import ConsumerT, ProducerT
 
 from .monitor import Monitor, TPOffsetMapping
@@ -123,15 +131,31 @@ class StatsdMonitor(Monitor):
             rate=self.rate)
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
+                          message: PendingMessage,
                           keysize: int, valsize: int) -> Any:
         self.client.incr(f'topic.{topic}.messages_sent', rate=self.rate)
-        return super().on_send_initiated(producer, topic, keysize, valsize)
+        return super().on_send_initiated(
+            producer, topic, message, keysize, valsize)
 
-    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
-        super().on_send_completed(producer, state)
+    def on_send_completed(self,
+                          producer: ProducerT,
+                          state: Any,
+                          metadata: RecordMetadata) -> None:
+        super().on_send_completed(producer, state, metadata)
         self.client.incr('messages_sent', rate=self.rate)
         self.client.timing(
             'send_latency',
+            self._time(monotonic() - cast(float, state)),
+            rate=self.rate)
+
+    def on_send_error(self,
+                      producer: ProducerT,
+                      exc: BaseException,
+                      state: Any) -> None:
+        super().on_send_error(producer, exc, state)
+        self.client.incr('messages_sent_error', rate=self.rate)
+        self.client.timing(
+            'send_latency_for_error',
             self._time(monotonic() - cast(float, state)),
             rate=self.rate)
 

@@ -1,7 +1,6 @@
 """Streams."""
 import asyncio
 import reprlib
-import sys
 import typing
 import weakref
 from asyncio import CancelledError
@@ -12,7 +11,6 @@ from typing import (
     AsyncIterable,
     AsyncIterator,
     Callable,
-    ContextManager,
     Iterable,
     Iterator,
     List,
@@ -733,8 +731,6 @@ class Stream(StreamT[T_co], Service):
         sleep = asyncio.sleep
         trace = self.app.trace
         _shortlabel = shortlabel
-        trace_stream_label = self.shortlabel
-        trace_context: Optional[ContextManager] = None
 
         try:
             while not self.should_stop:
@@ -763,12 +759,6 @@ class Stream(StreamT[T_co], Service):
 
                     if isinstance(channel_value, event_cls):
                         event = channel_value
-                        trace_context = trace(
-                            trace_stream_label,
-                            stream_headers=event.headers,
-                        )
-                        if trace_context is not None:
-                            trace_context.__enter__()
                         message = event.message
                         topic = message.topic
                         tp = message.tp
@@ -804,37 +794,26 @@ class Stream(StreamT[T_co], Service):
 
                     # reduce using processors
                     for processor in processors:
-                        with trace(_shortlabel(processor)):
+                        with trace(f'processor-{_shortlabel(processor)}'):
                             value = await _maybe_async(processor(value))
                     value = await on_merge(value)
                 try:
                     yield value
                 except CancelledError:
-                    if trace_context is not None:
-                        trace_context.__exit__(*sys.exc_info())
                     if not ack_cancelled_tasks:
                         do_ack = False
                     raise
                 except Exception:
-                    if trace_context is not None:
-                        trace_context.__exit__(*sys.exc_info())
                     if not ack_exceptions:
                         do_ack = False
                     raise
                 except GeneratorExit:
-                    if trace_context is not None:
-                        trace_context.__exit__(*sys.exc_info())
                     raise  # consumer did `break`
                 except BaseException:
                     # e.g. SystemExit/KeyboardInterrupt
-                    if trace_context is not None:
-                        trace_context.__exit__(*sys.exc_info())
                     if not ack_cancelled_tasks:
                         do_ack = False
                     raise
-                else:
-                    if trace_context is not None:
-                        trace_context.__exit__(None, None, None)
                 finally:
                     self.current_event = None
                     if do_ack and event is not None:

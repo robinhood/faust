@@ -171,6 +171,8 @@ class Event(EventT):
             value = self.message.value
         if headers is USE_EXISTING_HEADERS:
             headers = self.message.headers
+            if not headers:
+                headers = None
         return await self._send(
             channel,
             key,

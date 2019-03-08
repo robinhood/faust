@@ -81,10 +81,11 @@ class test_Sensor:
         sensor.on_commit_completed(consumer, Mock(name='state'))
 
     def test_on_send_initiated(self, *, sensor, producer):
-        sensor.on_send_initiated(producer, 'topic', 30, 40)
+        sensor.on_send_initiated(producer, 'topic', 'message', 30, 40)
 
     def test_on_send_completed(self, *, sensor, producer):
-        sensor.on_send_completed(producer, Mock(name='state'))
+        sensor.on_send_completed(
+            producer, Mock(name='state'), Mock(name='metadata'))
 
 
 class test_SensorDelegate:
@@ -147,13 +148,15 @@ class test_SensorDelegate:
             consumer, state[sensor])
 
     def test_on_send(self, *, sensors, sensor, producer):
-        state = sensors.on_send_initiated(producer, 'topic', 303, 606)
+        metadata = Mock(name='metadata')
+        state = sensors.on_send_initiated(
+            producer, 'topic', 'message', 303, 606)
         sensor.on_send_initiated.assert_called_once_with(
-            producer, 'topic', 303, 606)
+            producer, 'topic', 'message', 303, 606)
 
-        sensors.on_send_completed(producer, state)
+        sensors.on_send_completed(producer, state, metadata)
         sensor.on_send_completed.assert_called_once_with(
-            producer, state[sensor])
+            producer, state[sensor], metadata)
 
     def test_repr(self, *, sensors):
         assert repr(sensors)

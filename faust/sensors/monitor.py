@@ -8,7 +8,8 @@ from mode import Service, label
 from mode.utils.compat import Counter
 from mode.utils.objects import KeywordReduce
 
-from faust.types import CollectionT, EventT, Message, StreamT, TP, TopicT
+from faust.types import CollectionT, EventT, StreamT, TopicT
+from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 
 from .base import Sensor
@@ -142,6 +143,9 @@ class Monitor(Sensor, KeywordReduce):
 
     #: Log end offsets by TopicPartition
     tp_end_offsets: TPOffsetMapping = cast(TPOffsetMapping, None)
+
+    #: Number of produce operations that ended in error.
+    send_errors = 0
 
     def __init__(self,
                  *,
@@ -375,13 +379,23 @@ class Monitor(Sensor, KeywordReduce):
         self.commit_latency.append(self.time() - cast(float, state))
 
     def on_send_initiated(self, producer: ProducerT, topic: str,
+                          message: PendingMessage,
                           keysize: int, valsize: int) -> Any:
         self.messages_sent += 1
         self.messages_sent_by_topic[topic] += 1
         return self.time()
 
-    def on_send_completed(self, producer: ProducerT, state: Any) -> None:
+    def on_send_completed(self,
+                          producer: ProducerT,
+                          state: Any,
+                          metadata: RecordMetadata) -> None:
         self.send_latency.append(self.time() - cast(float, state))
+
+    def on_send_error(self,
+                      producer: ProducerT,
+                      exc: BaseException,
+                      state: Any) -> None:
+        self.send_errors += 1
 
     def count(self, metric_name: str, count: int = 1) -> None:
         self.metric_counts[metric_name] += count

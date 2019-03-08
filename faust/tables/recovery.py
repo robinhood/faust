@@ -3,6 +3,7 @@ import typing
 from collections import defaultdict
 from typing import Any, List, MutableMapping, Optional, Set, Tuple, cast
 
+import opentracing
 from mode import Service
 from mode.services import WaitArgT
 from mode.utils.compat import Counter
@@ -13,6 +14,7 @@ from faust.types import AppT, EventT, TP
 from faust.types.tables import CollectionT, TableManagerT
 from faust.types.transports import ConsumerT
 from faust.utils import terminal
+from faust.utils.tracing import finish_span, traced_from_parent_span
 
 if typing.TYPE_CHECKING:
     from .manager import TableManager
@@ -88,6 +90,10 @@ class Recovery(Service):
     #: Cache of buffer size by TopicPartitiojn.
     buffer_sizes: MutableMapping[TP, int]
 
+    _recovery_span: Optional[opentracing.Span] = None
+    _actives_span: Optional[opentracing.Span] = None
+    _standbys_span: Optional[opentracing.Span] = None
+
     def __init__(self,
                  app: AppT,
                  tables: TableManagerT,
@@ -161,15 +167,17 @@ class Recovery(Service):
         self.active_highwaters.pop(tp, None)
 
     def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self.flush_buffers()
+        T = traced_from_parent_span()
+        T(self.flush_buffers)()
         self.signal_recovery_reset.set()
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        assigned_standbys = self.app.assignor.assigned_standbys()
-        assigned_actives = self.app.assignor.assigned_actives()
+        app = self.app
+        assigned_standbys = app.assignor.assigned_standbys()
+        assigned_actives = app.assignor.assigned_actives()
 
         for tp in revoked:
             self.revoke(tp)
@@ -196,6 +204,11 @@ class Recovery(Service):
         self.active_offsets.clear()
         self.active_offsets.update(active_offsets)
 
+        if app.tracer and app._rebalancing_span:
+            self._recovery_span = app.tracer.get_tracer('_faust').start_span(
+                'recovery',
+                child_of=app._rebalancing_span,
+            )
         self.signal_recovery_reset.clear()
         self.signal_recovery_start.set()
 
@@ -245,27 +258,41 @@ class Recovery(Service):
                 break  # service was stopped
             self.signal_recovery_start.clear()
 
+            span: Any = None
+            spans: list = []
+            tracer: Optional[opentracing.Tracer] = None
+            if self.app.tracer:
+                tracer = self.app.tracer.get_tracer('_faust')
+            if tracer is not None and self._recovery_span:
+                span = tracer.start_span(
+                    'recovery-thread',
+                    child_of=self._recovery_span)
+                spans.extend([span, self._recovery_span])
+            T = traced_from_parent_span(span)
+
             try:
-                await self._wait(asyncio.sleep(self.recovery_delay))
+                await self._wait(T(asyncio.sleep)(self.recovery_delay))
 
                 if not self.tables:
                     # If there are no tables -- simply resume streams
-                    await self._resume_streams()
+                    await T(self._resume_streams)()
+                    for _span in spans:
+                        finish_span(_span)
                     continue
 
                 self.in_recovery = True
                 self.standbys_pending = True
                 # Must flush any buffers before starting rebalance.
-                self.flush_buffers()
-                await self._wait(self.app._producer.flush())
+                T(self.flush_buffers)()
+                await self._wait(T(self.app._producer.flush)())
 
                 self.log.dev('Build highwaters for active partitions')
-                await self._wait(self._build_highwaters(
+                await self._wait(T(self._build_highwaters)(
                     consumer, assigned_active_tps,
                     active_highwaters, 'active'))
 
                 self.log.dev('Build offsets for active partitions')
-                await self._wait(self._build_offsets(
+                await self._wait(T(self._build_offsets)(
                     consumer, assigned_active_tps, active_offsets, 'active'))
 
                 for tp in assigned_active_tps:
@@ -279,37 +306,52 @@ class Recovery(Service):
                         )
 
                 self.log.dev('Build offsets for standby partitions')
-                await self._wait(self._build_offsets(
+                await self._wait(T(self._build_offsets)(
                     consumer, assigned_standby_tps,
                     standby_offsets, 'standby'))
 
                 self.log.dev('Seek offsets for active partitions')
-                await self._wait(self._seek_offsets(
+                await self._wait(T(self._seek_offsets)(
                     consumer, assigned_active_tps, active_offsets, 'active'))
 
                 if self.need_recovery():
                     self.log.info('Restoring state from changelog topics...')
-                    consumer.resume_partitions(active_tps)
+                    T(consumer.resume_partitions)(active_tps)
                     # Resume partitions and start fetching.
                     self.log.info('Resuming flow...')
-                    consumer.resume_flow()
-                    await self.app._fetcher.maybe_start()
-                    self.app.flow_control.resume()
+                    T(consumer.resume_flow)()
+                    await T(self.app._fetcher.maybe_start)()
+                    T(self.app.flow_control.resume)()
 
                     # Wait for actives to be up to date.
                     # This signal will be set by _slurp_changelogs
-                    self.signal_recovery_end.clear()
-                    await self._wait(self.signal_recovery_end)
+                    if tracer is not None and span:
+                        self._actives_span = tracer.start_span(
+                            'recovery-actives',
+                            child_of=span,
+                            tags={'Active-Stats': self.active_stats()},
+                        )
+                    try:
+                        self.signal_recovery_end.clear()
+                        await self._wait(self.signal_recovery_end)
+                    except Exception as exc:
+                        finish_span(self._actives_span, error=exc)
+                    else:
+                        finish_span(self._actives_span)
+                    finally:
+                        self._actives_span = None
 
                     # recovery done.
                     self.log.info('Done reading from changelog topics')
-                    consumer.pause_partitions(active_tps)
+                    T(consumer.pause_partitions)(active_tps)
                 else:
                     self.log.info('Resuming flow...')
-                    consumer.resume_flow()
-                    self.app.flow_control.resume()
+                    T(consumer.resume_flow)()
+                    T(self.app.flow_control.resume)()
 
                 self.log.info('Recovery complete')
+                if span:
+                    span.set_tag('Recovery-Completed', True)
                 self.in_recovery = False
 
                 if standby_tps:
@@ -317,12 +359,12 @@ class Recovery(Service):
 
                     self.log.dev('Seek standby offsets')
                     await self._wait(
-                        self._seek_offsets(
+                        T(self._seek_offsets)(
                             consumer, standby_tps, standby_offsets, 'standby'))
 
                     self.log.dev('Build standby highwaters')
                     await self._wait(
-                        self._build_highwaters(
+                        T(self._build_highwaters)(
                             consumer,
                             standby_tps,
                             standby_highwaters,
@@ -340,19 +382,36 @@ class Recovery(Service):
                                 ),
                             )
 
+                    if tracer is not None and span:
+                        self._standbys_span = tracer.start_span(
+                            'recovery-standbys',
+                            child_of=span,
+                            tags={'Standby-Stats': self.standby_stats()},
+                        )
                     self.log.dev('Resume standby partitions')
-                    consumer.resume_partitions(standby_tps)
+                    T(consumer.resume_partitions)(standby_tps)
 
                 # Pause all our topic partitions,
                 # to make sure we don't fetch any more records from them.
                 await self._wait(asyncio.sleep(0.1))  # still needed?
-                await self._wait(self.on_recovery_completed())
-            except RebalanceAgain:
+                await self._wait(T(self.on_recovery_completed)())
+            except RebalanceAgain as exc:
                 self.log.dev('RAISED REBALANCE AGAIN')
+                for _span in spans:
+                    finish_span(_span, error=exc)
                 continue  # another rebalance started
-            except ServiceStopped:
+            except ServiceStopped as exc:
                 self.log.dev('RAISED SERVICE STOPPED')
+                for _span in spans:
+                    finish_span(_span, error=exc)
                 break  # service was stopped
+            except Exception as exc:
+                for _span in spans:
+                    finish_span(_span, error=exc)
+                raise
+            else:
+                for _span in spans:
+                    finish_span(_span)
             # restart - wait for next rebalance.
         self.in_recovery = False
 
@@ -509,8 +568,13 @@ class Recovery(Service):
                 # apply anything stuck in the buffers
                 self.flush_buffers()
                 self.in_recovery = False
+                if self._actives_span is not None:
+                    self._actives_span.set_tag('Actives-Ready', True)
                 self.signal_recovery_end.set()
             if self.standbys_pending and not self.standby_remaining_total():
+                if self._standbys_span:
+                    finish_span(self._standbys_span)
+                    self._standbys_span = None
                 self.tables.on_standbys_ready()
 
     def flush_buffers(self) -> None:

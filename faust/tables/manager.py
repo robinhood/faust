@@ -7,6 +7,7 @@ from mode.utils.queues import ThrowableQueue
 
 from faust.types import AppT, ChannelT, StoreT, TP
 from faust.types.tables import CollectionT, TableManagerT
+from faust.utils.tracing import traced_from_parent_span
 
 from .recovery import Recovery
 
@@ -139,14 +140,15 @@ class TableManager(Service, TableManagerT):
             await table.stop()
 
     def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        self.app.traced(self.recovery.on_partitions_revoked)(revoked)
+        T = traced_from_parent_span()
+        T(self.recovery.on_partitions_revoked)(revoked)
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
         self._recovery_started.set()  # cannot add more tables.
-        T = self.app.traced
+        T = traced_from_parent_span()
         for table in self.values():
             await T(table.on_rebalance)(assigned, revoked, newly_assigned)
 

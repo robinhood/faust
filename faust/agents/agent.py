@@ -40,6 +40,7 @@ from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
 from faust.exceptions import ImproperlyConfigured
+from faust.utils.tracing import traced_from_parent_span
 
 from faust.types import (
     AppT,
@@ -68,7 +69,7 @@ from faust.types.agents import (
     ReplyToArg,
     SinkT,
 )
-from faust.types.core import merge_headers
+from faust.types.core import merge_headers, prepare_headers
 
 from .actor import Actor, AsyncIterableActor, AwaitableActor
 from .models import (
@@ -332,7 +333,7 @@ class Agent(AgentT, Service):
             actor.cancel()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         if self.isolated_partitions:
             # isolated: start/stop actors for each partition
             await T(self.on_isolated_partitions_revoked)(revoked)
@@ -340,7 +341,7 @@ class Agent(AgentT, Service):
             await T(self.on_shared_partitions_revoked)(revoked)
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         if self.isolated_partitions:
             await T(self.on_isolated_partitions_assigned)(assigned)
         else:
@@ -348,19 +349,19 @@ class Agent(AgentT, Service):
 
     async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.log.dev('Partitions revoked')
-        T = self.app.traced
+        T = traced_from_parent_span()
         for tp in revoked:
             aref: Optional[ActorRefT] = self._actor_by_partition.pop(tp, None)
             if aref is not None:
                 await T(aref.on_isolated_partition_revoked)(tp)
 
     async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         for tp in sorted(assigned):
             await T(self._assign_isolated_partition)(tp)
 
     async def _assign_isolated_partition(self, tp: TP) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         if (not self._first_assignment_done and
                 not self._actor_by_partition):
             self._first_assignment_done = True
@@ -730,12 +731,13 @@ class Agent(AgentT, Service):
             raise TypeError('Missing reply_to argument')
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
+        open_headers = prepare_headers(headers or {})
         if self.use_reply_headers:
-            headers2 = merge_headers(headers or {}, {
+            merge_headers(open_headers, {
                 'Faust-Ag-ReplyTo': want_bytes(topic_name),
                 'Faust-Ag-CorrelationId': want_bytes(correlation_id),
             })
-            return value, headers2
+            return value, open_headers
         else:
             # wrap value in envelope
             req = self._request_class(value)(
@@ -743,7 +745,7 @@ class Agent(AgentT, Service):
                 reply_to=topic_name,
                 correlation_id=correlation_id,
             )
-            return req, headers
+            return req, open_headers
 
     def _request_class(self, value: V) -> Type[ReqRepRequest]:
         if isinstance(value, ModelT):

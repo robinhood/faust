@@ -23,6 +23,7 @@ from faust.types import AppT, EventT, K, Message, TP, V
 from faust.types.topics import TopicT
 from faust.types.transports import ConductorT, ConsumerCallback, TPorTopicSet
 from faust.types.tuples import tp_set_to_map
+from faust.utils.tracing import traced_from_parent_span
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -252,7 +253,7 @@ class Conductor(ConductorT, Service):
         return self._topic_name_index
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         self._tp_index.clear()
         T(self._update_tp_index)(assigned)
         T(self._update_callback_map)()

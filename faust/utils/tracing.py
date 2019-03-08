@@ -7,7 +7,13 @@ from typing import Any, Callable, Optional, Tuple
 import opentracing
 from mode import shortlabel
 
-__all__ = ['noop_span']
+__all__ = [
+    'current_span',
+    'noop_span',
+    'set_current_span',
+    'finish_span',
+    'traced_from_parent_span',
+]
 
 if typing.TYPE_CHECKING:
     _current_span: ContextVar[opentracing.Span]
@@ -24,6 +30,15 @@ def set_current_span(span: opentracing.Span) -> None:
 
 def noop_span() -> opentracing.Span:
     return opentracing.Tracer()._noop_span
+
+
+def finish_span(span: Optional[opentracing.Span], *,
+                error: BaseException = None) -> None:
+    if span is not None:
+        if error:
+            span.__exit__(type(error), error, error.__traceback__)
+        else:
+            span.finish()
 
 
 def operation_name_from_fun(fun: Any) -> str:

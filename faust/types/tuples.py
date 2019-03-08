@@ -16,12 +16,13 @@ from typing import (
 )
 
 from .codecs import CodecArg
-from .core import HeadersArg, K, V
+from .core import HeadersArg, K, OpenHeadersArg, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
     from .channels import ChannelT
     from .transports import ConsumerT
+
 else:
     class AppT: ...       # noqa
     class ChannelT: ...   # noqa
@@ -51,6 +52,8 @@ class RecordMetadata(NamedTuple):
     partition: int
     topic_partition: TP
     offset: int
+    timestamp: Optional[float] = None
+    timestamp_type: Optional[int] = None
 
 
 class PendingMessage(NamedTuple):
@@ -59,7 +62,7 @@ class PendingMessage(NamedTuple):
     value: V
     partition: Optional[int]
     timestamp: Optional[float]
-    headers: Optional[HeadersArg]
+    headers: Optional[OpenHeadersArg]
     key_serializer: CodecArg
     value_serializer: CodecArg
     callback: Optional[MessageSentCallback]
@@ -128,6 +131,7 @@ class Message:
         'tp',
         'tracked',
         'stream_meta',
+        'span',
         '__weakref__',
     )
 

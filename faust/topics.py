@@ -351,10 +351,10 @@ class Topic(Channel, TopicT):
         state = app.sensors.on_send_initiated(
             producer,
             topic,
+            message=message,
             keysize=len(key) if key else 0,
-            valsize=len(value) if value else 0)
-        if app.tracer:
-            headers = app.tracer.trace_inject_headers(headers)
+            valsize=len(value) if value else 0,
+        )
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
                 topic, key, value,
@@ -362,7 +362,7 @@ class Topic(Channel, TopicT):
                 timestamp=timestamp,
                 headers=headers,
             )
-            app.sensors.on_send_completed(producer, state)
+            app.sensors.on_send_completed(producer, state, ret)
             return await self._finalize_message(fut, ret)
         else:
             fut2 = cast(asyncio.Future, await producer.send(
@@ -393,11 +393,16 @@ class Topic(Channel, TopicT):
                       message: FutureMessage,
                       producer: ProducerT,
                       state: Any) -> None:
-        res: RecordMetadata = fut.result()
-        message.set_result(res)
-        if message.message.callback:
-            message.message.callback(message)
-        self.app.sensors.on_send_completed(producer, state)
+        try:
+            res: RecordMetadata = fut.result()
+        except Exception as exc:
+            message.set_exception(exc)
+            self.app.sensors.on_send_error(producer, exc, state)
+        else:
+            message.set_result(res)
+            if message.message.callback:
+                message.message.callback(message)
+            self.app.sensors.on_send_completed(producer, state, res)
 
     def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
         if key is not None:

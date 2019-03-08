@@ -242,7 +242,8 @@ class test_Monitor:
     def test_on_send_initiated(self, *, mon, time):
         for i in range(1, 11):
             state = mon.on_send_initiated(
-                Mock(name='producer', autospec=Producer), 'topic', 2, 4)
+                Mock(name='producer', autospec=Producer),
+                'topic', 'message', 2, 4)
             assert mon.messages_sent == i
             assert mon.messages_sent_by_topic['topic'] == i
             assert state == time()
@@ -250,7 +251,10 @@ class test_Monitor:
     def test_on_send_completed(self, *, mon, time):
         other_time = 56.7
         mon.on_send_completed(
-            Mock(name='producer', autospec=Producer), other_time)
+            Mock(name='producer', autospec=Producer),
+            other_time,
+            Mock(name='metadata'),
+        )
         assert mon.send_latency[-1] == time() - other_time
 
     def test_TableState_asdict(self, *, mon, table):

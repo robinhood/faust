@@ -91,6 +91,7 @@ from faust.types.transports import (
 )
 from faust.utils import terminal
 from faust.utils.functional import consecutive_numbers
+from faust.utils.tracing import traced_from_parent_span
 
 from .utils import TopicBuffer as _TopicBuffer, TopicIndexMap
 
@@ -190,13 +191,13 @@ class TransactionManager(Service, TransactionManagerT):
         await self.producer.flush()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        await self.app.traced(self.flush)()
+        await traced_from_parent_span()(self.flush)()
 
     async def on_rebalance(self,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         # Stop producers for revoked partitions.
         revoked_tids = list(sorted(self._tps_to_transactional_ids(revoked)))
         if revoked_tids:
@@ -221,13 +222,13 @@ class TransactionManager(Service, TransactionManagerT):
                     tids=assigned_tids)(assigned_tids)
 
     async def _stop_transactions(self, tids: Iterable[str]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         producer = self.producer
         for transactional_id in tids:
             await T(producer.stop_transaction)(transactional_id)
 
     async def _start_transactions(self, tids: Iterable[str]) -> None:
-        T = self.app.traced
+        T = traced_from_parent_span()
         producer = self.producer
         for transactional_id in tids:
             await T(producer.maybe_begin_transaction)(transactional_id)
@@ -527,27 +528,33 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        T = self.app.traced
         self.app.on_rebalance_start()
-        # see comment in on_partitions_assigned
-        # remove revoked partitions from active + paused tps.
-        if self._active_partitions is not None:
-            self._active_partitions.difference_update(revoked)
-        self._paused_partitions.difference_update(revoked)
-        await T(self._on_partitions_revoked, partitions=revoked)(revoked)
+        span = self.app._start_span_from_rebalancing('on_partitions_revoked')
+        T = traced_from_parent_span(span)
+        with span:
+            # see comment in on_partitions_assigned
+            # remove revoked partitions from active + paused tps.
+            if self._active_partitions is not None:
+                self._active_partitions.difference_update(revoked)
+            self._paused_partitions.difference_update(revoked)
+            await T(self._on_partitions_revoked, partitions=revoked)(
+                revoked)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
-        # remove recently revoked tps from set of paused tps.
-        self._paused_partitions.intersection_update(assigned)
-        # cache set of assigned partitions
-        self._set_active_tps(assigned)
-        # start callback chain of assigned callbacks.
-        #   need to copy set at this point, since we cannot have
-        #   the callbacks mutate our active list.
-        self._last_batch = None
-        await T(self._on_partitions_assigned, partitions=assigned)(assigned)
+        span = self.app._start_span_from_rebalancing('on_partitions_assigned')
+        T = traced_from_parent_span(span)
+        with span:
+            # remove recently revoked tps from set of paused tps.
+            self._paused_partitions.intersection_update(assigned)
+            # cache set of assigned partitions
+            self._set_active_tps(assigned)
+            # start callback chain of assigned callbacks.
+            #   need to copy set at this point, since we cannot have
+            #   the callbacks mutate our active list.
+            self._last_batch = None
+            await T(self._on_partitions_assigned, partitions=assigned)(
+                assigned)
 
     @abc.abstractmethod
     async def _getmany(self,
@@ -703,10 +710,10 @@ class Consumer(Service, ConsumerT):
     async def wait_empty(self) -> None:
         """Wait for all messages that started processing to be acked."""
         wait_count = 0
-        T = self.app.traced
+        T = traced_from_parent_span()
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
-            if not wait_count % 100_000:  # pragma: no cover
+            if not wait_count % 10:  # pragma: no cover
                 remaining = [(m.refcount, m) for m in self._unacked_messages]
                 self.log.warn(f'Waiting for {remaining}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
