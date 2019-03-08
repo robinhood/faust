@@ -27,6 +27,16 @@ class GivesView(web.View):
         return XModel(11, 'world')
 
 
+@blueprint.route('/options/')
+class OptionsView(web.View):
+
+    async def options(self, request):
+        return self.json(
+            None,
+            headers={"Access-Control-Allow-Methods": "GET, OPTIONS"},
+        )
+
+
 @pytest.fixture()
 def inject_blueprint(app):
     app.web.blueprints.add('/test/', blueprint)
@@ -49,3 +59,11 @@ async def test_gives_model(*, inject_blueprint, web_client, app):
     assert resp.status == 200
     payload = await resp.json()
     assert XModel.from_data(payload) == XModel(11, 'world')
+
+
+@pytest.mark.asyncio
+async def test_options(*, inject_blueprint, web_client, app):
+    client = await web_client
+    resp = await client.options('/test/options/')
+    assert resp.status == 200
+    assert resp.headers["Access-Control-Allow-Methods"] == "GET, OPTIONS"
