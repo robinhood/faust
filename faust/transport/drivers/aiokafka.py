@@ -291,6 +291,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
         for tp, offset in partitions.items():
             self.log.dev('SEEK %r -> %r', tp, offset)
             consumer.seek(tp, offset)
+        self.consumer._read_offset.update(partitions)
         await asyncio.gather(*[
             consumer.position(tp) for tp in partitions
         ])
