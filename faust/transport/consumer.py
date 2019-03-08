@@ -492,9 +492,9 @@ class Consumer(Service, ConsumerT):
         self.log.dev('SEEK %r -> %r', partition, offset)
         # reset livelock detection
         self._last_batch = None
+        await self._seek(partition, offset)
         # set new read offset so we will reread messages
         self._read_offset[ensure_TP(partition)] = offset if offset else None
-        self._seek(partition, offset)
 
     @abc.abstractmethod
     async def _seek(self, partition: TP, offset: int) -> None:
