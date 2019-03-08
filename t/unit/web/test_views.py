@@ -36,6 +36,7 @@ class test_View:
             'patch': view.patch,
             'delete': view.delete,
             'put': view.put,
+            'options': view.options,
         }
 
     @pytest.mark.parametrize('method', [
