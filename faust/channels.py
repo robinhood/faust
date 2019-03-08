@@ -228,8 +228,17 @@ class Channel(ChannelT):
             fut.message.key, fut.message.value, fut.message.headers,
             message=_PendingMessage_to_Message(fut.message))
         await self.put(event)
+        topic, partition = tp = TP(fut.message.topic, fut.message.partition)
         return await self._finalize_message(
-            fut, RecordMetadata('topic', -1, TP('topic', -1), -1))
+            fut, RecordMetadata(
+                topic=topic,
+                partition=partition,
+                topic_partition=tp,
+                offset=-1,
+                timestamp=fut.message.timestamp,
+                timestamp_type=1,
+            ),
+        )
 
     async def _finalize_message(self, fut: FutureMessage,
                                 result: RecordMetadata) -> FutureMessage:
