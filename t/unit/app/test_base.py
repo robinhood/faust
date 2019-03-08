@@ -87,7 +87,7 @@ async def test_send(
         expected_topic, expected_key, event.dumps(),
         partition=None,
         timestamp=None,
-        headers=None,
+        headers={},
     )
 
 

@@ -537,7 +537,7 @@ class test_Consumer:
         assert consumer._read_offset[TP2] is None
 
         assert consumer._committed_offset[TP1] == 4001
-        assert consumer._committed_offset[TP2] == 0
+        assert consumer._committed_offset[TP2] is None
 
     @pytest.mark.asyncio
     async def test_seek(self, *, consumer):

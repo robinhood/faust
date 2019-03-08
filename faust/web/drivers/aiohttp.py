@@ -123,7 +123,7 @@ class Web(base.Web):
              headers: MutableMapping = None) -> Any:
         return json_response(
             value,
-            content_type=content_type,
+            content_type='application/json',
             status=status,
             reason=reason,
             headers=headers,
