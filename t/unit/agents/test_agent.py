@@ -461,8 +461,7 @@ class test_Agent:
         agent.supervisor = Mock(name='supervisor')
         coro = FutureMock()
         exc = coro.side_effect = KeyError('bar')
-        with pytest.raises(KeyError):
-            await agent._execute_task(coro, aref)
+        await agent._execute_task(coro, aref)
         coro.assert_awaited()
 
         aref.crash.assert_called_once_with(exc)
@@ -470,8 +469,7 @@ class test_Agent:
         agent._on_error.assert_called_once_with(agent, exc)
 
         agent._on_error = None
-        with pytest.raises(KeyError):
-            await agent._execute_task(coro, aref)
+        await agent._execute_task(coro, aref)
 
     @pytest.mark.asyncio
     async def test_slurp(self, *, agent, app):
