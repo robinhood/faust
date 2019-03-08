@@ -341,14 +341,32 @@ class AIOKafkaConsumerThread(ConsumerThread):
                       timeout: float) -> RecordMap:
         # Implementation for the Fetcher service.
         _consumer = self._ensure_consumer()
-        fetcher = _consumer._fetcher
-        if _consumer._closed or fetcher._closed:
-            raise ConsumerStoppedError()
+        # NOTE: Since we are enqueing the fetch request,
+        # we need to check when dequeued that we are not in a rebalancing
+        # state at that point to return early, or we
+        # will create a deadlock (fetch request starts after flow stopped)
         return await self.call_thread(
-            fetcher.fetched_records,
+            self._fetch_records,
+            _consumer,
             active_partitions,
             timeout=timeout,
             max_records=_consumer._max_poll_records,
+        )
+
+    async def _fetch_records(self,
+                             consumer: aiokafka.AIOKafkaConsumer,
+                             active_partitions: Set[TP],
+                             timeout: float = None,
+                             max_records: int = None) -> RecordMap:
+        if not self.consumer.flow_active:
+            return {}
+        fetcher = consumer._fetcher
+        if consumer._closed or fetcher._closed:
+            raise ConsumerStoppedError()
+        return await fetcher.fetched_records(
+            active_partitions,
+            timeout=timeout,
+            max_records=max_records,
         )
 
     async def create_topic(self,
