@@ -252,10 +252,9 @@ class Conductor(ConductorT, Service):
         return self._topic_name_index
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
         self._tp_index.clear()
-        T(self._update_tp_index)(assigned)
-        T(self._update_callback_map)()
+        self._update_tp_index(assigned)
+        self._update_callback_map()
 
     def _update_tp_index(self, assigned: Set[TP]) -> None:
         assignmap = tp_set_to_map(assigned)

@@ -245,13 +245,11 @@ class Consumer(Service, ConsumerT):
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        await self.app.traced(self._on_partitions_assigned,
-                              partitions=assigned)(assigned)
+        await self._on_partitions_assigned(assigned)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        await self.app.traced(self._on_partitions_revoked,
-                              partitions=revoked)(revoked)
+        await self._on_partitions_revoked(revoked)
 
     def track_message(self, message: Message) -> None:
         # add to set of pending messages that must be acked for graceful
@@ -299,7 +297,6 @@ class Consumer(Service, ConsumerT):
     async def wait_empty(self) -> None:
         """Wait for all messages that started processing to be acked."""
         wait_count = 0
-        T = self.app.traced
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
             if not wait_count % 100_000:  # pragma: no cover
@@ -308,13 +305,13 @@ class Consumer(Service, ConsumerT):
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
-            await T(self.commit)()
+            await self.commit()
             if not self._unacked_messages:
                 break
-            await T(self._wait_for_ack)(timeout=1)
+            await self._wait_for_ack(timeout=1)
 
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
-        await T(self.commit)()
+        await self.commit()
 
     async def on_stop(self) -> None:
         if self.app.conf.stream_wait_empty:

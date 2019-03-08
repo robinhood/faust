@@ -318,43 +318,38 @@ class Agent(AgentT, Service):
             actor.cancel()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
-        T = self.app.traced
         if self.isolated_partitions:
             # isolated: start/stop actors for each partition
-            await T(self.on_isolated_partitions_revoked)(revoked)
+            await self.on_isolated_partitions_revoked(revoked)
         else:
-            await T(self.on_shared_partitions_revoked)(revoked)
+            await self.on_shared_partitions_revoked(revoked)
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
         if self.isolated_partitions:
-            await T(self.on_isolated_partitions_assigned)(assigned)
+            await self.on_isolated_partitions_assigned(assigned)
         else:
-            await T(self.on_shared_partitions_assigned)(assigned)
+            await self.on_shared_partitions_assigned(assigned)
 
     async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.log.dev('Partitions revoked')
-        T = self.app.traced
         for tp in revoked:
             aref: Optional[ActorRefT] = self._actor_by_partition.pop(tp, None)
             if aref is not None:
-                await T(aref.on_isolated_partition_revoked)(tp)
+                await aref.on_isolated_partition_revoked(tp)
 
     async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
-        T = self.app.traced
         for tp in sorted(assigned):
-            await T(self._assign_isolated_partition)(tp)
+            await self._assign_isolated_partition(tp)
 
     async def _assign_isolated_partition(self, tp: TP) -> None:
-        T = self.app.traced
         if (not self._first_assignment_done and
                 not self._actor_by_partition):
             self._first_assignment_done = True
             # if this is the first time we are assigned
             # we need to reassign the agent we started at boot to
             # one of the partitions.
-            T(self._on_first_isolated_partition_assigned)(tp)
-        await T(self._maybe_start_isolated)(tp)
+            self._on_first_isolated_partition_assigned(tp)
+        await self._maybe_start_isolated(tp)
 
     def _on_first_isolated_partition_assigned(self, tp: TP) -> None:
         assert self._actors
