@@ -20,13 +20,15 @@ from faust.types.transports import SchedulingStrategyT
 # by doing: next(topic_index['topic_name'])
 TopicIndexMap = MutableMapping[str, 'TopicBuffer']
 
+
 class TopicPartitionSchedulingStrategy(SchedulingStrategyT):
+
     def __init__(self, records: Mapping[TP, List]) -> None:
         super().__init__(records)
-        self.topic_index = TopicPartitionSchedulingStrategy._map_from_records(records)
+        self.topic_index = self.map_from_records(records)
 
-    @staticmethod
-    def _map_from_records(records: Mapping[TP, List]) -> TopicIndexMap:
+    @classmethod
+    def map_from_records(cls, records: Mapping[TP, List]) -> TopicIndexMap:
         topic_index: TopicIndexMap = {}
         for tp, messages in records.items():
             try:

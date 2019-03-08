@@ -1,5 +1,8 @@
 from faust.types import TP
-from faust.transport.utils import TopicBuffer
+from faust.transport.utils import (
+    TopicBuffer,
+    TopicPartitionSchedulingStrategy,
+)
 
 TP1 = TP('foo', 0)
 TP2 = TP('foo', 1)
@@ -54,7 +57,7 @@ class test_TopicBuffer:
 
     def test_map_from_records(self):
         records = {TP1: BUF1, TP2: BUF2, TP3: BUF3}
-        m = TopicBuffer.map_from_records(records)
+        m = TopicPartitionSchedulingStrategy.map_from_records(records)
         assert isinstance(m['foo'], TopicBuffer)
         buf1 = m['foo']._buffers
         assert len(buf1) == 2
