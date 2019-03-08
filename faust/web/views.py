@@ -58,6 +58,7 @@ class View:
             'patch': self.patch,
             'delete': self.delete,
             'put': self.put,
+            'options': self.options,
         }
         self.__post_init__()
 
@@ -108,6 +109,10 @@ class View:
     @no_type_check  # subclasses change signature based on route match_info
     async def delete(self, request: Request, **kwargs: Any) -> Any:
         raise exceptions.MethodNotAllowed('Method DELETE not allowed.')
+
+    @no_type_check  # subclasses change signature based on route match_info
+    async def options(self, request: Request, **kwargs: Any) -> Any:
+        raise exceptions.MethodNotAllowed('Method OPTIONS not allowed.')
 
     def text(self, value: str, *,
              content_type: str = None,
