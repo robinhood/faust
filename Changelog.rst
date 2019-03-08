@@ -101,6 +101,12 @@ please visit the :ref:`history` section.
 
     Contributed by Nimi Wariboko Jr (:github_user:`nemosupremo`).
 
+- **Web**: Views can now define ``options`` method to
+  implement a handler for the HTTP ``OPTIONS`` method.
+  (Issue #304)
+
+    Contributed by Perk Lim (:github_user:`perklun`).
+
 - **Stream**: Fixed acking behavior of ``Stream.take`` (Issue #266).
 
     When ``take`` is buffering the events should be acked after processing
