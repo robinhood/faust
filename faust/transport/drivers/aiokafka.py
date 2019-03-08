@@ -364,11 +364,12 @@ class AIOKafkaConsumerThread(ConsumerThread):
         fetcher = consumer._fetcher
         if consumer._closed or fetcher._closed:
             raise ConsumerStoppedError()
-        return await fetcher.fetched_records(
-            active_partitions,
-            timeout=timeout,
-            max_records=max_records,
-        )
+        with fetcher._subscriptions.fetch_context():
+            return await fetcher.fetched_records(
+                active_partitions,
+                timeout=timeout,
+                max_records=max_records,
+            )
 
     async def create_topic(self,
                            topic: str,
