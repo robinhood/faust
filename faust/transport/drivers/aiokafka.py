@@ -255,10 +255,11 @@ class AIOKafkaConsumerThread(ConsumerThread):
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
         consumer = self._ensure_consumer()
         try:
-            consumer.commit({
+            aiokafka_offsets = {
                 tp: OffsetAndMetadata(offset, '')
                 for tp, offset in offsets.items()
-            })
+            }
+            await consumer.commit(aiokafka_offsets)
         except CommitFailedError as exc:
             if 'already rebalanced' in str(exc):
                 return False
