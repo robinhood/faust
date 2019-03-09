@@ -9,10 +9,23 @@ try:
 except (AttributeError, ImportError):
     def _pyimp():
         return 'Python'
-from setuptools import find_packages, setup
+from setuptools import Extension, find_packages, setup
+from distutils.command.build_ext import build_ext
+from distutils.errors import (
+    CCompilerError,
+    DistutilsExecError,
+    DistutilsPlatformError,
+)
+
+try:
+    from Cython.Build import cythonize
+except ImportError:
+    USE_CYTHON = False
+else:
+    USE_CYTHON = True
 
 NAME = 'faust'
-EXTENSIONS = {
+BUNDLES = {
     'ckafka',
     'datadog',
     'debug',
@@ -25,6 +38,9 @@ EXTENSIONS = {
     'gevent',
     'eventlet',
 }
+CFLAGS = ['-O2']
+LDFLAGS = []
+LIBRARIES = []
 E_UNSUPPORTED_PYTHON = '%s 1.0 requires %%s %%s or later!' % (NAME,)
 
 PYIMP = _pyimp()
@@ -34,6 +50,55 @@ if sys.version_info < (3, 6):
 from pathlib import Path  # noqa
 
 README = Path('README.rst')
+
+# -*- Compiler Flags -*-
+
+if sys.platform == 'win32':
+    LDFLAGS.append('ws2_32.lib')
+else:
+    CFLAGS.extend(['-Wall', '-Wsign-compare', '-Wconversion'])
+    LIBRARIES.append('z')
+
+# -*- C Extensions -*-
+ext = '.pyx' if USE_CYTHON else '.c'
+
+extensions = [
+    Extension(
+        'faust._cython.windows',
+        ['faust/_cython/windows' + ext],
+        libraries=LIBRARIES,
+        extra_compile_args=CFLAGS,
+        extra_link_args=LDFLAGS,
+    ),
+]
+
+
+if USE_CYTHON:
+    print('USE CYTHON')
+    extensions = cythonize(extensions)
+
+
+class BuildFailed(Exception):
+    pass
+
+
+class ve_build_ext(build_ext):
+    # This class allows C extension building to fail.
+
+    def run(self):
+        print('BUILDING EXT')
+        try:
+            build_ext.run(self)
+        except (DistutilsPlatformError, FileNotFoundError):
+            raise BuildFailed()
+
+    def build_extension(self, ext):
+        try:
+            build_ext.build_extension(self, ext)
+        except (CCompilerError, DistutilsExecError,
+                DistutilsPlatformError, ValueError):
+            raise BuildFailed()
+
 
 # -*- Distribution Meta -*-
 
@@ -94,7 +159,7 @@ def extras(*p):
 
 def extras_require():
     """Get map of all extra requirements."""
-    return {x: extras(x + '.txt') for x in EXTENSIONS}
+    return {x: extras(x + '.txt') for x in BUNDLES}
 
 
 # -*- Long Description -*-
@@ -107,62 +172,74 @@ else:
 
 # -*- %%% -*-
 
-setup(
-    name=NAME,
-    version=meta['version'],
-    description=meta['doc'],
-    long_description=long_description,
-    long_description_content_type='text/x-rst',
-    author=meta['author'],
-    author_email=meta['contact'],
-    url=meta['homepage'],
-    platforms=['any'],
-    license='BSD 3-Clause',
-    packages=find_packages(exclude=['examples', 'ez_setup', 't', 't.*']),
-    # PEP-561: https://www.python.org/dev/peps/pep-0561/
-    package_data={'faust': ['py.typed']},
-    include_package_data=True,
-    python_requires='>=3.6.0',
-    zip_safe=False,
-    install_requires=reqs('default.txt'),
-    tests_require=reqs('test.txt'),
-    extras_require=extras_require(),
-    entry_points={
-        'console_scripts': [
-            'faust = faust.cli.faust:cli',
+
+def do_setup(**kwargs):
+    setup(
+        name=NAME,
+        version=meta['version'],
+        description=meta['doc'],
+        long_description=long_description,
+        long_description_content_type='text/x-rst',
+        author=meta['author'],
+        author_email=meta['contact'],
+        url=meta['homepage'],
+        platforms=['any'],
+        license='BSD 3-Clause',
+        packages=find_packages(exclude=['examples', 'ez_setup', 't', 't.*']),
+        # PEP-561: https://www.python.org/dev/peps/pep-0561/
+        package_data={'faust': ['py.typed']},
+        include_package_data=True,
+        python_requires='>=3.6.0',
+        zip_safe=False,
+        install_requires=reqs('default.txt'),
+        tests_require=reqs('test.txt'),
+        extras_require=extras_require(),
+        entry_points={
+            'console_scripts': [
+                'faust = faust.cli.faust:cli',
+            ],
+        },
+        project_urls={
+            'Bug Reports': 'https://github.com/robinhood/faust/issues',
+            'Source': 'https://github.com/robinhood/faust',
+            'Documentation': 'https://faust.readthedocs.io/',
+        },
+        keywords=[
+            'stream',
+            'processing',
+            'asyncio',
+            'distributed',
+            'queue',
+            'kafka',
         ],
-    },
-    project_urls={
-        'Bug Reports': 'https://github.com/robinhood/faust/issues',
-        'Source': 'https://github.com/robinhood/faust',
-        'Documentation': 'https://faust.readthedocs.io/',
-    },
-    keywords=[
-        'stream',
-        'processing',
-        'asyncio',
-        'distributed',
-        'queue',
-        'kafka',
-    ],
-    classifiers=[
-        'Framework :: AsyncIO',
-        'Development Status :: 5 - Production/Stable',
-        'Intended Audience :: Developers',
-        'Natural Language :: English',
-        'License :: OSI Approved :: BSD License',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: Implementation :: CPython',
-        'Programming Language :: Python :: Implementation :: PyPy',
-        'Operating System :: POSIX',
-        'Operating System :: POSIX :: Linux',
-        'Operating System :: MacOS :: MacOS X',
-        'Operating System :: POSIX :: BSD',
-        'Operating System :: Microsoft :: Windows',
-        'Topic :: System :: Networking',
-        'Topic :: System :: Distributed Computing',
-    ],
-)
+        classifiers=[
+            'Framework :: AsyncIO',
+            'Development Status :: 5 - Production/Stable',
+            'Intended Audience :: Developers',
+            'Natural Language :: English',
+            'License :: OSI Approved :: BSD License',
+            'Programming Language :: Python',
+            'Programming Language :: Python :: 3 :: Only',
+            'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
+            'Programming Language :: Python :: Implementation :: CPython',
+            'Programming Language :: Python :: Implementation :: PyPy',
+            'Operating System :: POSIX',
+            'Operating System :: POSIX :: Linux',
+            'Operating System :: MacOS :: MacOS X',
+            'Operating System :: POSIX :: BSD',
+            'Operating System :: Microsoft :: Windows',
+            'Topic :: System :: Networking',
+            'Topic :: System :: Distributed Computing',
+        ],
+        **kwargs)
+
+
+try:
+    do_setup(cmdclass={'build_ext': ve_build_ext},
+             ext_modules=extensions)
+except BuildFailed:
+    print("************************************************************")
+    print("Cannot compile C accelerated modules, using pure python")
+    print("************************************************************")
+    do_setup()

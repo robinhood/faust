@@ -66,6 +66,14 @@ class HoppingWindow(Window):
         return self.current(latest_timestamp - expires)[0]
 
 
+_PyHoppingWindow = HoppingWindow
+
+try:
+    from ._cython.windows import HoppingWindow
+except ImportError:
+    pass
+
+
 class TumblingWindow(HoppingWindow):
     """Tumbling window type.
 
@@ -114,3 +122,11 @@ class SlidingWindow(Window):
 
     def _stale_before(self, expires: float, latest_timestamp: float) -> float:
         return latest_timestamp - expires
+
+
+_PySlidingWindow = SlidingWindow
+
+try:
+    from ._cython.windows import SlidingWindow
+except ImportError:
+    pass
