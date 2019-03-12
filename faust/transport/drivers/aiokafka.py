@@ -535,8 +535,9 @@ class Consumer(base.Consumer):
         self.log.dev('SEEK %r -> %r', partition, offset)
         # reset livelock detection
         self._last_batch = None
+        _tp = _ensure_TP(partition)
         # set new read offset so we will reread messages
-        self._read_offset[_ensure_TP(partition)] = offset if offset else None
+        self._read_offset[_tp] = offset if offset else None
         self._thread.seek(partition, offset)
 
     def assignment(self) -> Set[TP]:
@@ -649,7 +650,8 @@ class ConsumerThread(QueueServiceThread):
         for tp, offset in partitions.items():
             self.log.dev('SEEK %r -> %r', tp, offset)
             consumer.seek(tp, offset)
-        self.consumer._read_offset.update(partitions)
+            if offset > 0:
+                self.consumer._read_offset[tp] = offset
         await asyncio.gather(*[
             consumer.position(tp) for tp in partitions
         ])
