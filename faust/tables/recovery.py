@@ -143,7 +143,7 @@ class Recovery(Service):
         persisted_offset = table.persisted_offset(tp)
         if persisted_offset is not None:
             offsets[tp] = persisted_offset
-        offsets.setdefault(tp, -1)
+        offsets.setdefault(tp, None)
 
     def revoke(self, tp: TP) -> None:
         self.standby_offsets.pop(tp, None)
@@ -410,7 +410,15 @@ class Recovery(Service):
         # FIXME To be consistent with the offset -1 logic
         earliest = {tp: offset - 1 for tp, offset in earliest.items()}
         for tp in tps:
-            destination[tp] = max(destination[tp], earliest[tp])
+            last_value = destination[tp]
+            new_value = earliest[tp]
+
+            if last_value is None:
+                destination[tp] = new_value
+            elif new_value is None:
+                destination[tp] = last_value
+            else:
+                destination[tp] = max(last_value, new_value)
         table = terminal.logtable(
             [(k.topic, k.partition, v) for k, v in destination.items()],
             title=f'Reading Starts At - {title.capitalize()}',
@@ -467,8 +475,8 @@ class Recovery(Service):
             else:
                 continue
 
-            seen_offset = offsets.get(tp, -1)
-            if offset > seen_offset:
+            seen_offset = offsets.get(tp, None)
+            if seen_offset is None or offset > seen_offset:
                 offsets[tp] = offset
                 buf = buffers[table]
                 buf.append(event)
@@ -490,13 +498,25 @@ class Recovery(Service):
             buffer.clear()
 
     def need_recovery(self) -> bool:
-        return self.active_highwaters != self.active_offsets
+        return any(v for v in self.active_remaining().values())
 
     def active_remaining(self) -> Counter[TP]:
-        return self.active_highwaters - self.active_offsets
+        highwaters = self.active_highwaters
+        offsets = self.active_offsets
+        return Counter({
+            tp: highwater - offsets[tp]
+            for tp, highwater in highwaters.items()
+            if highwater is not None and offsets[tp] is not None
+        })
 
     def standby_remaining(self) -> Counter[TP]:
-        return self.standby_highwaters - self.standby_offsets
+        highwaters = self.standby_highwaters
+        offsets = self.standby_offsets
+        return Counter({
+            tp: highwater - offsets[tp]
+            for tp, highwater in highwaters.items()
+            if highwater >= 0 and offsets[tp] >= 0
+        })
 
     def active_remaining_total(self) -> int:
         return sum(self.active_remaining().values())
@@ -509,7 +529,7 @@ class Recovery(Service):
         return {
             tp: (highwater, offsets[tp], highwater - offsets[tp])
             for tp, highwater in self.active_highwaters.items()
-            if highwater - offsets[tp] != 0
+            if offsets[tp] is not None and highwater - offsets[tp] != 0
         }
 
     def standby_stats(self) -> MutableMapping[TP, Tuple[int, int, int]]:
@@ -517,7 +537,8 @@ class Recovery(Service):
         return {
             tp: (highwater, offsets[tp], highwater - offsets[tp])
             for tp, highwater in self.standby_highwaters.items()
-            if highwater - offsets[tp] != 0
+            if offsets[tp] is not None and highwater - offsets[tp] != 0
+
         }
 
     @Service.task
