@@ -162,7 +162,7 @@ class Store(base.SerializedStore):
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         offset = self._db_for_partition(tp.partition).get(self.offset_key)
-        if offset:
+        if offset is not None:
             return int(offset)
         return None
 
