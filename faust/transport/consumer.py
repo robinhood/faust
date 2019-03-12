@@ -474,7 +474,7 @@ class Consumer(Service, ConsumerT):
         read_offset = self._read_offset
         _committed_offsets = await self.seek_to_committed()
         read_offset.update({
-            tp: offset
+            tp: offset if offset is not None and offset >= 0 else None
             for tp, offset in _committed_offsets.items()
         })
         committed_offsets = {
