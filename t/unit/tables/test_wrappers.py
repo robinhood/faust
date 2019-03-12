@@ -365,6 +365,7 @@ class test_WindowWrapper_using_key_index:
 
     def test_as_ansitable(self, *, iwtable, data):
         table = iwtable.relative_to_now().as_ansitable()
+        print(table)
         assert table
         assert 'foobar' in table
         assert 'AUNIQSTR' in table
