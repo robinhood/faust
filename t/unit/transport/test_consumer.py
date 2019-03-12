@@ -513,15 +513,6 @@ class test_Consumer:
         consumer.assignment = Mock(return_value={TP1})
         assert consumer._get_active_partitions() == {TP1, TP2}
 
-    def test__records_to_topic_index(self, *, consumer):
-        consumer.TopicBuffer = Mock()
-        records = Mock(name='records')
-        ret = consumer._records_to_topic_index(records, {TP1})
-        consumer.TopicBuffer.map_from_records.assert_called_once_with(
-            records,
-        )
-        assert ret is consumer.TopicBuffer.map_from_records()
-
     @pytest.mark.asyncio
     async def test_perform_seek(self, *, consumer):
         consumer._read_offset.update(TP1=3001, TP2=3002)
@@ -543,7 +534,7 @@ class test_Consumer:
     async def test_seek(self, *, consumer):
         consumer._last_batch = 123.3
         consumer._read_offset[TP1] = 301
-        consumer._seek = Mock()
+        consumer._seek = AsyncMock()
 
         await consumer.seek(TP1, 401)
 
