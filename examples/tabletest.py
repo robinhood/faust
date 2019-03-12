@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import asyncio
 import faust
+import json
 
 app = faust.App(
     'tabletest',
@@ -73,6 +74,12 @@ async def produce():
             await last_fut  # wait for buffer to flush
             await asyncio.sleep(2.0)
             print(i)
+
+
+@app.command()
+async def add_single_changelog():
+    topic = counts.changelog_topic
+    await topic.send(key=0, value=json.dumps(0), partition=0)
 
 
 if __name__ == '__main__':
