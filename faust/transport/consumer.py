@@ -88,13 +88,10 @@ from faust.types.transports import (
     TPorTopicSet,
     TransactionManagerT,
     TransportT,
-    SchedulingStrategyT
 )
 from faust.utils import terminal
 from faust.utils.functional import consecutive_numbers
 from faust.utils.tracing import traced_from_parent_span
-
-from .utils import TopicPartitionSchedulingStrategy
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -391,7 +388,6 @@ class Consumer(Service, ConsumerT):
                  commit_interval: float = None,
                  commit_livelock_soft_timeout: float = None,
                  loop: asyncio.AbstractEventLoop = None,
-                 SchedulingStrategy: ClassVar[Type[SchedulingStrategyT]] = TopicPartitionSchedulingStrategy,
                  **kwargs: Any) -> None:
         assert callback is not None
         self.transport = transport
@@ -402,6 +398,7 @@ class Consumer(Service, ConsumerT):
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self._commit_every = self.app.conf.broker_commit_every
+        self.scheduler = self.app.conf.ConsumerScheduler()
         self.commit_interval = (
             commit_interval or self.app.conf.broker_commit_interval)
         self.commit_livelock_soft_timeout = (
@@ -426,7 +423,6 @@ class Consumer(Service, ConsumerT):
             beacon=self.beacon,
             loop=self.loop,
         )
-        self.SchedulingStrategy = SchedulingStrategy
 
     def on_init_dependencies(self) -> Iterable[ServiceT]:
         # We start the TransactionManager only if
@@ -458,11 +454,6 @@ class Consumer(Service, ConsumerT):
         xtps = self._active_partitions = ensure_TPset(tps)  # copy
         xtps.difference_update(self._paused_partitions)
         return xtps
-
-    def _records_to_iterator(
-            self,
-            records: RecordMap) -> SchedulingStrategyT:
-        return self.SchedulingStrategy(records)
 
     @abc.abstractmethod
     async def _commit(
@@ -610,11 +601,11 @@ class Consumer(Service, ConsumerT):
         records, active_partitions = await self._wait_next_records(timeout)
         if records is None or self.should_stop:
             return
-        sched_strategy = self._records_to_iterator(records)
 
+        records_it = self.scheduler.iterate(records)
         to_message = self._to_message  # localize
         if self.flow_active:
-            for tp, record in sched_strategy.records_iterator():
+            for tp, record in records_it:
                 if not self.flow_active:
                     break
                 if tp in active_partitions:

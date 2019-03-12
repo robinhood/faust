@@ -618,6 +618,32 @@ Where the consumer should start reading messages from when there is no initial
 offset, or the stored offset no longer exists, e.g. when starting a new
 consumer for the first time. Options include 'earliest', 'latest', 'none'.
 
+.. setting:: ConsumerScheduler
+
+``ConsumerScheduler``
+--------------------
+
+.. versionadded:: 1.5
+
+:type: ``Union[str, Type[SchedulingStrategyT]``
+:default: ``faust.transport.utils.DefaultSchedulingStrategy``
+
+A strategy which dictates the priority of topics and partitions
+for incoming records.
+The default strategy does first round-robin over topics and then
+round-robin over partitions.
+
+Example using a class::
+
+    class MySchedulingStrategy(DefaultSchedulingStrategy):
+        ...
+
+    app = App(..., consumer_scheduling_strategy=MySchedulingStrategy)
+
+Example using the string path to a class::
+
+    app = App(..., consumer_scheduling_strategy='myproj.MySchedulingStrategy')
+
 .. _settings-producer:
 
 Advanced Producer Settings

@@ -23,13 +23,11 @@ from faust.types.transports import (
     ProducerT,
     TransactionManagerT,
     TransportT,
-    SchedulingStrategyT
 )
 
 from .conductor import Conductor
 from .consumer import Consumer, Fetcher, TransactionManager
 from .producer import Producer
-from .utils import TopicPartitionSchedulingStrategy
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -70,11 +68,9 @@ class Transport(TransportT):
         self.loop = loop or asyncio.get_event_loop()
 
     def create_consumer(self, callback: ConsumerCallback,
-                        SchedulingStrategy: ClassVar[Type[SchedulingStrategyT]] = TopicPartitionSchedulingStrategy,
                         **kwargs: Any) -> ConsumerT:
         return self.Consumer(self, callback=callback,
                              loop=self.loop,
-                             SchedulingStrategy=SchedulingStrategy,
                              **kwargs)
 
     def create_producer(self, **kwargs: Any) -> ProducerT:

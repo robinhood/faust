@@ -15,6 +15,7 @@ from faust.app.router import Router
 from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
+from faust.transport.utils import DefaultSchedulingStrategy
 from faust.types import settings
 from faust.types.enums import ProcessingGuarantee
 from yarl import URL
@@ -27,6 +28,10 @@ if sys.platform == 'win32':
 else:
     DATADIR = Path('/etc/faust/')
     TABLEDIR = Path('/var/faust/')
+
+
+class OtherSchedulingStrategy(DefaultSchedulingStrategy):
+    ...
 
 
 def _dummy_partitioner(a, b, c):
@@ -102,6 +107,7 @@ class test_settings:
         assert conf.agent_supervisor is mode.OneForOneSupervisor
 
         assert conf.Agent is faust.Agent
+        assert conf.ConsumerScheduler is DefaultSchedulingStrategy
         assert conf.Stream is faust.Stream
         assert conf.Table is faust.Table
         assert conf.TableManager is TableManager
@@ -199,6 +205,7 @@ class test_settings:
                                  timezone=pytz.timezone('US/Eastern'),
                                  logging_config={'foo': 10},  # noqa
                                  consumer_auto_offset_reset='latest',
+                                 ConsumerScheduler=OtherSchedulingStrategy,
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -250,6 +257,7 @@ class test_settings:
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
             logging_config=logging_config,
             consumer_auto_offset_reset=consumer_auto_offset_reset,
+            ConsumerScheduler=ConsumerScheduler,
         )
         conf = app.conf
         assert conf.id == app.conf._prepare_id(id)
@@ -302,6 +310,7 @@ class test_settings:
         assert conf.broker_max_poll_records == broker_max_poll_records
         assert conf.logging_config == logging_config
         assert conf.consumer_auto_offset_reset == consumer_auto_offset_reset
+        assert conf.ConsumerScheduler is OtherSchedulingStrategy
         return app
 
     def test_custom_host_port_to_canonical(self,

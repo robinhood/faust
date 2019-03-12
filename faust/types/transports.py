@@ -11,6 +11,7 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    Iterator,
     List,
     Mapping,
     MutableSet,
@@ -21,7 +22,6 @@ from typing import (
     Type,
     Union,
     no_type_check,
-    Iterator
 )
 
 from mode import Seconds, ServiceT
@@ -221,6 +221,17 @@ class TransactionManagerT(ProducerT):
         raise NotImplementedError()
 
 
+class SchedulingStrategyT:
+
+    @abc.abstractmethod
+    def __init__(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def iterate(self, records: Mapping[TP, List]) -> Iterator[Tuple[TP, Any]]:
+        ...
+
+
 class ConsumerT(ServiceT):
 
     #: The transport that created this Consumer.
@@ -238,6 +249,8 @@ class ConsumerT(ServiceT):
     randomly_assigned_topics: Set[str]
 
     in_transaction: bool
+
+    scheduler: SchedulingStrategyT
 
     @abc.abstractmethod
     def __init__(self,
@@ -450,15 +463,3 @@ class TransportT(abc.ABC):
     @abc.abstractmethod
     def create_conductor(self, **kwargs: Any) -> ConductorT:
         ...
-
-
-
-class SchedulingStrategyT:
-    @abc.abstractmethod
-    def __init__(self, records: Mapping[TP, List]) -> None:
-        ...
-
-    @abc.abstractmethod
-    def records_iterator(self) -> Iterator[Tuple[TP, Any]]:
-        ...
-

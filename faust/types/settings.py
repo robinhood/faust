@@ -39,7 +39,7 @@ from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
 from .streams import StreamT
-from .transports import PartitionerT
+from .transports import PartitionerT, SchedulingStrategyT
 from .tables import TableManagerT, TableT
 from .topics import TopicT
 from .web import HttpClientT
@@ -111,6 +111,8 @@ AGENT_TYPE = 'faust.Agent'
 #: Default agent supervisor type, used as default for
 #: :setting:`agent_supervisor`.
 AGENT_SUPERVISOR_TYPE = 'mode.OneForOneSupervisor'
+
+CONSUMER_SCHEDULER_TYPE = 'faust.transport.utils.DefaultSchedulingStrategy'
 
 #: Path to stream class, used as default for :setting:`Stream`.
 STREAM_TYPE = 'faust.Stream'
@@ -259,7 +261,6 @@ PRODUCER_REQUEST_TIMEOUT: float = 1200.0  # 20 minutes.
 #:         remains alive. This is the strongest available guarantee.
 PRODUCER_ACKS = -1
 
-
 #: Set of settings added for backwards compatibility
 SETTINGS_COMPAT: Set[str] = {'url'}
 
@@ -342,6 +343,7 @@ class Settings(abc.ABC):
     _reply_expires: float = REPLY_EXPIRES
     _web_transport: URL = WEB_TRANSPORT
     _Agent: Type[AgentT]
+    _ConsumerScheduler: Type[SchedulingStrategyT]
     _Stream: Type[StreamT]
     _Table: Type[TableT]
     _SetTable: Type[TableT]
@@ -449,6 +451,7 @@ class Settings(abc.ABC):
             worker_redirect_stdouts: bool = None,
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
+            ConsumerScheduler: SymbolArg[Type[SchedulingStrategyT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             SetTable: SymbolArg[Type[TableT]] = None,
@@ -585,6 +588,7 @@ class Settings(abc.ABC):
         self.agent_supervisor = agent_supervisor or AGENT_SUPERVISOR_TYPE
 
         self.Agent = Agent or AGENT_TYPE
+        self.ConsumerScheduler = ConsumerScheduler or CONSUMER_SCHEDULER_TYPE
         self.Stream = Stream or STREAM_TYPE
         self.Table = Table or TABLE_TYPE
         self.SetTable = SetTable or SET_TABLE_TYPE
@@ -870,6 +874,15 @@ class Settings(abc.ABC):
     @Agent.setter
     def Agent(self, Agent: SymbolArg[Type[AgentT]]) -> None:
         self._Agent = symbol_by_name(Agent)
+
+    @property
+    def ConsumerScheduler(self) -> Type[SchedulingStrategyT]:
+        return self._ConsumerScheduler
+
+    @ConsumerScheduler.setter
+    def ConsumerScheduler(
+            self, value: SymbolArg[Type[SchedulingStrategyT]]) -> None:
+        self._ConsumerScheduler = symbol_by_name(value)
 
     @property
     def Stream(self) -> Type[StreamT]:

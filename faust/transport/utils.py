@@ -13,6 +13,12 @@ from mode.utils.compat import OrderedDict
 from faust.types import TP
 from faust.types.transports import SchedulingStrategyT
 
+__all__ = [
+    'TopicIndexMap',
+    'DefaultSchedulingStrategy',
+    'TopicBuffer',
+]
+
 # But we want to process records from topics in round-robin order.
 # We convert records into a mapping from topic-name to "chain-of-buffers":
 #   topic_index['topic-name'] = chain(all_topic_partition_buffers)
@@ -21,11 +27,7 @@ from faust.types.transports import SchedulingStrategyT
 TopicIndexMap = MutableMapping[str, 'TopicBuffer']
 
 
-class TopicPartitionSchedulingStrategy(SchedulingStrategyT):
-
-    def __init__(self, records: Mapping[TP, List]) -> None:
-        super().__init__(records)
-        self.topic_index = self.map_from_records(records)
+class DefaultSchedulingStrategy(SchedulingStrategyT):
 
     @classmethod
     def map_from_records(cls, records: Mapping[TP, List]) -> TopicIndexMap:
@@ -38,14 +40,18 @@ class TopicPartitionSchedulingStrategy(SchedulingStrategyT):
             entry.add(tp, messages)
         return topic_index
 
-    def records_iterator(self) -> Iterator[Tuple[TP, Any]]:
+    def iterate(self, records: Mapping[TP, List]) -> Iterator[Tuple[TP, Any]]:
+        return self.records_iterator(self.map_from_records(records))
+
+    def records_iterator(self,
+                         index: TopicIndexMap) -> Iterator[Tuple[TP, Any]]:
         to_remove: Set[str] = set()
         sentinel = object()
         _next = next
-        while self.topic_index:
+        while index:
             for topic in to_remove:
-                self.topic_index.pop(topic, None)
-            for topic, messages in self.topic_index.items():
+                index.pop(topic, None)
+            for topic, messages in index.items():
                 item = _next(messages, sentinel)
                 if item is sentinel:
                     # this topic is now empty,
