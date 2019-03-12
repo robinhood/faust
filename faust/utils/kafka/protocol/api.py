@@ -2,8 +2,8 @@
 # pragma: no cover
 import abc
 from typing import Type
-from rhkafka.protocol.struct import Struct
-from rhkafka.protocol.types import Schema
+from kafka.protocol.struct import Struct
+from kafka.protocol.types import Schema
 
 
 class Response(Struct, metaclass=abc.ABCMeta):

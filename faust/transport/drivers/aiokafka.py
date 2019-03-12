@@ -27,13 +27,13 @@ from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from rhkafka.errors import (
+from kafka.errors import (
     NotControllerError,
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
 )
-from rhkafka.partitioner.default import DefaultPartitioner
-from rhkafka.protocol.metadata import MetadataRequest_v1
+from kafka.partitioner.default import DefaultPartitioner
+from kafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, get_logger
 from mode.utils.futures import StampedeWrapper
 from mode.utils.times import Seconds, want_seconds

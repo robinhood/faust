@@ -1,5 +1,5 @@
 """Admin related Kafka protocol extensions."""
-from rhkafka.protocol import types
+from kafka.protocol import types
 from .api import Request, Response
 
 

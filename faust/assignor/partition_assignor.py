@@ -11,9 +11,9 @@ from typing import (
     cast,
 )
 
-from rhkafka.cluster import ClusterMetadata
-from rhkafka.coordinator.assignors.abstract import AbstractPartitionAssignor
-from rhkafka.coordinator.protocol import (
+from kafka.cluster import ClusterMetadata
+from kafka.coordinator.assignors.abstract import AbstractPartitionAssignor
+from kafka.coordinator.protocol import (
     ConsumerProtocolMemberAssignment,
     ConsumerProtocolMemberMetadata,
 )
