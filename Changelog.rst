@@ -8,6 +8,18 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.8:
+
+1.4.8
+=====
+:release-date: 2019-03-11 05:30 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Tables**: Recovery would hang when changelog have
+  ``committed_offset == 0``.
+
+    Added this test to our manual testing procedure.
+
 .. _version-1.4.7:
 
 1.4.7
