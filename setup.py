@@ -70,6 +70,13 @@ extensions = [
         extra_compile_args=CFLAGS,
         extra_link_args=LDFLAGS,
     ),
+    Extension(
+        'faust._cython.streams',
+        ['faust/_cython/streams' + ext],
+        libraries=LIBRARIES,
+        extra_compile_args=CFLAGS,
+        extra_link_args=LDFLAGS,
+    ),
 ]
 
 

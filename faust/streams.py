@@ -49,6 +49,11 @@ from .types.streams import (
 from .types.topics import ChannelT
 from .types.tuples import Message
 
+try:
+    from ._cython.streams import StreamIterator as _CStreamIterator
+except ImportError:
+    _CStreamIterator = None  # noqa
+
 __all__ = [
     'Stream',
     'current_event',
@@ -686,7 +691,55 @@ class Stream(StreamT[T_co], Service):
     def __next__(self) -> Any:
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
-    async def __aiter__(self) -> AsyncIterator:
+    def __aiter__(self) -> AsyncIterator:
+        if _CStreamIterator is not None:
+            return self._c_aiter()
+        return self._py_aiter()
+
+    async def _c_aiter(self) -> AsyncIterator:
+        self.log.dev('Using Cython optimized __aiter__')
+        self._finalized = True
+        await self.maybe_start()
+        it = _CStreamIterator(self)
+        ack_exceptions = self.app.conf.stream_ack_exceptions
+        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
+        try:
+            while not self.should_stop:
+                do_ack = self.enable_acks
+                value = await it.next()  # noqa: B305
+                try:
+                    yield value
+                except CancelledError:
+                    if not ack_cancelled_tasks:
+                        do_ack = False
+                    raise
+                except Exception:
+                    if not ack_exceptions:
+                        do_ack = False
+                    raise
+                except GeneratorExit:
+                    raise  # consumer did `break`
+                except BaseException:
+                    # e.g. SystemExit/KeyboardInterrupt
+                    if not ack_cancelled_tasks:
+                        do_ack = False
+                    raise
+                finally:
+                    event, self.current_event = self.current_event, None
+                    it.after(event, do_ack)
+        except StopAsyncIteration:
+            # We are not allowed to propagate StopAsyncIteration in __aiter__
+            # (if we do, it'll be converted to RuntimeError by CPython).
+            # It can be raised when streaming over a list:
+            #    async for value in app.stream([1, 2, 3, 4]):
+            #       ...
+            # To support that, we just return here and that will stop
+            # the iteration.
+            return
+        finally:
+            self._channel_stop_iteration(self.channel)
+
+    async def _py_aiter(self) -> AsyncIterator:
         self._finalized = True
         loop = self.loop
         await self.maybe_start()
