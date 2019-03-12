@@ -621,7 +621,7 @@ consumer for the first time. Options include 'earliest', 'latest', 'none'.
 .. setting:: ConsumerScheduler
 
 ``ConsumerScheduler``
---------------------
+---------------------
 
 .. versionadded:: 1.5
 
