@@ -185,3 +185,4 @@ please visit the :ref:`history` section.
     + Amit Rip (:github_user:`amitripshtos`).
     + Sebastian Roll (:github_user:`SebastianRoll`).
     + Mousse (:github_user:`zibuyu1995`).
+    + Zhanzhao (Deo) Liang (:github_user:`DeoLeung`).
