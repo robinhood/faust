@@ -10,19 +10,21 @@ TP3 = TP('baz', 1)
 TP4 = TP('xuz', 0)
 
 
+@pytest.fixture()
+def tables():
+    return Mock(name='tables')
+
+
+@pytest.fixture()
+def recovery(*, tables, app):
+    return Recovery(app, tables)
+
+
 class test_Recovery:
 
     @pytest.fixture()
     def table(self):
         return Mock(name='table')
-
-    @pytest.fixture()
-    def tables(self):
-        return Mock(name='tables')
-
-    @pytest.fixture()
-    def recovery(self, *, tables, app):
-        return Recovery(app, tables)
 
     def test_init(self, *, recovery, tables):
         assert recovery.tables is tables
@@ -332,3 +334,23 @@ class test_Recovery:
     def test__is_changelog_tp(self, *, recovery, tables):
         tables.changelog_topics = {TP1.topic}
         assert recovery._is_changelog_tp(TP1)
+
+
+@pytest.mark.parametrize('highwaters,offsets,needs_recovery,total,remaining', [
+    ({TP1: 0, TP2: -1}, {TP1: -1, TP2: -1}, True, 1, {TP1: 1, TP2: 0}),
+    ({TP1: -1, TP2: -1}, {TP1: -1, TP2: -1}, False, 0, {TP1: 0, TP2: 0}),
+    ({TP1: 100, TP2: -1}, {TP1: -1, TP2: -1}, True, 101, {TP1: 101, TP2: 0}),
+])
+def test_recovery_from_offset_0(
+        highwaters, offsets, needs_recovery, total, remaining, *,
+        recovery):
+    recovery.active_highwaters.update(highwaters)
+    recovery.active_offsets.update(offsets)
+
+    if needs_recovery:
+        assert recovery.need_recovery()
+    else:
+        assert not recovery.need_recovery()
+    assert recovery.active_remaining_total() == total
+    if remaining:
+        assert recovery.active_remaining() == remaining
