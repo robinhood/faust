@@ -16,7 +16,7 @@ class Window(WindowT):
     ...
 
 
-class HoppingWindow(Window):
+class _PyHoppingWindow(Window):
     """Hopping window type.
 
     Fixed-size, overlapping windows.
@@ -66,12 +66,10 @@ class HoppingWindow(Window):
         return self.current(latest_timestamp - expires)[0]
 
 
-_PyHoppingWindow = HoppingWindow
-
 try:
     from ._cython.windows import HoppingWindow
 except ImportError:
-    pass
+    HoppingWindow = _PyHoppingWindow
 
 
 class TumblingWindow(HoppingWindow):
@@ -84,7 +82,7 @@ class TumblingWindow(HoppingWindow):
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
-class SlidingWindow(Window):
+class _PySlidingWindow(Window):
     """Sliding window type.
 
     Fixed-size, overlapping windows that work on differences between
@@ -124,9 +122,7 @@ class SlidingWindow(Window):
         return latest_timestamp - expires
 
 
-_PySlidingWindow = SlidingWindow
-
 try:
     from ._cython.windows import SlidingWindow
 except ImportError:
-    pass
+    SlidingWindow = _PySlidingWindow
