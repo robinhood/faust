@@ -1,5 +1,4 @@
 """Window Types."""
-from math import floor
 from typing import List
 from mode import Seconds, want_seconds
 from .types.windows import WindowRange, WindowRange_from_start, WindowT
@@ -46,17 +45,13 @@ class HoppingWindow(Window):
         """
         The current WindowRange is the latest WindowRange for a given timestamp
         """
-        step = self.step
-        start = self._start_initial_range(timestamp)
-        m = floor(((timestamp + 1) - start) / step)
-        return WindowRange_from_start(start + (step * m), self.size)
+        return self.ranges(timestamp)[-1]
 
     def delta(self, timestamp: float, d: Seconds) -> WindowRange:
         return self.current(timestamp - want_seconds(d))
 
     def earliest(self, timestamp: float) -> WindowRange:
-        start = self._start_initial_range(timestamp)
-        return WindowRange_from_start(float(start), self.size)
+        return self.ranges(timestamp)[0]
 
     def _start_initial_range(self, timestamp: float) -> float:
         closest_step = (timestamp // self.step) * self.step
