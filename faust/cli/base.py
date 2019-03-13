@@ -66,7 +66,14 @@ __all__ = [
 ]
 
 argument = click.argument
-option = click.option
+
+
+# Our version of click.option enables show_default=True by default.
+def option(*option_decls: Any,
+           show_default: bool = True,
+           **kwargs: Any) -> click.Option:
+    return click.option(*option_decls, show_default=show_default, **kwargs)
+
 
 OptionDecorator = Callable[[Any], Any]
 OptionSequence = Sequence[OptionDecorator]
