@@ -100,6 +100,7 @@ globals().update(conf.build_config(
         'faust.web.apps.router.app',
         'faust'
         'faust.web.drivers',
+        r'.*\._cython.*',
     ],
 ))
 
