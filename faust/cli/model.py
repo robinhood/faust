@@ -9,7 +9,7 @@ from faust.models import registry
 from faust.types import FieldDescriptorT, ModelT
 from faust.utils import terminal
 
-from .base import AppCommand
+from .base import AppCommand, argument
 
 __all__ = ['model']
 
@@ -24,7 +24,7 @@ class model(AppCommand):
     headers = ['field', 'type', 'default*']
 
     options = [
-        click.argument('name'),
+        argument('name'),
     ]
 
     async def run(self, name: str) -> None:

@@ -1,9 +1,8 @@
 """Program ``faust agents`` used to list agents."""
 from operator import attrgetter
 from typing import Any, Callable, Optional, Sequence, Type, cast
-import click
 from faust.types import AgentT
-from .base import AppCommand
+from .base import AppCommand, option
 
 
 class agents(AppCommand):
@@ -14,7 +13,7 @@ class agents(AppCommand):
     sortkey = attrgetter('name')
 
     options = [
-        click.option(
+        option(
             '--local/--no-local', help='Include agents using a local channel'),
     ]
 
