@@ -181,7 +181,7 @@ core_options: OptionSequence = [
            help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
            help='Enable debugging output, and the blocking detector.'),
-    option('--no_color/--color', default=False,
+    option('--no-color/--color', '--no_color/--color', default=False,
            help='Enable colors in output.'),
     option('--workdir', '-W',
            default=WORKDIR,
