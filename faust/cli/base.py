@@ -19,6 +19,7 @@ from typing import (
     List,
     Mapping,
     MutableSequence,
+    NoReturn,
     Optional,
     Sequence,
     Tuple,
@@ -35,6 +36,7 @@ from mode import Service, ServiceT, Worker
 from mode.utils import text
 from mode.utils.compat import want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
+from mode.worker import exiting
 
 from faust.types._env import (
     BLOCKING_TIMEOUT,
@@ -451,23 +453,17 @@ class Command(abc.ABC):
     prog_name: str = ''
 
     @classmethod
-    def as_click_command(cls) -> Callable:
+    def as_click_command(cls) -> Callable[..., NoReturn]:
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
         # __init_subclass__ calls this for the side effect of being
         # registered as a `faust` subcommand.
         @click.pass_context
         @wraps(cls)
-        def _inner(*args: Any, **kwargs: Any) -> Callable:
+        def _inner(*args: Any, **kwargs: Any) -> NoReturn:
             cmd = cls(*args, **kwargs)
-            try:
-                return cmd()
-            except MemoryError:
-                sys.exit(os.EX_OSERR)
-            except Exception:
-                sys.exit(1)
-            except BaseException:
-                sys.exit(os.EX_OK)
+            with exiting():
+                cmd()
 
         return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
@@ -541,17 +537,17 @@ class Command(abc.ABC):
     async def on_stop(self) -> None:
         ...
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> NoReturn:
         self.run_using_worker(*args, **kwargs)
 
-    def run_using_worker(self, *args: Any, **kwargs: Any) -> Any:
+    def run_using_worker(self, *args: Any, **kwargs: Any) -> NoReturn:
         loop = asyncio.get_event_loop()
         args = self.args + args
         kwargs = {**self.kwargs, **kwargs}
         service = self.as_service(loop, *args, **kwargs)
         worker = self.worker_for_service(service, loop)
         self.on_worker_created(worker)
-        return worker.execute_from_commandline()
+        raise worker.execute_from_commandline()
 
     def on_worker_created(self, worker: Worker) -> None:
         ...

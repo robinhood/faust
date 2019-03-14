@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     Mapping,
     MutableSequence,
+    NoReturn,
     Optional,
     Pattern,
     Set,
@@ -167,7 +168,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def main(self) -> None:
+    def main(self) -> NoReturn:
         ...
 
     @abc.abstractmethod

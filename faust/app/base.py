@@ -23,6 +23,7 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSequence,
+    NoReturn,
     Optional,
     Pattern,
     Set,
@@ -634,14 +635,14 @@ class App(AppT, Service):
                      **kwargs: Any) -> venusian.Scanner:
         return venusian.Scanner(ignore=[pat.search for pat in ignore])
 
-    def main(self) -> None:
+    def main(self) -> NoReturn:
         """Execute the :program:`faust` umbrella command using this app."""
         from faust.cli.faust import cli
         self.finalize()
         self.worker_init()
         if self.conf.autodiscover:
             self.discover()
-        cli(app=self)
+        raise cli(app=self)
 
     def topic(self,
               *topics: str,
