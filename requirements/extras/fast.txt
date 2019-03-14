@@ -2,3 +2,4 @@
 aiodns>=1.1
 cchardet>=2.1
 ciso8601
+cython

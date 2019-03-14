@@ -71,7 +71,7 @@ argument = click.argument
 # Our version of click.option enables show_default=True by default.
 def option(*option_decls: Any,
            show_default: bool = True,
-           **kwargs: Any) -> click.Option:
+           **kwargs: Any) -> Callable[[Any], Any]:
     return click.option(*option_decls, show_default=show_default, **kwargs)
 
 

@@ -62,13 +62,13 @@ __all__ = [
 logger = get_logger(__name__)
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    _current_event: ContextVar[weakref.ReferenceType[EventT]]
+    _current_event: ContextVar[Optional[weakref.ReferenceType[EventT]]]
 _current_event = ContextVar('current_event')
 
 
 def current_event() -> Optional[EventT]:
     """Return the event currently being processed, or None."""
-    eventref = _current_event.get(None)  # type: ignore
+    eventref = _current_event.get(None)
     return eventref() if eventref is not None else None
 
 
