@@ -459,7 +459,7 @@ class Command(abc.ABC):
     prog_name: str = ''
 
     @classmethod
-    def as_click_command(cls) -> Callable[..., NoReturn]:
+    def as_click_command(cls) -> Callable:
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
         # __init_subclass__ calls this for the side effect of being
