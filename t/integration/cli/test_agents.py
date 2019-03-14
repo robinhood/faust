@@ -1,7 +1,6 @@
 def test_json(faust_json):
     exitcode, agents, stderr = faust_json('agents', '--local')
     assert not exitcode
-    assert not stderr
 
     assert {'name': '@app.mul',
             'topic': 't-integration-app.mul',
