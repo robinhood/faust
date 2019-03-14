@@ -17,9 +17,12 @@ def main_path() -> Path:
     return Path(_app_module.__file__).with_suffix('.py')
 
 
+CommandReturns = Tuple[int, str, str]
+
+
 def _create_faust_cli(executable: Path, *partial_args: str,
                       color: bool = False,
-                      json: bool = False) -> Callable[..., Tuple[str, str]]:
+                      json: bool = False) -> Callable[..., CommandReturns]:
     if not color:
         partial_args += ('--no-color',)
     if json:
@@ -34,13 +37,15 @@ def _create_faust_cli(executable: Path, *partial_args: str,
         )
         stdout, stderr = p.communicate()
         if json:
-            return loads(stdout), stderr
-        return stdout, stderr
+            print('STDOUT: %r %r' % (stdout, stderr))
+            ret = p.returncode, loads(stdout), stderr
+            return ret
+        return p.returncode, stdout, stderr
     return call_faust_cli
 
 
 @pytest.fixture
-def faust(main_path: Path) -> Callable[..., Tuple[str, str]]:
+def faust(main_path: Path) -> Callable[..., CommandReturns]:
     return _create_faust_cli(main_path)
 
 
@@ -50,5 +55,5 @@ def faust_json(main_path: Path):
 
 
 @pytest.fixture
-def faust_color(main_path: Path) -> Callable[..., Tuple[str, str]]:
+def faust_color(main_path: Path) -> Callable[..., CommandReturns]:
     return _create_faust_cli(main_path, color=True)
