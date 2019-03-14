@@ -282,7 +282,7 @@ class Settings(abc.ABC):
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
-    broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
+    broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
     _broker_credentials: Optional[CredentialsT] = None
     id_format: str = '{id}-v{self.version}'
     key_serializer: CodecArg = 'raw'
@@ -335,7 +335,7 @@ class Settings(abc.ABC):
     _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
-    _broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
+    _broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
     _producer_partitioner: Optional[PartitionerT] = None
     _producer_request_timeout: Seconds = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
@@ -802,11 +802,11 @@ class Settings(abc.ABC):
         self._broker_commit_livelock_soft_timeout = want_seconds(value)
 
     @property
-    def broker_max_poll_records(self) -> int:
+    def broker_max_poll_records(self) -> Optional[int]:
         return self._broker_max_poll_records
 
     @broker_max_poll_records.setter
-    def broker_max_poll_records(self, value: int) -> None:
+    def broker_max_poll_records(self, value: Optional[int]) -> None:
         self._broker_max_poll_records = value
 
     @property
