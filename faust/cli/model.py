@@ -21,7 +21,7 @@ BUILTIN_TYPES = frozenset({int, float, str, bytes, datetime})
 class model(AppCommand):
     """Show model detail."""
 
-    headers = ['field', 'type', 'default*']
+    headers = ['field', 'type', 'default']
 
     options = [
         click.argument('name'),
