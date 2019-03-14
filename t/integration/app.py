@@ -37,5 +37,10 @@ async def internal(stream):
         yield event / 2
 
 
+@app.command()
+async def error_command():
+    raise Exception('foo')
+
+
 if __name__ == '__main__':
     app.main()

@@ -11,19 +11,22 @@ def test_json(faust_json):
 
 
 def test_tabulated(faust):
-    stdout, stderr = faust('agents', '--local')
+    exitcode, stdout, stderr = faust('agents', '--local')
+    assert not exitcode
     assert not stderr
     assert b'@mul' in stdout
 
 
 def test_colors(faust_color):
-    stdout, stderr = faust_color('agents', '--local')
+    exitcode, stdout, stderr = faust_color('agents', '--local')
+    assert not exitcode
     assert not stderr
     assert b'@mul' in stdout
 
 
 def test_json_no_local(faust_json):
-    agents, stderr = faust_json('agents')
+    exitcode, agents, stderr = faust_json('agents')
+    assert not exitcode
     assert not stderr
 
     names = [agent[0] for agent in agents]
