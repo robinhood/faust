@@ -67,7 +67,7 @@ from faust.types.core import K, V
 from faust.types.models import ModelArg
 from faust.types.router import RouterT
 from faust.types.serializers import RegistryT
-from faust.types.settings import Settings
+from faust.types.settings import Settings as _Settings
 from faust.types.streams import StreamT
 from faust.types.tables import CollectionT, TableManagerT, TableT
 from faust.types.topics import TopicT
@@ -330,6 +330,7 @@ class App(AppT, Service):
 
     """
     BootStrategy = BootStrategy
+    Settings = _Settings
 
     #: Set this to True if app should only start the services required to
     #: operate as an RPC client (producer and simple reply consumer).
@@ -339,7 +340,7 @@ class App(AppT, Service):
     producer_only = False
 
     #: Source of configuration: ``app.conf`` (when configured)
-    _conf: Optional[Settings] = None
+    _conf: Optional[_Settings] = None
 
     #: Original configuration source object.
     _config_source: Any = None
@@ -563,7 +564,7 @@ class App(AppT, Service):
         """
         self._config_source = obj
         if self.finalized or self.configured:
-            Settings._warn_already_configured()
+            self.Settings._warn_already_configured()
         if force or self.configured:
             self._conf = None
             self._configure(silent=silent)
@@ -1368,14 +1369,14 @@ class App(AppT, Service):
         self._conf, self.configured = conf, True
         self.on_after_configured.send()
 
-    def _load_settings(self, *, silent: bool = False) -> Settings:
+    def _load_settings(self, *, silent: bool = False) -> _Settings:
         changes: Mapping[str, Any] = {}
         appid, defaults = self._default_options
         if self._config_source:
             changes = self._load_settings_from_source(
                 self._config_source, silent=silent)
         conf = {**defaults, **changes}
-        return Settings(appid, **self._prepare_compat_settings(conf))
+        return self.Settings(appid, **self._prepare_compat_settings(conf))
 
     def _prepare_compat_settings(self, options: MutableMapping) -> Mapping:
         COMPAT_OPTIONS = {
@@ -1413,16 +1414,16 @@ class App(AppT, Service):
         return force_mapping(source)
 
     @property
-    def conf(self) -> Settings:
+    def conf(self) -> _Settings:
         if not self.finalized and STRICT:
             raise ImproperlyConfigured(
                 'App configuration accessed before app.finalize()')
         if self._conf is None:
             self._configure()
-        return cast(Settings, self._conf)
+        return cast(_Settings, self._conf)
 
     @conf.setter
-    def conf(self, settings: Settings) -> None:
+    def conf(self, settings: _Settings) -> None:
         self._conf = settings
 
     @property

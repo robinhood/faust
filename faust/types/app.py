@@ -54,13 +54,13 @@ if typing.TYPE_CHECKING:
     from faust.sensors.monitor import Monitor
     from faust.worker import Worker as WorkerT
     from .models import ModelArg
-    from .settings import Settings
+    from .settings import Settings as _Settings
 else:
     class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
     class WorkerT: ...        # noqa
-    class Settings: ...       # noqa
+    class _Settings: ...       # noqa
 
 __all__ = [
     'TaskArg',
@@ -113,6 +113,7 @@ class AppT(ServiceT):
     See Also:
         :class:`faust.App`.
     """
+    Settings: ClassVar[Type[_Settings]]
 
     BootStrategy: ClassVar[Type[BootStrategyT]]
     boot_strategy: BootStrategyT
@@ -130,7 +131,7 @@ class AppT(ServiceT):
     # This flag is set by App._on_partitions_assigned
     unassigned: bool = False
 
-    on_configured: SyncSignal[Settings] = SyncSignal()
+    on_configured: SyncSignal[_Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()
     on_after_configured: SyncSignal = SyncSignal()
     on_partitions_assigned: Signal[Set[TP]] = Signal()
@@ -336,11 +337,11 @@ class AppT(ServiceT):
         ...
 
     @property
-    def conf(self) -> Settings:
+    def conf(self) -> _Settings:
         ...
 
     @conf.setter
-    def conf(self, settings: Settings) -> None:
+    def conf(self, settings: _Settings) -> None:
         ...
 
     @property
