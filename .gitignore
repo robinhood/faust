@@ -39,3 +39,4 @@ htmlcov/
 .dmypy.json
 *.so
 faust/_cython/*.c
+faust/transport/_cython/*.c

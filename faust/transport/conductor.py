@@ -32,6 +32,11 @@ else:
     class App: ...  # noqa
     class Topic: ...  # noqa
 
+try:
+    from ._cython.conductor import ConductorHandler
+except ImportError:
+    ConductorHandler = None
+
 __all__ = ['Conductor', 'ConductorCompiler']
 
 logger = get_logger(__name__)
@@ -277,11 +282,17 @@ class Conductor(ConductorT, Service):
 
     def _update_callback_map(self) -> None:
         self._tp_to_callback.update(
-            (tp, self._compiler.build(self,
-                                      tp,
-                                      cast(MutableSet[Topic], channels)))
+            (tp, self._build_handler(tp, cast(MutableSet[Topic], channels)))
             for tp, channels in self._tp_index.items()
         )
+
+    def _build_handler(self,
+                       tp: TP,
+                       channels: MutableSet[Topic]) -> ConsumerCallback:
+        if ConductorHandler is not None:
+            return ConductorHandler(self, tp, channels)
+        else:
+            return self._compiler.build(self, tp, channels)
 
     def clear(self) -> None:
         self._topics.clear()
