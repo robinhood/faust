@@ -24,6 +24,7 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSequence,
+    NoReturn,
     Optional,
     Pattern,
     Set,
@@ -645,14 +646,14 @@ class App(AppT, Service):
                 modules.append(self.conf.origin)
         return modules
 
-    def main(self) -> None:
+    def main(self) -> NoReturn:
         """Execute the :program:`faust` umbrella command using this app."""
         from faust.cli.faust import cli
         self.finalize()
         self.worker_init()
         if self.conf.autodiscover:
             self.discover()
-        cli(app=self)
+        raise cli(app=self)
 
     def topic(self,
               *topics: str,
