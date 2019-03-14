@@ -8,6 +8,83 @@ This document contain change notes for bugfix releases in
 the Faust 1.4 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.4.9:
+
+1.4.9
+=====
+:release-date: 2019-03-14 04:00 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 3.0.10 <mode:version-3.0.10>`.
+
+- :setting:`max_poll_records` accidentally set to 500 by default.
+
+    The setting has been reverted to its documented default of :const:`None`.
+    This resulted in a 20x performance improvement :tada:
+
+- **CLI**: Now correctly returns non-zero exitcode when exception raised
+  inside ``@app.command``.
+
+- **CLI**: Option ``--no_color`` renamed to ``--no-color``
+  to be consistent with other options.
+
+    This change is backwards compatible and ``--no_color`` will continue to
+    work.
+
+- **CLI**: The ``model x`` command used "default*" as the field name
+  for default value.
+
+    .. sourcecode:: console
+
+        $ python examples/withdrawals.py --json model Withdrawal | python -m json.tool
+        [
+            {
+                "field": "user",
+                "type": "str",
+                "default*": "*"
+            },
+            {
+                "field": "country",
+                "type": "str",
+                "default*": "*"
+            },
+            {
+                "field": "amount",
+                "type": "float",
+                "default*": "*"
+            },
+            {
+                "field": "date",
+                "type": "datetime",
+                "default*": "None"
+            }
+        ]
+
+    This now gives "default" without the extraneous star.
+
+- **App**: Can now override the settings class used.
+
+    This means you can now easily extend your app with custom settings:
+
+    .. sourcecode:: python
+
+        import faust
+
+        class MySettings(faust.Settings):
+            foobar: int
+
+            def __init__(self, id: str, *, foobar: int = 0, **kwargs) -> None:
+                super().__init__(id, **kwargs)
+                self.foobar = foobar
+
+        class App(faust.App):
+            Settings = MySettings
+
+        app = App('id', foobar=3)
+        print(app.conf.foobar)
+
 .. _version-1.4.8:
 
 1.4.8
