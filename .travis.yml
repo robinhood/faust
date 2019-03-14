@@ -113,7 +113,7 @@ install:
 - |
   if [[ "$USE_CYTHON" == "y" ]]; then
     python -m pip install -U cython tox
-  else:
+  else
     python -m pip install -U tox
   fi
 after_success:
