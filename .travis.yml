@@ -9,6 +9,7 @@ env:
 stages:
     - lint
     - test
+    - cython
 
 matrix:
   include:
@@ -101,11 +102,19 @@ matrix:
         - choco install python --version=3.7.2
         - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
         - python -m pip install --upgrade pip wheel
+  - python: 3.7.2
+    env: TOXENV=3.7 IDENT= RUN_SUITE=y USE_CYTHON=y
+    os: linux
+    dist: xenial
+    stage: cython
 
 before_install:
 install:
 - |
-- python -m pip install -U tox
+- python -m pip install -U tox;
+  if [[ "$USE_CYTHON" == "y" ]]; then
+    python -m pip install cython
+  fi
 after_success:
 - |
   if [[ ! -z "$IDENT" ]]; then
