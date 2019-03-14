@@ -23,7 +23,6 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSequence,
-    NoReturn,
     Optional,
     Pattern,
     Set,
@@ -35,6 +34,7 @@ from typing import (
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
+from mode.utils.compat import NoReturn
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import
 from mode.utils.logging import flight_recorder
