@@ -39,6 +39,7 @@ async def internal(stream):
 
 @app.command()
 async def error_command():
+    print('raising')
     raise Exception('foo')
 
 
