@@ -653,7 +653,8 @@ class App(AppT, Service):
         self.worker_init()
         if self.conf.autodiscover:
             self.discover()
-        raise cli(app=self)
+        cli(app=self)
+        raise SystemExit(3451)  # for mypy: NoReturn
 
     def topic(self,
               *topics: str,

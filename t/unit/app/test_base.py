@@ -443,7 +443,8 @@ class test_App:
             app.discover = Mock(name='app.discover')
 
             app.conf.autodiscover = False
-            app.main()
+            with pytest.raises(SystemExit):
+                app.main()
 
             app.finalize.assert_called_once_with()
             app.worker_init.assert_called_once_with()
@@ -451,7 +452,8 @@ class test_App:
 
             with pytest.warns(AlreadyConfiguredWarning):
                 app.conf.autodiscover = True
-            app.main()
+            with pytest.raises(SystemExit):
+                app.main()
             app.discover.assert_called_once_with()
 
     def test_channel(self, *, app):
