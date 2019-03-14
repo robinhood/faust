@@ -467,7 +467,14 @@ class Command(abc.ABC):
         @wraps(cls)
         def _inner(*args: Any, **kwargs: Any) -> Callable:
             cmd = cls(*args, **kwargs)
-            return cmd()
+            try:
+                return cmd()
+            except MemoryError:
+                sys.exit(os.EX_OSERR)
+            except Exception:
+                sys.exit(1)
+            except BaseException:
+                sys.exit(os.EX_OK)
 
         return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
