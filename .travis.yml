@@ -111,9 +111,10 @@ matrix:
 before_install:
 install:
 - |
-- python -m pip install -U tox;
   if [[ "$USE_CYTHON" == "y" ]]; then
-    python -m pip install cython
+    python -m pip install -U cython tox
+  else:
+    python -m pip install -U tox
   fi
 after_success:
 - |
