@@ -3,8 +3,11 @@ from libc.math cimport floor
 from faust.types import WindowT
 
 
-cdef float want_seconds(object o):
+cdef float want_seconds(object o, object default) except *:
+    if o is None and default is not None:
+        return default
     if isinstance(o, timedelta):
+        print('O IS', o)
         return o.total_seconds()
     return o
 
@@ -17,9 +20,9 @@ cdef class SlidingWindow:
 
     def __init__(self, object before, object, after,
                  object expires = 0.0):
-        self.before = want_seconds(before)
-        self.after = want_seconds(after)
-        self.expires = want_seconds(expires)
+        self.before = want_seconds(before, None)
+        self.after = want_seconds(after, None)
+        self.expires = want_seconds(expires, 0.0)
 
     cdef object ranges(self, float timestamp):
         return [
@@ -43,9 +46,9 @@ cdef class HoppingWindow:
 
     def __init__(self, object size, object step,
                  object expires = 0.0):
-        self.size = want_seconds(size)
-        self.step = want_seconds(step)
-        self.expires = want_seconds(expires)
+        self.size = want_seconds(size, None)
+        self.step = want_seconds(step, None)
+        self.expires = want_seconds(expires, 0.0)
 
     cpdef object ranges(self, float timestamp):
         start = self._start_initial_range(timestamp)
@@ -89,7 +92,7 @@ cdef class HoppingWindow:
         return start + (step * m)
 
     cpdef delta(self, float timestamp, object d):
-        return self.current(timestamp - want_seconds(d))
+        return self.current(timestamp - want_seconds(d, None))
 
     cpdef object earliest(self, float timestamp):
         start = self._start_initial_range(timestamp)
