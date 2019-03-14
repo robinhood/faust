@@ -739,6 +739,13 @@ class Stream(StreamT[T_co], Service):
         finally:
             self._channel_stop_iteration(self.channel)
 
+    def _set_current_event(self, event: EventT = None) -> None:
+        if event is None:
+            _current_event.set(None)
+        else:
+            _current_event.set(weakref.ref(event))
+        self.current_event = event
+
     async def _py_aiter(self) -> AsyncIterator:
         self._finalized = True
         loop = self.loop

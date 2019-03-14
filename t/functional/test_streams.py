@@ -38,6 +38,7 @@ async def test_simple(app):
     stream_it = aiter(stream)
     assert await channel_empty(stream.channel)
     await put(stream.channel, key='key', value='value')
+    print('ANEXT')
     assert await anext(stream_it) == 'value'
     assert await channel_empty(stream.channel)
 
@@ -191,7 +192,9 @@ async def test_events(app):
 def assert_events_acked(events):
     try:
         for event in events:
-            event.ack.assert_called_once_with()
+            if not event.ack.called:
+                assert event.message.acked
+                assert not event.message.refcount
     except AssertionError:
         fail_count = len([e for e in events if not e.ack.call_count])
         fail_positions = [i for i, e in enumerate(events)
@@ -345,7 +348,9 @@ async def test_ack(app):
     # need two sleeps on Python 3.6.7 + 3.7.1 :-/
     await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
-    event.ack.assert_called_with()
+    if not event.ack.called:
+        assert event.message.acked
+        assert not event.message.refcount
 
 
 @pytest.mark.asyncio
@@ -385,7 +390,9 @@ async def test_acked_when_raising(app):
     # need two sleeps on Python 3.6.7 + 3.7.1 :-/
     await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
-    event1.ack.assert_called_with()
+    if not event1.ack.called:
+        assert event1.message.acked
+        assert not event1.message.refcount
 
     event2 = None
     with pytest.raises(RuntimeError):
@@ -398,7 +405,9 @@ async def test_acked_when_raising(app):
     # need two sleeps on Python 3.6.7 + 3.7.1 :-/
     await asyncio.sleep(0)  # needed for some reason
     await asyncio.sleep(0)  # needed for some reason
-    event2.ack.assert_called_with()
+    if not event2.ack.called:
+        assert event2.message.acked
+        assert not event2.message.refcount
 
 
 @pytest.mark.asyncio
@@ -509,5 +518,7 @@ async def test_take(app):
         await asyncio.sleep(0)  # needed for some reason
         await asyncio.sleep(0)  # needed for some reason
 
-        event.ack.assert_called_with()
+        if not event.ack.called:
+            assert event.message.acked
+            assert not event.message.refcount
         assert s.enable_acks is True

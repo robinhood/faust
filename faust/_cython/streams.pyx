@@ -78,11 +78,14 @@ cdef class StreamIterator:
             need_slow_get, channel_value = self._try_get_quick_value()
             if need_slow_get:
                 channel_value = await self.chan_slow_get()
+            print('BEFORE: ', channel_value)
             value = self._prepare_event(channel_value)
+            print('VALUE: ', value)
 
             for processor in self.processors:
                 value = await maybe_async(processor(value))
             value = await self.on_merge(value)
+        return value
 
     cpdef object after(self, object event, object do_ack):
         cdef:
@@ -134,6 +137,7 @@ cdef class StreamIterator:
             object offset
             object consumer
         if isinstance(channel_value, EventT):
+            print('IS EVENT')
             event = channel_value
             message = event.message
             topic = message.topic
@@ -149,8 +153,11 @@ cdef class StreamIterator:
                     consumer._last_batch = monotonic()
 
                 self.on_stream_event_in(tp, offset, self.stream, event)
-                self.stream._set_current_event(event)
-                return event.value
+            self.stream._set_current_event(event)
+            print('RETURNING EVENT VALUE: ', event.value)
+            return event.value
+        else:
+            print('IS RAW EVENT')
             self.stream._set_current_event(None)
             return channel_value
 
