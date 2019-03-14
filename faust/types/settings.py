@@ -174,7 +174,7 @@ BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
 #: If you find that your application needs more time to process messages
 #: you may want to adjust max_poll_records to tune the number of records
 #: that must be handled on every loop iteration.
-BROKER_MAX_POLL_RECORDS = 500
+BROKER_MAX_POLL_RECORDS = None
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
