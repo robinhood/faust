@@ -808,7 +808,7 @@ class test_Agent:
         agent._channel_iterator = None
         it = agent.channel_iterator
 
-        agent.channel.clone.assert_called_once_with(is_iterator=True)
+        agent.channel.clone.assert_called_once_with(is_iterator=False)
         assert it is agent.channel.clone()
         agent.channel_iterator = [42]
         assert agent.channel_iterator == [42]

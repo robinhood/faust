@@ -299,7 +299,7 @@ class Settings(abc.ABC):
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
-    topic_allow_declare: bool = False
+    topic_allow_declare: bool = True
     logging_config: Optional[Dict] = None
     loghandlers: List[logging.Handler]
     producer_linger_ms: int = PRODUCER_LINGER_MS

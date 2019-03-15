@@ -70,8 +70,8 @@ def test_clone(*, app):
     assert not c2.is_iterator
     assert c2.queue is not c.queue
     assert c2._root is c
-    assert c2 in c._subscribers
-    assert c.subscriber_count == 1
+    assert c2 not in c._subscribers
+    assert c.subscriber_count == 0
 
     c3 = c2.clone(is_iterator=True)
     assert c3.key_type is Point
@@ -83,8 +83,8 @@ def test_clone(*, app):
     assert c3._root is c
     assert c2._root is c
     assert c3 in c._subscribers
-    assert c2 in c._subscribers
-    assert c.subscriber_count == 2
+    assert c2 not in c._subscribers
+    assert c.subscriber_count == 1
 
 
 @pytest.mark.asyncio
