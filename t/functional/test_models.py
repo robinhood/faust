@@ -891,3 +891,12 @@ def test_abstract_model_repr():
     assert MyBase.__is_abstract__
     with pytest.raises(NotImplementedError):
         MyBase()
+
+
+def test_raises_when_defaults_in_wrong_order():
+
+    with pytest.raises(TypeError):
+        class X(Record):
+            foo: str
+            bar: int = 3
+            baz: str

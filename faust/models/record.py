@@ -23,6 +23,7 @@ from mode.utils.objects import (
     is_optional,
     remove_optional,
 )
+from mode.utils.text import pluralize
 
 from faust.types.models import (
     CoercionHandler,
@@ -50,6 +51,11 @@ ALIAS_FIELD_TYPES = {
     set: Set,
     frozenset: FrozenSet,
 }
+
+E_NON_DEFAULT_FOLLOWS_DEFAULT = """
+Non-default {cls_name} field {field_name} cannot
+follow default {fields} {default_names}
+"""
 
 _ReconFun = Callable[[Type, Any], Any]
 
@@ -225,6 +231,21 @@ class Record(Model, abstract=True):
 
         options.models = {}
         modelattrs = options.modelattrs = {}
+
+        # Raise error if non-defaults are mixed in with defaults
+        # like namedtuple/dataclasses do.
+        local_defaults = []
+        for attr_name in cls.__annotations__:
+            if attr_name in cls.__dict__:
+                local_defaults.append(attr_name)
+            else:
+                if local_defaults:
+                    raise TypeError(E_NON_DEFAULT_FOLLOWS_DEFAULT.format(
+                        cls_name=cls.__name__,
+                        field_name=attr_name,
+                        fields=pluralize(len(local_defaults), 'field'),
+                        default_names=', '.join(local_defaults),
+                    ))
 
         for field, typ in fields.items():
             is_model, polymorphic_type = _is_model(typ)
