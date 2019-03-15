@@ -3,10 +3,14 @@ import asyncio
 import faust
 import json
 
+ITERATIONS = 10_000
+EXPECTED_SUM = sum(range(ITERATIONS))
+
 app = faust.App(
     'tabletest',
     broker='kafka://localhost:9092',
     store='rocksdb://',
+    origin='examples.tabletest',
     version=1,
     topic_partitions=4,
 )
@@ -65,7 +69,7 @@ async def dump_count():
 
 @app.command()
 async def produce():
-    for i in range(10000):
+    for i in range(ITERATIONS):
         last_fut = None
         for j in range(app.conf.topic_partitions):
             last_fut = await count.send(
