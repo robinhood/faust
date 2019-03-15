@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from pathlib import Path
 from typing import Callable, Tuple
 from faust.types import AppT
@@ -30,7 +31,8 @@ def _create_faust_cli(executable: Path, *partial_args: str,
 
     def call_faust_cli(*args: str) -> Tuple[str, str]:
         p = subprocess.Popen(
-            [str(executable)] + list(partial_args) + list(args),
+            [sys.executable,
+             str(executable)] + list(partial_args) + list(args),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=False,
