@@ -116,8 +116,12 @@ else:
 __all__ = ['App', 'BootStrategy']
 
 #: Format string for ``repr(app)``.
-APP_REPR = '''
-<{name}({c.id}): {c.broker} {s.state} agents({agents}) topics({topics})>
+APP_REPR_FINALIZED = '''
+<{name}({c.id}): {c.broker} {s.state} agents({agents}) {id:#x}>
+'''.strip()
+
+APP_REPR_UNFINALIZED = '''
+<{name}: <non-finalized> {id:#x}>
 '''.strip()
 
 # Venusian (pypi): This is used for "autodiscovery" of user code,
@@ -651,8 +655,6 @@ class App(AppT, Service):
         from faust.cli.faust import cli
         self.finalize()
         self.worker_init()
-        if self.conf.autodiscover:
-            self.discover()
         cli(app=self)
         raise SystemExit(3451)  # for mypy: NoReturn
 
@@ -1476,13 +1478,19 @@ class App(AppT, Service):
         self.conf.tabledir.mkdir(exist_ok=True)
 
     def __repr__(self) -> str:
-        return APP_REPR.format(
-            name=type(self).__name__,
-            s=self,
-            c=self.conf,
-            agents=self.agents,
-            topics=len(self.topics),
-        )
+        if self._conf:
+            return APP_REPR_FINALIZED.format(
+                name=type(self).__name__,
+                s=self,
+                c=self.conf,
+                agents=self.agents,
+                id=id(self),
+            )
+        else:
+            return APP_REPR_UNFINALIZED.format(
+                name=type(self).__name__,
+                id=id(self),
+            )
 
     def _configure(self, *, silent: bool = False) -> None:
         self.on_before_configured.send()

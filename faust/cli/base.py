@@ -271,6 +271,7 @@ def prepare_app(app: AppT, name: Optional[str]) -> AppT:
     app.finalize()
     if app.conf._origin is None:
         app.conf._origin = name
+    app.worker_init()
     if app.conf.autodiscover:
         app.discover()
 
@@ -807,15 +808,16 @@ class AppCommand(Command):
 
     async def on_stop(self) -> None:
         app = self.app
-        # If command started the app, we should stop it.
-        #   - could have app.client_only, or app.producer_only set.
-        if app.started:
-            await app.stop()
-
         # If command started the producer, we should also stop that
         #   - this will flush any buffers before exiting.
         if app._producer is not None and app._producer.started:
             await app._producer.stop()
+        # If command started the app, we should stop it.
+        #   - could have app.client_only, or app.producer_only set.
+        if app.started:
+            await app.stop()
+        if app._http_client is not None:
+            await app._maybe_close_http_client()
 
     def to_key(self, typ: Optional[str], key: str) -> Any:
         """Convert command-line argument string to model (key).
