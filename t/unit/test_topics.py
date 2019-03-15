@@ -238,7 +238,19 @@ class test_Topic:
         assert topic.declare.call_count == 2
 
     @pytest.mark.asyncio
+    async def test_declare__disabled(self, *, topic):
+        topic.app.conf.topic_allow_declare = False
+        producer = Mock(create_topic=AsyncMock())
+        topic._get_producer = AsyncMock(return_value=producer)
+        topic.partitions = 101
+        topic.replicas = 202
+        topic.topics = ['foo', 'bar']
+        await topic.declare()
+        producer.create_topic.coro.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_declare(self, *, topic):
+        topic.app.conf.topic_allow_declare = True
         producer = Mock(create_topic=AsyncMock())
         topic._get_producer = AsyncMock(return_value=producer)
         topic.partitions = 101
@@ -268,6 +280,7 @@ class test_Topic:
 
     @pytest.mark.asyncio
     async def test_declare__defaults(self, *, topic):
+        topic.app.conf.topic_allow_declare = True
         producer = Mock(create_topic=AsyncMock())
         topic._get_producer = AsyncMock(return_value=producer)
         topic.partitions = None

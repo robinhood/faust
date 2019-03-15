@@ -465,6 +465,24 @@ Default number of partitions for new topics.
     workload of the application (also sometimes referred as the sharding
     factor of the application).
 
+.. setting:: topic_allow_declare
+
+``topic_allow_declare``
+-----------------------
+
+.. versionadded:: 1.5
+
+:type: :class:`bool`
+:default: :const:`True`
+
+This setting disables the creation of internal topics.
+
+Faust will only create topics that it considers to be fully owned and managed,
+such as intermediate repartition topics, table changelog topics etc.
+
+Some Kafka managers does not allow services to create topics, in that case
+you should set this to :const:`False`.
+
 .. _settings-broker:
 
 Advanced Broker Settings

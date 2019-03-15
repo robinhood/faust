@@ -432,17 +432,18 @@ class Topic(Channel, TopicT):
         replicas = self.replicas
         if not replicas:
             replicas = self.app.conf.topic_replication_factor
-        producer = await self._get_producer()
-        for topic in self.topics:
-            await producer.create_topic(
-                topic=topic,
-                partitions=partitions,
-                replication=replicas,
-                config=self.config,
-                compacting=self.compacting,
-                deleting=self.deleting,
-                retention=self.retention,
-            )
+        if self.app.conf.topic_allow_declare:
+            producer = await self._get_producer()
+            for topic in self.topics:
+                await producer.create_topic(
+                    topic=topic,
+                    partitions=partitions,
+                    replication=replicas,
+                    config=self.config,
+                    compacting=self.compacting,
+                    deleting=self.deleting,
+                    retention=self.retention,
+                )
 
     def __aiter__(self) -> ChannelT:
         if self.is_iterator:
