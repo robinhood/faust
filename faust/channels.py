@@ -118,7 +118,8 @@ class Channel(ChannelT):
     def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT:
         is_it = is_iterator if is_iterator is not None else self.is_iterator
         subchannel: ChannelT = self._clone(is_iterator=is_it, **kwargs)
-        (self._root or self)._subscribers.add(cast(Channel, subchannel))
+        if is_it:
+            (self._root or self)._subscribers.add(cast(Channel, subchannel))
         # make sure queue is created at this point
         # ^ it's a cached_property
         subchannel.queue

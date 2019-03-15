@@ -922,7 +922,7 @@ class Agent(AgentT, Service):
         if self._channel_iterator is None:
             # we do not use aiter(channel) here, because
             # that will also add it to the topic conductor too early.
-            self._channel_iterator = self.channel.clone(is_iterator=True)
+            self._channel_iterator = self.channel.clone(is_iterator=False)
         return self._channel_iterator
 
     @channel_iterator.setter
