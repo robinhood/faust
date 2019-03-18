@@ -359,7 +359,7 @@ class Settings(abc.ABC):
     _Monitor: Type[SensorT]
 
     _initializing: bool = True
-    _accessed: Set[str]
+    _accessed: Set[str] = None
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -469,7 +469,7 @@ class Settings(abc.ABC):
             # XXX backward compat (remove for Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
-        self._accessed = set()
+        object.__setattr__(self, '_accessed', None)
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
         if origin is not None:
@@ -606,17 +606,19 @@ class Settings(abc.ABC):
         self.HttpClient = HttpClient or HTTP_CLIENT_TYPE
         self.Monitor = Monitor or MONITOR_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
+        object.__setattr__(self, '_accessed', set())
         object.__setattr__(self, '_initializing', False)
 
     def __getattribute__(self, key: str) -> Any:
+        accessed = object.__getattribute__(self, '_accessed')
         if not key.startswith('_'):
             if not object.__getattribute__(self, '_initializing'):
-                object.__getattribute__(self, '_accessed').add(key)
+                accessed.add(key)
         return object.__getattribute__(self, key)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        if not key.startswith('_') and \
-                key in object.__getattribute__(self, '_accessed'):
+        xsd = object.__getattribute__(self, '_accessed')
+        if xsd is not None and not key.startswith('_') and key in xsd:
             old_value = object.__getattribute__(self, key)
             self._warn_already_configured_key(key, value, old_value)
         object.__setattr__(self, key, value)

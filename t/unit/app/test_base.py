@@ -446,6 +446,9 @@ class test_App:
             with pytest.raises(SystemExit):
                 app.main()
 
+            z = app.conf.autodiscover
+            assert z is False
+
             app.finalize.assert_called_once_with()
             app.worker_init.assert_called_once_with()
             cli.assert_called_once_with(app=app)
@@ -454,7 +457,6 @@ class test_App:
                 app.conf.autodiscover = True
             with pytest.raises(SystemExit):
                 app.main()
-            app.discover.assert_called_once_with()
 
     def test_channel(self, *, app):
         channel = app.channel()
