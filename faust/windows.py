@@ -1,7 +1,7 @@
 """Window Types."""
 import os
 from math import floor
-from typing import List
+from typing import List, Type, cast
 from mode import Seconds, want_seconds
 from .types.windows import WindowRange, WindowRange_from_start, WindowT
 
@@ -74,6 +74,11 @@ if not NO_CYTHON:  # pragma: no cover
         from ._cython.windows import HoppingWindow
     except ImportError:
         HoppingWindow = _PyHoppingWindow
+    else:
+        HoppingWindow = cast(Type[Window], HoppingWindow)
+        # isinstance(HoppingWindow, Window) is True
+        # isinstance(HoppingWindow, WindowT) is True
+        Window.register(HoppingWindow)
 else:
     HoppingWindow = _PyHoppingWindow
 
@@ -145,5 +150,8 @@ if not NO_CYTHON:  # pragma: no cover
         from ._cython.windows import SlidingWindow
     except ImportError:
         SlidingWindow = _PySlidingWindow
+    else:
+        SlidingWindow = cast(Type[Window], SlidingWindow)
+        Window.register(SlidingWindow)
 else:
     SlidingWindow = _PySlidingWindow
