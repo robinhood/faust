@@ -359,7 +359,7 @@ class Settings(abc.ABC):
     _Monitor: Type[SensorT]
 
     _initializing: bool = True
-    _accessed: Set[str] = None
+    _accessed: Set[str] = cast(Set[str], None)
 
     @classmethod
     def setting_names(cls) -> Set[str]:
