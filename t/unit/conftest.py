@@ -1,6 +1,7 @@
 import faust
 import pytest
 from faust.transport.producer import Producer
+from faust.utils.tracing import set_current_span
 from mode.utils.mocks import AsyncMock, Mock
 
 
@@ -16,6 +17,7 @@ def app(event_loop):
         send_and_wait=AsyncMock(),
     )
     instance.finalize()
+    set_current_span(None)
     return instance
 
 

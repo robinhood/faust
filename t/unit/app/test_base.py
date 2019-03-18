@@ -181,6 +181,38 @@ class test_App:
         app.on_rebalance_end()
         assert not app.rebalancing
 
+        app.tracer = Mock(name='tracer')
+        app.on_rebalance_start()
+        span = app._rebalancing_span
+        assert span is not None
+        app.on_rebalance_end()
+        span.finish.assert_called_once_with()
+
+    def test_trace(self, *, app):
+        app.tracer = None
+        with app.trace('foo'):
+            pass
+        app.tracer = Mock()
+        assert app.trace('foo') is app.tracer.trace.return_value
+
+    def test_traced(self, *, app):
+        @app.traced
+        def foo(val):
+            return val
+        assert foo(42) == 42
+
+    def test__start_span_from_rebalancing(self, *, app):
+        app.tracer = None
+        app._rebalancing_span = None
+        assert app._start_span_from_rebalancing('foo')
+        app.tracer = Mock(name='tracer')
+        try:
+            app._rebalancing_span = Mock(name='span')
+            assert app._start_span_from_rebalancing('foo')
+        finally:
+            app.tracer = None
+            app._rebalancing_span = None
+
     @pytest.mark.asyncio
     async def test_on_partitions_revoked(self, *, app):
         app.on_partitions_revoked = Mock(send=AsyncMock())
@@ -827,6 +859,10 @@ class test_App:
         app.producer.maybe_start.coro.assert_called_once_with()
 
     def test_repr(self, *, app):
+        assert repr(app)
+
+    def test_repr__unfinialized(self, *, app):
+        app._conf = None
         assert repr(app)
 
     def test_monitor(self, *, app):

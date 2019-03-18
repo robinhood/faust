@@ -831,11 +831,7 @@ class App(AppT, Service):
         async def _wrapped() -> None:
             should_run = app.is_leader() if on_leader else True
             if should_run:
-                if traced:
-                    tracer = self.trace(shortlabel(fun))
-                else:
-                    tracer = DummyContext()
-                with tracer:
+                with self.trace(shortlabel(fun), trace_enabled=traced):
                     # pass app only if decorated function takes an argument
                     if inspect.signature(fun).parameters:
                         task_takes_app = cast(Callable[[AppT], Awaitable], fun)
@@ -884,11 +880,8 @@ class App(AppT, Service):
                     if not self.should_stop:
                         should_run = not on_leader or self.is_leader()
                         if should_run:
-                            if traced:
-                                tracer = self.trace(shortlabel(fun))
-                            else:
-                                tracer = DummyContext()
-                            with tracer:
+                            with self.trace(shortlabel(fun),
+                                            trace_enabled=traced):
                                 await fun(*args)  # type: ignore
 
             # If you call @app.task without parents the return value is:
@@ -943,11 +936,8 @@ class App(AppT, Service):
                     if not self.should_stop:
                         should_run = not on_leader or self.is_leader()
                         if should_run:
-                            if traced:
-                                tracer = self.trace(shortlabel(fun))
-                            else:
-                                tracer = DummyContext()
-                            with tracer:
+                            with self.trace(shortlabel(fun),
+                                            trace_enabled=traced):
                                 await fun(*args)  # type: ignore
 
             return cast(TaskArg, self.task(cron_starter, traced=False))
@@ -1139,8 +1129,9 @@ class App(AppT, Service):
 
     def trace(self,
               name: str,
+              trace_enabled: bool = True,
               **extra_context: Any) -> ContextManager:
-        if self.tracer is None:
+        if self.tracer is None or not trace_enabled:
             return DummyContext()
         else:
             return self.tracer.trace(
@@ -1156,9 +1147,9 @@ class App(AppT, Service):
 
         @wraps(fun)
         def wrapped(*args: Any, **kwargs: Any) -> Any:
-            span = self.app.trace(operation,
-                                  sample_rate=sample_rate,
-                                  **context)
+            span = self.trace(operation,
+                              sample_rate=sample_rate,
+                              **context)
             return call_with_trace(span, fun, None, *args, **kwargs)
         return wrapped
 
@@ -1303,6 +1294,7 @@ class App(AppT, Service):
         self.rebalancing = False
         if self._rebalancing_span:
             self._rebalancing_span.finish()
+        self._rebalancing_span = None
 
     async def _on_partitions_revoked(self, revoked: Set[TP]) -> None:
         """Handle revocation of topic partitions.

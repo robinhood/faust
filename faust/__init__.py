@@ -43,7 +43,7 @@ class version_info_t(NamedTuple):
 # bumpversion can only search for {current_version}
 # so we have to parse the version here.
 _match = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__)
-if _match is None:
+if _match is None:  # pragma: no cover
     raise RuntimeError('THIS IS A BROKEN RELEASE!')
 _temp = _match.groups()
 VERSION = version_info = version_info_t(
