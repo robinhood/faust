@@ -7,7 +7,6 @@ cdef float want_seconds(object o, object default) except *:
     if o is None and default is not None:
         return default
     if isinstance(o, timedelta):
-        print('O IS', o)
         return o.total_seconds()
     return o
 
