@@ -171,6 +171,10 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
+    def _throw(self, exc: BaseException) -> None:
+        ...
+
+    @abc.abstractmethod
     def derive(self, **kwargs: Any) -> 'ChannelT':
         ...
 

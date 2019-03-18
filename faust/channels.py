@@ -333,7 +333,10 @@ class Channel(ChannelT):
         return await self.queue.get()
 
     async def throw(self, exc: BaseException) -> None:
-        await self.queue.throw(exc)
+        self.queue._throw(exc)
+
+    def _throw(self, exc: BaseException) -> None:
+        self.queue._throw(exc)
 
     def __repr__(self) -> str:
         s = f'<{self.label}@{self._repr_id()}'
