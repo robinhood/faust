@@ -227,7 +227,7 @@ PRODUCER_LINGER_MS = 0
 
 #: Maximum size of buffered data per partition in bytes in the producer.
 #: Used as the default value for :setting:`max_batch_size`.
-PRODUCER_MAX_BATCH_SIZE = 4096
+PRODUCER_MAX_BATCH_SIZE = 16384
 
 #: Maximum size of a request in bytes in the producer.
 #: Used as the default value for :setting:`max_request_size`.

@@ -97,7 +97,7 @@ For even older releases you can visit the :ref:`history` section.
     The good news is that Kafka transactions are on the horizon.
     As soon as we have support in a Python client, we can perform
     this atomically, and without the overhead of buffering up messages until
-    commit time.
+    commit time (note from future: "exactly-once" was implemented in Faust 1.5).
 
 .. _version-1.1.2:
 

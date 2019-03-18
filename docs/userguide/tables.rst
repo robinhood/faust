@@ -57,9 +57,10 @@ happen simultaneously.
     to go through, before having committed the source topic offsets.
 
     Duplicate messages may result in double-counting and other data
-    consistency issues, so we are hoping to take advantage of Kafka 0.11's
-    stronger consistency guarantees and new "exactly-once"-semantics features
-    as soon as that is supported in a Python Kafka client.
+    consistency issues, but since version 1.5 of Faust you can
+    enable a setting for strict processing guarantees.
+
+    See the :setting:`processing_guarantee` setting for more information.
 
 Co-partitioning Tables and Streams
 ----------------------------------
