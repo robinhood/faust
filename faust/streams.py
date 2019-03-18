@@ -1,5 +1,6 @@
 """Streams."""
 import asyncio
+import os
 import reprlib
 import typing
 import weakref
@@ -49,10 +50,14 @@ from .types.streams import (
 from .types.topics import ChannelT
 from .types.tuples import Message
 
-try:
-    from ._cython.streams import StreamIterator as _CStreamIterator
-except ImportError:
-    _CStreamIterator = None  # noqa
+NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
+
+_CStreamIterator = None
+if not NO_CYTHON:
+    try:
+        from ._cython.streams import StreamIterator as _CStreamIterator
+    except ImportError:
+        pass
 
 __all__ = [
     'Stream',

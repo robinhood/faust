@@ -36,7 +36,6 @@ omit =
 
     # for vineet
     */faust/app/router.py
-    */faust/windows.py
 
     # for allison
     */faust/sensors/datadog.py

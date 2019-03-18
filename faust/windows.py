@@ -1,4 +1,5 @@
 """Window Types."""
+import os
 from math import floor
 from typing import List
 from mode import Seconds, want_seconds
@@ -10,6 +11,8 @@ __all__ = [
     'TumblingWindow',
     'SlidingWindow',
 ]
+
+NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
 
 
 class Window(WindowT):
@@ -66,9 +69,12 @@ class _PyHoppingWindow(Window):
         return self.current(latest_timestamp - expires)[0]
 
 
-try:
-    from ._cython.windows import HoppingWindow
-except ImportError:
+if not NO_CYTHON:  # pragma: no cover
+    try:
+        from ._cython.windows import HoppingWindow
+    except ImportError:
+        HoppingWindow = _PyHoppingWindow
+else:
     HoppingWindow = _PyHoppingWindow
 
 
@@ -121,8 +127,23 @@ class _PySlidingWindow(Window):
     def _stale_before(self, expires: float, latest_timestamp: float) -> float:
         return latest_timestamp - expires
 
+    def current(self, timestamp: float) -> WindowRange:
+        """
+        The current WindowRange is the latest WindowRange for a given timestamp
+        """
+        return timestamp - self.before, timestamp + self.after
 
-try:
-    from ._cython.windows import SlidingWindow
-except ImportError:
+    def delta(self, timestamp: float, d: Seconds) -> WindowRange:
+        return self.current(timestamp - want_seconds(d))
+
+    def earliest(self, timestamp: float) -> WindowRange:
+        return self.current(timestamp)
+
+
+if not NO_CYTHON:  # pragma: no cover
+    try:
+        from ._cython.windows import SlidingWindow
+    except ImportError:
+        SlidingWindow = _PySlidingWindow
+else:
     SlidingWindow = _PySlidingWindow

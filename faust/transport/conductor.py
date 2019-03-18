@@ -1,5 +1,6 @@
 """The conductor delegates messages from the consumer to the streams."""
 import asyncio
+import os
 import typing
 from collections import defaultdict
 from typing import (
@@ -32,10 +33,14 @@ else:
     class App: ...  # noqa
     class Topic: ...  # noqa
 
-try:
-    from ._cython.conductor import ConductorHandler
-except ImportError:
-    ConductorHandler = None
+NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
+
+ConductorHandler = None
+if not NO_CYTHON:
+    try:
+        from ._cython.conductor import ConductorHandler
+    except ImportError:
+        pass
 
 __all__ = ['Conductor', 'ConductorCompiler']
 
