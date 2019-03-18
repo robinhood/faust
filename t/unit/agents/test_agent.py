@@ -509,6 +509,52 @@ class test_Agent:
         ])
 
     @pytest.mark.asyncio
+    async def test_slurp__headers(self, *, agent, app):
+        agent.use_reply_headers = True
+        aref = agent(index=None, active_partitions=None)
+        stream = aref.stream.get_active_stream()
+        agent._delegate_to_sinks = AsyncMock(name='_delegate_to_sinks')
+        agent._reply = AsyncMock(name='_reply')
+
+        def on_delegate(value):
+            raise StopAsyncIteration()
+
+        word = Word('word')
+        message1 = Mock(name='message1', autospec=Message)
+        headers1 = message1.headers = {
+            'Faust-Ag-ReplyTo': 'reply_to',
+            'Faust-Ag-CorrelationId': 'correlation_id',
+        }
+        message2 = Mock(name='message2', autospec=Message)
+        headers2 = message2.headers = {}
+        event1 = Event(app, None, word, headers1, message1)
+        event2 = Event(app, 'key', 'bar', headers2, message2)
+        values = [
+            (event1, word, True),
+            (event1, word, False),
+            (event2, 'bar', True),
+        ]
+
+        class AIT:
+
+            async def __aiter__(self):
+                for event, value, set_cur_event in values:
+                    if set_cur_event:
+                        stream.current_event = event
+                    else:
+                        stream.current_event = None
+                    yield value
+        it = aiter(AIT())
+        await agent._slurp(aref, it)
+
+        agent._reply.assert_called_once_with(
+            None, word, 'reply_to', 'correlation_id')
+        agent._delegate_to_sinks.coro.assert_has_calls([
+            call(word),
+            call('bar'),
+        ])
+
+    @pytest.mark.asyncio
     async def test_delegate_to_sinks(self, *, agent, agent2, foo_topic):
         agent2.send = AsyncMock(name='agent2.send')
         foo_topic.send = AsyncMock(name='foo_topic.send')
@@ -630,6 +676,16 @@ class test_Agent:
         assert res.reply_to
         assert res.correlation_id
 
+    @pytest.mark.asyncio
+    async def test_ask_nowait__missing_reply_to(self, *, agent):
+        with pytest.raises(TypeError):
+            await agent.ask_nowait(
+                value='value',
+                key='key',
+                partition=3034,
+                reply_to=None,
+            )
+
     def test_create_req(self, *, agent):
         agent._get_strtopic = Mock(name='_get_strtopic')
         with patch('faust.agents.agent.uuid4') as uuid4:
@@ -644,6 +700,22 @@ class test_Agent:
             assert reqrep.value == b'value'
             assert reqrep.reply_to == agent._get_strtopic()
             assert reqrep.correlation_id == 'vvv'
+
+    def test_create_req__use_reply_headers(self, *, agent):
+        agent.use_reply_headers = True
+        agent._get_strtopic = Mock(name='_get_strtopic')
+        with patch('faust.agents.agent.uuid4') as uuid4:
+            uuid4.return_value = 'vvv'
+            value, h = agent._create_req(
+                key=b'key', value=b'value',
+                reply_to='reply_to',
+                headers={'k': 'v'})
+
+            agent._get_strtopic.assert_called_once_with('reply_to')
+
+            assert value == b'value'
+            assert h['Faust-Ag-ReplyTo'] == agent._get_strtopic()
+            assert h['Faust-Ag-CorrelationId'] == 'vvv'.encode()
 
     def test_create_req__model(self, *, agent):
         agent._get_strtopic = Mock(name='_get_strtopic')

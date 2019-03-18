@@ -327,6 +327,11 @@ class Agent(AgentT, Service):
         # last message processed (but not the message causing the error
         # to be raised).
         await self._stop_supervisor()
+        await asyncio.gather(*[
+            aref.actor_task for aref in self._actors
+            if aref.actor_task is not None
+        ])
+        self._actors.clear()
 
     async def _stop_supervisor(self) -> None:
         if self.supervisor:
@@ -334,8 +339,8 @@ class Agent(AgentT, Service):
             self.supervisor = None
 
     def cancel(self) -> None:
-        for actor in self._actors:
-            actor.cancel()
+        for aref in self._actors:
+            aref.cancel()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         T = traced_from_parent_span()

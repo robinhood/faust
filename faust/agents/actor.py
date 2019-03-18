@@ -51,8 +51,7 @@ class Actor(ActorT, Service):
         self.log.dev('Actor was assigned to %r', tp)
 
     def cancel(self) -> None:
-        if self.actor_task:
-            self.actor_task.cancel()
+        self.stream.channel._throw(StopAsyncIteration())
 
     def __repr__(self) -> str:
         return f'<{self.shortlabel}>'
