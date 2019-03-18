@@ -406,6 +406,36 @@ class Record(Model, abstract=True):
                                 globals=globals(),
                                 locals=locals())
 
+    @classmethod
+    def _BUILD_ne(cls) -> Callable[[], None]:
+        return codegen.NeMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_gt(cls) -> Callable[[], None]:
+        return codegen.GtMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_ge(cls) -> Callable[[], None]:
+        return codegen.GeMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_lt(cls) -> Callable[[], None]:
+        return codegen.LtMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_le(cls) -> Callable[[], None]:
+        return codegen.LeMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
     def _init_field(self, field: str, value: Any) -> Any:
         return self._options.initfield[field](value)
 
@@ -487,24 +517,28 @@ class Record(Model, abstract=True):
         return self.to_representation()
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, type(self)):
-            return all(
-                getattr(self, key) == getattr(other, key)
-                for key in self._options.fields
-            )
-        return False
+        # implemented by BUILD_eq
+        return NotImplemented
 
-    def __lt__(self, other: 'Record') -> bool:
-        return hash(self) < hash(other)
+    def __ne__(self, other: Any) -> bool:
+        # implemented by BUILD_ne
+        return NotImplemented
 
-    def __le__(self, other: 'Record') -> bool:
-        return hash(self) <= hash(other)
+    def __lt__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_lt
+        return NotImplemented
 
-    def __gt__(self, other: 'Record') -> bool:
-        return hash(self) > hash(other)
+    def __le__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_le
+        return NotImplemented
 
-    def __ge__(self, other: 'Record') -> bool:
-        return hash(self) >= hash(other)
+    def __gt__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_gt
+        return NotImplemented
+
+    def __ge__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_ge
+        return NotImplemented
 
 
 def _kvrepr(d: Mapping[str, Any], *, sep: str = ', ') -> str:

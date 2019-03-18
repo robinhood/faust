@@ -305,15 +305,25 @@ class Model(ModelT):
         # models by namespace.
         registry[options.namespace] = cls
 
-        cls._model_init = cls._BUILD_init()
-        if '__init__' not in cls.__dict__:
-            cls.__init__ = cls._model_init  # type: ignore
-        cls._model_hash = cls._BUILD_hash()
-        if '__hash__' not in cls.__dict__:
-            cls.__hash__ = cls._model_hash  # type: ignore
-        cls._model_eq = cls._BUILD_eq()
-        if '__eq__' not in cls.__dict__:
-            cls.__eq__ = cls._model_eq  # type: ignore
+        codegens = [
+            ('__init__', cls._BUILD_init, '_model_init'),
+            ('__hash__', cls._BUILD_hash, '_model_hash'),
+            ('__eq__', cls._BUILD_eq, '_model_eq'),
+            ('__ne__', cls._BUILD_ne, '_model_ne'),
+            ('__gt__', cls._BUILD_gt, '_model_gt'),
+            ('__ge__', cls._BUILD_ge, '_model_ge'),
+            ('__lt__', cls._BUILD_lt, '_model_lt'),
+            ('__le__', cls._BUILD_le, '_model_le'),
+        ]
+
+        for meth_name, meth_gen, attr_name in codegens:
+            # self._model_init = cls._BUILD_init()
+            # if '__init__' not in cls.__dict__:
+            #     cls.__init__ = self._model_init
+            meth = meth_gen()
+            setattr(cls, attr_name, meth)
+            if meth_name not in cls.__dict__:
+                setattr(cls, meth_name, meth)
 
     def __abstract_init__(self) -> None:
         raise NotImplementedError(E_ABSTRACT_INSTANCE.format(
