@@ -1,6 +1,7 @@
-import faust
 import logging as _logging
+import os
 import pytest
+import faust
 from copy import copy
 from typing import Dict, IO, NamedTuple, Union
 from faust.web.cache.backends.memory import CacheStorage
@@ -17,6 +18,8 @@ class AppMarks(NamedTuple):
 
 @pytest.yield_fixture()
 def app(event_loop, request):
+    os.environ.pop('F_WORKDIR', None)
+    os.environ.pop('F_DATADIR', None)
     marks = request.node.get_closest_marker('app')
     options = AppMarks(**{
         **{'name': 'funtest',
