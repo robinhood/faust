@@ -39,7 +39,7 @@ def _create_faust_cli(executable: Path, *partial_args: str,
         )
         stdout, stderr = p.communicate()
         if json:
-            print('JSON RET: %r %r %r'  (p.returncode, stdout, stderr))
+            print('JSON RET: %r %r %r' % (p.returncode, stdout, stderr))
             ret = p.returncode, loads(stdout), stderr
             return ret
         print('TEXT RET: %r %r %r' % (p.returncode, stdout, stderr))
