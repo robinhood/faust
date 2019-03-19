@@ -100,16 +100,24 @@ def freeze_time(event_loop, request):
 
 
 class SessionMarker(NamedTuple):
-    status_code: int = HTTPStatus.OK
-    text: bytes = b''
-    json: Any = None
-    json_iterator: Any = None
+    status_code: int
+    text: bytes
+    json: Any
+    json_iterator: Any
 
 
 @pytest.fixture()
 def mock_http_client(*, app, monkeypatch, request) -> ClientSession:
     marker = request.node.get_closest_marker('http_session')
-    options = SessionMarker(**marker.kwargs or {} if marker else {})
+    options = SessionMarker(**{
+        **{
+            'status_code': HTTPStatus.OK,
+            'text': b'',
+            'json': None,
+            'json_iterator': None,
+        },
+        **(marker.kwargs or {} if marker else {}),
+    })
     response = AsyncMock(
         autospec=Response,
         text=AsyncMock(return_value=options.text),
