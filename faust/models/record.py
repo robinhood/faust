@@ -516,11 +516,11 @@ class Record(Model, abstract=True):
     def __json__(self) -> Any:
         return self.to_representation()
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: Any) -> bool:  # pragma: no cover
         # implemented by BUILD_eq
         return NotImplemented
 
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, other: Any) -> bool:  # pragma: no cover
         # implemented by BUILD_ne
         return NotImplemented
 

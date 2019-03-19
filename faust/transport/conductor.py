@@ -35,12 +35,13 @@ else:
 
 NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
 
-ConductorHandler = None
-if not NO_CYTHON:
+if not NO_CYTHON:  # pragma: no cover
     try:
         from ._cython.conductor import ConductorHandler
     except ImportError:
-        pass
+        ConductorHandler = None
+else:
+    ConductorHandler = None
 
 __all__ = ['Conductor', 'ConductorCompiler']
 
@@ -294,7 +295,7 @@ class Conductor(ConductorT, Service):
     def _build_handler(self,
                        tp: TP,
                        channels: MutableSet[Topic]) -> ConsumerCallback:
-        if ConductorHandler is not None:
+        if ConductorHandler is not None:  # pragma: no cover
             return ConductorHandler(self, tp, channels)
         else:
             return self._compiler.build(self, tp, channels)

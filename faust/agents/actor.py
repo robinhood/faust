@@ -1,7 +1,7 @@
-from typing import Any, AsyncIterator, Set
+from typing import Any, AsyncIterator, Set, cast
 from mode import Service
 
-from faust.types import StreamT, TP
+from faust.types import ChannelT, StreamT, TP
 from faust.types.agents import (
     ActorT,
     AgentT,
@@ -51,7 +51,7 @@ class Actor(ActorT, Service):
         self.log.dev('Actor was assigned to %r', tp)
 
     def cancel(self) -> None:
-        self.stream.channel._throw(StopAsyncIteration())
+        cast(ChannelT, self.stream.channel)._throw(StopAsyncIteration())
 
     def __repr__(self) -> str:
         return f'<{self.shortlabel}>'

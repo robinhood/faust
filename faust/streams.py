@@ -52,12 +52,13 @@ from .types.tuples import Message
 
 NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
 
-_CStreamIterator = None
-if not NO_CYTHON:
+if not NO_CYTHON:  # pragma: no cover
     try:
         from ._cython.streams import StreamIterator as _CStreamIterator
     except ImportError:
-        pass
+        _CStreamIterator = None
+else:
+    _CStreamIterator = None
 
 __all__ = [
     'Stream',
@@ -701,7 +702,7 @@ class Stream(StreamT[T_co], Service):
             return self._c_aiter()
         return self._py_aiter()
 
-    async def _c_aiter(self) -> AsyncIterator:
+    async def _c_aiter(self) -> AsyncIterator:  # pragma: no cover
         self.log.dev('Using Cython optimized __aiter__')
         self._finalized = True
         await self.maybe_start()

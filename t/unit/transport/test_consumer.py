@@ -176,6 +176,8 @@ class test_TransactionManager:
         manager._start_transactions.assert_called_once_with(
             [f'{TP2_group}-{TP2.partition}'])
 
+        await manager.on_rebalance(set(), set(), set())
+
     @pytest.mark.asyncio
     async def test__stop_transactions(self, *, manager, producer):
         await manager._stop_transactions(['0-0', '1-0'])
@@ -294,6 +296,10 @@ class test_TransactionManager:
             deleting=True,
             ensure_created=True,
         )
+
+    def test_supports_headers(self, *, manager):
+        ret = manager.supports_headers()
+        assert ret is manager.producer.supports_headers.return_value
 
 
 class MockedConsumerAbstractMethods:
@@ -414,6 +420,23 @@ class test_Consumer:
             {TP1},
         ))
         consumer.flow_active = False
+        assert [a async for a in consumer.getmany(1.0)] == []
+
+    @pytest.mark.asyncio
+    async def test_getmany__flow_inactive2(self, *, consumer):
+        consumer._wait_next_records = AsyncMock(return_value=(
+            {TP1: ['A', 'B', 'C']},
+            {TP1},
+        ))
+        consumer.scheduler = Mock()
+
+        def se(records):
+            for value in records:
+                yield value
+                consumer.flow_active = False
+        consumer.scheduler.iterate.side_effect = se
+
+        consumer.flow_active = True
         assert [a async for a in consumer.getmany(1.0)] == []
 
     @pytest.mark.asyncio

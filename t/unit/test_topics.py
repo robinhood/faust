@@ -135,6 +135,20 @@ class test_Topic:
         message.message.callback = None
         topic._on_published(fut, message, producer, state)
 
+    def test_on_published__error(self, *, topic, app):
+        app.sensors.on_send_error = Mock(name='on_send_error')
+        producer = Mock(name='producer')
+        state = Mock(name='state')
+        fut = Mock(name='fut', autospec=asyncio.Future)
+        exc = fut.result.side_effect = KeyError()
+        message = Mock(name='message', autospec=Message)
+        topic._on_published(fut, message, producer, state)
+
+        message.set_exception.assert_called_once_with(exc)
+        app.sensors.on_send_error.assert_called_once_with(
+            producer, exc, state,
+        )
+
     def test_aiter_when_iterator(self, *, topic):
         topic.is_iterator = True
         assert topic.__aiter__() is topic

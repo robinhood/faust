@@ -87,6 +87,13 @@ class test_Sensor:
         sensor.on_send_completed(
             producer, Mock(name='state'), Mock(name='metadata'))
 
+    def test_on_send_error(self, *, sensor, producer):
+        sensor.on_send_error(
+            producer, KeyError('foo'), Mock(name='state'))
+
+    def test_asdict(self, *, sensor):
+        assert sensor.asdict() == {}
+
 
 class test_SensorDelegate:
 
@@ -157,6 +164,11 @@ class test_SensorDelegate:
         sensors.on_send_completed(producer, state, metadata)
         sensor.on_send_completed.assert_called_once_with(
             producer, state[sensor], metadata)
+
+        exc = KeyError('foo')
+        sensors.on_send_error(producer, exc, state)
+        sensor.on_send_error.assert_called_once_with(
+            producer, exc, state[sensor])
 
     def test_repr(self, *, sensors):
         assert repr(sensors)

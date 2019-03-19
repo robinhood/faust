@@ -40,8 +40,8 @@ class test_View:
         }
 
     @pytest.mark.parametrize('method', [
-        'GET', 'POST', 'PATCH', 'DELETE', 'PUT',
-        'get', 'post', 'patch', 'delete', 'put',
+        'GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS',
+        'get', 'post', 'patch', 'delete', 'put', 'options',
     ])
     @pytest.mark.asyncio
     async def test_dispatch(self, method, *, view):
@@ -83,6 +83,11 @@ class test_View:
     async def test_interface_delete(self, *, view):
         with pytest.raises(MethodNotAllowed):
             await view.delete(Mock(name='request', autospec=Request))
+
+    @pytest.mark.asyncio
+    async def test_interface_options(self, *, view):
+        with pytest.raises(MethodNotAllowed):
+            await view.options(Mock(name='request', autospec=Request))
 
     def test_text(self, *, view, web):
         response = view.text(

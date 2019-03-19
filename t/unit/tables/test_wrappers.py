@@ -243,6 +243,13 @@ class test_WindowWrapper:
             wtable.get_relative_timestamp = None
         assert wtable.get_timestamp(event) == expected
 
+    def test_get_timestamp__event_is_None(self, *, event, wtable):
+        wtable.get_relative_timestamp = None
+        with patch('faust.tables.wrappers.current_event') as ce:
+            ce.return_value = None
+            with pytest.raises(RuntimeError):
+                assert wtable.get_timestamp(None)
+
     def test_on_recover(self, *, wtable, table):
         cb = Mock(name='callback')
         wtable.on_recover(cb)
@@ -413,6 +420,20 @@ class test_WindowWrapper_using_key_index:
     def test_keys(self, *, iwtable, data):
         assert sorted(list(iwtable.relative_to_now().keys())) == sorted(
             list(self.TABLE_DATA))
+
+    def test_keys__now(self, *, iwtable, data):
+        assert sorted(list(iwtable.relative_to_now().keys().now())) == sorted(
+            list(self.TABLE_DATA))
+
+    def test_keys__current(self, *, iwtable, data, current_event):
+        keys = iwtable.relative_to_now().keys().current()
+        assert sorted(list(keys)) == sorted(list(self.TABLE_DATA))
+
+    def test_keys__delta(self, *, iwtable, data, current_event):
+        keys = iwtable.relative_to_now().keys().delta(1000)
+        assert sorted(list(keys)) == []
+        keys = iwtable.relative_to_now().keys().delta(10)
+        assert sorted(list(keys)) == sorted(list(self.TABLE_DATA))
 
     def test_iter(self, *, iwtable, data):
         assert sorted(list(iwtable.relative_to_now())) == sorted(

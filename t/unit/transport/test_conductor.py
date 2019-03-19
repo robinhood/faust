@@ -29,6 +29,11 @@ class test_Conductor:
         assert con._compiler
         assert con.on_message
 
+    def test_acks_enabled_for(self, *, con):
+        assert not con.acks_enabled_for('foo')
+        con._acking_topics.add('foo')
+        assert con.acks_enabled_for('foo')
+
     @pytest.mark.asyncio
     async def test_commit(self, *, con):
         con.app = Mock(
@@ -177,6 +182,20 @@ class test_Conductor:
         assert con._subscription_changed.is_set()
         assert con._subscription_done is not None
         con._flag_changes()
+
+    def test_add_flags_changes(self, *, con, app):
+        topic = app.topic('foo', 'bar')
+        con._flag_changes = Mock(name='flag_changes')
+        con._topic_name_index['baz'].add(topic)
+        con.add(topic)
+        con._flag_changes.assert_called_once_with()
+
+    def test_discard(self, *, con, app):
+        topic = app.topic('foo', 'bar')
+        con.add(topic)
+        assert topic in con._topics
+        con.discard(topic)
+        assert topic not in con._topics
 
     def test_label(self, *, con):
         assert label(con)

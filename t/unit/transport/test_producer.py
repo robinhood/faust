@@ -57,6 +57,9 @@ class ProducerTests:
         with pytest.raises(NotImplementedError):
             await producer.commit_transactions({}, 'gid')
 
+    def test_supports_headers(self, *, producer):
+        assert not producer.supports_headers()
+
 
 class test_Producer(ProducerTests):
 

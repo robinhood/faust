@@ -134,3 +134,15 @@ class test_Table:
         table.data['bar'] = 'baz'
         assert table.as_ansitable(sort=True)
         assert table.as_ansitable(sort=False)
+
+    def test_on_key_set__no_event(self, *, table):
+        with patch('faust.tables.table.current_event') as ce:
+            ce.return_value = None
+            with pytest.raises(TypeError):
+                table.on_key_set('k', 'v')
+
+    def test_on_key_del__no_event(self, *, table):
+        with patch('faust.tables.table.current_event') as ce:
+            ce.return_value = None
+            with pytest.raises(TypeError):
+                table.on_key_del('k')

@@ -115,6 +115,14 @@ class test_StatsdMonitor:
             'send_latency', ANY, rate=mon.rate,
         )
 
+        mon.on_send_error(producer, KeyError('foo'), state)
+        mon.client.incr.assert_has_calls([
+            call('messages_sent_error', rate=mon.rate),
+        ])
+        mon.client.timing.assert_has_calls([
+            call('send_latency_for_error', ANY, rate=mon.rate),
+        ])
+
     def test_count(self, *, mon):
         mon.count('metric_name', count=3)
         mon.client.incr.assert_called_once_with(
