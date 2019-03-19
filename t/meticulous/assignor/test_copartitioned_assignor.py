@@ -77,7 +77,7 @@ def test_fresh_assignment(partitions, replicas, num_clients):
        replicas=integers(min_value=0, max_value=64),
        num_clients=integers(min_value=1, max_value=1024),
        num_additional_clients=integers(min_value=1, max_value=16))
-@settings(deadline=2000)
+@settings(deadline=3000)
 def test_add_new_clients(partitions, replicas, num_clients,
                          num_additional_clients):
     assume(replicas < num_clients and num_additional_clients < num_clients)
@@ -106,7 +106,7 @@ def test_add_new_clients(partitions, replicas, num_clients,
        replicas=integers(min_value=0, max_value=64),
        num_clients=integers(min_value=1, max_value=1024),
        num_removal_clients=integers(min_value=1, max_value=16))
-@settings(deadline=2000)
+@settings(deadline=3000)
 def test_remove_clients(partitions, replicas, num_clients,
                         num_removal_clients):
     assume(num_removal_clients < num_clients and
