@@ -19,7 +19,7 @@ please visit the :ref:`history` section.
 
     + Now depends on :pypi:`robinhood-aiokafka` 0.5.2
 
-    + Now depends on :ref:`Mode 3.0.8 <mode:version-3.0.8>`.
+    + Now depends on :ref:`Mode 3.0.11 <mode:version-3.0.11>`.
 
 - **App**: Experimental support for "exactly-once" semantics.
 
