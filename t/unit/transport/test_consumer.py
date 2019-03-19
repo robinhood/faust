@@ -425,19 +425,21 @@ class test_Consumer:
     @pytest.mark.asyncio
     async def test_getmany__flow_inactive2(self, *, consumer):
         consumer._wait_next_records = AsyncMock(return_value=(
-            {TP1: ['A', 'B', 'C']},
+            {TP1: ['A', 'B', 'C'], TP2: ['D']},
             {TP1},
         ))
         consumer.scheduler = Mock()
 
         def se(records):
-            for value in records:
+            for value in records.items():
                 yield value
                 consumer.flow_active = False
         consumer.scheduler.iterate.side_effect = se
 
         consumer.flow_active = True
-        assert [a async for a in consumer.getmany(1.0)] == []
+        res = [a async for a in consumer.getmany(1.0)]
+        assert res
+        assert len(res) == 1
 
     @pytest.mark.asyncio
     async def test_getmany(self, *, consumer):
@@ -678,13 +680,20 @@ class test_Consumer:
     @pytest.mark.asyncio
     async def test_wait_empty(self, *, consumer):
         consumer._unacked_messages = {Mock(autospec=Message)}
+        consumer._wait_for_ack = AsyncMock()
 
         def on_commit(start_new_transaction=True):
             for _ in range(10):
                 yield
-            consumer._unacked_messages.clear()
+            if consumer.commit.call_count == 3:
+                consumer._unacked_messages.clear()
         consumer.commit = AsyncMock(name='commit', side_effect=on_commit)
 
+        await consumer.wait_empty()
+
+    @pytest.mark.asyncio
+    async def test_wait_empty__when_stopped(self, *, consumer):
+        consumer._stopped.set()
         await consumer.wait_empty()
 
     @pytest.mark.asyncio
@@ -826,6 +835,19 @@ class test_Consumer:
             TP1: 3003,
             TP2: 6006,
         })
+
+    @pytest.mark.asyncio
+    async def test_commit_offsets__did_not_commit(self, *, consumer):
+        consumer.in_transaction = False
+        consumer._commit = AsyncMock(return_value=False)
+        consumer.current_assignment.update({TP1, TP2})
+        consumer.app.tables = Mock(name='app.tables')
+        await consumer._commit_offsets({
+            TP1: 3003,
+            TP2: 6006,
+            TP3: 7007,
+        })
+        consumer.app.tables.on_commit.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_commit_offsets__in_transaction(self, *, consumer):

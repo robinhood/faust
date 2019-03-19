@@ -57,7 +57,7 @@ if not NO_CYTHON:  # pragma: no cover
         from ._cython.streams import StreamIterator as _CStreamIterator
     except ImportError:
         _CStreamIterator = None
-else:
+else:  # pragma: no cover
     _CStreamIterator = None
 
 __all__ = [
@@ -697,7 +697,7 @@ class Stream(StreamT[T_co], Service):
     def __next__(self) -> Any:
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
-    def __aiter__(self) -> AsyncIterator:
+    def __aiter__(self) -> AsyncIterator:  # pragma: no cover
         if _CStreamIterator is not None:
             return self._c_aiter()
         return self._py_aiter()

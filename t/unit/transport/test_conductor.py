@@ -113,6 +113,7 @@ class test_Conductor:
         con._update_tp_index(assigned)
         assert topic1 in con._tp_index[TP1]
         assert topic1 in con._tp_index[TP2]
+        con._update_tp_index(set())
 
     def test_update_tp_index__active_partitions_empty(self, *, con):
         assigned = {TP1, TP2}

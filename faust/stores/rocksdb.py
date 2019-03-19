@@ -294,6 +294,8 @@ class Store(base.SerializedStore):
                 self.log.info(
                     'DB for partition %r is locked! Retry in 1s...', partition)
                 await self.sleep(retry_delay)
+        else:  # pragma: no cover
+            ...
 
     def _contains(self, key: bytes) -> bool:
         for db in self._dbs_for_key(key):

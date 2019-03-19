@@ -522,3 +522,11 @@ async def test_take(app):
             assert event.message.acked
             assert not event.message.refcount
         assert s.enable_acks is True
+
+
+@pytest.mark.asyncio
+async def test_send__to_non_topic_channel_stream(app):
+    async with new_stream(app) as s:
+        s.channel = [1, 2, 3]
+        with pytest.raises(NotImplementedError):
+            await s.send('foo')

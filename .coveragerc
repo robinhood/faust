@@ -18,7 +18,6 @@ omit =
     */faust/cli/send.py
     */faust/cli/tables.py
     */faust/cli/worker.py
-    */faust/cli/base.py
     */faust/web/apps/*
     */faust/assignor/*
     */faust/transport/drivers/*
@@ -34,12 +33,6 @@ omit =
     */faust/utils/tracing.py
     */faust/types/*
     */faust/__main__.py
-
-    # for vineet
-    */faust/app/router.py
-
-    # for allison
-    */faust/sensors/datadog.py
 
     # deprecated
     */faust/app/_attached.py

@@ -40,7 +40,7 @@ if not NO_CYTHON:  # pragma: no cover
         from ._cython.conductor import ConductorHandler
     except ImportError:
         ConductorHandler = None
-else:
+else:  # pragma: no cover
     ConductorHandler = None
 
 __all__ = ['Conductor', 'ConductorCompiler']

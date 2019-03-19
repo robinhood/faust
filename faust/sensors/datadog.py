@@ -21,7 +21,7 @@ from faust.types.transports import ConsumerT, ProducerT
 try:
     import datadog
     from datadog.dogstatsd import DogStatsd
-except ImportError:
+except ImportError:  # pragma: no cover
     datadog = None
     class DogStatsD: ...  # noqa
 

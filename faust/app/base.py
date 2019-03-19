@@ -1084,6 +1084,8 @@ class App(AppT, Service):
                     key = request.match_info[match_info]
                 elif _query_param:
                     key = request.query[_query_param]
+                else:  # pragma: no cover
+                    raise Exception('cannot get here')
                 try:
                     return await self.router.route_req(table.name, key,
                                                        view.web, request)

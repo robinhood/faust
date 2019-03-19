@@ -34,6 +34,30 @@ class test_BarrierState:
         )
 
     @pytest.mark.asyncio
+    async def test_get_nowait__exhaust_sentinels(self):
+        p = BarrierState(reply_to='rt')
+        for _ in range(20):
+            p._results.put_nowait(None)
+        with pytest.raises(asyncio.QueueEmpty):
+            p.get_nowait()
+
+    @pytest.mark.asyncio
+    async def test_iterate__completion(self):
+        p = BarrierState(reply_to='rt')
+        p.done = Mock(name='done')
+        p.done.return_value = False
+        p._results.put(None)
+        p._results.get = AsyncMock(name='get')
+
+        def se():
+            p.done.return_value = True
+            return None
+
+        p._results.get.coro.side_effect = se
+
+        assert [x async for x in p.iterate()] == []
+
+    @pytest.mark.asyncio
     async def test_parallel_iterate(self):
         p = BarrierState(reply_to='rt')
         assert not p.pending

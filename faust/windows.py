@@ -79,7 +79,7 @@ if not NO_CYTHON:  # pragma: no cover
         # isinstance(HoppingWindow, Window) is True
         # isinstance(HoppingWindow, WindowT) is True
         Window.register(HoppingWindow)
-else:
+else:  # pragma: no cover
     HoppingWindow = _PyHoppingWindow
 
 
@@ -153,5 +153,5 @@ if not NO_CYTHON:  # pragma: no cover
     else:
         SlidingWindow = cast(Type[Window], SlidingWindow)
         Window.register(SlidingWindow)
-else:
+else:  # pragma: no cover
     SlidingWindow = _PySlidingWindow
