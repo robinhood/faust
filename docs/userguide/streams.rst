@@ -8,7 +8,7 @@
 
     *“Everything transitory is but an image.”*
 
-    -- Goethe, *Faust: First part*
+    -- Goethe, *Faust: Part II*
 
 .. contents::
     :local:

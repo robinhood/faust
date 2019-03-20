@@ -1,9 +1,9 @@
 import abc
 import typing
-from typing import Any, Awaitable, Union
+from typing import Any, Awaitable, Mapping, Optional, Union
 from mode.utils.compat import AsyncContextManager
 from .codecs import CodecArg
-from .core import K, V
+from .core import HeadersArg, K, V
 from .tuples import Message, MessageSentCallback, RecordMetadata
 
 if typing.TYPE_CHECKING:
@@ -18,13 +18,19 @@ class EventT(AsyncContextManager):
     app: AppT
     key: K
     value: V
+    headers: Mapping
     message: Message
     acked: bool
 
-    __slots__ = ('app', 'key', 'value', 'message', 'acked')
+    __slots__ = ('app', 'key', 'value', 'headers', 'message', 'acked')
 
     @abc.abstractmethod
-    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
+    def __init__(self,
+                 app: AppT,
+                 key: K,
+                 value: V,
+                 headers: Optional[HeadersArg],
+                 message: Message) -> None:
         ...
 
     @abc.abstractmethod
@@ -34,6 +40,7 @@ class EventT(AsyncContextManager):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -47,6 +54,7 @@ class EventT(AsyncContextManager):
                       value: Any = None,
                       partition: int = None,
                       timestamp: float = None,
+                      headers: HeadersArg = None,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None,
                       callback: MessageSentCallback = None,

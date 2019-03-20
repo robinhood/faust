@@ -86,3 +86,11 @@ def test_logtable(tty, contexts, headers, expected_tty, expected_data):
 ])
 def test_get_best_table_type(tty, expected_table_type):
     assert tables._get_best_table_type(tty) is expected_table_type
+
+
+def test_table__default_tty():
+    with patch('faust.utils.terminal.tables._get_best_table_type') as g:
+        with patch('faust.utils.terminal.tables.isatty') as i:
+            i.return_value = None
+            tables.table({}, tty=None, title='foo')
+            g.assert_called_once_with(False)

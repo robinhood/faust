@@ -10,6 +10,7 @@ from mode.utils.imports import symbol_by_name
 from mode.utils.logging import level_name
 from yarl import URL
 
+from faust.types import AppT
 from faust.types._env import WEB_BIND, WEB_PORT, WEB_TRANSPORT
 
 from . import params
@@ -93,6 +94,14 @@ class worker(AppCommand):
             transport_extra = '+gevent'
         logfile = worker.logfile if worker.logfile else '-stderr-'
         loglevel = level_name(worker.loglevel or 'WARN').lower()
+        compiler = platform.python_compiler()
+        cython_info = None
+        try:
+            import faust._cython.windows  # noqa: F401
+        except ImportError:
+            pass
+        else:
+            cython_info = ('       +', f'Cython ({compiler})')
         data = list(filter(None, [
             ('id', app.conf.id),
             ('transport', f'{app.conf.broker} {transport_extra}'),
@@ -102,9 +111,10 @@ class worker(AppCommand):
             ('pid', f'{os.getpid()}'),
             ('hostname', f'{socket.gethostname()}'),
             ('platform', self.platform()),
-            ('drivers', '{transport_v} {http_v}'.format(
-                transport_v=app.transport.driver_version,
-                http_v=app.web.driver_version)),
+            cython_info if cython_info else None,
+            ('drivers', ''),
+            ('  transport', app.transport.driver_version),
+            ('  web', app.web.driver_version),
             ('datadir', f'{str(app.conf.datadir.absolute()):<40}'),
             ('appdir', f'{str(app.conf.appdir.absolute()):<40}'),
         ]))
@@ -115,6 +125,12 @@ class worker(AppCommand):
         table.inner_heading_row_border = False
         table.inner_row_border = False
         return table.table
+
+    def _driver_versions(self, app: AppT) -> List[str]:
+        return [
+            app.transport.driver_version,
+            app.web.driver_version,
+        ]
 
     def faust_ident(self) -> str:
         return self.color('hiblue', f'{FAUST} v{faust_version}')

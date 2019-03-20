@@ -8,6 +8,11 @@ __all__ = [
     'HashMethod',
     'CompareMethod',
     'EqMethod',
+    'NeMethod',
+    'LeMethod',
+    'LtMethod',
+    'GeMethod',
+    'GtMethod',
 ]
 
 MISSING = object()
@@ -58,6 +63,26 @@ def HashMethod(attrs: List[str], **kwargs: Any) -> Callable[[], None]:
 
 def EqMethod(fields: List[str], **kwargs: Any) -> Callable[[], None]:
     return CompareMethod(name='__eq__', op='==', fields=fields, **kwargs)
+
+
+def NeMethod(fields: List[str], **kwargs: Any) -> Callable[[], None]:
+    return CompareMethod(name='__ne__', op='!=', fields=fields, **kwargs)
+
+
+def GeMethod(fields: List[str], **kwargs: Any) -> Callable[[], None]:
+    return CompareMethod(name='__ge__', op='>=', fields=fields, **kwargs)
+
+
+def GtMethod(fields: List[str], **kwargs: Any) -> Callable[[], None]:
+    return CompareMethod(name='__gt__', op='>', fields=fields, **kwargs)
+
+
+def LeMethod(fields: List[str], **kwargs: Any) -> Callable[[], None]:
+    return CompareMethod(name='__le__', op='<=', fields=fields, **kwargs)
+
+
+def LtMethod(fields: List[str], **kwargs: Any) -> Callable[[], None]:
+    return CompareMethod(name='__lt__', op='<', fields=fields, **kwargs)
 
 
 def CompareMethod(name: str,

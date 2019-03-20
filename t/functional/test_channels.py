@@ -1,10 +1,11 @@
+import asyncio
 import faust
 from faust.types import StreamT, TP
 from mode import label
 from mode.utils.aiter import aiter, anext
 from mode.utils.queues import FlowControlQueue
 import pytest
-from .helpers import channel_empty, times_out
+from .helpers import channel_empty, message, times_out
 
 
 class Point(faust.Record):
@@ -13,33 +14,33 @@ class Point(faust.Record):
 
 
 @pytest.fixture
-def channel(app):
+def channel(*, app):
     return app.channel()
 
 
-def test_repr(channel):
+def test_repr(*, channel):
     assert repr(channel)
 
 
-def test_repr__active_partitions_empty(channel):
+def test_repr__active_partitions_empty(*, channel):
     channel.active_partitions = set()
     assert repr(channel)
 
 
-def test_repr__with_active_partitions(channel):
+def test_repr__with_active_partitions(*, channel):
     channel.active_partitions = {TP('foo', 0), TP('foo', 1)}
     assert repr(channel)
 
 
-def test_label(channel):
+def test_label(*, channel):
     assert label(channel)
 
 
-def test_str(channel):
+def test_str(*, channel):
     assert str(channel)
 
 
-def test_stream(channel):
+def test_stream(*, channel):
     s = channel.stream()
     assert isinstance(s, StreamT)
     assert s.channel.queue is not channel.queue
@@ -47,12 +48,12 @@ def test_stream(channel):
     assert s.channel in channel._subscribers
 
 
-def test_get_topic_name(channel):
+def test_get_topic_name(*, channel):
     with pytest.raises(NotImplementedError):
         channel.get_topic_name()
 
 
-def test_clone(app):
+def test_clone(*, app):
     c = app.channel(key_type=Point, value_type=Point, maxsize=99, loop=33)
     assert isinstance(c.queue, FlowControlQueue)
     assert c.key_type is Point
@@ -69,8 +70,8 @@ def test_clone(app):
     assert not c2.is_iterator
     assert c2.queue is not c.queue
     assert c2._root is c
-    assert c2 in c._subscribers
-    assert c.subscriber_count == 1
+    assert c2 not in c._subscribers
+    assert c.subscriber_count == 0
 
     c3 = c2.clone(is_iterator=True)
     assert c3.key_type is Point
@@ -82,12 +83,12 @@ def test_clone(app):
     assert c3._root is c
     assert c2._root is c
     assert c3 in c._subscribers
-    assert c2 in c._subscribers
-    assert c.subscriber_count == 2
+    assert c2 not in c._subscribers
+    assert c.subscriber_count == 1
 
 
 @pytest.mark.asyncio
-async def test_send_receive(app):
+async def test_send_receive(*, app):
     app.flow_control.resume()
     channel1 = app.channel(maxsize=10)
     channel2 = app.channel(maxsize=1)
@@ -143,11 +144,40 @@ async def test_on_value_decode_error(*, app):
         await channel.get()
 
 
-def test_derive(app):
+def test_derive(*, app):
     channel = app.channel(maxsize=1)
     assert channel.derive() is channel
 
 
 @pytest.mark.asyncio
-async def test_declare__does_nothing(app):
+async def test_declare__does_nothing(*, app):
     await app.channel().declare()
+
+
+def test_clone_using_queue(*, channel):
+    queue = asyncio.Queue()
+    chan2 = channel.clone_using_queue(queue)
+    assert chan2.queue is queue
+    assert chan2.is_iterator
+
+
+@pytest.mark.asyncio
+async def test_interface_maybe_declare(*, channel):
+    await channel.maybe_declare()
+
+
+@pytest.mark.asyncio
+async def test_decode(*, channel):
+    msg = message(b'key', b'value')
+    event = await channel.decode(msg)
+    assert event.message is msg
+
+
+@pytest.mark.asyncio
+async def test_deliver(*, channel, app):
+    app.flow_control.resume()
+    msg = message(b'key', b'value')
+    queue = channel.queue
+    await channel.deliver(msg)
+    event = queue.get_nowait()
+    assert event.message is msg

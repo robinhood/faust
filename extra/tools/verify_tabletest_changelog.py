@@ -1,12 +1,22 @@
 #!/usr/bin/env python
-import fileinput
+"""
+Usage:
 
-# Usage:
-#
-# kafka-console-consumer --bootstrap-server localhost:9092 \
-#       --topic tabletest-v2-counts-changelog \
-#       --partition=2 --from-beginning | \
-#    python extra/tools/verify_tabletest_changelog.py
+.. sourcecode:: console
+
+    $ kafka-console-consumer --bootstrap-server localhost:9092 \
+       --topic tabletest-counts-changelog \
+       --partition=0 --from-beginning | \
+        python extra/tools/verify_tabletest_changelog.py
+
+"""
+
+
+import fileinput
+import os
+import sys
+
+EXPECTED_SUM = int(os.environ.get('EXPECTED_SUM', 49995000))
 
 expected = 0
 prev = None
@@ -15,5 +25,7 @@ for i, line in enumerate(fileinput.input()):
     found = int(line)
     if found != expected:
         print(f'At line {i} found {found} expected {expected}')
-    if found == 49995000:
-        print('DONE!!!!!')
+        sys.exit(445)
+    if found == EXPECTED_SUM:
+        print('DONE!')
+        sys.exit(0)

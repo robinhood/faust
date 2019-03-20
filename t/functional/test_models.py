@@ -3,6 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, Dict, List, Mapping, Optional, Set, Tuple
 import faust
+from faust.types import ModelT
 from faust.utils import iso8601
 from faust.utils import json
 import pytest
@@ -891,3 +892,93 @@ def test_abstract_model_repr():
     assert MyBase.__is_abstract__
     with pytest.raises(NotImplementedError):
         MyBase()
+
+
+def test_raises_when_defaults_in_wrong_order():
+
+    with pytest.raises(TypeError):
+        class X(Record):
+            foo: str
+            bar: int = 3
+            baz: str
+
+
+def test_maybe_namespace_raises_for_missing_abstract_type():
+    class X(Record):
+        foo: str
+
+    with pytest.raises(KeyError):
+        X._maybe_namespace({X._blessed_key: {'ns': 'a.b.c.d.e.f'}},
+                           preferred_type=ModelT)
+
+
+def test_compat_loads_DeprecationWarning():
+    class X(Record):
+        foo: str
+
+    payload = X('foo').dumps(serializer='json')
+    with pytest.warns(DeprecationWarning):
+        X.loads(payload, default_serializer='json')
+
+
+def test_model_overriding_Options_sets_options():
+
+    class X(Record):
+        foo: str
+
+        class Options:
+            coercions = {'foo': 'bar'}
+            foo = 1.345
+
+    with pytest.raises(AttributeError):
+        X.Options
+    assert X._options.coercions == {'foo': 'bar'}
+    assert X._options.foo == 1.345
+
+
+def test_model_with_custom_hash():
+    class X(Record):
+        foo: int
+
+        def __hash__(self):
+            return self.foo
+
+    assert hash(X(123)) == 123
+
+
+def test_model_with_custom_eq():
+    class X(Record):
+        foo: bool
+
+        def __eq__(self, other):
+            return True
+
+    assert X(10) == X(20)
+
+
+class test_Record_comparison():
+    class X(Record):
+        x: int
+        y: int
+
+    assert X(10, 30) > X(8, 24)
+    assert X(10, 30) >= X(10, 30)
+    assert X(10, 30) < X(10, 40)
+    assert X(10, 40) <= X(10, 40)
+
+    with pytest.raises(TypeError):
+        X(10) >= object()
+    with pytest.raises(TypeError):
+        X(10) <= object()
+    with pytest.raises(TypeError):
+        X(10) < object()
+    with pytest.raises(TypeError):
+        X(10) > object()
+    with pytest.raises(TypeError):
+        object() > X(10)
+    with pytest.raises(TypeError):
+        object() >= X(10)
+    with pytest.raises(TypeError):
+        object() < X(10)
+    with pytest.raises(TypeError):
+        object() <= X(10)

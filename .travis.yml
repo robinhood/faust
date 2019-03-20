@@ -1,88 +1,121 @@
 language: python
 sudo: required
 cache: pip
+
 env:
   global:
   - PYTHONUNBUFFERED=yes
+
+stages:
+    - lint
+    - test
+    - cython
+
 matrix:
   include:
   - python: 3.7.2
     env: TOXENV=flake8
     os: linux
     dist: xenial
+    stage: lint
   - python: 3.7.2
     env: TOXENV=typecheck
     os: linux
     dist: xenial
+    stage: lint
   - python: 3.7.2
     env: TOXENV=apicheck
     os: linux
     dist: xenial
+    stage: lint
   - python: 3.7.2
     env: TOXENV=configcheck
     os: linux
     dist: xenial
+    stage: lint
   - python: 3.6.0
-    env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.0" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: trusty
+    stage: test
   - python: 3.6.1
-    env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.1" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: trusty
+    stage: test
   - python: 3.6.2
-    env: TOXENV=3.6 IDENT="3.6.2" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.2" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: trusty
+    stage: test
   - python: 3.6.3
-    env: TOXENV=3.6 IDENT="3.6.3" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.3" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.6.4
-    env: TOXENV=3.6 IDENT="3.6.4" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.4" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.6.5
-    env: TOXENV=3.6 IDENT="3.6.5" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.5" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.6.6
-    env: TOXENV=3.6 IDENT="3.6.6" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.6" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.6.7
-    env: TOXENV=3.6 IDENT="3.6.7" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.7" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.6.8
-    env: TOXENV=3.6 IDENT="3.6.8" RUN_SUITE=y
+    env: TOXENV=3.6 IDENT="3.6.8" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.7.0
-    env: TOXENV=3.7 IDENT="3.7.0" RUN_SUITE=y
+    env: TOXENV=3.7 IDENT="3.7.0" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.7.1
-    env: TOXENV=3.7 IDENT="3.7.1" RUN_SUITE=y
+    env: TOXENV=3.7 IDENT="3.7.1" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.7.2
-    env: TOXENV=3.7 IDENT="3.7.2" RUN_SUITE=y
+    env: TOXENV=3.7 IDENT="3.7.2" RUN_SUITE=y NO_CYTHON=y
     os: linux
     dist: xenial
+    stage: test
   - python: 3.7.2
-    env: TOXENV=3.7 RUN_SUITE=y
+    env: TOXENV=3.7 RUN_SUITE=y NO_CYTHON=y
     os: windows
+    stage: test
     language: sh
     before_install:
         - choco install python --version=3.7.2
         - export PATH="/c/Python37:/c/Python37/Scripts:$PATH"
         - python -m pip install --upgrade pip wheel
+  - python: 3.7.2
+    env: TOXENV=3.7 IDENT= RUN_SUITE=y USE_CYTHON=y NO_CYTHON=
+    os: linux
+    dist: xenial
+    stage: cython
 
 before_install:
 install:
 - |
-- python -m pip install -U tox
+  if [[ "$USE_CYTHON" == "y" ]]; then
+    python -m pip install -U cython tox
+  else
+    python -m pip install -U tox
+  fi
 after_success:
 - |
   if [[ ! -z "$IDENT" ]]; then

@@ -30,7 +30,7 @@ class ChangeloggedObject:
         self.key = key
         self.__post_init__()
 
-    def __post_init__(self) -> None:
+    def __post_init__(self) -> None:  # pragma: no cover
         ...
 
     @abc.abstractmethod
@@ -111,7 +111,6 @@ class ChangeloggedObjectManager(Store):
                                     active_tps: Set[TP],
                                     standby_tps: Set[TP]) -> None:
         self.sync_from_storage()
-        await super().on_recovery_completed(active_tps, standby_tps)
 
     def sync_from_storage(self) -> None:
         for key, value in self.storage.items():
@@ -123,7 +122,7 @@ class ChangeloggedObjectManager(Store):
         self._dirty.clear()
 
     @Service.task(2.0)
-    async def _periodic_flush(self) -> None:
+    async def _periodic_flush(self) -> None:  # pragma: no cover
         self.flush_to_storage()
 
     def reset_state(self) -> None:

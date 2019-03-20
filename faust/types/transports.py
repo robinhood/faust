@@ -11,9 +11,9 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    Iterator,
     List,
     Mapping,
-    MutableMapping,
     MutableSet,
     Optional,
     Sequence,
@@ -27,6 +27,7 @@ from typing import (
 from mode import Seconds, ServiceT
 from yarl import URL
 
+from .core import HeadersArg
 from .channels import ChannelT
 from .tuples import Message, RecordMetadata, TP
 
@@ -44,6 +45,7 @@ __all__ = [
     'ConsumerT',
     'ProducerT',
     'ConductorT',
+    'TransactionManagerT',
     'TransportT',
 ]
 
@@ -70,10 +72,172 @@ PartitionerT = Callable[
 ]
 
 
+class ProducerT(ServiceT):
+
+    #: The transport that created this Producer.
+    transport: 'TransportT'
+
+    client_id: str
+    linger_ms: int
+    max_batch_size: int
+    acks: int
+    max_request_size: int
+    compression_type: Optional[str]
+    ssl_context: Optional[ssl.SSLContext]
+    partitioner: Optional[PartitionerT]
+    request_timeout: float
+
+    @abc.abstractmethod
+    def __init__(self, transport: 'TransportT',
+                 loop: asyncio.AbstractEventLoop = None,
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int],
+                   timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        ...
+
+    @abc.abstractmethod
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int],
+                            timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
+        ...
+
+    @abc.abstractmethod
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 1000.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
+                           ensure_created: bool = False) -> None:
+        ...
+
+    @abc.abstractmethod
+    def key_partition(self, topic: str, key: bytes) -> TP:
+        ...
+
+    @abc.abstractmethod
+    async def flush(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def begin_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def abort_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def stop_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        ...
+
+    @abc.abstractmethod
+    def supports_headers(self) -> bool:
+        ...
+
+
+class TransactionManagerT(ProducerT):
+    consumer: 'ConsumerT'
+    producer: 'ProducerT'
+
+    @abc.abstractmethod
+    def __init__(self,
+                 transport: 'TransportT',
+                 loop: asyncio.AbstractEventLoop = None,
+                 *,
+                 consumer: 'ConsumerT',
+                 producer: 'ProducerT',
+                 **kwargs: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def on_rebalance(self,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
+        ...
+
+    @abc.abstractmethod
+    async def commit(self, offsets: Mapping[TP, int],
+                     start_new_transaction: bool = True) -> bool:
+        ...
+
+    async def begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def commit_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def abort_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def stop_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        raise NotImplementedError()
+
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        raise NotImplementedError()
+
+
+class SchedulingStrategyT:
+
+    @abc.abstractmethod
+    def __init__(self) -> None:
+        ...
+
+    @abc.abstractmethod
+    def iterate(self, records: Mapping[TP, List]) -> Iterator[Tuple[TP, Any]]:
+        ...
+
+
 class ConsumerT(ServiceT):
 
     #: The transport that created this Consumer.
     transport: 'TransportT'
+
+    transactions: TransactionManagerT
 
     #: How often we commit topic offsets.
     #: See :setting:`broker_commit_interval`.
@@ -83,6 +247,10 @@ class ConsumerT(ServiceT):
     #: This means we don't crash if it's not part of our assignment.
     #: Used by e.g. the leader assignor service.
     randomly_assigned_topics: Set[str]
+
+    in_transaction: bool
+
+    scheduler: SchedulingStrategyT
 
     @abc.abstractmethod
     def __init__(self,
@@ -174,7 +342,9 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def commit(self, topics: TPorTopicSet = None) -> bool:
+    async def commit(self,
+                     topics: TPorTopicSet = None,
+                     start_new_transaction: bool = True) -> bool:
         ...
 
     @abc.abstractmethod
@@ -182,16 +352,22 @@ class ConsumerT(ServiceT):
         ...
 
     @abc.abstractmethod
-    async def earliest_offsets(self,
-                               *partitions: TP) -> MutableMapping[TP, int]:
+    async def earliest_offsets(self, *partitions: TP) -> Mapping[TP, int]:
         ...
 
     @abc.abstractmethod
-    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+    async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
         ...
 
     @abc.abstractmethod
     def topic_partitions(self, topic: str) -> Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    def key_partition(self,
+                      topic: str,
+                      key: Optional[bytes],
+                      partition: int = None) -> int:
         ...
 
     @abc.abstractmethod
@@ -201,64 +377,6 @@ class ConsumerT(ServiceT):
     @property
     @abc.abstractmethod
     def unacked(self) -> Set[Message]:
-        ...
-
-
-class ProducerT(ServiceT):
-
-    #: The transport that created this Producer.
-    transport: 'TransportT'
-
-    client_id: str
-    linger_ms: int
-    max_batch_size: int
-    acks: int
-    max_request_size: int
-    compression_type: Optional[str]
-    ssl_context: Optional[ssl.SSLContext]
-    partitioner: Optional[PartitionerT]
-    request_timeout: float
-
-    @abc.abstractmethod
-    def __init__(self, transport: 'TransportT',
-                 loop: asyncio.AbstractEventLoop = None,
-                 **kwargs: Any) -> None:
-        ...
-
-    @abc.abstractmethod
-    async def send(self, topic: str, key: Optional[bytes],
-                   value: Optional[bytes],
-                   partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
-        ...
-
-    @abc.abstractmethod
-    async def send_and_wait(self, topic: str, key: Optional[bytes],
-                            value: Optional[bytes],
-                            partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
-        ...
-
-    @abc.abstractmethod
-    async def create_topic(self,
-                           topic: str,
-                           partitions: int,
-                           replication: int,
-                           *,
-                           config: Mapping[str, Any] = None,
-                           timeout: Seconds = 1000.0,
-                           retention: Seconds = None,
-                           compacting: bool = None,
-                           deleting: bool = None,
-                           ensure_created: bool = False) -> None:
-        ...
-
-    @abc.abstractmethod
-    def key_partition(self, topic: str, key: bytes) -> TP:
-        ...
-
-    @abc.abstractmethod
-    async def flush(self) -> None:
         ...
 
 
@@ -298,6 +416,9 @@ class TransportT(abc.ABC):
     #: The Producer class used for this type of transport.
     Producer: ClassVar[Type[ProducerT]]
 
+    #: The TransactionManager class used for managing multiple transactions.
+    TransactionManager: ClassVar[Type[TransactionManagerT]]
+
     #: The Conductor class used to delegate messages from Consumer to streams.
     Conductor: ClassVar[Type[ConductorT]]
 
@@ -330,6 +451,13 @@ class TransportT(abc.ABC):
 
     @abc.abstractmethod
     def create_producer(self, **kwargs: Any) -> ProducerT:
+        ...
+
+    @abc.abstractmethod
+    def create_transaction_manager(self,
+                                   consumer: ConsumerT,
+                                   producer: ProducerT,
+                                   **kwargs: Any) -> TransactionManagerT:
         ...
 
     @abc.abstractmethod

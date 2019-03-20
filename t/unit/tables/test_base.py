@@ -5,6 +5,7 @@ from copy import copy
 import pytest
 from faust import joins
 from faust import Event, Record, Stream, Topic
+from faust.exceptions import PartitionsMismatch
 from faust.stores.base import Store
 from faust.tables.base import Collection
 from faust.types import TP
@@ -22,9 +23,8 @@ class User(Record):
 
 class MyTable(Collection):
 
-    def __init__(self, *args, **kwargs):
+    def __post_init__(self, *args, **kwargs):
         self.datas = {}
-        super().__init__(*args, **kwargs)
 
     def _has_key(self, key):
         return key in self.datas
@@ -45,6 +45,10 @@ class test_Collection:
     def table(self, *, app):
         return MyTable(app, name='name')
 
+    def test_key_type_bytes_implies_raw_serializer(self, *, app):
+        table = MyTable(app, name='name', key_type=bytes)
+        assert table.key_serializer == 'raw'
+
     @pytest.mark.asyncio
     async def test_init_on_recover(self, *, app):
         on_recover = AsyncMock(name='on_recover')
@@ -52,6 +56,12 @@ class test_Collection:
         assert on_recover in t._recover_callbacks
         await t.call_recover_callbacks()
         on_recover.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_on_recovery_completed(self, *, table):
+        table.call_recover_callbacks = AsyncMock()
+        await table.on_recovery_completed(set(), set())
+        table.call_recover_callbacks.assert_called_once_with()
 
     def test_hash(self, *, table):
         assert hash(table)
@@ -110,6 +120,23 @@ class test_Collection:
             callback=table._on_changelog_sent,
         )
 
+    def test_send_changelog__custom_serializers(self, *, table):
+        event = Mock(name='event')
+        table._send_changelog(
+            event, 'k', 'v',
+            key_serializer='raw',
+            value_serializer='raw',
+        )
+        event._attach.assert_called_once_with(
+            table.changelog_topic,
+            'k',
+            'v',
+            partition=event.message.partition,
+            key_serializer='raw',
+            value_serializer='raw',
+            callback=table._on_changelog_sent,
+        )
+
     def test_send_changelog__no_current_event(self, *, table):
         with pytest.raises(RuntimeError):
             table._send_changelog(None, 'k', 'v')
@@ -121,6 +148,64 @@ class test_Collection:
         table._data.set_persisted_offset.assert_called_once_with(
             fut.result().topic_partition, fut.result().offset,
         )
+
+    def test_on_changelog_sent__transactions(self, *, table):
+        table.app.in_transaction = True
+        table.app.tables = Mock(name='tables')
+        fut = Mock(name='fut')
+        table._on_changelog_sent(fut)
+        table.app.tables.persist_offset_on_commit.assert_called_once_with(
+            table.data, fut.result().topic_partition, fut.result().offset,
+        )
+
+    def test_del_old_keys__empty(self, *, table):
+        table.window = Mock(name='window')
+        table._del_old_keys()
+
+    def test_del_old_keys(self, *, table):
+        table.window = Mock(name='window')
+        table._data = {
+            'boo': 'BOO',
+            'moo': 'MOO',
+            'faa': 'FAA',
+        }
+        table._partition_timestamps = {
+            TP1: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
+        }
+        table._partition_timestamp_keys = {
+            (TP1, 2.0): ['boo', 'moo', 'faa'],
+        }
+
+        def is_stale(timestamp, latest_timestamp):
+            return timestamp < 4.0
+
+        table.window.stale.side_effect = is_stale
+
+        table._del_old_keys()
+
+        assert table._partition_timestamps[TP1] == [4.0, 5.0, 6.0, 7.0]
+        assert not table.data
+
+    @pytest.mark.parametrize('source_n,change_n,expect_error', [
+        (3, 3, False),
+        (3, None, False),
+        (None, 3, False),
+        (3, 6, True),
+        (6, 3, True),
+    ])
+    def test__verify_source_topic_partitions(
+            self, source_n, change_n, expect_error, *, app, table):
+        event = Mock(name='event', autospec=Event)
+        tps = {
+            event.message.topic: source_n,
+            table.changelog_topic.get_topic_name(): change_n,
+        }
+        app.consumer.topic_partitions = Mock(side_effect=tps.get)
+        if expect_error:
+            with pytest.raises(PartitionsMismatch):
+                table._verify_source_topic_partitions(event)
+        else:
+            table._verify_source_topic_partitions(event)
 
     @pytest.mark.asyncio
     async def test_clean_data(self, *, table):
@@ -225,6 +310,30 @@ class test_Collection:
         with pytest.raises(NotImplementedError):
             table & table
 
+    def test__maybe_set_key_ttl(self, *, table):
+        table._should_expire_keys = Mock(return_value=False)
+        table._maybe_set_key_ttl(('k', (100, 110)), 0)
+
+        table._should_expire_keys = Mock(return_value=True)
+        table._maybe_set_key_ttl(('k', (100, 110)), 0)
+
+    def test__maybe_del_key_ttl(self, *, table):
+        table._partition_timestamp_keys[(0, 110)] = None
+
+        table._should_expire_keys = Mock(return_value=False)
+        table._maybe_del_key_ttl(('k', (100, 110)), 0)
+
+        table._should_expire_keys = Mock(return_value=True)
+        table._maybe_del_key_ttl(('k', (100, 110)), 0)
+
+        table._partition_timestamp_keys[(0, 110)] = {
+            ('k', (100, 110)),
+            ('v', (100, 110)),
+        }
+        table._maybe_del_key_ttl(('k', (100, 110)), 0)
+
+        assert table._partition_timestamp_keys[(0, 110)] == {('v', (100, 110))}
+
     def test_apply_window_op(self, *, table):
         self.mock_ranges(table)
         table._set_key(('k', 1.1), 30)
@@ -260,15 +369,31 @@ class test_Collection:
         table._partition_latest_timestamp[event.message.partition] = 30.3
         assert table._relative_now(event) == 30.3
 
+    def test_relative_now__no_event(self, *, table):
+        with patch('faust.tables.base.current_event') as ce:
+            ce.return_value = None
+            with patch('time.time') as time:
+                assert table._relative_now(None) is time()
+
     def test_relative_event(self, *, table):
         event = Mock(name='event', autospec=Event)
         assert table._relative_event(event) is event.message.timestamp
+
+    def test_relative_event__raises_if_no_event(self, *, table):
+        with patch('faust.tables.base.current_event') as current_event:
+            current_event.return_value = None
+            with pytest.raises(RuntimeError):
+                table._relative_event(None)
 
     def test_relative_field(self, *, table):
         user = User('foo', 'bar')
         event = Mock(name='event', autospec=Event)
         event.value = user
         assert table._relative_field(User.id)(event) == 'foo'
+
+    def test_relative_field__raises_if_no_event(self, *, table):
+        with pytest.raises(RuntimeError):
+            table._relative_field(User.id)(event=None)
 
     def test_relative_timestamp(self, *, table):
         assert table._relative_timestamp(303.3)(
@@ -339,3 +464,9 @@ class test_Collection:
     def test_to_value(self, *, table):
         v = Mock(name='v')
         assert table._to_value(v) is v
+
+    def test__human_channel(self, *, table):
+        assert table._human_channel()
+
+    def test_repr_info(self, *, table):
+        assert table._repr_info() == table.name

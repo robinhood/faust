@@ -1,4 +1,5 @@
 import typing
+from decimal import Decimal
 
 import faust
 import pytest
@@ -184,3 +185,14 @@ def test_dumps_value__bytes(*, app):
 ])
 def test_serializer_type(typ, alt, expected, *, app):
     assert app.serializers._serializer(typ, *alt) == expected
+
+
+@pytest.mark.parametrize('typ,value,expected_value', [
+    (int, '23', 23),
+    (float, '23.32', 23.32),
+    (Decimal, '23.32', Decimal(23.32)),
+    (str, 'foo', 'foo'),
+    (bytes, 'foo', b'foo'),
+])
+def test_prepare_payload(typ, value, expected_value, *, app):
+    app.serializers._prepare_payload(typ, value) == expected_value

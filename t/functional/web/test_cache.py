@@ -7,6 +7,7 @@ from faust.exceptions import ImproperlyConfigured
 from faust.web import Blueprint, View
 from faust.web.cache import backends
 from faust.web.cache.backends import redis
+from mode.utils.mocks import Mock
 
 DEFAULT_TIMEOUT = 361.363
 VIEW_B_TIMEOUT = 64.3
@@ -66,6 +67,39 @@ async def test_cached_view__HEAD(*, app, bp, web_client, web):
         assert response.status == 200
         response2 = await client.head(urlA)
         assert response2.status == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.app(cache='memory://')
+async def test_cached_view__cannot_cache(*, app, bp, web_client, web):
+    prev = cache.can_cache_request
+    cache.can_cache_request = Mock(name='can_cache_request')
+    cache.can_cache_request.return_value = False
+    try:
+        app.cache.storage.clear()
+        async with app.cache:
+            client = await web_client
+            urlA = web.url_for('test:a')
+            response = await client.get(urlA)
+            assert response.status == 200
+            response2 = await client.get(urlA)
+            assert response2.status == 200
+    finally:
+        cache.can_cache_request = prev
+
+
+@pytest.mark.app(cache='memory://')
+def test_key_for_request(*, app):
+    _cache = blueprint.cache(timeout=DEFAULT_TIMEOUT)
+    request = Mock(name='request')
+    _cache.build_key = Mock(name='build_key')
+    _cache.key_for_request(request, prefix='/foo/')
+    _cache.build_key.assert_called_once_with(
+        request,
+        request.method,
+        '/foo/',
+        [],
+    )
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,20 @@
 """Web driver using :pypi:`aiohttp`."""
 from pathlib import Path
-from typing import Any, Callable, Optional, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Union,
+    cast,
+)
 
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import (
     AppRunner,
     Application,
+    BaseSite,
     Request,
     Response,
     TCPSite,
@@ -59,10 +68,16 @@ class Web(base.Web):
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[Service] = None
 
+    _transport_handlers: Mapping[str, Callable[[], BaseSite]]
+
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self.web_app: Application = Application()
         self._runner: AppRunner = AppRunner(self.web_app, access_log=None)
+        self._transport_handlers = {
+            'tcp': self._new_transport_tcp,
+            'unix': self._new_transport_unix,
+        }
 
     async def on_start(self) -> None:
         self.init_server()
@@ -74,30 +89,60 @@ class Web(base.Web):
         self.init_server()
         return self.web_app
 
-    def text(self, value: str, *, content_type: str = None,
-             status: int = 200) -> base.Response:
+    def text(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> base.Response:
         response = Response(
             text=value,
             content_type=content_type,
             status=status,
+            reason=reason,
+            headers=headers,
         )
         return cast(base.Response, response)
 
-    def html(self, value: str, *, status: int = 200) -> base.Response:
-        return self.text(value, status=status, content_type='text/html')
+    def html(self, value: str, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> base.Response:
+        return self.text(
+            value,
+            status=status,
+            content_type=content_type or 'text/html',
+            reason=reason,
+            headers=headers,
+        )
 
-    def json(self, value: Any, *, status: int = 200) -> Any:
-        return json_response(value, status=status, dumps=_json.dumps)
+    def json(self, value: Any, *,
+             content_type: str = None,
+             status: int = 200,
+             reason: str = None,
+             headers: MutableMapping = None) -> Any:
+        return json_response(
+            value,
+            content_type='application/json',
+            status=status,
+            reason=reason,
+            headers=headers,
+            dumps=_json.dumps,
+        )
 
     def bytes(self,
               value: _bytes,
               *,
               content_type: str = None,
-              status: int = 200) -> base.Response:
+              status: int = 200,
+              reason: str = None,
+              headers: MutableMapping = None) -> base.Response:
         response = Response(
             body=value,
-            status=status,
             content_type=content_type,
+            status=status,
+            reason=reason,
+            headers=headers,
         )
         return cast(base.Response, response)
 
@@ -141,26 +186,29 @@ class Web(base.Web):
             resp.body,
         )
 
-    def _create_site(self) -> Optional[Union[TCPSite, UnixSite]]:
-        site = None
-        transport = self.app.conf.web_transport.scheme
+    def _create_site(self) -> BaseSite:
+        return self._new_transport(self.app.conf.web_transport.scheme)
 
-        if transport == 'tcp':
-            site = TCPSite(
-                self._runner,
-                self.app.conf.web_bind,
-                self.app.conf.web_port)
-        elif transport == 'unix':
-            site = UnixSite(self._runner, self.app.conf.web_transport.path)
+    def _new_transport(self, type_: str) -> BaseSite:
+        return self._transport_handlers[type_]()
 
-        return site
+    def _new_transport_tcp(self) -> BaseSite:
+        return TCPSite(
+            self._runner,
+            self.app.conf.web_bind,
+            self.app.conf.web_port,
+        )
+
+    def _new_transport_unix(self) -> BaseSite:
+        return UnixSite(
+            self._runner,
+            self.app.conf.web_transport.path,
+        )
 
     async def start_server(self) -> None:
         await self._runner.setup()
         site = self._create_site()
-
-        if site is not None:
-            await site.start()
+        await site.start()
 
     async def stop_server(self) -> None:
         if self._runner:

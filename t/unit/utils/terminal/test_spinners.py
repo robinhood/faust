@@ -44,6 +44,12 @@ class test_Spinner:
         s.update()
         assert s.count == count
 
+    def test_reset(self):
+        s = self.spinner(isatty=True)
+        s.reset()
+        assert not s.stopped
+        assert s.count == 0
+
     def test_write(self):
         s = self.spinner(isatty=True)
         s.write('f')

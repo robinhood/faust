@@ -146,16 +146,13 @@ class Blueprint(BlueprintT):
             self._apply_route(app, route, url_prefix)
 
         for static_route in self.static_routes:
-            self._apply_static_route(app.web, static_route, self.url_prefix)
+            self._apply_static_route(app.web, static_route, url_prefix)
 
     def _apply_route(self,
                      app: AppT,
                      route: FutureRoute,
                      url_prefix: Optional[str]) -> None:
-        if url_prefix:
-            uri = url_prefix.rstrip('/') + '/' + route.uri.lstrip('/')
-        else:
-            uri = route.uri
+        uri = self._url_with_prefix(route.uri, url_prefix)
 
         # Create the actual view on the app (using app.page)
 
@@ -173,9 +170,14 @@ class Blueprint(BlueprintT):
     def on_webserver_init(self, web: Web) -> None:
         ...
 
+    def _url_with_prefix(self, url: str, prefix: str = None) -> str:
+        if prefix:
+            return prefix.rstrip('/') + '/' + url.lstrip('/')
+        return url
+
     def _apply_static_route(self,
                             web: Web,
                             route: FutureStaticRoute,
                             url_prefix: Optional[str]) -> None:
-        uri = url_prefix + route.uri if url_prefix else route.uri
+        uri = self._url_with_prefix(route.uri, url_prefix)
         web.add_static(uri, route.file_or_directory)

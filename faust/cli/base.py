@@ -33,8 +33,9 @@ from click import echo
 from colorclass import Color, disable_all_colors, enable_all_colors
 from mode import Service, ServiceT, Worker
 from mode.utils import text
-from mode.utils.compat import want_bytes
+from mode.utils.compat import NoReturn, want_bytes
 from mode.utils.imports import import_from_cwd, symbol_by_name
+from mode.worker import exiting
 
 from faust.types._env import (
     BLOCKING_TIMEOUT,
@@ -53,7 +54,7 @@ try:
     import click_completion
 except ImportError:
     click_completion = None
-else:
+else:  # pragma: no cover
     click_completion.init()
 
 __all__ = [
@@ -66,7 +67,14 @@ __all__ = [
 ]
 
 argument = click.argument
-option = click.option
+
+
+# Our version of click.option enables show_default=True by default.
+def option(*option_decls: Any,
+           show_default: bool = True,
+           **kwargs: Any) -> Callable[[Any], Any]:
+    return click.option(*option_decls, show_default=show_default, **kwargs)
+
 
 OptionDecorator = Callable[[Any], Any]
 OptionSequence = Sequence[OptionDecorator]
@@ -122,7 +130,7 @@ def compat_option(
         expose_value: bool = False,
         **kwargs: Any) -> Callable[[Any], click.Parameter]:
 
-    def _callback(ctx: click.Context,
+    def _callback(ctx: click.Context,  # pragma: no cover
                   param: click.Parameter,
                   value: Any) -> Any:
         state = ctx.ensure_object(State)
@@ -174,7 +182,7 @@ core_options: OptionSequence = [
            help='Silence output to <stdout>/<stderr>.'),
     option('--debug/--no-debug', default=DEBUG,
            help='Enable debugging output, and the blocking detector.'),
-    option('--no_color/--color', default=False,
+    option('--no-color/--color', '--no_color/--color', default=False,
            help='Enable colors in output.'),
     option('--workdir', '-W',
            default=WORKDIR,
@@ -263,19 +271,21 @@ def prepare_app(app: AppT, name: Optional[str]) -> AppT:
     app.finalize()
     if app.conf._origin is None:
         app.conf._origin = name
+    app.worker_init()
     if app.conf.autodiscover:
         app.discover()
 
     # Hack to fix cProfile support.
-    main = sys.modules.get('__main__')
-    if main is not None and 'cProfile.py' in getattr(main, '__file__', ''):
-        from ..models import registry
-        registry.update({
-            (app.conf.origin or '') + k[8:]: v
-            for k, v in registry.items()
-            if k.startswith('cProfile.')
-        })
-    return app
+    if 1:  # pragma: no cover
+        main = sys.modules.get('__main__')
+        if main is not None and 'cProfile.py' in getattr(main, '__file__', ''):
+            from ..models import registry
+            registry.update({
+                (app.conf.origin or '') + k[8:]: v
+                for k, v in registry.items()
+                if k.startswith('cProfile.')
+            })
+        return app
 
 
 # We just use this to apply many @click.option/@click.argument
@@ -366,15 +376,19 @@ class _Group(click.Group):
 @click.group(cls=_Group)
 @_apply_options(builtin_options)
 @click.pass_context
-def cli(ctx: click.Context,
-        app: Union[AppT, str],
-        quiet: bool,
-        debug: bool,
-        workdir: str,
-        datadir: str,
-        json: bool,
-        no_color: bool,
-        loop: str) -> None:
+def cli(*args: Any, **kwargs: Any) -> None:  # pragma: no cover
+    return _prepare_cli(*args, **kwargs)
+
+
+def _prepare_cli(ctx: click.Context,
+                 app: Union[AppT, str],
+                 quiet: bool,
+                 debug: bool,
+                 workdir: str,
+                 datadir: str,
+                 json: bool,
+                 no_color: bool,
+                 loop: str) -> None:
     """Faust command-line interface."""
     state = ctx.ensure_object(State)
     state.app = app
@@ -451,16 +465,17 @@ class Command(abc.ABC):
     prog_name: str = ''
 
     @classmethod
-    def as_click_command(cls) -> Callable:
+    def as_click_command(cls) -> Callable:  # pragma: no cover
         # This is what actually registers the commands into the
         # :pypi:`click` command-line interface (the ``def cli`` main above).
         # __init_subclass__ calls this for the side effect of being
         # registered as a `faust` subcommand.
         @click.pass_context
         @wraps(cls)
-        def _inner(*args: Any, **kwargs: Any) -> Callable:
+        def _inner(*args: Any, **kwargs: Any) -> NoReturn:
             cmd = cls(*args, **kwargs)
-            return cmd()
+            with exiting():
+                cmd()
 
         return _apply_options(cls.options or [])(
             cli.command(help=cls.__doc__)(_inner))
@@ -492,7 +507,7 @@ class Command(abc.ABC):
 
     @staticmethod
     @click.command()
-    def _parse(**kwargs: Any) -> Mapping:
+    def _parse(**kwargs: Any) -> Mapping:  # pragma: no cover
         return kwargs
 
     def __init__(self, ctx: click.Context, *args: Any, **kwargs: Any) -> None:
@@ -534,17 +549,17 @@ class Command(abc.ABC):
     async def on_stop(self) -> None:
         ...
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> NoReturn:
         self.run_using_worker(*args, **kwargs)
 
-    def run_using_worker(self, *args: Any, **kwargs: Any) -> Any:
+    def run_using_worker(self, *args: Any, **kwargs: Any) -> NoReturn:
         loop = asyncio.get_event_loop()
         args = self.args + args
         kwargs = {**self.kwargs, **kwargs}
         service = self.as_service(loop, *args, **kwargs)
         worker = self.worker_for_service(service, loop)
         self.on_worker_created(worker)
-        return worker.execute_from_commandline()
+        raise worker.execute_from_commandline()
 
     def on_worker_created(self, worker: Worker) -> None:
         ...
@@ -758,55 +773,66 @@ class AppCommand(Command):
                  **kwargs: Any) -> None:
         super().__init__(ctx)
 
-        self.app = getattr(ctx.find_root(), 'app', None)
-        if self.app is not None:
-            self.app.finalize()
-            # XXX How to find full argv[0] with click?
-            origin = self.app.conf.origin
-            if sys.argv:
-                prog = Path(sys.argv[0]).absolute()
-                paths = []
-                p = prog.parent
-                # find lowermost path, that is a package
-                while p:
-                    if not (p / '__init__.py').is_file():
-                        break
-                    paths.append(p)
-                    p = p.parent
-                package = '.'.join(
-                    [p.name for p in paths] + [prog.with_suffix('').name])
-                if package.endswith('.__main__'):
-                    # when `python -m pkg`: remove .__main__ from pkg.__main__
-                    package = package[:-9]
-                origin = package
-            prepare_app(self.app, origin)
-        else:
-            appstr = self.state.app
-            if appstr:
-                self.app = find_app(appstr)
-                conf = self.app.conf
-                key_serializer = key_serializer or conf.key_serializer
-                value_serializer = value_serializer or conf.value_serializer
-            else:
-                if self.require_app:
-                    raise self.UsageError(
-                        'Need to specify app using -A parameter')
+        self.app = self._finalize_app(
+            getattr(ctx.find_root(), 'app', None))
         self.args = args
         self.kwargs = kwargs
-        self.key_serializer = key_serializer
-        self.value_serializer = value_serializer
+        self.key_serializer = key_serializer or self.app.conf.key_serializer
+        self.value_serializer = (
+            value_serializer or self.app.conf.value_serializer)
+
+    def _finalize_app(self, app: AppT) -> AppT:
+        if app is not None:
+            return self._finalize_concrete_app(app)
+        else:
+            return self._app_from_str(self.state.app)
+
+    def _app_from_str(self, appstr: str = None) -> Optional[AppT]:
+        if appstr:
+            return find_app(appstr)
+        else:
+            if self.require_app:
+                raise self.UsageError(
+                    'Need to specify app using -A parameter')
+            return None
+
+    def _finalize_concrete_app(self, app: AppT) -> AppT:
+        app.finalize()
+        # XXX How to find full argv[0] with click?
+        origin = app.conf.origin
+        if sys.argv:
+            origin = self._detect_main_package(sys.argv)
+        return prepare_app(app, origin)
+
+    def _detect_main_package(self, argv: List[str]) -> str:  # pragma: no cover
+        prog = Path(argv[0]).absolute()
+        paths = []
+        p = prog.parent
+        # find lowermost path, that is a package
+        while p:
+            if not (p / '__init__.py').is_file():
+                break
+            paths.append(p)
+            p = p.parent
+        package = '.'.join(
+            [p.name for p in paths] + [prog.with_suffix('').name])
+        if package.endswith('.__main__'):
+            # when `python -m pkg`: remove .__main__ from pkg.__main__
+            package = package[:-9]
+        return package
 
     async def on_stop(self) -> None:
         app = self.app
-        # If command started the app, we should stop it.
-        #   - could have app.client_only, or app.producer_only set.
-        if app.started:
-            await app.stop()
-
         # If command started the producer, we should also stop that
         #   - this will flush any buffers before exiting.
         if app._producer is not None and app._producer.started:
             await app._producer.stop()
+        # If command started the app, we should stop it.
+        #   - could have app.client_only, or app.producer_only set.
+        if app.started:
+            await app.stop()
+        if app._http_client is not None:
+            await app._maybe_close_http_client()
 
     def to_key(self, typ: Optional[str], key: str) -> Any:
         """Convert command-line argument string to model (key).

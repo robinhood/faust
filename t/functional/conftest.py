@@ -1,9 +1,11 @@
-import faust
 import logging as _logging
+import os
 import pytest
+import faust
 from copy import copy
 from typing import Dict, IO, NamedTuple, Union
 from faust.web.cache.backends.memory import CacheStorage
+from faust.utils.tracing import set_current_span
 from mode.utils.logging import setup_logging
 from mode.utils.mocks import AsyncMock, Mock
 
@@ -14,8 +16,10 @@ class AppMarks(NamedTuple):
     cache: str = 'memory://'
 
 
-@pytest.fixture()
+@pytest.yield_fixture()
 def app(event_loop, request):
+    os.environ.pop('F_WORKDIR', None)
+    os.environ.pop('F_DATADIR', None)
     marks = request.node.get_closest_marker('app')
     options = AppMarks(**{
         **{'name': 'funtest',
@@ -29,7 +33,11 @@ def app(event_loop, request):
         cache=options.cache,
     )
     app.finalize()
-    return app
+    set_current_span(None)
+    try:
+        yield app
+    finally:
+        assert app.tracer is None
 
 
 @pytest.fixture()

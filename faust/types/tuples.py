@@ -16,12 +16,13 @@ from typing import (
 )
 
 from .codecs import CodecArg
-from .core import K, V
+from .core import HeadersArg, K, OpenHeadersArg, V
 
 if typing.TYPE_CHECKING:
     from .app import AppT
     from .channels import ChannelT
     from .transports import ConsumerT
+
 else:
     class AppT: ...       # noqa
     class ChannelT: ...   # noqa
@@ -51,6 +52,8 @@ class RecordMetadata(NamedTuple):
     partition: int
     topic_partition: TP
     offset: int
+    timestamp: Optional[float] = None
+    timestamp_type: Optional[int] = None
 
 
 class PendingMessage(NamedTuple):
@@ -59,6 +62,7 @@ class PendingMessage(NamedTuple):
     value: V
     partition: Optional[int]
     timestamp: Optional[float]
+    headers: Optional[OpenHeadersArg]
     key_serializer: CodecArg
     value_serializer: CodecArg
     callback: Optional[MessageSentCallback]
@@ -82,6 +86,7 @@ def _PendingMessage_to_Message(p: PendingMessage) -> 'Message':
         -1,
         timestamp=timestamp,
         timestamp_type=timestamp_type,
+        headers=p.headers,
         key=p.key,
         value=p.value,
         checksum=None,
@@ -112,6 +117,7 @@ class Message:
         'offset',
         'timestamp',
         'timestamp_type',
+        'headers',
         'key',
         'value',
         'checksum',
@@ -125,6 +131,7 @@ class Message:
         'tp',
         'tracked',
         'stream_meta',
+        'span',
         '__weakref__',
     )
 
@@ -136,6 +143,7 @@ class Message:
                  offset: int,
                  timestamp: float,
                  timestamp_type: int,
+                 headers: Optional[HeadersArg],
                  key: Optional[bytes],
                  value: Optional[bytes],
                  checksum: Optional[bytes],
@@ -150,6 +158,7 @@ class Message:
         self.offset: int = offset
         self.timestamp: float = timestamp
         self.timestamp_type: int = timestamp_type
+        self.headers: Optional[HeadersArg] = headers
         self.key: Optional[bytes] = key
         self.value: Optional[bytes] = value
         self.checksum: Optional[bytes] = checksum
@@ -208,6 +217,7 @@ class Message:
             message.offset,
             message.timestamp,
             message.timestamp_type,
+            message.headers,
             message.key,
             message.value,
             message.checksum,

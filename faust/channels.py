@@ -40,6 +40,7 @@ from .types import (
     TP,
     V,
 )
+from .types.core import HeadersArg, OpenHeadersArg, prepare_headers
 from .types.tuples import _PendingMessage_to_Message
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -117,7 +118,8 @@ class Channel(ChannelT):
     def clone(self, *, is_iterator: bool = None, **kwargs: Any) -> ChannelT:
         is_it = is_iterator if is_iterator is not None else self.is_iterator
         subchannel: ChannelT = self._clone(is_iterator=is_it, **kwargs)
-        (self._root or self)._subscribers.add(cast(Channel, subchannel))
+        if is_it:
+            (self._root or self)._subscribers.add(cast(Channel, subchannel))
         # make sure queue is created at this point
         # ^ it's a cached_property
         subchannel.queue
@@ -155,6 +157,7 @@ class Channel(ChannelT):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -165,6 +168,7 @@ class Channel(ChannelT):
             value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -176,6 +180,7 @@ class Channel(ChannelT):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> FutureMessage:
@@ -188,6 +193,7 @@ class Channel(ChannelT):
                 value_serializer=value_serializer,
                 partition=partition,
                 timestamp=timestamp,
+                headers=self.prepare_headers(headers),
                 callback=callback,
                 # Python 3.6.0: NamedTuple doesn't support optional fields
                 # [ask]
@@ -196,28 +202,46 @@ class Channel(ChannelT):
             ),
         )
 
+    def prepare_headers(
+            self, headers: Optional[HeadersArg]) -> OpenHeadersArg:
+        if headers is not None:
+            return prepare_headers(headers)
+        return {}
+
     async def _send_now(
             self,
             key: K = None,
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
         return await self.publish_message(
             self.as_future_message(
-                key, value, partition, timestamp,
+                key, value, partition, timestamp, headers,
                 key_serializer, value_serializer, callback))
 
     async def publish_message(self, fut: FutureMessage,
                               wait: bool = True) -> Awaitable[RecordMetadata]:
         event = self._create_event(
-            fut.message.key, fut.message.value,
+            fut.message.key, fut.message.value, fut.message.headers,
             message=_PendingMessage_to_Message(fut.message))
         await self.put(event)
+        topic, partition = tp = TP(
+            fut.message.topic or '<anon>',
+            fut.message.partition or -1)
         return await self._finalize_message(
-            fut, RecordMetadata('topic', -1, TP('topic', -1), -1))
+            fut, RecordMetadata(
+                topic=topic,
+                partition=partition,
+                topic_partition=tp,
+                offset=-1,
+                timestamp=fut.message.timestamp,
+                timestamp_type=1,
+            ),
+        )
 
     async def _finalize_message(self, fut: FutureMessage,
                                 result: RecordMetadata) -> FutureMessage:
@@ -241,7 +265,8 @@ class Channel(ChannelT):
 
     async def decode(self, message: Message, *,
                      propagate: bool = False) -> EventT:
-        return self._create_event(message.key, message.value, message=message)
+        return self._create_event(
+            message.key, message.value, message.headers, message=message)
 
     async def deliver(self, message: Message) -> None:  # pragma: no cover
         ...  # closure compiled at __init__
@@ -259,8 +284,12 @@ class Channel(ChannelT):
 
         return deliver
 
-    def _create_event(self, key: K, value: V, message: Message) -> EventT:
-        return Event(self.app, key, value, message)
+    def _create_event(self,
+                      key: K,
+                      value: V,
+                      headers: Optional[HeadersArg],
+                      message: Message) -> EventT:
+        return Event(self.app, key, value, headers, message)
 
     async def put(self, value: Any) -> None:
         root = self._root if self._root is not None else self
@@ -304,7 +333,10 @@ class Channel(ChannelT):
         return await self.queue.get()
 
     async def throw(self, exc: BaseException) -> None:
-        await self.queue.throw(exc)
+        self.queue._throw(exc)
+
+    def _throw(self, exc: BaseException) -> None:
+        self.queue._throw(exc)
 
     def __repr__(self) -> str:
         s = f'<{self.label}@{self._repr_id()}'

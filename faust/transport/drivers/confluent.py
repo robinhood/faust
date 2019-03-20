@@ -32,7 +32,7 @@ from faust.transport.consumer import (
     ensure_TP,
     ensure_TPset,
 )
-from faust.types import AppT, ConsumerMessage, RecordMetadata, TP
+from faust.types import AppT, ConsumerMessage, HeadersArg, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 
 import confluent_kafka
@@ -110,6 +110,7 @@ class Consumer(ThreadDelegateConsumer):
             record.offset(),
             timestamp_s,
             timestamp_type,
+            [],  # headers
             key,
             value,
             None,
@@ -491,7 +492,10 @@ class Producer(base.Producer):
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
         fut = ProducerProduceFuture(loop=self.loop)
         self._quick_produce(
             topic, value, key, partition,
@@ -508,8 +512,13 @@ class Producer(base.Producer):
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
-        fut = await self.send(topic, key, value, partition, timestamp)
+                            timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
+        fut = await self.send(
+            topic, key, value, partition, timestamp, headers,
+        )
         return await fut
 
     async def flush(self) -> None:

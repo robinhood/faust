@@ -8,7 +8,7 @@ from mode.utils.objects import cached_property
 
 from . import base
 
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from django.apps.registry import Apps
     from django.settings import Settings
 else:

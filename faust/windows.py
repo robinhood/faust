@@ -1,5 +1,7 @@
 """Window Types."""
-from typing import List
+import os
+from math import floor
+from typing import List, Type, cast
 from mode import Seconds, want_seconds
 from .types.windows import WindowRange, WindowRange_from_start, WindowT
 
@@ -10,12 +12,14 @@ __all__ = [
     'SlidingWindow',
 ]
 
+NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
+
 
 class Window(WindowT):
     ...
 
 
-class HoppingWindow(Window):
+class _PyHoppingWindow(Window):
     """Hopping window type.
 
     Fixed-size, overlapping windows.
@@ -45,13 +49,17 @@ class HoppingWindow(Window):
         """
         The current WindowRange is the latest WindowRange for a given timestamp
         """
-        return self.ranges(timestamp)[-1]
+        step = self.step
+        start = self._start_initial_range(timestamp)
+        m = floor((timestamp - start) / step)
+        return WindowRange_from_start(start + (step * m), self.size)
 
     def delta(self, timestamp: float, d: Seconds) -> WindowRange:
         return self.current(timestamp - want_seconds(d))
 
     def earliest(self, timestamp: float) -> WindowRange:
-        return self.ranges(timestamp)[0]
+        start = self._start_initial_range(timestamp)
+        return WindowRange_from_start(float(start), self.size)
 
     def _start_initial_range(self, timestamp: float) -> float:
         closest_step = (timestamp // self.step) * self.step
@@ -59,6 +67,20 @@ class HoppingWindow(Window):
 
     def _stale_before(self, latest_timestamp: float, expires: float) -> float:
         return self.current(latest_timestamp - expires)[0]
+
+
+if not NO_CYTHON:  # pragma: no cover
+    try:
+        from ._cython.windows import HoppingWindow
+    except ImportError:
+        HoppingWindow = _PyHoppingWindow
+    else:
+        HoppingWindow = cast(Type[Window], HoppingWindow)
+        # isinstance(HoppingWindow, Window) is True
+        # isinstance(HoppingWindow, WindowT) is True
+        Window.register(HoppingWindow)
+else:  # pragma: no cover
+    HoppingWindow = _PyHoppingWindow
 
 
 class TumblingWindow(HoppingWindow):
@@ -71,7 +93,7 @@ class TumblingWindow(HoppingWindow):
         super(TumblingWindow, self).__init__(size, size, expires)
 
 
-class SlidingWindow(Window):
+class _PySlidingWindow(Window):
     """Sliding window type.
 
     Fixed-size, overlapping windows that work on differences between
@@ -109,3 +131,27 @@ class SlidingWindow(Window):
 
     def _stale_before(self, expires: float, latest_timestamp: float) -> float:
         return latest_timestamp - expires
+
+    def current(self, timestamp: float) -> WindowRange:
+        """
+        The current WindowRange is the latest WindowRange for a given timestamp
+        """
+        return timestamp - self.before, timestamp + self.after
+
+    def delta(self, timestamp: float, d: Seconds) -> WindowRange:
+        return self.current(timestamp - want_seconds(d))
+
+    def earliest(self, timestamp: float) -> WindowRange:
+        return self.current(timestamp)
+
+
+if not NO_CYTHON:  # pragma: no cover
+    try:
+        from ._cython.windows import SlidingWindow
+    except ImportError:
+        SlidingWindow = _PySlidingWindow
+    else:
+        SlidingWindow = cast(Type[Window], SlidingWindow)
+        Window.register(SlidingWindow)
+else:  # pragma: no cover
+    SlidingWindow = _PySlidingWindow

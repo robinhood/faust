@@ -37,3 +37,6 @@ htmlcov/
 .python-version
 .pyre/
 .dmypy.json
+*.so
+faust/_cython/*.c
+faust/transport/_cython/*.c

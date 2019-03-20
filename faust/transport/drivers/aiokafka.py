@@ -27,19 +27,29 @@ from aiokafka.structs import (
     OffsetAndMetadata,
     TopicPartition as _TopicPartition,
 )
-from rhkafka.errors import (
+from kafka.errors import (
     NotControllerError,
     TopicAlreadyExistsError as TopicExistsError,
     for_code,
 )
-from rhkafka.partitioner.default import DefaultPartitioner
-from rhkafka.protocol.metadata import MetadataRequest_v1
+from kafka.partitioner.default import DefaultPartitioner
+from kafka.protocol.metadata import MetadataRequest_v1
 from mode import Service, get_logger
 from mode.utils.futures import StampedeWrapper
 from mode.utils.times import Seconds, want_seconds
 from yarl import URL
 
-from faust.exceptions import ConsumerNotStarted, ProducerSendError
+from faust.auth import (
+    GSSAPICredentials,
+    SASLCredentials,
+    SSLCredentials,
+)
+from faust.exceptions import (
+    ConsumerNotStarted,
+    ImproperlyConfigured,
+    NotReady,
+    ProducerSendError,
+)
 from faust.transport import base
 from faust.transport.consumer import (
     ConsumerThread,
@@ -47,8 +57,13 @@ from faust.transport.consumer import (
     ThreadDelegateConsumer,
     ensure_TPset,
 )
-from faust.types import ConsumerMessage, RecordMetadata, TP
-from faust.types.transports import ConsumerT, ProducerT
+from faust.types import ConsumerMessage, HeadersArg, RecordMetadata, TP
+from faust.types.auth import CredentialsT
+from faust.types.transports import (
+    ConsumerT,
+    PartitionerT,
+    ProducerT,
+)
 from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
@@ -110,8 +125,8 @@ class Consumer(ThreadDelegateConsumer):
             partitions,
             replication,
             config=config,
-            timeout=int(want_seconds(timeout) * 1000.0),
-            retention=int(want_seconds(retention) * 1000.0),
+            timeout=timeout,
+            retention=retention,
             compacting=compacting,
             deleting=deleting,
             ensure_created=ensure_created,
@@ -131,6 +146,7 @@ class Consumer(ThreadDelegateConsumer):
             record.offset,
             timestamp_s,
             record.timestamp_type,
+            record.headers,
             record.key,
             record.value,
             record.checksum,
@@ -149,11 +165,17 @@ class AIOKafkaConsumerThread(ConsumerThread):
     _consumer: Optional[aiokafka.AIOKafkaConsumer] = None
 
     def on_init(self) -> None:
+        self._partitioner: PartitionerT = (
+            self.app.conf.producer_partitioner or DefaultPartitioner())
         self._rebalance_listener = self.consumer.RebalanceListener(self)
 
     async def on_start(self) -> None:
         self._consumer = self._create_consumer(loop=self.thread_loop)
         await self._consumer.start()
+
+    async def on_thread_stop(self) -> None:
+        if self._consumer is not None:
+            await self._consumer.stop()
 
     def _create_consumer(
             self,
@@ -168,8 +190,13 @@ class AIOKafkaConsumerThread(ConsumerThread):
             self,
             transport: 'Transport',
             loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
+        isolation_level: str = 'read_uncommitted'
         conf = self.app.conf
+        if self.consumer.in_transaction:
+            isolation_level = 'read_committed'
         self._assignor = self.app.assignor
+        auth_settings = credentials_to_aiokafka_auth(
+            conf.broker_credentials, conf.ssl_context)
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -186,8 +213,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             check_crcs=conf.broker_check_crcs,
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
-            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
-            ssl_context=conf.ssl_context,
+            isolation_level=isolation_level,
+            **auth_settings,
         )
 
     def _create_client_consumer(
@@ -195,6 +222,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
             transport: 'Transport',
             loop: asyncio.AbstractEventLoop) -> aiokafka.AIOKafkaConsumer:
         conf = self.app.conf
+        auth_settings = credentials_to_aiokafka_auth(
+            conf.broker_credentials, conf.ssl_context)
         return aiokafka.AIOKafkaConsumer(
             loop=loop,
             client_id=conf.broker_client_id,
@@ -205,8 +234,7 @@ class AIOKafkaConsumerThread(ConsumerThread):
             max_poll_records=conf.broker_max_poll_records,
             auto_offset_reset=conf.consumer_auto_offset_reset,
             check_crcs=conf.broker_check_crcs,
-            security_protocol="SSL" if conf.ssl_context else "PLAINTEXT",
-            ssl_context=conf.ssl_context,
+            **auth_settings,
         )
 
     def close(self) -> None:
@@ -232,10 +260,11 @@ class AIOKafkaConsumerThread(ConsumerThread):
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
         consumer = self._ensure_consumer()
         try:
-            consumer.commit({
+            aiokafka_offsets = {
                 tp: OffsetAndMetadata(offset, '')
                 for tp, offset in offsets.items()
-            })
+            }
+            await consumer.commit(aiokafka_offsets)
         except CommitFailedError as exc:
             if 'already rebalanced' in str(exc):
                 return False
@@ -267,6 +296,8 @@ class AIOKafkaConsumerThread(ConsumerThread):
         for tp, offset in partitions.items():
             self.log.dev('SEEK %r -> %r', tp, offset)
             consumer.seek(tp, offset)
+            if offset > 0:
+                self.consumer._read_offset[tp] = offset
         await asyncio.gather(*[
             consumer.position(tp) for tp in partitions
         ])
@@ -278,7 +309,10 @@ class AIOKafkaConsumerThread(ConsumerThread):
         return ensure_TPset(self._ensure_consumer().assignment())
 
     def highwater(self, tp: TP) -> int:
-        return self._ensure_consumer().highwater(tp)
+        if self.consumer.in_transaction:
+            return self._ensure_consumer().last_stable_offset(tp)
+        else:
+            return self._ensure_consumer().highwater(tp)
 
     def topic_partitions(self, topic: str) -> Optional[int]:
         if self._consumer is not None:
@@ -286,13 +320,23 @@ class AIOKafkaConsumerThread(ConsumerThread):
         return None
 
     async def earliest_offsets(self,
-                               *partitions: TP) -> MutableMapping[TP, int]:
+                               *partitions: TP) -> Mapping[TP, int]:
         return await self.call_thread(
             self._ensure_consumer().beginning_offsets, partitions)
 
-    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
-        return await self.call_thread(
-            self._ensure_consumer().end_offsets, partitions)
+    async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
+        return await self.call_thread(self._highwaters, partitions)
+
+    async def _highwaters(self, partitions: List[TP]) -> Mapping[TP, int]:
+        consumer = self._ensure_consumer()
+        if self.consumer.in_transaction:
+            return {
+                tp: consumer.last_stable_offset(tp)
+                for tp in partitions
+            }
+        else:
+            return cast(Mapping[TP, int],
+                        await consumer.end_offsets(partitions))
 
     def _ensure_consumer(self) -> aiokafka.AIOKafkaConsumer:
         if self._consumer is None:
@@ -304,14 +348,34 @@ class AIOKafkaConsumerThread(ConsumerThread):
                       timeout: float) -> RecordMap:
         # Implementation for the Fetcher service.
         _consumer = self._ensure_consumer()
-        fetcher = _consumer._fetcher
-        if _consumer._closed or fetcher._closed:
-            raise ConsumerStoppedError()
+        # NOTE: Since we are enqueing the fetch request,
+        # we need to check when dequeued that we are not in a rebalancing
+        # state at that point to return early, or we
+        # will create a deadlock (fetch request starts after flow stopped)
         return await self.call_thread(
-            fetcher.fetched_records,
+            self._fetch_records,
+            _consumer,
             active_partitions,
             timeout=timeout,
+            max_records=_consumer._max_poll_records,
         )
+
+    async def _fetch_records(self,
+                             consumer: aiokafka.AIOKafkaConsumer,
+                             active_partitions: Set[TP],
+                             timeout: float = None,
+                             max_records: int = None) -> RecordMap:
+        if not self.consumer.flow_active:
+            return {}
+        fetcher = consumer._fetcher
+        if consumer._closed or fetcher._closed:
+            raise ConsumerStoppedError()
+        with fetcher._subscriptions.fetch_context():
+            return await fetcher.fetched_records(
+                active_partitions,
+                timeout=timeout,
+                max_records=max_records,
+            )
 
     async def create_topic(self,
                            topic: str,
@@ -324,23 +388,40 @@ class AIOKafkaConsumerThread(ConsumerThread):
                            compacting: bool = None,
                            deleting: bool = None,
                            ensure_created: bool = False) -> None:
-        consumer = self.consumer
-        transport = cast(Transport, consumer.transport)
+        transport = cast(Transport, self.consumer.transport)
         _consumer = self._ensure_consumer()
+        _retention = (int(want_seconds(retention) * 1000.0)
+                      if retention else None)
         await self.call_thread(
             transport._create_topic,
-            consumer,
+            self,
             _consumer._client,
             topic,
             partitions,
             replication,
             config=config,
             timeout=int(want_seconds(timeout) * 1000.0),
-            retention=int(want_seconds(retention) * 1000.0),
+            retention=_retention,
             compacting=compacting,
             deleting=deleting,
             ensure_created=ensure_created,
         )
+
+    def key_partition(self,
+                      topic: str,
+                      key: Optional[bytes],
+                      partition: int = None) -> int:
+        consumer = self._ensure_consumer()
+        metadata = consumer._client.cluster
+        if partition is not None:
+            assert partition >= 0
+            assert partition in metadata.partitions_for_topic(topic), \
+                'Unrecognized partition'
+            return partition
+
+        all_partitions = list(metadata.partitions_for_topic(topic))
+        available = list(metadata.available_partitions_for_topic(topic))
+        return self._partitioner(key, all_partitions, available)
 
 
 class Producer(base.Producer):
@@ -348,35 +429,78 @@ class Producer(base.Producer):
 
     logger = logger
 
-    _producer: aiokafka.AIOKafkaProducer
+    _producer: Optional[aiokafka.AIOKafkaProducer] = None
 
-    def on_init(self) -> None:
+    def _settings_default(self) -> Mapping[str, Any]:
         transport = cast(Transport, self.transport)
-        self._producer = aiokafka.AIOKafkaProducer(
-            loop=self.loop,
-            bootstrap_servers=server_list(
+        return {
+            'bootstrap_servers': server_list(
                 transport.url, transport.default_port),
-            client_id=self.client_id,
-            acks=self.acks,
-            linger_ms=self.linger_ms,
-            max_batch_size=self.max_batch_size,
-            max_request_size=self.max_request_size,
-            compression_type=self.compression_type,
-            on_irrecoverable_error=self._on_irrecoverable_error,
-            security_protocol='SSL' if self.ssl_context else 'PLAINTEXT',
-            ssl_context=self.ssl_context,
-            partitioner=self.partitioner or DefaultPartitioner(),
-            request_timeout_ms=int(self.request_timeout * 1000),
+            'client_id': self.client_id,
+            'acks': self.acks,
+            'linger_ms': self.linger_ms,
+            'max_batch_size': self.max_batch_size,
+            'max_request_size': self.max_request_size,
+            'compression_type': self.compression_type,
+            'on_irrecoverable_error': self._on_irrecoverable_error,
+            'security_protocol': 'SSL' if self.ssl_context else 'PLAINTEXT',
+            'partitioner': self.partitioner or DefaultPartitioner(),
+            'request_timeout_ms': int(self.request_timeout * 1000),
+        }
+
+    def _settings_auth(self) -> Mapping[str, Any]:
+        return credentials_to_aiokafka_auth(
+            self.credentials, self.ssl_context)
+
+    async def begin_transaction(self, transactional_id: str) -> None:
+        await self._ensure_producer().begin_transaction(transactional_id)
+
+    async def commit_transaction(self, transactional_id: str) -> None:
+        await self._ensure_producer().commit_transaction(transactional_id)
+
+    async def abort_transaction(self, transactional_id: str) -> None:
+        await self._ensure_producer().abort_transaction(transactional_id)
+
+    async def stop_transaction(self, transactional_id: str) -> None:
+        await self._ensure_producer().stop_transaction(transactional_id)
+
+    async def maybe_begin_transaction(self, transactional_id: str) -> None:
+        await self._ensure_producer().maybe_begin_transaction(transactional_id)
+
+    async def commit_transactions(
+            self,
+            tid_to_offset_map: Mapping[str, Mapping[TP, int]],
+            group_id: str,
+            start_new_transaction: bool = True) -> None:
+        await self._ensure_producer().commit(
+            tid_to_offset_map, group_id,
+            start_new_transaction=start_new_transaction,
         )
+
+    def _settings_extra(self) -> Mapping[str, Any]:
+        if self.app.in_transaction:
+            return {'acks': 'all'}
+        return {}
+
+    def _new_producer(self) -> aiokafka.AIOKafkaProducer:
+        return self._producer_type(
+            loop=self.loop,
+            **{**self._settings_default(),
+               **self._settings_auth(),
+               **self._settings_extra()},
+        )
+
+    @property
+    def _producer_type(self) -> Type[aiokafka.BaseProducer]:
+        if self.app.in_transaction:
+            return aiokafka.MultiTXNProducer
+        return aiokafka.AIOKafkaProducer
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:
         consumer = self.transport.app.consumer
         if consumer is not None:
             await consumer.crash(exc)
         await self.crash(exc)
-
-    async def on_restart(self) -> None:
-        self.on_init()
 
     async def create_topic(self,
                            topic: str,
@@ -391,9 +515,10 @@ class Producer(base.Producer):
                            ensure_created: bool = False) -> None:
         _retention = (int(want_seconds(retention) * 1000.0)
                       if retention else None)
+        producer = self._ensure_producer()
         await cast(Transport, self.transport)._create_topic(
             self,
-            self._producer.client,
+            producer.client,
             topic,
             partitions,
             replication,
@@ -405,27 +530,43 @@ class Producer(base.Producer):
             ensure_created=ensure_created,
         )
 
+    def _ensure_producer(self) -> aiokafka.BaseProducer:
+        if self._producer is None:
+            raise NotReady('Producer service not yet started')
+        return self._producer
+
     async def on_start(self) -> None:
-        self.beacon.add(self._producer)
+        producer = self._producer = self._new_producer()
+        self.beacon.add(producer)
         self._last_batch = None
-        await self._producer.start()
+        await producer.start()
 
     async def on_stop(self) -> None:
         cast(Transport, self.transport)._topic_waiters.clear()
         self._last_batch = None
-        await self._producer.stop()
+        producer, self._producer = self._producer, None
+        if producer is not None:
+            await producer.stop()
 
     async def send(self, topic: str, key: Optional[bytes],
                    value: Optional[bytes],
                    partition: Optional[int],
-                   timestamp: Optional[float]) -> Awaitable[RecordMetadata]:
+                   timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        producer = self._ensure_producer()
+        if headers is not None and isinstance(headers, Mapping):
+            headers = list(headers.items())
         try:
             timestamp_ms = timestamp * 1000.0 if timestamp else timestamp
-            return cast(Awaitable[RecordMetadata], await self._producer.send(
+            return cast(Awaitable[RecordMetadata], await producer.send(
                 topic, value,
                 key=key,
                 partition=partition,
                 timestamp_ms=timestamp_ms,
+                headers=headers,
+                transactional_id=transactional_id,
             ))
         except KafkaError as exc:
             raise ProducerSendError(f'Error while sending: {exc!r}') from exc
@@ -433,21 +574,28 @@ class Producer(base.Producer):
     async def send_and_wait(self, topic: str, key: Optional[bytes],
                             value: Optional[bytes],
                             partition: Optional[int],
-                            timestamp: Optional[float]) -> RecordMetadata:
+                            timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
         fut = await self.send(
             topic,
             key=key,
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
+            transactional_id=transactional_id,
         )
         return await fut
 
     async def flush(self) -> None:
-        await self._producer.flush()
+        if self._producer is not None:
+            await self._producer.flush()
 
     def key_partition(self, topic: str, key: bytes) -> TP:
-        partition = self._producer._partition(
+        producer = self._ensure_producer()
+        partition = producer._partition(
             topic,
             partition=None,
             key=None,
@@ -457,12 +605,21 @@ class Producer(base.Producer):
         )
         return TP(topic, partition)
 
+    def supports_headers(self) -> bool:
+        producer = self._ensure_producer()
+        client = producer.client
+        if client is None:
+            raise NotReady('Producer client not yet connected')
+        return client.api_version >= (0, 11)
+
 
 class Transport(base.Transport):
     """Kafka transport using :pypi:`aiokafka`."""
 
-    Consumer: ClassVar[Type[ConsumerT]] = Consumer
-    Producer: ClassVar[Type[ProducerT]] = Producer
+    Consumer: ClassVar[Type[ConsumerT]]
+    Consumer = Consumer
+    Producer: ClassVar[Type[ProducerT]]
+    Producer = Producer
 
     default_port = 9092
     driver_version = f'aiokafka={aiokafka.__version__}'
@@ -507,7 +664,7 @@ class Transport(base.Transport):
                 topic,
                 partitions,
                 replication,
-                loop=self.loop, **kwargs)
+                loop=asyncio.get_event_loop(), **kwargs)
         try:
             await wrap()
         except Exception:
@@ -521,7 +678,7 @@ class Transport(base.Transport):
         nodes = [broker.nodeId for broker in client.cluster.brokers()]
         for node_id in nodes:
             if node_id is None:
-                raise RuntimeError('Not connected to Kafka Broker')
+                raise NotReady('Not connected to Kafka Broker')
             request = MetadataRequest_v1([])
             wait_result = await owner.wait(
                 client.send(node_id, request),
@@ -560,7 +717,7 @@ class Transport(base.Transport):
 
         controller_node = await self._get_controller_node(owner, client,
                                                           timeout=timeout)
-        owner.log.info(f'Found controller: {controller_node}')
+        owner.log.debug(f'Found controller: {controller_node}')
 
         if controller_node is None:
             if owner.should_stop:
@@ -579,7 +736,7 @@ class Transport(base.Transport):
             timeout=timeout,
         )
         if wait_result.stopped:
-            owner.log.info(f'Shutting down - skipping creation.')
+            owner.log.debug(f'Shutting down - skipping creation.')
             return
         response = wait_result.result
 
@@ -600,3 +757,39 @@ class Transport(base.Transport):
         else:
             owner.log.info(f'Topic {topic} created.')
             return
+
+
+def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
+                                 ssl_context: Any = None) -> Mapping:
+    if credentials is not None:
+        if isinstance(credentials, SSLCredentials):
+            return {
+                'security_protocol': credentials.protocol.value,
+                'ssl_context': credentials.context,
+            }
+        elif isinstance(credentials, SASLCredentials):
+            return {
+                'security_protocol': credentials.protocol.value,
+                'sasl_mechanism': credentials.mechanism,
+                'sasl_plain_username': credentials.username,
+                'sasl_plain_password': credentials.password,
+            }
+        elif isinstance(credentials, GSSAPICredentials):
+            return {
+                'security_protocol': credentials.protocol.value,
+                'sasl_mechanism': credentials.mechanism,
+                'sasl_kerberos_service_name':
+                    credentials.kerberos_service_name,
+                'sasl_kerberos_domain_name':
+                    credentials.kerberos_domain_name,
+            }
+        else:
+            raise ImproperlyConfigured(
+                f'aiokafka does not support {credentials}')
+    elif ssl_context is not None:
+        return {
+            'security_protocol': 'SSL',
+            'ssl_context': ssl_context,
+        }
+    else:
+        return {'security_protocol': 'PLAINTEXT'}

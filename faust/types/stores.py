@@ -87,3 +87,9 @@ class StoreT(ServiceT, FastUserDict[KT, VT]):
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
         ...
+
+    @abc.abstractmethod
+    async def on_recovery_completed(self,
+                                    active_tps: Set[TP],
+                                    standby_tps: Set[TP]) -> None:
+        ...

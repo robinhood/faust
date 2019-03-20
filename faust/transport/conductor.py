@@ -1,5 +1,6 @@
 """The conductor delegates messages from the consumer to the streams."""
 import asyncio
+import os
 import typing
 from collections import defaultdict
 from typing import (
@@ -23,6 +24,7 @@ from faust.types import AppT, EventT, K, Message, TP, V
 from faust.types.topics import TopicT
 from faust.types.transports import ConductorT, ConsumerCallback, TPorTopicSet
 from faust.types.tuples import tp_set_to_map
+from faust.utils.tracing import traced_from_parent_span
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -30,6 +32,16 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 else:
     class App: ...  # noqa
     class Topic: ...  # noqa
+
+NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
+
+if not NO_CYTHON:  # pragma: no cover
+    try:
+        from ._cython.conductor import ConductorHandler
+    except ImportError:
+        ConductorHandler = None
+else:  # pragma: no cover
+    ConductorHandler = None
 
 __all__ = ['Conductor', 'ConductorCompiler']
 
@@ -252,9 +264,10 @@ class Conductor(ConductorT, Service):
         return self._topic_name_index
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        T = traced_from_parent_span()
         self._tp_index.clear()
-        self._update_tp_index(assigned)
-        self._update_callback_map()
+        T(self._update_tp_index)(assigned)
+        T(self._update_callback_map)()
 
     def _update_tp_index(self, assigned: Set[TP]) -> None:
         assignmap = tp_set_to_map(assigned)
@@ -275,11 +288,17 @@ class Conductor(ConductorT, Service):
 
     def _update_callback_map(self) -> None:
         self._tp_to_callback.update(
-            (tp, self._compiler.build(self,
-                                      tp,
-                                      cast(MutableSet[Topic], channels)))
+            (tp, self._build_handler(tp, cast(MutableSet[Topic], channels)))
             for tp, channels in self._tp_index.items()
         )
+
+    def _build_handler(self,
+                       tp: TP,
+                       channels: MutableSet[Topic]) -> ConsumerCallback:
+        if ConductorHandler is not None:  # pragma: no cover
+            return ConductorHandler(self, tp, channels)
+        else:
+            return self._compiler.build(self, tp, channels)
 
     def clear(self) -> None:
         self._topics.clear()

@@ -18,28 +18,31 @@ omit =
     */faust/cli/send.py
     */faust/cli/tables.py
     */faust/cli/worker.py
-    */faust/cli/base.py
     */faust/web/apps/*
     */faust/assignor/*
-    */faust/transport/drivers/*
+    */faust/transport/drivers/memory.py
+    */faust/transport/drivers/confluent.py
 
     # tested by integration
-    */faust/tables/manager.py
+    */faust/tables/recovery.py
 
     # not needed
     */faust/utils/functional.py
     */faust/utils/kafka/*
+    */faust/utils/iso8601.py
+    */faust/utils/platforms.py
+    */faust/utils/tracing.py
     */faust/types/*
     */faust/__main__.py
 
-    # for vineet
-    */faust/app/router.py
-    */faust/windows.py
-
-    # deprecataed
+    # deprecated
     */faust/app/_attached.py
 exclude_lines =
     # Have to re-enable the standard pragma
+    if\ typing\.TYPE_CHECKING\:
+
     pragma: no cover
+
+    if sys.platform == 'win32':
 
     \@abc\.abstractmethod

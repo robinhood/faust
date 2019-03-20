@@ -7,6 +7,7 @@ from mode.utils.collections import ManagedUserDict
 from mode.utils.compat import OrderedDict
 from faust.types import AgentManagerT, AgentT, AppT
 from faust.types.tuples import TP, tp_set_to_map
+from faust.utils.tracing import traced_from_parent_span
 
 
 class AgentManager(Service, AgentManagerT, ManagedUserDict):
@@ -53,15 +54,16 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
     async def on_rebalance(self,
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:
+        T = traced_from_parent_span()
         # for isolated_partitions agents we stop agents for revoked
         # partitions.
         for agent, tps in self._collect_agents_for_update(revoked).items():
-            await agent.on_partitions_revoked(tps)
+            await T(agent.on_partitions_revoked)(tps)
         # for isolated_partitions agents we start agents for newly
         # assigned partitions
-        for agent, tps in self._collect_agents_for_update(
+        for agent, tps in T(self._collect_agents_for_update)(
                 newly_assigned).items():
-            await agent.on_partitions_assigned(tps)
+            await T(agent.on_partitions_assigned)(tps)
 
     def _collect_agents_for_update(
             self, tps: Set[TP]) -> Dict[AgentT, Set[TP]]:

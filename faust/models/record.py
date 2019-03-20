@@ -23,6 +23,7 @@ from mode.utils.objects import (
     is_optional,
     remove_optional,
 )
+from mode.utils.text import pluralize
 
 from faust.types.models import (
     CoercionHandler,
@@ -50,6 +51,11 @@ ALIAS_FIELD_TYPES = {
     set: Set,
     frozenset: FrozenSet,
 }
+
+E_NON_DEFAULT_FOLLOWS_DEFAULT = """
+Non-default {cls_name} field {field_name} cannot
+follow default {fields} {default_names}
+"""
 
 _ReconFun = Callable[[Type, Any], Any]
 
@@ -226,6 +232,21 @@ class Record(Model, abstract=True):
         options.models = {}
         modelattrs = options.modelattrs = {}
 
+        # Raise error if non-defaults are mixed in with defaults
+        # like namedtuple/dataclasses do.
+        local_defaults = []
+        for attr_name in cls.__annotations__:
+            if attr_name in cls.__dict__:
+                local_defaults.append(attr_name)
+            else:
+                if local_defaults:
+                    raise TypeError(E_NON_DEFAULT_FOLLOWS_DEFAULT.format(
+                        cls_name=cls.__name__,
+                        field_name=attr_name,
+                        fields=pluralize(len(local_defaults), 'field'),
+                        default_names=', '.join(local_defaults),
+                    ))
+
         for field, typ in fields.items():
             is_model, polymorphic_type = _is_model(typ)
             if is_model:
@@ -385,6 +406,36 @@ class Record(Model, abstract=True):
                                 globals=globals(),
                                 locals=locals())
 
+    @classmethod
+    def _BUILD_ne(cls) -> Callable[[], None]:
+        return codegen.NeMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_gt(cls) -> Callable[[], None]:
+        return codegen.GtMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_ge(cls) -> Callable[[], None]:
+        return codegen.GeMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_lt(cls) -> Callable[[], None]:
+        return codegen.LtMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
+    @classmethod
+    def _BUILD_le(cls) -> Callable[[], None]:
+        return codegen.LeMethod(list(cls._options.fields),
+                                globals=globals(),
+                                locals=locals())
+
     def _init_field(self, field: str, value: Any) -> Any:
         return self._options.initfield[field](value)
 
@@ -465,25 +516,29 @@ class Record(Model, abstract=True):
     def __json__(self) -> Any:
         return self.to_representation()
 
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, type(self)):
-            return all(
-                getattr(self, key) == getattr(other, key)
-                for key in self._options.fields
-            )
-        return False
+    def __eq__(self, other: Any) -> bool:  # pragma: no cover
+        # implemented by BUILD_eq
+        return NotImplemented
 
-    def __lt__(self, other: 'Record') -> bool:
-        return hash(self) < hash(other)
+    def __ne__(self, other: Any) -> bool:  # pragma: no cover
+        # implemented by BUILD_ne
+        return NotImplemented
 
-    def __le__(self, other: 'Record') -> bool:
-        return hash(self) <= hash(other)
+    def __lt__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_lt
+        return NotImplemented
 
-    def __gt__(self, other: 'Record') -> bool:
-        return hash(self) > hash(other)
+    def __le__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_le
+        return NotImplemented
 
-    def __ge__(self, other: 'Record') -> bool:
-        return hash(self) >= hash(other)
+    def __gt__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_gt
+        return NotImplemented
+
+    def __ge__(self, other: 'Record') -> bool:  # pragma: no cover
+        # implemented by BUILD_ge
+        return NotImplemented
 
 
 def _kvrepr(d: Mapping[str, Any], *, sep: str = ', ') -> str:

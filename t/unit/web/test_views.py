@@ -16,7 +16,7 @@ class test_View:
         return Mock(name='web', autospec=Web)
 
     @pytest.fixture
-    def view(self, app, web):
+    def view(self, *, app, web):
         return foo(app, web)
 
     def test_from_handler(self):
@@ -26,7 +26,7 @@ class test_View:
         with pytest.raises(TypeError):
             View.from_handler(1)
 
-    def test_init(self, app, web, view):
+    def test_init(self, *, app, web, view):
         assert view.app is app
         assert view.web is web
         assert view.methods == {
@@ -36,11 +36,12 @@ class test_View:
             'patch': view.patch,
             'delete': view.delete,
             'put': view.put,
+            'options': view.options,
         }
 
     @pytest.mark.parametrize('method', [
-        'GET', 'POST', 'PATCH', 'DELETE', 'PUT',
-        'get', 'post', 'patch', 'delete', 'put',
+        'GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS',
+        'get', 'post', 'patch', 'delete', 'put', 'options',
     ])
     @pytest.mark.asyncio
     async def test_dispatch(self, method, *, view):
@@ -53,78 +54,141 @@ class test_View:
         handler.assert_called_once_with(request)
 
     @pytest.mark.asyncio
-    async def test_get(self, view):
+    async def test_get(self, *, view):
         req = Mock(name='request', autospec=Request)
         assert (await view.methods['get'](req)) == (view, req)
 
     @pytest.mark.asyncio
-    async def test_interface_get(self, app, web):
+    async def test_interface_get(self, *, app, web):
         view = View(app, web)
         with pytest.raises(MethodNotAllowed):
             await view.get(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
-    async def test_interface_post(self, view):
+    async def test_interface_post(self, *, view):
         with pytest.raises(MethodNotAllowed):
             await view.post(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
-    async def test_interface_put(self, view):
+    async def test_interface_put(self, *, view):
         with pytest.raises(MethodNotAllowed):
             await view.put(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
-    async def test_interface_patch(self, view):
+    async def test_interface_patch(self, *, view):
         with pytest.raises(MethodNotAllowed):
             await view.patch(Mock(name='request', autospec=Request))
 
     @pytest.mark.asyncio
-    async def test_interface_delete(self, view):
+    async def test_interface_delete(self, *, view):
         with pytest.raises(MethodNotAllowed):
             await view.delete(Mock(name='request', autospec=Request))
 
-    def test_text(self, view, web):
-        response = view.text('foo', content_type='app/json', status=101)
+    @pytest.mark.asyncio
+    async def test_interface_options(self, *, view):
+        with pytest.raises(MethodNotAllowed):
+            await view.options(Mock(name='request', autospec=Request))
+
+    def test_text(self, *, view, web):
+        response = view.text(
+            'foo',
+            content_type='app/json',
+            status=101,
+            reason='foo',
+            headers={'k': 'v'},
+        )
         web.text.assert_called_once_with(
             'foo',
             content_type='app/json',
             status=101,
+            reason='foo',
+            headers={'k': 'v'},
         )
         assert response is web.text()
 
-    def test_html(self, view, web):
-        response = view.html('foo', status=101)
-        web.html.assert_called_once_with('foo', status=101)
+    def test_html(self, *, view, web):
+        response = view.html(
+            'foo',
+            status=101,
+            content_type='text/html',
+            reason='bar',
+            headers={'k': 'v'},
+        )
+        web.html.assert_called_once_with(
+            'foo',
+            status=101,
+            content_type='text/html',
+            reason='bar',
+            headers={'k': 'v'},
+        )
         assert response is web.html()
 
-    def test_json(self, view, web):
-        response = view.json('foo', status=101)
-        web.json.assert_called_once_with('foo', status=101)
+    def test_json(self, *, view, web):
+        response = view.json(
+            'foo',
+            status=101,
+            content_type='application/json',
+            reason='bar',
+            headers={'k': 'v'},
+        )
+        web.json.assert_called_once_with(
+            'foo',
+            status=101,
+            content_type='application/json',
+            reason='bar',
+            headers={'k': 'v'},
+        )
         assert response is web.json()
 
-    def test_bytes(self, view, web):
-        response = view.bytes('foo', content_type='app/json', status=101)
+    def test_bytes(self, *, view, web):
+        response = view.bytes(
+            'foo',
+            content_type='app/json',
+            status=101,
+            reason='foo',
+            headers={'k': 'v'},
+        )
         web.bytes.assert_called_once_with(
             'foo',
             content_type='app/json',
             status=101,
+            reason='foo',
+            headers={'k': 'v'},
         )
         assert response is web.bytes()
 
-    def test_route(self, view, web):
+    def test_route(self, *, view, web):
         handler = Mock(name='handler')
         res = view.route('pat', handler)
         web.route.assert_called_with('pat', handler)
         assert res is handler
 
-    def test_error(self, view, web):
+    def test_error(self, *, view, web):
         response = view.error(303, 'foo', arg='bharg')
         web.json.assert_called_once_with(
-            {'error': 'foo', 'arg': 'bharg'}, status=303)
+            {'error': 'foo', 'arg': 'bharg'},
+            status=303,
+            reason=None,
+            headers=None,
+            content_type=None,
+        )
         assert response is web.json()
 
-    def test_notfound(self, view, web):
+    def test_notfound(self, *, view, web):
         response = view.notfound(arg='bharg')
         web.json.assert_called_once_with(
-            {'error': 'Not Found', 'arg': 'bharg'}, status=404)
+            {'error': 'Not Found', 'arg': 'bharg'},
+            status=404,
+            reason=None,
+            headers=None,
+            content_type=None,
+        )
         assert response is web.json()
+
+    @pytest.mark.asyncio
+    async def test_read_request_content(self, *, view, web):
+        request = Mock(name='request')
+        web.read_request_content = AsyncMock()
+        ret = await view.read_request_content(request)
+        web.read_request_content.assert_called_once_with(request)
+        assert ret is web.read_request_content.coro.return_value

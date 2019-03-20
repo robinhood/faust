@@ -10,6 +10,7 @@ from faust.utils import terminal
 from mode.utils.logging import CompositeLogger
 from mode.utils.trees import Node
 from mode.utils.mocks import AsyncMock, Mock, patch
+from yarl import URL
 
 
 class CoroEq:
@@ -33,12 +34,22 @@ class test_Worker:
         assert w.sensors == set()
         assert w.workdir == Path.cwd()
         assert isinstance(w.spinner, terminal.Spinner)
+        w2 = Worker(app, redirect_stdouts=False)
+        assert not w2.redirect_stdouts
+        w3 = Worker(app, redirect_stdouts_level='DEBUG')
+        assert w3.redirect_stdouts_level == 10
+        w4 = Worker(app, logging_config={'foo': 1})
+        assert w4.logging_config == {'foo': 1}
 
     def test_set_sensors(self, app):
         assert Worker(app, sensors=[1, 2]).sensors == {1, 2}
 
     def test_set_workdir(self, app):
         assert Worker(app, workdir='/foo').workdir == Path('/foo')
+
+    @pytest.mark.asyncio
+    async def test_on_start(self, worker):
+        await worker.on_start()
 
     @pytest.mark.asyncio
     async def test_on_siginit(self, worker):
@@ -176,6 +187,22 @@ class test_Worker:
     def test_proc_ident(self, worker, app):
         assert (worker._proc_ident() ==
                 f'testid -p {app.conf.web_port} {app.conf.datadir.absolute()}')
+
+    def test_proc_web_ident__unix(self, worker, app):
+        worker.app.conf.web_transport = URL('unix:')
+        assert worker._proc_web_ident() == str(URL('unix:'))
+
+    def test_proc_web_ident__tcp(self, worker):
+        worker.app.conf.web_transport_scheme = 'tcp'
+        assert worker._proc_web_ident() == '-p 6066'
+
+    def test_on_worker_shutdown(self, worker):
+        worker.spinner = None
+        worker._say = Mock(name='say')
+        worker.on_worker_shutdown()
+        worker.spinner = Mock(name='spinner')
+        worker.on_worker_shutdown()
+        worker.spinner.reset.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_on_execute(self, worker):

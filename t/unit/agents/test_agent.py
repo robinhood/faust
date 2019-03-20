@@ -3,7 +3,12 @@ import asyncio
 import pytest
 from faust import App, Channel, Record
 from faust.agents.actor import Actor
-from faust.agents.models import ReqRepRequest, ReqRepResponse
+from faust.agents.models import (
+    ModelReqRepRequest,
+    ModelReqRepResponse,
+    ReqRepRequest,
+    ReqRepResponse,
+)
 from faust.agents.replies import ReplyConsumer
 from faust.events import Event
 from faust.exceptions import ImproperlyConfigured
@@ -212,6 +217,13 @@ class test_Agent:
             @app.agent(isolated_partitions=True, concurrency=100)
             async def foo():
                 ...
+
+    def test_agent_call_reuse_stream(self, *, agent, app):
+        stream = app.stream('foo')
+        stream.concurrency_index = 1
+        stream.active_partitions = {1, 2}
+        actor = agent(stream=stream, index=1, active_partitions={1, 2})
+        assert actor.stream is stream
 
     def test_cancel(self, *, agent):
         actor1 = Mock(name='actor1')
@@ -449,8 +461,7 @@ class test_Agent:
         agent.supervisor = Mock(name='supervisor')
         coro = FutureMock()
         exc = coro.side_effect = KeyError('bar')
-        with pytest.raises(KeyError):
-            await agent._execute_task(coro, aref)
+        await agent._execute_task(coro, aref)
         coro.assert_awaited()
 
         aref.crash.assert_called_once_with(exc)
@@ -458,8 +469,7 @@ class test_Agent:
         agent._on_error.assert_called_once_with(agent, exc)
 
         agent._on_error = None
-        with pytest.raises(KeyError):
-            await agent._execute_task(coro, aref)
+        await agent._execute_task(coro, aref)
 
     @pytest.mark.asyncio
     async def test_slurp(self, *, agent, app):
@@ -475,8 +485,8 @@ class test_Agent:
         word_req = ReqRepRequest(word, 'reply_to', 'correlation_id')
         message1 = Mock(name='message1', autospec=Message)
         message2 = Mock(name='message2', autospec=Message)
-        event1 = Event(app, None, word_req, message1)
-        event2 = Event(app, 'key', 'bar', message2)
+        event1 = Event(app, None, word_req, {}, message1)
+        event2 = Event(app, 'key', 'bar', {}, message2)
         values = [
             (event1, word),
             (event2, 'bar'),
@@ -491,7 +501,54 @@ class test_Agent:
         it = aiter(AIT())
         await agent._slurp(aref, it)
 
-        agent._reply.assert_called_once_with(None, word, word_req)
+        agent._reply.assert_called_once_with(
+            None, word, word_req.reply_to, word_req.correlation_id)
+        agent._delegate_to_sinks.coro.assert_has_calls([
+            call(word),
+            call('bar'),
+        ])
+
+    @pytest.mark.asyncio
+    async def test_slurp__headers(self, *, agent, app):
+        agent.use_reply_headers = True
+        aref = agent(index=None, active_partitions=None)
+        stream = aref.stream.get_active_stream()
+        agent._delegate_to_sinks = AsyncMock(name='_delegate_to_sinks')
+        agent._reply = AsyncMock(name='_reply')
+
+        def on_delegate(value):
+            raise StopAsyncIteration()
+
+        word = Word('word')
+        message1 = Mock(name='message1', autospec=Message)
+        headers1 = message1.headers = {
+            'Faust-Ag-ReplyTo': 'reply_to',
+            'Faust-Ag-CorrelationId': 'correlation_id',
+        }
+        message2 = Mock(name='message2', autospec=Message)
+        headers2 = message2.headers = {}
+        event1 = Event(app, None, word, headers1, message1)
+        event2 = Event(app, 'key', 'bar', headers2, message2)
+        values = [
+            (event1, word, True),
+            (event1, word, False),
+            (event2, 'bar', True),
+        ]
+
+        class AIT:
+
+            async def __aiter__(self):
+                for event, value, set_cur_event in values:
+                    if set_cur_event:
+                        stream.current_event = event
+                    else:
+                        stream.current_event = None
+                    yield value
+        it = aiter(AIT())
+        await agent._slurp(aref, it)
+
+        agent._reply.assert_called_once_with(
+            None, word, 'reply_to', 'correlation_id')
         agent._delegate_to_sinks.coro.assert_has_calls([
             call(word),
             call('bar'),
@@ -530,7 +587,7 @@ class test_Agent:
             send=AsyncMock(),
         )
         req = ReqRepRequest('value', 'reply_to', 'correlation_id')
-        await agent._reply('key', 'reply', req)
+        await agent._reply('key', 'reply', req.reply_to, req.correlation_id)
         agent.app.send.assert_called_once_with(
             req.reply_to,
             key=None,
@@ -546,7 +603,12 @@ class test_Agent:
         agent.send = AsyncMock(name='send')
         await agent.cast('value', key='key', partition=303)
         agent.send.assert_called_once_with(
-            key='key', value='value', partition=303, timestamp=None)
+            key='key',
+            value='value',
+            partition=303,
+            headers=None,
+            timestamp=None,
+        )
 
     @pytest.mark.asyncio
     async def test_ask(self, *, agent):
@@ -569,6 +631,7 @@ class test_Agent:
             key='key',
             partition=303,
             correlation_id='correlation_id',
+            headers={'k1': 'v1'},
         )
         agent.ask_nowait.assert_called_once_with(
             'val',
@@ -578,6 +641,7 @@ class test_Agent:
             correlation_id='correlation_id',
             force=True,
             timestamp=None,
+            headers={'k1': 'v1'},
         )
         agent.app._reply_consumer.add.assert_called_once_with(
             pp.correlation_id, pp)
@@ -585,42 +649,105 @@ class test_Agent:
     @pytest.mark.asyncio
     async def test_ask_nowait(self, *, agent):
         agent._create_req = Mock(name='_create_req')
+        agent._create_req.return_value = ['V', None]
         agent.channel.send = AsyncMock(name='channel.send')
         res = await agent.ask_nowait(
             value='value',
             key='key',
             partition=303,
             timestamp=None,
+            headers=None,
             reply_to='reply_to',
             correlation_id='correlation_id',
             force=True,
         )
 
         agent._create_req.assert_called_once_with(
-            'key', 'value', 'reply_to', 'correlation_id')
+            'key', 'value', 'reply_to', 'correlation_id', None)
         agent.channel.send.assert_called_once_with(
             key='key',
-            value=agent._create_req(),
+            value=agent._create_req()[0],
             partition=303,
             timestamp=None,
             force=True,
+            headers=None,
         )
 
-        assert res.reply_to == agent._create_req().reply_to
-        assert res.correlation_id == agent._create_req().correlation_id
+        assert res.reply_to
+        assert res.correlation_id
+
+    @pytest.mark.asyncio
+    async def test_ask_nowait__missing_reply_to(self, *, agent):
+        with pytest.raises(TypeError):
+            await agent.ask_nowait(
+                value='value',
+                key='key',
+                partition=3034,
+                reply_to=None,
+            )
 
     def test_create_req(self, *, agent):
         agent._get_strtopic = Mock(name='_get_strtopic')
         with patch('faust.agents.agent.uuid4') as uuid4:
             uuid4.return_value = 'vvv'
             reqrep = agent._create_req(
-                key=b'key', value=b'value', reply_to='reply_to')
+                key=b'key', value=b'value',
+                reply_to='reply_to',
+                headers={'k': 'v'})[0]
 
             agent._get_strtopic.assert_called_once_with('reply_to')
 
             assert reqrep.value == b'value'
             assert reqrep.reply_to == agent._get_strtopic()
             assert reqrep.correlation_id == 'vvv'
+
+    def test_create_req__use_reply_headers(self, *, agent):
+        agent.use_reply_headers = True
+        agent._get_strtopic = Mock(name='_get_strtopic')
+        with patch('faust.agents.agent.uuid4') as uuid4:
+            uuid4.return_value = 'vvv'
+            value, h = agent._create_req(
+                key=b'key', value=b'value',
+                reply_to='reply_to',
+                headers={'k': 'v'})
+
+            agent._get_strtopic.assert_called_once_with('reply_to')
+
+            assert value == b'value'
+            assert h['Faust-Ag-ReplyTo'] == agent._get_strtopic()
+            assert h['Faust-Ag-CorrelationId'] == 'vvv'.encode()
+
+    def test_create_req__model(self, *, agent):
+        agent._get_strtopic = Mock(name='_get_strtopic')
+        with patch('faust.agents.agent.uuid4') as uuid4:
+            uuid4.return_value = 'vvv'
+            value = Word('foo')
+            reqrep = agent._create_req(
+                key=b'key',
+                value=value,
+                reply_to='reply_to',
+                headers={'h1': 'h2'})[0]
+            assert isinstance(reqrep, ReqRepRequest)
+
+            agent._get_strtopic.assert_called_once_with('reply_to')
+            assert isinstance(reqrep, ModelReqRepRequest)
+
+            assert reqrep.value is value
+            assert reqrep.reply_to == agent._get_strtopic()
+            assert reqrep.correlation_id == 'vvv'
+
+    def test_create_req__requires_reply_to(self, *, agent):
+        with pytest.raises(TypeError):
+            agent._create_req(
+                key=b'key', value=b'value', reply_to=None,
+            )
+
+    @pytest.mark.parametrize('value,expected_class', [
+        (b'value', ReqRepResponse),
+        (Word('foo'), ModelReqRepResponse),
+    ])
+    def test_response_class(self, value, expected_class, *, agent):
+        assert agent._response_class(value) is expected_class
 
     @pytest.mark.asyncio
     async def test_send(self, *, agent):
@@ -630,6 +757,7 @@ class test_Agent:
             send=AsyncMock(),
         )
         agent._create_req = Mock(name='_create_req')
+        agent._create_req.return_value = ('V', {'k2': 'v2'})
         callback = Mock(name='callback')
 
         ret = await agent.send(
@@ -637,6 +765,7 @@ class test_Agent:
             value=b'value',
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -646,14 +775,15 @@ class test_Agent:
         )
 
         agent._create_req.assert_called_once_with(
-            b'key', b'value', 'reply_to', 'correlation_id',
+            b'key', b'value', 'reply_to', 'correlation_id', {'k': 'v'},
         )
 
         agent.channel.send.assert_called_once_with(
             key=b'key',
-            value=agent._create_req(),
+            value=agent._create_req()[0],
             partition=303,
             timestamp=None,
+            headers={'k2': 'v2'},
             key_serializer='raw',
             value_serializer='raw',
             force=True,
@@ -676,6 +806,7 @@ class test_Agent:
             value=b'value',
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             callback=callback,
@@ -691,6 +822,7 @@ class test_Agent:
             value=b'value',
             partition=303,
             timestamp=None,
+            headers={'k': 'v'},
             key_serializer='raw',
             value_serializer='raw',
             force=True,
@@ -748,7 +880,7 @@ class test_Agent:
         agent._channel_iterator = None
         it = agent.channel_iterator
 
-        agent.channel.clone.assert_called_once_with(is_iterator=True)
+        agent.channel.clone.assert_called_once_with(is_iterator=False)
         assert it is agent.channel.clone()
         agent.channel_iterator = [42]
         assert agent.channel_iterator == [42]

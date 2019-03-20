@@ -267,7 +267,16 @@ class Collection(Service, CollectionT):
         #  this is required as partitions can easily move from and to
         #  machine as nodes die and recover.
         res: RecordMetadata = fut.result()
-        self.data.set_persisted_offset(res.topic_partition, res.offset)
+        if self.app.in_transaction:
+            # for exactly-once semantics we only write the
+            # persisted offset to RocksDB on disk when that partition
+            # is committed.
+            self.app.tables.persist_offset_on_commit(
+                self.data, res.topic_partition, res.offset)
+        else:
+            # for normal processing (at-least-once) we just write
+            # the persisted offset immediately.
+            self.data.set_persisted_offset(res.topic_partition, res.offset)
 
     @Service.task
     @Service.transitions_to(TABLE_CLEANING)
@@ -464,6 +473,7 @@ class Collection(Service, CollectionT):
     async def on_recovery_completed(self,
                                     active_tps: Set[TP],
                                     standby_tps: Set[TP]) -> None:
+        await self.data.on_recovery_completed(active_tps, standby_tps)
         await self.call_recover_callbacks()
 
     async def call_recover_callbacks(self) -> None:
@@ -510,7 +520,7 @@ class Collection(Service, CollectionT):
         return v
 
     def _human_channel(self) -> str:
-        return f'{type(self.__name__)}: {self.name}'
+        return f'{type(self).__name__}: {self.name}'
 
     def _repr_info(self) -> str:
         return self.name

@@ -33,17 +33,22 @@ from faust.utils import platforms
 from . import base
 
 _max_open_files = platforms.max_open_files()
-if _max_open_files is not None:
+if _max_open_files is not None:  # pragma: no cover
     _max_open_files = math.ceil(_max_open_files * 0.90)
 DEFAULT_MAX_OPEN_FILES = _max_open_files
+DEFAULT_WRITE_BUFFER_SIZE = 67108864
+DEFAULT_MAX_WRITE_BUFFER_NUMBER = 3
+DEFAULT_TARGET_FILE_SIZE_BASE = 67108864
+DEFAULT_BLOCK_CACHE_SIZE = 2 * 1024 ** 3
+DEFAULT_BLOCK_CACHE_COMPRESSED_SIZE = 500 * 1024 ** 2
+DEFAULT_BLOOM_FILTER_SIZE = 3
 
-try:
+try:  # pragma: no cover
     import rocksdb
-except ImportError:
+except ImportError:  # pragma: no cover
     rocksdb = None  # noqa
 
-
-if typing.TYPE_CHECKING:
+if typing.TYPE_CHECKING:  # pragma: no cover
     from rocksdb import DB, Options
 else:
     class DB:  # noqa
@@ -69,12 +74,12 @@ class RocksDBOptions:
     """Options required to open a RocksDB database."""
 
     max_open_files: Optional[int] = DEFAULT_MAX_OPEN_FILES
-    write_buffer_size: int = 67108864
-    max_write_buffer_number: int = 3
-    target_file_size_base: int = 67108864
-    block_cache_size: int = 2 * 1024 ** 3
-    block_cache_compressed_size: int = 500 * 1024 ** 2
-    bloom_filter_size: int = 3
+    write_buffer_size: int = DEFAULT_WRITE_BUFFER_SIZE
+    max_write_buffer_number: int = DEFAULT_MAX_WRITE_BUFFER_NUMBER
+    target_file_size_base: int = DEFAULT_TARGET_FILE_SIZE_BASE
+    block_cache_size: int = DEFAULT_BLOCK_CACHE_SIZE
+    block_cache_compressed_size: int = DEFAULT_BLOCK_CACHE_COMPRESSED_SIZE
+    bloom_filter_size: int = DEFAULT_BLOOM_FILTER_SIZE
     extra_options: Mapping
 
     def __init__(self,
@@ -98,6 +103,8 @@ class RocksDBOptions:
             self.block_cache_size = block_cache_size
         if block_cache_compressed_size is not None:
             self.block_cache_compressed_size = block_cache_compressed_size
+        if bloom_filter_size is not None:
+            self.bloom_filter_size = bloom_filter_size
         self.extra_options = kwargs
 
     def open(self, path: Path, *, read_only: bool = False) -> DB:
@@ -155,7 +162,7 @@ class Store(base.SerializedStore):
 
     def persisted_offset(self, tp: TP) -> Optional[int]:
         offset = self._db_for_partition(tp.partition).get(self.offset_key)
-        if offset:
+        if offset is not None:
             return int(offset)
         return None
 
@@ -224,9 +231,7 @@ class Store(base.SerializedStore):
 
         if value is None:
             if db.key_may_exist(key)[0]:
-                value = db.get(key)
-                if value is not None:
-                    return value
+                return db.get(key)
         return value
 
     def _get_bucket_for_key(self, key: bytes) -> Optional[_DBValueTuple]:
@@ -274,19 +279,23 @@ class Store(base.SerializedStore):
 
         for tp in tps:
             if tp.topic in my_topics and tp not in standby_tps:
-                for i in range(5):
-                    try:
-                        # side effect: opens db and adds to self._dbs.
-                        self._db_for_partition(tp.partition)
-                    except rocksdb.errors.RocksIOError as exc:
-                        if i == 4 or 'lock' not in repr(exc):
-                            raise
-                        self.log.info(
-                            'DB for partition %r is locked! Retry in 1s...',
-                            tp.partition)
-                        await self.sleep(1.0)
-                    else:
-                        break
+                await self._try_open_db_for_partition(tp.partition)
+
+    async def _try_open_db_for_partition(self, partition: int,
+                                         max_retries: int = 5,
+                                         retry_delay: float = 1.0) -> DB:
+        for i in range(max_retries):
+            try:
+                # side effect: opens db and adds to self._dbs.
+                return self._db_for_partition(partition)
+            except rocksdb.errors.RocksIOError as exc:
+                if i == max_retries - 1 or 'lock' not in repr(exc):
+                    raise
+                self.log.info(
+                    'DB for partition %r is locked! Retry in 1s...', partition)
+                await self.sleep(retry_delay)
+        else:  # pragma: no cover
+            ...
 
     def _contains(self, key: bytes) -> bool:
         for db in self._dbs_for_key(key):
@@ -336,7 +345,7 @@ class Store(base.SerializedStore):
         return sum(1 for _ in self._visible_keys(db))
 
     def _iterkeys(self) -> Iterator[bytes]:
-        for db in self.dbs_for_actives():
+        for db in self._dbs_for_actives():
             yield from self._visible_keys(db)
 
     def _itervalues(self) -> Iterator[bytes]:

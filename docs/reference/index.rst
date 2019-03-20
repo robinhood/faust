@@ -14,6 +14,7 @@ Faust
     :maxdepth: 1
 
     faust
+    faust.auth
     faust.exceptions
     faust.channels
     faust.events
@@ -149,9 +150,11 @@ Types
     faust.types.agents
     faust.types.app
     faust.types.assignor
+    faust.types.auth
     faust.types.channels
     faust.types.codecs
     faust.types.core
+    faust.types.enums
     faust.types.events
     faust.types.fixups
     faust.types.joins
@@ -181,6 +184,7 @@ Utils
     faust.utils.iso8601
     faust.utils.json
     faust.utils.platforms
+    faust.utils.tracing
     faust.utils.urls
     faust.utils.venusian
 

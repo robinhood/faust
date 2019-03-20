@@ -70,7 +70,8 @@ class test_Actor:
     def test_cancel(self, *, actor):
         actor.actor_task = Mock(name='actor_task', autospec=asyncio.Task)
         actor.cancel()
-        actor.actor_task.cancel.assert_called_once_with()
+        actor.stream.channel._throw.assert_called_once()
+        actor.stream.channel._throw.call_args[0][0] == StopAsyncIteration()
 
     def test_cancel__when_no_task(self, *, actor):
         actor.actor_task = None

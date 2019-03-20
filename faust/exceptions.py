@@ -3,11 +3,14 @@
 __all__ = [
     'FaustError',
     'FaustWarning',
+    'NotReady',
     'AlreadyConfiguredWarning',
     'ImproperlyConfigured',
     'DecodeError',
     'KeyDecodeError',
     'ValueDecodeError',
+    'SameNode',
+    'ProducerSendError',
     'ConsumerNotStarted',
     'PartitionsMismatch',
 ]
@@ -19,6 +22,10 @@ class FaustError(Exception):
 
 class FaustWarning(UserWarning):
     """Base-class for all Faust warnings."""
+
+
+class NotReady(FaustError):
+    """Service not started."""
 
 
 class AlreadyConfiguredWarning(FaustWarning):
@@ -49,7 +56,7 @@ class ProducerSendError(FaustError):
     """Error while sending attached messages prior to commit"""
 
 
-class ConsumerNotStarted(FaustError):
+class ConsumerNotStarted(NotReady):
     """Error trying to perform operation on consumer not started."""
 
 

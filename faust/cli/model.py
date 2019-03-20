@@ -9,7 +9,7 @@ from faust.models import registry
 from faust.types import FieldDescriptorT, ModelT
 from faust.utils import terminal
 
-from .base import AppCommand
+from .base import AppCommand, argument
 
 __all__ = ['model']
 
@@ -21,10 +21,10 @@ BUILTIN_TYPES = frozenset({int, float, str, bytes, datetime})
 class model(AppCommand):
     """Show model detail."""
 
-    headers = ['field', 'type', 'default*']
+    headers = ['field', 'type', 'default']
 
     options = [
-        click.argument('name'),
+        argument('name'),
     ]
 
     async def run(self, name: str) -> None:

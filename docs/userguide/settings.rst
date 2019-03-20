@@ -38,7 +38,7 @@ Commonly Used Settings
 ----------
 
 :type: ``str``
-:default: ``"aiokafka://localhost:9092"``
+:default: ``[URL("kafka://localhost:9092")]``
 
 Faust needs the URL of a "transport" to send and receive messages.
 
@@ -51,7 +51,26 @@ the semi-comma:
 
 .. sourcecode:: text
 
-    aiokafka://kafka1.example.com:9092;kafka2.example.com:9092
+    kafka://kafka1.example.com:9092;kafka2.example.com:9092
+
+Which in actual code looks like this:
+
+.. sourcecode:: python
+
+    app = faust.App(
+        'id',
+        broker='kafka://kafka1.example.com:9092;kafka2.example.com:9092',
+    )
+
+You can also pass a list of URLs:
+
+.. sourcecode:: python
+
+    app = faust.App(
+        'id',
+        broker=['kafka://kafka1.example.com:9092',
+                'kafka://kafka2.example.com:9092'],
+    )
 
 Available Transports
 ~~~~~~~~~~~~~~~~~~~~
@@ -74,31 +93,41 @@ Available Transports
         suitable for tables), and do not create any necessary internal
         topics (you have to create them manually).
 
-.. setting:: ssl_context
+.. setting:: broker_credentials
 
-``ssl_context``
----------------
+``broker_credentials``
+----------------------
 
-.. versionadded:: 1.1
+.. versionadded:: 1.5
 
-:type: ``ssl.SSLContext``
+:type: ``CredentialsT``
 :default: ``None``
+
+Specify the authentication mechanism to use when connecting to the
+broker.
+
+The default is to not use any authentication.
+
+You can enable SASL authentication:
+
+.. sourcecode:: python
+
+    app = faust.App(credentials=faust.SASLCredentials(username='x', password='y'))
+
+or SSL authentication:
 
 Provide an SSL context for the Kafka broker connections.
 
 Allows Faust to use a secure SSL/TLS connection for the Kafka connections
 and enabling certificate-based authentication.
 
-Providing the ``ssl_context`` parameter automatically switches all Kafka
-connections from ``PLAINTEXT`` to ``SSL``.
-
-.. sourcecode:: text
+.. sourcecode:: python
 
     import ssl
 
     ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile="ca.pem")
     ssl_context.load_cert_chain("client.cert", keyfile="client.key")
-    app = faust.App(..., ssl_context=ssl_context)
+    app = faust.App(..., broker_credentials=ssl_context)
 
 .. setting:: store
 
@@ -106,7 +135,7 @@ connections from ``PLAINTEXT`` to ``SSL``.
 ---------
 
 :type: ``str``
-:default: ``memory://``
+:default: ``URL("memory://")``
 
 The backend used for table storage.
 
@@ -124,10 +153,31 @@ preferred.
 .. versionadded:: 1.2
 
 :type: ``str``
-:default: ``memory://``
+:default: ``URL("memory://")``
 
 Optional backend used for memcached-style caching.
 URL can be: ``redis://host``, ``rediscluster://host``, or ``memory://``.
+
+.. setting:: processing_guarantee
+
+``processing_guarantee``
+------------------------
+
+.. versionadded:: 1.5
+
+:type: ``str``
+:default: ``"at_least_once"``
+
+The processing guarantee that should be used.
+
+Possible values are "at_least_once" (default) and "exactly_once".
+Note that if exactly-once processing is enabled consumers are configured with
+``isolation.level="read_committed"`` and producers are configured with
+``retries=Integer.MAX_VALUE`` and ``enable.idempotence=true`` per default.
+Note that by default exactly-once processing requires a cluster of at least
+three brokers what is the recommended setting for production.
+For development you can change this, by adjusting broker setting
+``transaction.state.log.replication.factor`` to the number of brokers you want to use.
 
 .. setting:: autodiscover
 
@@ -267,7 +317,7 @@ and so on.
 ------------
 
 :type: :class:`datetime.tzinfo`
-:default: ``UTC``
+:default: :class:`datetime.timezone.utc`
 
 The timezone used for date-related functionality such as cronjobs.
 
@@ -279,7 +329,7 @@ The timezone used for date-related functionality such as cronjobs.
 -----------
 
 :type: ``Union[str, pathlib.Path]``
-:default: ``"{appid}-data"``
+:default: ``Path(f"{app.conf.id}-data")``
 :environment: :envvar:`FAUST_DATADIR`, :envvar:`F_DATADIR`
 
 The directory in which this instance stores the data used by local tables, etc.
@@ -332,7 +382,7 @@ by :func:`logging.config.dictConfig`.
 ---------------
 
 :type: ``List[logging.LogHandler]``
-:default: :const:`None`
+:default: ``[]``
 
 Specify a list of custom log handlers to use in worker instances.
 
@@ -434,6 +484,24 @@ Default number of partitions for new topics.
     workload of the application (also sometimes referred as the sharding
     factor of the application).
 
+.. setting:: topic_allow_declare
+
+``topic_allow_declare``
+-----------------------
+
+.. versionadded:: 1.5
+
+:type: :class:`bool`
+:default: :const:`True`
+
+This setting disables the creation of internal topics.
+
+Faust will only create topics that it considers to be fully owned and managed,
+such as intermediate repartition topics, table changelog topics etc.
+
+Some Kafka managers does not allow services to create topics, in that case
+you should set this to :const:`False`.
+
 .. _settings-broker:
 
 Advanced Broker Settings
@@ -445,7 +513,7 @@ Advanced Broker Settings
 --------------------
 
 :type: ``str``
-:default: ``faust-{VERSION}``
+:default: ``f"faust-{VERSION}"``
 
 You shouldn't have to set this manually.
 
@@ -470,7 +538,7 @@ Kafka client request timeout.
 -----------------------
 
 :type: :class:`int`
-:default: ``1000``
+:default: ``10_000``
 
 Commit offset every n messages.
 
@@ -531,7 +599,7 @@ If any of these time out, you should increase this setting.
 .. versionadded:: 1.0.11
 
 :type: :class:`int`
-:default: ``30.0`` (thirty seconds)
+:default: ``60.0`` (one minute)
 
 How long to wait for a node to finish rebalancing before the broker
 will consider it dysfunctional and remove it from the cluster.
@@ -581,11 +649,37 @@ must be at least as large as the maximum message size.
 .. versionadded:: 1.5
 
 :type: :class:`string`
-:default: ``earliest``
+:default: ``"earliest"``
 
 Where the consumer should start reading messages from when there is no initial
 offset, or the stored offset no longer exists, e.g. when starting a new
 consumer for the first time. Options include 'earliest', 'latest', 'none'.
+
+.. setting:: ConsumerScheduler
+
+``ConsumerScheduler``
+---------------------
+
+.. versionadded:: 1.5
+
+:type: ``Union[str, Type[SchedulingStrategyT]``
+:default: ``faust.transport.utils.DefaultSchedulingStrategy``
+
+A strategy which dictates the priority of topics and partitions
+for incoming records.
+The default strategy does first round-robin over topics and then
+round-robin over partitions.
+
+Example using a class::
+
+    class MySchedulingStrategy(DefaultSchedulingStrategy):
+        ...
+
+    app = App(..., consumer_scheduling_strategy=MySchedulingStrategy)
+
+Example using the string path to a class::
+
+    app = App(..., consumer_scheduling_strategy='myproj.MySchedulingStrategy')
 
 .. _settings-producer:
 
@@ -683,7 +777,7 @@ expire and will no longer be retried.
 .. versionadded:: 1.2
 
 :type: ``Callable[[bytes, List[int], List[int]], int]``
-:default: *transport specific*
+:default: :const:`None`
 
 The Kafka producer can be configured with a custom partitioner
 to change how keys are partitioned when producing to topics.
@@ -768,9 +862,7 @@ If set to 4096 (default) this means that an agent can only keep at most
 Essentially this will limit the number of messages a stream can "prefetch".
 
 Higher numbers gives better throughput, but do note that if your agent
-sends messages or update tables (which sends changelog messages), Faust 1.0
-will move the sending of those messages to when the offset of the source
-message (the one that initiated the sending/change) is committed.
+sends messages or update tables (which sends changelog messages).
 
 This means that if the buffer size is large, the
 :setting:`broker_commit_interval` or :setting:`broker_commit_every` settings
@@ -779,9 +871,6 @@ must be set to commit frequently, avoiding backpressure from building up.
 A buffer size of 131_072 may let you process over 30,000 events a second
 as a baseline, but be careful with a buffer size that large when you also
 send messages or update tables.
-
-The next version of Faust will take advantage of Kafka transactions
-to remove the bottleneck of sending messages on commit.
 
 .. setting:: stream_recovery_delay
 
@@ -883,7 +972,7 @@ Enabled by default.
 ---------------------------------
 
 :type: :class:`str`/:class:`int`
-:default: :data:``logging.WARN``
+:default: ``"WARN"``
 
 The logging level to use when redirect STDOUT/STDERR to logging.
 
@@ -900,7 +989,7 @@ Advanced Web Server Settings
 .. versionadded:: 1.2
 
 :type: :class:`str`
-:default: ``aiohttp://``
+:default: ``URL("aiohttp://")``
 
 The web driver to use.
 
@@ -926,7 +1015,7 @@ This option can also be set using :option:`faust worker --without-web`.
 .. versionadded:: 1.2
 
 :type: :class:`str`
-:default: ``"tcp://"``
+:default: ``URL("tcp://")``
 
 The network transport used for the web server.
 
@@ -946,7 +1035,7 @@ This will create a new domain socket available in :file:`/tmp/server.sock`.
 -----------------
 
 :type:  :class:`str`
-:default: ``f"http://{web_host}:{web_port}"``
+:default: ``URL(f"http://{web_host}:{web_port}")``
 
 You shouldn't have to set this manually.
 
@@ -1085,7 +1174,7 @@ Agent RPC Settings
 ------------
 
 :type: ``str``
-:default: `<generated>`
+:default: `str(uuid.uuid4())`
 
 The name of the reply topic used by this instance.  If not set one will be
 automatically generated when the app is created.
@@ -1135,7 +1224,7 @@ Extension Settings
 ---------
 
 :type: ``Union[str, Type]``
-:default: ``"faust.Agent"``
+:default: :class:`faust.Agent`
 
 The :class:`~faust.Agent` class to use for agents, or the fully-qualified
 path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
@@ -1157,7 +1246,7 @@ Example using the string path to a class::
 ----------
 
 :type: ``Union[str, Type]``
-:default: ``"faust.Stream"``
+:default: :class:`faust.Stream`
 
 The :class:`~faust.Stream` class to use for streams, or the fully-qualified
 path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
@@ -1179,7 +1268,7 @@ Example using the string path to a class::
 ---------
 
 :type: ``Union[str, Type[TableT]]``
-:default: ``"faust.Table"``
+:default: :class:`faust.Table`
 
 The :class:`~faust.Table` class to use for tables, or the fully-qualified
 path to one (supported by :func:`~mode.utils.imports.symbol_by_name`).
@@ -1201,7 +1290,7 @@ Example using the string path to a class::
 ------------
 
 :type: ``Union[str, Type[TableT]]``
-:default: ``"faust.SetTable"``
+:default: :class:`faust.SetTable`
 
 The :class:`~faust.SetTable` class to use for table-of-set tables,
 or the fully-qualified path to one (supported
@@ -1224,7 +1313,7 @@ Example using the string path to a class::
 ----------------
 
 :type: ``Union[str, Type[TableManagerT]]``
-:default: ``"faust.tables.TableManager"``
+:default: :class:`faust.tables.TableManager`
 
 The :class:`~faust.tables.TableManager` used for managing tables,
 or the fully-qualified path to one (supported by
@@ -1249,7 +1338,7 @@ Example using the string path to a class::
 ---------------
 
 :type: ``Union[str, Type[RegistryT]]``
-:default: ``"faust.serializers.Registry"``
+:default: :class:`faust.serializers.Registry`
 
 The :class:`~faust.serializers.Registry` class used for
 serializing/deserializing messages; or the fully-qualified path
@@ -1274,7 +1363,7 @@ Example using the string path to a class::
 ----------
 
 :type: ``Union[str, Type[WorkerT]]``
-:default: ``"faust.Worker"``
+:default: :class:`faust.Worker`
 
 The :class:`~faust.Worker` class used for starting a worker
 for this app; or the fully-qualified path
@@ -1299,7 +1388,7 @@ Example using the string path to a class::
 ---------------------
 
 :type: ``Union[str, Type[PartitionAssignorT]]``
-:default: ``"faust.assignor.PartitionAssignor"``
+:default: :class:`faust.assignor.PartitionAssignor`
 
 The :class:`~faust.assignor.PartitionAssignor` class used for assigning
 topic partitions to worker instances; or the fully-qualified path
@@ -1324,7 +1413,7 @@ Example using the string path to a class::
 ------------------
 
 :type: ``Union[str, Type[LeaderAssignorT]]``
-:default: ``"faust.assignor.LeaderAssignor"``
+:default: :class:`faust.assignor.LeaderAssignor`
 
 The :class:`~faust.assignor.LeaderAssignor` class used for assigning
 a master Faust instance for the app; or the fully-qualified path
@@ -1349,7 +1438,7 @@ Example using the string path to a class::
 ----------
 
 :type: ``Union[str, Type[RouterT]]``
-:default: ``"faust.app.router.Router"``
+:default: :class:`faust.app.router.Router`
 
 The :class:`~faust.router.Router` class used for routing requests
 to a worker instance having the partition for a specific key (e.g. table key);
@@ -1375,7 +1464,7 @@ Example using the string path to a class::
 ---------
 
 :type: ``Union[str, Type[TopicT]]``
-:default: ``"faust.Topic"``
+:default: :class:`faust.Topic`
 
 The :class:`~faust.Topic` class used for defining new topics; or the
 fully-qualified path to one (supported by
@@ -1400,7 +1489,7 @@ Example using the string path to a class::
 --------------
 
 :type: ``Union[str, Type[HttpClientT]]``
-:default: ``"aiohttp.client:ClientSession"``
+:default: :class:`aiohttp.client.ClientSession`
 
 The :class:`aiohttp.client.ClientSession` class used as a HTTP client; or the
 fully-qualified path to one (supported by
@@ -1426,7 +1515,7 @@ Example using the string path to a class::
 -----------
 
 :type: ``Union[str, Type[SensorT]]``
-:default: ``"faust.sensors:Monitor"``
+:default: :class:`faust.sensors.Monitor`
 
 The :class:`~faust.sensors.Monitor` class as the main sensor
 gathering statistics for the application; or the

@@ -43,7 +43,7 @@ class version_info_t(NamedTuple):
 # bumpversion can only search for {current_version}
 # so we have to parse the version here.
 _match = re.match(r'(\d+)\.(\d+).(\d+)(.+)?', __version__)
-if _match is None:
+if _match is None:  # pragma: no cover
     raise RuntimeError('THIS IS A BROKEN RELEASE!')
 _temp = _match.groups()
 VERSION = version_info = version_info_t(
@@ -115,6 +115,11 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
+    from .auth import (                                         # noqa: E402
+        GSSAPICredentials,
+        SASLCredentials,
+        SSLCredentials,
+    )
     from .channels import Channel, ChannelT                     # noqa: E402
     from .events import Event, EventT                           # noqa: E402
     from .models import Model, ModelOptions, Record             # noqa: E402
@@ -158,6 +163,9 @@ __all__ = [
     'Table',
     'Topic',
     'TopicT',
+    'GSSAPICredentials',
+    'SASLCredentials',
+    'SSLCredentials',
     'Settings',
     'HoppingWindow',
     'TumblingWindow',
@@ -187,6 +195,11 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.tables.sets': ['SetTable'],
     'faust.tables.table': ['Table'],
     'faust.topics': ['Topic', 'TopicT'],
+    'faust.auth': [
+        'GSSAPICredentials',
+        'SASLCredentials',
+        'SSLCredentials',
+    ],
     'faust.types.settings': ['Settings'],
     'faust.windows': [
         'HoppingWindow',

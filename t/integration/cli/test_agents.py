@@ -1,32 +1,40 @@
 def test_json(faust_json):
-    agents, stderr = faust_json('agents', '--local')
-    assert not stderr
+    exitcode, agents, stderr = faust_json('agents', '--local')
+    assert not exitcode
 
-    assert ['@mul', 'app.mul', 'Foo agent help.'] in agents
-    assert ['@add', 'add-topic', '<N/A>'] in agents
-    assert ['@internal', '<LOCAL>', '<N/A>'] in agents
+    assert {'name': '@app.mul',
+            'topic': 't-integration-app.mul',
+            'help': 'Foo agent help.'} in agents
+    assert {'name': '@app.add',
+            'topic': 'add-topic',
+            'help': '<N/A>'} in agents
+    assert {'name': '@app.internal',
+            'topic': '<LOCAL>',
+            'help': '<N/A>'} in agents
 
-    names = [agent[0] for agent in agents]
-    assert names.index('@add') < names.index('@internal') < names.index('@mul')
+    names = [agent['name'] for agent in agents]
+    assert names.index('@app.add') < \
+        names.index('@app.internal') < \
+        names.index('@app.mul')
 
 
 def test_tabulated(faust):
-    stdout, stderr = faust('agents', '--local')
-    assert not stderr
-    assert b'@mul' in stdout
+    exitcode, stdout, stderr = faust('agents', '--local')
+    assert not exitcode
+    assert b'@app.mul' in stdout
 
 
 def test_colors(faust_color):
-    stdout, stderr = faust_color('agents', '--local')
-    assert not stderr
-    assert b'@mul' in stdout
+    exitcode, stdout, stderr = faust_color('agents', '--local')
+    assert not exitcode
+    assert b'@app.mul' in stdout
 
 
 def test_json_no_local(faust_json):
-    agents, stderr = faust_json('agents')
-    assert not stderr
+    exitcode, agents, stderr = faust_json('agents')
+    assert not exitcode
 
-    names = [agent[0] for agent in agents]
-    assert '@mul' in names
-    assert '@add' in names
-    assert '@internal' not in names
+    names = [agent['name'] for agent in agents]
+    assert '@app.mul' in names
+    assert '@app.add' in names
+    assert '@app.internal' not in names

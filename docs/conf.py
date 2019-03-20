@@ -64,7 +64,7 @@ globals().update(conf.build_config(
         'aiohttp': ('https://aiohttp.readthedocs.io/en/stable/', None),
         'aiokafka': ('https://aiokafka.readthedocs.io/en/stable/', None),
         'aredis': ('https://aredis.readthedocs.io/en/latest/', None),
-        'click': ('https://click.palletsprojects.com/en/latest/', None),
+        'click': ('https://click.palletsprojects.com/en/7.x/', None),
         'kafka-python': (
             'https://kafka-python.readthedocs.io/en/master/', None),
         'mode': ('https://mode.readthedocs.io/en/latest/', None),
@@ -100,6 +100,7 @@ globals().update(conf.build_config(
         'faust.web.apps.router.app',
         'faust'
         'faust.web.drivers',
+        r'.*\._cython.*',
     ],
 ))
 
@@ -152,3 +153,9 @@ latex_elements = {
     'sphinxsetup':
         r'verbatimwithframe=false, VerbatimColor={rgb}{0.47, 0.41, 0.47}',
 }
+
+ignored_settings = {'ssl_context'}
+
+
+def configcheck_should_ignore(setting):
+    return setting in ignored_settings

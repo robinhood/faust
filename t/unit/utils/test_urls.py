@@ -1,6 +1,15 @@
 import pytest
 from yarl import URL
-from faust.utils.urls import urllist
+from faust.utils.urls import ensure_scheme, urllist
+
+
+@pytest.mark.parametrize('default,url,expected', [
+    (None, 'kafka://', URL('kafka://')),
+    ('', 'kafka://', URL('kafka://')),
+    ('http', 'localhost', URL('http://localhost')),
+])
+def test_ensure_scheme(default, url, expected):
+    assert ensure_scheme(default, url) == expected
 
 
 def test_urllist_URL():

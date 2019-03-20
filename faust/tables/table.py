@@ -65,25 +65,23 @@ class Table(TableT[KT, VT], Collection):
 
     def on_key_set(self, key: KT, value: VT) -> None:
         event = current_event()
-        self._send_changelog(event, key, value)
-        if event is not None:
-            partition = event.message.partition
-            self._maybe_set_key_ttl(key, partition)
-            self._sensor_on_set(self, key, value)
-        else:
+        if event is None:
             raise TypeError(
                 'Setting table key from outside of stream iteration')
+        self._send_changelog(event, key, value)
+        partition = event.message.partition
+        self._maybe_set_key_ttl(key, partition)
+        self._sensor_on_set(self, key, value)
 
     def on_key_del(self, key: KT) -> None:
         event = current_event()
-        self._send_changelog(event, key, value=None, value_serializer='raw')
-        if event is not None:
-            partition = event.message.partition
-            self._maybe_del_key_ttl(key, partition)
-            self._sensor_on_del(self, key)
-        else:
+        if event is None:
             raise TypeError(
                 'Deleting table key from outside of stream iteration')
+        self._send_changelog(event, key, value=None, value_serializer='raw')
+        partition = event.message.partition
+        self._maybe_del_key_ttl(key, partition)
+        self._sensor_on_del(self, key)
 
     def as_ansitable(self, title: str = '{table.name}',
                      **kwargs: Any) -> str:

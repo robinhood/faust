@@ -32,12 +32,14 @@ from faust.utils.urls import urllist
 from ._env import DATADIR, WEB_BIND, WEB_PORT, WEB_TRANSPORT
 from .agents import AgentT
 from .assignor import LeaderAssignorT, PartitionAssignorT
+from .auth import CredentialsArg, CredentialsT, to_credentials
 from .codecs import CodecArg
+from .enums import ProcessingGuarantee
 from .router import RouterT
 from .sensors import SensorT
 from .serializers import RegistryT
 from .streams import StreamT
-from .transports import PartitionerT
+from .transports import PartitionerT, SchedulingStrategyT
 from .tables import TableManagerT, TableT
 from .topics import TopicT
 from .web import HttpClientT
@@ -96,6 +98,8 @@ CACHE_URL = 'memory://'
 #: Web driver URL, used as default for setting:`web`.
 WEB_URL = 'aiohttp://'
 
+PROCESSING_GUARANTEE = ProcessingGuarantee.AT_LEAST_ONCE
+
 #: Table state directory path used as default for :setting:`tabledir`.
 #: This path will be treated as relative to datadir, unless the provided
 #: poth is absolute.
@@ -107,6 +111,8 @@ AGENT_TYPE = 'faust.Agent'
 #: Default agent supervisor type, used as default for
 #: :setting:`agent_supervisor`.
 AGENT_SUPERVISOR_TYPE = 'mode.OneForOneSupervisor'
+
+CONSUMER_SCHEDULER_TYPE = 'faust.transport.utils.DefaultSchedulingStrategy'
 
 #: Path to stream class, used as default for :setting:`Stream`.
 STREAM_TYPE = 'faust.Stream'
@@ -175,7 +181,7 @@ BROKER_LIVELOCK_SOFT = want_seconds(timedelta(minutes=5))
 #: If you find that your application needs more time to process messages
 #: you may want to adjust max_poll_records to tune the number of records
 #: that must be handled on every loop iteration.
-BROKER_MAX_POLL_RECORDS = 500
+BROKER_MAX_POLL_RECORDS = None
 
 #: How often we clean up expired items in windowed tables.
 #: Used as the default value for :setting:`table_cleanup_interval`.
@@ -221,7 +227,7 @@ PRODUCER_LINGER_MS = 0
 
 #: Maximum size of buffered data per partition in bytes in the producer.
 #: Used as the default value for :setting:`max_batch_size`.
-PRODUCER_MAX_BATCH_SIZE = 4096
+PRODUCER_MAX_BATCH_SIZE = 16384
 
 #: Maximum size of a request in bytes in the producer.
 #: Used as the default value for :setting:`max_request_size`.
@@ -255,7 +261,6 @@ PRODUCER_REQUEST_TIMEOUT: float = 1200.0  # 20 minutes.
 #:         remains alive. This is the strongest available guarantee.
 PRODUCER_ACKS = -1
 
-
 #: Set of settings added for backwards compatibility
 SETTINGS_COMPAT: Set[str] = {'url'}
 
@@ -277,7 +282,8 @@ class Settings(abc.ABC):
     broker_client_id: str = BROKER_CLIENT_ID
     broker_commit_every: int = BROKER_COMMIT_EVERY
     broker_check_crcs: bool = True
-    broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
+    broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
+    _broker_credentials: Optional[CredentialsT] = None
     id_format: str = '{id}-v{self.version}'
     key_serializer: CodecArg = 'raw'
     value_serializer: CodecArg = 'json'
@@ -293,6 +299,7 @@ class Settings(abc.ABC):
     table_standby_replicas: int = 1
     topic_replication_factor: int = 1
     topic_partitions: int = 8  # noqa: E704
+    topic_allow_declare: bool = True
     logging_config: Optional[Dict] = None
     loghandlers: List[logging.Handler]
     producer_linger_ms: int = PRODUCER_LINGER_MS
@@ -322,13 +329,14 @@ class Settings(abc.ABC):
     _canonical_url: URL = cast(URL, None)
     _datadir: Path
     _tabledir: Path
+    _processing_guarantee: ProcessingGuarantee = PROCESSING_GUARANTEE
     _agent_supervisor: Type[SupervisorStrategyT]
     _broker_request_timeout: float = BROKER_REQUEST_TIMEOUT
     _broker_session_timeout: float = BROKER_SESSION_TIMEOUT
     _broker_heartbeat_interval: float = BROKER_HEARTBEAT_INTERVAL
     _broker_commit_interval: float = BROKER_COMMIT_INTERVAL
     _broker_commit_livelock_soft_timeout: float = BROKER_LIVELOCK_SOFT
-    _broker_max_poll_records: int = BROKER_MAX_POLL_RECORDS
+    _broker_max_poll_records: Optional[int] = BROKER_MAX_POLL_RECORDS
     _producer_partitioner: Optional[PartitionerT] = None
     _producer_request_timeout: Seconds = PRODUCER_REQUEST_TIMEOUT
     _stream_recovery_delay: float = STREAM_RECOVERY_DELAY
@@ -336,6 +344,7 @@ class Settings(abc.ABC):
     _reply_expires: float = REPLY_EXPIRES
     _web_transport: URL = WEB_TRANSPORT
     _Agent: Type[AgentT]
+    _ConsumerScheduler: Type[SchedulingStrategyT]
     _Stream: Type[StreamT]
     _Table: Type[TableT]
     _SetTable: Type[TableT]
@@ -350,7 +359,7 @@ class Settings(abc.ABC):
     _Monitor: Type[SensorT]
 
     _initializing: bool = True
-    _accessed: Set[str]
+    _accessed: Set[str] = cast(Set[str], None)
 
     @classmethod
     def setting_names(cls) -> Set[str]:
@@ -386,6 +395,7 @@ class Settings(abc.ABC):
             broker: Union[str, URL, List[URL]] = None,
             broker_client_id: str = None,
             broker_request_timeout: Seconds = None,
+            broker_credentials: CredentialsArg = None,
             broker_commit_every: int = None,
             broker_commit_interval: Seconds = None,
             broker_commit_livelock_soft_timeout: Seconds = None,
@@ -398,6 +408,7 @@ class Settings(abc.ABC):
             cache: Union[str, URL] = None,
             web: Union[str, URL] = None,
             web_enabled: bool = True,
+            processing_guarantee: Union[str, ProcessingGuarantee] = None,
             timezone: tzinfo = None,
             autodiscover: AutodiscoverArg = None,
             origin: str = None,
@@ -412,6 +423,7 @@ class Settings(abc.ABC):
             table_standby_replicas: int = None,
             topic_replication_factor: int = None,
             topic_partitions: int = None,
+            topic_allow_declare: bool = None,
             id_format: str = None,
             reply_to: str = None,
             reply_to_prefix: str = None,
@@ -441,6 +453,7 @@ class Settings(abc.ABC):
             worker_redirect_stdouts: bool = None,
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
+            ConsumerScheduler: SymbolArg[Type[SchedulingStrategyT]] = None,
             Stream: SymbolArg[Type[StreamT]] = None,
             Table: SymbolArg[Type[TableT]] = None,
             SetTable: SymbolArg[Type[TableT]] = None,
@@ -456,7 +469,7 @@ class Settings(abc.ABC):
             # XXX backward compat (remove for Faust 1.0)
             url: Union[str, URL] = None,
             **kwargs: Any) -> None:
-        self._accessed = set()
+        object.__setattr__(self, '_accessed', None)
         self.version = version if version is not None else self._version
         self.id_format = id_format if id_format is not None else self.id_format
         if origin is not None:
@@ -468,6 +481,8 @@ class Settings(abc.ABC):
         self.cache = self._first_not_none(cache, CACHE_URL)
         self.web = self._first_not_none(web, WEB_URL)
         self.web_enabled = web_enabled
+        if processing_guarantee is not None:
+            self.processing_guarantee = processing_guarantee
         if autodiscover is not None:
             self.autodiscover = autodiscover
         if broker_client_id is not None:
@@ -477,6 +492,8 @@ class Settings(abc.ABC):
         # datadir is a format string that can contain e.g. {conf.id}
         self.datadir = datadir or DATADIR
         self.tabledir = tabledir or TABLEDIR
+        if broker_credentials is not None:
+            self.broker_credentials = broker_credentials
         if broker_request_timeout is not None:
             self.broker_request_timeout = want_seconds(broker_request_timeout)
         self.broker_commit_interval = (
@@ -511,6 +528,8 @@ class Settings(abc.ABC):
             self.topic_replication_factor = topic_replication_factor
         if topic_partitions is not None:
             self.topic_partitions = topic_partitions
+        if topic_allow_declare is not None:
+            self.topic_allow_declare = topic_allow_declare
         if reply_create_topic is not None:
             self.reply_create_topic = reply_create_topic
         if logging_config is not None:
@@ -573,6 +592,7 @@ class Settings(abc.ABC):
         self.agent_supervisor = agent_supervisor or AGENT_SUPERVISOR_TYPE
 
         self.Agent = Agent or AGENT_TYPE
+        self.ConsumerScheduler = ConsumerScheduler or CONSUMER_SCHEDULER_TYPE
         self.Stream = Stream or STREAM_TYPE
         self.Table = Table or TABLE_TYPE
         self.SetTable = SetTable or SET_TABLE_TYPE
@@ -586,17 +606,19 @@ class Settings(abc.ABC):
         self.HttpClient = HttpClient or HTTP_CLIENT_TYPE
         self.Monitor = Monitor or MONITOR_TYPE
         self.__dict__.update(kwargs)  # arbitrary configuration
+        object.__setattr__(self, '_accessed', set())
         object.__setattr__(self, '_initializing', False)
 
     def __getattribute__(self, key: str) -> Any:
+        accessed = object.__getattribute__(self, '_accessed')
         if not key.startswith('_'):
             if not object.__getattribute__(self, '_initializing'):
-                object.__getattribute__(self, '_accessed').add(key)
+                accessed.add(key)
         return object.__getattribute__(self, key)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        if not key.startswith('_') and \
-                key in object.__getattribute__(self, '_accessed'):
+        xsd = object.__getattribute__(self, '_accessed')
+        if xsd is not None and not key.startswith('_') and key in xsd:
             old_value = object.__getattribute__(self, key)
             self._warn_already_configured_key(key, value, old_value)
         object.__setattr__(self, key, value)
@@ -729,6 +751,23 @@ class Settings(abc.ABC):
         self._tabledir = self._prepare_tabledir(tabledir)
 
     @property
+    def processing_guarantee(self) -> ProcessingGuarantee:
+        return self._processing_guarantee
+
+    @processing_guarantee.setter
+    def processing_guarantee(self,
+                             value: Union[str, ProcessingGuarantee]) -> None:
+        self._processing_guarantee = ProcessingGuarantee(value)
+
+    @property
+    def broker_credentials(self) -> Optional[CredentialsT]:
+        return self._broker_credentials
+
+    @broker_credentials.setter
+    def broker_credentials(self, creds: CredentialsArg = None) -> None:
+        self._broker_credentials = to_credentials(creds)
+
+    @property
     def broker_request_timeout(self) -> float:
         return self._broker_request_timeout
 
@@ -769,11 +808,11 @@ class Settings(abc.ABC):
         self._broker_commit_livelock_soft_timeout = want_seconds(value)
 
     @property
-    def broker_max_poll_records(self) -> int:
+    def broker_max_poll_records(self) -> Optional[int]:
         return self._broker_max_poll_records
 
     @broker_max_poll_records.setter
-    def broker_max_poll_records(self, value: int) -> None:
+    def broker_max_poll_records(self, value: Optional[int]) -> None:
         self._broker_max_poll_records = value
 
     @property
@@ -841,6 +880,15 @@ class Settings(abc.ABC):
     @Agent.setter
     def Agent(self, Agent: SymbolArg[Type[AgentT]]) -> None:
         self._Agent = symbol_by_name(Agent)
+
+    @property
+    def ConsumerScheduler(self) -> Type[SchedulingStrategyT]:
+        return self._ConsumerScheduler
+
+    @ConsumerScheduler.setter
+    def ConsumerScheduler(
+            self, value: SymbolArg[Type[SchedulingStrategyT]]) -> None:
+        self._ConsumerScheduler = symbol_by_name(value)
 
     @property
     def Stream(self) -> Type[StreamT]:

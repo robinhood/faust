@@ -20,6 +20,7 @@ from typing import (
 )
 
 from mode import Seconds, ServiceT, Signal, SupervisorStrategyT, SyncSignal
+from mode.utils.compat import NoReturn
 from mode.utils.futures import stampede
 from mode.utils.objects import cached_property
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
@@ -29,7 +30,7 @@ from mode.utils.types.trees import NodeT
 from .agents import AgentFun, AgentManagerT, AgentT, SinkT
 from .assignor import PartitionAssignorT
 from .codecs import CodecArg
-from .core import K, V
+from .core import HeadersArg, K, V
 from .fixups import FixupT
 from .router import RouterT
 from .sensors import SensorDelegateT
@@ -54,13 +55,13 @@ if typing.TYPE_CHECKING:
     from faust.sensors.monitor import Monitor
     from faust.worker import Worker as WorkerT
     from .models import ModelArg
-    from .settings import Settings
+    from .settings import Settings as _Settings
 else:
     class AppCommand: ...     # noqa
     class Monitor: ...        # noqa
     class ModelArg: ...       # noqa
     class WorkerT: ...        # noqa
-    class Settings: ...       # noqa
+    class _Settings: ...       # noqa
 
 __all__ = [
     'TaskArg',
@@ -113,6 +114,7 @@ class AppT(ServiceT):
     See Also:
         :class:`faust.App`.
     """
+    Settings: ClassVar[Type[_Settings]]
 
     BootStrategy: ClassVar[Type[BootStrategyT]]
     boot_strategy: BootStrategyT
@@ -125,12 +127,17 @@ class AppT(ServiceT):
 
     #: Set to true if the worker is currently rebalancing.
     rebalancing: bool = False
+    rebalancing_count: int = 0
 
     #: Set to true if the assignment is empty
     # This flag is set by App._on_partitions_assigned
     unassigned: bool = False
 
-    on_configured: SyncSignal[Settings] = SyncSignal()
+    #: Set to true when app is executing within a worker instance.
+    # This flag is set in faust/worker.py
+    in_worker: bool = False
+
+    on_configured: SyncSignal[_Settings] = SyncSignal()
     on_before_configured: SyncSignal = SyncSignal()
     on_after_configured: SyncSignal = SyncSignal()
     on_partitions_assigned: Signal[Set[TP]] = Signal()
@@ -168,7 +175,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def main(self) -> None:
+    def main(self) -> NoReturn:
         ...
 
     @abc.abstractmethod
@@ -221,6 +228,7 @@ class AppT(ServiceT):
               supervisor_strategy: Type[SupervisorStrategyT] = None,
               sink: Iterable[SinkT] = None,
               isolated_partitions: bool = False,
+              use_reply_headers: bool = False,
               **kwargs: Any) -> Callable[[AgentFun], AgentT]:
         ...
 
@@ -298,6 +306,7 @@ class AppT(ServiceT):
             value: V = None,
             partition: int = None,
             timestamp: float = None,
+            headers: HeadersArg = None,
             key_serializer: CodecArg = None,
             value_serializer: CodecArg = None,
             callback: MessageSentCallback = None) -> Awaitable[RecordMetadata]:
@@ -338,11 +347,11 @@ class AppT(ServiceT):
         ...
 
     @property
-    def conf(self) -> Settings:
+    def conf(self) -> _Settings:
         ...
 
     @conf.setter
-    def conf(self, settings: Settings) -> None:
+    def conf(self, settings: _Settings) -> None:
         ...
 
     @property
@@ -428,4 +437,9 @@ class AppT(ServiceT):
 
     @web.setter
     def web(self, web: Web) -> None:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def in_transaction(self) -> bool:
         ...

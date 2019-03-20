@@ -64,6 +64,11 @@ class test_Store:
     def test_encode_key(self, *, store):
         assert store._encode_key({'foo': 1}) == b'{"foo": 1}'
 
+    def test_encode_key__cannot_be_None(self, *, store):
+        store.key_serializer = 'raw'
+        with pytest.raises(TypeError):
+            store._encode_key(None)
+
     def test_encode_value(self, *, store):
         assert store._encode_value({'foo': 1}) == b'{"foo": 1}'
 
@@ -145,6 +150,14 @@ class test_SerializedStore:
         store.apply_changelog_batch([event], to_key=Mock(), to_value=Mock())
         with pytest.raises(KeyError):
             store.keep[b'foo']
+
+    def test_apply_changelog_batch__key_is_None(self, *, store):
+        event = Mock(name='event', autospec=Event)
+        event.message.key = None
+        event.message.value = b'bar'
+        with pytest.raises(TypeError):
+            store.apply_changelog_batch(
+                [event], to_key=Mock(), to_value=Mock())
 
     def test_setitem__getitem__delitem(self, *, store):
         store['foo'] = '303'

@@ -5,7 +5,8 @@ from .agents import AgentManagerT, AgentT
 from .app import AppT
 from .channels import ChannelT
 from .codecs import CodecArg, CodecT
-from .core import K, V
+from .core import HeadersArg, K, V
+from .enums import ProcessingGuarantee
 from .events import EventT
 from .fixups import FixupT
 from .joins import JoinT
@@ -24,6 +25,7 @@ from .transports import (
     ConsumerCallback,
     ConsumerT,
     ProducerT,
+    TransactionManagerT,
     TransportT,
 )
 from .tuples import (
@@ -53,6 +55,7 @@ __all__ = [
     'CodecT',
 
     # types.core
+    'HeadersArg',
     'K',
     'V',
 
@@ -86,6 +89,9 @@ __all__ = [
     'CollectionT',
     'TableT',
 
+    # types.enums
+    'ProcessingGuarantee',
+
     # types.topics
     'ChannelT',
     'EventT',
@@ -95,6 +101,7 @@ __all__ = [
     'ConsumerCallback',
     'ConsumerT',
     'ProducerT',
+    'TransactionManagerT',
     'TransportT',
 
     # types.tuples

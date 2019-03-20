@@ -10,7 +10,7 @@ The Consumer is responsible for:
 
    - Receives messages and calls the callback for every message received.
 
-   - Keeps track of the message and it's acked/unacked status.
+   - Keeps track of the message and its acked/unacked status.
 
    - The Conductor forwards the message to all Streams that subscribes
      to the topic the message was sent to.
@@ -52,6 +52,7 @@ from time import monotonic
 from typing import (
     Any,
     AsyncIterator,
+    Awaitable,
     ClassVar,
     Dict,
     Iterable,
@@ -60,6 +61,7 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSet,
+    NamedTuple,
     Optional,
     Set,
     Tuple,
@@ -72,21 +74,24 @@ from mode import Service, ServiceT, flight_recorder, get_logger
 from mode.threads import MethodQueue, QueueServiceThread
 from mode.utils.futures import notify
 from mode.utils.locks import Event
+from mode.utils.text import pluralize
 from mode.utils.times import Seconds
 from faust.exceptions import ProducerSendError
-from faust.types import AppT, ConsumerMessage, Message, TP
+from faust.types import AppT, ConsumerMessage, Message, RecordMetadata, TP
+from faust.types.core import HeadersArg
 from faust.types.transports import (
     ConsumerCallback,
     ConsumerT,
     PartitionsAssignedCallback,
     PartitionsRevokedCallback,
+    ProducerT,
     TPorTopicSet,
+    TransactionManagerT,
     TransportT,
 )
 from faust.utils import terminal
 from faust.utils.functional import consecutive_numbers
-
-from .utils import TopicBuffer, TopicIndexMap
+from faust.utils.tracing import traced_from_parent_span
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from faust.app import App
@@ -107,6 +112,12 @@ CONSUMER_WAIT_EMPTY = 'WAIT_EMPTY'
 logger = get_logger(__name__)
 
 RecordMap = Mapping[TP, List[Any]]
+
+
+class TopicPartitionGroup(NamedTuple):
+    topic: str
+    partition: int
+    group: int
 
 
 def ensure_TP(tp: Any) -> TP:
@@ -135,7 +146,7 @@ class Fetcher(Service):
                     await asyncio.wait_for(self._drainer, timeout=1.0)
                 except StopIteration:
                     # Task is cancelled right before coro stops.
-                    pass
+                    break
                 except asyncio.CancelledError:
                     break
                 except asyncio.TimeoutError:
@@ -156,6 +167,158 @@ class Fetcher(Service):
             pass
         finally:
             self.set_shutdown()
+
+
+class TransactionManager(Service, TransactionManagerT):
+    app: AppT
+
+    transactional_id_format = '{tpg.group}-{tpg.partition}'
+
+    def __init__(self, transport: TransportT,
+                 *,
+                 consumer: 'ConsumerT',
+                 producer: 'ProducerT',
+                 **kwargs: Any) -> None:
+        self.transport = transport
+        self.app = self.transport.app
+        self.consumer = consumer
+        self.producer = producer
+        super().__init__(**kwargs)
+
+    async def flush(self) -> None:
+        await self.producer.flush()
+
+    async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        await traced_from_parent_span()(self.flush)()
+
+    async def on_rebalance(self,
+                           assigned: Set[TP],
+                           revoked: Set[TP],
+                           newly_assigned: Set[TP]) -> None:
+        T = traced_from_parent_span()
+        # Stop producers for revoked partitions.
+        revoked_tids = list(sorted(self._tps_to_transactional_ids(revoked)))
+        if revoked_tids:
+            self.log.info(
+                'Stopping %r transactional %s for %r revoked %s...',
+                len(revoked_tids),
+                pluralize(len(revoked_tids), 'producer'),
+                len(revoked),
+                pluralize(len(revoked), 'partition'))
+            await T(self._stop_transactions, tids=revoked_tids)(revoked_tids)
+
+        # Start produers for assigned partitions
+        assigned_tids = list(sorted(self._tps_to_transactional_ids(assigned)))
+        if assigned_tids:
+            self.log.info(
+                'Starting %r transactional %s for %r assigned %s...',
+                len(assigned_tids),
+                pluralize(len(assigned_tids), 'producer'),
+                len(assigned),
+                pluralize(len(assigned), 'partition'))
+            await T(self._start_transactions,
+                    tids=assigned_tids)(assigned_tids)
+
+    async def _stop_transactions(self, tids: Iterable[str]) -> None:
+        T = traced_from_parent_span()
+        producer = self.producer
+        for transactional_id in tids:
+            await T(producer.stop_transaction)(transactional_id)
+
+    async def _start_transactions(self, tids: Iterable[str]) -> None:
+        T = traced_from_parent_span()
+        producer = self.producer
+        for transactional_id in tids:
+            await T(producer.maybe_begin_transaction)(transactional_id)
+
+    def _tps_to_transactional_ids(self, tps: Set[TP]) -> Set[str]:
+        return {
+            self.transactional_id_format.format(tpg=tpg)
+            for tpg in self._tps_to_active_tpgs(tps)
+        }
+
+    def _tps_to_active_tpgs(self, tps: Set[TP]) -> Set[TopicPartitionGroup]:
+        assignor = self.app.assignor
+        return {
+            TopicPartitionGroup(
+                tp.topic,
+                tp.partition,
+                assignor.group_for_topic(tp.topic),
+            )
+            for tp in tps
+            if not assignor.is_standby(tp)
+        }
+
+    async def send(self, topic: str, key: Optional[bytes],
+                   value: Optional[bytes],
+                   partition: Optional[int],
+                   timestamp: Optional[float],
+                   headers: Optional[HeadersArg],
+                   *,
+                   transactional_id: str = None) -> Awaitable[RecordMetadata]:
+        p: int = self.consumer.key_partition(topic, key, partition)
+        group = self.app.assignor.group_for_topic(topic)
+        transactional_id = f'{group}-{p}'
+        return await self.producer.send(
+            topic, key, value, p, timestamp, headers,
+            transactional_id=transactional_id,
+        )
+
+    async def send_and_wait(self, topic: str, key: Optional[bytes],
+                            value: Optional[bytes],
+                            partition: Optional[int],
+                            timestamp: Optional[float],
+                            headers: Optional[HeadersArg],
+                            *,
+                            transactional_id: str = None) -> RecordMetadata:
+        fut = await self.send(topic, key, value, partition, timestamp, headers)
+        return await fut
+
+    async def commit(self, offsets: Mapping[TP, int],
+                     start_new_transaction: bool = True) -> bool:
+        producer = self.producer
+        group_id = self.app.conf.id
+        by_transactional_id: MutableMapping[str, MutableMapping[TP, int]]
+        by_transactional_id = defaultdict(dict)
+
+        for tp, offset in offsets.items():
+            group = self.app.assignor.group_for_topic(tp.topic)
+            transactional_id = f'{group}-{tp.partition}'
+            by_transactional_id[transactional_id][tp] = offset
+
+        if by_transactional_id:
+            await producer.commit_transactions(
+                by_transactional_id, group_id,
+                start_new_transaction=start_new_transaction,
+            )
+        return True
+
+    def key_partition(self, topic: str, key: bytes) -> TP:
+        raise NotImplementedError()
+
+    async def create_topic(self,
+                           topic: str,
+                           partitions: int,
+                           replication: int,
+                           *,
+                           config: Mapping[str, Any] = None,
+                           timeout: Seconds = 30.0,
+                           retention: Seconds = None,
+                           compacting: bool = None,
+                           deleting: bool = None,
+                           ensure_created: bool = False) -> None:
+        return await self.producer.create_topic(
+            topic, partitions, replication,
+            config=config,
+            timeout=timeout,
+            retention=retention,
+            compacting=compacting,
+            deleting=deleting,
+            ensure_created=ensure_created,
+        )
+
+    def supports_headers(self) -> bool:
+        return self.producer.supports_headers()
 
 
 class Consumer(Service, ConsumerT):
@@ -229,11 +392,13 @@ class Consumer(Service, ConsumerT):
         assert callback is not None
         self.transport = transport
         self.app = self.transport.app
+        self.in_transaction = self.app.in_transaction
         self.callback = callback
         self._on_message_in = self.app.sensors.on_message_in
         self._on_partitions_revoked = on_partitions_revoked
         self._on_partitions_assigned = on_partitions_assigned
         self._commit_every = self.app.conf.broker_commit_every
+        self.scheduler = self.app.conf.ConsumerScheduler()
         self.commit_interval = (
             commit_interval or self.app.conf.broker_commit_interval)
         self.commit_livelock_soft_timeout = (
@@ -252,6 +417,19 @@ class Consumer(Service, ConsumerT):
         self.can_resume_flow = Event()
         self._reset_state()
         super().__init__(loop=loop or self.transport.loop, **kwargs)
+        self.transactions = self.transport.create_transaction_manager(
+            consumer=self,
+            producer=self.app.producer,
+            beacon=self.beacon,
+            loop=self.loop,
+        )
+
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
+        # We start the TransactionManager only if
+        # processing_guarantee='exactly_once'
+        if self.in_transaction:
+            return [self.transactions]
+        return []
 
     def _reset_state(self) -> None:
         self._active_partitions = None
@@ -277,12 +455,6 @@ class Consumer(Service, ConsumerT):
         xtps.difference_update(self._paused_partitions)
         return xtps
 
-    def _records_to_topic_index(
-            self,
-            records: RecordMap,
-            active_partitions: Set[TP]) -> TopicIndexMap:
-        return TopicBuffer.map_from_records(records)
-
     @abc.abstractmethod
     async def _commit(
             self,
@@ -292,15 +464,15 @@ class Consumer(Service, ConsumerT):
     async def perform_seek(self) -> None:
         read_offset = self._read_offset
         _committed_offsets = await self.seek_to_committed()
+        read_offset.update({
+            tp: offset if offset is not None and offset >= 0 else None
+            for tp, offset in _committed_offsets.items()
+        })
         committed_offsets = {
-            ensure_TP(tp): offset
+            ensure_TP(tp): offset if offset else None
             for tp, offset in _committed_offsets.items()
             if offset is not None
         }
-        read_offset.update({
-            tp: offset if offset else None
-            for tp, offset in committed_offsets.items()
-        })
         self._committed_offset.update(committed_offsets)
 
     @abc.abstractmethod
@@ -311,9 +483,9 @@ class Consumer(Service, ConsumerT):
         self.log.dev('SEEK %r -> %r', partition, offset)
         # reset livelock detection
         self._last_batch = None
+        await self._seek(partition, offset)
         # set new read offset so we will reread messages
         self._read_offset[ensure_TP(partition)] = offset if offset else None
-        self._seek(partition, offset)
 
     @abc.abstractmethod
     async def _seek(self, partition: TP, offset: int) -> None:
@@ -348,24 +520,32 @@ class Consumer(Service, ConsumerT):
     @Service.transitions_to(CONSUMER_PARTITIONS_REVOKED)
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.app.on_rebalance_start()
-        # see comment in on_partitions_assigned
-        # remove revoked partitions from active + paused tps.
-        if self._active_partitions is not None:
-            self._active_partitions.difference_update(revoked)
-        self._paused_partitions.difference_update(revoked)
-        await self._on_partitions_revoked(revoked)
+        span = self.app._start_span_from_rebalancing('on_partitions_revoked')
+        T = traced_from_parent_span(span)
+        with span:
+            # see comment in on_partitions_assigned
+            # remove revoked partitions from active + paused tps.
+            if self._active_partitions is not None:
+                self._active_partitions.difference_update(revoked)
+            self._paused_partitions.difference_update(revoked)
+            await T(self._on_partitions_revoked, partitions=revoked)(
+                revoked)
 
     @Service.transitions_to(CONSUMER_PARTITIONS_ASSIGNED)
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
-        # remove recently revoked tps from set of paused tps.
-        self._paused_partitions.intersection_update(assigned)
-        # cache set of assigned partitions
-        self._set_active_tps(assigned)
-        # start callback chain of assigned callbacks.
-        #   need to copy set at this point, since we cannot have
-        #   the callbacks mutate our active list.
-        self._last_batch = None
-        await self._on_partitions_assigned(assigned)
+        span = self.app._start_span_from_rebalancing('on_partitions_assigned')
+        T = traced_from_parent_span(span)
+        with span:
+            # remove recently revoked tps from set of paused tps.
+            self._paused_partitions.intersection_update(assigned)
+            # cache set of assigned partitions
+            self._set_active_tps(assigned)
+            # start callback chain of assigned callbacks.
+            #   need to copy set at this point, since we cannot have
+            #   the callbacks mutate our active list.
+            self._last_batch = None
+            await T(self._on_partitions_assigned, partitions=assigned)(
+                assigned)
 
     @abc.abstractmethod
     async def _getmany(self,
@@ -375,27 +555,6 @@ class Consumer(Service, ConsumerT):
 
     async def getmany(self,
                       timeout: float) -> AsyncIterator[Tuple[TP, Message]]:
-        if not self.flow_active:
-            await self.wait(self.can_resume_flow)
-        # Implementation for the Fetcher service.
-        active_partitions = self._get_active_partitions()
-        _next = next
-
-        records: RecordMap = {}
-        if active_partitions:
-            # Fetch records only if active partitions to avoid the risk of
-            # fetching all partitions in the beginning when none of the
-            # partitions is paused/resumed.
-            records = await self._getmany(
-                active_partitions=active_partitions,
-                timeout=timeout,
-            )
-        else:
-            # We should still release to the event loop
-            await self.sleep(1)
-            if self.should_stop:
-                return
-
         # records' contain mapping from TP to list of messages.
         # if there are two agents, consuming from topics t1 and t2,
         # normal order of iteration would be to process each
@@ -439,33 +598,42 @@ class Consumer(Service, ConsumerT):
         # has 1 partition, then t2 will end up being starved most of the time.
         #
         # We solve this by going round-robin through each topic.
-        topic_index = self._records_to_topic_index(records, active_partitions)
-        to_remove: Set[str] = set()
-        sentinel = object()
+        records, active_partitions = await self._wait_next_records(timeout)
+        if records is None or self.should_stop:
+            return
 
+        records_it = self.scheduler.iterate(records)
         to_message = self._to_message  # localize
-
-        while topic_index:
-            if not self.flow_active:
-                break
-            for topic in to_remove:
-                topic_index.pop(topic, None)
-            for topic, messages in topic_index.items():
+        if self.flow_active:
+            for tp, record in records_it:
                 if not self.flow_active:
                     break
-                item = _next(messages, sentinel)
-                if item is sentinel:
-                    # this topic is now empty,
-                    # but we cannot remove from dict while iterating over it,
-                    # so move that to the outer loop.
-                    to_remove.add(topic)
-                    continue
-                tp, record = item  # type: ignore
                 if tp in active_partitions:
                     highwater_mark = self.highwater(tp)
                     self.app.monitor.track_tp_end_offset(tp, highwater_mark)
                     # convert timestamp to seconds from int milliseconds.
                     yield tp, to_message(tp, record)
+
+    async def _wait_next_records(
+            self, timeout: float) -> Tuple[Optional[RecordMap], Set[TP]]:
+        if not self.flow_active:
+            await self.wait(self.can_resume_flow)
+        # Implementation for the Fetcher service.
+        active_partitions = self._get_active_partitions()
+
+        records: RecordMap = {}
+        if active_partitions:
+            # Fetch records only if active partitions to avoid the risk of
+            # fetching all partitions in the beginning when none of the
+            # partitions is paused/resumed.
+            records = await self._getmany(
+                active_partitions=active_partitions,
+                timeout=timeout,
+            )
+        else:
+            # We should still release to the event loop
+            await self.sleep(1)
+        return records, active_partitions
 
     @abc.abstractmethod
     def _to_message(self, tp: TP, record: Any) -> ConsumerMessage:
@@ -517,27 +685,32 @@ class Consumer(Service, ConsumerT):
     async def wait_empty(self) -> None:
         """Wait for all messages that started processing to be acked."""
         wait_count = 0
+        T = traced_from_parent_span()
         while not self.should_stop and self._unacked_messages:
             wait_count += 1
-            if not wait_count % 100_000:  # pragma: no cover
+            if not wait_count % 10:  # pragma: no cover
                 remaining = [(m.refcount, m) for m in self._unacked_messages]
                 self.log.warn(f'Waiting for {remaining}')
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
-            await self.commit()
+            await T(self.commit)()
             if not self._unacked_messages:
                 break
-            await self._wait_for_ack(timeout=1)
+            await T(self._wait_for_ack)(timeout=1)
 
         self.log.dev('COMMITTING AGAIN AFTER STREAMS DONE')
-        await self.commit()
+        await T(self.commit_and_end_transactions)()
+
+    async def commit_and_end_transactions(self) -> None:
+        await self.commit(start_new_transaction=False)
 
     async def on_stop(self) -> None:
         if self.app.conf.stream_wait_empty:
             await self.wait_empty()
         else:
-            await self.commit()
+            await self.commit_and_end_transactions()
+
         self._last_batch = None
 
     @Service.task
@@ -560,8 +733,8 @@ class Consumer(Service, ConsumerT):
                         'Possible livelock: COMMIT OFFSET NOT ADVANCING')
             await self.sleep(interval)
 
-    async def commit(
-            self, topics: TPorTopicSet = None) -> bool:  # pragma: no cover
+    async def commit(self, topics: TPorTopicSet = None,
+                     start_new_transaction: bool = True) -> bool:
         """Maybe commit the offset for all or specific topics.
 
         Arguments:
@@ -573,13 +746,15 @@ class Consumer(Service, ConsumerT):
 
         self._commit_fut = asyncio.Future(loop=self.loop)
         try:
-            return await self.force_commit(topics)
+            return await self.force_commit(
+                topics,
+                start_new_transaction=start_new_transaction,
+            )
         finally:
             # set commit_fut to None so that next call will commit.
             fut, self._commit_fut = self._commit_fut, None
             # notify followers that the commit is done.
-            if fut is not None and not fut.done():
-                fut.set_result(None)
+            notify(fut)
 
     async def maybe_wait_for_commit_to_finish(self) -> bool:
         # Only one coroutine allowed to commit at a time,
@@ -597,17 +772,22 @@ class Consumer(Service, ConsumerT):
         return False
 
     @Service.transitions_to(CONSUMER_COMMITTING)
-    async def force_commit(self, topics: TPorTopicSet = None) -> bool:
+    async def force_commit(self,
+                           topics: TPorTopicSet = None,
+                           start_new_transaction: bool = True) -> bool:
         sensor_state = self.app.sensors.on_commit_initiated(self)
 
         # Go over the ack list in each topic/partition
         commit_tps = list(self._filter_tps_with_pending_acks(topics))
-        did_commit = await self._commit_tps(commit_tps)
+        did_commit = await self._commit_tps(
+            commit_tps, start_new_transaction=start_new_transaction)
 
         self.app.sensors.on_commit_completed(self, sensor_state)
         return did_commit
 
-    async def _commit_tps(self, tps: Iterable[TP]) -> bool:
+    async def _commit_tps(self,
+                          tps: Iterable[TP],
+                          start_new_transaction: bool) -> bool:
         commit_offsets = self._filter_committable_offsets(tps)
         if commit_offsets:
             try:
@@ -616,7 +796,9 @@ class Consumer(Service, ConsumerT):
             except ProducerSendError as exc:
                 await self.crash(exc)
             else:
-                return await self._commit_offsets(commit_offsets)
+                return await self._commit_offsets(
+                    commit_offsets,
+                    start_new_transaction=start_new_transaction)
         return False
 
     def _filter_committable_offsets(self, tps: Iterable[TP]) -> Dict[TP, int]:
@@ -649,7 +831,8 @@ class Consumer(Service, ConsumerT):
             if pending:
                 await producer.wait_many(pending)
 
-    async def _commit_offsets(self, offsets: Mapping[TP, int]) -> bool:
+    async def _commit_offsets(self, offsets: Mapping[TP, int],
+                              start_new_transaction: bool = True) -> bool:
         table = terminal.logtable(
             [(str(tp), str(offset))
              for tp, offset in offsets.items()],
@@ -674,13 +857,24 @@ class Consumer(Service, ConsumerT):
         if not commitable_offsets:
             return False
         with flight_recorder(self.log, timeout=300.0) as on_timeout:
+            did_commit = False
             on_timeout.info('+consumer.commit()')
-            await self._commit(commitable_offsets)
+            if self.in_transaction:
+                did_commit = await self.transactions.commit(
+                    commitable_offsets,
+                    start_new_transaction=start_new_transaction,
+                )
+            else:
+                did_commit = await self._commit(commitable_offsets)
             on_timeout.info('-consumer.commit()')
+            if did_commit:
+                on_timeout.info('+tables.on_commit')
+                self.app.tables.on_commit(commitable_offsets)
+                on_timeout.info('-tables.on_commit')
         self._committed_offset.update(commitable_offsets)
         self.app.monitor.on_tp_commit(commitable_offsets)
         self._last_batch = None
-        return True
+        return did_commit
 
     def _filter_tps_with_pending_acks(
             self, topics: TPorTopicSet = None) -> Iterator[TP]:
@@ -839,12 +1033,11 @@ class ConsumerThread(QueueServiceThread):
         ...
 
     @abc.abstractmethod
-    async def earliest_offsets(self,
-                               *partitions: TP) -> MutableMapping[TP, int]:
+    async def earliest_offsets(self, *partitions: TP) -> Mapping[TP, int]:
         ...
 
     @abc.abstractmethod
-    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+    async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
         ...
 
     @abc.abstractmethod
@@ -876,6 +1069,13 @@ class ConsumerThread(QueueServiceThread):
             self, assigned: Set[TP]) -> None:
         await self.consumer.threadsafe_partitions_assigned(
             self.thread_loop, assigned)
+
+    @abc.abstractmethod
+    def key_partition(self,
+                      topic: str,
+                      key: Optional[bytes],
+                      partition: int = None) -> int:
+        ...
 
 
 class ThreadDelegateConsumer(Consumer):
@@ -954,11 +1154,10 @@ class ThreadDelegateConsumer(Consumer):
     def topic_partitions(self, topic: str) -> Optional[int]:
         return self._thread.topic_partitions(topic)
 
-    async def earliest_offsets(self,
-                               *partitions: TP) -> MutableMapping[TP, int]:
+    async def earliest_offsets(self, *partitions: TP) -> Mapping[TP, int]:
         return await self._thread.earliest_offsets(*partitions)
 
-    async def highwaters(self, *partitions: TP) -> MutableMapping[TP, int]:
+    async def highwaters(self, *partitions: TP) -> Mapping[TP, int]:
         return await self._thread.highwaters(*partitions)
 
     async def _commit(self, offsets: Mapping[TP, int]) -> bool:
@@ -966,3 +1165,9 @@ class ThreadDelegateConsumer(Consumer):
 
     def close(self) -> None:
         self._thread.close()
+
+    def key_partition(self,
+                      topic: str,
+                      key: Optional[bytes],
+                      partition: int = None) -> int:
+        return self._thread.key_partition(topic, key, partition=partition)

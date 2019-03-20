@@ -1,10 +1,9 @@
 """Program ``faust models`` used to list models available."""
 from operator import attrgetter
 from typing import Any, Callable, Sequence, Type, cast
-import click
 from faust.models import registry
 from faust.types import ModelT
-from .base import AppCommand
+from .base import AppCommand, option
 
 __all__ = ['models']
 
@@ -17,7 +16,7 @@ class models(AppCommand):
     sortkey = attrgetter('_options.namespace')
 
     options = [
-        click.option('--builtins/--no-builtins', default=False),
+        option('--builtins/--no-builtins', default=False),
     ]
 
     async def run(self, *, builtins: bool) -> None:

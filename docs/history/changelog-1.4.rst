@@ -10,6 +10,45 @@ series, please visit the latest :ref:`changelog`.
 
 For even older releases you can visit the :ref:`history` section.
 
+.. _version-1.4.7:
+
+1.4.7
+=====
+:release-date: 2019-03-08 02:21 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **Requirements**
+
+    + Now depends on :ref:`Mode 3.0.9 <mode:version-3.0.9>`.
+
+- **Tables**: Read offset not always updated after seek
+  caused recovery to hang.
+
+- **Consumer**: Fix to make sure fetch requests will not block method queue.
+
+- **App**: Fixed deadlock in rebalancing.
+
+- **Web**: Views can now define ``options`` method to
+  implement a handler for the HTTP ``OPTIONS`` method.
+  (Issue #304)
+
+    Contributed by Perk Lim (:github_user:`perklun`).
+
+- **Web**: Can now pass headers to HTTP responses.
+
+.. _version-1.4.6:
+
+1.4.6
+=====
+:release-date: 2019-01-29 01:52 P.M PDT
+:release-by: Ask Solem (:github_user:`ask`)
+
+- **App**: Better support for custom boot strategies by having
+  the app start without waiting for recovery when no tables started.
+
+- **Docs**: Fixed doc build after intersphinx
+     URL https://click.palletsprojects.com/en/latest no longer works.
+
 .. _version-1.4.5:
 
 1.4.5

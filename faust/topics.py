@@ -30,6 +30,7 @@ from .types import (
     CodecArg,
     EventT,
     FutureMessage,
+    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -151,6 +152,7 @@ class Topic(Channel, TopicT):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -165,6 +167,7 @@ class Topic(Channel, TopicT):
                     value,
                     partition=partition,
                     timestamp=timestamp,
+                    headers=headers,
                     key_serializer=key_serializer,
                     value_serializer=value_serializer,
                     callback=callback,
@@ -174,6 +177,7 @@ class Topic(Channel, TopicT):
             value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,
@@ -211,7 +215,7 @@ class Topic(Channel, TopicT):
             else:
                 try:
                     if message.value is None and self.allow_empty:
-                        return create_event(k, None, message)
+                        return create_event(k, None, message.headers, message)
                     v = loads_value(
                         value_type, message.value, serializer=value_serializer)
                 except ValueDecodeError as exc:
@@ -219,7 +223,7 @@ class Topic(Channel, TopicT):
                         raise
                     await self.on_value_decode_error(exc, message)
                 else:
-                    return create_event(k, v, message)
+                    return create_event(k, v, message.headers, message)
 
         return decode
 
@@ -334,48 +338,71 @@ class Topic(Channel, TopicT):
                               wait: bool = False) -> Awaitable[RecordMetadata]:
         app = self.app
         message: PendingMessage = fut.message
-        if isinstance(message.channel, str):
-            topic = message.channel
-        elif isinstance(message.channel, TopicT):
-            topic = cast(TopicT, message.channel).get_topic_name()
-        else:
-            topic = self.get_topic_name()
+        topic = self._topic_name_or_default(message.channel)
         key: bytes = cast(bytes, message.key)
         value: bytes = cast(bytes, message.value)
+        partition: Optional[int] = message.partition
         timestamp: float = cast(float, message.timestamp)
-        logger.debug('send: topic=%r key=%r value=%r timestamp=%r',
-                     topic, key, value, timestamp)
+        headers: Optional[HeadersArg] = message.headers
+        logger.debug('send: topic=%r k=%r v=%r timestamp=%r partition=%r',
+                     topic, key, value, timestamp, partition)
         assert topic is not None
         producer = await self._get_producer()
         state = app.sensors.on_send_initiated(
             producer,
             topic,
+            message=message,
             keysize=len(key) if key else 0,
-            valsize=len(value) if value else 0)
+            valsize=len(value) if value else 0,
+        )
         if wait:
             ret: RecordMetadata = await producer.send_and_wait(
                 topic, key, value,
-                partition=message.partition,
+                partition=partition,
                 timestamp=timestamp,
+                headers=headers,
             )
-            app.sensors.on_send_completed(producer, state)
+            app.sensors.on_send_completed(producer, state, ret)
             return await self._finalize_message(fut, ret)
         else:
-            fut2 = await producer.send(
+            fut2 = cast(asyncio.Future, await producer.send(
                 topic, key, value,
-                partition=message.partition,
+                partition=partition,
                 timestamp=timestamp,
+                headers=headers,
+            ))
+            callback = partial(
+                self._on_published,
+                message=fut,
+                state=state,
+                producer=producer,
             )
-            cast(asyncio.Future, fut2).add_done_callback(
-                cast(Callable, partial(self._on_published, message=fut)))
+            fut2.add_done_callback(cast(Callable, callback))
             return fut2
 
+    def _topic_name_or_default(
+            self, obj: Optional[Union[str, ChannelT]]) -> str:
+        if isinstance(obj, str):
+            return obj
+        elif isinstance(obj, TopicT):
+            return cast(TopicT, obj).get_topic_name()
+        else:
+            return self.get_topic_name()
+
     def _on_published(self, fut: asyncio.Future,
-                      message: FutureMessage) -> None:
-        res: RecordMetadata = fut.result()
-        message.set_result(res)
-        if message.message.callback:
-            message.message.callback(message)
+                      message: FutureMessage,
+                      producer: ProducerT,
+                      state: Any) -> None:
+        try:
+            res: RecordMetadata = fut.result()
+        except Exception as exc:
+            message.set_exception(exc)
+            self.app.sensors.on_send_error(producer, exc, state)
+        else:
+            message.set_result(res)
+            if message.message.callback:
+                message.message.callback(message)
+            self.app.sensors.on_send_completed(producer, state, res)
 
     def prepare_key(self, key: K, key_serializer: CodecArg) -> Any:
         if key is not None:
@@ -399,23 +426,24 @@ class Topic(Channel, TopicT):
         await self.declare()
 
     async def declare(self) -> None:
-        producer = await self._get_producer()
-        for topic in self.topics:
-            partitions = self.partitions
-            if partitions is None:
-                partitions = self.app.conf.topic_partitions
-            replicas = self.replicas
-            if not replicas:
-                replicas = self.app.conf.topic_replication_factor
-            await producer.create_topic(
-                topic=topic,
-                partitions=partitions,
-                replication=replicas,
-                config=self.config,
-                compacting=self.compacting,
-                deleting=self.deleting,
-                retention=self.retention,
-            )
+        partitions = self.partitions
+        if partitions is None:
+            partitions = self.app.conf.topic_partitions
+        replicas = self.replicas
+        if not replicas:
+            replicas = self.app.conf.topic_replication_factor
+        if self.app.conf.topic_allow_declare:
+            producer = await self._get_producer()
+            for topic in self.topics:
+                await producer.create_topic(
+                    topic=topic,
+                    partitions=partitions,
+                    replication=replicas,
+                    config=self.config,
+                    compacting=self.compacting,
+                    deleting=self.deleting,
+                    retention=self.retention,
+                )
 
     def __aiter__(self) -> ChannelT:
         if self.is_iterator:

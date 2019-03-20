@@ -1,4 +1,5 @@
 import socket
+import sys
 from pathlib import Path
 
 import faust
@@ -7,14 +8,30 @@ import pytest
 import pytz
 from aiohttp.client import ClientSession
 from faust import App
+from faust.app import BootStrategy
 from faust.assignor import LeaderAssignor, PartitionAssignor
 from faust.exceptions import AlreadyConfiguredWarning, ImproperlyConfigured
 from faust.app.router import Router
 from faust.sensors import Monitor
 from faust.serializers import Registry
 from faust.tables import TableManager
+from faust.transport.utils import DefaultSchedulingStrategy
 from faust.types import settings
+from faust.types.enums import ProcessingGuarantee
 from yarl import URL
+
+TABLEDIR: Path
+DATADIR: Path
+if sys.platform == 'win32':
+    TABLEDIR = Path('c:/Program Files/Faust/')
+    DATADIR = Path('c:/Temporary Files/Faust/')
+else:
+    DATADIR = Path('/etc/faust/')
+    TABLEDIR = Path('/var/faust/')
+
+
+class OtherSchedulingStrategy(DefaultSchedulingStrategy):
+    ...
 
 
 def _dummy_partitioner(a, b, c):
@@ -39,6 +56,7 @@ class test_settings:
         assert not conf.web_in_thread
         assert conf.datadir == conf._prepare_datadir(settings.DATADIR)
         assert conf.tabledir == conf._prepare_tabledir(settings.TABLEDIR)
+        assert conf.processing_guarantee == settings.PROCESSING_GUARANTEE
         assert conf.broker_client_id == settings.BROKER_CLIENT_ID
         assert conf.broker_request_timeout == settings.BROKER_REQUEST_TIMEOUT
         assert conf.broker_session_timeout == settings.BROKER_SESSION_TIMEOUT
@@ -76,6 +94,7 @@ class test_settings:
         assert conf.table_standby_replicas == 1
         assert conf.topic_replication_factor == 1
         assert conf.topic_partitions == 8
+        assert conf.topic_allow_declare
         assert conf.logging_config is None
         assert conf.loghandlers == []
         assert conf.version == 1
@@ -89,6 +108,7 @@ class test_settings:
         assert conf.agent_supervisor is mode.OneForOneSupervisor
 
         assert conf.Agent is faust.Agent
+        assert conf.ConsumerScheduler is DefaultSchedulingStrategy
         assert conf.Stream is faust.Stream
         assert conf.Table is faust.Table
         assert conf.TableManager is TableManager
@@ -127,12 +147,12 @@ class test_settings:
         assert isinstance(app.conf.web, URL)
 
     def test_datadir_as_Path(self):
-        app = self.assert_config_equivalent(datadir=Path('/etc/moo'))
+        app = self.assert_config_equivalent(datadir=DATADIR)
         assert isinstance(app.conf.datadir, Path)
 
     def test_tabledir_is_relative_to_path(self):
         app = self.assert_config_equivalent(
-            datadir='/etc/faust',
+            datadir=str(DATADIR),
             tabledir='moo',
         )
         assert app.conf.tabledir == app.conf.appdir / Path('moo')
@@ -149,8 +169,9 @@ class test_settings:
                                  origin='faust',
                                  canonical_url='http://example.com/',
                                  broker_client_id='client id',
-                                 datadir='/etc/faust/',
-                                 tabledir='/var/faust/',
+                                 datadir=str(DATADIR),
+                                 tabledir=str(TABLEDIR),
+                                 processing_guarantee='exactly_once',
                                  broker_request_timeout=10000.05,
                                  broker_heartbeat_interval=101.13,
                                  broker_session_timeout=30303.30,
@@ -165,6 +186,7 @@ class test_settings:
                                  value_serializer='str',
                                  table_standby_replicas=48,
                                  topic_replication_factor=16,
+                                 topic_allow_declare=False,
                                  reply_to='reply_to',
                                  reply_create_topic=True,
                                  reply_expires=90.9,
@@ -185,6 +207,7 @@ class test_settings:
                                  timezone=pytz.timezone('US/Eastern'),
                                  logging_config={'foo': 10},  # noqa
                                  consumer_auto_offset_reset='latest',
+                                 ConsumerScheduler=OtherSchedulingStrategy,
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
         app = self.App(
@@ -201,6 +224,7 @@ class test_settings:
             broker_client_id=broker_client_id,
             datadir=datadir,
             tabledir=tabledir,
+            processing_guarantee=processing_guarantee,
             broker_request_timeout=broker_request_timeout,
             broker_session_timeout=broker_session_timeout,
             broker_heartbeat_interval=broker_heartbeat_interval,
@@ -216,6 +240,7 @@ class test_settings:
             value_serializer=value_serializer,
             table_standby_replicas=table_standby_replicas,
             topic_replication_factor=topic_replication_factor,
+            topic_allow_declare=topic_allow_declare,
             reply_to=reply_to,
             reply_create_topic=reply_create_topic,
             reply_expires=reply_expires,
@@ -235,6 +260,7 @@ class test_settings:
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
             logging_config=logging_config,
             consumer_auto_offset_reset=consumer_auto_offset_reset,
+            ConsumerScheduler=ConsumerScheduler,
         )
         conf = app.conf
         assert conf.id == app.conf._prepare_id(id)
@@ -252,6 +278,7 @@ class test_settings:
             assert conf.tabledir == Path(str(tabledir))
         else:
             assert conf.tabledir.relative_to(conf.appdir) == Path(tabledir)
+        assert conf.processing_guarantee == ProcessingGuarantee.EXACTLY_ONCE
         assert conf.broker_request_timeout == broker_request_timeout
         assert conf.broker_heartbeat_interval == broker_heartbeat_interval
         assert conf.broker_session_timeout == broker_session_timeout
@@ -267,6 +294,7 @@ class test_settings:
         assert conf.value_serializer == value_serializer
         assert conf.table_standby_replicas == table_standby_replicas
         assert conf.topic_replication_factor == topic_replication_factor
+        assert conf.topic_allow_declare == topic_allow_declare
         assert conf.reply_to == reply_to
         assert conf.reply_expires == reply_expires
         assert conf.stream_buffer_maxsize == stream_buffer_maxsize
@@ -286,6 +314,7 @@ class test_settings:
         assert conf.broker_max_poll_records == broker_max_poll_records
         assert conf.logging_config == logging_config
         assert conf.consumer_auto_offset_reset == consumer_auto_offset_reset
+        assert conf.ConsumerScheduler is OtherSchedulingStrategy
         return app
 
     def test_custom_host_port_to_canonical(self,
@@ -358,3 +387,87 @@ class test_settings:
         assert url.scheme == settings.DEFAULT_BROKER_SCHEME
         assert url.host == 'example.com'
         assert url.port == 3123
+
+
+class test_BootStrategy:
+
+    def test_init(self, *, app):
+        assert not BootStrategy(app, enable_web=False).enable_web
+        assert BootStrategy(app, enable_web=True).enable_web
+        assert not BootStrategy(app, enable_kafka=False).enable_kafka
+        assert BootStrategy(app, enable_kafka=True).enable_kafka
+        assert not BootStrategy(
+            app, enable_kafka_producer=False,
+        ).enable_kafka_producer
+        assert BootStrategy(
+            app, enable_kafka_producer=True,
+        ).enable_kafka_producer
+        assert not BootStrategy(
+            app, enable_kafka_consumer=False,
+        ).enable_kafka_consumer
+        assert BootStrategy(
+            app, enable_kafka_consumer=True,
+        ).enable_kafka_consumer
+        assert not BootStrategy(app, enable_sensors=False).enable_sensors
+        assert BootStrategy(app, enable_sensors=True).enable_sensors
+
+    def test_sensors(self, *, app):
+        assert BootStrategy(app, enable_sensors=True).sensors() is app.sensors
+        assert not BootStrategy(app, enable_sensors=False).sensors()
+
+    def test_kafka_consumer(self, *, app):
+        assert BootStrategy(
+            app, enable_kafka_consumer=True).kafka_consumer()
+        assert BootStrategy(
+            app, enable_kafka_consumer=True).kafka_conductor()
+        assert not BootStrategy(
+            app, enable_kafka_consumer=False).kafka_consumer()
+        assert not BootStrategy(
+            app, enable_kafka_consumer=False).kafka_conductor()
+        assert BootStrategy(
+            app, enable_kafka=True).kafka_consumer()
+        assert BootStrategy(
+            app, enable_kafka=True).kafka_conductor()
+        assert not BootStrategy(
+            app, enable_kafka=False).kafka_consumer()
+        assert not BootStrategy(
+            app, enable_kafka=False).kafka_conductor()
+
+    def test_kafka_producer(self, *, app):
+        assert BootStrategy(
+            app, enable_kafka_producer=True).kafka_producer()
+        assert not BootStrategy(
+            app, enable_kafka_producer=False).kafka_producer()
+        assert BootStrategy(
+            app, enable_kafka=True).kafka_producer()
+        assert BootStrategy(
+            app, enable_kafka_producer=None).kafka_producer()
+        assert not BootStrategy(
+            app, enable_kafka=False).kafka_producer()
+
+    def test_web_server(self, *, app):
+        assert BootStrategy(app, enable_web=True).web_server()
+        assert not BootStrategy(app, enable_web=False).web_server()
+        assert BootStrategy(app, enable_web=True).web_server()
+        assert not BootStrategy(app, enable_web=False).web_server()
+        assert BootStrategy(app, enable_web=None).web_server()
+
+    def test_disable_kafka(self, *, app):
+        class B(BootStrategy):
+            enable_kafka = False
+
+        b = B(app)
+        assert not b.enable_kafka
+        assert not b.kafka_conductor()
+        assert not b.kafka_consumer()
+        assert not b.kafka_producer()
+
+    def test_disable_kafka_consumer(self, *, app):
+        class B(BootStrategy):
+            enable_kafka_consumer = False
+
+        b = B(app)
+        assert b.enable_kafka
+        assert not b.kafka_conductor()
+        assert not b.kafka_consumer()
+        assert b.kafka_producer()

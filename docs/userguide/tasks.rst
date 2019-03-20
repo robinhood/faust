@@ -301,7 +301,7 @@ used to send example data into the stream processors:
 
 .. sourcecode:: python
 
-    from click import option
+    from faust.cli import option
 
     # the full example is in examples/simple.py in the Faust distribution.
     # this only shows the command part of this code.

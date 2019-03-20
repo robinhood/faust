@@ -1,6 +1,7 @@
 """Agent implementation."""
 import asyncio
 import typing
+from contextvars import ContextVar
 from time import time
 from typing import (
     Any,
@@ -32,18 +33,21 @@ from mode import (
     SupervisorStrategyT,
 )
 from mode.utils.aiter import aenumerate, aiter
+from mode.utils.compat import want_bytes, want_str
 from mode.utils.futures import maybe_async
 from mode.utils.objects import canonshortname, qualname
 from mode.utils.text import shorten_fqdn
 from mode.utils.types.trees import NodeT
 
 from faust.exceptions import ImproperlyConfigured
+from faust.utils.tracing import traced_from_parent_span
 
 from faust.types import (
     AppT,
     ChannelT,
     CodecArg,
     EventT,
+    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -65,6 +69,7 @@ from faust.types.agents import (
     ReplyToArg,
     SinkT,
 )
+from faust.types.core import merge_headers, prepare_headers
 
 from .actor import Actor, AsyncIterableActor, AwaitableActor
 from .models import (
@@ -139,6 +144,14 @@ __all__ = ['Agent']
 #      ``@app.agent(sinks=[other_agent])``.
 
 
+_current_agent: ContextVar[Optional[AgentT]]
+_current_agent = ContextVar('current_agent')
+
+
+def current_agent() -> Optional[AgentT]:
+    return _current_agent.get(None)
+
+
 class Agent(AgentT, Service):
     """Agent.
 
@@ -180,6 +193,7 @@ class Agent(AgentT, Service):
                  key_type: ModelArg = None,
                  value_type: ModelArg = None,
                  isolated_partitions: bool = False,
+                 use_reply_headers: bool = None,
                  **kwargs: Any) -> None:
         self.app = app
         self.fun: AgentFun = fun
@@ -205,7 +219,13 @@ class Agent(AgentT, Service):
         if self.isolated_partitions and self.concurrency > 1:
             raise ImproperlyConfigured(
                 'Agent concurrency must be 1 when using isolated partitions')
+        self.use_reply_headers = use_reply_headers
         Service.__init__(self)
+
+    def on_init_dependencies(self) -> Iterable[ServiceT]:
+        # Agent service is now a child of app.
+        self.beacon.reattach(self.app.beacon)
+        return []
 
     async def _start_one(self,
                          *,
@@ -307,6 +327,11 @@ class Agent(AgentT, Service):
         # last message processed (but not the message causing the error
         # to be raised).
         await self._stop_supervisor()
+        await asyncio.gather(*[
+            aref.actor_task for aref in self._actors
+            if aref.actor_task is not None
+        ])
+        self._actors.clear()
 
     async def _stop_supervisor(self) -> None:
         if self.supervisor:
@@ -314,42 +339,47 @@ class Agent(AgentT, Service):
             self.supervisor = None
 
     def cancel(self) -> None:
-        for actor in self._actors:
-            actor.cancel()
+        for aref in self._actors:
+            aref.cancel()
 
     async def on_partitions_revoked(self, revoked: Set[TP]) -> None:
+        T = traced_from_parent_span()
         if self.isolated_partitions:
             # isolated: start/stop actors for each partition
-            await self.on_isolated_partitions_revoked(revoked)
+            await T(self.on_isolated_partitions_revoked)(revoked)
         else:
-            await self.on_shared_partitions_revoked(revoked)
+            await T(self.on_shared_partitions_revoked)(revoked)
 
     async def on_partitions_assigned(self, assigned: Set[TP]) -> None:
+        T = traced_from_parent_span()
         if self.isolated_partitions:
-            await self.on_isolated_partitions_assigned(assigned)
+            await T(self.on_isolated_partitions_assigned)(assigned)
         else:
-            await self.on_shared_partitions_assigned(assigned)
+            await T(self.on_shared_partitions_assigned)(assigned)
 
     async def on_isolated_partitions_revoked(self, revoked: Set[TP]) -> None:
         self.log.dev('Partitions revoked')
+        T = traced_from_parent_span()
         for tp in revoked:
             aref: Optional[ActorRefT] = self._actor_by_partition.pop(tp, None)
             if aref is not None:
-                await aref.on_isolated_partition_revoked(tp)
+                await T(aref.on_isolated_partition_revoked)(tp)
 
     async def on_isolated_partitions_assigned(self, assigned: Set[TP]) -> None:
+        T = traced_from_parent_span()
         for tp in sorted(assigned):
-            await self._assign_isolated_partition(tp)
+            await T(self._assign_isolated_partition)(tp)
 
     async def _assign_isolated_partition(self, tp: TP) -> None:
+        T = traced_from_parent_span()
         if (not self._first_assignment_done and
                 not self._actor_by_partition):
             self._first_assignment_done = True
             # if this is the first time we are assigned
             # we need to reassign the agent we started at boot to
             # one of the partitions.
-            self._on_first_isolated_partition_assigned(tp)
-        await self._maybe_start_isolated(tp)
+            T(self._on_first_isolated_partition_assigned)(tp)
+        await T(self._maybe_start_isolated)(tp)
 
     def _on_first_isolated_partition_assigned(self, tp: TP) -> None:
         assert self._actors
@@ -457,29 +487,45 @@ class Agent(AgentT, Service):
         # Calling `res = filter_log_errors(it)` will end you up with
         # an AsyncIterable that you can reuse (but only if the agent
         # function is an `async def` function that yields)
+        return self.actor_from_stream(stream,
+                                      index=index,
+                                      active_partitions=active_partitions,
+                                      channel=channel)
+
+    def actor_from_stream(self,
+                          stream: Optional[StreamT],
+                          *,
+                          index: int = None,
+                          active_partitions: Set[TP] = None,
+                          channel: ChannelT = None) -> ActorRefT:
+        we_created_stream = False
+        actual_stream: StreamT
         if stream is None:
-            stream = self.stream(
+            actual_stream = self.stream(
                 channel=channel,
                 concurrency_index=index,
                 active_partitions=active_partitions,
             )
+            we_created_stream = True
         else:
             # reusing actor stream after agent restart
             assert stream.concurrency_index == index
             assert stream.active_partitions == active_partitions
-        return self.actor_from_stream(stream)
+            actual_stream = stream
 
-    def actor_from_stream(self, stream: StreamT) -> ActorRefT:
-        res = self.fun(stream)
-        typ = cast(Type[Actor],
-                   (AwaitableActor
-                    if isinstance(res, Awaitable) else AsyncIterableActor))
+        res = self.fun(actual_stream)
+        if isinstance(res, AsyncIterable):
+            if we_created_stream:
+                actual_stream.add_processor(self._maybe_unwrap_reply_request)
+            typ = cast(Type[Actor], AsyncIterableActor)
+        else:
+            typ = cast(Type[Actor], AwaitableActor)
         return typ(
             self,
-            stream,
+            actual_stream,
             res,
-            index=stream.concurrency_index,
-            active_partitions=stream.active_partitions,
+            index=actual_stream.concurrency_index,
+            active_partitions=actual_stream.active_partitions,
             loop=self.loop,
             beacon=self.beacon,
         )
@@ -503,8 +549,8 @@ class Agent(AgentT, Service):
             channel,
             loop=self.loop,
             active_partitions=active_partitions,
+            prefix=self.name,
             **kwargs)
-        s.add_processor(self._maybe_unwrap_reply_request)
         return s
 
     def _maybe_unwrap_reply_request(self, value: V) -> Any:
@@ -549,6 +595,7 @@ class Agent(AgentT, Service):
 
     async def _execute_task(self, coro: Awaitable, aref: ActorRefT) -> None:
         # This executes the agent task itself, and does exception handling.
+        _current_agent.set(self)
         try:
             await coro
         except asyncio.CancelledError:
@@ -562,7 +609,6 @@ class Agent(AgentT, Service):
             # can start a new one.
             await aref.crash(exc)
             self.supervisor.wakeup()
-            raise
 
     async def _slurp(self, res: ActorRefT, it: AsyncIterator) -> None:
         # this is used when the agent returns an AsyncIterator,
@@ -573,8 +619,21 @@ class Agent(AgentT, Service):
             if stream is None:
                 stream = res.stream.get_active_stream()
             event = stream.current_event
-            if event is not None and isinstance(event.value, ReqRepRequest):
-                await self._reply(event.key, value, event.value)
+            if event is not None:
+                headers = event.headers
+                reply_to: Optional[str] = None
+                correlation_id: Optional[str] = None
+                if isinstance(event.value, ReqRepRequest):
+                    req: ReqRepRequest = event.value
+                    reply_to = req.reply_to
+                    correlation_id = req.correlation_id
+                elif headers:
+                    reply_to = want_str(headers.get('Faust-Ag-ReplyTo'))
+                    correlation_id = want_str(headers.get(
+                        'Faust-Ag-CorrelationId'))
+                if reply_to is not None:
+                    await self._reply(
+                        event.key, value, reply_to, cast(str, correlation_id))
             await self._delegate_to_sinks(value)
 
     async def _delegate_to_sinks(self, value: Any) -> None:
@@ -586,15 +645,16 @@ class Agent(AgentT, Service):
             else:
                 await maybe_async(cast(Callable, sink)(value))
 
-    async def _reply(self, key: Any, value: Any, req: ReqRepRequest) -> None:
-        assert req.reply_to
+    async def _reply(self, key: Any, value: Any,
+                     reply_to: str, correlation_id: str) -> None:
+        assert reply_to
         response = self._response_class(value)(
             key=key,
             value=value,
-            correlation_id=req.correlation_id,
+            correlation_id=correlation_id,
         )
         await self.app.send(
-            req.reply_to,
+            reply_to,
             key=None,
             value=response,
         )
@@ -609,12 +669,14 @@ class Agent(AgentT, Service):
                    *,
                    key: K = None,
                    partition: int = None,
-                   timestamp: float = None) -> None:
+                   timestamp: float = None,
+                   headers: HeadersArg = None) -> None:
         await self.send(
             key=key,
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
         )
 
     async def ask(self,
@@ -623,6 +685,7 @@ class Agent(AgentT, Service):
                   key: K = None,
                   partition: int = None,
                   timestamp: float = None,
+                  headers: HeadersArg = None,
                   reply_to: ReplyToArg = None,
                   correlation_id: str = None) -> Any:
         p = await self.ask_nowait(
@@ -630,6 +693,7 @@ class Agent(AgentT, Service):
             key=key,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             reply_to=reply_to or self.app.conf.reply_to,
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
@@ -645,33 +709,52 @@ class Agent(AgentT, Service):
                          key: K = None,
                          partition: int = None,
                          timestamp: float = None,
+                         headers: HeadersArg = None,
                          reply_to: ReplyToArg = None,
                          correlation_id: str = None,
                          force: bool = False) -> ReplyPromise:
-        req = self._create_req(key, value, reply_to, correlation_id)
+        if reply_to is None:
+            raise TypeError('Missing reply_to argument')
+        reply_to = self._get_strtopic(reply_to)
+        correlation_id = correlation_id or str(uuid4())
+        value, headers = self._create_req(
+            key, value, reply_to, correlation_id, headers)
         await self.channel.send(
             key=key,
-            value=req,
+            value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             force=force,
         )
-        return ReplyPromise(req.reply_to, req.correlation_id)
+        return ReplyPromise(reply_to, correlation_id)
 
-    def _create_req(self,
-                    key: K = None,
-                    value: V = None,
-                    reply_to: ReplyToArg = None,
-                    correlation_id: str = None) -> ReqRepRequest:
+    def _create_req(
+            self,
+            key: K = None,
+            value: V = None,
+            reply_to: ReplyToArg = None,
+            correlation_id: str = None,
+            headers: HeadersArg = None) -> Tuple[V, Optional[HeadersArg]]:
         if reply_to is None:
             raise TypeError('Missing reply_to argument')
         topic_name = self._get_strtopic(reply_to)
         correlation_id = correlation_id or str(uuid4())
-        return self._request_class(value)(
-            value=value,
-            reply_to=topic_name,
-            correlation_id=correlation_id,
-        )
+        open_headers = prepare_headers(headers or {})
+        if self.use_reply_headers:
+            merge_headers(open_headers, {
+                'Faust-Ag-ReplyTo': want_bytes(topic_name),
+                'Faust-Ag-CorrelationId': want_bytes(correlation_id),
+            })
+            return value, open_headers
+        else:
+            # wrap value in envelope
+            req = self._request_class(value)(
+                value=value,
+                reply_to=topic_name,
+                correlation_id=correlation_id,
+            )
+            return req, open_headers
 
     def _request_class(self, value: V) -> Type[ReqRepRequest]:
         if isinstance(value, ModelT):
@@ -684,6 +767,7 @@ class Agent(AgentT, Service):
                    value: V = None,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: HeadersArg = None,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -692,12 +776,14 @@ class Agent(AgentT, Service):
                    force: bool = False) -> Awaitable[RecordMetadata]:
         """Send message to topic used by agent."""
         if reply_to:
-            value = self._create_req(key, value, reply_to, correlation_id)
+            value, headers = self._create_req(
+                key, value, reply_to, correlation_id, headers)
         return await self.channel.send(
             key=key,
             value=value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             force=force,
@@ -841,7 +927,7 @@ class Agent(AgentT, Service):
         if self._channel_iterator is None:
             # we do not use aiter(channel) here, because
             # that will also add it to the topic conductor too early.
-            self._channel_iterator = self.channel.clone(is_iterator=True)
+            self._channel_iterator = self.channel.clone(is_iterator=False)
         return self._channel_iterator
 
     @channel_iterator.setter
@@ -898,6 +984,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                   key: K = None,
                   partition: Optional[int] = None,
                   timestamp: Optional[float] = None,
+                  headers: HeadersArg = None,
                   key_serializer: CodecArg = None,
                   value_serializer: CodecArg = None,
                   *,
@@ -905,13 +992,15 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                   correlation_id: str = None,
                   wait: bool = True) -> EventT:
         if reply_to:
-            value = self._create_req(key, value, reply_to, correlation_id)
+            value, headers = self._create_req(
+                key, value, reply_to, correlation_id, headers)
         channel = cast(ChannelT, self.stream().channel)
         message = self.to_message(
             key, value,
             partition=partition,
             offset=self.sent_offset,
             timestamp=timestamp,
+            headers=headers,
         )
         event: EventT = await channel.decode(message)
         await channel.put(event)
@@ -930,7 +1019,8 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
                    partition: Optional[int] = None,
                    offset: int = 0,
                    timestamp: float = None,
-                   timestamp_type: int = 0) -> Message:
+                   timestamp_type: int = 0,
+                   headers: HeadersArg = None) -> Message:
         try:
             topic_name = self._get_strtopic(self.original_channel)
         except ValueError:
@@ -941,6 +1031,7 @@ class AgentTestWrapper(Agent, AgentTestWrapperT):  # pragma: no cover
             offset=offset,
             timestamp=timestamp or time(),
             timestamp_type=timestamp_type,
+            headers=headers,
             key=key,
             value=value,
             checksum=b'',

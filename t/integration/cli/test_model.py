@@ -1,42 +1,45 @@
 class test_Arena:
 
     def test_json(self, faust_json):
-        model, stderr = faust_json('model', 'Arena')
-        assert not stderr
+        exitcode, model, stderr = faust_json('model', 'app.Arena')
+        assert not exitcode
 
         assert model == [
-            ['points', 'typing.List[__main__.Point]', '*'],
-            ['timestamp', 'float', 'None'],
+            {'field': 'points',
+             'type': 'typing.List[__main__.Point]',
+             'default': '*'},
+            {'field': 'timestamp',
+             'type': 'float',
+             'default': 'None'},
         ]
 
     def test_tabulated(self, faust):
-        stdout, stderr = faust('model', 'Arena')
-        assert not stderr
+        exitcode, stdout, stderr = faust('model', 'app.Arena')
+        assert not exitcode
         assert b'typing.List' in stdout
 
     def test_colors(self, faust_color):
-        stdout, stderr = faust_color('model', 'Arena')
-        assert not stderr
+        exitcode, stdout, stderr = faust_color('model', 'app.Arena')
         assert b'typing.List' in stdout
 
 
 class test_Point:
 
     def test_json(self, faust_json):
-        model, stderr = faust_json('model', 'Point')
-        assert not stderr
+        exitcode, model, stderr = faust_json('model', 'app.Point')
+        assert not exitcode
 
         assert model == [
-            ['x', 'int', '*'],
-            ['y', 'int', '*'],
+            {'field': 'x', 'type': 'int', 'default': '*'},
+            {'field': 'y', 'type': 'int', 'default': '*'},
         ]
 
     def test_tabulated(self, faust):
-        stdout, stderr = faust('model', 'Point')
-        assert not stderr
+        exitcode, stdout, stderr = faust('model', 'app.Point')
+        assert not exitcode
         assert b'int' in stdout
 
     def test_colors(self, faust_color):
-        stdout, stderr = faust_color('model', 'Point')
-        assert not stderr
+        exitcode, stdout, stderr = faust_color('model', 'app.Point')
+        assert not exitcode
         assert b'int' in stdout

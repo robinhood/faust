@@ -1,11 +1,12 @@
 import typing
 from types import TracebackType
-from typing import Awaitable, Optional, Type, Union, cast
+from typing import Any, Awaitable, Optional, Type, Union, cast
 from faust.types import (
     AppT,
     ChannelT,
     CodecArg,
     EventT,
+    HeadersArg,
     K,
     Message,
     MessageSentCallback,
@@ -20,6 +21,7 @@ else:
 
 USE_EXISTING_KEY = object()
 USE_EXISTING_VALUE = object()
+USE_EXISTING_HEADERS = object()
 
 
 class Event(EventT):
@@ -100,11 +102,24 @@ class Event(EventT):
                         event = current_event()
     """
 
-    def __init__(self, app: AppT, key: K, value: V, message: Message) -> None:
+    def __init__(self,
+                 app: AppT,
+                 key: K,
+                 value: V,
+                 headers: Optional[HeadersArg],
+                 message: Message) -> None:
         self.app: AppT = app
         self.key: K = key
         self.value: V = value
         self.message: Message = message
+        if headers is not None:
+            if not isinstance(headers, dict):
+                self.headers = dict(headers)
+            else:
+                self.headers = headers
+        else:
+            self.headers = {}
+
         self.acked: bool = False
 
     async def send(self,
@@ -113,6 +128,7 @@ class Event(EventT):
                    value: V = USE_EXISTING_VALUE,
                    partition: int = None,
                    timestamp: float = None,
+                   headers: Any = USE_EXISTING_HEADERS,
                    key_serializer: CodecArg = None,
                    value_serializer: CodecArg = None,
                    callback: MessageSentCallback = None,
@@ -122,12 +138,15 @@ class Event(EventT):
             key = self.key
         if value is USE_EXISTING_VALUE:
             value = self.value
+        if headers is USE_EXISTING_HEADERS:
+            headers = self.headers
         return await self._send(
             channel,
             key,
             value,
             partition,
             timestamp,
+            headers,
             key_serializer,
             value_serializer,
             callback,
@@ -140,6 +159,7 @@ class Event(EventT):
                       value: V = USE_EXISTING_VALUE,
                       partition: int = None,
                       timestamp: float = None,
+                      headers: Any = USE_EXISTING_HEADERS,
                       key_serializer: CodecArg = None,
                       value_serializer: CodecArg = None,
                       callback: MessageSentCallback = None,
@@ -149,12 +169,17 @@ class Event(EventT):
             key = self.message.key
         if value is USE_EXISTING_VALUE:
             value = self.message.value
+        if headers is USE_EXISTING_HEADERS:
+            headers = self.message.headers
+            if not headers:
+                headers = None
         return await self._send(
             channel,
             key,
             value,
             partition,
             timestamp,
+            headers,
             key_serializer,
             value_serializer,
             callback,
@@ -167,6 +192,7 @@ class Event(EventT):
                     value: V = None,
                     partition: int = None,
                     timestamp: float = None,
+                    headers: HeadersArg = None,
                     key_serializer: CodecArg = None,
                     value_serializer: CodecArg = None,
                     callback: MessageSentCallback = None,
@@ -177,6 +203,7 @@ class Event(EventT):
             value,
             partition,
             timestamp,
+            headers,
             key_serializer,
             value_serializer,
             callback,
@@ -189,6 +216,7 @@ class Event(EventT):
                 value: V = None,
                 partition: int = None,
                 timestamp: float = None,
+                headers: HeadersArg = None,
                 key_serializer: CodecArg = None,
                 value_serializer: CodecArg = None,
                 callback: MessageSentCallback = None,
@@ -200,6 +228,7 @@ class Event(EventT):
             value,
             partition=partition,
             timestamp=timestamp,
+            headers=headers,
             key_serializer=key_serializer,
             value_serializer=value_serializer,
             callback=callback,

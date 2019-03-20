@@ -1,8 +1,17 @@
 import asyncio
 import time
-from typing import NamedTuple
+from http import HTTPStatus
+from typing import Any, NamedTuple
 import pytest
-from mode.utils.mocks import MagicMock, patch
+from aiohttp.client import ClientSession
+from aiohttp.web import Response
+from mode.utils.mocks import (
+    AsyncContextManagerMock,
+    AsyncMock,
+    MagicMock,
+    Mock,
+    patch,
+)
 
 sentinel = object()
 
@@ -88,3 +97,80 @@ def freeze_time(event_loop, request):
             time_.return_value = options.time
             monotonic_.return_value = options.monotonic
             yield options
+
+
+class SessionMarker(NamedTuple):
+    status_code: int
+    text: bytes
+    json: Any
+    json_iterator: Any
+
+
+@pytest.fixture()
+def mock_http_client(*, app, monkeypatch, request) -> ClientSession:
+    marker = request.node.get_closest_marker('http_session')
+    options = SessionMarker(**{
+        **{
+            'status_code': HTTPStatus.OK,
+            'text': b'',
+            'json': None,
+            'json_iterator': None,
+        },
+        **(marker.kwargs or {} if marker else {}),
+    })
+    response = AsyncMock(
+        autospec=Response,
+        text=AsyncMock(return_value=options.text),
+        json=AsyncMock(
+            return_value=options.json,
+            side_effect=options.json_iterator,
+        ),
+        status_code=options.status_code,
+    )
+    session = Mock(
+        name='http_client',
+        autospec=ClientSession,
+        request=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        get=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        post=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        put=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        delete=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        patch=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        options=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+        head=Mock(
+            return_value=AsyncContextManagerMock(
+                return_value=response,
+            ),
+        ),
+    )
+    session.marks = options
+    monkeypatch.setattr(app, '_http_client', session)
+    return session

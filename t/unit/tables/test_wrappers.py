@@ -140,6 +140,7 @@ class test_WindowSet:
         e = Event(app,
                   key='KK',
                   value='VV',
+                  headers={},
                   message=Mock(name='message', autospec=Message))
         ret = wset[e]
         assert isinstance(ret, WindowSet)
@@ -157,6 +158,7 @@ class test_WindowSet:
         e = Event(app,
                   key='KK',
                   value='VV',
+                  headers={},
                   message=Mock(name='message', autospec=Message))
         with pytest.raises(NotImplementedError):
             wset[e] = 'val'
@@ -170,6 +172,7 @@ class test_WindowSet:
         e = Event(app,
                   key='KK',
                   value='VV',
+                  headers={},
                   message=Mock(name='message', autospec=Message))
         with pytest.raises(NotImplementedError):
             del(wset[e])
@@ -239,6 +242,13 @@ class test_WindowWrapper:
         else:
             wtable.get_relative_timestamp = None
         assert wtable.get_timestamp(event) == expected
+
+    def test_get_timestamp__event_is_None(self, *, event, wtable):
+        wtable.get_relative_timestamp = None
+        with patch('faust.tables.wrappers.current_event') as ce:
+            ce.return_value = None
+            with pytest.raises(RuntimeError):
+                assert wtable.get_timestamp(None)
 
     def test_on_recover(self, *, wtable, table):
         cb = Mock(name='callback')
@@ -362,6 +372,7 @@ class test_WindowWrapper_using_key_index:
 
     def test_as_ansitable(self, *, iwtable, data):
         table = iwtable.relative_to_now().as_ansitable()
+        print(table)
         assert table
         assert 'foobar' in table
         assert 'AUNIQSTR' in table
@@ -409,6 +420,20 @@ class test_WindowWrapper_using_key_index:
     def test_keys(self, *, iwtable, data):
         assert sorted(list(iwtable.relative_to_now().keys())) == sorted(
             list(self.TABLE_DATA))
+
+    def test_keys__now(self, *, iwtable, data):
+        assert sorted(list(iwtable.relative_to_now().keys().now())) == sorted(
+            list(self.TABLE_DATA))
+
+    def test_keys__current(self, *, iwtable, data, current_event):
+        keys = iwtable.relative_to_now().keys().current()
+        assert sorted(list(keys)) == sorted(list(self.TABLE_DATA))
+
+    def test_keys__delta(self, *, iwtable, data, current_event):
+        keys = iwtable.relative_to_now().keys().delta(1000)
+        assert sorted(list(keys)) == []
+        keys = iwtable.relative_to_now().keys().delta(10)
+        assert sorted(list(keys)) == sorted(list(self.TABLE_DATA))
 
     def test_iter(self, *, iwtable, data):
         assert sorted(list(iwtable.relative_to_now())) == sorted(

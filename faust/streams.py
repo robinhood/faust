@@ -1,5 +1,6 @@
 """Streams."""
 import asyncio
+import os
 import reprlib
 import typing
 import weakref
@@ -25,7 +26,7 @@ from typing import (
     cast,
 )
 
-from mode import Seconds, Service, get_logger, want_seconds
+from mode import Seconds, Service, get_logger, shortlabel, want_seconds
 from mode.utils.aiter import aenumerate, aiter
 from mode.utils.compat import current_task
 from mode.utils.futures import maybe_async, notify
@@ -49,6 +50,16 @@ from .types.streams import (
 from .types.topics import ChannelT
 from .types.tuples import Message
 
+NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
+
+if not NO_CYTHON:  # pragma: no cover
+    try:
+        from ._cython.streams import StreamIterator as _CStreamIterator
+    except ImportError:
+        _CStreamIterator = None
+else:  # pragma: no cover
+    _CStreamIterator = None
+
 __all__ = [
     'Stream',
     'current_event',
@@ -57,13 +68,13 @@ __all__ = [
 logger = get_logger(__name__)
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    _current_event: ContextVar[weakref.ReferenceType[EventT]]
+    _current_event: ContextVar[Optional[weakref.ReferenceType[EventT]]]
 _current_event = ContextVar('current_event')
 
 
 def current_event() -> Optional[EventT]:
     """Return the event currently being processed, or None."""
-    eventref = _current_event.get(None)  # type: ignore
+    eventref = _current_event.get(None)
     return eventref() if eventref is not None else None
 
 
@@ -108,6 +119,7 @@ class Stream(StreamT[T_co], Service):
                  prev: StreamT = None,
                  active_partitions: Set[TP] = None,
                  enable_acks: bool = True,
+                 prefix: str = '',
                  loop: asyncio.AbstractEventLoop = None) -> None:
         Service.__init__(self, loop=loop, beacon=beacon)
         self.app = app
@@ -124,6 +136,7 @@ class Stream(StreamT[T_co], Service):
         self._prev = prev
         self.active_partitions = active_partitions
         self.enable_acks = enable_acks
+        self.prefix = prefix
 
         self._processors = list(processors) if processors else []
         self._on_start = on_start
@@ -307,24 +320,28 @@ class Stream(StreamT[T_co], Service):
         # We add this processor to populate the buffer, and the stream
         # is passively consumed in the background (enable_passive below).
         async def add_to_buffer(value: T) -> T:
-            # buffer_consuming is set when consuming buffer after timeout.
-            nonlocal buffer_consuming
-            if buffer_consuming is not None:
-                try:
-                    await buffer_consuming
-                finally:
-                    buffer_consuming = None
-            buffer_add(cast(T_co, value))
-            event = self.current_event
-            if event is not None:
-                event_add(event)
-            if buffer_size() >= max_:
-                # signal that the buffer is full and should be emptied.
-                buffer_full.set()
-                # strict wait for buffer to be consumed after buffer full.
-                # (if max_ is 1000, we are not allowed to return 1001 values.)
-                buffer_consumed.clear()
-                await self.wait(buffer_consumed)
+            try:
+                # buffer_consuming is set when consuming buffer after timeout.
+                nonlocal buffer_consuming
+                if buffer_consuming is not None:
+                    try:
+                        await buffer_consuming
+                    finally:
+                        buffer_consuming = None
+                buffer_add(cast(T_co, value))
+                event = self.current_event
+                if event is not None:
+                    event_add(event)
+                if buffer_size() >= max_:
+                    # signal that the buffer is full and should be emptied.
+                    buffer_full.set()
+                    # strict wait for buffer to be consumed after buffer full.
+                    # If max is 1000, we are not allowed to return 1001 values.
+                    buffer_consumed.clear()
+                    await self.wait(buffer_consumed)
+            except Exception as exc:
+                self.log.exception('Error adding to take buffer: %r', exc)
+                await self.crash(exc)
             return value
 
         # Disable acks to ensure this method acks manually
@@ -539,7 +556,10 @@ class Stream(StreamT[T_co], Service):
         if topic is not None:
             channel = topic
         else:
-            suffix = '-' + self.app.conf.id + '-' + name + '-repartition'
+            prefix = self.prefix
+            if prefix:
+                prefix = '-' + prefix.lstrip('-')
+            suffix = f'{prefix}-{self.app.conf.id}-{name}-repartition'
             p = partitions if partitions else self.app.conf.topic_partitions
             channel = cast(ChannelT, self.channel).derive(
                 suffix=suffix, partitions=p, internal=True)
@@ -677,7 +697,62 @@ class Stream(StreamT[T_co], Service):
     def __next__(self) -> Any:
         raise NotImplementedError('Streams are asynchronous: use `async for`')
 
-    async def __aiter__(self) -> AsyncIterator:
+    def __aiter__(self) -> AsyncIterator:  # pragma: no cover
+        if _CStreamIterator is not None:
+            return self._c_aiter()
+        return self._py_aiter()
+
+    async def _c_aiter(self) -> AsyncIterator:  # pragma: no cover
+        self.log.dev('Using Cython optimized __aiter__')
+        self._finalized = True
+        await self.maybe_start()
+        it = _CStreamIterator(self)
+        ack_exceptions = self.app.conf.stream_ack_exceptions
+        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
+        try:
+            while not self.should_stop:
+                do_ack = self.enable_acks
+                value = await it.next()  # noqa: B305
+                try:
+                    yield value
+                except CancelledError:
+                    if not ack_cancelled_tasks:
+                        do_ack = False
+                    raise
+                except Exception:
+                    if not ack_exceptions:
+                        do_ack = False
+                    raise
+                except GeneratorExit:
+                    raise  # consumer did `break`
+                except BaseException:
+                    # e.g. SystemExit/KeyboardInterrupt
+                    if not ack_cancelled_tasks:
+                        do_ack = False
+                    raise
+                finally:
+                    event, self.current_event = self.current_event, None
+                    it.after(event, do_ack)
+        except StopAsyncIteration:
+            # We are not allowed to propagate StopAsyncIteration in __aiter__
+            # (if we do, it'll be converted to RuntimeError by CPython).
+            # It can be raised when streaming over a list:
+            #    async for value in app.stream([1, 2, 3, 4]):
+            #       ...
+            # To support that, we just return here and that will stop
+            # the iteration.
+            return
+        finally:
+            self._channel_stop_iteration(self.channel)
+
+    def _set_current_event(self, event: EventT = None) -> None:
+        if event is None:
+            _current_event.set(None)
+        else:
+            _current_event.set(weakref.ref(event))
+        self.current_event = event
+
+    async def _py_aiter(self) -> AsyncIterator:
         self._finalized = True
         loop = self.loop
         await self.maybe_start()
@@ -720,6 +795,8 @@ class Stream(StreamT[T_co], Service):
         acking_topics: Set[str] = self.app.topics._acking_topics
         on_message_in = self.app.sensors.on_message_in
         sleep = asyncio.sleep
+        trace = self.app.trace
+        _shortlabel = shortlabel
 
         try:
             while not self.should_stop:
@@ -783,7 +860,8 @@ class Stream(StreamT[T_co], Service):
 
                     # reduce using processors
                     for processor in processors:
-                        value = await _maybe_async(processor(value))
+                        with trace(f'processor-{_shortlabel(processor)}'):
+                            value = await _maybe_async(processor(value))
                     value = await on_merge(value)
                 try:
                     yield value

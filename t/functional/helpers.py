@@ -29,6 +29,7 @@ def message(key=None, value=None,
             topic='topic',
             partition=0,
             timestamp=None,
+            headers=None,
             offset=1,
             checksum=None):
     return Message(
@@ -39,6 +40,7 @@ def message(key=None, value=None,
         offset=offset,
         timestamp=timestamp or time(),
         timestamp_type=1 if timestamp else 0,
+        headers=headers,
         checksum=checksum,
     )
 

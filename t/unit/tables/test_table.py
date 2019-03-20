@@ -27,8 +27,15 @@ def event():
     message = Message(topic='test-topic', key='key', value='value',
                       partition=3, offset=0, checksum=None,
                       timestamp=datetime.datetime.now().timestamp(),
-                      timestamp_type=0)
-    return Event(app='test-app', key='key', value='value', message=message)
+                      timestamp_type=0,
+                      headers={})
+    return Event(
+        app='test-app',
+        key='key',
+        value='value',
+        headers={},
+        message=message,
+    )
 
 
 class test_Table:
@@ -127,3 +134,15 @@ class test_Table:
         table.data['bar'] = 'baz'
         assert table.as_ansitable(sort=True)
         assert table.as_ansitable(sort=False)
+
+    def test_on_key_set__no_event(self, *, table):
+        with patch('faust.tables.table.current_event') as ce:
+            ce.return_value = None
+            with pytest.raises(TypeError):
+                table.on_key_set('k', 'v')
+
+    def test_on_key_del__no_event(self, *, table):
+        with patch('faust.tables.table.current_event') as ce:
+            ce.return_value = None
+            with pytest.raises(TypeError):
+                table.on_key_del('k')
