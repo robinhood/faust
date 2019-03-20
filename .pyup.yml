@@ -1,0 +1,6 @@
+# Label PRs with `deps-update` label
+label_prs: deps-update
+
+pin: False
+
+schedule: every week
