@@ -254,9 +254,11 @@ def tasks_not_lingering(request, loop, event_loop, _recorded_tasks_at_startup):
         tasks_now = set(all_tasks(loop=loop))
         if tasks_then != tasks_now:
             request.node._tasks_at_startup = tasks_now
-            diff = len(tasks_now - tasks_then)
-            if not allow_lingering_tasks or diff > allow_count:
-                raise DirtyTest(
-                    'Left over tasks',
-                    os.environ.get('PYTEST_CURRENT_TEST'),
-                    _compare_eq_set(tasks_now, tasks_then, verbose=2))
+            pending = {task for task in tasks_now if task and not task.done()}
+            if pending:
+                diff = len(pending - tasks_then)
+                if not allow_lingering_tasks or diff > allow_count:
+                    raise DirtyTest(
+                        'Left over tasks',
+                        os.environ.get('PYTEST_CURRENT_TEST'),
+                        _compare_eq_set(tasks_now, tasks_then, verbose=2))
