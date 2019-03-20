@@ -1,10 +1,13 @@
-import asyncio
+import os
+import threading
 import time
 from http import HTTPStatus
 from typing import Any, NamedTuple
 import pytest
+from _pytest.assertion.util import _compare_eq_dict, _compare_eq_set
 from aiohttp.client import ClientSession
 from aiohttp.web import Response
+from mode.utils.futures import all_tasks
 from mode.utils.mocks import (
     AsyncContextManagerMock,
     AsyncMock,
@@ -14,6 +17,10 @@ from mode.utils.mocks import (
 )
 
 sentinel = object()
+
+
+class DirtyTest(Exception):
+    ...
 
 
 @pytest.fixture()
@@ -37,8 +44,8 @@ def patching(monkeypatch, request):
 
 
 @pytest.fixture()
-def loop():
-    return asyncio.get_event_loop()
+def loop(event_loop):
+    return event_loop
 
 
 class _patching(object):
@@ -174,3 +181,82 @@ def mock_http_client(*, app, monkeypatch, request) -> ClientSession:
     session.marks = options
     monkeypatch.setattr(app, '_http_client', session)
     return session
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _collected_environ():
+    return dict(os.environ)
+
+
+@pytest.yield_fixture(autouse=True)
+def _verify_environ(_collected_environ):
+    try:
+        yield
+    finally:
+        new_environ = dict(os.environ)
+        current_test = new_environ.pop('PYTEST_CURRENT_TEST', None)
+        old_environ = dict(_collected_environ)
+        old_environ.pop('PYTEST_CURRENT_TEST', None)
+        if new_environ != old_environ:
+            raise DirtyTest(
+                'Left over environment variables',
+                current_test,
+                _compare_eq_dict(new_environ, old_environ, verbose=2))
+
+
+def alive_threads():
+    return {thread for thread in threading.enumerate() if thread.is_alive()}
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _recorded_threads_at_startup(request):
+    try:
+        request.session._threads_at_startup
+    except AttributeError:
+        request.session._threads_at_startup = alive_threads()
+
+
+@pytest.fixture(autouse=True)
+def threads_not_lingering(request):
+    try:
+        yield
+    finally:
+        threads_then = request.session._threads_at_startup
+        threads_now = alive_threads()
+        if threads_then != threads_now:
+            request.session._threads_at_startup = threads_now
+            raise DirtyTest(
+                'Left over threads',
+                os.environ.get('PYTEST_CURRENT_TEST'),
+                _compare_eq_set(threads_now, threads_then, verbose=2))
+
+
+@pytest.fixture(autouse=True)
+def _recorded_tasks_at_startup(request, loop):
+    try:
+        request.node._tasks_at_startup
+    except AttributeError:
+        request.node._tasks_at_startup = set(all_tasks(loop=loop))
+
+
+@pytest.fixture(autouse=True)
+def tasks_not_lingering(request, loop, event_loop, _recorded_tasks_at_startup):
+    allow_lingering_tasks = False
+    allow_count = 0
+    marks = request.node.get_closest_marker('allow_lingering_tasks')
+    if marks:
+        allow_lingering_tasks = True
+        allow_count = marks.kwargs.get('count', 0)
+    try:
+        yield
+    finally:
+        tasks_then = request.node._tasks_at_startup
+        tasks_now = set(all_tasks(loop=loop))
+        if tasks_then != tasks_now:
+            request.node._tasks_at_startup = tasks_now
+            diff = len(tasks_now - tasks_then)
+            if not allow_lingering_tasks or diff > allow_count:
+                raise DirtyTest(
+                    'Left over tasks',
+                    os.environ.get('PYTEST_CURRENT_TEST'),
+                    _compare_eq_set(tasks_now, tasks_then, verbose=2))
