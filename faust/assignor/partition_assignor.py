@@ -208,6 +208,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
                 # Get assignment for unique copartitioned group
                 assgn = cluster_assgn.copartitioned_assignments(topics)
                 assignor = CopartitionedAssignor(
+                    app=self.app,
                     topics=topics,
                     cluster_asgn=assgn,
                     num_partitions=num_partitions,

@@ -258,6 +258,13 @@ SETTINGS_SKIP: Set[inspect._ParameterKind] = {
     inspect.Parameter.VAR_KEYWORD,
 }
 
+#: If you set ordered_client_assignment to true the assignment in the
+#: CopartitionedAssignor will order the clients by broker_client_id
+#: before starting round robin in order to let the same client get the
+#: same partitions everytime a fresh partition assignment is made.
+ORDERED_CLIENT_ASSIGNMENT = False
+
+
 AutodiscoverArg = Union[
     bool,
     Iterable[str],
@@ -300,6 +307,7 @@ class Settings(abc.ABC):
     web_host: str = socket.gethostname()
     worker_redirect_stdouts: bool = True
     worker_redirect_stdouts_level: Severity = 'WARN'
+    ordered_client_assignment = ORDERED_CLIENT_ASSIGNMENT
 
     _id: str
     _origin: Optional[str] = None
@@ -338,6 +346,7 @@ class Settings(abc.ABC):
     _Topic: Type[TopicT]
     _HttpClient: Type[HttpClientT]
     _Monitor: Type[SensorT]
+    _ordered_client_assignemnt: Optional[bool] = ORDERED_CLIENT_ASSIGNMENT
 
     _initializing: bool = True
     _accessed: Set[str]
@@ -442,6 +451,7 @@ class Settings(abc.ABC):
             Monitor: SymbolArg[Type[SensorT]] = None,
             # XXX backward compat (remove for Faust 1.0)
             url: Union[str, URL] = None,
+            ordered_client_assignment: bool = None,
             **kwargs: Any) -> None:
         self._accessed = set()
         self.version = version if version is not None else self._version
@@ -541,6 +551,8 @@ class Settings(abc.ABC):
             self.worker_redirect_stdouts = worker_redirect_stdouts
         if worker_redirect_stdouts_level is not None:
             self.worker_redirect_stdouts_level = worker_redirect_stdouts_level
+        if ordered_client_assignment is not None:
+            self.ordered_client_assignment = ordered_client_assignment
 
         if reply_to_prefix is not None:
             self.reply_to_prefix = reply_to_prefix
@@ -879,6 +891,14 @@ class Settings(abc.ABC):
     def PartitionAssignor(
             self, Assignor: SymbolArg[Type[PartitionAssignorT]]) -> None:
         self._PartitionAssignor = symbol_by_name(Assignor)
+
+    @property
+    def ordered_client_assignment(self) -> Optional[bool]:
+        return self._ordered_client_assignment
+
+    @ordered_client_assignment.setter
+    def ordered_client_assignment(self, value: Optional[bool]) -> None:
+        self._ordered_client_assignment = value
 
     @property
     def LeaderAssignor(self) -> Type[LeaderAssignorT]:

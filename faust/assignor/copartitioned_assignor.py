@@ -4,6 +4,7 @@ from math import ceil
 from typing import Iterable, Iterator, MutableMapping, Optional, Sequence, Set
 from mode.utils.compat import Counter
 from .client_assignment import CopartitionedAssignment
+import collections
 
 __all__ = ['CopartitionedAssignor']
 
@@ -37,11 +38,13 @@ class CopartitionedAssignor:
     _client_assignments: MutableMapping[str, CopartitionedAssignment]
 
     def __init__(self,
+                 app,
                  topics: Iterable[str],
                  cluster_asgn: MutableMapping[str, CopartitionedAssignment],
                  num_partitions: int,
                  replicas: int,
                  capacity: int = None) -> None:
+        self.app = app
         self._num_clients = len(cluster_asgn)
         assert self._num_clients, "Should assign to at least 1 client"
         self.num_partitions = num_partitions
@@ -169,7 +172,11 @@ class CopartitionedAssignor:
         # filled assignment such that the partition can be assigned to it
         # - This guarantees eventual assignment of all partitions
         client_limit = self._get_client_limit(active)
-        candidates = cycle(self._client_assignments.values())
+        if self.app.conf.ordered_client_assignment:
+            candidates = cycle(collections.OrderedDict(
+                sorted(self._client_assignments.items(), key=lambda t: t[0])).values())
+        else:
+            candidates = cycle(self._client_assignments.values())
         unassigned = list(unassigned)
         while unassigned:
             partition = unassigned.pop(0)

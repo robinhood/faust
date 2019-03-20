@@ -64,6 +64,7 @@ class test_settings:
         assert conf.stream_ack_exceptions
         assert (conf.broker_max_poll_records ==
                 settings.BROKER_MAX_POLL_RECORDS)
+        assert (ordered_client_assignment == settings.ORDERED_CLIENT_ASSIGNMENT)
 
         assert not conf.autodiscover
         assert conf.origin is None
@@ -178,6 +179,7 @@ class test_settings:
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  broker_max_poll_records=1000,
+                                 ordered_client_assignment=True,
                                  timezone=pytz.timezone('US/Eastern'),
                                  **kwargs) -> App:
         livelock_soft_timeout = broker_commit_livelock_soft_timeout
@@ -226,6 +228,7 @@ class test_settings:
             web_transport=web_transport,
             worker_redirect_stdouts=worker_redirect_stdouts,
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
+            ordered_client_assignment=ordered_client_assignment,
         )
         conf = app.conf
         assert conf.id == app.conf._prepare_id(id)
@@ -274,6 +277,7 @@ class test_settings:
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)
         assert conf.broker_max_poll_records == broker_max_poll_records
+        assert conf.ordered_client_assignment == ordered_client_assignment
         return app
 
     def test_custom_host_port_to_canonical(self,

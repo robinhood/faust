@@ -1252,6 +1252,21 @@ Example using the string path to a class::
 
     app = App(..., Worker='myproj.assignor.PartitionAssignor')
 
+.. setting:: ordered_client_assignment
+
+``ordered_client_assignment``
+-----------------------
+
+:type: :class:`bool`
+:default: ``False``
+
+If you set ordered_client_assignment to true the assignment in the
+CopartitionedAssignor will order the clients by broker_client_id
+before starting round robin in order to let the same client get the
+same partitions everytime a fresh partition assignment is made.
+
+StickPartitionAssignment will overrule this.
+
 .. setting:: LeaderAssignor
 
 ``LeaderAssignor``
