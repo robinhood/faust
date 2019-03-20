@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -10,6 +11,10 @@ from t.integration import app as _app_module
 
 @pytest.fixture
 def app() -> AppT:
+    os.environ.pop('F_DATADIR', None)
+    os.environ.pop('FAUST_DATADIR', None)
+    os.environ.pop('F_WORKDIR', None)
+    os.environ.pop('FAUST_WORKDIR', None)
     return _app_module.app
 
 

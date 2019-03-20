@@ -1,3 +1,4 @@
+import os
 import faust
 import pytest
 from faust.transport.producer import Producer
@@ -7,6 +8,10 @@ from mode.utils.mocks import AsyncMock, Mock
 
 @pytest.fixture()
 def app(event_loop):
+    os.environ.pop('F_DATADIR', None)
+    os.environ.pop('FAUST_DATADIR', None)
+    os.environ.pop('F_WORKDIR', None)
+    os.environ.pop('FAUST_WORKDIR', None)
     instance = faust.App('testid')
     instance.producer = Mock(
         name='producer',

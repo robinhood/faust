@@ -18,8 +18,10 @@ class AppMarks(NamedTuple):
 
 @pytest.yield_fixture()
 def app(event_loop, request):
-    os.environ.pop('F_WORKDIR', None)
     os.environ.pop('F_DATADIR', None)
+    os.environ.pop('FAUST_DATADIR', None)
+    os.environ.pop('F_WORKDIR', None)
+    os.environ.pop('FAUST_WORKDIR', None)
     marks = request.node.get_closest_marker('app')
     options = AppMarks(**{
         **{'name': 'funtest',
