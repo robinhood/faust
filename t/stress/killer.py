@@ -68,7 +68,7 @@ class Chaos(Service):
             self.log.info('Signal dispatcher sleeping for %r seconds...', secs)
             await self.sleep(secs)
             sig = random.choice(current_span.signals)
-            self.log.warn('Signalling all workers on this box with %r', sig)
+            self.log.warning('Signalling all workers on this box with %r', sig)
             r = envoy.run(f'pkill -{int(sig)} Faust:Worker')
             if r.status_code:
                 if r.std_err.strip():

@@ -150,7 +150,7 @@ class Fetcher(Service):
                 except asyncio.CancelledError:
                     break
                 except asyncio.TimeoutError:
-                    self.log.warn('Fetcher is ignoring cancel or slow :(')
+                    self.log.warning('Fetcher is ignoring cancel or slow :(')
                 else:
                     break
 
@@ -690,7 +690,7 @@ class Consumer(Service, ConsumerT):
             wait_count += 1
             if not wait_count % 10:  # pragma: no cover
                 remaining = [(m.refcount, m) for m in self._unacked_messages]
-                self.log.warn(f'Waiting for {remaining}')
+                self.log.warning('wait_empty: Waiting for %r tasks', remaining)
             self.log.dev('STILL WAITING FOR ALL STREAMS TO FINISH')
             self.log.dev('WAITING FOR %r EVENTS', len(self._unacked_messages))
             gc.collect()
@@ -729,7 +729,7 @@ class Consumer(Service, ConsumerT):
             if self._last_batch is not None:
                 s_since_batch = monotonic() - self._last_batch
                 if s_since_batch > soft_timeout:
-                    self.log.warn(
+                    self.log.warning(
                         'Possible livelock: COMMIT OFFSET NOT ADVANCING')
             await self.sleep(interval)
 

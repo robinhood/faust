@@ -6,6 +6,7 @@ flake8-commas
 flake8-comprehensions
 flake8-debugger
 flake8-import-order
+flake8-logging-format
 flake8-mock
 flake8-tuple
 flake8-quotes

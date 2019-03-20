@@ -272,8 +272,9 @@ class AIOKafkaConsumerThread(ConsumerThread):
             await self.crash(exc)
             return False
         except IllegalStateError as exc:
-            self.log.exception(f'Got exception: {exc}\n'
-                               f'Current assignment: {self.assignment()}')
+            self.log.exception(
+                'Got exception: %r\nCurrent assignment: %r',
+                exc, self.assignment())
             await self.crash(exc)
             return False
         return True
@@ -706,10 +707,10 @@ class Transport(base.Transport):
             compacting: bool = None,
             deleting: bool = None,
             ensure_created: bool = False) -> None:  # pragma: no cover
-        owner.log.info(f'Creating topic {topic}')
+        owner.log.info('Creating topic %r', topic)
 
         if topic in client.cluster.topics():
-            owner.log.debug(f'Topic {topic} exists, skipping creation.')
+            owner.log.debug('Topic %r exists, skipping creation.', topic)
             return
 
         protocol_version = 1
@@ -719,14 +720,14 @@ class Transport(base.Transport):
 
         controller_node = await self._get_controller_node(owner, client,
                                                           timeout=timeout)
-        owner.log.debug(f'Found controller: {controller_node}')
+        owner.log.debug('Found controller: %r', controller_node)
 
         if controller_node is None:
             if owner.should_stop:
-                owner.log.info(f'Shutting down hence controller not found')
+                owner.log.info('Shutting down hence controller not found')
                 return
             else:
-                raise Exception(f'Controller node is None')
+                raise Exception('Controller node is None')
 
         request = CreateTopicsRequest[protocol_version](
             [(topic, partitions, replication, [], list(config.items()))],
@@ -749,7 +750,7 @@ class Transport(base.Transport):
         if code != 0:
             if not ensure_created and code == TopicExistsError.errno:
                 owner.log.debug(
-                    f'Topic {topic} exists, skipping creation.')
+                    'Topic %r exists, skipping creation.', topic)
                 return
             elif code == NotControllerError.errno:
                 raise RuntimeError(f'Invalid controller: {controller_node}')
@@ -757,7 +758,7 @@ class Transport(base.Transport):
                 raise for_code(code)(
                     f'Cannot create topic: {topic} ({code}): {reason}')
         else:
-            owner.log.info(f'Topic {topic} created.')
+            owner.log.info('Topic %r created.', topic)
             return
 
 

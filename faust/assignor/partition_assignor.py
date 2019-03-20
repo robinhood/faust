@@ -161,7 +161,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
         for topic in topics:
             num_partitions = len(cluster.partitions_for_topic(topic) or set())
             if num_partitions == 0:
-                logger.warning(f'Ignoring missing topic: {topic}')
+                logger.warning('Ignoring missing topic: %r', topic)
                 continue
             topics_by_partitions[num_partitions].add(topic)
         # We group copartitioned topics by subscribed clients such that

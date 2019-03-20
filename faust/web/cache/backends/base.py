@@ -66,17 +66,20 @@ class CacheBackend(CacheBackendT, Service):
         try:
             yield
         except self.irrecoverable_errors as exc:
-            self.log.exception(E_CACHE_IRRECOVERABLE, exc)
+            self.log.exception(E_CACHE_IRRECOVERABLE, exc)  # noqa: G200
             raise self.Unavailable(exc)
         except self.invalidating_errors as exc:
-            self.log.warn(E_CACHE_INVALIDATING, key, exc, exc_info=1)
+            self.log.warning(  # noqa: G200
+                E_CACHE_INVALIDATING, key, exc, exc_info=1)
             try:
                 await self._delete(key)
             except self.operational_errors + self.invalidating_errors as exc:
-                self.log.exception(E_CANNOT_INVALIDATE, key, exc)
+                self.log.exception(  # noqa: G200
+                    E_CANNOT_INVALIDATE, key, exc)
             raise self.Unavailable()
         except self.operational_errors as exc:
-            self.log.warn(E_CACHE_INOPERATIONAL, exc, exc_info=1)
+            self.log.warning(  # noqa: G200
+                E_CACHE_INOPERATIONAL, exc, exc_info=1)
             raise self.Unavailable()
 
     def _repr_info(self) -> str:
