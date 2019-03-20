@@ -1,7 +1,7 @@
 import ssl
 from faust.auth import GSSAPICredentials, SASLCredentials, SSLCredentials
 from faust.types.auth import AuthProtocol, SASLMechanism
-from mode.utils.mocks import patch
+from mode.utils.mocks import Mock, patch
 
 
 class test_SASLCredentials:
@@ -67,3 +67,8 @@ class test_SSLCredentials:
                 capath='/foo/bar/',
                 cadata='moo',
             )
+
+    def test_having_context(self):
+        context = Mock(name='context')
+        c = SSLCredentials(context)
+        assert c.context is context

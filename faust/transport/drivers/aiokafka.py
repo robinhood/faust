@@ -68,7 +68,7 @@ from faust.utils.kafka.protocol.admin import CreateTopicsRequest
 
 __all__ = ['Consumer', 'Producer', 'Transport']
 
-if not hasattr(aiokafka, '__robinhood__'):
+if not hasattr(aiokafka, '__robinhood__'):  # pragma: no cover
     raise RuntimeError(
         'Please install robinhood-aiokafka, not aiokafka')
 
@@ -671,10 +671,11 @@ class Transport(base.Transport):
             self._topic_waiters.pop(topic, None)
             raise
 
-    async def _get_controller_node(self,
-                                   owner: Service,
-                                   client: aiokafka.AIOKafkaClient,
-                                   timeout: int = 30000) -> Optional[int]:
+    async def _get_controller_node(
+            self,
+            owner: Service,
+            client: aiokafka.AIOKafkaClient,
+            timeout: int = 30000) -> Optional[int]:  # pragma: no cover
         nodes = [broker.nodeId for broker in client.cluster.brokers()]
         for node_id in nodes:
             if node_id is None:
@@ -691,19 +692,20 @@ class Transport(base.Transport):
             return response.controller_id
         raise Exception(f'Controller node not found')
 
-    async def _really_create_topic(self,
-                                   owner: Service,
-                                   client: aiokafka.AIOKafkaClient,
-                                   topic: str,
-                                   partitions: int,
-                                   replication: int,
-                                   *,
-                                   config: Mapping[str, Any] = None,
-                                   timeout: int = 30000,
-                                   retention: int = None,
-                                   compacting: bool = None,
-                                   deleting: bool = None,
-                                   ensure_created: bool = False) -> None:
+    async def _really_create_topic(
+            self,
+            owner: Service,
+            client: aiokafka.AIOKafkaClient,
+            topic: str,
+            partitions: int,
+            replication: int,
+            *,
+            config: Mapping[str, Any] = None,
+            timeout: int = 30000,
+            retention: int = None,
+            compacting: bool = None,
+            deleting: bool = None,
+            ensure_created: bool = False) -> None:  # pragma: no cover
         owner.log.info(f'Creating topic {topic}')
 
         if topic in client.cluster.topics():
@@ -770,14 +772,14 @@ def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
         elif isinstance(credentials, SASLCredentials):
             return {
                 'security_protocol': credentials.protocol.value,
-                'sasl_mechanism': credentials.mechanism,
+                'sasl_mechanism': credentials.mechanism.value,
                 'sasl_plain_username': credentials.username,
                 'sasl_plain_password': credentials.password,
             }
         elif isinstance(credentials, GSSAPICredentials):
             return {
                 'security_protocol': credentials.protocol.value,
-                'sasl_mechanism': credentials.mechanism,
+                'sasl_mechanism': credentials.mechanism.value,
                 'sasl_kerberos_service_name':
                     credentials.kerberos_service_name,
                 'sasl_kerberos_domain_name':
