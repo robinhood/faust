@@ -64,7 +64,8 @@ class test_settings:
         assert conf.stream_ack_exceptions
         assert (conf.broker_max_poll_records ==
                 settings.BROKER_MAX_POLL_RECORDS)
-        assert (ordered_client_assignment == settings.ORDERED_CLIENT_ASSIGNMENT)
+        assert (conf.ordered_client_assignment ==
+                settings.ORDERED_CLIENT_ASSIGNMENT)
 
         assert not conf.autodiscover
         assert conf.origin is None

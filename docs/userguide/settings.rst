@@ -1255,7 +1255,7 @@ Example using the string path to a class::
 .. setting:: ordered_client_assignment
 
 ``ordered_client_assignment``
------------------------
+-----------------------------
 
 :type: :class:`bool`
 :default: ``False``

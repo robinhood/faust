@@ -1,10 +1,11 @@
 """Copartitioned Assignor."""
+import collections
 from itertools import cycle
 from math import ceil
 from typing import Iterable, Iterator, MutableMapping, Optional, Sequence, Set
 from mode.utils.compat import Counter
 from .client_assignment import CopartitionedAssignment
-import collections
+from faust.types.app import AppT
 
 __all__ = ['CopartitionedAssignor']
 
@@ -38,7 +39,7 @@ class CopartitionedAssignor:
     _client_assignments: MutableMapping[str, CopartitionedAssignment]
 
     def __init__(self,
-                 app,
+                 app: AppT,
                  topics: Iterable[str],
                  cluster_asgn: MutableMapping[str, CopartitionedAssignment],
                  num_partitions: int,
