@@ -36,7 +36,7 @@ class SASLCredentials(Credentials):
 
 class GSSAPICredentials(Credentials):
     protocol = AuthProtocol.SASL_PLAINTEXT
-    mechanism: str = SASLMechanism.GSSAPI
+    mechanism: SASLMechanism = SASLMechanism.GSSAPI
 
     def __init__(self, *,
                  kerberos_service_name: str = 'kafka',
