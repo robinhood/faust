@@ -105,7 +105,7 @@ class Check(Service):
                     await self.on_ok_log(app, prev_value, current_value)
             self.store_previous_value(current_value)
         except Exception as exc:
-            print('ERROR: %r' % (exc,))
+            print(f'ERROR: {exc!r}')
             raise
 
     def compare(self, prev_value: Any, current_value: Any):
@@ -172,7 +172,7 @@ class Check(Service):
                 else:
                     await self.check(app)
         except Exception as exc:
-            print('RUN CHECK RAISED: %r' % (exc,))
+            print(f'RUN CHECK RAISED: {exc!r}')
             raise
 
     @property

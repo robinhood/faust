@@ -65,7 +65,7 @@ class Benchmark:
             if not i:
                 time_last = monotonic()
             await self.process_value(value)
-            if i and not i % self.n:
+            if i and not i % self.n:  # noqa: S001
                 now = monotonic()
                 runtime, time_last = now - time_last, now
                 print(f'RECV {i} in {runtime}s')
@@ -92,7 +92,7 @@ class Benchmark:
                     print(f'1ST OK: {meta} AFTER {monotonic() - time_1st}s')
                 callback = on_published
             await topic.send(key=key, value=value, callback=callback)
-            if i and not i % self.n:
+            if i and not i % self.n:  # noqa: S001
                 print(f'+SEND {i} in {monotonic() - time_start}s')
                 time_start = monotonic()
             if max_latency:

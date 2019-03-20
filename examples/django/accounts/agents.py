@@ -14,7 +14,6 @@ class AccountRecord(faust.Record):
 @app.agent()
 async def add_account(accounts: StreamT[AccountRecord]):
     async for account in accounts:
-        print('GOT RECORD: %r' % (account,))
         result = Account.objects.create(
             name=account.name,
             score=Decimal(str(account.score)),

@@ -72,5 +72,5 @@ class test_SlidingWindow:
 
         window = SlidingWindow(size, step, expires=expires)
         for time in range(0, now_timestamp - expires):
-            print('TIME: %r NOW TIMESTAMP: %r' % (time, now_timestamp))
+            print(f'TIME: {time} NOW TIMESTAMP: {now_timestamp}')
             assert window.stale(time, now_timestamp) is True

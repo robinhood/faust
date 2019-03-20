@@ -56,7 +56,8 @@ def parse(datetime_string: str) -> datetime:
     """Parse and convert ISO 8601 string into a datetime object."""
     m = RE_ISO8601.match(datetime_string)
     if not m:
-        raise ValueError('unable to parse date string %r' % datetime_string)
+        raise ValueError(
+            f'unable to parse date string {datetime_string!r}')
     groups = cast(Mapping[str, str], m.groupdict())
     return datetime(
         int(groups['year']),

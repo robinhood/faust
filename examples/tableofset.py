@@ -21,7 +21,7 @@ async def join(stream):
     async for key, name in stream.items():
         print(f'- {name.capitalize()} joined {key}')
         table[key].add(name)
-        print('TABLE CUR %r' % (table[key],))
+        print(f'TABLE CUR: {table[key]!r}')
 
 
 @app.agent(leaving_topic)
@@ -29,7 +29,7 @@ async def leave(stream):
     async for key, name in stream.items():
         print(f'- {name.capitalize()} left {key}')
         table[key].discard(name)
-        print('TABLE CUR %r' % (table[key],))
+        print(f'TABLE CUR: {table[key]!r}')
 
 
 @app.command(
@@ -50,7 +50,7 @@ async def leaving(self, location: str, name: str):
 
 @app.timer(10.0)
 async def _dump():
-    print('TABLE NOW:\n%s' % (table.as_ansitable(),))
+    print(f'TABLE NOW:\n{table.as_ansitable()}')
 
 
 if __name__ == '__main__':

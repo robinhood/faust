@@ -36,7 +36,7 @@ class MyService(faust.Service):
 @app.agent(value_type=str)
 async def consumer(stream):
     async for message in stream:
-        print('Received: %r' % (message,))
+        print(f'Received: {message!r}')
 
 
 @app.timer(1.0)

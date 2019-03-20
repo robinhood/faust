@@ -25,7 +25,7 @@ class AgentCase(Service):
             async with case:
                 await case.wait(case.finished)
         except Exception as exc:
-            print('AgentConcurrencyCase raised: %r' % (exc,))
+            print(f'AgentConcurrencyCase raised: {exc!r}')
             raise
         else:
             assert not case._crashed.is_set()
@@ -117,7 +117,7 @@ class AgentCase(Service):
                 print('I WAS CANCELLED?!?!?')
             raise
         except Exception as exc:
-            print('AGENT RAISED ERROR: %r' % (exc,))
+            print(f'AGENT RAISED ERROR: {exc!r}')
             await self.crash(exc)
             raise
 
@@ -151,7 +151,6 @@ class AgentCase(Service):
         self.finished.set()
 
     async def conductor_setup(self, assigned: Set[TP]) -> None:
-        print('PARTITIONS ASSIGNED: %r' % (assigned,))
         await self.app.agents.on_rebalance(set(), assigned)
         await self.app.topics._update_indices()
         await self.app.topics.on_partitions_assigned(assigned)
