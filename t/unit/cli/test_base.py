@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import sys
 import types
 from pathlib import Path
@@ -177,85 +178,89 @@ def test__prepare_cli():
     root = ctx.find_root.return_value = Mock(name='root')
     root.side_effects = False
     app = Mock(name='app')
-    _prepare_cli(
-        ctx,
-        app=app,
-        quiet=False,
-        debug=True,
-        workdir='/foo',
-        datadir='/data',
-        json=True,
-        no_color=False,
-        loop='foo',
-    )
+    try:
+        _prepare_cli(
+            ctx,
+            app=app,
+            quiet=False,
+            debug=True,
+            workdir='/foo',
+            datadir='/data',
+            json=True,
+            no_color=False,
+            loop='foo',
+        )
 
-    assert state.app is app
-    assert not state.quiet
-    assert state.debug
-    assert state.workdir == '/foo'
-    assert state.datadir == '/data'
-    assert state.json
-    assert not state.no_color
-    assert state.loop == 'foo'
+        assert state.app is app
+        assert not state.quiet
+        assert state.debug
+        assert state.workdir == '/foo'
+        assert state.datadir == '/data'
+        assert state.json
+        assert not state.no_color
+        assert state.loop == 'foo'
 
-    root.side_effects = True
-    with patch('os.chdir') as chdir:
-        with patch('faust.cli.base.enable_all_colors') as eac:
-            with patch('faust.utils.terminal.isatty') as isatty:
-                with patch('faust.cli.base.disable_all_colors') as dac:
-                    isatty.return_value = True
-                    _prepare_cli(
-                        ctx,
-                        app=app,
-                        quiet=False,
-                        debug=True,
-                        workdir='/foo',
-                        datadir='/data',
-                        json=False,
-                        no_color=False,
-                        loop='foo',
-                    )
-                    chdir.assert_called_with(Path('/foo').absolute())
-                    eac.assert_called_once_with()
-                    dac.assert_not_called()
-                    _prepare_cli(
-                        ctx,
-                        app=app,
-                        quiet=False,
-                        debug=True,
-                        workdir='/foo',
-                        datadir='/data',
-                        json=True,
-                        no_color=False,
-                        loop='foo',
-                    )
-                    dac.assert_called_once_with()
-                    dac.reset_mock()
-                    eac.reset_mock()
-                    _prepare_cli(
-                        ctx,
-                        app=app,
-                        quiet=False,
-                        debug=True,
-                        workdir='/foo',
-                        datadir='/data',
-                        json=False,
-                        no_color=True,
-                        loop='foo',
-                    )
-                    eac.assert_not_called()
-                    dac.assert_called_once_with()
-                    _prepare_cli(
-                        ctx,
-                        app=app,
-                        quiet=False,
-                        debug=True,
-                        workdir=None,
-                        datadir=None,
-                        json=False,
-                        no_color=True,
-                        loop='foo',
-                    )
+        root.side_effects = True
+        with patch('os.chdir') as chdir:
+            with patch('faust.cli.base.enable_all_colors') as eac:
+                with patch('faust.utils.terminal.isatty') as isatty:
+                    with patch('faust.cli.base.disable_all_colors') as dac:
+                        isatty.return_value = True
+                        _prepare_cli(
+                            ctx,
+                            app=app,
+                            quiet=False,
+                            debug=True,
+                            workdir='/foo',
+                            datadir='/data',
+                            json=False,
+                            no_color=False,
+                            loop='foo',
+                        )
+                        chdir.assert_called_with(Path('/foo').absolute())
+                        eac.assert_called_once_with()
+                        dac.assert_not_called()
+                        _prepare_cli(
+                            ctx,
+                            app=app,
+                            quiet=False,
+                            debug=True,
+                            workdir='/foo',
+                            datadir='/data',
+                            json=True,
+                            no_color=False,
+                            loop='foo',
+                        )
+                        dac.assert_called_once_with()
+                        dac.reset_mock()
+                        eac.reset_mock()
+                        _prepare_cli(
+                            ctx,
+                            app=app,
+                            quiet=False,
+                            debug=True,
+                            workdir='/foo',
+                            datadir='/data',
+                            json=False,
+                            no_color=True,
+                            loop='foo',
+                        )
+                        eac.assert_not_called()
+                        dac.assert_called_once_with()
+                        _prepare_cli(
+                            ctx,
+                            app=app,
+                            quiet=False,
+                            debug=True,
+                            workdir=None,
+                            datadir=None,
+                            json=False,
+                            no_color=True,
+                            loop='foo',
+                        )
+    finally:
+        os.environ.pop('F_DATADIR', None)
+        os.environ.pop('F_WORKDIR', None)
 
 
 class test_Command:

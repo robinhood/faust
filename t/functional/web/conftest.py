@@ -3,9 +3,15 @@ from faust.exceptions import SameNode
 from mode.utils.mocks import Mock
 
 
-@pytest.fixture()
+@pytest.yield_fixture()
 def web_client(loop, aiohttp_client, web):
-    return aiohttp_client(web.web_app)
+    try:
+        yield aiohttp_client(web.web_app)
+    finally:
+        # Cleanup threads started by loop.run_in_executor
+        # at shutdown.
+        if loop._default_executor is not None:
+            loop._default_executor.shutdown()
 
 
 @pytest.fixture()

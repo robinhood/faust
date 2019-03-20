@@ -33,14 +33,14 @@ def _prepare_app(app):
 
 
 @pytest.mark.asyncio
-async def test_simple(app):
-    stream = new_stream(app)
-    stream_it = aiter(stream)
-    assert await channel_empty(stream.channel)
-    await put(stream.channel, key='key', value='value')
-    print('ANEXT')
-    assert await anext(stream_it) == 'value'
-    assert await channel_empty(stream.channel)
+@pytest.mark.allow_lingering_tasks(count=1)
+async def test_simple(app, loop):
+    async with new_stream(app) as stream:
+        stream_it = aiter(stream)
+        assert await channel_empty(stream.channel)
+        await put(stream.channel, key='key', value='value')
+        assert await anext(stream_it) == 'value'
+        assert await channel_empty(stream.channel)
 
 
 @pytest.mark.asyncio
@@ -131,11 +131,14 @@ def test_through_with_concurrency_index(app):
         s.through('foo')
 
 
-def test_through_twice(app):
-    s = new_topic_stream(app)
-    s.through('bar')
-    with pytest.raises(ImproperlyConfigured):
-        s.through('baz')
+@pytest.mark.asyncio
+async def test_through_twice(app):
+    async with new_topic_stream(app) as s:
+        s._enable_passive = Mock()
+        async with s.through('bar') as s2:
+            s2._enable_passive = Mock()
+            with pytest.raises(ImproperlyConfigured):
+                s.through('baz')
 
 
 def test_group_by_with_concurrency_index(app):
@@ -152,20 +155,23 @@ def test_group_by_callback_must_have_name(app):
         s.group_by(lambda s: s.foo)
 
 
-def test_group_by_twice(app):
-    s = new_topic_stream(app)
-    s.group_by(lambda s: s.foo, name='foo')
-    with pytest.raises(ImproperlyConfigured):
-        s.group_by(lambda s: s.foo, name='foo')
+@pytest.mark.asyncio
+async def test_group_by_twice(app):
+    async with new_topic_stream(app) as s:
+        s._enable_passive = Mock()
+        async with s.group_by(lambda s: s.foo, name='foo') as s2:
+            s2._enable_passive = Mock()
+            with pytest.raises(ImproperlyConfigured):
+                s.group_by(lambda s: s.foo, name='foo')
 
 
 @pytest.mark.asyncio
 async def test_stream_over_iterable(app):
-    s = app.stream([0, 1, 2, 3, 4, 5])
-    i = 0
-    async for value in s:
-        assert value == i
-        i += 1
+    async with app.stream([0, 1, 2, 3, 4, 5]) as s:
+        i = 0
+        async for value in s:
+            assert value == i
+            i += 1
 
 
 @pytest.mark.asyncio
@@ -316,15 +322,10 @@ async def test_start_and_stop_Stream(app):
 
 
 async def _start_stop_stream(stream):
-    print('STREAM START')
     assert not stream._passive
     await stream.start()
-    print('STREAM STARTED')
-    print('STREAM AITER')
     stream.__aiter__()
     assert stream.app.topics
-
-    print('STREAM STOP')
     await stream.stop()
 
 
@@ -411,14 +412,15 @@ async def test_acked_when_raising(app):
 
 
 @pytest.mark.asyncio
+@pytest.mark.allow_lingering_tasks(count=1)
 async def test_maybe_forward__when_event(app):
-    s = new_stream(app)
-    event = await get_event_from_value(s, 'foo')
-    s.channel.send = Mock(name='channel.send')
-    event.forward = AsyncMock(name='event.forward')
-    await maybe_forward(event, s.channel)
-    event.forward.assert_called_once_with(s.channel)
-    s.channel.send.assert_not_called()
+    async with new_stream(app) as s:
+        event = await get_event_from_value(s, 'foo')
+        s.channel.send = Mock(name='channel.send')
+        event.forward = AsyncMock(name='event.forward')
+        await maybe_forward(event, s.channel)
+        event.forward.assert_called_once_with(s.channel)
+        s.channel.send.assert_not_called()
 
 
 @pytest.mark.asyncio
