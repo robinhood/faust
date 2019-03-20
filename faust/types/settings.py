@@ -346,7 +346,7 @@ class Settings(abc.ABC):
     _Topic: Type[TopicT]
     _HttpClient: Type[HttpClientT]
     _Monitor: Type[SensorT]
-    _ordered_client_assignemnt: Optional[bool] = ORDERED_CLIENT_ASSIGNMENT
+    _ordered_client_assignment: Optional[bool] = ORDERED_CLIENT_ASSIGNMENT
 
     _initializing: bool = True
     _accessed: Set[str]

@@ -175,7 +175,8 @@ class CopartitionedAssignor:
         client_limit = self._get_client_limit(active)
         if self.app.conf.ordered_client_assignment:
             candidates = cycle(collections.OrderedDict(
-                sorted(self._client_assignments.items(), key=lambda t: t[0])).values())
+                sorted(self._client_assignments.items(),
+                       key=lambda t: t[0])).values())
         else:
             candidates = cycle(self._client_assignments.values())
         unassigned = list(unassigned)
