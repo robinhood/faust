@@ -43,7 +43,7 @@ class CopartitionedAssignor:
                  replicas: int,
                  capacity: int = None) -> None:
         self._num_clients = len(cluster_asgn)
-        assert self._num_clients, "Should assign to at least 1 client"
+        assert self._num_clients, 'Should assign to at least 1 client'
         self.num_partitions = num_partitions
         self.replicas = min(replicas, self._num_clients - 1)
         self.capacity = (

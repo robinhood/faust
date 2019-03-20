@@ -17,16 +17,16 @@ test_topic = app.topic(TOPIC, value_type=Score)
 
 
 def get_score_key(score):
-    return f"partition: {score.index % 2}"
+    return f'partition: {score.index % 2}'
 
 
 @app.agent(test_topic)
 async def print_totals(stream):
     async for score in stream.group_by(get_score_key, name='index_partition'):
-        ind = f"partition: {score.index % 2}"
+        ind = f'partition: {score.index % 2}'
         table['totals'] += 1
         table[ind] += 1
-        print(f"Total: {table['totals']}, Partition {ind}: {table[ind]}")
+        print(f'Total: {table["totals"]}, Partition {ind}: {table[ind]}')
 
 
 if __name__ == '__main__':

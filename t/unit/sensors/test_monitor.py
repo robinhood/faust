@@ -287,7 +287,7 @@ class test_Monitor:
         }
 
     def test_on_tp_commit(self, *, mon):
-        topic = "foo"
+        topic = 'foo'
         for offset in range(20):
             partitions = list(range(4))
             tps = {TP(topic=topic, partition=p) for p in partitions}
@@ -295,15 +295,15 @@ class test_Monitor:
             mon.on_tp_commit(commit_offsets)
             assert all(mon.tp_committed_offsets[tp] == commit_offsets[tp]
                        for tp in tps)
-            offsets_dict = mon.asdict()["topic_committed_offsets"][topic]
+            offsets_dict = mon.asdict()['topic_committed_offsets'][topic]
             assert all(offsets_dict[p] == offset for p in partitions)
 
     def test_track_tp_end_offsets(self, *, mon):
-        tp = TP(topic="foo", partition=2)
+        tp = TP(topic='foo', partition=2)
         for offset in range(20):
             mon.track_tp_end_offset(tp, offset)
             assert mon.tp_end_offsets[tp] == offset
-            offsets_dict = mon.asdict()["topic_end_offsets"][tp.topic]
+            offsets_dict = mon.asdict()['topic_end_offsets'][tp.topic]
             assert offsets_dict[tp.partition] == offset
 
     @pytest.mark.asyncio

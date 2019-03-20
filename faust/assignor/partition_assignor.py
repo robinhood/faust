@@ -148,7 +148,7 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             set)
         for topic in topics:
             clients = topic_subscriptions[topic]
-            assert clients, "Subscribed clients for topic cannot be empty"
+            assert clients, 'Subscribed clients for topic cannot be empty'
             co_subscribed[tuple(clients)].add(topic)
         return co_subscribed.values()
 

@@ -666,7 +666,7 @@ def test_blessed_key_deeply_nested():
     assert isinstance(model.event.data, AdjustData)
 
 
-ADTRIBUTE_PAYLOAD = """
+ADTRIBUTE_PAYLOAD = '''
 {"user": {"username": "3da6ef8f-aed1-47e7-ad4f-034363d0565b",
  "secret": null, "__faust": {"ns": "trebuchet.models.logging.User"}},
  "device": {"platform": "iOS",
@@ -698,7 +698,7 @@ ADTRIBUTE_PAYLOAD = """
  "timestamp": "2018-03-22 16:57:19.000", "client_ip": "174.207.10.101",
  "event_hash": "50c9a0e19b9644abe269aadcea9e7526", "__faust": {
     "ns": "trebuchet.models.logging.LoggingEvent"}}
-"""
+'''
 
 
 def test_adtribute_payload(app):

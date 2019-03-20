@@ -9,7 +9,7 @@ README = Path('README.rst')
 
 # -*- Classifiers -*-
 
-classes = """
+classes = '''
     Development Status :: 4 - Beta
     License :: OSI Approved :: BSD License
     Programming Language :: Python
@@ -21,7 +21,7 @@ classes = """
     Operating System :: POSIX :: BSD
     Operating System :: Microsoft :: Windows
     Topic :: Framework :: Django
-"""
+'''
 classifiers = [s.strip() for s in classes.split('\n') if s]
 
 # -*- Distribution Meta -*-

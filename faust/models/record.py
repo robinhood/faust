@@ -52,10 +52,10 @@ ALIAS_FIELD_TYPES = {
     frozenset: FrozenSet,
 }
 
-E_NON_DEFAULT_FOLLOWS_DEFAULT = """
+E_NON_DEFAULT_FOLLOWS_DEFAULT = '''
 Non-default {cls_name} field {field_name} cannot
 follow default {fields} {default_names}
-"""
+'''
 
 _ReconFun = Callable[[Type, Any], Any]
 

@@ -55,12 +55,6 @@ async def track_user_withdrawal(withdrawals):
         user_to_total[withdrawal.user] += withdrawal.amount
 
 
-@app.agent(user_to_total.table.changelog_topic)
-async def on_changelog(changes):
-    async for change in changes:
-        print("RECEIVED CHANGE: %r" % (change,))
-
-
 @app.agent()
 async def track_country_withdrawal(withdrawals):
     async for withdrawal in withdrawals.group_by(Withdrawal.country):

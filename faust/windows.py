@@ -115,11 +115,13 @@ class _PySlidingWindow(Window):
         Notes:
             .. sourcecode:: sql
 
-                SELECT * FROM s1, s2
+                SELECT *
+                  FROM s1, s2
                 WHERE
                     s1.key = s2.key
                 AND
                 s1.ts - before <= s2.ts AND s2.ts <= s1.ts + after
+
         """
         return [
             (timestamp - self.before, timestamp + self.after),

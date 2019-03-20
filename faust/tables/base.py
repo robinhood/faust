@@ -55,14 +55,14 @@ __all__ = ['Collection']
 
 TABLE_CLEANING = 'CLEANING'
 
-E_SOURCE_PARTITIONS_MISMATCH = """\
+E_SOURCE_PARTITIONS_MISMATCH = '''\
 The source topic {source_topic!r} for table {table_name!r}
 has {source_n} partitions, but the changelog
 topic {change_topic!r} has {change_n} partitions.
 
 Please make sure the topics have the same number of partitions
 by configuring Kafka correctly.
-"""
+'''
 
 
 class Collection(Service, CollectionT):

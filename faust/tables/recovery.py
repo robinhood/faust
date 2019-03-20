@@ -21,13 +21,13 @@ if typing.TYPE_CHECKING:
 else:
     class TableManager: ...  # noqa
 
-E_PERSISTED_OFFSET = """\
+E_PERSISTED_OFFSET = '''\
 The persisted offset for changelog topic partition {0} is higher
 than the last offset in that topic (highwater) ({1} > {2}).
 
 Most likely you have removed data from the topics without
 removing the RocksDB database file for this partition.
-"""
+'''
 
 
 class ServiceStopped(Exception):

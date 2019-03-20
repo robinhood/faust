@@ -39,15 +39,15 @@ tumbling_table = app.Table(
 async def print_windowed_events(stream):
     async for _ in stream: # noqa
         tumbling_table['counter'] += 1
+
+        value = tumbling_table['counter']
+
         print('-- New Event (every 2 secs) written to tumbling(10) --')
-        print("now() should go from 1 to 5: "
-              f"{tumbling_table['counter'].now()}")
-        print("current() should go from 1 to 5: "
-              f"{tumbling_table['counter'].current()}")
-        print("value() should go from 1 to 5: "
-              f"{tumbling_table['counter'].value()}")
-        print("delta(30)should start at 0 and after 40 secs be 5: "
-              f"{tumbling_table['counter'].delta(30)}")
+        print(f'now() should go from 1 to 5: {value.now()}')
+        print(f'current() should go from 1 to 5: {value.current()}')
+        print(f'value() should go from 1 to 5: {value.value()}')
+        print('delta(30) should start at 0 and after 40 secs be 5: '
+              f'{value.delta(30)}')
 
 
 @app.timer(2.0, on_leader=True)

@@ -108,7 +108,7 @@ class test_Store:
         assert store._key_index is not None
 
     def test_persisted_offset(self, *, store, db_for_partition):
-        db_for_partition.return_value.get.return_value = "300"
+        db_for_partition.return_value.get.return_value = '300'
         assert store.persisted_offset(TP1) == 300
         db_for_partition.assert_called_once_with(TP1.partition)
         db_for_partition.return_value.get.assert_called_once_with(

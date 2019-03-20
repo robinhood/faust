@@ -6,9 +6,9 @@ from faust.types import TP
 from faust.types.assignor import HostToPartitionMap
 from faust.types.tables import TableManagerT
 
-R_COPART_ASSIGNMENT = """
+R_COPART_ASSIGNMENT = '''
 <{name} actives={self.actives} standbys={self.standbys} topics={self.topics}>
-""".strip()
+'''.strip()
 
 
 class CopartitionedAssignment:

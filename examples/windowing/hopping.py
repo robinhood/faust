@@ -47,15 +47,13 @@ hopping_table = app.Table(
 async def print_windowed_events(stream):
     async for _ in stream: # noqa
         hopping_table['counter'] += 1
-        print('-- New Event (every 2 secs) written to hopping(10, 5) --')
-        print("now() should have values between 1 to 3: "
-              f"{hopping_table['counter'].now()}")
-        print("current() should have values between 1 to 3: "
-              f"{hopping_table['counter'].current()}")
-        print("value() should have values between 1 to 3: "
-              f"{hopping_table['counter'].value()}")
-        print("delta(30) should start at 0 and after 40 secs be 5: "
-              f"{hopping_table['counter'].delta(30)}")
+        value = hopping_table['counter']
+        print(f'-- New Event (every 2 secs) written to hopping(10, 5) --')
+        print(f'now() should have values between 1-3: {value.now()}')
+        print(f'current() should have values between 1-3: {value.current()}')
+        print(f'value() should have values between 1-3: {value.value()}')
+        print(f'delta(30) should start at 0 and after 40 secs be 5: '
+              f'{value.delta(30)}')
 
 
 @app.timer(2.0, on_leader=True)

@@ -17,15 +17,15 @@ else:
 
 __all__ = ['Fixup']
 
-WARN_NOT_INSTALLED = """\
+WARN_NOT_INSTALLED = '''\
 Environment variable DJANGO_SETTINGS_MODULE is defined
 but Django isn't installed.  Won't apply Django fix-ups!
-"""
+'''
 
-WARN_DEBUG_ENABLED = """\
+WARN_DEBUG_ENABLED = '''\
 Using settings.DEBUG leads to a memory leak, never
 use this setting in production environments!
-"""
+'''
 
 
 class Fixup(base.Fixup):

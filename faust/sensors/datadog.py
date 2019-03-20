@@ -29,8 +29,8 @@ __all__ = ['DatadogMonitor']
 
 # This regular expression is used to generate stream ids in Statsd.
 # It converts for example
-#    "Stream: <Topic: withdrawals>"
-# -> "Stream_Topic_withdrawals"
+#    'Stream: <Topic: withdrawals>'
+# -> 'Stream_Topic_withdrawals'
 #
 # See StatsdMonitor._normalize()
 RE_NORMALIZE = re.compile(r'[\<\>:\s]+')
@@ -38,9 +38,7 @@ RE_NORMALIZE_SUBSTITUTION = '_'
 
 
 class DatadogStatsClient:
-    """Statsd compliant datadog client
-
-    """
+    """Statsd compliant datadog client."""
 
     def __init__(self,
                  host: str = 'localhost',
@@ -54,8 +52,8 @@ class DatadogStatsClient:
             namespace=prefix,
             **kwargs)
         self.rate = rate
-        self.sanitize_re = re.compile("[^0-9a-zA-Z_]")
-        self.re_substitution = "_"
+        self.sanitize_re = re.compile(r'[^0-9a-zA-Z_]')
+        self.re_substitution = '_'
 
     def gauge(self, metric: str, value: float, labels: Dict = None) -> None:
         self.client.gauge(
@@ -127,7 +125,7 @@ class DatadogStatsClient:
         def sanitize(s: str) -> str:
             return self.sanitize_re.sub(self.re_substitution, str(s))
 
-        return [f"{sanitize(k)}:{sanitize(v)}"
+        return [f'{sanitize(k)}:{sanitize(v)}'
                 for k, v in labels.items()] if labels else None
 
 

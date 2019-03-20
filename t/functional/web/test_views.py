@@ -33,7 +33,7 @@ class OptionsView(web.View):
     async def options(self, request):
         return self.json(
             None,
-            headers={"Access-Control-Allow-Methods": "GET, OPTIONS"},
+            headers={'Access-Control-Allow-Methods': 'GET, OPTIONS'},
         )
 
 
@@ -66,4 +66,4 @@ async def test_options(*, inject_blueprint, web_client, app):
     client = await web_client
     resp = await client.options('/test/options/')
     assert resp.status == 200
-    assert resp.headers["Access-Control-Allow-Methods"] == "GET, OPTIONS"
+    assert resp.headers['Access-Control-Allow-Methods'] == 'GET, OPTIONS'

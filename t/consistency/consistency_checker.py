@@ -16,10 +16,11 @@ bootstrap_servers = 'localhost:9092'
 
 
 class BaseKafkaTableBuilder(object):
-    '''
+    """Table builder.
+
     Builds table using single consumer consuming linearly
-    from raw topic
-    '''
+    from raw topic.
+    """
 
     def __init__(self, topic, loop):
         self.topic = topic
