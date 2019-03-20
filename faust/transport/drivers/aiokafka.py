@@ -39,6 +39,11 @@ from mode.utils.futures import StampedeWrapper
 from mode.utils.times import Seconds, want_seconds
 from yarl import URL
 
+from faust.auth import (
+    GSSAPICredentials,
+    SASLCredentials,
+    SSLCredentials,
+)
 from faust.exceptions import (
     ConsumerNotStarted,
     ImproperlyConfigured,
@@ -53,7 +58,7 @@ from faust.transport.consumer import (
     ensure_TPset,
 )
 from faust.types import ConsumerMessage, HeadersArg, RecordMetadata, TP
-from faust.types.auth import CredentialsT, SASLCredentials, SSLCredentials
+from faust.types.auth import CredentialsT
 from faust.types.transports import (
     ConsumerT,
     PartitionerT,
@@ -768,6 +773,15 @@ def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
                 'sasl_mechanism': credentials.mechanism,
                 'sasl_plain_username': credentials.username,
                 'sasl_plain_password': credentials.password,
+            }
+        elif isinstance(credentials, GSSAPICredentials):
+            return {
+                'security_protocol': credentials.protocol.value,
+                'sasl_mechanism': credentials.mechanism,
+                'sasl_kerberos_service_name':
+                    credentials.kerberos_service_name,
+                'sasl_kerberos_domain_name':
+                    credentials.kerberos_domain_name,
             }
         else:
             raise ImproperlyConfigured(

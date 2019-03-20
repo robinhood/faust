@@ -115,6 +115,11 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from mode import Service, ServiceT                          # noqa: E402
     from .agents import Agent                                   # noqa: E402
     from .app import App                                        # noqa: E402
+    from .auth import (                                         # noqa: E402
+        GSSAPICredentials,
+        SASLCredentials,
+        SSLCredentials,
+    )
     from .channels import Channel, ChannelT                     # noqa: E402
     from .events import Event, EventT                           # noqa: E402
     from .models import Model, ModelOptions, Record             # noqa: E402
@@ -124,7 +129,6 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from .tables.table import Table                             # noqa: E402
     from .tables.sets import SetTable                           # noqa: E402
     from .topics import Topic, TopicT                           # noqa: E402
-    from .types.auth import SASLCredentials, SSLCredentials     # noqa: E402
     from .types.settings import Settings                        # noqa: E402
     from .windows import (                                      # noqa: E402
         HoppingWindow,
@@ -159,6 +163,7 @@ __all__ = [
     'Table',
     'Topic',
     'TopicT',
+    'GSSAPICredentials',
     'SASLCredentials',
     'SSLCredentials',
     'Settings',
@@ -190,7 +195,11 @@ all_by_module: Mapping[str, Sequence[str]] = {
     'faust.tables.sets': ['SetTable'],
     'faust.tables.table': ['Table'],
     'faust.topics': ['Topic', 'TopicT'],
-    'faust.types.auth': ['SASLCredentials', 'SSLCredentials'],
+    'faust.auth': [
+        'GSSAPICredentials',
+        'SASLCredentials',
+        'SSLCredentials',
+    ],
     'faust.types.settings': ['Settings'],
     'faust.windows': [
         'HoppingWindow',

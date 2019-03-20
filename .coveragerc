@@ -20,7 +20,8 @@ omit =
     */faust/cli/worker.py
     */faust/web/apps/*
     */faust/assignor/*
-    */faust/transport/drivers/*
+    */faust/transport/drivers/memory.py
+    */faust/transport/drivers/confluent.py
 
     # tested by integration
     */faust/tables/recovery.py

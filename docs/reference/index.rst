@@ -14,6 +14,7 @@ Faust
     :maxdepth: 1
 
     faust
+    faust.auth
     faust.exceptions
     faust.channels
     faust.events

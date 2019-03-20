@@ -46,7 +46,7 @@ class test_BarrierState:
         p = BarrierState(reply_to='rt')
         p.done = Mock(name='done')
         p.done.return_value = False
-        p._results.put(None)
+        p._results.put_nowait(None)
         p._results.get = AsyncMock(name='get')
 
         def se():
