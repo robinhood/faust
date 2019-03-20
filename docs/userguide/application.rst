@@ -920,7 +920,7 @@ Takes only sender as argument, which is the app being configured:
 
 .. sourcecode:: python
 
-    @app.on_before_configured
+    @app.on_before_configured.connect
     def before_configuration(app, **kwargs):
         print(f'App {app} is being configured')
 
@@ -939,7 +939,7 @@ Takes only sender as argument, which is the app that was configured:
 
 .. sourcecode:: python
 
-    @app.on_after_configured
+    @app.on_after_configured.connect
     def after_configuration(app, **kwargs):
         print(f'App {app} has been configured.')
 
@@ -959,7 +959,7 @@ Takes only sender as argument, which is the app a worker is being started for:
 
 .. sourcecode:: python
 
-    @app.on_worker_init
+    @app.on_worker_init.connect
     def on_worker_init(app, **kwargs):
         print(f'Working starting for app {app}')
 
