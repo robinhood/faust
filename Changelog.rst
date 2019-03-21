@@ -19,7 +19,7 @@ please visit the :ref:`history` section.
 
     + Now depends on :pypi:`robinhood-aiokafka` 1.0.1
 
-    + Now depends on :ref:`Mode 3.0.12 <mode:version-3.0.12>`.
+    + Now depends on :ref:`Mode 3.0.13 <mode:version-3.0.12>`.
 
 - New optimizations for stream processing and windows.
 
