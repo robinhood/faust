@@ -27,11 +27,9 @@ from faust.types.tuples import tp_set_to_map
 from faust.utils.tracing import traced_from_parent_span
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from faust.app import App
-    from faust.topics import Topic
+    from faust.topics import Topic as _Topic
 else:
-    class App: ...  # noqa
-    class Topic: ...  # noqa
+    class _Topic: ...  # noqa
 
 NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
 
@@ -54,7 +52,7 @@ class ConductorCompiler:  # pragma: no cover
     def build(self,
               conductor: 'Conductor',
               tp: TP,
-              channels: MutableSet[Topic]) -> ConsumerCallback:
+              channels: MutableSet[_Topic]) -> ConsumerCallback:
         # This method localizes variables and attribute access
         # for better performance.  This is part of the inner loop
         # of a Faust worker, so tiny improvements here has big impact.
@@ -83,8 +81,8 @@ class ConductorCompiler:  # pragma: no cover
                 # keep track of the number of channels we delivered to,
                 # so that if a DecodeError is raised we can propagate
                 # that errors to the remaining channels.
-                delivered: Set[Topic] = set()
-                full: List[Tuple[EventT, Topic]] = []
+                delivered: Set[_Topic] = set()
+                full: List[Tuple[EventT, _Topic]] = []
                 try:
                     for chan in channels:
                         keyid = chan.key_type, chan.value_type
@@ -289,13 +287,13 @@ class Conductor(ConductorT, Service):
 
     def _update_callback_map(self) -> None:
         self._tp_to_callback.update(
-            (tp, self._build_handler(tp, cast(MutableSet[Topic], channels)))
+            (tp, self._build_handler(tp, cast(MutableSet[_Topic], channels)))
             for tp, channels in self._tp_index.items()
         )
 
     def _build_handler(self,
                        tp: TP,
-                       channels: MutableSet[Topic]) -> ConsumerCallback:
+                       channels: MutableSet[_Topic]) -> ConsumerCallback:
         if ConductorHandler is not None:  # pragma: no cover
             return ConductorHandler(self, tp, channels)
         else:

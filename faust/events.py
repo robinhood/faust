@@ -16,7 +16,7 @@ from faust.types import (
 )
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from .app.base import _App
+    from .app.base import App as _App
 else:
     class _App: ...  # noqa
 

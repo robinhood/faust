@@ -40,9 +40,9 @@ from faust.types.windows import WindowRange
 from faust.utils.terminal.tables import dict_as_ansitable
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from .table import Table
+    from .table import Table as _Table
 else:
-    class Table: ...     # noqa
+    class _Table: ...     # noqa
 
 __all__ = [
     'WindowSet',
@@ -175,7 +175,7 @@ class WindowSet(WindowSetT[KT, VT]):
                  wrapper: WindowWrapperT,
                  event: EventT = None) -> None:
         self.key = key
-        self.table = cast(Table, table)
+        self.table = cast(_Table, table)
         self.wrapper = wrapper
         self.event = event
         self.data = table  # provides underlying mapping in FastUserDict
@@ -184,7 +184,7 @@ class WindowSet(WindowSetT[KT, VT]):
               op: Callable[[VT, VT], VT],
               value: VT,
               event: EventT = None) -> WindowSetT[KT, VT]:
-        table = cast(Table, self.table)
+        table = cast(_Table, self.table)
         wrapper = cast(WindowWrapper, self.wrapper)
         timestamp = wrapper.get_timestamp(event or self.event)
         wrapper.on_set_key(self.key, value)
@@ -192,19 +192,19 @@ class WindowSet(WindowSetT[KT, VT]):
         return self
 
     def value(self, event: EventT = None) -> VT:
-        return cast(Table, self.table)._windowed_timestamp(
+        return cast(_Table, self.table)._windowed_timestamp(
             self.key, self.wrapper.get_timestamp(event or self.event))
 
     def now(self) -> VT:
-        return cast(Table, self.table)._windowed_now(self.key)
+        return cast(_Table, self.table)._windowed_now(self.key)
 
     def current(self, event: EventT = None) -> VT:
-        t = cast(Table, self.table)
+        t = cast(_Table, self.table)
         return t._windowed_timestamp(
             self.key, t._relative_event(event or self.event))
 
     def delta(self, d: Seconds, event: EventT = None) -> VT:
-        table = cast(Table, self.table)
+        table = cast(_Table, self.table)
         return table._windowed_delta(self.key, d, event or self.event)
 
     @overload
@@ -364,7 +364,7 @@ class WindowWrapper(WindowWrapperT):
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if not isinstance(value, WindowSetT):
-            table = cast(Table, self.table)
+            table = cast(_Table, self.table)
             self.on_set_key(key, value)
             table._set_windowed(key, value, self.get_timestamp())
 
@@ -381,7 +381,7 @@ class WindowWrapper(WindowWrapperT):
 
     def __delitem__(self, key: Any) -> None:
         self.on_del_key(key)
-        cast(Table, self.table)._del_windowed(key, self.get_timestamp())
+        cast(_Table, self.table)._del_windowed(key, self.get_timestamp())
 
     def __len__(self) -> int:
         if self.key_index_table is not None:
@@ -427,7 +427,7 @@ class WindowWrapper(WindowWrapperT):
         return WindowedItemsView(self, event or current_event())
 
     def _items(self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
-        table = cast(Table, self.table)
+        table = cast(_Table, self.table)
         timestamp = self.get_timestamp(event)
         for key in self._keys():
             try:
@@ -436,7 +436,7 @@ class WindowWrapper(WindowWrapperT):
                 pass
 
     def _items_now(self) -> Iterator[Tuple[Any, Any]]:
-        table = cast(Table, self.table)
+        table = cast(_Table, self.table)
         for key in self._keys():
             try:
                 yield key, table._windowed_now(key)
@@ -445,7 +445,7 @@ class WindowWrapper(WindowWrapperT):
 
     def _items_current(
             self, event: EventT = None) -> Iterator[Tuple[Any, Any]]:
-        table = cast(Table, self.table)
+        table = cast(_Table, self.table)
         timestamp = table._relative_event(event)
         for key in self._keys():
             try:
@@ -455,7 +455,7 @@ class WindowWrapper(WindowWrapperT):
 
     def _items_delta(self, d: Seconds,
                      event: EventT = None) -> Iterator[Any]:
-        table = cast(Table, self.table)
+        table = cast(_Table, self.table)
         for key in self._keys():
             try:
                 yield key, table._windowed_delta(key, d, event)

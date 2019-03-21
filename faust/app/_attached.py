@@ -19,9 +19,9 @@ from faust.types.core import HeadersArg, K, V
 from faust.types.tuples import FutureMessage, Message, MessageSentCallback
 
 if typing.TYPE_CHECKING:
-    from faust.events import Event
+    from faust.events import Event as _Event
 else:
-    class Event: ...       # noqa
+    class _Event: ...       # noqa
 
 __all__ = ['Attachment', 'Attachments']
 
@@ -96,7 +96,7 @@ class Attachments:
         if self.enabled and not force:
             event = current_event()
             if event is not None:
-                return cast(Event, event)._attach(
+                return cast(_Event, event)._attach(
                     channel,
                     key,
                     value,

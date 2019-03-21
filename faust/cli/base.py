@@ -66,8 +66,6 @@ __all__ = [
     'option',
 ]
 
-argument = click.argument
-
 
 def argument(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
     """Create command-line argument.

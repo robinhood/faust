@@ -7,15 +7,16 @@ from .core import HeadersArg, K, V
 from .tuples import Message, MessageSentCallback, RecordMetadata
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .channels import ChannelT
+    from .app import AppT as _AppT
+    from .channels import ChannelT as _ChannelT
 else:
-    class AppT: ...  # noqa
-    class ChannelT: ...  # noqa
+    class _AppT: ...  # noqa
+    class _ChannelT: ...  # noqa
 
 
 class EventT(AsyncContextManager):
-    app: AppT
+
+    app: _AppT
     key: K
     value: V
     headers: Mapping
@@ -26,7 +27,7 @@ class EventT(AsyncContextManager):
 
     @abc.abstractmethod
     def __init__(self,
-                 app: AppT,
+                 app: _AppT,
                  key: K,
                  value: V,
                  headers: Optional[HeadersArg],
@@ -35,7 +36,7 @@ class EventT(AsyncContextManager):
 
     @abc.abstractmethod
     async def send(self,
-                   channel: Union[str, ChannelT],
+                   channel: Union[str, _ChannelT],
                    key: K = None,
                    value: V = None,
                    partition: int = None,
@@ -49,7 +50,7 @@ class EventT(AsyncContextManager):
 
     @abc.abstractmethod
     async def forward(self,
-                      channel: Union[str, ChannelT],
+                      channel: Union[str, _ChannelT],
                       key: Any = None,
                       value: Any = None,
                       partition: int = None,

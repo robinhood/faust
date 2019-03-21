@@ -81,9 +81,9 @@ from .models import (
 from .replies import BarrierState, ReplyPromise
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from faust.app.base import App
+    from faust.app.base import App as _App
 else:
-    class App: ...   # noqa
+    class _App: ...   # noqa
 
 __all__ = ['Agent']
 
@@ -699,7 +699,7 @@ class Agent(AgentT, Service):
             correlation_id=correlation_id,
             force=True,  # Send immediately, since we are waiting for result.
         )
-        app = cast(App, self.app)
+        app = cast(_App, self.app)
         await app._reply_consumer.add(p.correlation_id, p)
         await app.maybe_start_client()
         return await p
@@ -891,7 +891,7 @@ class Agent(AgentT, Service):
 
             # the ReplyConsumer will call the barrier whenever a new
             # result comes in.
-            app = cast(App, self.app)
+            app = cast(_App, self.app)
             await app.maybe_start_client()
             await app._reply_consumer.add(p.correlation_id, barrier)
 

@@ -9,7 +9,6 @@ To see a reference transport implementation go to:
 faust/transport/drivers/aiokafka.py
 """
 import asyncio
-import typing
 from typing import Any, ClassVar, List, Type
 
 from mode.services import ServiceT
@@ -28,11 +27,6 @@ from faust.types.transports import (
 from .conductor import Conductor
 from .consumer import Consumer, Fetcher, TransactionManager
 from .producer import Producer
-
-if typing.TYPE_CHECKING:  # pragma: no cover
-    from faust.app import App
-else:
-    class App: ...  # noqa
 
 __all__ = ['Conductor', 'Consumer', 'Fetcher', 'Producer', 'Transport']
 

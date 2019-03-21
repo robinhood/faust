@@ -105,13 +105,11 @@ from faust.types.windows import WindowT
 from ._attached import Attachments
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from faust.cli.base import AppCommand
-    from faust.events import Event
-    from faust.worker import Worker as WorkerT
+    from faust.cli.base import AppCommand as _AppCommand
+    from faust.worker import Worker as _Worker
 else:
-    class AppCommand: ...  # noqa
-    class Event: ...       # noqa
-    class WorkerT: ...     # noqa
+    class _AppCommand: ...  # noqa
+    class _Worker: ...     # noqa
 
 __all__ = ['App', 'BootStrategy']
 
@@ -1105,16 +1103,16 @@ class App(AppT, Service):
 
     def command(self,
                 *options: Any,
-                base: Optional[Type[AppCommand]] = None,
-                **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
-        _base: Type[AppCommand]
+                base: Optional[Type[_AppCommand]] = None,
+                **kwargs: Any) -> Callable[[Callable], Type[_AppCommand]]:
+        _base: Type[_AppCommand]
         if base is None:
             from faust.cli import base as cli_base
             _base = cli_base.AppCommand
         else:
             _base = base
 
-        def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[AppCommand]:
+        def _inner(fun: Callable[..., Awaitable[Any]]) -> Type[_AppCommand]:
             cmd = _base.from_handler(*options, **kwargs)(fun)
             venusian.attach(cmd, category=SCAN_COMMAND)
             return cmd
@@ -1466,7 +1464,7 @@ class App(AppT, Service):
             loop=loop or self.loop,
         )
 
-    def Worker(self, **kwargs: Any) -> WorkerT:
+    def Worker(self, **kwargs: Any) -> _Worker:
         return self.conf.Worker(self, **kwargs)
 
     def on_webserver_init(self, web: Web) -> None:

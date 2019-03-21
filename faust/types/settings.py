@@ -45,9 +45,9 @@ from .topics import TopicT
 from .web import HttpClientT
 
 if typing.TYPE_CHECKING:
-    from .worker import Worker as WorkerT
+    from .worker import Worker as _WorkerT
 else:
-    class WorkerT: ...      # noqa
+    class _WorkerT: ...      # noqa
 
 __all__ = ['AutodiscoverArg', 'Settings']
 
@@ -350,7 +350,7 @@ class Settings(abc.ABC):
     _SetTable: Type[TableT]
     _TableManager: Type[TableManagerT]
     _Serializers: Type[RegistryT]
-    _Worker: Type[WorkerT]
+    _Worker: Type[_WorkerT]
     _PartitionAssignor: Type[PartitionAssignorT]
     _LeaderAssignor: Type[LeaderAssignorT]
     _Router: Type[RouterT]
@@ -459,7 +459,7 @@ class Settings(abc.ABC):
             SetTable: SymbolArg[Type[TableT]] = None,
             TableManager: SymbolArg[Type[TableManagerT]] = None,
             Serializers: SymbolArg[Type[RegistryT]] = None,
-            Worker: SymbolArg[Type[WorkerT]] = None,
+            Worker: SymbolArg[Type[_WorkerT]] = None,
             PartitionAssignor: SymbolArg[Type[PartitionAssignorT]] = None,
             LeaderAssignor: SymbolArg[Type[LeaderAssignorT]] = None,
             Router: SymbolArg[Type[RouterT]] = None,
@@ -931,11 +931,11 @@ class Settings(abc.ABC):
         self._Serializers = symbol_by_name(Serializers)
 
     @property
-    def Worker(self) -> Type[WorkerT]:
+    def Worker(self) -> Type[_WorkerT]:
         return self._Worker
 
     @Worker.setter
-    def Worker(self, Worker: SymbolArg[Type[WorkerT]]) -> None:
+    def Worker(self, Worker: SymbolArg[Type[_WorkerT]]) -> None:
         self._Worker = symbol_by_name(Worker)
 
     @property

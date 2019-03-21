@@ -31,12 +31,13 @@ from .tuples import TP
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .models import FieldDescriptorT, ModelArg
+    from .app import AppT as _AppT
+    from .models import FieldDescriptorT as _FieldDescriptorT
+    from .models import ModelArg as _ModelArg
 else:
-    class AppT: ...  # noqa
-    class FieldDescriptorT: ...  # noqa
-    class ModelArg: ...  # noqa
+    class _AppT: ...  # noqa
+    class _FieldDescriptorT: ...  # noqa
+    class _ModelArg: ...  # noqa
 
 __all__ = [
     'RecoverCallback',
@@ -56,7 +57,7 @@ RelativeHandler = Callable[[Optional[EventT]], Union[float, datetime]]
 RecoverCallback = Callable[[], Awaitable[None]]
 ChangelogEventCallback = Callable[[EventT], Awaitable[None]]
 RelativeArg = Optional[Union[
-    FieldDescriptorT,
+    _FieldDescriptorT,
     RelativeHandler,
     datetime,
     float,
@@ -68,11 +69,11 @@ VT = TypeVar('VT')
 
 
 class CollectionT(ServiceT, JoinableT):
-    app: AppT
+    app: _AppT
     name: str
     default: Any  # noqa: E704
-    key_type: Optional[ModelArg]
-    value_type: Optional[ModelArg]
+    key_type: Optional[_ModelArg]
+    value_type: Optional[_ModelArg]
     partitions: Optional[int]
     window: Optional[WindowT]
     help: str
@@ -81,13 +82,13 @@ class CollectionT(ServiceT, JoinableT):
 
     @abc.abstractmethod
     def __init__(self,
-                 app: AppT,
+                 app: _AppT,
                  *,
                  name: str = None,
                  default: Callable[[], Any] = None,
                  store: Union[str, URL] = None,
-                 key_type: ModelArg = None,
-                 value_type: ModelArg = None,
+                 key_type: _ModelArg = None,
+                 value_type: _ModelArg = None,
                  partitions: int = None,
                  window: WindowT = None,
                  changelog_topic: TopicT = None,
@@ -176,13 +177,13 @@ class TableT(CollectionT, ManagedUserDict[KT, VT]):
 
 
 class TableManagerT(ServiceT, FastUserDict[str, CollectionT]):
-    app: AppT
+    app: _AppT
 
     actives_ready: bool
     standbys_ready: bool
 
     @abc.abstractmethod
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
+    def __init__(self, app: _AppT, **kwargs: Any) -> None:
         ...
 
     @abc.abstractmethod
@@ -372,7 +373,7 @@ class WindowWrapperT(MutableMapping):
         ...
 
     @abc.abstractmethod
-    def relative_to_field(self, field: FieldDescriptorT) -> 'WindowWrapperT':
+    def relative_to_field(self, field: _FieldDescriptorT) -> 'WindowWrapperT':
         ...
 
     @abc.abstractmethod

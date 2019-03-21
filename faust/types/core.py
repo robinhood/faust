@@ -14,17 +14,17 @@ from typing import (
 from mode.utils.compat import want_bytes, want_str
 
 if typing.TYPE_CHECKING:
-    from .models import ModelT
+    from .models import ModelT as _ModelT
 else:
-    class ModelT: ...  # noqa
+    class _ModelT: ...  # noqa
 
 __all__ = ['K', 'V']
 
 #: Shorthand for the type of a key
-K = Optional[Union[bytes, ModelT, Any]]
+K = Optional[Union[bytes, _ModelT, Any]]
 
 #: Shorthand for the type of a value
-V = Union[bytes, ModelT, Any]
+V = Union[bytes, _ModelT, Any]
 
 
 HeadersArg = Union[List[Tuple[str, bytes]], Mapping[str, bytes]]

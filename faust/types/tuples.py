@@ -19,14 +19,11 @@ from .codecs import CodecArg
 from .core import HeadersArg, K, OpenHeadersArg, V
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .channels import ChannelT
-    from .transports import ConsumerT
-
+    from .channels import ChannelT as _ChannelT
+    from .transports import ConsumerT as _ConsumerT
 else:
-    class AppT: ...       # noqa
-    class ChannelT: ...   # noqa
-    class ConsumerT: ...  # noqa
+    class _ChannelT: ...   # noqa
+    class _ConsumerT: ...  # noqa
 
 __all__ = [
     'ConsumerMessage',
@@ -57,7 +54,7 @@ class RecordMetadata(NamedTuple):
 
 
 class PendingMessage(NamedTuple):
-    channel: ChannelT
+    channel: _ChannelT
     key: K
     value: V
     partition: Optional[int]
@@ -190,7 +187,7 @@ class Message:
         #:   }
         self.stream_meta: Dict[int, Any] = {}
 
-    def ack(self, consumer: ConsumerT, n: int = 1) -> bool:
+    def ack(self, consumer: _ConsumerT, n: int = 1) -> bool:
         if not self.acked:
             # if no more references, mark offset as safe-to-commit in
             # Consumer.
@@ -198,7 +195,7 @@ class Message:
                 return self.on_final_ack(consumer)
         return False
 
-    def on_final_ack(self, consumer: ConsumerT) -> bool:
+    def on_final_ack(self, consumer: _ConsumerT) -> bool:
         self.acked = True
         return True
 
@@ -235,7 +232,7 @@ class ConsumerMessage(Message):
 
     use_tracking = True
 
-    def on_final_ack(self, consumer: ConsumerT) -> bool:
+    def on_final_ack(self, consumer: _ConsumerT) -> bool:
         return consumer.ack(self)
 
 

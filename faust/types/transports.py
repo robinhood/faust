@@ -32,9 +32,9 @@ from .channels import ChannelT
 from .tuples import Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
+    from .app import AppT as _AppT
 else:
-    class AppT: ...  # noqa
+    class _AppT: ...  # noqa
 
 __all__ = [
     'ConsumerCallback',
@@ -385,10 +385,10 @@ class ConductorT(ServiceT, MutableSet[ChannelT]):
     # The topic conductor delegates messages from the Consumer
     # to the various Topic instances subscribed to a topic.
 
-    app: AppT
+    app: _AppT
 
     @abc.abstractmethod
-    def __init__(self, app: AppT, **kwargs: Any) -> None:
+    def __init__(self, app: _AppT, **kwargs: Any) -> None:
         ...
 
     @abc.abstractmethod
@@ -426,7 +426,7 @@ class TransportT(abc.ABC):
     Fetcher: ClassVar[Type[ServiceT]]
 
     #: The :class:`faust.App` that created this transport.
-    app: AppT
+    app: _AppT
 
     #: The URL to use for this transport (e.g. kafka://localhost).
     url: List[URL]
@@ -440,7 +440,7 @@ class TransportT(abc.ABC):
     @abc.abstractmethod
     def __init__(self,
                  url: List[URL],
-                 app: AppT,
+                 app: _AppT,
                  loop: asyncio.AbstractEventLoop = None) -> None:
         ...
 

@@ -19,13 +19,13 @@ from .events import EventT
 from .tuples import TP
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .models import ModelArg
-    from .tables import CollectionT
+    from .app import AppT as _AppT
+    from .models import ModelArg as _ModelArg
+    from .tables import CollectionT as _CollectionT
 else:
-    class AppT: ...  # noqa
-    class ModelArg: ...  # noqa
-    class CollectionT: ...  # noqa
+    class _AppT: ...  # noqa
+    class _ModelArg: ...  # noqa
+    class _CollectionT: ...  # noqa
 
 __all__ = ['StoreT']
 
@@ -36,23 +36,23 @@ VT = TypeVar('VT')
 class StoreT(ServiceT, FastUserDict[KT, VT]):
 
     url: URL
-    app: AppT
-    table: CollectionT
+    app: _AppT
+    table: _CollectionT
     table_name: str
-    key_type: Optional[ModelArg]
-    value_type: Optional[ModelArg]
+    key_type: Optional[_ModelArg]
+    value_type: Optional[_ModelArg]
     key_serializer: CodecArg
     value_serializer: CodecArg
 
     @abc.abstractmethod
     def __init__(self,
                  url: Union[str, URL],
-                 app: AppT,
-                 table: CollectionT,
+                 app: _AppT,
+                 table: _CollectionT,
                  *,
                  table_name: str = '',
-                 key_type: ModelArg = None,
-                 value_type: ModelArg = None,
+                 key_type: _ModelArg = None,
+                 value_type: _ModelArg = None,
                  key_serializer: CodecArg = '',
                  value_serializer: CodecArg = '',
                  **kwargs: Any) -> None:
@@ -82,7 +82,7 @@ class StoreT(ServiceT, FastUserDict[KT, VT]):
 
     @abc.abstractmethod
     async def on_rebalance(self,
-                           table: CollectionT,
+                           table: _CollectionT,
                            assigned: Set[TP],
                            revoked: Set[TP],
                            newly_assigned: Set[TP]) -> None:

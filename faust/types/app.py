@@ -51,16 +51,16 @@ from .web import (
 from .windows import WindowT
 
 if typing.TYPE_CHECKING:
-    from faust.cli.base import AppCommand
-    from faust.sensors.monitor import Monitor
-    from faust.worker import Worker as WorkerT
-    from .models import ModelArg
+    from faust.cli.base import AppCommand as _AppCommand
+    from faust.sensors.monitor import Monitor as _Monitor
+    from faust.worker import Worker as _Worker
+    from .models import ModelArg as _ModelArg
     from .settings import Settings as _Settings
 else:
-    class AppCommand: ...     # noqa
-    class Monitor: ...        # noqa
-    class ModelArg: ...       # noqa
-    class WorkerT: ...        # noqa
+    class _AppCommand: ...     # noqa
+    class _Monitor: ...        # noqa
+    class _Worker: ...         # noqa
+    class _ModelArg: ...       # noqa
     class _Settings: ...       # noqa
 
 __all__ = [
@@ -157,7 +157,7 @@ class AppT(ServiceT):
     def __init__(self,
                  id: str,
                  *,
-                 monitor: Monitor,
+                 monitor: _Monitor,
                  config_source: Any = None,
                  **options: Any) -> None:
         self.on_startup_finished: Optional[Callable] = None
@@ -193,8 +193,8 @@ class AppT(ServiceT):
     def topic(self,
               *topics: str,
               pattern: Union[str, Pattern] = None,
-              key_type: ModelArg = None,
-              value_type: ModelArg = None,
+              key_type: _ModelArg = None,
+              value_type: _ModelArg = None,
               key_serializer: CodecArg = None,
               value_serializer: CodecArg = None,
               partitions: int = None,
@@ -213,8 +213,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def channel(self,
                 *,
-                key_type: ModelArg = None,
-                value_type: ModelArg = None,
+                key_type: _ModelArg = None,
+                value_type: _ModelArg = None,
                 maxsize: int = None,
                 loop: asyncio.AbstractEventLoop = None) -> ChannelT:
         ...
@@ -286,8 +286,8 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def command(self,
                 *options: Any,
-                base: Type[AppCommand] = None,
-                **kwargs: Any) -> Callable[[Callable], Type[AppCommand]]:
+                base: Type[_AppCommand] = None,
+                **kwargs: Any) -> Callable[[Callable], Type[_AppCommand]]:
         ...
 
     @abc.abstractmethod
@@ -331,7 +331,7 @@ class AppT(ServiceT):
         ...
 
     @abc.abstractmethod
-    def Worker(self, **kwargs: Any) -> WorkerT:
+    def Worker(self, **kwargs: Any) -> _Worker:
         ...
 
     @abc.abstractmethod
@@ -394,11 +394,11 @@ class AppT(ServiceT):
 
     @property
     @abc.abstractmethod
-    def monitor(self) -> Monitor:
+    def monitor(self) -> _Monitor:
         ...
 
     @monitor.setter
-    def monitor(self, value: Monitor) -> None:
+    def monitor(self, value: _Monitor) -> None:
         ...
 
     @cached_property

@@ -8,9 +8,9 @@ from yarl import URL
 from .tuples import TP
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
+    from .app import AppT as _AppT
 else:
-    class AppT: ...      # noqa
+    class _AppT: ...      # noqa
 
 __all__ = [
     'TopicToPartitionMap',
@@ -26,10 +26,10 @@ HostToPartitionMap = MutableMapping[str, TopicToPartitionMap]
 class PartitionAssignorT(abc.ABC):
 
     replicas: int
-    app: AppT
+    app: _AppT
 
     @abc.abstractmethod
-    def __init__(self, app: AppT, replicas: int = 0) -> None:
+    def __init__(self, app: _AppT, replicas: int = 0) -> None:
         ...
 
     @abc.abstractmethod
@@ -67,7 +67,7 @@ class PartitionAssignorT(abc.ABC):
 
 class LeaderAssignorT(ServiceT):
 
-    app: AppT
+    app: _AppT
 
     @abc.abstractmethod
     def is_leader(self) -> bool:

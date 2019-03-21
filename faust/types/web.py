@@ -9,11 +9,11 @@ from mypy_extensions import Arg, KwArg, VarArg
 from yarl import URL
 
 if typing.TYPE_CHECKING:
-    from faust.types.app import AppT
+    from faust.types.app import AppT as _AppT
     from faust.web.base import Request, Response, Web
     from faust.web.views import View
 else:
-    class AppT: ...           # noqa
+    class _AppT: ...          # noqa
     class Request: ...        # noqa
     class Response: ...       # noqa
     class Web: ...            # noqa
@@ -62,7 +62,7 @@ class CacheBackendT(ServiceT):
 
     @abc.abstractmethod
     def __init__(self,
-                 app: AppT,
+                 app: _AppT,
                  url: Union[URL, str] = 'memory://',
                  **kwargs: Any) -> None:
         ...
@@ -130,7 +130,7 @@ class BlueprintT(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def register(self, app: AppT,
+    def register(self, app: _AppT,
                  *,
                  url_prefix: Optional[str] = None) -> None:
         ...

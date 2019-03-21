@@ -94,9 +94,9 @@ from faust.utils.functional import consecutive_numbers
 from faust.utils.tracing import traced_from_parent_span
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from faust.app import App
+    from faust.app import App as _App
 else:
-    class App: ...  # noqa: E701
+    class _App: ...  # noqa: E701
 
 __all__ = ['Consumer', 'Fetcher']
 
@@ -815,7 +815,7 @@ class Consumer(Service, ConsumerT):
 
     async def _handle_attached(self, commit_offsets: Mapping[TP, int]) -> None:
         for tp, offset in commit_offsets.items():
-            app = cast(App, self.app)
+            app = cast(_App, self.app)
             attachments = app._attachments
             producer = app.producer
             # Start publishing the messages and return a list of pending

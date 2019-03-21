@@ -51,7 +51,6 @@ is ``/user/{user_id}/``.
 
 Blueprints can be registered to multiple apps at the same time.
 """
-import typing
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Type, Union
 
@@ -69,11 +68,6 @@ from faust.types.web import (
 )
 
 from .cache import Cache
-
-if typing.TYPE_CHECKING:
-    from faust.app import App
-else:
-    class App: ...  # noqa
 
 __all__ = ['Blueprint']
 

@@ -34,9 +34,9 @@ from .topics import ChannelT
 from .tuples import Message, RecordMetadata, TP
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
+    from .app import AppT as _AppT
 else:
-    class AppT: ...          # noqa
+    class _AppT: ...          # noqa
 
 __all__ = [
     'AgentErrorHandler',
@@ -111,7 +111,7 @@ ActorRefT = ActorT[Union[AsyncIterable, Awaitable]]
 class AgentT(ServiceT):
 
     name: str
-    app: AppT
+    app: _AppT
     concurrency: int
     help: str
     supervisor_strategy: Optional[Type[SupervisorStrategyT]]
@@ -122,7 +122,7 @@ class AgentT(ServiceT):
                  fun: AgentFun,
                  *,
                  name: str = None,
-                 app: AppT = None,
+                 app: _AppT = None,
                  channel: Union[str, ChannelT] = None,
                  concurrency: int = 1,
                  sink: Iterable[SinkT] = None,
@@ -264,7 +264,7 @@ class AgentT(ServiceT):
 
 
 class AgentManagerT(ServiceT, ManagedUserDict[str, AgentT]):
-    app: AppT
+    app: _AppT
 
     @abc.abstractmethod
     async def on_rebalance(self,

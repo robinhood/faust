@@ -9,7 +9,7 @@ from .core import K
 from . import web
 
 if typing.TYPE_CHECKING:
-    from .app import _AppT
+    from .app import AppT as _AppT
 else:
     class _AppT: ...      # noqa
 

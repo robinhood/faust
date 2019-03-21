@@ -6,7 +6,6 @@ The stream will iterate over incoming events in the channel.
 
 """
 import asyncio
-import typing
 from typing import (
     Any,
     Awaitable,
@@ -42,11 +41,6 @@ from .types import (
 )
 from .types.core import HeadersArg, OpenHeadersArg, prepare_headers
 from .types.tuples import _PendingMessage_to_Message
-
-if typing.TYPE_CHECKING:  # pragma: no cover
-    from .app.base import App
-else:
-    class App: ...  # noqa
 
 __all__ = ['Channel']
 

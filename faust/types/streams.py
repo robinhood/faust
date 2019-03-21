@@ -30,11 +30,11 @@ from .topics import TopicT
 from .tuples import TP
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .join import JoinT
+    from .app import AppT as _AppT
+    from .join import JoinT as _JoinT
 else:
-    class AppT: ...    # noqa
-    class JoinT: ...   # noqa
+    class _AppT: ...    # noqa
+    class _JoinT: ...   # noqa
 
 __all__ = [
     'Processor',
@@ -97,10 +97,10 @@ class JoinableT(abc.ABC):
 
 class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
 
-    app: AppT
+    app: _AppT
     channel: AsyncIterator[T_co]
     outbox: Optional[asyncio.Queue] = None
-    join_strategy: Optional[JoinT] = None
+    join_strategy: Optional[_JoinT] = None
     task_owner: Optional[asyncio.Task] = None
     current_event: Optional[EventT] = None
     active_partitions: Optional[Set[TP]] = None
@@ -126,11 +126,11 @@ class StreamT(AsyncIterable[T_co], JoinableT, ServiceT):
     def __init__(self,
                  channel: AsyncIterator[T_co] = None,
                  *,
-                 app: AppT = None,
+                 app: _AppT = None,
                  processors: Iterable[Processor[T]] = None,
                  combined: List[JoinableT] = None,
                  on_start: Callable = None,
-                 join_strategy: JoinT = None,
+                 join_strategy: _JoinT = None,
                  beacon: NodeT = None,
                  concurrency_index: int = None,
                  prev: 'StreamT' = None,

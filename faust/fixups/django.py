@@ -10,11 +10,11 @@ from mode.utils.objects import cached_property
 from . import base
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from django.apps.registry import Apps
-    from django.settings import Settings
+    from django.apps.registry import Apps as _Apps
+    from django.settings import Settings as _Settings
 else:
-    class Apps: ...      # noqa
-    class Settings: ...  # noqa
+    class _Apps: ...      # noqa
+    class _Settings: ...  # noqa
 
 __all__ = ['Fixup']
 
@@ -74,9 +74,9 @@ class Fixup(base.Fixup):
         run_checks()
 
     @cached_property
-    def apps(self) -> Apps:
+    def apps(self) -> _Apps:
         return symbol_by_name('django.apps:apps')
 
     @cached_property
-    def settings(self) -> Settings:
+    def settings(self) -> _Settings:
         return symbol_by_name('django.conf:settings')

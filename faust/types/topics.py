@@ -11,11 +11,11 @@ from .codecs import CodecArg
 from .tuples import TP
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .models import ModelArg
+    from .app import AppT as _AppT
+    from .models import ModelArg as _ModelArg
 else:
-    class AppT: ...             # noqa
-    class ModelArg: ...         # noqa
+    class _AppT: ...             # noqa
+    class _ModelArg: ...         # noqa
 
 __all__ = ['TopicT']
 
@@ -57,12 +57,12 @@ class TopicT(ChannelT):
 
     @abc.abstractmethod
     def __init__(self,
-                 app: AppT,
+                 app: _AppT,
                  *,
                  topics: Sequence[str] = None,
                  pattern: Union[str, Pattern] = None,
-                 key_type: ModelArg = None,
-                 value_type: ModelArg = None,
+                 key_type: _ModelArg = None,
+                 value_type: _ModelArg = None,
                  is_iterator: bool = False,
                  partitions: int = None,
                  retention: Seconds = None,
@@ -108,8 +108,8 @@ class TopicT(ChannelT):
     def derive_topic(self,
                      *,
                      topics: Sequence[str] = None,
-                     key_type: ModelArg = None,
-                     value_type: ModelArg = None,
+                     key_type: _ModelArg = None,
+                     value_type: _ModelArg = None,
                      partitions: int = None,
                      retention: Seconds = None,
                      compacting: bool = None,

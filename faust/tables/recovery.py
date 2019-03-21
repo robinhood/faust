@@ -18,7 +18,7 @@ from faust.utils import terminal
 from faust.utils.tracing import finish_span, traced_from_parent_span
 
 if typing.TYPE_CHECKING:
-    from .manager import _TableManager
+    from .manager import TableManager as _TableManager
 else:
     class _TableManager: ...  # noqa
 

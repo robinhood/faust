@@ -18,34 +18,31 @@ from .tuples import (
 )
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .events import EventT
-    from .models import ModelArg
-    from .streams import StreamT
-    from .transports import ConsumerT, TPorTopicSet
+    from .app import AppT as _AppT
+    from .events import EventT as _EventT
+    from .models import ModelArg as _ModelArg
+    from .streams import StreamT as _StreamT
 else:
-    class AppT: ...             # noqa
-    class EventT: ...           # noqa
-    class ModelArg: ...         # noqa
-    class StreamT: ...          # noqa
-    class ConsumerT: ...        # noqa
-    class TPorTopicSet: ...     # noqa
+    class _AppT: ...             # noqa
+    class _EventT: ...           # noqa
+    class _ModelArg: ...         # noqa
+    class _StreamT: ...          # noqa
 
 
 class ChannelT(AsyncIterator):
-    app: AppT
-    key_type: Optional[ModelArg]
-    value_type: Optional[ModelArg]
+    app: _AppT
+    key_type: Optional[_ModelArg]
+    value_type: Optional[_ModelArg]
     loop: Optional[asyncio.AbstractEventLoop]
     maxsize: Optional[int]
     active_partitions: Optional[Set[TP]]
 
     @abc.abstractmethod
     def __init__(self,
-                 app: AppT,
+                 app: _AppT,
                  *,
-                 key_type: ModelArg = None,
-                 value_type: ModelArg = None,
+                 key_type: _ModelArg = None,
+                 value_type: _ModelArg = None,
                  is_iterator: bool = False,
                  queue: ThrowableQueue = None,
                  maxsize: int = None,
@@ -63,7 +60,7 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    def stream(self, **kwargs: Any) -> StreamT:
+    def stream(self, **kwargs: Any) -> _StreamT:
         ...
 
     @abc.abstractmethod
@@ -121,7 +118,7 @@ class ChannelT(AsyncIterator):
 
     @abc.abstractmethod
     async def decode(self, message: Message, *,
-                     propagate: bool = False) -> EventT:
+                     propagate: bool = False) -> _EventT:
         ...
 
     @abc.abstractmethod
@@ -163,7 +160,7 @@ class ChannelT(AsyncIterator):
         ...
 
     @abc.abstractmethod
-    async def __anext__(self) -> EventT:
+    async def __anext__(self) -> _EventT:
         ...
 
     @abc.abstractmethod

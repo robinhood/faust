@@ -612,9 +612,12 @@ following conventions.
   the type checker into importing it, while regular Python does not::
 
     if typing.TYPE_CHECKING:
-        from faust.app import App
+        from faust.app import App as _App
     else:
-        class App: ...  # noqa
+        class _App: ...  # noqa
+
+ Note how we prefix the symbol with underscore to make sure anybody
+ reading the code will think twice before using it.
 
 * All Python code must follow the :pep:`8` guidelines.
 

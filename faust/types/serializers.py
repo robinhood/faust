@@ -6,12 +6,9 @@ from .codecs import CodecArg
 from .core import K, V
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
-    from .models import ModelArg, ModelT
+    from .models import ModelArg as _ModelArg
 else:
-    class AppT: ...      # noqa
-    class ModelArg: ...  # noqa
-    class ModelT: ...    # noqa
+    class _ModelArg: ...  # noqa
 
 __all__ = ['RegistryT']
 
@@ -29,7 +26,7 @@ class RegistryT(abc.ABC):
 
     @abc.abstractmethod
     def loads_key(self,
-                  typ: Optional[ModelArg],
+                  typ: Optional[_ModelArg],
                   key: Optional[bytes],
                   *,
                   serializer: CodecArg = None) -> K:
@@ -37,7 +34,7 @@ class RegistryT(abc.ABC):
 
     @abc.abstractmethod
     def loads_value(self,
-                    typ: Optional[ModelArg],
+                    typ: Optional[_ModelArg],
                     value: Optional[bytes],
                     *,
                     serializer: CodecArg = None) -> Any:
@@ -45,7 +42,7 @@ class RegistryT(abc.ABC):
 
     @abc.abstractmethod
     def dumps_key(self,
-                  typ: Optional[ModelArg],
+                  typ: Optional[_ModelArg],
                   key: K,
                   *,
                   serializer: CodecArg = None) -> Optional[bytes]:
@@ -53,7 +50,7 @@ class RegistryT(abc.ABC):
 
     @abc.abstractmethod
     def dumps_value(self,
-                    typ: Optional[ModelArg],
+                    typ: Optional[_ModelArg],
                     value: V,
                     *,
                     serializer: CodecArg = None) -> Optional[bytes]:

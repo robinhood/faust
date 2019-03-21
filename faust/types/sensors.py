@@ -1,5 +1,4 @@
 import abc
-import typing
 from typing import Any, Iterable
 
 from mode import ServiceT
@@ -10,11 +9,6 @@ from .tables import CollectionT
 from .topics import TopicT
 from .transports import ConsumerT, ProducerT
 from .tuples import Message, PendingMessage, RecordMetadata, TP
-
-if typing.TYPE_CHECKING:
-    from .app import AppT
-else:
-    class AppT: ...  # noqa
 
 __all__ = ['SensorInterfaceT', 'SensorT', 'SensorDelegateT']
 

@@ -3,19 +3,19 @@ import typing
 from typing import Iterable
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
+    from .app import AppT as _AppT
 else:
-    class AppT: ...    # noqa
+    class _AppT: ...    # noqa
 
 __all__ = ['FixupT']
 
 
 class FixupT(abc.ABC):
 
-    app: AppT
+    app: _AppT
 
     @abc.abstractmethod
-    def __init__(self, app: AppT) -> None:
+    def __init__(self, app: _AppT) -> None:
         ...
 
     @abc.abstractmethod
