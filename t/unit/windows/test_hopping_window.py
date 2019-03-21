@@ -16,7 +16,7 @@ class test_HoppingWindow:
             assert range[0] <= timestamp
             assert range[1] > timestamp
 
-    def xxx_current_range_is_latest_range(self):
+    def test_current_range_is_latest_range(self):
         size = 57
         step = 23
         timestamp = 456
