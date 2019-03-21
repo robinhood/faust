@@ -1,3 +1,4 @@
+# cython: language_level=3
 from asyncio import sleep
 from time import monotonic
 from mode.utils.futures import maybe_async, notify
