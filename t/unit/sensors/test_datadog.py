@@ -1,8 +1,16 @@
 import pytest
 from faust.exceptions import ImproperlyConfigured
-from faust.sensors.datadog import DatadogMonitor, DatadogStatsClient
 from faust.types import TP
 from mode.utils.mocks import ANY, Mock, call
+
+with pytest.warns(DeprecationWarning):
+    # XXX hopefully datadog fixes this DeprecationWarning soon:
+    # "Using or importing the ABCs from 'collections' instead
+    # of from 'collections.abc'"
+    from faust.sensors.datadog import (  # noqa
+        DatadogMonitor,
+        DatadogStatsClient,
+    )
 
 TP1 = TP('foo', 3)
 
