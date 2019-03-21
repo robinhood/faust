@@ -69,10 +69,24 @@ __all__ = [
 argument = click.argument
 
 
+def argument(*args: Any, **kwargs: Any) -> Callable[[Any], Any]:
+    """Create command-line argument.
+
+    SeeAlso:
+        :func:`click.argument`
+    """
+    return click.argument(*args, **kwargs)
+
+
 # Our version of click.option enables show_default=True by default.
 def option(*option_decls: Any,
            show_default: bool = True,
            **kwargs: Any) -> Callable[[Any], Any]:
+    """Create command-line option.
+
+    SeeAlso:
+        func:`click.option`
+    """
     return click.option(*option_decls, show_default=show_default, **kwargs)
 
 
@@ -292,7 +306,6 @@ def prepare_app(app: AppT, name: Optional[str]) -> AppT:
 # decorators in the same decorator.
 def _apply_options(options: OptionSequence) -> OptionDecorator:
     """Add list of ``click.option`` values to click command function."""
-
     def _inner(fun: OptionDecorator) -> OptionDecorator:
         for opt in options:
             fun = opt(fun)
@@ -377,6 +390,7 @@ class _Group(click.Group):
 @_apply_options(builtin_options)
 @click.pass_context
 def cli(*args: Any, **kwargs: Any) -> None:  # pragma: no cover
+    """Create :pypi:`click` CLI object."""
     return _prepare_cli(*args, **kwargs)
 
 

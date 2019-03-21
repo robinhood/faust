@@ -16,7 +16,7 @@ NO_CYTHON = bool(os.environ.get('NO_CYTHON', False))
 
 
 class Window(WindowT):
-    ...
+    """Base class for window types."""
 
 
 class _PyHoppingWindow(Window):
@@ -46,9 +46,7 @@ class _PyHoppingWindow(Window):
                 if self.expires else False)
 
     def current(self, timestamp: float) -> WindowRange:
-        """
-        The current WindowRange is the latest WindowRange for a given timestamp
-        """
+        """Get the latest window range for a given timestamp."""
         step = self.step
         start = self._start_initial_range(timestamp)
         m = floor((timestamp - start) / step)
@@ -135,9 +133,7 @@ class _PySlidingWindow(Window):
         return latest_timestamp - expires
 
     def current(self, timestamp: float) -> WindowRange:
-        """
-        The current WindowRange is the latest WindowRange for a given timestamp
-        """
+        """Get the latest window range for a given timestamp."""
         return timestamp - self.before, timestamp + self.after
 
     def delta(self, timestamp: float, d: Seconds) -> WindowRange:

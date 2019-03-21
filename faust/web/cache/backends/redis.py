@@ -1,3 +1,4 @@
+"""Redis cache backend."""
 import socket
 import typing
 from enum import Enum
@@ -24,11 +25,15 @@ else:
 
 
 class RedisScheme(Enum):
+    """Types of Redis configurations."""
+
     SINGLE_NODE = 'redis'
     CLUSTER = 'rediscluster'
 
 
 class CacheBackend(base.CacheBackend):
+    """Backend for cache operations using Redis."""
+
     connect_timeout: Optional[float]
     stream_timeout: Optional[float]
     max_connections: Optional[int]

@@ -1,4 +1,4 @@
-"""Consumer
+"""Consumer - fetching messages and managing consumer state.
 
 The Consumer is responsible for:
 
@@ -129,6 +129,8 @@ def ensure_TPset(tps: Iterable[Any]) -> Set[TP]:
 
 
 class Fetcher(Service):
+    """Service fetching messages from Kafka."""
+
     app: AppT
 
     logger = logger

@@ -78,9 +78,11 @@ def str_to_decimal(s: str, maxlen: int = DECIMAL_MAXLEN) -> Optional[Decimal]:
 
 
 class JSONEncoder(json.JSONEncoder):
+    """Faust customized :class:`json.JSONEncoder`.
 
-    # Our version of JSONEncoder keeps microsecond information
-    # in datetimes.
+    Our version supports additional types like :class:`~uuid.UUID`, and
+    importantly includes microsecond information in datetimes.
+    """
 
     def default(self,
                 o: Any,

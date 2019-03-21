@@ -1,3 +1,4 @@
+"""URL utilities - Working with URLs."""
 from typing import List, Optional, Union
 from yarl import URL
 
@@ -6,6 +7,11 @@ __all__ = ['urllist', 'ensure_scheme']
 
 def urllist(arg: Union[URL, str, List[URL]], *,
             default_scheme: str = None) -> List[URL]:
+    """Create list of URLs.
+
+    You can pass in a comma-separated string, or an actual list
+    and this will convert that into a list of :class:`yarl.URL` objects.
+    """
     if not arg:
         raise ValueError('URL list argument cannot be empty')
     if not isinstance(arg, list):
@@ -18,6 +24,11 @@ def urllist(arg: Union[URL, str, List[URL]], *,
 
 
 def ensure_scheme(default_scheme: Optional[str], url: Union[str, URL]) -> URL:
+    """Ensure URL has a default scheme.
+
+    An URL like "localhost" will be returned with the default scheme
+    added, while an URL with existing scheme is returned unmodified.
+    """
     scheme: Optional[str] = None
     if default_scheme:
         if isinstance(url, URL):

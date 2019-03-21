@@ -220,6 +220,7 @@ for module, items in all_by_module.items():
 
 class _module(ModuleType):
     """Customized Python module."""
+
     standard_package_vars = [
         '__file__',
         '__path__',

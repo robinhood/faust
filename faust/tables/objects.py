@@ -1,3 +1,8 @@
+"""Storing objects in tables.
+
+This is also used to store data structures such as sets/lists.
+
+"""
 import abc
 from typing import (
     Any,
@@ -23,6 +28,8 @@ from .table import Table
 
 
 class ChangeloggedObject:
+    """A changlogged object in a :class:`ChangeloggedObjectManager` store."""
+
     manager: 'ChangeloggedObjectManager'
 
     def __init__(self, manager: 'ChangeloggedObjectManager', key: Any) -> None:
@@ -47,6 +54,7 @@ class ChangeloggedObject:
 
 
 class ChangeloggedObjectManager(Store):
+    """Store of changelogged objects."""
 
     ValueType: ClassVar[Type[ChangeloggedObject]]
 

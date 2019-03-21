@@ -1,3 +1,4 @@
+"""Storing sets in tables."""
 from typing import (
     Any,
     Iterable,
@@ -24,6 +25,7 @@ OPERATION_UPDATE: int = 0xF
 
 
 class SetWindowSet(wrappers.WindowSet):
+    """A windowed set."""
 
     def add(self, element: Any, *, event: EventT = None) -> None:
         self._apply_set_operation('add', element, event)
@@ -47,10 +49,13 @@ class SetWindowSet(wrappers.WindowSet):
 
 
 class SetWindowWrapper(wrappers.WindowWrapper):
+    """Window wrapper for sets."""
+
     ValueType = SetWindowSet
 
 
 class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
+    """A single set in a dictionary of sets."""
 
     key: Any
     data: Set
@@ -92,10 +97,14 @@ class ChangeloggedSet(ChangeloggedObject, ManagedUserSet[VT]):
 
 
 class ChangeloggedSetManager(ChangeloggedObjectManager):
+    """Store that maintains a dictionary of sets."""
+
     ValueType = ChangeloggedSet
 
 
 class SetTable(Table[KT, VT]):
+    """Table that maintains a dictionary of sets."""
+
     WindowWrapper = SetWindowWrapper
     _changelog_compacting = False
 

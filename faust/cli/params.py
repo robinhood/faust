@@ -1,3 +1,4 @@
+"""Python :pypi:`click` parameter types."""
 from typing import Any, Iterable, Optional
 import click
 from click.types import ParamType, StringParamType
@@ -54,6 +55,11 @@ class TCPPort(click.IntRange):
 
 
 class URLParam(ParamType):
+    """URL :pypi:`click` parameter type.
+
+    Converts any string URL to :class:`yarl.URL`.
+    """
+
     name = 'URL'
 
     _string_param: StringParamType

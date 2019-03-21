@@ -104,6 +104,8 @@ class Response:
 
 
 class BlueprintManager:
+    """Manager of all blueprints."""
+
     applied: bool
 
     _enabled: List[Tuple[str, str]]
@@ -136,6 +138,7 @@ class BlueprintManager:
 
 class Web(Service):
     """Web server and HTTP interface."""
+
     default_blueprints: ClassVar[_BPList] = DEFAULT_BLUEPRINTS  # noqa: E704
 
     app: AppT
@@ -262,7 +265,7 @@ class Web(Service):
         return view
 
     def url_for(self, view_name: str, **kwargs: Any) -> str:
-        """Get URL by view name
+        """Get URL by view name.
 
         If the provided view name has associated URL parameters,
         those need to be passed in as kwargs, or a :exc:`TypeError`

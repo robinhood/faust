@@ -18,6 +18,7 @@ __all__ = ['Producer']
 
 class Producer(Service, ProducerT):
     """Base Producer."""
+
     app: AppT
 
     def __init__(self, transport: TransportT,

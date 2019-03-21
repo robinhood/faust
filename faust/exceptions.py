@@ -53,7 +53,7 @@ class SameNode(FaustError):
 
 
 class ProducerSendError(FaustError):
-    """Error while sending attached messages prior to commit"""
+    """Error while sending attached messages prior to commit."""
 
 
 class ConsumerNotStarted(NotReady):

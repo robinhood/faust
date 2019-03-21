@@ -157,6 +157,7 @@ class Agent(AgentT, Service):
 
     This is the type of object returned by the ``@app.agent`` decorator.
     """
+
     supervisor: SupervisorStrategyT = None
     instances: MutableSequence[ActorRefT]
 

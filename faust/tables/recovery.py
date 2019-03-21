@@ -1,3 +1,4 @@
+"""Table recovery after rebalancing."""
 import asyncio
 import typing
 from collections import defaultdict
@@ -31,14 +32,15 @@ removing the RocksDB database file for this partition.
 
 
 class ServiceStopped(Exception):
-    ...
+    """The recovery service was stopped."""
 
 
 class RebalanceAgain(Exception):
-    ...
+    """During rebalance, another rebalance happened."""
 
 
 class Recovery(Service):
+    """Service responsible for recovering tables from changelog topics."""
 
     app: AppT
 

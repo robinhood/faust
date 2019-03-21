@@ -1,3 +1,4 @@
+"""Transport utils - scheduling."""
 from typing import (
     Any,
     Dict,
@@ -28,6 +29,10 @@ TopicIndexMap = MutableMapping[str, 'TopicBuffer']
 
 
 class DefaultSchedulingStrategy(SchedulingStrategyT):
+    """Consumer record scheduler.
+
+    Delivers records in round robin between both topics and partitions.
+    """
 
     @classmethod
     def map_from_records(cls, records: Mapping[TP, List]) -> TopicIndexMap:
@@ -64,6 +69,8 @@ class DefaultSchedulingStrategy(SchedulingStrategyT):
 
 
 class TopicBuffer(Iterator):
+    """Data structure managing the buffer for incoming records in a topic."""
+
     _buffers: Dict[TP, Iterator]
     _it: Optional[Iterator]
 

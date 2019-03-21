@@ -1,3 +1,4 @@
+"""Actor - Individual Agent instances."""
 from typing import Any, AsyncIterator, Set, cast
 from mode import Service
 
@@ -14,6 +15,7 @@ __all__ = ['Actor', 'AsyncIterableActor', 'AwaitableActor']
 
 class Actor(ActorT, Service):
     """An actor is a specific agent instance."""
+
     mundane_level = 'debug'
 
     # Agent will start n * concurrency actors.

@@ -1,3 +1,7 @@
+"""Attachments - Deprecated module.
+
+Attachments were used before transactions support.
+"""
 import asyncio
 import typing
 from collections import defaultdict
@@ -23,6 +27,12 @@ __all__ = ['Attachment', 'Attachments']
 
 
 class Attachment(NamedTuple):
+    """Message attached to offset in source topic.
+
+    The message will be published once that offset in the source
+    topic is committed.
+    """
+
     # Tuple used in heapq entry for Attachments._pending
     # These are used to delay producing of messages until source offset is
     # committed:
@@ -39,11 +49,14 @@ class Attachment(NamedTuple):
     #
     # Note though: we need Kafka transactions to cover all cases of
     # inconsistencies.
+
     offset: int
     message: Unordered[FutureMessage]
 
 
 class Attachments:
+    """Attachments manager."""
+
     app: AppT
 
     # Mapping used to attach messages to a source message such that

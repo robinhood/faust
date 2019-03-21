@@ -1,3 +1,4 @@
+"""Events received in streams."""
 import typing
 from types import TracebackType
 from typing import Any, Awaitable, Optional, Type, Union, cast
@@ -28,7 +29,6 @@ class Event(EventT):
     """An event received on a channel.
 
     Notes:
-
         - Events have a key and a value::
 
             event.key, event.value

@@ -14,6 +14,14 @@ by_url = FIXUPS.by_url
 
 
 def fixups(app: AppT) -> Iterator[FixupT]:
+    """Iterate over enabled fixups.
+
+    Fixups are installed by setuptools, using the 'faust.fixups'
+    namespace.
+
+    Fixups modify the Faust library to work with frameworks
+    such as Django.
+    """
     for Fixup in FIXUPS.iterate():
         fixup = Fixup(app)
         if fixup.enabled():

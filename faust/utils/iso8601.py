@@ -1,3 +1,4 @@
+"""Parsing ISO-8601 string and converting to :class:`~datetime.datetime`."""
 try:  # pragma: no cover
     import ciso8601
 except ImportError:  # pragma: no cover

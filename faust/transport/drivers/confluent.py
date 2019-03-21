@@ -62,6 +62,7 @@ def server_list(urls: List[URL], default_port: int) -> str:
 
 class Consumer(ThreadDelegateConsumer):
     """Kafka consumer using :pypi:`confluent_kafka`."""
+
     logger = logger
 
     def _new_consumer_thread(self) -> ConsumerThread:
@@ -124,6 +125,8 @@ class Consumer(ThreadDelegateConsumer):
 
 
 class ConfluentConsumerThread(ConsumerThread):
+    """Thread managing underlying :pypi:`confluent_kafka` consumer."""
+
     _consumer: Optional[_Consumer] = None
     _assigned: bool = False
 
@@ -363,6 +366,8 @@ class ProducerProduceFuture(asyncio.Future):
 
 
 class ProducerThread(QueueServiceThread):
+    """Thread managing underlying :pypi:`confluent_kafka` producer."""
+
     app: AppT
     producer: 'Producer'
     transport: 'Transport'

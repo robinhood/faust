@@ -1,3 +1,4 @@
+"""In-memory cache backend."""
 import sys
 import time
 from contextlib import suppress
@@ -18,6 +19,7 @@ else:
 
 
 class CacheStorage(Generic[KT, VT]):
+    """In-memory storage for cache."""
 
     def __init__(self) -> None:
         self._data: Dict[KT, VT] = {}
@@ -69,6 +71,7 @@ class CacheStorage(Generic[KT, VT]):
 
 
 class CacheBackend(base.CacheBackend):
+    """In-memory backend for cache operations."""
 
     def on_init(self) -> None:
         # we reuse this in t/conftest to mock a Redis server :D

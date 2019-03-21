@@ -1,3 +1,4 @@
+"""OpenTracing utilities."""
 import asyncio
 import sys
 import typing
@@ -23,19 +24,23 @@ _current_span = ContextVar('current_span')
 
 
 def current_span() -> Optional[opentracing.Span]:
+    """Get the current span for this context (if any)."""
     return _current_span.get(None)
 
 
 def set_current_span(span: opentracing.Span) -> None:
+    """Set the current span for the current context."""
     _current_span.set(span)
 
 
 def noop_span() -> opentracing.Span:
+    """Return a span that does nothing when traced."""
     return opentracing.Tracer()._noop_span
 
 
 def finish_span(span: Optional[opentracing.Span], *,
                 error: BaseException = None) -> None:
+    """Finish span, and optionally set error tag."""
     if span is not None:
         if error:
             span.__exit__(type(error), error, error.__traceback__)
@@ -44,6 +49,7 @@ def finish_span(span: Optional[opentracing.Span], *,
 
 
 def operation_name_from_fun(fun: Any) -> str:
+    """Generate opentracing name from function."""
     obj = getattr(fun, '__self__', None)
     if obj is not None:
         objlabel = shortlabel(obj)
@@ -58,6 +64,7 @@ def operation_name_from_fun(fun: Any) -> str:
 
 def traced_from_parent_span(parent_span: opentracing.Span = None,
                             **extra_context: Any) -> Callable:
+    """Decorate fucntion to be traced from parent span."""
     def _wrapper(fun: Callable, **more_context: Any) -> Callable:
         operation_name = operation_name_from_fun(fun)
         @wraps(fun)
@@ -91,6 +98,7 @@ def call_with_trace(span: opentracing.Span,
                     fun: Callable,
                     callback: Optional[Tuple[Callable, Tuple]],
                     *args: Any, **kwargs: Any) -> Any:
+    """Call function and trace it from parent span."""
     cb: Optional[Callable] = None
     cb_args: Tuple = ()
     if callback:

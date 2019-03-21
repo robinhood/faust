@@ -1,3 +1,4 @@
+"""Cache interface."""
 import hashlib
 from contextlib import suppress
 from functools import wraps
@@ -21,6 +22,8 @@ IDENT: str = 'faustweb.cache.view'
 
 
 class Cache(CacheT):
+    """Cache interface."""
+
     ident: ClassVar[str] = IDENT
 
     def __init__(self,
@@ -36,7 +39,7 @@ class Cache(CacheT):
              timeout: Seconds = None,
              key_prefix: str = None,
              **kwargs: Any) -> Callable[[Callable], Callable]:
-
+        """Decorate view to be cached."""
         def _inner(fun: Callable) -> Callable:
 
             @wraps(fun)
@@ -129,6 +132,7 @@ class Cache(CacheT):
 
 
 def iri_to_uri(iri: str) -> str:
+    """Convert IRI to URI."""
     # The list of safe characters here is constructed from the "reserved" and
     # "unreserved" characters specified in sections 2.2 and 2.3 of RFC 3986:
     #     reserved    = gen-delims / sub-delims

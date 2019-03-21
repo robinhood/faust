@@ -1,3 +1,4 @@
+"""Cache backend - base implementation."""
 import abc
 from typing import Any, ClassVar, Optional, Tuple, Type, Union
 
@@ -20,6 +21,8 @@ E_CACHE_INOPERATIONAL = 'Cache operational error: %r'
 
 
 class CacheBackend(CacheBackendT, Service):
+    """Backend for cache operations."""
+
     logger = logger
 
     Unavailable: Type[BaseException] = CacheUnavailable

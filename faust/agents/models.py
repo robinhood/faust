@@ -24,6 +24,7 @@ class ReqRepRequest(Record,
 
 class ModelReqRepRequest(ReqRepRequest):
     """Request-Reply request where value is a model."""
+
     value: ModelT
 
 

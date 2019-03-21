@@ -49,6 +49,7 @@ logger = get_logger(__name__)
 
 
 class ConductorCompiler:  # pragma: no cover
+    """Pregenerate a function to handle the messages for a topic+partition."""
 
     def build(self,
               conductor: 'Conductor',

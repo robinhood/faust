@@ -54,6 +54,7 @@ __all__ = [
 
 
 class WindowedKeysView(KeysView):
+    """The object returned by ``windowed_table.keys()``."""
 
     def __init__(self,
                  mapping: WindowWrapperT,
@@ -86,6 +87,7 @@ class WindowedKeysView(KeysView):
 
 
 class WindowedItemsView(WindowedItemsViewT):
+    """The object returned by ``windowed_table.items()``."""
 
     def __init__(self,
                  mapping: WindowWrapperT,
@@ -113,6 +115,7 @@ class WindowedItemsView(WindowedItemsViewT):
 
 
 class WindowedValuesView(WindowedValuesViewT):
+    """The object returned by ``windowed_table.values()``."""
 
     def __init__(self,
                  mapping: WindowWrapperT,
@@ -292,6 +295,7 @@ class WindowWrapper(WindowWrapperT):
     accessed, instead :class:`WindowSet` is returned so that
     the values can be further reduced to the wanted time period.
     """
+
     ValueType: ClassVar[Type[WindowSetT]] = WindowSet
 
     key_index: bool = False

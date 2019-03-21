@@ -97,6 +97,7 @@ class ConsumerRebalanceListener(aiokafka.abc.ConsumerRebalanceListener):
 
 class Consumer(ThreadDelegateConsumer):
     """Kafka consumer using :pypi:`aiokafka`."""
+
     logger = logger
 
     RebalanceListener: ClassVar[Type[ConsumerRebalanceListener]]

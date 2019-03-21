@@ -202,6 +202,11 @@ TaskDecoratorRet = Union[
 
 
 class BootStrategy(BootStrategyT):
+    """App startup strategy.
+
+    The startup strategy defines the graph of services
+    to start when the Faust worker for an app starts.
+    """
 
     enable_kafka: bool = True
     # We want these to take default from `enable_kafka`
@@ -344,6 +349,7 @@ class App(AppT, Service):
         :ref:`application-configuration` -- for supported keyword arguments.
 
     """
+
     BootStrategy = BootStrategy
     Settings = _Settings
 
@@ -759,7 +765,6 @@ class App(AppT, Service):
                     yield number * 2
 
         """
-
         def _inner(fun: AgentFun) -> AgentT:
             agent = self.conf.Agent(
                 fun,
@@ -896,7 +901,9 @@ class App(AppT, Service):
                 timezone: tzinfo = None,
                 on_leader: bool = False,
                 traced: bool = True) -> Callable:
-        """Define an async def function to be run at the fixed times,
+        """Define periodic task using crontab description.
+
+        This is an ``async def`` function to be run at the fixed times,
         defined by the cron format.
 
         Like :meth:`timer`, but executes at fixed times instead of executing
@@ -926,7 +933,6 @@ class App(AppT, Service):
             >>> async def every_6_30_pm():
             ...     print('6:30pm UTC; ALSO, I AM THE LEADER!')
         """
-
         def _inner(fun: TaskArg) -> TaskArg:
             @wraps(fun)
             async def cron_starter(*args: Any) -> None:
@@ -1638,7 +1644,7 @@ class App(AppT, Service):
 
     @cached_property
     def flow_control(self) -> FlowControlEvent:
-        """Internal flow control.
+        """Flow control of streams.
 
         This object controls flow into stream queues,
         and can also clear all buffers.
@@ -1667,12 +1673,14 @@ class App(AppT, Service):
 
     @cached_property
     def _leader_assignor(self) -> LeaderAssignorT:
-        """The leader assignor is a special Kafka partition assignor.
+        """Leader assignor.
 
-        It's used to find the leader in a cluster of Faust worker nodes,
+        The leader assignor is a special Kafka partition assignor,
+        used to find the leader in a cluster of Faust worker nodes,
         and enables the ``@app.timer(on_leader=True)`` feature that executes
         exclusively on one node at a time. Excellent for things that would
-        traditionally require a lock/mutex."""
+        traditionally require a lock/mutex.
+        """
         return self.conf.LeaderAssignor(
             self, loop=self.loop, beacon=self.beacon)
 

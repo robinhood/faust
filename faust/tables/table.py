@@ -17,6 +17,7 @@ __all__ = ['Table']
 
 class Table(TableT[KT, VT], Collection):
     """Table (non-windowed)."""
+
     WindowWrapper: ClassVar[Type[WindowWrapperT]] = wrappers.WindowWrapper
 
     def using_window(self, window: WindowT, *,

@@ -1,3 +1,4 @@
+"""Authentication Credentials."""
 import ssl
 from typing import Any, Optional, Union
 from faust.types.auth import AuthProtocol, CredentialsT, SASLMechanism
@@ -11,10 +12,12 @@ __all__ = [
 
 
 class Credentials(CredentialsT):
-    ...
+    """Base class for authentication credentials."""
 
 
 class SASLCredentials(Credentials):
+    """Describe SASL credentials."""
+
     protocol = AuthProtocol.SASL_PLAINTEXT
     mechanism: SASLMechanism = SASLMechanism.PLAIN
 
@@ -35,6 +38,8 @@ class SASLCredentials(Credentials):
 
 
 class GSSAPICredentials(Credentials):
+    """Describe GSSAPI credentials over SASL."""
+
     protocol = AuthProtocol.SASL_PLAINTEXT
     mechanism: SASLMechanism = SASLMechanism.GSSAPI
 
@@ -56,6 +61,8 @@ class GSSAPICredentials(Credentials):
 
 
 class SSLCredentials(Credentials):
+    """Describe SSL credentials/settings."""
+
     protocol = AuthProtocol.SSL
     context: ssl.SSLContext
 

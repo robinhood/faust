@@ -1,3 +1,4 @@
+"""Django Fixups - Integration with Django."""
 import os
 import typing
 import warnings
@@ -29,6 +30,27 @@ use this setting in production environments!
 
 
 class Fixup(base.Fixup):
+    """Django fixup.
+
+    This fixup is enabled if
+
+    1) the :envvar:`DJANGO_SETTINGS_MODULE` environment variable is set,
+    2) the :pypi:`django` package is installed.
+
+    Once enabled it will modify the following features:
+
+    - Autodiscovery
+
+        If ``faust.App(autodiscovery=True)``, the Django fixup
+        will automatically autodiscover agents/tasks/web views,
+        and so on found in installed Django apps.
+
+    - Setup
+
+        The Django machinery will be set up when Faust commands
+        are executed.
+
+    """
 
     def enabled(self) -> bool:
         if os.environ.get('DJANGO_SETTINGS_MODULE'):

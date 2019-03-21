@@ -1,3 +1,4 @@
+"""completion - Command line utility for completion (bash, ksh, zsh, etc.)."""
 import os
 from pathlib import Path
 from .base import AppCommand

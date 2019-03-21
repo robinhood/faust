@@ -25,7 +25,8 @@ _bytes = bytes   # need alias for method named `bytes`
 
 
 class View:
-    """View (HTTP endpoint)."""
+    """Web view (HTTP endpoint)."""
+
     ServerError: ClassVar[Type[WebError]] = exceptions.ServerError
     ValidationError: ClassVar[Type[WebError]] = exceptions.ValidationError
     ParseError: ClassVar[Type[WebError]] = exceptions.ParseError
@@ -190,6 +191,7 @@ class View:
 
 
 def takes_model(Model: Type[ModelT]) -> ViewDecorator:
+    """Decorate view function to return model data."""
     def _decorate_view(fun: ViewHandlerFun) -> ViewHandlerFun:
         @wraps(fun)
         async def _inner(view: View, request: Request,
@@ -203,6 +205,10 @@ def takes_model(Model: Type[ModelT]) -> ViewDecorator:
 
 
 def gives_model(Model: Type[ModelT]) -> ViewDecorator:
+    """Decorate view function to automatically decode POST data.
+
+    The POST data is decoded using the model you specify.
+    """
     def _decorate_view(fun: ViewHandlerFun) -> ViewHandlerFun:
         @wraps(fun)
         async def _inner(view: View, request: Request,

@@ -79,6 +79,8 @@ __all__ = ['Blueprint']
 
 
 class FutureRoute(NamedTuple):
+    """Describes web route to be registered later."""
+
     uri: str
     name: str
     handler: PageArg
@@ -86,12 +88,16 @@ class FutureRoute(NamedTuple):
 
 
 class FutureStaticRoute(NamedTuple):
+    """Describes static route to be registered later."""
+
     uri: str
     file_or_directory: Path
     name: str
 
 
 class Blueprint(BlueprintT):
+    """Define reusable web application."""
+
     routes: List[FutureRoute]
     static_routes: List[FutureStaticRoute]
     view_name_separator: str = ':'
