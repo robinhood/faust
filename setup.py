@@ -26,7 +26,12 @@ else:
 
 NAME = 'faust'
 BUNDLES = {
+    'aiodns',
+    'aiomonitor',
+    'cchardet',
     'ckafka',
+    'ciso8601',
+    'cython',
     'datadog',
     'debug',
     'fast',
@@ -41,11 +46,11 @@ BUNDLES = {
 CFLAGS = ['-O2']
 LDFLAGS = []
 LIBRARIES = []
-E_UNSUPPORTED_PYTHON = '%s 1.0 requires %%s %%s or later!' % (NAME,)
+E_UNSUPPORTED_PYTHON = NAME + ' 1.0 requires %%s %%s or later!'
 
 PYIMP = _pyimp()
 if sys.version_info < (3, 6):
-    raise Exception(E_UNSUPPORTED_PYTHON % (PYIMP, '3.6'))
+    raise Exception(E_UNSUPPORTED_PYTHON % (PYIMP, '3.6'))  # NOQA
 
 from pathlib import Path  # noqa
 
@@ -253,7 +258,7 @@ try:
     do_setup(cmdclass={'build_ext': ve_build_ext},
              ext_modules=extensions)
 except BuildFailed:
-    print("************************************************************")
-    print("Cannot compile C accelerated modules, using pure python")
-    print("************************************************************")
+    print('************************************************************')
+    print('Cannot compile C accelerated modules, using pure python')
+    print('************************************************************')
     do_setup()
