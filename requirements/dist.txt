@@ -3,6 +3,7 @@ asyncio-ipython-magic
 bumpversion>=0.5.1
 packaging
 pre-commit
+pydocstyle
 pytest-sugar
 setuptools>=30.3.0
 sphinx-autobuild

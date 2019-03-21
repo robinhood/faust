@@ -1,3 +1,4 @@
+"""Types related to windowing."""
 import abc
 from datetime import timezone
 from typing import List, Optional, Tuple
@@ -11,11 +12,14 @@ WindowRange = Tuple[float, float]
 
 
 def WindowRange_from_start(start: float, size: float) -> WindowRange:
+    """Create new windowrange from start and size."""
     end = start + size - 0.1
     return (start, end)
 
 
 class WindowT(abc.ABC):
+    """Type class for windows."""
+
     expires: Optional[float] = None
     tz: Optional[timezone] = None
 

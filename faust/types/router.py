@@ -9,18 +9,18 @@ from .core import K
 from . import web
 
 if typing.TYPE_CHECKING:
-    from .app import AppT
+    from .app import _AppT
 else:
-    class AppT: ...      # noqa
+    class _AppT: ...      # noqa
 
 
 class RouterT(abc.ABC):
     """Router type class."""
 
-    app: AppT
+    app: _AppT
 
     @abc.abstractmethod
-    def __init__(self, app: AppT) -> None:
+    def __init__(self, app: _AppT) -> None:
         ...
 
     @abc.abstractmethod

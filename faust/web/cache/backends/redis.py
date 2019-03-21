@@ -19,9 +19,9 @@ except ImportError:  # pragma: no cover
     aredis = None  # noqa
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from aredis import StrictRedis as RedisClientT
+    from aredis import StrictRedis as _RedisClientT
 else:
-    class RedisClientT: ...  # noqa
+    class _RedisClientT: ...  # noqa
 
 
 class RedisScheme(Enum):
@@ -39,8 +39,8 @@ class CacheBackend(base.CacheBackend):
     max_connections: Optional[int]
     max_connections_per_node: Optional[int]
 
-    _client: Optional[RedisClientT] = None
-    _client_by_scheme: Mapping[str, Type[RedisClientT]]
+    _client: Optional[_RedisClientT] = None
+    _client_by_scheme: Mapping[str, Type[_RedisClientT]]
 
     if aredis is None:  # pragma: no cover
         ...
@@ -77,7 +77,7 @@ class CacheBackend(base.CacheBackend):
         self.max_connections_per_node = max_connections_per_node
         self._client_by_scheme = self._init_schemes()
 
-    def _init_schemes(self) -> Mapping[str, Type[RedisClientT]]:
+    def _init_schemes(self) -> Mapping[str, Type[_RedisClientT]]:
         if aredis is None:  # pragma: no cover
             return {}
         else:
@@ -109,7 +109,7 @@ class CacheBackend(base.CacheBackend):
             self._client = self._new_client()
         await self.client.ping()
 
-    def _new_client(self) -> RedisClientT:
+    def _new_client(self) -> _RedisClientT:
         return self._client_from_url_and_query(self.url, **self.url.query)
 
     def _client_from_url_and_query(
@@ -120,7 +120,7 @@ class CacheBackend(base.CacheBackend):
             stream_timeout: str = None,
             max_connections: str = None,
             max_connections_per_node: str = None,
-            **kwargs: Any) -> RedisClientT:
+            **kwargs: Any) -> _RedisClientT:
         Client = self._client_by_scheme[url.scheme]
         return Client(**self._prepare_client_kwargs(
             url,
@@ -170,7 +170,7 @@ class CacheBackend(base.CacheBackend):
                 f'Database is int between 0 and limit - 1, not {path!r}')
 
     @cached_property
-    def client(self) -> RedisClientT:
+    def client(self) -> _RedisClientT:
         if self._client is None:
             raise RuntimeError('Cache backend not started')
         return self._client

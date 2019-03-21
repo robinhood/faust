@@ -16,9 +16,9 @@ from faust.types import (
 )
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from .app.base import App
+    from .app.base import _App
 else:
-    class App: ...  # noqa
+    class _App: ...  # noqa
 
 USE_EXISTING_KEY = object()
 USE_EXISTING_VALUE = object()
@@ -197,7 +197,7 @@ class Event(EventT):
                     value_serializer: CodecArg = None,
                     callback: MessageSentCallback = None,
                     force: bool = False) -> Awaitable[RecordMetadata]:
-        return await cast(App, self.app)._attachments.maybe_put(
+        return await cast(_App, self.app)._attachments.maybe_put(
             channel,
             key,
             value,
@@ -221,7 +221,7 @@ class Event(EventT):
                 value_serializer: CodecArg = None,
                 callback: MessageSentCallback = None,
                 ) -> Awaitable[RecordMetadata]:
-        return cast(App, self.app)._attachments.put(
+        return cast(_App, self.app)._attachments.put(
             self.message,
             channel,
             key,

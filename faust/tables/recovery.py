@@ -18,9 +18,9 @@ from faust.utils import terminal
 from faust.utils.tracing import finish_span, traced_from_parent_span
 
 if typing.TYPE_CHECKING:
-    from .manager import TableManager
+    from .manager import _TableManager
 else:
-    class TableManager: ...  # noqa
+    class _TableManager: ...  # noqa
 
 E_PERSISTED_OFFSET = '''\
 The persisted offset for changelog topic partition {0} is higher
@@ -44,7 +44,7 @@ class Recovery(Service):
 
     app: AppT
 
-    tables: TableManager
+    tables: _TableManager
 
     stats_interval: float = 5.0
 
@@ -101,7 +101,7 @@ class Recovery(Service):
                  tables: TableManagerT,
                  **kwargs: Any) -> None:
         self.app = app
-        self.tables = cast(TableManager, tables)
+        self.tables = cast(_TableManager, tables)
 
         self.standby_tps = set()
         self.active_tps = set()
