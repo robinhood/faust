@@ -18,9 +18,9 @@ from typing import (
 )
 
 from mode import Seconds
-from mode.utils.compat import Deque
 from mode.utils.futures import done_future
 from mode.utils.imports import symbol_by_name
+from mode.utils.typing import Deque
 
 from faust.transport import base
 from faust.types import HeadersArg, Message, RecordMetadata, TP

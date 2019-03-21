@@ -2,13 +2,13 @@ import sys
 import pytest
 from faust.exceptions import ImproperlyConfigured
 from faust.types import TP
-from mode.utils.compat import DummyContext
+from mode.utils.contexts import nullcontext
 from mode.utils.mocks import ANY, Mock, call
 
 if sys.version_info >= (3, 7):
     _catch_warnings = pytest.warns(DeprecationWarning)
 else:
-    _catch_warnings = DummyContext()
+    _catch_warnings = nullcontext()
 with _catch_warnings:
     # XXX hopefully datadog fixes this DeprecationWarning soon:
     # "Using or importing the ABCs from 'collections' instead

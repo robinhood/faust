@@ -1,7 +1,7 @@
 import abc
 import typing
 from typing import Any, Awaitable, Mapping, Optional, Union
-from mode.utils.compat import AsyncContextManager
+from mode.utils.typing import AsyncContextManager
 from .codecs import CodecArg
 from .core import HeadersArg, K, V
 from .tuples import Message, MessageSentCallback, RecordMetadata

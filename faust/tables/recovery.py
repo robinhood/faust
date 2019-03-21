@@ -7,8 +7,8 @@ from typing import Any, List, MutableMapping, Optional, Set, Tuple, cast
 import opentracing
 from mode import Service
 from mode.services import WaitArgT
-from mode.utils.compat import Counter
 from mode.utils.locks import Event
+from mode.utils.typing import Counter
 
 from faust.exceptions import ConsistencyError
 from faust.types import AppT, EventT, TP

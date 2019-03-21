@@ -133,8 +133,8 @@ def maybe_resolve_abbreviations(app, env, node, contnode):
         node['reftarget'] = newtarget
         # shorten text if '~' is not enabled.
         if len(contnode) and isinstance(contnode[0], nodes.Text):
-                contnode[0] = modify_textnode(target, newtarget, node,
-                                              src_dict, typ)
+            contnode[0] = modify_textnode(target, newtarget, node,
+                                          src_dict, typ)
         if domainname:
             try:
                 domain = env.domains[node.get('refdomain')]

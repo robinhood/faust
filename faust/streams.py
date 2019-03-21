@@ -28,8 +28,7 @@ from typing import (
 
 from mode import Seconds, Service, get_logger, shortlabel, want_seconds
 from mode.utils.aiter import aenumerate, aiter
-from mode.utils.compat import current_task
-from mode.utils.futures import maybe_async, notify
+from mode.utils.futures import current_task, maybe_async, notify
 from mode.utils.objects import cached_property
 from mode.utils.types.trees import NodeT
 

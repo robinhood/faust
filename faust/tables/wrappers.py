@@ -19,7 +19,7 @@ from typing import (
 )
 
 from mode import Seconds
-from mode.utils.compat import NoReturn
+from mode.utils.typing import NoReturn
 
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import current_event

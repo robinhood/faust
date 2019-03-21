@@ -37,11 +37,12 @@ import opentracing
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
-from mode.utils.compat import DummyContext, NoReturn
+from mode.utils.contexts import nullcontext
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import
 from mode.utils.logging import flight_recorder
 from mode.utils.objects import cached_property, shortlabel
+from mode.utils.typing import NoReturn
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
 from mode.utils.types.trees import NodeT
 
@@ -1138,7 +1139,7 @@ class App(AppT, Service):
               trace_enabled: bool = True,
               **extra_context: Any) -> ContextManager:
         if self.tracer is None or not trace_enabled:
-            return DummyContext()
+            return nullcontext()
         else:
             return self.tracer.trace(
                 name=name,

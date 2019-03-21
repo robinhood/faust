@@ -5,8 +5,8 @@ from time import monotonic
 from typing import Any, Callable, List, Mapping, MutableMapping, cast
 
 from mode import Service, label
-from mode.utils.compat import Counter
 from mode.utils.objects import KeywordReduce
+from mode.utils.typing import Counter
 
 from faust.types import CollectionT, EventT, StreamT, TopicT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
