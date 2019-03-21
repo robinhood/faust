@@ -2,12 +2,6 @@
  TODO
 ======
 
-"ExactlyOnce" / Transactions (KIP-98)
-=====================================
-
-- "Attaching" should be deprecated and transactions should be used to
-  send messages as we commit.
-
 HTTP User interface
 -------------------
 
