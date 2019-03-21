@@ -778,10 +778,11 @@ class test_App:
 
     def test_table_route__query_param_and_shard_param(self, *, app):
         table = app.Table('foo')
-        with pytest.raises(TypeError):
-            @app.table_route(table, query_param='q', shard_param='x')
-            async def view(self, request):
-                ...
+        with pytest.warns(DeprecationWarning):
+            with pytest.raises(TypeError):
+                @app.table_route(table, query_param='q', shard_param='x')
+                async def view(self, request):
+                    ...
 
     def test_table_route__missing_param(self, *, app):
         table = app.Table('foo')
