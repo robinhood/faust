@@ -24,12 +24,20 @@ class SASLCredentials(Credentials):
     username: Optional[str]
     password: Optional[str]
 
+    ssl_context: ssl.SSLContext = None
+
     def __init__(self, *,
                  username: str = None,
                  password: str = None,
+                 ssl_context: ssl.SSLContext = None,
                  mechanism: Union[str, SASLMechanism] = None) -> None:
         self.username = username
         self.password = password
+        self.ssl_context = ssl_context
+
+        if ssl_context is not None:
+            self.protocol = AuthProtocol.SASL_SSL
+
         if mechanism is not None:
             self.mechanism = SASLMechanism(mechanism)
 
@@ -42,13 +50,20 @@ class GSSAPICredentials(Credentials):
 
     protocol = AuthProtocol.SASL_PLAINTEXT
     mechanism: SASLMechanism = SASLMechanism.GSSAPI
+    ssl_context: ssl.SSLContext = None
 
     def __init__(self, *,
                  kerberos_service_name: str = 'kafka',
                  kerberos_domain_name: str = None,
+                 ssl_context: ssl.SSLContext = None,
                  mechanism: Union[str, SASLMechanism] = None) -> None:
         self.kerberos_service_name = kerberos_service_name
         self.kerberos_domain_name = kerberos_domain_name
+        self.ssl_context = ssl_context
+
+        if ssl_context is not None:
+            self.protocol = AuthProtocol.SASL_SSL
+
         if mechanism is not None:
             self.mechanism = SASLMechanism(mechanism)
 

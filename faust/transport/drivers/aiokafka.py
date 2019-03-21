@@ -777,6 +777,7 @@ def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
                 'sasl_mechanism': credentials.mechanism.value,
                 'sasl_plain_username': credentials.username,
                 'sasl_plain_password': credentials.password,
+                'ssl_context': credentials.ssl_context,
             }
         elif isinstance(credentials, GSSAPICredentials):
             return {
@@ -786,6 +787,7 @@ def credentials_to_aiokafka_auth(credentials: CredentialsT = None,
                     credentials.kerberos_service_name,
                 'sasl_kerberos_domain_name':
                     credentials.kerberos_domain_name,
+                'ssl_context': credentials.ssl_context,
             }
         else:
             raise ImproperlyConfigured(
