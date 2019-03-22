@@ -3,12 +3,6 @@
 
 import re
 import sys
-try:
-    import platform
-    _pyimp = platform.python_implementation
-except (AttributeError, ImportError):
-    def _pyimp():
-        return 'Python'
 from setuptools import Extension, find_packages, setup
 from distutils.command.build_ext import build_ext
 from distutils.errors import (
@@ -46,11 +40,10 @@ BUNDLES = {
 CFLAGS = ['-O2']
 LDFLAGS = []
 LIBRARIES = []
-E_UNSUPPORTED_PYTHON = NAME + ' 1.0 requires %%s %%s or later!'
+E_UNSUPPORTED_PYTHON = NAME + ' 1.0 requires Python %%s or later!'
 
-PYIMP = _pyimp()
 if sys.version_info < (3, 6):
-    raise Exception(E_UNSUPPORTED_PYTHON % (PYIMP, '3.6'))  # NOQA
+    raise Exception(E_UNSUPPORTED_PYTHON % ('3.6',))  # NOQA
 
 from pathlib import Path  # noqa
 
