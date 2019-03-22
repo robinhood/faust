@@ -21,14 +21,6 @@ please visit the :ref:`history` section.
 
     + Now depends on :ref:`Mode 3.1 <mode:version-3.1.0>`.
 
-- New optimizations for stream processing and windows.
-
-    If Cython is available during installation, Faust will be installed
-    with compiled extensions.
-
-    You can set the :envvar:`NO_CYTHON` environment variable
-    to disable the use of these extensions even if compiled.
-
 - Exactly-Once semantics: New :setting:`processing_guarantee` setting.
 
     Experimental support for "exactly-once" semantics.
@@ -41,6 +33,14 @@ please visit the :ref:`history` section.
     .. sourcecode:: python
 
         App(processing_guarantee='exactly_once')
+
+- New optimizations for stream processing and windows.
+
+    If Cython is available during installation, Faust will be installed
+    with compiled extensions.
+
+    You can set the :envvar:`NO_CYTHON` environment variable
+    to disable the use of these extensions even if compiled.
 
 - New :setting:`topic_allow_declare` setting.
 
@@ -107,6 +107,36 @@ please visit the :ref:`history` section.
 
         This will help your application stay backward compatible.
 
+- **App**: Sending messages API now supports a ``headers`` argument.
+
+    When sending messages you can now attach arbitrary headers
+    as a dict, or list of tuples; where the values are bytes:
+
+    .. sourcecode:: python
+
+        await topic.send(key=key, value=value, headers={'x': b'foo'})
+
+    .. admonition:: Supported transports
+
+        Headers are currently only supported by the default :pypi:`aiokafka`
+        transport, and requires Kafka server 0.11 and later.
+
+- **Agent**: RPC operations can now take advantage of message headers.
+
+    The default way to attach metadata to values, such as the reply-to
+    address and the correlation id, is to wrap the value in an envelope.
+
+    With headers support now landed we can use message headers for this:
+
+    .. sourcecode:: python
+
+        @app.agent(use_reply_headers=True)
+        async def x(stream):
+            async for item in stream:
+                yield item ** 2
+
+    Faust will be using headers by default in version 2.0.
+
 - **App**: Sending messages API now supports a ``timestamp`` argument
   (Issue #276).
 
@@ -126,6 +156,9 @@ please visit the :ref:`history` section.
 
     Contributed by Ryan Whitten (:github_user:`rwhitten577`).
 
+- **Stream**: ``group_by`` repartitioned topic name now includes the agent
+  name (Issue #284).
+
 - **App**: Web server is no longer running in a separate thread by default.
 
     Running the web server in a separate thread is beneficial as it
@@ -144,6 +177,28 @@ please visit the :ref:`history` section.
 - **App**: Autodiscovery now ignores modules matching "*test*" (Issue #242).
 
     Contributed by Chris Seto (:github_user:`chrisseto`).
+
+- **Transport**: :pypi:`aiokafka` transport now supports headers when using
+  Kafka server versions 0.11 and later.
+
+- **Tables**: New flags can be used to check if actives/standbys are up to
+  date.
+
+    + ``app.tables.actives_ready``
+
+        Set to :const:`True` when tables have synced all active partitions.
+
+    + ``app.tables.standbys_ready``
+
+        Set to :const:`True` when standby partitions are up-to-date.
+
+- **RocksDB**: Now crash with :class:`~faust.exceptions.ConsistencyError`
+  if the persisted offset is greater than the current highwater.
+
+    This means the changelog topic has been modified in Kafka and the
+    recorded offset no longer exists. We crash as we believe this require
+    human intervention, but should some projects have less strict durability
+    requirements we may make this an option.
 
 - **RocksDB**: ``len(table)`` now only counts databases for active partitions
   (Issue #270).
