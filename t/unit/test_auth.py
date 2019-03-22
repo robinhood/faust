@@ -1,4 +1,5 @@
 import ssl
+import pytest
 from faust.auth import GSSAPICredentials, SASLCredentials, SSLCredentials
 from faust.types.auth import AuthProtocol, SASLMechanism
 from mode.utils.mocks import Mock, patch
@@ -6,47 +7,79 @@ from mode.utils.mocks import Mock, patch
 
 class test_SASLCredentials:
 
-    def test_constructor(self):
-        c = SASLCredentials(username='george', password='pw1')
-        assert c.username == 'george'
-        assert c.password == 'pw1'
-        assert repr(c)
-        assert c.mechanism == SASLMechanism.PLAIN
-        assert c.protocol == AuthProtocol.SASL_PLAINTEXT
-
-        c2 = SASLCredentials(
-            username='george', password='pw1', mechanism='GSSAPI')
-        assert c2.mechanism == SASLMechanism.GSSAPI
-        c3 = SASLCredentials(
-            username='george', password='pw1', mechanism=SASLMechanism.GSSAPI)
-        assert c3.mechanism == SASLMechanism.GSSAPI
+    @pytest.mark.parametrize('reason,credentials,expected_fields', [
+        pytest.param(
+            'retains arguments',
+            SASLCredentials(username='george', password='pw1'),
+            {'username': 'george',
+             'password': 'pw1',
+             'mechanism': SASLMechanism.PLAIN,
+             'protocol': AuthProtocol.SASL_PLAINTEXT}),
+        pytest.param(
+            'mechanism from str',
+            SASLCredentials(username='george',
+                            password='pw1',
+                            mechanism='GSSAPI'),
+            {'mechanism': SASLMechanism.GSSAPI}),
+        pytest.param(
+            'mechanism from enum',
+            SASLCredentials(username='george',
+                            password='pw1',
+                            mechanism=SASLMechanism.GSSAPI),
+            {'mechanism': SASLMechanism.GSSAPI}),
+        pytest.param(
+            'ssl context gives SASL_SSL',
+            SASLCredentials(username='george',
+                            password='pw1',
+                            ssl_context={'xxx': 'yyy'}),
+            {'username': 'george',
+             'password': 'pw1',
+             'ssl_context': {'xxx': 'yyy'},
+             'protocol': AuthProtocol.SASL_SSL}),
+    ])
+    def test_constructor(self, credentials, expected_fields, reason):
+        assert repr(credentials)
+        for field, value in expected_fields.items():
+            assert getattr(credentials, field) == value, reason
 
 
 class test_GSSAPICredentials:
 
-    def test_constructor(self):
-        c = GSSAPICredentials(
-            kerberos_service_name='george',
-            kerberos_domain_name='domain',
-        )
-        assert c.kerberos_service_name == 'george'
-        assert c.kerberos_domain_name == 'domain'
-        assert repr(c)
-        assert c.mechanism == SASLMechanism.GSSAPI
-        assert c.protocol == AuthProtocol.SASL_PLAINTEXT
-
-        c2 = GSSAPICredentials(
-            kerberos_service_name='george',
-            kerberos_domain_name='domain',
-            mechanism='PLAIN',
-        )
-        assert c2.mechanism == SASLMechanism.PLAIN
-        c3 = GSSAPICredentials(
-            kerberos_service_name='george',
-            kerberos_domain_name='domain',
-            mechanism=SASLMechanism.PLAIN,
-        )
-        assert c3.mechanism == SASLMechanism.PLAIN
+    @pytest.mark.parametrize('reason,credentials,expected_fields', [
+        pytest.param(
+            'retains arguments',
+            GSSAPICredentials(kerberos_service_name='george',
+                              kerberos_domain_name='domain'),
+            {'kerberos_service_name': 'george',
+             'kerberos_domain_name': 'domain',
+             'mechanism': SASLMechanism.GSSAPI,
+             'protocol': AuthProtocol.SASL_PLAINTEXT}),
+        pytest.param(
+            'mechanism given as str',
+            GSSAPICredentials(kerberos_service_name='george',
+                              kerberos_domain_name='domain',
+                              mechanism='PLAIN'),
+            {'mechanism': SASLMechanism.PLAIN}),
+        pytest.param(
+            'mechanism given as enum',
+            GSSAPICredentials(kerberos_service_name='george',
+                              kerberos_domain_name='domain',
+                              mechanism=SASLMechanism.PLAIN),
+            {'mechanism': SASLMechanism.PLAIN}),
+        pytest.param(
+            'ssl context gives SASL_SSL',
+            GSSAPICredentials(kerberos_service_name='george',
+                              kerberos_domain_name='domain',
+                              ssl_context={'xxx': 'yyy'}),
+            {'kerberos_service_name': 'george',
+             'kerberos_domain_name': 'domain',
+             'ssl_context': {'xxx': 'yyy'},
+             'protocol': AuthProtocol.SASL_SSL}),
+    ])
+    def test_constructor(self, credentials, expected_fields, reason):
+        assert repr(credentials)
+        for field, value in expected_fields.items():
+            assert getattr(credentials, field) == value, reason
 
 
 class test_SSLCredentials:

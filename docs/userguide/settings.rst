@@ -100,33 +100,98 @@ Available Transports
 
 .. versionadded:: 1.5
 
-:type: ``CredentialsT``
-:default: ``None``
+:type: :class:`~faust.types.auth.CredentialsT`
+:default: :const:`None`
 
 Specify the authentication mechanism to use when connecting to the
 broker.
 
 The default is to not use any authentication.
 
-You can enable SASL authentication:
+.. _auth-sasl:
+
+SASL Authentication
+~~~~~~~~~~~~~~~~~~~
+
+You can enable SASL authentication via plaintext:
 
 .. sourcecode:: python
 
-    app = faust.App(credentials=faust.SASLCredentials(username='x', password='y'))
+    app = faust.App(
+        broker_credentials=faust.SASLCredentials(
+            username='x',
+            password='y',
+        ))
 
-or SSL authentication:
+.. warning::
+
+    Do not use literal strings when specifying passwords in production,
+    as they can remain visible in stack traces.
+
+    Instead the best practice is to get the password from a configuration
+    file, or from the environment:
+
+    .. sourcecode:: python
+
+        BROKER_USERNAME = os.environ.get('BROKER_USERNAME')
+        BROKER_PASSWORD = os.environ.get('BROKER_PASSWORD')
+
+        app = faust.App(
+            broker_credentials=faust.SASLCredentials(
+                username=BROKER_USERNAME,
+                password=BROKER_PASSWORD,
+            ))
+
+.. _auth-gssapi:
+
+GSSAPI Authentication
+~~~~~~~~~~~~~~~~~~~~~
+
+GSSAPI authentication over plain text:
+
+.. sourcecode:: python
+
+    app = faust.App(
+        broker_credentials=faust.GSSAPICredentials(
+            kerberos_service_name='faust',
+            kerberos_domain_name='example.com',
+        ),
+    )
+
+GSSAPI authentication over SSL:
+
+.. sourcecode:: python
+
+    import ssl
+    ssl_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile='ca.pem')
+    ssl_context.load_cert_chain('client.cert', keyfile='client.key')
+
+    app = faust.App(
+        broker_credentials=faust.GSSAPICredentials(
+            kerberos_service_name='faust',
+            kerberos_domain_name='example.com',
+            ssl_context=ssl_context,
+        ),
+    )
+
+.. _auth-ssl:
+
+SSL Authentication
+~~~~~~~~~~~~~~~~~~
 
 Provide an SSL context for the Kafka broker connections.
 
-Allows Faust to use a secure SSL/TLS connection for the Kafka connections
+This allows Faust to use a secure SSL/TLS connection for the Kafka connections
 and enabling certificate-based authentication.
 
 .. sourcecode:: python
 
     import ssl
 
-    ssl_context = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH, cafile="ca.pem")
-    ssl_context.load_cert_chain("client.cert", keyfile="client.key")
+    ssl_context = ssl.create_default_context(
+        purpose=ssl.Purpose.SERVER_AUTH, cafile='ca.pem')
+    ssl_context.load_cert_chain('client.cert', keyfile='client.key')
     app = faust.App(..., broker_credentials=ssl_context)
 
 .. setting:: store

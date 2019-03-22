@@ -883,6 +883,7 @@ class test_Transport:
         'sasl_mechanism': 'PLAIN',
         'sasl_plain_username': 'foo',
         'sasl_plain_password': 'bar',
+        'ssl_context': None,
     }),
     (auth.GSSAPICredentials(kerberos_service_name='service',
                             kerberos_domain_name='moo'), None, {
@@ -890,6 +891,7 @@ class test_Transport:
         'sasl_mechanism': 'GSSAPI',
         'sasl_kerberos_service_name': 'service',
         'sasl_kerberos_domain_name': 'moo',
+        'ssl_context': None,
     }),
 ])
 def test_credentials_to_aiokafka(credentials, ssl_context, expected):

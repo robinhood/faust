@@ -58,6 +58,19 @@ please visit the :ref:`history` section.
 
     Contributed by Miha Troha (:github_user:`miatroha`).
 
+- **Authentication**: Support for GSSAPI authentication.
+
+    See documentation for the :setting:`broker_credentials` setting.
+
+    Contributed by Julien Surloppe (:github_user:`jsurloppe`).
+
+- **Authentication**: Support for SASL authentication.
+
+    See documentation for the :setting:`broker_credentials` setting.
+
+- New :setting:`broker_credentials` setting can also be used to configure
+  SSL authentication.
+
 - **Models**: Records can now use comparison operators.
 
     Comparison of models using the ``>``, ``<``, ``>=`` and ``<=`` operators
