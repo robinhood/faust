@@ -1,4 +1,5 @@
 """Partition assignor."""
+import socket
 import zlib
 from collections import defaultdict
 from typing import (
@@ -18,6 +19,7 @@ from kafka.coordinator.protocol import (
     ConsumerProtocolMemberMetadata,
 )
 from mode import get_logger
+from mode.utils.contexts import nullcontext
 from yarl import URL
 
 from faust.types.app import AppT
@@ -186,9 +188,27 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             for member_id, client_metadata in clients_metadata.items()
         }
 
-    def assign(self, cluster: ClusterMetadata,
-               member_metadata: MemberMetadataMapping,
-               ) -> MemberAssignmentMapping:
+    def assign(
+            self,
+            cluster: ClusterMetadata,
+            member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
+        if self.app.tracer:
+            span = self.app.tracer.get_tracer('_faust').start_span(
+                operation_name='coordinator_assignment',
+                tags={'hostname': socket.gethostname(),
+                      'cluster': cluster,
+                      'member_metadata': member_metadata})
+        else:
+            span = nullcontext()
+        with span:
+            assignment = self._perform_assignment(cluster, member_metadata)
+            span.set_tag('assignment', assignment)
+            return assignment
+
+    def _perform_assignment(
+            self,
+            cluster: ClusterMetadata,
+            member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
         cluster_assgn = ClusterAssignment()
 
         clients_metadata = {
