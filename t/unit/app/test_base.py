@@ -733,6 +733,10 @@ class test_App:
                 cors_options={
                     'http://foo.example.com': ResourceOptions(
                         allow_credentials=True,
+                        expose_headers='*',
+                        allow_headers='*',
+                        max_age=None,
+                        allow_methods='*',
                     ),
                 },
             )
