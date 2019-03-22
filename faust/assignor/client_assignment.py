@@ -1,6 +1,6 @@
 """Client Assignment."""
 import copy
-from typing import List, Mapping, MutableMapping, Sequence, Set, Tuple
+from typing import List, Mapping, MutableMapping, Sequence, Set, Tuple, cast
 from faust.models import Record
 from faust.types import TP
 from faust.types.assignor import HostToPartitionMap
@@ -152,4 +152,8 @@ class ClientMetadata(Record,
     assignment: ClientAssignment
     url: str
     changelog_distribution: HostToPartitionMap
-    topic_groups: Mapping[str, int]
+    topic_groups: Mapping[str, int] = cast(Mapping[str, int], None)
+
+    def __post_init__(self):
+        if self.topic_groups is None:
+            self.topic_groups = {}
