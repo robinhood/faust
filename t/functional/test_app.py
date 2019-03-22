@@ -205,7 +205,11 @@ class test_settings:
                                  web_in_thread=True,
                                  web_cors_options={  # noqa: B006
                                     'http://example.com': ResourceOptions(
+                                        allow_credentials=True,
+                                        expose_headers='*',
+                                        allow_headers='*',
                                         max_age=3132,
+                                        allow_methods='*',
                                     ),
                                  },
                                  worker_redirect_stdouts=False,
