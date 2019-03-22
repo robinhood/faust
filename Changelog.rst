@@ -34,6 +34,24 @@ please visit the :ref:`history` section.
 
         App(processing_guarantee='exactly_once')
 
+    .. note::
+
+        If you do enable "exactly_once" for an existing app, you must make sure
+        all workers are running the latest version and possibly
+        starting from a clean set of intermediate topics.
+
+        You can accomplish this by bumping up the app version number:
+
+        .. sourcecode:: python
+
+            App(version=2, processing_guarantee='exactly_once')
+
+        The new processing guarantee require a new version of the
+        assignor protocol, for this reason a "exactly_once" worker will
+        not work with older versions of Faust running in the same consumer
+        group: so to roll out this change you will have to stop all the
+        workers, deploy the new version and only then restart the workers.
+
 - New optimizations for stream processing and windows.
 
     If Cython is available during installation, Faust will be installed
