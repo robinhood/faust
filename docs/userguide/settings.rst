@@ -740,11 +740,11 @@ Example using a class::
     class MySchedulingStrategy(DefaultSchedulingStrategy):
         ...
 
-    app = App(..., consumer_scheduling_strategy=MySchedulingStrategy)
+    app = App(..., ConsumerScheduler=MySchedulingStrategy)
 
 Example using the string path to a class::
 
-    app = App(..., consumer_scheduling_strategy='myproj.MySchedulingStrategy')
+    app = App(..., ConsumerScheduler='myproj.MySchedulingStrategy')
 
 .. _settings-producer:
 
