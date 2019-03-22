@@ -96,7 +96,7 @@ def _restore_span(span: opentracing.Span,
 
 def call_with_trace(span: opentracing.Span,
                     fun: Callable,
-                    callback: Optional[Tuple[Callable, Tuple]],
+                    callback: Optional[Tuple[Callable, Tuple[Any, ...]]],
                     *args: Any, **kwargs: Any) -> Any:
     """Call function and trace it from parent span."""
     cb: Optional[Callable] = None
