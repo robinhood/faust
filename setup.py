@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import os
 import re
 import sys
 from setuptools import Extension, find_packages, setup
@@ -15,8 +15,14 @@ try:
     from Cython.Build import cythonize
 except ImportError:
     USE_CYTHON = False
+    if os.environ.get('USE_CYTHON'):
+        raise Exception('USE_CYTHON enabled but cython is not installed')
 else:
-    USE_CYTHON = True
+    USE_CYTHON = os.environ.get('USE_CYTHON', True)
+
+
+if os.environ.get('NO_CYTHON'):
+    USE_CYTHON = False
 
 NAME = 'faust'
 BUNDLES = {
@@ -86,7 +92,7 @@ extensions = [
 
 
 if USE_CYTHON:
-    print('USE CYTHON')
+    print('---*--- USING CYTHON ---*---')
     extensions = cythonize(extensions)
 
 
@@ -98,7 +104,6 @@ class ve_build_ext(build_ext):
     # This class allows C extension building to fail.
 
     def run(self):
-        print('BUILDING EXT')
         try:
             build_ext.run(self)
         except (DistutilsPlatformError, FileNotFoundError):
