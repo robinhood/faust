@@ -64,6 +64,8 @@ class CopartitionedAssignor:
     def get_assignment(self) -> MutableMapping[str, CopartitionedAssignment]:
         for copartitioned in self._client_assignments.values():
             copartitioned.unassign_extras(self.capacity, self.replicas)
+        if self.app.conf.ordered_client_assignment:
+            self._unnassign_all()
         self._assign(active=True)
         self._assign(active=False)
         return self._client_assignments
@@ -75,7 +77,8 @@ class CopartitionedAssignor:
                    for partition in range(self.num_partitions))
 
     def _assign(self, active: bool) -> None:
-        self._unassign_overassigned(active)
+        if not self.app.conf.ordered_client_assignment:
+            self._unassign_overassigned(active)
         unassigned = self._get_unassigned(active)
         self._assign_round_robin(unassigned, active)
         assert self._all_assigned(active)
@@ -93,9 +96,18 @@ class CopartitionedAssignor:
     def _total_assigns_per_partition(self, active: bool) -> int:
         return 1 if active else self.replicas
 
+    def _unnassign_all(self) -> None:
+        for partition in range(self.num_partitions):
+            for key, assgn in self._client_assignments.items():
+                if assgn.partition_assigned(partition, active=False):
+                    assgn.unassign_partition(partition, active=False)
+                if assgn.partition_assigned(partition, active=True):
+                    assgn.unassign_partition(partition, active=True)
+
     def _unassign_overassigned(self, active: bool) -> None:
         # There are cases when multiple clients could have the same
         # assignment (zombies).  We need to handle that appropriately.
+
         partition_counts = self._assigned_partition_counts(active)
         total_assigns = self._total_assigns_per_partition(active=active)
         for partition in range(self.num_partitions):
