@@ -154,6 +154,6 @@ class ClientMetadata(Record,
     changelog_distribution: HostToPartitionMap
     topic_groups: Mapping[str, int] = cast(Mapping[str, int], None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.topic_groups is None:
             self.topic_groups = {}
