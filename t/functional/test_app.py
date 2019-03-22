@@ -18,6 +18,7 @@ from faust.tables import TableManager
 from faust.transport.utils import DefaultSchedulingStrategy
 from faust.types import settings
 from faust.types.enums import ProcessingGuarantee
+from faust.types.web import ResourceOptions
 from yarl import URL
 
 TABLEDIR: Path
@@ -102,6 +103,7 @@ class test_settings:
         assert conf.web_bind == '0.0.0.0'
         assert conf.web_port == 6066
         assert conf.web_transport == settings.WEB_TRANSPORT
+        assert conf.web_cors_options is None
         assert conf.worker_redirect_stdouts
         assert conf.worker_redirect_stdouts_level == 'WARN'
 
@@ -201,6 +203,11 @@ class test_settings:
                                  web_host='localhost',
                                  web_transport='udp://',
                                  web_in_thread=True,
+                                 web_cors_options={  # noqa: B006
+                                    'http://example.com': ResourceOptions(
+                                        max_age=3132,
+                                    ),
+                                 },
                                  worker_redirect_stdouts=False,
                                  worker_redirect_stdouts_level='DEBUG',
                                  broker_max_poll_records=1000,
@@ -256,6 +263,7 @@ class test_settings:
             web_host=web_host,
             web_transport=web_transport,
             web_in_thread=web_in_thread,
+            web_cors_options=web_cors_options,
             worker_redirect_stdouts=worker_redirect_stdouts,
             worker_redirect_stdouts_level=worker_redirect_stdouts_level,
             logging_config=logging_config,
@@ -308,6 +316,7 @@ class test_settings:
         assert conf.web_port == web_port
         assert conf.web_host == web_host
         assert conf.web_transport == URL(web_transport)
+        assert conf.web_cors_options == web_cors_options
         assert conf.worker_redirect_stdouts == worker_redirect_stdouts
         assert (conf.worker_redirect_stdouts_level ==
                 worker_redirect_stdouts_level)

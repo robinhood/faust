@@ -1179,6 +1179,41 @@ busy processing streams.
     Running the web server in a separate thread means web views
     and agents will not share the same event loop.
 
+.. setting:: web_cors_options
+
+``web_cors_options``
+--------------------
+
+.. versionadded:: 1.5
+
+:type: ``Mapping[str, ResourceOptions]``
+:default: :const:`None`
+
+Enable `Cross-Origin Resource Sharing`_ options for all web views
+in the internal web server.
+
+This should be specified as a dictionary of
+URLs to :class:`~faust.web.ResourceOptions`:
+
+.. sourcecode:: python
+
+    app = App(..., cors_options={
+        'http://foo.example.com': ResourceOptions(
+            allow_credentials=True,
+            allow_methods='*',
+        )
+    })
+
+Individual views may override the CORS options used as
+arguments to to ``@app.page`` and ``blueprint.route``.
+
+.. seealso::
+
+    :pypi:`aiohttp_cors`: https://github.com/aio-libs/aiohttp-cors
+
+.. _`Cross-Origin Resource Sharing`:
+    https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+
 .. _settings-agent:
 
 Advanced Agent Settings

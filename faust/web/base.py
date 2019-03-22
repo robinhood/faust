@@ -23,7 +23,7 @@ from mode.utils.compat import want_str
 from mode.utils.imports import SymbolArg, symbol_by_name
 from yarl import URL
 from faust.types import AppT
-from faust.types.web import BlueprintT, View
+from faust.types.web import BlueprintT, ResourceOptions, View
 
 __all__ = [
     'DEFAULT_BLUEPRINTS',
@@ -238,7 +238,10 @@ class Web(Service):
         )
 
     @abc.abstractmethod
-    def route(self, pattern: str, handler: Callable) -> None:
+    def route(self,
+              pattern: str,
+              handler: Callable,
+              cors_options: Mapping[str, ResourceOptions] = None) -> None:
         ...
 
     @abc.abstractmethod
@@ -256,10 +259,12 @@ class Web(Service):
     async def wsgi(self) -> Any:
         ...
 
-    def add_view(self, view_cls: Type[View], *, prefix: str = '') -> View:
+    def add_view(self, view_cls: Type[View], *,
+                 prefix: str = '',
+                 cors_options: Mapping[str, ResourceOptions] = None) -> View:
         view: View = view_cls(self.app, self)
         path = prefix.rstrip('/') + '/' + view.view_path.lstrip('/')
-        self.route(path, view)
+        self.route(path, view, cors_options)
         self.views[path] = view
         self.reverse_names[view.view_name] = path
         return view

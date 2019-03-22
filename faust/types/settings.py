@@ -13,6 +13,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
     Optional,
     Set,
     Type,
@@ -42,7 +43,7 @@ from .streams import StreamT
 from .transports import PartitionerT, SchedulingStrategyT
 from .tables import TableManagerT, TableT
 from .topics import TopicT
-from .web import HttpClientT
+from .web import HttpClientT, ResourceOptions
 
 if typing.TYPE_CHECKING:
     from .worker import Worker as _WorkerT
@@ -315,6 +316,7 @@ class Settings(abc.ABC):
     web_port: int = WEB_PORT
     web_host: str = socket.gethostname()
     web_in_thread: bool = False
+    web_cors_options: Optional[Mapping[str, ResourceOptions]] = None
     worker_redirect_stdouts: bool = True
     worker_redirect_stdouts_level: Severity = 'WARN'
 
@@ -450,6 +452,7 @@ class Settings(abc.ABC):
             web_host: str = None,
             web_transport: Union[str, URL] = None,
             web_in_thread: bool = None,
+            web_cors_options: Mapping[str, ResourceOptions] = None,
             worker_redirect_stdouts: bool = None,
             worker_redirect_stdouts_level: Severity = None,
             Agent: SymbolArg[Type[AgentT]] = None,
@@ -575,6 +578,8 @@ class Settings(abc.ABC):
             self.web_transport = web_transport
         if web_in_thread is not None:
             self.web_in_thread = web_in_thread
+        if web_cors_options is not None:
+            self.web_cors_options = web_cors_options
         if worker_redirect_stdouts is not None:
             self.worker_redirect_stdouts = worker_redirect_stdouts
         if worker_redirect_stdouts_level is not None:

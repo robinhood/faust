@@ -2,13 +2,20 @@ import asyncio
 import sys
 from pathlib import Path
 
+import aiohttp_cors
 import pytest
 from aiohttp.web import Application
-from mode.utils.mocks import AsyncMock, Mock, patch
+from mode.utils.mocks import ANY, AsyncMock, Mock, call, patch
 from yarl import URL
 
+from faust.types.web import ResourceOptions
 from faust.web import base
-from faust.web.drivers.aiohttp import Server, ServerThread
+from faust.web.drivers.aiohttp import (
+    NON_OPTIONS_METHODS,
+    Server,
+    ServerThread,
+    _prepare_cors_options,
+)
 
 if sys.platform == 'win32':
     DATAPATH = 'c:/Program Files/Faust/data'
@@ -24,6 +31,48 @@ def thread(*, web):
 @pytest.fixture
 def server(*, web):
     return Server(web)
+
+
+def test__prepare_cors_options():
+    x = ResourceOptions(
+        allow_credentials=True,
+        expose_headers=['foo', 'bar'],
+        allow_headers='*',
+        max_age=13124,
+        allow_methods='*',
+    )
+    y = ResourceOptions(
+        allow_credentials=False,
+        expose_headers='*',
+        allow_headers='*',
+        max_age=None,
+        allow_methods=['POST'],
+    )
+    z = aiohttp_cors.ResourceOptions(allow_credentials=False)
+    opts = {
+        'http://bob.example.com': x,
+        'http://alice.example.com': y,
+        'http://moo.example.com': z,
+    }
+
+    aiohttp_cors_opts = _prepare_cors_options(opts)
+    x1 = aiohttp_cors_opts['http://bob.example.com']
+    assert isinstance(x1, aiohttp_cors.ResourceOptions)
+    x2 = aiohttp_cors_opts['http://alice.example.com']
+    assert isinstance(x2, aiohttp_cors.ResourceOptions)
+    assert aiohttp_cors_opts['http://moo.example.com']
+
+    assert x1.allow_credentials
+    assert x1.expose_headers == {'foo', 'bar'}
+    assert x1.allow_headers == '*'
+    assert x1.max_age == 13124
+    assert x1.allow_methods == '*'
+
+    assert not x2.allow_credentials
+    assert x2.expose_headers == '*'
+    assert x2.allow_headers == '*'
+    assert x2.max_age is None
+    assert x2.allow_methods == {'POST'}
 
 
 class test_ServerThread:
@@ -79,6 +128,10 @@ class test_Server:
 
 
 class test_Web:
+
+    def test_cors(self, *, web):
+        assert web.cors is web.cors
+        assert isinstance(web.cors, aiohttp_cors.CorsConfig)
 
     def test_text(self, *, web):
         with patch('faust.web.drivers.aiohttp.Response') as Response:
@@ -195,6 +248,31 @@ class test_Web:
         web.web_app.router.add_static.assert_called_once_with(
             '/prefix/', str(Path(DATAPATH)), kw1=3,
         )
+
+    def test_route__with_cors_options(self, *, web):
+        handler = Mock()
+        cors_options = {
+            'http://example.com': ResourceOptions(),
+        }
+        web.web_app = Mock()
+        web._cors = Mock()
+
+        web.route(
+            pattern='/foo/',
+            handler=handler,
+            cors_options=cors_options,
+        )
+
+        web.web_app.router.add_route.assert_has_calls([
+            call(method, '/foo/', ANY)
+            for method in NON_OPTIONS_METHODS
+        ])
+        web._cors.add.assert_has_calls([
+            call(
+                web.web_app.router.add_route(),
+                _prepare_cors_options(cors_options))
+            for _ in NON_OPTIONS_METHODS
+        ])
 
     def test__create_site(self, *, web, app):
         web._new_transport = Mock()

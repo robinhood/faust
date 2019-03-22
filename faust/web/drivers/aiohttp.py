@@ -10,6 +10,7 @@ from typing import (
     cast,
 )
 
+import aiohttp_cors
 from aiohttp import __version__ as aiohttp_version
 from aiohttp.web import (
     AppRunner,
@@ -21,15 +22,31 @@ from aiohttp.web import (
     UnixSite,
     json_response,
 )
+from aiohttp_cors import CorsConfig, ResourceOptions
 from faust.types import AppT
 from faust.utils import json as _json
 from faust.web import base
+from faust.types.web import ResourceOptions as _ResourceOptions
 from mode import Service
 from mode.threads import ServiceThread
 
 __all__ = ['Web']
 
 _bytes = bytes
+
+NON_OPTIONS_METHODS = frozenset({'GET', 'PUT', 'POST', 'DELETE'})
+
+
+def _prepare_cors_options(
+        opts: Mapping[str, Any]) -> Mapping[str, ResourceOptions]:
+    return {k: _faust_to_aiohttp_options(v) for k, v in opts.items()}
+
+
+def _faust_to_aiohttp_options(
+        opts: ResourceOptions) -> ResourceOptions:
+    if isinstance(opts, _ResourceOptions):
+        return ResourceOptions(**opts._asdict())
+    return opts
 
 
 class ServerThread(ServiceThread):
@@ -64,22 +81,35 @@ class Web(base.Web):
 
     driver_version = f'aiohttp={aiohttp_version}'
     handler_shutdown_timeout: float = 60.0
+    cors_options: Mapping[str, ResourceOptions]
 
     #: We serve the web server in a separate thread (and separate event loop).
     _thread: Optional[Service] = None
 
     _transport_handlers: Mapping[str, Callable[[], BaseSite]]
+    _cors: Optional[CorsConfig] = None
 
     def __init__(self, app: AppT, **kwargs: Any) -> None:
         super().__init__(app, **kwargs)
         self.web_app: Application = Application()
+        self.cors_options = _prepare_cors_options(
+            app.conf.web_cors_options or {})
         self._runner: AppRunner = AppRunner(self.web_app, access_log=None)
         self._transport_handlers = {
             'tcp': self._new_transport_tcp,
             'unix': self._new_transport_unix,
         }
 
+    @property
+    def cors(self) -> CorsConfig:
+        if self._cors is None:
+            self._cors = aiohttp_cors.setup(
+                self.web_app, defaults=self.cors_options)
+        return self._cors
+
     async def on_start(self) -> None:
+        cors = self.cors
+        assert cors
         self.init_server()
         server_cls = ServerThread if self.app.conf.web_in_thread else Server
         self._thread = server_cls(self, loop=self.loop, beacon=self.beacon)
@@ -149,9 +179,19 @@ class Web(base.Web):
     async def read_request_content(self, request: base.Request) -> _bytes:
         return await cast(Request, request).content.read()
 
-    def route(self, pattern: str, handler: Callable) -> None:
-        self.web_app.router.add_route(
-            '*', pattern, self._wrap_into_asyncdef(handler))
+    def route(self,
+              pattern: str,
+              handler: Callable,
+              cors_options: Mapping[str, ResourceOptions] = None) -> None:
+        if cors_options or self.cors_options:
+            async_handler = self._wrap_into_asyncdef(handler)
+            for method in NON_OPTIONS_METHODS:
+                r = self.web_app.router.add_route(
+                    method, pattern, async_handler)
+                self.cors.add(r, _prepare_cors_options(cors_options or {}))
+        else:
+            self.web_app.router.add_route(
+                '*', pattern, self._wrap_into_asyncdef(handler))
 
     def _wrap_into_asyncdef(self, handler: Callable) -> Callable:
         # get rid of pesky "DeprecationWarning: Bare functions are

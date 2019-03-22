@@ -21,6 +21,7 @@ from faust.transport.consumer import Consumer, Fetcher
 from faust.types import TP
 from faust.types.models import ModelT
 from faust.types.settings import Settings
+from faust.types.web import ResourceOptions
 from mode import Service
 from mode.utils.compat import want_bytes
 from mode.utils.mocks import ANY, AsyncMock, Mock, call, patch
@@ -716,6 +717,25 @@ class test_App:
         with patch('faust.app.base.venusian') as venusian:
 
             @app.page('/foo')
+            async def view(self, request):
+                ...
+
+            assert '/foo' in app.web.views
+
+            venusian.attach.assert_called_once_with(view, category=SCAN_PAGE)
+
+    def test_page__with_cors_options(self, *, app):
+
+        with patch('faust.app.base.venusian') as venusian:
+
+            @app.page(
+                '/foo',
+                cors_options={
+                    'http://foo.example.com': ResourceOptions(
+                        allow_credentials=True,
+                    ),
+                },
+            )
             async def view(self, request):
                 ...
 

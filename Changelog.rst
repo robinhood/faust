@@ -271,6 +271,10 @@ please visit the :ref:`history` section.
 
 - **Typing**: Fixed type stubs for ``@app.agent`` decorator.
 
+- **Web**: Added support for Cross-Resource Origin Sharing headers (CORS).
+
+    See new :setting:`web_cors_options` setting.
+
 - **Debugging**: Added `OpenTracing`_ hooks to streams/tasks/timers/crontabs
    and rebalancing process.
 

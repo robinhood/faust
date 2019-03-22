@@ -1,7 +1,17 @@
 import abc
 import typing
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Coroutine, Optional, Type, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+)
 
 from aiohttp.client import ClientSession as HttpClientT
 from mode import Seconds, ServiceT
@@ -22,6 +32,7 @@ else:
 __all__ = [
     'Request',
     'Response',
+    'ResourceOptions',
     'View',
     'ViewHandlerMethod',
     'ViewHandlerFun',
@@ -56,6 +67,21 @@ ViewDecorator = Callable[[ViewHandlerFun], ViewHandlerFun]
 RoutedViewGetHandler = ViewDecorator  # XXX compat
 PageArg = Union[Type[View], ViewHandlerFun]
 RouteDecoratorRet = Callable[[PageArg], PageArg]
+
+
+# Lists in ResourceOptions can be list of string or scalar '*'
+# for matching any.
+CORSListOption = Union[str, Sequence[str]]
+
+
+class ResourceOptions(NamedTuple):
+    """CORS Options for specific route, or defaults."""
+
+    allow_credentials: bool = False
+    expose_headers: Optional[CORSListOption] = ()
+    allow_headers: Optional[CORSListOption] = ()
+    max_age: Optional[int] = None
+    allow_methods: Optional[CORSListOption] = ()
 
 
 class CacheBackendT(ServiceT):

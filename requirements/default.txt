@@ -1,4 +1,5 @@
 aiohttp>=2.3.9,<4.0
+aiohttp_cors>=0.7,<2.0
 robinhood-aiokafka>=1.0.1,<1.1
 click>=6.7,<7.0
 colorclass>=2.2,<3.0

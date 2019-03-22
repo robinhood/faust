@@ -52,7 +52,7 @@ is ``/user/{user_id}/``.
 Blueprints can be registered to multiple apps at the same time.
 """
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Type, Union
+from typing import List, Mapping, NamedTuple, Optional, Type, Union
 
 from mode.utils.times import Seconds
 
@@ -62,6 +62,7 @@ from faust.types.web import (
     CacheBackendT,
     CacheT,
     PageArg,
+    ResourceOptions,
     RouteDecoratorRet,
     View,
     Web,
@@ -79,6 +80,7 @@ class FutureRoute(NamedTuple):
     name: str
     handler: PageArg
     base: Type[View]
+    cors_options: Mapping[str, ResourceOptions]
 
 
 class FutureStaticRoute(NamedTuple):
@@ -118,9 +120,16 @@ class Blueprint(BlueprintT):
               uri: str,
               *,
               name: Optional[str] = None,
+              cors_options: Mapping[str, ResourceOptions] = None,
               base: Type[View] = View) -> RouteDecoratorRet:
         def _inner(handler: PageArg) -> PageArg:
-            route = FutureRoute(uri, name or handler.__name__, handler, base)
+            route = FutureRoute(
+                uri=uri,
+                name=name or handler.__name__,
+                handler=handler,
+                base=base,
+                cors_options=cors_options or {},
+            )
             self.routes.append(route)
             return handler
         return _inner
@@ -159,6 +168,7 @@ class Blueprint(BlueprintT):
         app.page(
             path=uri[1:] if uri.startswith('//') else uri,
             name=self._view_name(route.name),
+            cors_options=route.cors_options,
         )(route.handler)
 
     def _view_name(self, name: str) -> str:

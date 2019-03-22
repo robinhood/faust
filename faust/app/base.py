@@ -96,6 +96,7 @@ from faust.types.web import (
     HttpClientT,
     PageArg,
     Request,
+    ResourceOptions,
     Response,
     ViewDecorator,
     ViewHandlerFun,
@@ -1046,6 +1047,7 @@ class App(AppT, Service):
 
     def page(self, path: str, *,
              base: Type[View] = View,
+             cors_options: Mapping[str, ResourceOptions] = None,
              name: str = None) -> Callable[[PageArg], Type[View]]:
         view_base: Type[View] = base if base is not None else View
 
@@ -1060,7 +1062,7 @@ class App(AppT, Service):
                 view = view_base.from_handler(cast(ViewHandlerFun, fun))
             view.view_name = name or view.__name__
             view.view_path = path
-            self.web.add_view(view)
+            self.web.add_view(view, cors_options=cors_options)
             venusian.attach(view, category=SCAN_PAGE)
             return view
 

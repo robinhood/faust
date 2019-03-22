@@ -44,6 +44,7 @@ from .web import (
     CacheBackendT,
     HttpClientT,
     PageArg,
+    ResourceOptions,
     View,
     ViewDecorator,
     Web,
@@ -272,6 +273,7 @@ class AppT(ServiceT):
     @abc.abstractmethod
     def page(self, path: str, *,
              base: Type[View] = View,
+             cors_options: Mapping[str, ResourceOptions] = None,
              name: str = None) -> Callable[[PageArg], Type[View]]:
         ...
 
