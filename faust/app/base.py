@@ -7,17 +7,19 @@ Everything starts here.
 import asyncio
 import importlib
 import inspect
+import time
 import typing
 import warnings
 from datetime import tzinfo
 from functools import wraps
-from itertools import chain
+from itertools import chain, count
 from typing import (
     Any,
     AsyncIterable,
     Awaitable,
     Callable,
     ContextManager,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -880,14 +882,22 @@ class App(AppT, Service):
         def _inner(fun: TaskArg) -> TaskArg:
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
+                def get_next_interval() -> Generator[float, None, None]:
+                    start_time = time.time()
+                    for counter in count(start=1):
+                        yield max(start_time + counter * interval_s -
+                                  time.time(), 0)
+                interval = get_next_interval()
+                sleep_time = next(interval)
                 while not self.should_stop:
-                    await self.sleep(interval_s)
+                    await self.sleep(sleep_time)
                     if not self.should_stop:
                         should_run = not on_leader or self.is_leader()
                         if should_run:
                             with self.trace(shortlabel(fun),
                                             trace_enabled=traced):
                                 await fun(*args)  # type: ignore
+                        sleep_time = next(interval)
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]
