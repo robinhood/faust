@@ -235,17 +235,24 @@ class AppT(ServiceT):
 
     @abc.abstractmethod
     @no_type_check
-    def task(self, fun: TaskArg) -> Callable:
+    def task(self, fun: TaskArg, *,
+             on_leader: bool = False,
+             traced: bool = True) -> Callable:
         ...
 
     @abc.abstractmethod
-    def timer(self, interval: Seconds, on_leader: bool = False) -> Callable:
+    def timer(self, interval: Seconds,
+              on_leader: bool = False,
+              traced: bool = True,
+              name: str = None,
+              max_drift_correction: float = 0.1) -> Callable:
         ...
 
     @abc.abstractmethod
     def crontab(self, cron_format: str, *,
                 timezone: tzinfo = None,
-                on_leader: bool = False) -> Callable:
+                on_leader: bool = False,
+                traced: bool = True) -> Callable:
         ...
 
     @abc.abstractmethod
