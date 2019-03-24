@@ -19,7 +19,6 @@ from typing import (
     Awaitable,
     Callable,
     ContextManager,
-    Generator,
     Iterable,
     Iterator,
     List,
@@ -882,7 +881,7 @@ class App(AppT, Service):
         def _inner(fun: TaskArg) -> TaskArg:
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
-                def get_next_interval() -> Generator[float, None, None]:
+                def get_next_interval():
                     start_time = time.time()
                     for counter in count(start=1):
                         yield max(start_time + counter * interval_s -
