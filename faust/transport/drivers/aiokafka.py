@@ -500,7 +500,8 @@ class Producer(base.Producer):
 
     async def _on_irrecoverable_error(self, exc: BaseException) -> None:
         consumer = self.transport.app.consumer
-        if consumer is not None:
+        if consumer is not None:  # pragma: no cover
+            # coverage executes this line, but does not mark as covered.
             await consumer.crash(exc)
         await self.crash(exc)
 

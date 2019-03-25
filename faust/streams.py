@@ -149,6 +149,7 @@ class Stream(StreamT[T_co], Service):
         # Generate message handler
         self._on_stream_event_in = self.app.sensors.on_stream_event_in
         self._on_stream_event_out = self.app.sensors.on_stream_event_out
+        self._on_message_in = self.app.sensors.on_message_in
         self._on_message_out = self.app.sensors.on_message_out
 
     def get_active_stream(self) -> StreamT:
@@ -200,10 +201,6 @@ class Stream(StreamT[T_co], Service):
             seen.add(node)
             yield node
             node = dir_.getter(node)
-
-    async def _send_to_outbox(self, value: T_contra) -> None:
-        if self.outbox is not None:
-            await self.outbox.put(value)
 
     def add_processor(self, processor: Processor[T]) -> None:
         """Add processor callback executed whenever a new event is received.
@@ -369,6 +366,10 @@ class Stream(StreamT[T_co], Service):
                         notify(buffer_consuming)
                         buffer_full.clear()
                         buffer_consumed.set()
+                else:  # pragma: no cover
+                    pass
+            else:  # pragma: no cover
+                pass
 
         finally:
             # Restore last behaviour of "enable_acks"
@@ -447,7 +448,7 @@ class Stream(StreamT[T_co], Service):
                 await channel.maybe_declare()
             self._passive_started.set()
             try:
-                async for item in self:  # noqa
+                async for item in self:  # pragma: no cover
                     ...
             except BaseException as exc:
                 # forward the exception to the final destination channel,
@@ -793,7 +794,7 @@ class Stream(StreamT[T_co], Service):
         unacked: Set[Message] = consumer._unacked_messages
         add_unacked: Callable[[Message], None] = unacked.add
         acking_topics: Set[str] = self.app.topics._acking_topics
-        on_message_in = self.app.sensors.on_message_in
+        on_message_in = self._on_message_in
         sleep = asyncio.sleep
         trace = self.app.trace
         _shortlabel = shortlabel
@@ -823,7 +824,10 @@ class Stream(StreamT[T_co], Service):
                         # chan is an AsyncIterable
                         channel_value = await chan_slow_get()
 
+                    print('GOT CHANVAL: %r' % (channel_value,))
+
                     if isinstance(channel_value, event_cls):
+                        print('IS EVENT')
                         event = channel_value
                         message = event.message
                         topic = message.topic
@@ -831,6 +835,7 @@ class Stream(StreamT[T_co], Service):
                         offset = message.offset
 
                         if topic in acking_topics and not message.tracked:
+                            print('ACKING')
                             message.tracked = True
                             # This inlines Consumer.track_message(message)
                             add_unacked(message)
@@ -866,8 +871,10 @@ class Stream(StreamT[T_co], Service):
                 try:
                     yield value
                 except CancelledError:
+                    print('ACK CANCELLED TASKS? %r' % (ack_cancelled_tasks,))
                     if not ack_cancelled_tasks:
                         do_ack = False
+                    print('STREAM GOT CANCLEED: %r' %(do_ack,))
                     raise
                 except Exception:
                     if not ack_exceptions:
@@ -881,6 +888,7 @@ class Stream(StreamT[T_co], Service):
                         do_ack = False
                     raise
                 finally:
+                    print('FINALLY!!!')
                     self.current_event = None
                     if do_ack and event is not None:
                         # This inlines self.ack
