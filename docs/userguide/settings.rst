@@ -1197,7 +1197,7 @@ URLs to :class:`~faust.web.ResourceOptions`:
 
 .. sourcecode:: python
 
-    app = App(..., cors_options={
+    app = App(..., web_cors_options={
         'http://foo.example.com': ResourceOptions(
             allow_credentials=True,
             allow_methods='*',
