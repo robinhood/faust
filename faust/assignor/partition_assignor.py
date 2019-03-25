@@ -191,14 +191,17 @@ class PartitionAssignor(AbstractPartitionAssignor, PartitionAssignorT):
             self,
             cluster: ClusterMetadata,
             member_metadata: MemberMetadataMapping) -> MemberAssignmentMapping:
-        assignment = self._perform_assignment(cluster, member_metadata)
         if self.app.tracer:
             span = self.app.tracer.get_tracer('_faust').start_span(
                 operation_name='coordinator_assignment',
                 tags={'hostname': socket.gethostname(),
                       'cluster': cluster,
                       'member_metadata': member_metadata})
-            span.set_tag('assignment', assignment)
+            with span:
+                assignment = self._perform_assignment(cluster, member_metadata)
+                span.set_tag('assignment', assignment)
+        else:
+            assignment = self._perform_assignment(cluster, member_metadata)
         return assignment
 
     def _perform_assignment(
