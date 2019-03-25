@@ -327,8 +327,10 @@ class Stream(StreamT[T_co], Service):
                         buffer_consuming = None
                 buffer_add(cast(T_co, value))
                 event = self.current_event
-                if event is not None:
-                    event_add(event)
+                if event is None:
+                    raise RuntimeError(
+                        'Take buffer found current_event is None')
+                event_add(event)
                 if buffer_size() >= max_:
                     # signal that the buffer is full and should be emptied.
                     buffer_full.set()
@@ -336,6 +338,8 @@ class Stream(StreamT[T_co], Service):
                     # If max is 1000, we are not allowed to return 1001 values.
                     buffer_consumed.clear()
                     await self.wait(buffer_consumed)
+            except CancelledError:  # pragma: no cover
+                raise
             except Exception as exc:
                 self.log.exception('Error adding to take buffer: %r', exc)
                 await self.crash(exc)
@@ -352,8 +356,8 @@ class Stream(StreamT[T_co], Service):
                 # wait until buffer full, or timeout
                 await self.wait_for_stopped(buffer_full, timeout=timeout)
                 if buffer:
-                    # make sure background thread does not add new times to
-                    # budfer while we read.
+                    # make sure background thread does not add new items to
+                    # buffer while we read.
                     buffer_consuming = self.loop.create_future()
                     try:
                         yield list(buffer)
@@ -708,29 +712,12 @@ class Stream(StreamT[T_co], Service):
         self._finalized = True
         await self.maybe_start()
         it = _CStreamIterator(self)
-        ack_exceptions = self.app.conf.stream_ack_exceptions
-        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
         try:
             while not self.should_stop:
                 do_ack = self.enable_acks
                 value = await it.next()  # noqa: B305
                 try:
                     yield value
-                except CancelledError:
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
-                except Exception:
-                    if not ack_exceptions:
-                        do_ack = False
-                    raise
-                except GeneratorExit:
-                    raise  # consumer did `break`
-                except BaseException:
-                    # e.g. SystemExit/KeyboardInterrupt
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
                 finally:
                     event, self.current_event = self.current_event, None
                     it.after(event, do_ack)
@@ -787,8 +774,6 @@ class Stream(StreamT[T_co], Service):
         _maybe_async = maybe_async
         event_cls = EventT
         _current_event_contextvar = _current_event
-        ack_exceptions = self.app.conf.stream_ack_exceptions
-        ack_cancelled_tasks = self.app.conf.stream_ack_cancelled_tasks
 
         consumer: ConsumerT = self.app.consumer
         unacked: Set[Message] = consumer._unacked_messages
@@ -824,10 +809,7 @@ class Stream(StreamT[T_co], Service):
                         # chan is an AsyncIterable
                         channel_value = await chan_slow_get()
 
-                    print('GOT CHANVAL: %r' % (channel_value,))
-
                     if isinstance(channel_value, event_cls):
-                        print('IS EVENT')
                         event = channel_value
                         message = event.message
                         topic = message.topic
@@ -835,7 +817,6 @@ class Stream(StreamT[T_co], Service):
                         offset = message.offset
 
                         if topic in acking_topics and not message.tracked:
-                            print('ACKING')
                             message.tracked = True
                             # This inlines Consumer.track_message(message)
                             add_unacked(message)
@@ -870,25 +851,7 @@ class Stream(StreamT[T_co], Service):
                     value = await on_merge(value)
                 try:
                     yield value
-                except CancelledError:
-                    print('ACK CANCELLED TASKS? %r' % (ack_cancelled_tasks,))
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    print('STREAM GOT CANCLEED: %r' %(do_ack,))
-                    raise
-                except Exception:
-                    if not ack_exceptions:
-                        do_ack = False
-                    raise
-                except GeneratorExit:
-                    raise  # consumer did `break`
-                except BaseException:
-                    # e.g. SystemExit/KeyboardInterrupt
-                    if not ack_cancelled_tasks:
-                        do_ack = False
-                    raise
                 finally:
-                    print('FINALLY!!!')
                     self.current_event = None
                     if do_ack and event is not None:
                         # This inlines self.ack

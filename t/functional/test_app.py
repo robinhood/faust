@@ -80,8 +80,6 @@ class test_settings:
         assert (conf.stream_publish_on_commit ==
                 settings.STREAM_PUBLISH_ON_COMMIT)
         assert conf.stream_wait_empty
-        assert not conf.stream_ack_cancelled_tasks
-        assert conf.stream_ack_exceptions
         assert (conf.broker_max_poll_records ==
                 settings.BROKER_MAX_POLL_RECORDS)
         assert (conf.consumer_auto_offset_reset ==
@@ -194,8 +192,6 @@ class test_settings:
                                  reply_expires=90.9,
                                  stream_buffer_maxsize=101,
                                  stream_wait_empty=True,
-                                 stream_ack_cancelled_tasks=True,
-                                 stream_ack_exceptions=False,
                                  stream_publish_on_commit=False,
                                  stream_recovery_delay=69.3,
                                  web_bind='localhost',
@@ -257,8 +253,6 @@ class test_settings:
             reply_expires=reply_expires,
             stream_buffer_maxsize=stream_buffer_maxsize,
             stream_wait_empty=stream_wait_empty,
-            stream_ack_cancelled_tasks=stream_ack_cancelled_tasks,
-            stream_ack_exceptions=stream_ack_exceptions,
             stream_publish_on_commit=stream_publish_on_commit,
             stream_recovery_delay=stream_recovery_delay,
             timezone=timezone,
@@ -311,8 +305,6 @@ class test_settings:
         assert conf.reply_expires == reply_expires
         assert conf.stream_buffer_maxsize == stream_buffer_maxsize
         assert conf.stream_wait_empty == stream_wait_empty
-        assert conf.stream_ack_cancelled_tasks == stream_ack_cancelled_tasks
-        assert conf.stream_ack_exceptions == stream_ack_exceptions
         assert conf.stream_publish_on_commit == stream_publish_on_commit
         assert conf.stream_recovery_delay == stream_recovery_delay
         assert conf.timezone is timezone
@@ -374,6 +366,17 @@ class test_settings:
         with pytest.warns(FutureWarning):
             assert self.App(
                 num_standby_replicas=34).conf.table_standby_replicas == 34
+
+    def test_compat_stream_ack_cancelled_tasks(self):
+        with pytest.warns(UserWarning):
+            assert not self.App(
+                stream_ack_cancelled_tasks=False,
+            ).conf.stream_ack_cancelled_tasks
+
+    def test_compat_stream_ack_exceptions(self):
+        with pytest.warns(UserWarning):
+            assert self.App(
+                stream_ack_exceptions=True).conf.stream_ack_exceptions
 
     def test_compat_default_partitions(self):
         with pytest.warns(FutureWarning):

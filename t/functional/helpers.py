@@ -1,5 +1,4 @@
 import asyncio
-from time import time
 from mode.utils.aiter import anext
 import pytest
 from t.helpers import message

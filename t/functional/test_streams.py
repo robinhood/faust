@@ -1,6 +1,7 @@
 import asyncio
 from copy import copy
 
+import faust
 import pytest
 from faust.exceptions import ImproperlyConfigured
 from faust.streams import maybe_forward
@@ -9,6 +10,10 @@ from mode.utils.aiter import aiter, anext
 from mode.utils.mocks import AsyncMock, Mock
 
 from .helpers import channel_empty, message, put
+
+
+class FooModel(faust.Record):
+    foo: str
 
 
 def new_stream(app, *args, **kwargs):
@@ -153,6 +158,16 @@ def test_group_by_callback_must_have_name(app):
     s = new_topic_stream(app)
     with pytest.raises(TypeError):
         s.group_by(lambda s: s.foo)
+
+
+@pytest.mark.asyncio
+async def test_group_by__with_prefix(app):
+    expected_topic = 'test-foo.bar.baz-funtest-FooModel.foo-repartition'
+    async with new_topic_stream(app) as stream:
+        stream.prefix = 'foo.bar.baz'
+        stream._enable_passive = Mock()
+        async with stream.group_by(FooModel.foo) as s2:
+            assert s2.channel.get_topic_name() == expected_topic
 
 
 @pytest.mark.asyncio
@@ -524,6 +539,87 @@ async def test_take(app):
             assert event.message.acked
             assert not event.message.refcount
         assert s.enable_acks is True
+
+
+@pytest.mark.asyncio
+async def test_take__10(app, loop):
+    s = new_stream(app)
+    async with s:
+        assert s.enable_acks is True
+        for i in range(9):
+            await s.channel.send(value=i)
+
+        async def in_one_second_finalize():
+            await s.sleep(1.0)
+            await s.channel.send(value=9)
+            for i in range(10):
+                await s.channel.send(value=i + 10)
+        asyncio.ensure_future(in_one_second_finalize())
+
+        event = None
+        buffer_processor = s.take(10, within=10.0)
+        async for value in buffer_processor:
+            assert value == list(range(10))
+            assert s.enable_acks is False
+            event = mock_stream_event_ack(s)
+            break
+        async for value in buffer_processor:
+            assert value == list(range(10, 20))
+            assert s.enable_acks is False
+            break
+
+        try:
+            await buffer_processor.athrow(asyncio.CancelledError())
+        except asyncio.CancelledError:
+            pass
+
+        assert event
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+
+    if not event.ack.called:
+        assert event.message.acked
+        assert not event.message.refcount
+    assert s.enable_acks is True
+
+
+@pytest.mark.asyncio
+async def test_take__no_event_crashes(app, loop):
+
+    class NoCurrentEventStream(faust.Stream):
+
+        @property
+        def current_event(self):
+            return None
+
+        @current_event.setter
+        def current_event(self, event):
+            pass
+    app.conf.Stream = NoCurrentEventStream
+
+    s = new_stream(app)
+    async with s:
+        assert s.enable_acks is True
+        await s.channel.send(value=1)
+        buffer_processor = s.take(10, within=10.0)
+        async for value in buffer_processor:
+            pass
+
+        try:
+            await buffer_processor.athrow(asyncio.CancelledError())
+        except asyncio.CancelledError:
+            pass
+
+        # need one sleep on Python 3.6.0-3.6.6 + 3.7.0
+        # need two sleeps on Python 3.6.7 + 3.7.1 :-/
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        await asyncio.sleep(0)  # needed for some reason
+        assert isinstance(s._crash_reason, RuntimeError)
+    assert s.enable_acks is True
 
 
 @pytest.mark.asyncio

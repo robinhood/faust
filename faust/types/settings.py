@@ -263,7 +263,11 @@ PRODUCER_REQUEST_TIMEOUT: float = 1200.0  # 20 minutes.
 PRODUCER_ACKS = -1
 
 #: Set of settings added for backwards compatibility
-SETTINGS_COMPAT: Set[str] = {'url'}
+SETTINGS_COMPAT: Set[str] = {
+    'stream_ack_exceptions',
+    'stream_ack_cancelled_tasks',
+    'url',
+}
 
 #: Set of :func:`inspect.signature` parameter types to ignore
 #: when building the list of supported seting names.
@@ -293,7 +297,7 @@ class Settings(abc.ABC):
     reply_create_topic: bool = False
     stream_buffer_maxsize: int = STREAM_BUFFER_MAXSIZE
     stream_wait_empty: bool = True
-    stream_ack_cancelled_tasks: bool = False
+    stream_ack_cancelled_tasks: bool = True
     stream_ack_exceptions: bool = True
     stream_publish_on_commit: bool = STREAM_PUBLISH_ON_COMMIT
     ssl_context: Optional[ssl.SSLContext] = None
@@ -543,8 +547,12 @@ class Settings(abc.ABC):
         if stream_wait_empty is not None:
             self.stream_wait_empty = stream_wait_empty
         if stream_ack_cancelled_tasks is not None:
+            warnings.warn(UserWarning(
+                'deprecated stream_ack_cancelled_tasks will have no effect'))
             self.stream_ack_cancelled_tasks = stream_ack_cancelled_tasks
         if stream_ack_exceptions is not None:
+            warnings.warn(UserWarning(
+                'deprecated stream_ack_exceptions will have no effect'))
             self.stream_ack_exceptions = stream_ack_exceptions
         if stream_publish_on_commit is not None:
             self.stream_publish_on_commit = stream_publish_on_commit

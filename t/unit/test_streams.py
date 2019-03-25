@@ -1,4 +1,5 @@
 import asyncio
+from time import monotonic
 import faust
 import pytest
 from faust import joins
@@ -131,9 +132,18 @@ class test_Stream:
 
     @pytest.mark.asyncio
     @pytest.mark.allow_lingering_tasks(count=1)
-    async def test_aiter_tracked__cancelled_acks(self, *, stream, app):
-        app.conf.stream_ack_cancelled_tasks = True
+    async def test_aiter_tracked__last_batch_set(self, *, stream, app):
+        event = await self._assert_stream_aiter(
+            stream,
+            side_effect=None,
+            raises=None,
+            last_batch=monotonic(),
+        )
+        event.ack.assert_called_once_with()
 
+    @pytest.mark.asyncio
+    @pytest.mark.allow_lingering_tasks(count=1)
+    async def test_aiter_tracked__CancelledError(self, *, stream, app):
         event = await self._assert_stream_aiter(
             stream,
             side_effect=asyncio.CancelledError(),
@@ -141,61 +151,48 @@ class test_Stream:
         )
         event.ack.assert_called_once_with()
 
-    @pytest.mark.asyncio
-    @pytest.mark.allow_lingering_tasks(count=1)
-    async def test_aiter_tracked__cancelled_noacks(self, *, stream, app):
-        app.conf.stream_ack_cancelled_tasks = False
-
-        event = await self._assert_stream_aiter(
-            stream,
-            side_effect=asyncio.CancelledError(),
-            raises=asyncio.CancelledError,
-        )
-        event.ack.assert_not_called()
-
     async def _assert_stream_aiter(self, stream,
                                    side_effect=None,
-                                   raises=None):
+                                   raises=None,
+                                   last_batch=None):
         sentinel = object()
         app = stream.app
         app.consumer = Mock(name='app.consumer')
+        app.consumer._last_batch = last_batch
         app.flow_control.resume()
         app.topics._acking_topics.add('foo')
         event = new_event(app, topic='foo', value=32)
         event.message.tracked = False
         event.ack = Mock(name='event.ack')
         channel = app.channel()
-        stream.channel = channel.__aiter__()
-        await stream.channel.put(event)
-        await stream.channel.put(new_event(app, topic='bar', value=sentinel))
 
-        stream._on_message_in = Mock()
+        got_sentinel = asyncio.Event()
 
-        it = stream.__aiter__()
-
-        got_sentinel = False
-        try:
+        @app.agent(channel)
+        async def agent(stream):
             with ExitStack() as stack:
                 if raises:
                     stack.enter_context(pytest.raises(raises))
-                async for value in it:
+                async for value in stream:
                     if value is sentinel:
-                        print('GOT SENTINEL')
-                        got_sentinel = True
+                        got_sentinel.set()
                         break
                     assert value is event.value
                     if side_effect:
+                        got_sentinel.set()
                         raise side_effect
-        except:
-            pass
-        if not got_sentinel:
-            async for value in it:
-                assert value is sentinel
-                print('GOT SENTINEL')
-                got_sentinel = True
-                break
 
-        stream._on_message_in.assert_called_once_with(
+        s: faust.StreamT = None
+        async with agent as _agent:
+            s = list(_agent._actors)[0].stream.get_active_stream()
+            await s.channel.put(event)
+            await s.channel.put(new_event(app, topic='bar', value=sentinel))
+            s._on_message_in = Mock()
+            await got_sentinel.wait()
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+        s._on_message_in.assert_called_once_with(
             event.message.tp,
             event.message.offset,
             event.message,
