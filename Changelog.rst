@@ -8,6 +8,18 @@ This document contain change notes for bugfix releases in
 the Faust 1.5 series. If you're looking for previous releases,
 please visit the :ref:`history` section.
 
+.. _version-1.5.1:
+
+1.5.1
+=====
+:release-date: 2019-03-24 09:45 P.M PST
+:release-by: Ask Solem (:github_user:`ask`)
+
+- Fixed hanging in partition assignment introduced in Faust 1.5
+  (Issue #320).
+
+    Contributed by Bob Haddleton (:github_user:`bobh66`).
+
 .. _version-1.5.0:
 
 1.5.0
