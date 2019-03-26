@@ -5,6 +5,7 @@ pytest-aiohttp>=0.3.0
 pytest-asyncio>=0.8
 pytest-forked
 pytest-openfiles>=0.2.0
+pytest-picked
 pytest-random-order>=0.5.4
 pytest-xdist>=1.20
 pytest~=3.6
