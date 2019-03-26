@@ -1,9 +1,11 @@
 """Base-interface for sensors."""
+from time import monotonic
 from typing import Any, Iterator, Mapping, Set
 
 from mode import Service
 
 from faust.types import AppT, CollectionT, EventT, StreamT
+from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.sensors import SensorDelegateT, SensorT
 from faust.types.topics import TopicT
@@ -91,6 +93,21 @@ class Sensor(SensorT, Service):
                       exc: BaseException,
                       state: Any) -> None:
         """Error while sending message."""
+        ...
+
+    def on_assignment_start(self,
+                            assignor: PartitionAssignorT) -> Mapping:
+        return {'time_start': monotonic()}
+
+    def on_assignment_error(self,
+                            assignor: PartitionAssignorT,
+                            state: Mapping,
+                            exc: BaseException) -> None:
+        ...
+
+    def on_assignment_completed(self,
+                                assignor: PartitionAssignorT,
+                                state: Mapping) -> None:
         ...
 
     def asdict(self) -> Mapping:
@@ -189,6 +206,26 @@ class SensorDelegate(SensorDelegateT):
                       state: Any) -> None:
         for sensor in self._sensors:
             sensor.on_send_error(producer, exc, state[sensor])
+
+    def on_assignment_start(self,
+                            assignor: PartitionAssignorT) -> Mapping:
+        return {
+            sensor: sensor.on_assignment_start(assignor)
+            for sensor in self._sensors
+        }
+
+    def on_assignment_error(self,
+                            assignor: PartitionAssignorT,
+                            state: Mapping,
+                            exc: BaseException) -> None:
+        for sensor in self._sensors:
+            sensor.on_assignment_error(assignor, state[sensor], exc)
+
+    def on_assignment_completed(self,
+                                assignor: PartitionAssignorT,
+                                state: Mapping) -> None:
+        for sensor in self._sensors:
+            sensor.on_assignment_completed(assignor, state[sensor])
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__}: {self._sensors!r}>'

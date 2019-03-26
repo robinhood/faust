@@ -97,6 +97,10 @@ class test_Monitor:
             'events_by_stream': mon._events_by_stream_dict(),
             'commit_latency': mon.commit_latency,
             'send_latency': mon.send_latency,
+            'assignment_latency': mon.assignment_latency,
+            'assignments_completed': mon.assignments_completed,
+            'assignments_failed': mon.assignments_failed,
+            'send_errors': mon.send_errors,
             'topic_buffer_full': mon._topic_buffer_full_dict(),
             'metric_counts': mon._metric_counts_dict(),
             'tables': {
@@ -111,12 +115,14 @@ class test_Monitor:
         mon._cleanup_max_avg_history = Mock(name='cleanup_max_avg')
         mon._cleanup_commit_latency_history = Mock(name='cleanup_commit')
         mon._cleanup_send_latency_history = Mock(name='cleanup_send')
+        mon._cleanup_assignment_latency_history = Mock(name='cleanup_assign')
 
         mon._cleanup()
 
         mon._cleanup_max_avg_history.assert_called_once_with()
         mon._cleanup_commit_latency_history.assert_called_once_with()
         mon._cleanup_send_latency_history.assert_called_once_with()
+        mon._cleanup_assignment_latency_history.assert_called_once_with()
 
     def test_cleanup_max_avg_history(self, *, mon):
         mon.max_avg_history = 10
@@ -150,6 +156,17 @@ class test_Monitor:
         mon.send_latency.extend(list(range(10)))
         mon._cleanup_send_latency_history()
         assert mon.send_latency == list(range(10))
+
+    def test_cleanup_assignment_latency_history(self, *, mon):
+        mon.max_assignment_latency_history = 10
+
+        mon.assignment_latency = list(range(5))
+        mon._cleanup_assignment_latency_history()
+        assert mon.assignment_latency == list(range(5))
+
+        mon.assignment_latency.extend(list(range(10)))
+        mon._cleanup_assignment_latency_history()
+        assert mon.assignment_latency == list(range(10))
 
     def test_on_message_in(self, *, message, mon, time):
         for i in range(1, 11):
@@ -266,6 +283,27 @@ class test_Monitor:
             KeyError('foo'),
         )
         assert mon.send_errors == 1
+
+    def test_on_assignment_start(self, *, mon, time):
+        state = mon.on_assignment_start(Mock(name='assignor'))
+        assert state['time_start'] == time()
+
+    def test_on_assignment_completed(self, *, mon, time):
+        other_time = 56.7
+        assignor = Mock(name='assignor')
+        assert mon.assignments_completed == 0
+        mon.on_assignment_completed(assignor, {'time_start': other_time})
+        assert mon.assignment_latency[-1] == time() - other_time
+        assert mon.assignments_completed == 1
+
+    def test_on_assignment_error(self, *, mon, time):
+        other_time = 56.7
+        assignor = Mock(name='assignor')
+        assert mon.assignments_failed == 0
+        mon.on_assignment_error(
+            assignor, {'time_start': other_time}, KeyError())
+        assert mon.assignment_latency[-1] == time() - other_time
+        assert mon.assignments_failed == 1
 
     def test_TableState_asdict(self, *, mon, table):
         state = mon._table_or_create(table)

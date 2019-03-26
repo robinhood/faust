@@ -2,7 +2,7 @@
 import re
 import typing
 from time import monotonic
-from typing import Any, Pattern, cast
+from typing import Any, Mapping, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -16,6 +16,7 @@ from faust.types import (
     StreamT,
     TP,
 )
+from faust.types.assignor import PartitionAssignorT
 from faust.types.transports import ConsumerT, ProducerT
 
 from .monitor import Monitor, TPOffsetMapping
@@ -157,6 +158,27 @@ class StatsdMonitor(Monitor):
         self.client.timing(
             'send_latency_for_error',
             self._time(monotonic() - cast(float, state)),
+            rate=self.rate)
+
+    def on_assignment_error(self,
+                            assignor: PartitionAssignorT,
+                            state: Mapping,
+                            exc: BaseException) -> None:
+        super().on_assignment_error(assignor, state, exc)
+        self.client.incr('assignments_error', rate=self.rate)
+        self.client.timing(
+            'assignment_latency',
+            self._time(monotonic() - state['time_start']),
+            rate=self.rate)
+
+    def on_assignment_completed(self,
+                                assignor: PartitionAssignorT,
+                                state: Mapping) -> None:
+        super().on_assignment_completed(assignor, state)
+        self.client.incr('assignments_complete', rate=self.rate)
+        self.client.timing(
+            'assignment_latency',
+            self._time(monotonic() - state['time_start']),
             rate=self.rate)
 
     def count(self, metric_name: str, count: int = 1) -> None:

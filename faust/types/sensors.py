@@ -1,8 +1,9 @@
 import abc
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from mode import ServiceT
 
+from .assignor import PartitionAssignorT
 from .events import EventT
 from .streams import StreamT
 from .tables import CollectionT
@@ -78,6 +79,23 @@ class SensorInterfaceT(abc.ABC):
                       producer: ProducerT,
                       exc: BaseException,
                       state: Any) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_assignment_start(self, assignor: PartitionAssignorT) -> Mapping:
+        ...
+
+    @abc.abstractmethod
+    def on_assignment_error(self,
+                            assignor: PartitionAssignorT,
+                            state: Mapping,
+                            exc: BaseException) -> None:
+        ...
+
+    @abc.abstractmethod
+    def on_assignment_completed(self,
+                                assignor: PartitionAssignorT,
+                                state: Mapping) -> None:
         ...
 
 

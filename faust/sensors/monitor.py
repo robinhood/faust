@@ -9,6 +9,7 @@ from mode.utils.objects import KeywordReduce
 from mode.utils.typing import Counter
 
 from faust.types import CollectionT, EventT, StreamT, TopicT
+from faust.types.assignor import PartitionAssignorT
 from faust.types.tuples import Message, PendingMessage, RecordMetadata, TP
 from faust.types.transports import ConsumerT, ProducerT
 
@@ -19,6 +20,7 @@ __all__ = ['TableState', 'Monitor']
 MAX_AVG_HISTORY = 100
 MAX_COMMIT_LATENCY_HISTORY = 30
 MAX_SEND_LATENCY_HISTORY = 30
+MAX_ASSIGNMENT_LATENCY_HISTORY = 30
 
 TPOffsetMapping = MutableMapping[TP, int]
 PartitionOffsetMapping = MutableMapping[int, int]
@@ -72,13 +74,16 @@ class Monitor(Sensor, KeywordReduce):
     """
 
     #: Max number of total run time values to keep to build average.
-    max_avg_history: int = 0
+    max_avg_history: int = MAX_AVG_HISTORY
 
     #: Max number of commit latency numbers to keep.
-    max_commit_latency_history: int = 0
+    max_commit_latency_history: int = MAX_COMMIT_LATENCY_HISTORY
 
     #: Max number of send latency numbers to keep.
-    max_send_latency_history: int = 0
+    max_send_latency_history: int = MAX_SEND_LATENCY_HISTORY
+
+    #: Max number of assignment latency numbers to keep.
+    max_assignment_latency_history: int = MAX_ASSIGNMENT_LATENCY_HISTORY
 
     #: Mapping of tables
     tables: MutableMapping[str, TableState] = cast(
@@ -129,6 +134,9 @@ class Monitor(Sensor, KeywordReduce):
     #: List of send latency values
     send_latency: List[float] = cast(List[float], None)
 
+    #: List of assignment latency values.
+    assignment_latency: List[float] = cast(List[float], None)
+
     #: Counter of times a topics buffer was full
     topic_buffer_full: Counter[TopicT] = cast(Counter[TopicT], None)
 
@@ -147,11 +155,18 @@ class Monitor(Sensor, KeywordReduce):
     #: Number of produce operations that ended in error.
     send_errors = 0
 
+    #: Number of partition assignments completed.
+    assignments_completed = 0
+
+    #: Number of partitions assignments that failed.
+    assignments_failed = 0
+
     def __init__(self,
                  *,
-                 max_avg_history: int = MAX_AVG_HISTORY,
-                 max_commit_latency_history: int = MAX_COMMIT_LATENCY_HISTORY,
-                 max_send_latency_history: int = MAX_SEND_LATENCY_HISTORY,
+                 max_avg_history: int = None,
+                 max_commit_latency_history: int = None,
+                 max_send_latency_history: int = None,
+                 max_assignment_latency_history: int = None,
                  messages_sent: int = 0,
                  tables: MutableMapping[str, TableState] = None,
                  messages_active: int = 0,
@@ -164,18 +179,27 @@ class Monitor(Sensor, KeywordReduce):
                  events_runtime: List[float] = None,
                  commit_latency: List[float] = None,
                  send_latency: List[float] = None,
+                 assignment_latency: List[float] = None,
                  events_s: int = 0,
                  messages_s: int = 0,
                  events_runtime_avg: float = 0.0,
                  topic_buffer_full: Counter[TopicT] = None,
                  **kwargs: Any) -> None:
-        self.max_avg_history = max_avg_history
-        self.max_commit_latency_history = max_commit_latency_history
-        self.max_send_latency_history = max_send_latency_history
+        if max_avg_history is not None:
+            self.max_avg_history = max_avg_history
+        if max_commit_latency_history is not None:
+            self.max_commit_latency_history = max_commit_latency_history
+        if max_send_latency_history is not None:
+            self.max_send_latency_history = max_send_latency_history
+        if max_assignment_latency_history is not None:
+            self.max_assignment_latency_history = (
+                max_assignment_latency_history)
 
         self.tables = {} if tables is None else tables
         self.commit_latency = [] if commit_latency is None else commit_latency
         self.send_latency = [] if send_latency is None else send_latency
+        self.assignment_latency = (
+            [] if assignment_latency is None else assignment_latency)
 
         self.messages_active = messages_active
         self.messages_received_total = messages_received_total
@@ -243,6 +267,10 @@ class Monitor(Sensor, KeywordReduce):
             'events_by_stream': self._events_by_stream_dict(),
             'commit_latency': self.commit_latency,
             'send_latency': self.send_latency,
+            'send_errors': self.send_errors,
+            'assignment_latency': self.assignment_latency,
+            'assignments_completed': self.assignments_completed,
+            'assignments_failed': self.assignments_failed,
             'topic_buffer_full': self._topic_buffer_full_dict(),
             'tables': {
                 name: table.asdict() for name, table in self.tables.items()
@@ -290,6 +318,7 @@ class Monitor(Sensor, KeywordReduce):
         self._cleanup_max_avg_history()
         self._cleanup_commit_latency_history()
         self._cleanup_send_latency_history()
+        self._cleanup_assignment_latency_history()
 
     def _cleanup_max_avg_history(self) -> None:
         max_history = self.max_avg_history
@@ -308,6 +337,12 @@ class Monitor(Sensor, KeywordReduce):
         send_latency = self.send_latency
         if max_history is not None and len(send_latency) > max_history:
             send_latency[:len(send_latency) - max_history] = []
+
+    def _cleanup_assignment_latency_history(self) -> None:
+        max_history = self.max_assignment_latency_history
+        assignment_latency = self.assignment_latency
+        if max_history is not None and len(assignment_latency) > max_history:
+            assignment_latency[:len(assignment_latency) - max_history] = []
 
     def on_message_in(self, tp: TP, offset: int, message: Message) -> None:
         # WARNING: Sensors must never keep a reference to the Message,
@@ -405,3 +440,22 @@ class Monitor(Sensor, KeywordReduce):
 
     def track_tp_end_offset(self, tp: TP, offset: int) -> None:
         self.tp_end_offsets[tp] = offset
+
+    def on_assignment_start(self,
+                            assignor: PartitionAssignorT) -> Mapping:
+        return {'time_start': self.time()}
+
+    def on_assignment_error(self,
+                            assignor: PartitionAssignorT,
+                            state: Mapping,
+                            exc: BaseException) -> None:
+        time_total = self.time() - state['time_start']
+        self.assignment_latency.append(time_total)
+        self.assignments_failed += 1
+
+    def on_assignment_completed(self,
+                                assignor: PartitionAssignorT,
+                                state: Mapping) -> None:
+        time_total = self.time() - state['time_start']
+        self.assignment_latency.append(time_total)
+        self.assignments_completed += 1

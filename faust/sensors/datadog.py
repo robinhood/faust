@@ -1,7 +1,7 @@
 """Monitor using datadog."""
 import re
 from time import monotonic
-from typing import Any, Dict, List, Optional, Pattern, cast
+from typing import Any, Dict, List, Mapping, Optional, Pattern, cast
 
 from mode.utils.objects import cached_property
 
@@ -16,6 +16,7 @@ from faust.types import (
     StreamT,
     TP,
 )
+from faust.types.assignor import PartitionAssignorT
 from faust.types.transports import ConsumerT, ProducerT
 
 try:
@@ -250,6 +251,27 @@ class DatadogMonitor(Monitor):
         self.client.timing(
             'send_latency_for_error',
             self._time(monotonic() - cast(float, state)),
+        )
+
+    def on_assignment_error(self,
+                            assignor: PartitionAssignorT,
+                            state: Mapping,
+                            exc: BaseException) -> None:
+        super().on_assignment_error(assignor, state, exc)
+        self.client.increment('assignments_error')
+        self.client.timing(
+            'assignment_latency',
+            self._time(monotonic() - state['time_start']),
+        )
+
+    def on_assignment_completed(self,
+                                assignor: PartitionAssignorT,
+                                state: Mapping) -> None:
+        super().on_assignment_completed(assignor, state)
+        self.client.increment('assignments_complete')
+        self.client.timing(
+            'assignment_latency',
+            self._time(monotonic() - state['time_start']),
         )
 
     def count(self, metric_name: str, count: int = 1) -> None:
