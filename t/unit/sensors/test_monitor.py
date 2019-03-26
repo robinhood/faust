@@ -80,6 +80,39 @@ class test_Monitor:
             topic_buffer_full=topic_buffer_full,
             **kwargs)
 
+    def test_init_max_avg_history(self):
+        assert Monitor().max_avg_history == Monitor.max_avg_history
+
+    def test_init_max_avg_history__default(self):
+        assert Monitor(max_avg_history=33).max_avg_history == 33
+
+    def test_init_max_commit_latency_history(self):
+        assert (Monitor().max_commit_latency_history ==
+                Monitor.max_commit_latency_history)
+
+    def test_init_max_commit_latency_history__default(self):
+        assert Monitor(
+            max_commit_latency_history=33,
+        ).max_commit_latency_history == 33
+
+    def test_init_max_send_latency_history(self):
+        assert (Monitor().max_send_latency_history ==
+                Monitor.max_send_latency_history)
+
+    def test_init_max_send_latency_history__default(self):
+        assert Monitor(
+            max_send_latency_history=33,
+        ).max_send_latency_history == 33
+
+    def test_init_max_assignment_latency_history(self):
+        assert (Monitor().max_assignment_latency_history ==
+                Monitor.max_assignment_latency_history)
+
+    def test_init_max_assignment_latency_history__default(self):
+        assert Monitor(
+            max_assignment_latency_history=33,
+        ).max_assignment_latency_history == 33
+
     def test_asdict(self):
         mon = self.create_populated_monitor()
         assert mon.asdict() == {
