@@ -601,12 +601,16 @@ async def test_take__no_event_crashes(app, loop):
     app.conf.Stream = NoCurrentEventStream
 
     s = new_stream(app)
+    assert isinstance(s, NoCurrentEventStream)
     async with s:
         assert s.enable_acks is True
         await s.channel.send(value=1)
         buffer_processor = s.take(10, within=10.0)
+        print('STARTING STREAM ITERATION')
         async for value in buffer_processor:
-            pass
+            print(f'RECEIVED VALUE: {value!r}')
+            break
+        print('ENDING STREAM ITERATION')
 
         try:
             await buffer_processor.athrow(asyncio.CancelledError())
@@ -619,6 +623,7 @@ async def test_take__no_event_crashes(app, loop):
         await asyncio.sleep(0)  # needed for some reason
         await asyncio.sleep(0)  # needed for some reason
         assert isinstance(s._crash_reason, RuntimeError)
+    print('RETURNING')
     assert s.enable_acks is True
 
 
