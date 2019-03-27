@@ -1,4 +1,4 @@
-.. _guide-agents:
+. _guide-agents:
 
 =============================================
   Agents - Self-organizing Stream Processors
@@ -453,7 +453,8 @@ Function Callback
 
         @app.agent(sink=[mysink])
         async def myagent(stream):
-            ...
+            async for value in stream:
+                yield value * 2
 
 Async Function Callback
     If you provide an async function, the agent will :keyword:`await` it:
@@ -469,7 +470,8 @@ Async Function Callback
 
         @app.agent(sink=[mysink])
         async def myagent(stream):
-            ...
+            async for value in stream:
+                yield value * 2
 
 Topic
     Specifying a topic as the sink will force the agent to forward yielded
@@ -481,7 +483,8 @@ Topic
 
         @app.agent(sink=[agent_log_topic])
         async def myagent(stream):
-            ...
+            async for value in stream:
+                yield value
 
 Another Agent
     Specifying another agent as the sink will force the agent to forward yielded
@@ -491,13 +494,14 @@ Another Agent
 
         @app.agent()
         async def agent_b(stream):
-            async for event in stream:
+            async for value in stream:
                 print(f'AGENT B RECEIVED: {event!r}')
 
         @app.agent(sink=[agent_b])
         async def agent_a(stream):
-            async for event in stream:
+            async for value in stream:
                 print(f'AGENT A RECEIVED: {event!r}')
+                yield value * 2
 
 
 .. _agent-errors:
