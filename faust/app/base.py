@@ -660,6 +660,8 @@ class App(AppT, Service):
         """Execute the :program:`faust` umbrella command using this app."""
         from faust.cli.faust import cli
         self.finalize()
+        if self.conf.autodiscover:
+            self.discover()
         self.worker_init()
         cli(app=self)
         raise SystemExit(3451)  # for mypy: NoReturn
