@@ -74,10 +74,6 @@ if not hasattr(aiokafka, '__robinhood__'):  # pragma: no cover
 
 logger = get_logger(__name__)
 
-# Documented default in aiokafka says 9 hours, but is actually
-# set to nine minutes.
-CONNECTIONS_MAX_IDLE_MS = 32400000.0
-
 
 def server_list(urls: List[URL], default_port: int) -> List[str]:
     default_host = '127.0.0.1'
@@ -219,7 +215,6 @@ class AIOKafkaConsumerThread(ConsumerThread):
             session_timeout_ms=int(conf.broker_session_timeout * 1000.0),
             heartbeat_interval_ms=int(conf.broker_heartbeat_interval * 1000.0),
             isolation_level=isolation_level,
-            connections_max_idle_ms=CONNECTIONS_MAX_IDLE_MS,
             **auth_settings,
         )
 
@@ -453,7 +448,6 @@ class Producer(base.Producer):
             'security_protocol': 'SSL' if self.ssl_context else 'PLAINTEXT',
             'partitioner': self.partitioner or DefaultPartitioner(),
             'request_timeout_ms': int(self.request_timeout * 1000),
-            'connections_max_idle_ms': CONNECTIONS_MAX_IDLE_MS,
         }
 
     def _settings_auth(self) -> Mapping[str, Any]:
