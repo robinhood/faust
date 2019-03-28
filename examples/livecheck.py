@@ -1,6 +1,6 @@
 from uuid import uuid4
 import faust
-from faust import livecheck
+from faust.livecheck import Livecheck
 
 
 class Order(faust.Record):
@@ -11,7 +11,8 @@ class Order(faust.Record):
     price: float
 
 
-app = faust.App('livecheck')
+app = faust.App('orders')
+livecheck = Livecheck()
 
 orders_topic = app.topic('orders', value_type=Order)
 execution_topic = app.topic('order-execution', value_type=Order)
@@ -34,13 +35,14 @@ async def execute_order(orders):
         await test_order.order_executed.send(order.id, execution_id)
 
 
+@livecheck.case(warn_empty_after=300.0, probability=0.2)
 class test_order(livecheck.Case):
     warn_empty_after = 300.0
     probability = 0.2
 
-    order_sent_to_db = livecheck.Signal()
-    order_sent_to_kafka = livecheck.Signal()
-    order_cache_in_redis = livecheck.Signal()
+    order_sent_to_db: livecheck.Signal[str, Order]
+    order_sent_to_kafka: livecheck.Signal[str, bool]
+    order_cache_in_redis: livecheck.Signal[str, bool]
 
     async def run(self, order_id: str, order: Order):
         assert order.id == order_id
