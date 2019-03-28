@@ -389,7 +389,12 @@ class _Group(click.Group):
 @_apply_options(builtin_options)
 @click.pass_context
 def cli(*args: Any, **kwargs: Any) -> None:  # pragma: no cover
-    """Create :pypi:`click` CLI object."""
+    """Welcome, see list of commands and options below.
+
+    Use --help for help, --version for version information.
+
+    https://faust.readthedocs.io
+    """
     return _prepare_cli(*args, **kwargs)
 
 
