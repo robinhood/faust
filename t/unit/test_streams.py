@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 from time import monotonic
 import faust
 import pytest
@@ -128,7 +129,11 @@ class test_Stream:
             side_effect=None,
             raises=None,
         )
-        event.ack.assert_called_once_with()
+        if not event.ack.called:
+            assert event.message.refcount == 0
+            assert event.message.acked
+        else:
+            event.ack.assert_called_once_with()
 
     @pytest.mark.asyncio
     @pytest.mark.allow_lingering_tasks(count=1)
@@ -139,7 +144,11 @@ class test_Stream:
             raises=None,
             last_batch=monotonic(),
         )
-        event.ack.assert_called_once_with()
+        if not event.ack.called:
+            assert event.message.refcount == 0
+            assert event.message.acked
+        else:
+            event.ack.assert_called_once_with()
 
     @pytest.mark.asyncio
     @pytest.mark.allow_lingering_tasks(count=1)
@@ -149,7 +158,11 @@ class test_Stream:
             side_effect=asyncio.CancelledError(),
             raises=asyncio.CancelledError,
         )
-        event.ack.assert_called_once_with()
+        if not event.ack.called:
+            assert event.message.refcount == 0
+            assert event.message.acked
+        else:
+            event.ack.assert_called_once_with()
 
     async def _assert_stream_aiter(self, stream,
                                    side_effect=None,
@@ -159,6 +172,10 @@ class test_Stream:
         app = stream.app
         app.consumer = Mock(name='app.consumer')
         app.consumer._last_batch = last_batch
+        app.consumer._committed_offset = defaultdict(lambda: -1)
+        app.consumer._acked_index = defaultdict(set)
+        app.consumer._acked = defaultdict(list)
+        app.consumer._n_acked = 0
         app.flow_control.resume()
         app.topics._acking_topics.add('foo')
         event = new_event(app, topic='foo', value=32)

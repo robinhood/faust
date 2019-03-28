@@ -41,7 +41,7 @@ cdef class StreamIterator:
         self.on_merge = self.stream.on_merge
         self.on_stream_event_in = self.stream._on_stream_event_in
         self.on_stream_event_out = self.stream._on_stream_event_out
-        self.on_message_in = self.stream.app.sensors.on_message_in
+        self.on_message_in = self.stream._on_message_in
         self.on_message_out = self.stream._on_message_out
         self.acking_topics = stream.app.topics._acking_topics
         self.consumer = self.stream.app.consumer
