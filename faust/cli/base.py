@@ -228,7 +228,8 @@ class _FaustRootContextT(click.Context):
 def find_app(app: str,
              *,
              symbol_by_name: Callable = symbol_by_name,
-             imp: Callable = import_from_cwd) -> AppT:
+             imp: Callable = import_from_cwd,
+             attr_name: str = 'app') -> AppT:
     """Find app by string like ``examples.simple``.
 
     Notes:
@@ -272,7 +273,7 @@ def find_app(app: str,
         val = imp(app)
     if isinstance(val, ModuleType) and ':' not in app:
         # if we found a module, try to get .app attribute
-        found = val.app  # type: ignore
+        found = getattr(val, attr_name)  # type: ignore
         if isinstance(found, ModuleType):
             # proj.app:x where x is a module
             raise AttributeError(f'Looks like module, not app: -A {app}')
