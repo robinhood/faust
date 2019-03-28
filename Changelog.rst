@@ -50,6 +50,9 @@ please visit the :ref:`history` section.
 
 - **Docs**: Fixes typo in :setting:`web_cors_options` example.
 
+- **App**: Do no wait for table recovery finished signal,
+  if the app is not starting the recovery service.
+
 .. _version-1.5.1:
 
 1.5.1
