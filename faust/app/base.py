@@ -536,7 +536,8 @@ class App(AppT, Service):
                 await self.on_startup_finished()
 
     async def _wait_for_table_recovery_completed(self) -> bool:
-        if not self.producer_only and not self.client_only:
+        if (self.tables.recovery.started and not
+                self.producer_only and not self.client_only):
             return await self.wait_for_stopped(self.tables.recovery.completed)
         return False
 
