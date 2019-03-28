@@ -19,10 +19,6 @@ please visit the :ref:`history` section.
 
     + Now depends on :ref:`Mode 3.1.1 <mode:version-3.1.1>`.
 
-- Timers: Prevent drift + add some tiny drift.
-
-    Thanks to Bob Haddleton (:github_user:`bobh66`).
-
 - **App**: Autodiscovery now avoids importing ``__main__.py`` (Issue #324).
 
     Added regression test.
@@ -42,9 +38,20 @@ please visit the :ref:`history` section.
 
 - **Worker**: Fixed error during agent shutdown.
 
+- **Transport**: Aiokafka was using nine minutes as default
+  for ``connections_max_idle_ms`` when documented to be set to nine hours.
+
+    Now set to nine hours by default.
+
+    Thanks to Alexander Oberegger.
+
 - **Monitor**: Monitor assignment latency + assignments completed/failed.
 
     Implemented in the default monitor, but also for statsd and datadog.
+
+- **Timers**: Prevent drift + add some tiny drift.
+
+    Thanks to Bob Haddleton (:github_user:`bobh66`).
 
 - **CLI**: The :program:`faust` program had the wrong help descrioption.
 
