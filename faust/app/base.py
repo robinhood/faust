@@ -152,7 +152,7 @@ SCAN_CATEGORIES: Iterable[str] = [
 #: List of regular expressions for :pypi:`venusian` that acts as a filter
 #: for modules that :pypi:`venusian` should ignore when autodiscovering
 #: decorators.
-SCAN_IGNORE: Iterable[str] = [
+SCAN_IGNORE: Iterable[Any] = [
     re.compile('test_.*').search,
     '.__main__',
 ]
@@ -626,7 +626,7 @@ class App(AppT, Service):
     def discover(self,
                  *extra_modules: str,
                  categories: Iterable[str] = SCAN_CATEGORIES,
-                 ignore: Iterable[str] = SCAN_IGNORE) -> None:
+                 ignore: Iterable[Any] = SCAN_IGNORE) -> None:
         # based on autodiscovery in Django,
         # but finds @app.agent decorators, and so on.
         modules = set(self._discovery_modules())

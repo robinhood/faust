@@ -187,7 +187,7 @@ class AppT(ServiceT):
     def discover(self,
                  *extra_modules: str,
                  categories: Iterable[str] = ('a', 'b', 'c'),
-                 ignore: Iterable[str] = ('foo', 'bar')) -> None:
+                 ignore: Iterable[Any] = ('foo', 'bar')) -> None:
         ...
 
     @abc.abstractmethod
