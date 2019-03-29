@@ -57,6 +57,20 @@ Fixups
     faust.fixups.base
     faust.fixups.django
 
+Livecheck
+=========
+
+.. toctree::
+    :maxdepth: 1
+
+    faust.livecheck
+    faust.livecheck.app
+    faust.livecheck.case
+    faust.livecheck.exceptions
+    faust.livecheck.models
+    faust.livecheck.signals
+    faust.livecheck.utils
+
 Models
 ======
 
