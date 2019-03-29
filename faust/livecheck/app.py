@@ -14,6 +14,9 @@ from .signals import BaseSignal, Signal
 
 __all__ = ['LiveCheck']
 
+#: alias for mypy bug
+_Case = Case
+
 
 class LiveCheck(faust.App):
     """LiveCheck application."""
@@ -21,10 +24,13 @@ class LiveCheck(faust.App):
     Signal: ClassVar[Type[BaseSignal]]
     Signal = Signal
 
+    Case: ClassVar[Type[Case]]  # type: ignore
+    Case = _Case
+
     test_topic_name: str
     bus_topic_name: str
 
-    cases: Dict[str, Case]
+    cases: Dict[str, _Case]
     bus: ChannelT
 
     _resolved_signals: Dict[Tuple[str, Any], SignalEvent]
@@ -46,10 +52,10 @@ class LiveCheck(faust.App):
              probability: float = 0.2,
              warn_empty_after: Seconds = timedelta(minutes=30),
              active: bool = False,
-             base: Type[Case] = Case) -> Callable[[Type], Case]:
+             base: Type[_Case] = Case) -> Callable[[Type], _Case]:
         base_case = base
 
-        def _inner(cls: Type) -> Case:
+        def _inner(cls: Type) -> _Case:
             case_cls = type(cls.__name__, (cls, base_case), {
                 '__module__': cls.__module__,
                 'app': self,
@@ -86,7 +92,7 @@ class LiveCheck(faust.App):
             ))
         return _inner
 
-    def add_case(self, case: Case) -> Case:
+    def add_case(self, case: _Case) -> _Case:
         self.cases[case.name] = case
         return case
 
