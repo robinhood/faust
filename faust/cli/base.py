@@ -273,7 +273,7 @@ def find_app(app: str,
         val = imp(app)
     if isinstance(val, ModuleType) and ':' not in app:
         # if we found a module, try to get .app attribute
-        found = getattr(val, attr_name)  # type: ignore
+        found = getattr(val, attr_name)
         if isinstance(found, ModuleType):
             # proj.app:x where x is a module
             raise AttributeError(f'Looks like module, not app: -A {app}')
