@@ -1,4 +1,5 @@
 """Agent manager."""
+import asyncio
 from collections import defaultdict
 from typing import Any, Dict, MutableMapping, MutableSet, Set
 from weakref import WeakSet
@@ -33,7 +34,10 @@ class AgentManager(Service, AgentManagerT, ManagedUserDict):
 
     async def on_stop(self) -> None:
         for agent in self.values():
-            await agent.stop()
+            try:
+                await asyncio.shield(agent.stop())
+            except asyncio.CancelledError:
+                pass
 
     async def stop(self) -> None:
         # Cancel first so _execute_task sees we are not stopped.

@@ -7,8 +7,10 @@ Everything starts here.
 import asyncio
 import importlib
 import inspect
+import re
 import typing
 import warnings
+
 from datetime import tzinfo
 from functools import wraps
 from itertools import chain
@@ -34,14 +36,16 @@ from typing import (
 )
 
 import opentracing
+
 from mode import Seconds, Service, ServiceT, SupervisorStrategyT, want_seconds
+from mode.timers import timer_intervals
 from mode.utils.aiter import aiter
 from mode.utils.collections import force_mapping
 from mode.utils.contexts import nullcontext
 from mode.utils.futures import stampede
 from mode.utils.imports import import_from_cwd, smart_import
 from mode.utils.logging import flight_recorder
-from mode.utils.objects import cached_property, shortlabel
+from mode.utils.objects import cached_property, qualname, shortlabel
 from mode.utils.typing import NoReturn
 from mode.utils.queues import FlowControlEvent, ThrowableQueue
 from mode.utils.types.trees import NodeT
@@ -148,7 +152,10 @@ SCAN_CATEGORIES: Iterable[str] = [
 #: List of regular expressions for :pypi:`venusian` that acts as a filter
 #: for modules that :pypi:`venusian` should ignore when autodiscovering
 #: decorators.
-SCAN_IGNORE: Iterable[str] = ['test_.*', '.*__main__.*']
+SCAN_IGNORE: Iterable[Any] = [
+    re.compile('test_.*').search,
+    '.__main__',
+]
 
 E_NEED_ORIGIN = '''
 `origin` argument to faust.App is mandatory when autodiscovery enabled.
@@ -620,7 +627,7 @@ class App(AppT, Service):
     def discover(self,
                  *extra_modules: str,
                  categories: Iterable[str] = SCAN_CATEGORIES,
-                 ignore: Iterable[str] = SCAN_IGNORE) -> None:
+                 ignore: Iterable[Any] = SCAN_IGNORE) -> None:
         # based on autodiscovery in Django,
         # but finds @app.agent decorators, and so on.
         modules = set(self._discovery_modules())
@@ -661,6 +668,8 @@ class App(AppT, Service):
         """Execute the :program:`faust` umbrella command using this app."""
         from faust.cli.faust import cli
         self.finalize()
+        if self.conf.autodiscover:
+            self.discover()
         self.worker_init()
         cli(app=self)
         raise SystemExit(3451)  # for mypy: NoReturn
@@ -852,7 +861,9 @@ class App(AppT, Service):
 
     def timer(self, interval: Seconds,
               on_leader: bool = False,
-              traced: bool = True) -> Callable:
+              traced: bool = True,
+              name: str = None,
+              max_drift_correction: float = 0.1) -> Callable:
         """Define an async def function to be run at periodic intervals.
 
         Like :meth:`task`, but executes periodically until the worker
@@ -879,16 +890,25 @@ class App(AppT, Service):
         interval_s = want_seconds(interval)
 
         def _inner(fun: TaskArg) -> TaskArg:
+            timer_name = name or qualname(fun)
+
             @wraps(fun)
             async def around_timer(*args: Any) -> None:
-                while not self.should_stop:
-                    await self.sleep(interval_s)
-                    if not self.should_stop:
-                        should_run = not on_leader or self.is_leader()
-                        if should_run:
-                            with self.trace(shortlabel(fun),
-                                            trace_enabled=traced):
-                                await fun(*args)  # type: ignore
+                await self.sleep(interval_s)
+                for sleep_time in timer_intervals(
+                        interval_s,
+                        name=timer_name,
+                        max_drift_correction=max_drift_correction):
+                    if self.should_stop:
+                        break
+                    should_run = not on_leader or self.is_leader()
+                    if should_run:
+                        with self.trace(shortlabel(fun),
+                                        trace_enabled=traced):
+                            await fun(*args)  # type: ignore
+                    await self.sleep(sleep_time)
+                    if self.should_stop:
+                        break
 
             # If you call @app.task without parents the return value is:
             #    Callable[[TaskArg], TaskArg]

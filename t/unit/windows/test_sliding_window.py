@@ -4,7 +4,7 @@ from faust.windows import SlidingWindow
 class test_SlidingWindow:
 
     def test_constructor(self):
-        x = SlidingWindow(10.1, 20.2, expires=30.3)
+        x = SlidingWindow(10.1, 20.2, 30.3)
         assert x.before == 10.1
         assert x.after == 20.2
         assert x.expires == 30.3
@@ -14,7 +14,7 @@ class test_SlidingWindow:
         step = 5
         timestamp = 6
 
-        window = SlidingWindow(size, step, expires=30)
+        window = SlidingWindow(size, step, 30)
 
         window_ranges = window.ranges(timestamp)
         assert len(window_ranges) == 1
@@ -27,7 +27,7 @@ class test_SlidingWindow:
         step = 23
         timestamp = 456
 
-        window = SlidingWindow(size, step, expires=30)
+        window = SlidingWindow(size, step, 30)
         ranges = window.ranges(timestamp)
         current_range = window.current(timestamp)
 
@@ -38,7 +38,7 @@ class test_SlidingWindow:
         step = 15
         timestamp = 3223
 
-        window = SlidingWindow(size, step, expires=30)
+        window = SlidingWindow(size, step, 30)
         ranges = window.ranges(timestamp)
         earliest_range = window.earliest(timestamp)
 
@@ -51,7 +51,7 @@ class test_SlidingWindow:
 
         now_timestamp = 60
 
-        window = SlidingWindow(size, step, expires=expires)
+        window = SlidingWindow(size, step, expires)
         for time in range(now_timestamp - expires + 1, now_timestamp):
             assert window.stale(time, now_timestamp) is False
 
@@ -61,7 +61,7 @@ class test_SlidingWindow:
         expires = 20
 
         now_timestamp = 60
-        window = SlidingWindow(size, step, expires=expires)
+        window = SlidingWindow(size, step, expires)
         assert window.delta(now_timestamp, 30) == (20, 35)
 
     def test_stale_timestamp(self):
@@ -70,7 +70,7 @@ class test_SlidingWindow:
         expires = 20
         now_timestamp = 60
 
-        window = SlidingWindow(size, step, expires=expires)
+        window = SlidingWindow(size, step, expires)
         for time in range(0, now_timestamp - expires):
             print(f'TIME: {time} NOW TIMESTAMP: {now_timestamp}')
             assert window.stale(time, now_timestamp) is True
