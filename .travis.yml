@@ -44,7 +44,7 @@ matrix:
     dist: xenial
     stage: lint
   - python: 3.7.2
-    env: TOXENV=spell
+    env: TOXENV=spell USE_ENCHANT=y
     os: linux
     dist: xenial
     stage: lint
@@ -124,6 +124,8 @@ matrix:
     stage: cython
 
 before_install:
+    - if [[ "$TRAVIS_OS_NAME" == "linux" && "$USE_ENCHANT" == "y" ]]; then sudo apt-get install -y enchant libenchant-dev; fi
+
 install:
 - |
   if [[ "$USE_CYTHON" == "y" ]]; then
