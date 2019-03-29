@@ -60,7 +60,7 @@ something every minute.
 Cron Jobs
 =========
 
-A cron job is a task that executes according to a crontab format,
+A Cron job is a task that executes according to a Crontab format,
 usually at fixed times:
 
 .. sourcecode:: python
@@ -70,7 +70,7 @@ usually at fixed times:
         print('WAKE UP ONCE A DAY')
 
 
-After starting the worker, and it's operational, the above cron job will print
+After starting the worker, and it's operational, the above Cron job will print
 something every day at 8pm.
 
 ``crontab`` takes 1 mandatory argument ``cron_format`` and 2 optional arguments:
@@ -139,7 +139,7 @@ Restart your Faust worker, and you can visit your new page at:
     http://localhost:6066/count/
 
 Your workers may have an arbitrary number of views, and it's up to you what
-they provide. Just like other web apps they can communicate with Redis,
+they provide. Just like other web applications they can communicate with Redis,
 SQL databases, and so on. Anything you want, really, and it's executing
 in an asynchronous event loop.
 
@@ -296,7 +296,7 @@ Custom CLI Commands
 -------------------
 
 To add a custom command to your app, see the :file:`examples/simple.py`
-example in the Faust distribution, where we've added a ``produce`` command
+example in the Faust distribution, where we added a ``produce`` command
 used to send example data into the stream processors:
 
 .. sourcecode:: python

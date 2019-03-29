@@ -48,7 +48,7 @@ Module Overview
     top-level package.
 
 ``faust.web``
-    Web abstractions and web apps served by the Faust web server.
+    Web abstractions and web applications served by the Faust web server.
 
 ``faust.windows``
     Windowing strategies.
@@ -63,8 +63,8 @@ Services
 Everything in Faust that can be started/stopped and restarted, is a
 :class:`~faust.utils.services.Service`.
 
-Services can start other services, but they can also start asyncio.Tasks via
-`self.add_future`.  These dependencies will be started/stopped/restarted with
+Services can start other services, but they can also start :class:`asyncio.Task`
+via `self.add_future`.  These dependencies will be started/stopped/restarted with
 the service.
 
 ``Worker``
@@ -76,7 +76,7 @@ setting up logging, installs signal handlers and debugging tools etc.
 ``App``
 -------
 
-The app configures the Faust instance, and is the entrypoint for just about
+The app configures the Faust instance, and is the entry point for just about
 everything that happens in a Faust instance.  Consuming/Producing messages,
 starting streams and agents, etc.
 
@@ -102,7 +102,7 @@ in anticipation of messages to be produced.
 
 The Consumer is responsible for consuming messages from Kafka topics, to be
 delivered to the streams.  It does not actually fetch messages (the
-``Fetcher`` services does tha), but it handles everything to do with
+``Fetcher`` services does that), but it handles everything to do with
 consumption, like managing topic subscriptions etc.
 
 ``Agent``

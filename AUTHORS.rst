@@ -15,8 +15,8 @@ Creators
     Ask the community for help in the Slack channel, or ask
     a question on Stack Overflow.
 
-Comitters
-=========
+Committers
+==========
 
 +---------------------+---------------------------------------+
 | Arpan Shah          | <arpan@robinhood.com>                 |

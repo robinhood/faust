@@ -1,4 +1,7 @@
-"""completion - Command line utility for completion (bash, ksh, zsh, etc.)."""
+"""completion - Command line utility for completion.
+
+Supports ``bash``, ``ksh``, ``zsh``, etc.
+"""
 import os
 from pathlib import Path
 from .base import AppCommand
@@ -12,7 +15,7 @@ else:  # pragma: no cover
 
 
 class completion(AppCommand):
-    """Output shell completion to be eval'd by the shell."""
+    """Output shell completion to be evaluated by the shell."""
 
     require_app = False
 

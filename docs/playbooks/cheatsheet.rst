@@ -1,5 +1,5 @@
 ===================================
- Cheatsheet
+ Cheat Sheet
 ===================================
 
 .. topic:: Process events in a Kafka topic

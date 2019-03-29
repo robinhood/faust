@@ -1,5 +1,2 @@
-alabaster
+-r docs-plugins.txt
 sphinx>=2.0,<3.0
-sphinx_autodoc_annotation
-sphinx_celery>=1.4.7,<2.0
-sphinxcontrib-asyncio

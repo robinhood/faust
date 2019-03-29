@@ -18,13 +18,13 @@ The Consumer is responsible for:
        + Messages are reference counted, and the Conductor increases
          the reference count to the number of subscribed streams.
 
-       + Stream.__aiter__ is set up in a way such that when what is iterating
-         over the stream is finished with the message, a finally: block will
-         decrease the reference count by one.
+       + ``Stream.__aiter__`` is set up in a way such that when what is
+         iterating over the stream is finished with the message, a
+         finally: block will decrease the reference count by one.
 
        + When the reference count for a message hits zero, the stream will
-         call ``Consumer.ack(message)``, which will mark that tp+offset
-         combination as "commitable"
+         call ``Consumer.ack(message)``, which will mark that topic +
+         partition + offset combination as "committable"
 
        + If all the streams share the same key_type/value_type,
          the conductor will only deserialize the payload once.
@@ -35,7 +35,7 @@ The Consumer is responsible for:
         offset.
 
       - If the consumer marked an offset as committable this thread
-        will advance the comitted offset.
+        will advance the committed offset.
 
       + To find the offset that it can safely advance to the commit thread
         will traverse the _acked mapping of TP to list of acked offsets, by
@@ -854,11 +854,11 @@ class Consumer(Service, ConsumerT):
         )
         self.log.dev('COMMITTING OFFSETS:\n%s', table)
         assignment = self.assignment()
-        commitable_offsets: Dict[TP, int] = {}
+        committable_offsets: Dict[TP, int] = {}
         revoked: Dict[TP, int] = {}
         for tp, offset in offsets.items():
             if tp in assignment:
-                commitable_offsets[tp] = offset
+                committable_offsets[tp] = offset
             else:
                 revoked[tp] = offset
         if revoked:
@@ -867,25 +867,25 @@ class Consumer(Service, ConsumerT):
                 'will be eventually processed again: %r',
                 revoked,
             )
-        if not commitable_offsets:
+        if not committable_offsets:
             return False
         with flight_recorder(self.log, timeout=300.0) as on_timeout:
             did_commit = False
             on_timeout.info('+consumer.commit()')
             if self.in_transaction:
                 did_commit = await self.transactions.commit(
-                    commitable_offsets,
+                    committable_offsets,
                     start_new_transaction=start_new_transaction,
                 )
             else:
-                did_commit = await self._commit(commitable_offsets)
+                did_commit = await self._commit(committable_offsets)
             on_timeout.info('-consumer.commit()')
             if did_commit:
                 on_timeout.info('+tables.on_commit')
-                self.app.tables.on_commit(commitable_offsets)
+                self.app.tables.on_commit(committable_offsets)
                 on_timeout.info('-tables.on_commit')
-        self._committed_offset.update(commitable_offsets)
-        self.app.monitor.on_tp_commit(commitable_offsets)
+        self._committed_offset.update(committable_offsets)
+        self.app.monitor.on_tp_commit(committable_offsets)
         self._last_batch = None
         return did_commit
 

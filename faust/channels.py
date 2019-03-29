@@ -58,7 +58,7 @@ class Channel(ChannelT):
         maxsize: The maximum number of messages this channel can hold.
                  If exceeded any new ``put`` call will block until a message
                  is removed from the channel.
-        loop: The asyncio event loop to use.
+        loop: The :mod:`asyncio` event loop to use.
     """
 
     app: AppT

@@ -51,7 +51,7 @@ iterate over key/value pairs (using
 
 Keys and values can be bytes for manual deserialization, or :class:`~faust.Model`
 instances, and this is decided by the topic's ``key_type`` and
-``value_type`` argumetns.
+``value_type`` arguments.
 
 .. seealso::
 
@@ -77,7 +77,7 @@ topic and iterate over it:
         print(w.amount)
 
 Do note that the worker must be started first (or at least the app),
-for this to work, and the stream iterater probably needs to be started
+for this to work, and the stream iterator needs to be started
 as an :class:`asyncio.Task`, so a more practical example is:
 
 .. sourcecode:: python
@@ -151,8 +151,8 @@ reduction after all processors are applied:
         #   value = add_default_language(add_client_info(value))
 
 
-Message Lifecycle
-=================
+Message Life Cycle
+==================
 
 Kafka Topics
 ------------
@@ -289,8 +289,8 @@ rather start individual tasks:
 Operations
 ==========
 
-``group_by()`` -- Repartiton the stream
----------------------------------------
+``group_by()`` -- Repartition the stream
+----------------------------------------
 
 The :meth:`Stream.group_by() <faust.Stream.group_by>` method repartitions the
 stream by taking a "key type" as argument:
@@ -376,7 +376,7 @@ Note that this changes the type of what you iterate over from ``Stream`` to
 
 Use :meth:`Stream.events() <faust.Stream.events>` to iterate over raw
 ``Event`` values, including access to original message payload and message
-metadata:
+meta data:
 
 .. sourcecode:: python
 

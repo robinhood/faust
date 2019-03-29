@@ -49,31 +49,31 @@ class Recovery(Service):
 
     stats_interval: float = 5.0
 
-    #: Set of standby tps.
+    #: Set of standby topic partitions.
     standby_tps: Set[TP]
 
-    #: Set of active tps.
+    #: Set of active topic partitions.
     active_tps: Set[TP]
 
     actives_for_table: MutableMapping[CollectionT, Set[TP]]
     standbys_for_table: MutableMapping[CollectionT, Set[TP]]
 
-    #: Mapping from TP to table
+    #: Mapping from topic partition to table
     tp_to_table: MutableMapping[TP, CollectionT]
 
-    #: Active offset by TP.
+    #: Active offset by topic partition.
     active_offsets: Counter[TP]
 
-    #: Standby offset by TP.
+    #: Standby offset by topic partition.
     standby_offsets: Counter[TP]
 
-    #: Mapping of highwaters by tp.
+    #: Mapping of highwaters by topic partition.
     highwaters: Counter[TP]
 
-    #: Active highwaters by TP.
+    #: Active highwaters by topic partition.
     active_highwaters: Counter[TP]
 
-    #: Standby highwaters by TP.
+    #: Standby highwaters by topic partition.
     standby_highwaters: Counter[TP]
 
     _signal_recovery_start: Optional[Event] = None
@@ -90,7 +90,7 @@ class Recovery(Service):
     #: and need to be flushed before starting new recovery/stopping.
     buffers: MutableMapping[CollectionT, List[EventT]]
 
-    #: Cache of buffer size by TopicPartitiojn.
+    #: Cache of buffer size by topic partition..
     buffer_sizes: MutableMapping[TP, int]
 
     _recovery_span: Optional[opentracing.Span] = None

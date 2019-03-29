@@ -129,7 +129,7 @@ Documentation
 
     - Message lifecycle
 
-    - Manual acknowledgement (``async with event``)
+    - Manual acknowledgment (``async with event``)
 
     - Arguments to ``app.agent``
 
@@ -168,7 +168,7 @@ Documentation
 
     - recovery
 
-    - acknowledgements
+    - acknowledgments
 
 - Go through comments in the code, some of it describes things that should
   be documented.

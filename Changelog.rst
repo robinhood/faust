@@ -46,7 +46,7 @@ please visit the :ref:`history` section.
 
     Implemented in the default monitor, but also for statsd and datadog.
 
-- **CLI**: The :program:`faust` program had the wrong help descrioption.
+- **CLI**: The :program:`faust` program had the wrong help description.
 
 - **Docs**: Fixes typo in :setting:`web_cors_options` example.
 
@@ -237,7 +237,7 @@ please visit the :ref:`history` section.
 - **App**: Web server is no longer running in a separate thread by default.
 
     Running the web server in a separate thread is beneficial as it
-    will not be affected by backpressue in the main thread event loop,
+    will not be affected by back pressure in the main thread event loop,
     but it also makes programming harder when it cannot share the loop
     of the parent.
 
@@ -332,7 +332,7 @@ please visit the :ref:`history` section.
 
     See new :setting:`web_cors_options` setting.
 
-- **Debugging**: Added `OpenTracing`_ hooks to streams/tasks/timers/crontabs
+- **Debugging**: Added `OpenTracing`_ hooks to streams/tasks/timers/Crontabs
    and rebalancing process.
 
     To enable you have to define a custom ``Tracer`` class that will
