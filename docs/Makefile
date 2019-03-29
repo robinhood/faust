@@ -227,11 +227,11 @@ coverage:
 
 .PHONY: apicheck
 apicheck:
-	APICHECK=1 $(SPHINXBUILD) -b apicheck $(ALLSPHINXOPTS) $(BUILDDIR)/apicheck
+	APICHECK=1 $(SPHINXBUILD) -W -b apicheck $(ALLSPHINXOPTS) $(BUILDDIR)/apicheck
 
 .PHONY: configcheck
 configcheck:
-	$(SPHINXBUILD) -b configcheck $(ALLSPHINXOPTS) $(BUILDDIR)/configcheck
+	$(SPHINXBUILD) -W -b configcheck $(ALLSPHINXOPTS) $(BUILDDIR)/configcheck
 
 .PHONY: spell
 spell:
