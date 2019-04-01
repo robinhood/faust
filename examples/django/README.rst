@@ -7,7 +7,7 @@ Directory Layout
   We have also added a ``proj/__main__.py`` that executes if you do
   ``python -m proj``, and it will work as the manage.py for the project.
 
-  This is also installed by setup.py as an entrypoint, so after
+  This is also installed by setup.py as an entry point, so after
   ``python setup.py install`` or ``python setup.py develop`` the
   ``proj`` command will be available::
 

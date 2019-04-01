@@ -28,7 +28,7 @@ from .table import Table
 
 
 class ChangeloggedObject:
-    """A changlogged object in a :class:`ChangeloggedObjectManager` store."""
+    """A changelogged object in a :class:`ChangeloggedObjectManager` store."""
 
     manager: 'ChangeloggedObjectManager'
 

@@ -81,8 +81,8 @@ What can it do?
     services.
 
     Thanks to Faust and :mod:`asyncio` you can now embed your stream processing
-    topology into your existing asyncio/gevent/eventlet/Twisted/Tornado
-    applications.
+    topology into your existing :mod:`asyncio`/:pypi:`gevent`/
+    :pypi:`eventlet`/:pypi:`Twisted`/:pypi:`Tornado` applications.
 
 **Faust is...**
     .. include:: includes/introduction.txt
@@ -150,7 +150,7 @@ What do I need?
 
     **Extensions**
 
-    - RocksDB 5.0 or later, python-rocksdb
+    - RocksDB 5.0 or later, :pypi:`python-rocksdb`
 
 Faust requires Python 3.6 or later, and a running Kafka broker.
 
@@ -164,19 +164,19 @@ Extensions
 +--------------+-------------+--------------------------------------------------+
 | **Name**     | **Version** | **Bundle**                                       |
 +--------------+-------------+--------------------------------------------------+
-| rocksdb      | 5.0         | ``pip install faust[rocksdb]``                   |
+| ``rocksdb``  | 5.0         | ``pip install faust[rocksdb]``                   |
 +--------------+-------------+--------------------------------------------------+
-| redis        | aredis 1.1  | ``pip install faust[redis]``                     |
+| ``redis``    | aredis 1.1  | ``pip install faust[redis]``                     |
 +--------------+-------------+--------------------------------------------------+
-| datadog      | 0.20.0      | ``pip install faust[datadog]``                   |
+| ``datadog``  | 0.20.0      | ``pip install faust[datadog]``                   |
 +--------------+-------------+--------------------------------------------------+
-| statsd       | 3.2.1       | ``pip install faust[statsd]``                    |
+| ``statsd``   | 3.2.1       | ``pip install faust[statsd]``                    |
 +--------------+-------------+--------------------------------------------------+
-| uvloop       | 0.8.1       | ``pip install faust[uvloop]``                    |
+| ``uvloop``   | 0.8.1       | ``pip install faust[uvloop]``                    |
 +--------------+-------------+--------------------------------------------------+
-| gevent       | 1.4.0       | ``pip install faust[gevent]``                    |
+| ``gevent``   | 1.4.0       | ``pip install faust[gevent]``                    |
 +--------------+-------------+--------------------------------------------------+
-| eventlet     | 1.16.0      | ``pip install faust[eventlet]``                  |
+| ``eventlet`` | 1.16.0      | ``pip install faust[eventlet]``                  |
 +--------------+-------------+--------------------------------------------------+
 
 Optimizations
@@ -184,32 +184,32 @@ Optimizations
 
 These can be all installed using ``pip install faust[fast]``:
 
-+--------------+-------------+--------------------------------------------------+
-| **Name**     | **Version** | **Bundle**                                       |
-+--------------+-------------+--------------------------------------------------+
-| aiodns       | 1.1.0       | ``pip install faust[aiodns]``                    |
-+--------------+-------------+--------------------------------------------------+
-| cchardet     | 1.1.0       | ``pip install faust[cchardet]``                  |
-+--------------+-------------+--------------------------------------------------+
-| ciso8601     | 2.1.0       | ``pip install faust[ciso8601]``                  |
-+--------------+-------------+--------------------------------------------------+
-| cython       | 0.9.26      | ``pip install faust[cython]``                    |
-+--------------+-------------+--------------------------------------------------+
-| setproctitle | 1.1.0       | ``pip install faust[setproctitle]``              |
-+--------------+-------------+--------------------------------------------------+
++------------------+-------------+--------------------------------------------------+
+| **Name**         | **Version** | **Bundle**                                       |
++------------------+-------------+--------------------------------------------------+
+| ``aiodns``       | 1.1.0       | ``pip install faust[aiodns]``                    |
++------------------+-------------+--------------------------------------------------+
+| ``cchardet``     | 1.1.0       | ``pip install faust[cchardet]``                  |
++------------------+-------------+--------------------------------------------------+
+| ``ciso8601``     | 2.1.0       | ``pip install faust[ciso8601]``                  |
++------------------+-------------+--------------------------------------------------+
+| ``cython``       | 0.9.26      | ``pip install faust[cython]``                    |
++------------------+-------------+--------------------------------------------------+
+| ``setproctitle`` | 1.1.0       | ``pip install faust[setproctitle]``              |
++------------------+-------------+--------------------------------------------------+
 
 Debugging extras
 ----------------
 
 These can be all installed using ``pip install faust[debug]``:
 
-+--------------+-------------+--------------------------------------------------+
-| **Name**     | **Version** | **Bundle**                                       |
-+--------------+-------------+--------------------------------------------------+
-| aiomonitor   | 0.3         | ``pip install faust[aiomonitor]``                |
-+--------------+-------------+--------------------------------------------------+
-| setproctitle | 1.1.0       | ``pip install faust[setproctitle]``              |
-+--------------+-------------+--------------------------------------------------+
++------------------+-------------+--------------------------------------------------+
+| **Name**         | **Version** | **Bundle**                                       |
++------------------+-------------+--------------------------------------------------+
+| ``aiomonitor``   | 0.3         | ``pip install faust[aiomonitor]``                |
++------------------+-------------+--------------------------------------------------+
+| ``setproctitle`` | 1.1.0       | ``pip install faust[setproctitle]``              |
++------------------+-------------+--------------------------------------------------+
 
 .. note::
 

@@ -78,14 +78,14 @@ partitions so that every agent receives a specific portion of the stream.
     amongst a cluster of workers, and you can always repartition that stream later
     should you need to access data in a table or similar.
 
-.. admonition:: Fault tolerancy
+.. admonition:: Fault tolerance
 
     If the worker for a partition fails, or is blocked from the network for
     some reason, there is no need to worry because Kafka solves this by moving
     the partition to a worker that works.
 
     Faust also takes advantage of "standby tables" and a custom partition
-    manager that prefes to promote any node with a full copy of the data,
+    manager that prefers to promote any node with a full copy of the data,
     saving startup time and ensuring availability.
 
 Here's a complete example of an app, having an agent that adds numbers:
@@ -405,7 +405,7 @@ items in the stream concurrently (and in no particular order).
 .. warning::
 
     Concurrent instances of an agent will process the stream out-of-order,
-    so you aren't allowed to mutate :ref:`tables <guide-tables>`
+    so you cannot mutate :ref:`tables <guide-tables>`
     from within the agent function:
 
     An agent having `concurrency > 1`, can only read from a table, never write.
@@ -525,7 +525,7 @@ simply because it violates ""exactly-once" semantics".
 
     Crashing the instance to require human intervention is certainly
     a choice, but far from ideal considering how common mistakes
-    in code or unhandled exceptions are.  It may be better to log
+    in code or unexpected exceptions are.  It may be better to log
     the error and have ops replay and reprocess the stream on
     notification.
 
@@ -586,7 +586,7 @@ into agents while at the same time gathering the results.
 
 ``map`` streams results as they come in (out-of-order), and ``join`` waits
 until all the steps are complete (back-to-order) and return the results
-in a list with orering preserved:
+in a list with order preserved:
 
 ``map(values: Union[AsyncIterable[V], Iterable[V]])``
     Map takes an async iterable, or a regular iterable, and returns an async

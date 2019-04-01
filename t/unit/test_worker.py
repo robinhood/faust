@@ -63,12 +63,13 @@ class test_Worker:
                 coro = ensure_future.call_args[0][0]
         asyncio.ensure_future(coro).cancel()  # silence warning
 
-    def test_on_siginit__no_spinner(self, worker):
+    @pytest.mark.asyncio
+    async def test_on_siginit__no_spinner(self, worker, loop):
         worker.spinner = None
         with patch('asyncio.ensure_future') as ensure_future:
             worker._on_sigint()
             coro = ensure_future.call_args[0][0]
-        asyncio.ensure_future(coro).cancel()
+        asyncio.ensure_future(coro, loop=loop).cancel()
 
     @pytest.mark.asyncio
     async def test__on_sigterm(self, worker):

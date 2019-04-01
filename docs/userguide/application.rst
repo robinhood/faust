@@ -71,8 +71,8 @@ Here we set the broker URL to Kafka, and the storage driver to `RocksDB`_:
     ...     store='rocksdb://',
     ... )
 
-"kafka://localhost" is used if you don't configure a broker URL.
-The first part of the URL ("kafka://"), is called the scheme and specifies
+``kafka://localhost`` is used if you don't configure a broker URL.
+The first part of the URL (``kafka://``), is called the scheme and specifies
 the driver that you want to use (it can also be the fully qualified
 path to a Python class).
 
@@ -187,8 +187,8 @@ Topic Arguments
 
 + ``acks``: :class:`bool`
 
-    Enable automatic acknowledgement for this topic.  If you disable this
-    then you are responsible for manually acknowleding each event.
+    Enable automatic acknowledgment for this topic.  If you disable this
+    then you are responsible for manually acknowledging each event.
 
 + ``internal``: :class:`bool`
 
@@ -255,7 +255,7 @@ Channel Arguments
 
 + ``key_serializer``/``value_serializer``: :data:`~faust.types.codecs.CodecArg`
 
-    The codec/serializer type used for keys and values in this channell
+    The codec/serializer type used for keys and values in this channel.
 
     If not specified the default will be taken from the
     :setting:`key_serializer` and :setting:`value_serializer` settings.
@@ -446,7 +446,7 @@ used by each agent:
     │ @myagent │ stream-example-examples.agent.myagent │ Example agent. │
     └──────────┴───────────────────────────────────────┴────────────────┘
 
-The agent reads from the "stream-example-examples.agent.myagent" topic, whose
+The agent reads from the ``stream-example-examples.agent.myagent`` topic, whose
 name is generated from the application :setting:`id` setting, the
 application :setting:`version` setting, and the fully qualified path of the
 agent (``examples.agent.myagent``).
@@ -969,11 +969,12 @@ Starting the App
 ================
 
 You can start a worker instance for your app from the command-line, or you can
-start it inline in your Python process.  To accomodate the many ways you may
-want to embed a Faust application, starting the app have several possible entrypoints:
+start it inline in your Python process.  To accommodate the many ways you may
+want to embed a Faust application, starting the app have several
+possible entry points:
 
 
-*App entrypoints*:
+*App entry points*:
 
 1) :program:`faust worker`
 
@@ -987,7 +988,7 @@ want to embed a Faust application, starting the app have several possible entryp
             app.main()
 
     For packages you can add a ``__main__.py`` module or setuptools
-    entrypoints to ``setup.py``.
+    entry points to ``setup.py``.
 
     If you have the module name where an app is defined, you can start a worker
     for it with the :option:`faust -A` option:
@@ -1012,7 +1013,7 @@ want to embed a Faust application, starting the app have several possible entryp
     It is responsible for:
 
     - Parsing the command-line arguments supported by :program:`faust worker`.
-    - Printing the banner box (you will not get that with entrypoint 3 or 4).
+    - Printing the banner box (you will not get that with entry point 3 or 4).
     - Starting the :class:`faust.Worker` (see next step).
 
 3) -> :class:`faust.Worker`
@@ -1026,7 +1027,7 @@ want to embed a Faust application, starting the app have several possible entryp
     sense given that Faust is built out of many different :pypi:`mode`
     services starting in a particular order.
 
-    The :class:`faust.Worker` entrypoint is responsible for:
+    The :class:`faust.Worker` entry point is responsible for:
 
     - Changing the directory when the ``workdir`` argument is set.
 
@@ -1037,7 +1038,7 @@ want to embed a Faust application, starting the app have several possible entryp
 
     - If :option:`--debug <faust --debug>` is enabled:
 
-      - Starting the :pypi:`aiomonitor` debugging backdoor.
+      - Starting the :pypi:`aiomonitor` debugging back door.
 
       - Starting the blocking detector.
 
@@ -1127,7 +1128,7 @@ want to embed a Faust application, starting the app have several possible entryp
             loop.ensure_future(app.start())
 
     If your program is written as a set of :pypi:`Mode` services, you can
-    simply add the app as a depdendency to your service:
+    simply add the app as a dependency to your service:
 
     .. sourcecode:: python
 
@@ -1251,10 +1252,10 @@ If you want more careful control you can specify a list of modules to traverse i
 
     See also :ref:`project-layout-django`.
 
-Problem: Entrypoint
-~~~~~~~~~~~~~~~~~~~
+Problem: Entry Point
+~~~~~~~~~~~~~~~~~~~-
 
-The :file:`proj/__main__.py` module can act as the entrypoint for this
+The :file:`proj/__main__.py` module can act as the entry point for this
 project:
 
 .. sourcecode:: python
@@ -1307,7 +1308,7 @@ setuptools to install a command-line program for your project.
     For inspiration you can also look to the `setup.py` files in the
     :pypi:`faust` and :pypi:`mode` source code distributions.
 
-2) Add the command as a setuptools entrypoint.
+2) Add the command as a setuptools entry point.
 
     To your :file:`setup.py` add the following argument:
 
@@ -1325,7 +1326,7 @@ setuptools to install a command-line program for your project.
     This essentially defines that the ``proj`` program runs `from proj.app
     import main`
 
-3) Install your package using setup.py or :program:`pip`.
+3) Install your package using ``setup.py`` or :program:`pip`.
 
     When developing your project locally you should use ``setup.py develop``
     to use the source code directory as a Python package:

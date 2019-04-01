@@ -44,7 +44,7 @@ This system can persist state, acting like a database.
 Tables are named distributed key/value stores you can use
 as regular Python dictionaries.
 
-Tables are stored locally on each machine using a superfast
+Tables are stored locally on each machine using a super fast
 embedded database written in C++, called `RocksDB`_.
 
 Tables can also store aggregate counts that are optionally "windowed"

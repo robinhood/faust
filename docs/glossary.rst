@@ -9,7 +9,7 @@ Glossary
     acked
     acking
     acknowledged
-        Acknowledgement marks a message as fully processed.
+        Acknowledgment marks a message as fully processed.
         It’s a signal that the program does not want to see the message again.
         Faust advances the offset by committing after a message is acknowledged.
 
@@ -95,7 +95,7 @@ Glossary
         Further reading: https://en.wikipedia.org/wiki/Idempotent
 
     nullipotent
-    nillipotence
+    nullipotence
     nullipotency
         describes a function that'll have the same effect, and give the same
         result, even if called zero or multiple times (side-effect free).

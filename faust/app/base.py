@@ -501,7 +501,7 @@ class App(AppT, Service):
         # One example is the Django fixup, responsible for Django integration
         # whenever the DJANGO_SETTINGS_MODULE environment variable is
         # set. See faust/fixups/django.py, it's not complicated - using
-        # setuptools entrypoints you can very easily create extensions that
+        # setuptools entry points you can very easily create extensions that
         # are automatically enabled by installing a PyPI package with
         # `pip install myname`.
         return list(fixups(self))
@@ -606,7 +606,7 @@ class App(AppT, Service):
 
         # If you access configuration before an explicit call to
         # ``app.finalize()`` you will get an error.
-        # The ``app.main`` entrypoint and the ``faust -A app`` command
+        # The ``app.main`` entry point and the ``faust -A app`` command
         # both will automatically finalize the app for you.
         if not self.finalized:
             self.finalized = True
@@ -922,26 +922,26 @@ class App(AppT, Service):
                 timezone: tzinfo = None,
                 on_leader: bool = False,
                 traced: bool = True) -> Callable:
-        """Define periodic task using crontab description.
+        """Define periodic task using Crontab description.
 
         This is an ``async def`` function to be run at the fixed times,
-        defined by the cron format.
+        defined by the Cron format.
 
         Like :meth:`timer`, but executes at fixed times instead of executing
         at certain intervals.
 
         This decorator takes an async function and adds it to a
-        list of cronjobs started with the app.
+        list of Cronjobs started with the app.
 
         Arguments:
-            cron_format: The cron spec defining fixed times to run the
+            cron_format: The Cron spec defining fixed times to run the
                 decorated function.
 
         Keyword Arguments:
-            timezone: The timezone to be taken into account for the cron jobs.
+            timezone: The timezone to be taken into account for the Cron jobs.
                 If not set value from :setting:`timezone` will be taken.
 
-            on_leader: Should the cron job only run on the leader?
+            on_leader: Should the Cron job only run on the leader?
 
         Example:
             >>> @app.crontab(cron_format='30 18 * * *',

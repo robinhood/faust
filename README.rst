@@ -580,7 +580,7 @@ documentation.
 Code of Conduct
 ===============
 
-Everyone interacting in the project's codebases, issue trackers, chat rooms,
+Everyone interacting in the project's code bases, issue trackers, chat rooms,
 and mailing lists is expected to follow the Faust Code of Conduct.
 
 As contributors and maintainers of these projects, and in the interest of fostering

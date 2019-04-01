@@ -24,7 +24,7 @@ For even older releases you can visit the :ref:`history` section.
 - :setting:`max_poll_records` accidentally set to 500 by default.
 
     The setting has been reverted to its documented default of :const:`None`.
-    This resulted in a 20x performance improvement :tada:
+    This resulted in a 20x performance improvement.
 
 - **CLI**: Now correctly returns non-zero exitcode when exception raised
   inside ``@app.command``.
@@ -195,7 +195,7 @@ For even older releases you can visit the :ref:`history` section.
 
     + Allison Wang (:github_user:`allisonwang`).
     + Thibault Serot (:github_user:`thibserot`).
-    + oucb (:github_user:`oucb`).
+    + :github_user:`oucb`.
 
 - **CI**: Added CPython 3.7.2 and 3.6.8 to Travis CI build matrix.
 
@@ -252,8 +252,8 @@ For even older releases you can visit the :ref:`history` section.
 
 - **Worker**: The Kafka consumer is now running in a separate thread.
 
-    The Kafka heartbeat background corutine sends heartbeats every 3.0 seconds,
-    and if those are missed rebalancing occurs.
+    The Kafka heartbeat background coroutine sends heartbeats
+    every 3.0 seconds, and if those are missed rebalancing occurs.
 
     This patch moves the :pypi:`aiokafka` library inside a separate thread,
     this way it can send responsive heartbeats and operate even when agents
@@ -273,9 +273,9 @@ For even older releases you can visit the :ref:`history` section.
     Instead we periodically flush changes to RocksDB, and populate the sets
     from disk at worker startup/table recovery.
 
-- **App**: Adds support for crontab tasks.
+- **App**: Adds support for Crontab tasks.
 
-    You can now define periodic tasks using cron-syntax:
+    You can now define periodic tasks using Cron-syntax:
 
     .. sourcecode:: python
 
@@ -293,12 +293,12 @@ For even older releases you can visit the :ref:`history` section.
 - **App**: Providing multiple URLs to the :setting:`broker` setting
   now works as expected.
 
-    To facilitiate this change ``app.conf.broker`` is now
+    To facilitate this change ``app.conf.broker`` is now
     ``List[URL]`` instead of a single :class:`~yarl.URL`.
 
 - **App**: New :setting:`timezone` setting.
 
-    This setting is currently used as the default timezone for crontab tasks.
+    This setting is currently used as the default timezone for Crontab tasks.
 
 - **App**: New :setting:`broker_request_timeout` setting.
 

@@ -239,7 +239,7 @@ class Stream(StreamT[T_co], Service):
         """Create a clone of this stream.
 
         Notes:
-            If the cloned stream is supposed to "supercede" this stream,
+            If the cloned stream is supposed to supersede this stream,
             like in ``group_by``/``through``/etc., you should use
             :meth:`_chain` instead so `stream._next = cloned_stream`
             is set and :meth:`get_active_stream` returns the cloned stream.

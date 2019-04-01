@@ -85,8 +85,8 @@ What you must know about Apache Kafka to use Faust
 
 **Log Compaction**
 
-    Log compaction is methodology Kafka uses to make sure that as data for a key
-    changes it doesn't affect the size of the log such that every state change
+    Log compaction is a methodology Kafka uses to make sure that as data for a key
+    changes it will not affect the size of the log such that every state change
     is maintained for all time. Only the most recent value is guaranteed to be
     available. Periodic compaction removes all values for a key except the last
     one.

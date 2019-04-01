@@ -1,0 +1,3 @@
+-r docs-plugins.txt
+sphinx<2.0
+sphinxcontrib-spelling

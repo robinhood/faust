@@ -93,10 +93,10 @@ DEFAULT_BROKER_SCHEME = 'kafka'
 #: Table storage URL, used as default for :setting:`store`.
 STORE_URL = 'memory://'
 
-#: Cache storage URL, used as default for setting:`cache`.
+#: Cache storage URL, used as default for :setting:`cache`.
 CACHE_URL = 'memory://'
 
-#: Web driver URL, used as default for setting:`web`.
+#: Web driver URL, used as default for :setting:`web`.
 WEB_URL = 'aiohttp://'
 
 PROCESSING_GUARANTEE = ProcessingGuarantee.AT_LEAST_ONCE
@@ -204,7 +204,7 @@ STREAM_BUFFER_MAXSIZE = 4096
 STREAM_RECOVERY_DELAY = 3.0
 
 #: We buffer up sending messages until the
-#: source topic offset related to that processsing is committed.
+#: source topic offset related to that processing is committed.
 #: This means when we do commit, we may have buffered up a LOT of messages
 #: so commit frequently.
 #:
@@ -252,7 +252,7 @@ PRODUCER_REQUEST_TIMEOUT: float = 1200.0  # 20 minutes.
 #:         at all. The message will immediately be considered sent.
 #:         (Not recommended)
 #:     1: The broker leader will write the record to its local log but
-#:         will respond without awaiting full acknowledgement from all
+#:         will respond without awaiting full acknowledgment from all
 #:         followers. In this case should the leader fail immediately
 #:         after acknowledging the record but before the followers have
 #:         replicated it then the record will be lost.

@@ -65,7 +65,7 @@ For even older releases you can visit the :ref:`history` section.
     This will be the :class:`aiohttp.web_app.Application` instance used.
 
 - **Documentation**: Fixed markup typo in the settings section of the
-  userguide (Issue #177).
+  :ref:`guide` (Issue #177).
 
     Contributed by Denis Kataev (:github_user:`kataev`).
 

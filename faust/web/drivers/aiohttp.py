@@ -77,7 +77,7 @@ class Server(Service):
 
 
 class Web(base.Web):
-    """Web server and framework implemention using :pypi:`aiohttp`."""
+    """Web server and framework implementation using :pypi:`aiohttp`."""
 
     driver_version = f'aiohttp={aiohttp_version}'
     handler_shutdown_timeout: float = 60.0

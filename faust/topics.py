@@ -74,8 +74,9 @@ class Topic(Channel, TopicT):
                     declared, and ``autoCreateTopics`` is enabled on
                     the Kafka Server, the number of partitions used
                     will be specified by the server configuration.
-        retention: Number of seconds (as float/timedelta) to keep messages
-                   in the topic before they can be expired by the server.
+        retention: Number of seconds (as float/:class:`~datetime.timedelta`)
+                   to keep messages in the topic before they can
+                   be expired by the server.
         pattern: Regular expression evaluated to decide what topics to
                  subscribe to. You cannot specify both topics and a pattern.
         key_type: How to deserialize keys for messages in this topic.
@@ -271,7 +272,7 @@ class Topic(Channel, TopicT):
         """Create new :class:`Topic` derived from this topic.
 
         Configuration will be copied from this topic, but any parameter
-        overriden as a keyword argument.
+        overridden as a keyword argument.
 
         See Also:
             :meth:`derive_topic`: for a list of supported keyword arguments.
