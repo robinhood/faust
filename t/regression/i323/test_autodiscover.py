@@ -1,3 +1,4 @@
+import asyncio
 import io
 import os
 import sys
@@ -11,7 +12,9 @@ sys.path.append(str(Path(__file__).parent))
 from proj import main  # noqa
 
 
-def test_main():
+def test_main(loop):
+    neu_loop = asyncio.set_event_loop(asyncio.new_event_loop())  # noqa
+    # must use the event loop fixture to ensure not using old loop.
     stdout = io.StringIO()
     stderr = io.StringIO()
     environ = dict(os.environ)
@@ -21,11 +24,12 @@ def test_main():
             stack.enter_context(pytest.raises(SystemExit))
             stack.enter_context(redirect_stdout(stdout))
             stack.enter_context(redirect_stderr(stderr))
+            assert sys.argv == ['proj', 'foo']
 
             main()
     finally:
         os.environ.clear()
         os.environ.update(environ)
-    print(stdout.getvalue())
-    print(stderr.getvalue())
+    print(f'STDOUT: {stdout.getvalue()!r}')
+    print(f'STDERR: {stderr.getvalue()!r}')
     assert 'HELLO WORLD' in stdout.getvalue()
