@@ -1,23 +1,24 @@
 """LiveCheck Example.
 
-First start an instance of the stock ordering system in a new terminal:
+1) First start an instance of the stock ordering system in a new terminal:
 
 .. sourcecode:: console
 
     $ python examples/livecheck.py worker -l info
 
-Then in a new terminal, start a LiveCheck instance for this app
+2) Then in a new terminal, start a LiveCheck instance for this app
 
 .. sourcecode:: console
 
     $ faust -A examples.livecheck:livecheck worker -l info
 
-Then visit ``http://localhost:6066/order/init/sell/`` in your browser,
-or in a new terminal do:
+3) Then visit ``http://localhost:6066/order/init/sell/`` in your browser.
 
-.. sourcecode:: console
+    Alternatively you can use the ``post_order`` command:
 
-    $ curl http://localhost:6066/order/init/sell/
+    .. sourcecode:: console
+
+        $ python examples/livecheck.py post_order --side=sell
 
 The probability of a test execution happening is 50%
 so have to do this at least twice to see activity happening
