@@ -19,12 +19,7 @@ app = faust.App(
     autodiscover=True,
 )
 
-livecheck = LiveCheck(
-    'orders-livecheck',
-    cache='redis://localhost:6379',
-    origin='examples.livecheck',
-    autodiscover=True,
-)
+livecheck = LiveCheck.for_app(app)
 
 orders_topic = app.topic('orders', value_type=Order)
 execution_topic = app.topic('order-execution', value_type=Order)

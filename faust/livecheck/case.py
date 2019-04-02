@@ -8,6 +8,7 @@ from mode import Seconds, want_seconds
 from mode.utils.logging import CompositeLogger
 
 from .exceptions import LiveCheckError, TestFailed, TestRaised
+from .locals import current_test_stack
 from .models import SignalEvent, TestExecution
 from .signals import BaseSignal
 from .utils import to_model
@@ -119,26 +120,27 @@ class Case(abc.ABC):
     async def execute(self, test: TestExecution) -> None:
         # resolve_models
         runner = self.clone(execution=test)
-        args = [self._prepare_arg(arg) for arg in test.test_args]
-        kwargs = {
-            self._prepare_kwkey(k): self._prepare_kwval(v)
-            for k, v in test.test_kwargs.items()
-        }
-        runner.log.info('≈≈≈ Test %s executing... (issued %s) ≈≈≈',
-                        self.name, test.human_date)
-        try:
-            await runner.run(*args, **kwargs)
-        except AssertionError as exc:
-            runner.log.exception('Test failed: %r', exc)
-            raise TestFailed(exc) from exc
-        except LiveCheckError as exc:
-            runner.log.exception('Test raised: %r', exc)
-            raise
-        except Exception as exc:
-            runner.log.exception('Test raised: %r', exc)
-            raise TestRaised(exc) from exc
-        else:
-            runner.log.info('Test OK √')
+        with current_test_stack.push(test):
+            args = [self._prepare_arg(arg) for arg in test.test_args]
+            kwargs = {
+                self._prepare_kwkey(k): self._prepare_kwval(v)
+                for k, v in test.test_kwargs.items()
+            }
+            runner.log.info('≈≈≈ Test %s executing... (issued %s) ≈≈≈',
+                            self.name, test.human_date)
+            try:
+                await runner.run(*args, **kwargs)
+            except AssertionError as exc:
+                runner.log.exception('Test failed: %r', exc)
+                raise TestFailed(exc) from exc
+            except LiveCheckError as exc:
+                runner.log.exception('Test raised: %r', exc)
+                raise
+            except Exception as exc:
+                runner.log.exception('Test raised: %r', exc)
+                raise TestRaised(exc) from exc
+            else:
+                runner.log.info('Test OK √')
 
     def _prepare_arg(self, arg: Any) -> Any:
         return to_model(arg)

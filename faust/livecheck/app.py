@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any, Callable, ClassVar, Dict, Iterable, Tuple, Type
 
 import faust
-from faust.types import ChannelT, StreamT, TopicT
+from faust.types import AppT, ChannelT, StreamT, TopicT
 from mode.utils.objects import annotations, cached_property, qualname
 from mode.utils.times import Seconds
 
@@ -34,6 +34,14 @@ class LiveCheck(faust.App):
     bus: ChannelT
 
     _resolved_signals: Dict[Tuple[str, Any], SignalEvent]
+
+    @classmethod
+    def for_app(cls, app: AppT, *,
+                prefix: str = 'livecheck-',
+                **kwargs: Any) -> 'LiveCheck':
+        app_id, passed_kwargs = app._default_options
+        livecheck_id = f'{prefix}{app_id}'
+        return cls(livecheck_id, **passed_kwargs)
 
     def __init__(self,
                  id: str,
