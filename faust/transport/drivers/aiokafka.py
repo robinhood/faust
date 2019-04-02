@@ -433,7 +433,7 @@ class Producer(base.Producer):
 
     _producer: Optional[aiokafka.AIOKafkaProducer] = None
 
-    def on_init(self):
+    def on_init(self) -> None:
         self._send_on_produce_message = self.app.on_produce_message.send
 
     def _settings_default(self) -> Mapping[str, Any]:
