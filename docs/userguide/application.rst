@@ -805,6 +805,45 @@ Signals are an implementation of the `Observer`_  design pattern.
 .. _`Celery`: http://celeryproject.org
 .. _`Observer`: https://en.wikipedia.org/wiki/Observer_pattern
 
+.. signal:: App.on_produce_message
+
+``App.on_produce_message``
+--------------------------
+
+.. versionadded:: 1.6
+
+:sender: :class:`faust.App`
+:arguments: ``key, value, partition, timestamp, headers``
+
+The ``on_produce_message`` signal as a synchronous signal called before
+producing messages.
+
+This can be used to attach custom headers to Kafka messages:
+
+.. sourcecode:: python
+
+    from typing import Any, List, Tuple
+    from faust.types import AppT
+    from mode.utils.compat import want_bytes
+
+    @app.on_produce_message.connect()
+    def on_produce_attach_trace_headers(
+            self,
+            sender: AppT,
+            key: bytes = None,
+            value: bytes = None,
+            partition: int = None,
+            timestamp: float = None,
+            headers: List[Tuple[str, bytes]] = None,
+            **kwargs: Any) -> None:
+        test = current_test()
+        if test is not None:
+            # Headers at this point is a list of ``(key, value)`` pairs.
+            # Note2: values in headers must be :class:`bytes`.
+            headers.extend([
+                (k, want_bytes(v)) for k, v in test.as_headers().items()
+            ])
+
 .. signal:: App.on_partitions_revoked
 
 ``App.on_partitions_revoked``

@@ -146,6 +146,7 @@ class AppT(ServiceT):
     on_rebalance_complete: Signal = Signal()
     on_before_shutdown: Signal = Signal()
     on_worker_init: SyncSignal = SyncSignal()
+    on_produce_message: SyncSignal = SyncSignal()
 
     client_only: bool
 

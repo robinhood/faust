@@ -492,6 +492,8 @@ class App(AppT, Service):
             self.on_rebalance_complete.with_default_sender(self))
         self.on_before_shutdown = (
             self.on_before_shutdown.with_default_sender(self))
+        self.on_produce_message = (
+            self.on_produce_message.with_default_sender(self))
 
     def _init_fixups(self) -> MutableSequence[FixupT]:
         # Returns list of "fixups"
