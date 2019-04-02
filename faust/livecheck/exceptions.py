@@ -12,6 +12,10 @@ class LiveCheckError(Exception):
     """Generic base class for livecheck test errors."""
 
 
+class TestSkipped(LiveCheckError):
+    """Test was skipped."""
+
+
 class TestFailed(LiveCheckError):
     """The test failed an assertion."""
 

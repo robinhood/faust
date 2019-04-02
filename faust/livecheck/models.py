@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 from faust import Record
+from faust.utils.iso8601 import parse as parse_iso8601
+from mode.utils.compat import want_str
 from mode.utils.objects import cached_property
 from mode.utils.text import abbr
 
@@ -10,6 +12,7 @@ __all__ = ['SignalEvent', 'TestExecution']
 HEADER_TEST_ID = 'LiveCheck-Test-Id'
 HEADER_TEST_NAME = 'LiveCheck-Test-Name'
 HEADER_TEST_TIMESTAMP = 'LiveCheck-Test-Timestamp'
+HEADER_TEST_EXPIRES = 'LiveCheck-Test-Expires'
 
 
 class SignalEvent(Record):
@@ -21,26 +24,32 @@ class SignalEvent(Record):
     value: Any
 
 
-class TestExecution(Record):
+class TestExecution(Record, isodates=True):
     """Requested test excecution."""
 
     id: str
     case_name: str
-    timestamp: float
+    timestamp: datetime
     test_args: List[Any]
     test_kwargs: Dict[str, Any]
+    expires: datetime
 
     @classmethod
     def from_headers(cls, headers: Mapping) -> Optional['TestExecution']:
         try:
-            test_id = headers[HEADER_TEST_ID]
+            test_id = want_str(headers[HEADER_TEST_ID])
         except KeyError:
-            pass
+            return None
         else:
+            test_name = headers[HEADER_TEST_NAME]
+            timestamp = headers[HEADER_TEST_TIMESTAMP]
+            expires = headers[HEADER_TEST_EXPIRES]
+
             return cls(
                 id=test_id,
-                name=headers.get(HEADER_TEST_NAME),
-                timestamp=headers.get(HEADER_TEST_TIMESTAMP),
+                case_name=want_str(test_name),
+                timestamp=parse_iso8601(want_str(timestamp)),
+                expires=parse_iso8601(want_str(expires)),
                 test_args=(),
                 test_kwargs={},
             )
@@ -48,8 +57,9 @@ class TestExecution(Record):
     def as_headers(self) -> Mapping:
         return {
             HEADER_TEST_ID: self.id,
-            HEADER_TEST_NAME: self.name,
-            HEADER_TEST_TIMESTAMP: self.timestamp,
+            HEADER_TEST_NAME: self.case_name,
+            HEADER_TEST_TIMESTAMP: self.timestamp.isoformat(),
+            HEADER_TEST_EXPIRES: self.expires.isoformat(),
         }
 
     @cached_property
@@ -63,22 +73,26 @@ class TestExecution(Record):
             abbr(self.id, max=15, suffix='[...]'),
         )
 
-    def _build_ident(self, name: str, id: str) -> str:
-        return f'{name}:{id}'
+    def _build_ident(self, case_name: str, id: str) -> str:
+        return f'{case_name}:{id}'
 
-    @cached_property
-    def date(self) -> datetime:
-        return datetime.fromtimestamp(self.timestamp).astimezone(timezone.utc)
+    def _now(self) -> datetime:
+        return datetime.utcnow().astimezone(timezone.utc)
 
     @cached_property
     def human_date(self) -> str:
-        date = self.date
-        if date.date() == self._now().date():
-            return 'Today ' + date.time().strftime('%H:%M:%S')
-        return str(date)
+        if self.was_issued_today:
+            return f'''Today {self.timestamp.strftime('%H:%M:%S')}'''
+        else:
+            return str(self.timestamp)
 
-    def _now(self) -> datetime:
-        return datetime.now().astimezone(timezone.utc)
+    @cached_property
+    def was_issued_today(self) -> bool:
+        return self.timestamp.date() == self._now().date()
+
+    @cached_property
+    def is_expired(self) -> bool:
+        return self._now() >= self.expires
 
     @cached_property
     def short_case_name(self) -> str:

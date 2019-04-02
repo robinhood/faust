@@ -1,13 +1,15 @@
 """LiveCheck - Test cases."""
 import abc
+from datetime import datetime, timedelta, timezone
 import typing
+from contextlib import ExitStack
 from random import uniform
-from time import time
-from typing import Any, Dict, Iterable, Mapping, Optional
+from typing import Any, AsyncGenerator, Dict, Iterable, Mapping, Optional
 from mode import Seconds, want_seconds
+from mode.utils.contexts import asynccontextmanager
 from mode.utils.logging import CompositeLogger
 
-from .exceptions import LiveCheckError, TestFailed, TestRaised
+from .exceptions import LiveCheckError, TestFailed, TestRaised, TestSkipped
 from .locals import current_test_stack
 from .models import SignalEvent, TestExecution
 from .signals import BaseSignal
@@ -34,7 +36,7 @@ class Case(abc.ABC):
     warn_empty_after: float = 1800.0
 
     #: Probability of test running when live traffic is going through.
-    probability: float = 0.2
+    probability: float = 0.5
 
     #: Is test activated (based on probability setting).
     active: bool = False
@@ -43,6 +45,7 @@ class Case(abc.ABC):
     _original_signals: Iterable[BaseSignal]
 
     total_signals: int
+    test_expires: timedelta
 
     log: CompositeLogger
 
@@ -53,7 +56,8 @@ class Case(abc.ABC):
                  warn_empty_after: Seconds = None,
                  active: bool = None,
                  signals: Iterable[BaseSignal] = None,
-                 execution: TestExecution = None) -> None:
+                 execution: TestExecution = None,
+                 test_expires: Seconds = timedelta(hours=3)) -> None:
         self.app = app
         self.name = name
         if probability is not None:
@@ -68,6 +72,7 @@ class Case(abc.ABC):
             sig.name: sig.clone(case=self)
             for sig in self._original_signals
         }
+        self.test_expires = timedelta(seconds=want_seconds(test_expires))
 
         self.total_signals = len(self.signals)
         # update local attribute so that the
@@ -90,12 +95,17 @@ class Case(abc.ABC):
             'execution': self.execution,
         }
 
-    async def maybe_trigger(self, id: str,
-                            *args: Any,
-                            **kwargs: Any) -> Optional[TestExecution]:
-        if uniform(0, 1) < self.probability:
-            return await self.trigger(id, *args, **kwargs)
-        return None
+    @asynccontextmanager
+    async def maybe_trigger(
+            self, id: str,
+            *args: Any,
+            **kwargs: Any) -> AsyncGenerator[Optional[TestExecution], None]:
+        execution: Optional[TestExecution] = None
+        with ExitStack() as exit_stack:
+            if uniform(0, 1) < self.probability:
+                execution = await self.trigger(id, *args, **kwargs)
+                exit_stack.enter_context(current_test_stack.push(execution))
+            yield execution
 
     async def trigger(self, id: str,
                       *args: Any,
@@ -103,12 +113,16 @@ class Case(abc.ABC):
         execution = TestExecution(
             id=id,
             case_name=self.name,
-            timestamp=time(),
+            timestamp=self._now(),
             test_args=args,
             test_kwargs=kwargs,
+            expires=self._now() + self.test_expires,
         )
         await self.app.pending_tests.send(key=id, value=execution)
         return execution
+
+    def _now(self) -> datetime:
+        return datetime.utcnow().astimezone(timezone.utc)
 
     @abc.abstractmethod
     async def run(self, *test_args: Any, **test_kwargs: Any) -> None:
@@ -118,6 +132,11 @@ class Case(abc.ABC):
         await self.signals[event.signal_name].resolve(key, event)
 
     async def execute(self, test: TestExecution) -> None:
+        if test.is_expired:
+            self.log.info('Skipped expired test: %s expires=%s',
+                          test.ident, test.expires)
+            raise TestSkipped('Test {test.ident} skipped: expired')
+
         # resolve_models
         runner = self.clone(execution=test)
         with current_test_stack.push(test):

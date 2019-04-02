@@ -1,14 +1,20 @@
 """LiveCheck - Faust Application."""
+import asyncio
 from datetime import timedelta
-from typing import Any, Callable, ClassVar, Dict, Iterable, Tuple, Type
+from typing import Any, Callable, ClassVar, Dict, Iterable, List, Tuple, Type
 
-import faust
-from faust.types import AppT, ChannelT, StreamT, TopicT
+from mode.utils.compat import want_bytes
 from mode.utils.objects import annotations, cached_property, qualname
 from mode.utils.times import Seconds
 
+import faust
+from faust.sensors.base import Sensor
+from faust.types import AgentT, AppT, ChannelT, EventT, StreamT, TP, TopicT
+
+from . import patches
 from .case import Case
 from .exceptions import LiveCheckError
+from .locals import current_test, current_test_stack
 from .models import SignalEvent, TestExecution
 from .signals import BaseSignal, Signal
 
@@ -16,6 +22,31 @@ __all__ = ['LiveCheck']
 
 #: alias for mypy bug
 _Case = Case
+
+patches.patch_all()  # XXX
+
+
+class LiveCheckSensor(Sensor):
+
+    def on_stream_event_in(self,
+                           tp: TP,
+                           offset: int,
+                           stream: StreamT,
+                           event: EventT) -> None:
+        test = TestExecution.from_headers(event.headers)
+        if test is not None:
+            stream.current_test = test
+            current_test_stack.push_without_automatic_cleanup(test)
+
+    def on_stream_event_out(self,
+                            tp: TP,
+                            offset: int,
+                            stream: StreamT,
+                            event: EventT) -> None:
+        has_active_test = getattr(stream, 'current_test', None)
+        if has_active_test:
+            stream.current_test = None
+            current_test_stack.pop()
 
 
 class LiveCheck(faust.App):
@@ -27,27 +58,43 @@ class LiveCheck(faust.App):
     Case: ClassVar[Type[Case]]  # type: ignore
     Case = _Case
 
+    #: Number of concurrent actors processing signal events.
+    bus_concurrency: int = 30
+
+    #: Number of concurrent actors executing test cases.
+    test_concurrency: int = 100
+
     test_topic_name: str
     bus_topic_name: str
 
     cases: Dict[str, _Case]
     bus: ChannelT
 
-    _resolved_signals: Dict[Tuple[str, Any], SignalEvent]
+    _resolved_signals: Dict[Tuple[str, str, Any], SignalEvent]
 
     @classmethod
     def for_app(cls, app: AppT, *,
                 prefix: str = 'livecheck-',
+                web_port: int = 9999,
+                bus_concurrency: int = None,
+                test_concurrency: int = None,
                 **kwargs: Any) -> 'LiveCheck':
         app_id, passed_kwargs = app._default_options
         livecheck_id = f'{prefix}{app_id}'
-        return cls(livecheck_id, **passed_kwargs)
+        app.sensors.add(LiveCheckSensor())
+        from .patches.aiohttp import LiveCheckMiddleware
+        app.web.web_app.middlewares.append(LiveCheckMiddleware())
+        override = {'web_port': web_port, **kwargs}
+        options = {**passed_kwargs, **override}
+        return cls(livecheck_id, **options)
 
     def __init__(self,
                  id: str,
                  *,
                  test_topic_name: str = 'livecheck',
                  bus_topic_name: str = 'livecheck-bus',
+                 bus_concurrency: int = None,
+                 test_concurrency: int = None,
                  **kwargs: Any) -> None:
         super().__init__(id, **kwargs)
         self.test_topic_name = test_topic_name
@@ -55,9 +102,45 @@ class LiveCheck(faust.App):
         self.cases = {}
         self._resolved_signals = {}
 
+        if bus_concurrency is not None:
+            self.bus_concurrency = bus_concurrency
+        if test_concurrency is not None:
+            self.test_concurrency = test_concurrency
+
+        patches.patch_all()
+        self._apply_monkeypatches()
+        self._connect_signals()
+
+    @cached_property
+    def _can_resolve(self) -> asyncio.Event:
+        return asyncio.Event()
+
+    def _apply_monkeypatches(self) -> None:
+        patches.patch_all()
+
+    def _connect_signals(self) -> None:
+        AppT.on_produce_message.connect(self.on_produce_attach_test_headers)
+
+    def on_produce_attach_test_headers(
+            self,
+            sender: AppT,
+            key: bytes = None,
+            value: bytes = None,
+            partition: int = None,
+            timestamp: float = None,
+            headers: List[Tuple[str, bytes]] = None,
+            **kwargs: Any) -> None:
+        test = current_test()
+        if test is not None:
+            if headers is None:
+                raise TypeError('Produce request missing headers list')
+            headers.extend([
+                (k, want_bytes(v)) for k, v in test.as_headers().items()
+            ])
+
     def case(self, *,
              name: str = None,
-             probability: float = 0.2,
+             probability: float = None,
              warn_empty_after: Seconds = timedelta(minutes=30),
              active: bool = False,
              base: Type[_Case] = Case) -> Callable[[Type], _Case]:
@@ -105,8 +188,20 @@ class LiveCheck(faust.App):
         return case
 
     async def on_start(self) -> None:
-        self.agent(self.bus)(self._populate_signals)
-        self.agent(self.pending_tests)(self._execute_tests)
+        self._install_bus_agent()
+        self._install_test_execution_agent()
+
+    def _install_bus_agent(self) -> AgentT:
+        return self.agent(
+            channel=self.bus,
+            concurrency=self.bus_concurrency,
+        )(self._populate_signals)
+
+    def _install_test_execution_agent(self) -> AgentT:
+        return self.agent(
+            channel=self.pending_tests,
+            concurrency=self.test_concurrency,
+        )(self._execute_tests)
 
     async def _populate_signals(self, events: StreamT[SignalEvent]) -> None:
         async for test_id, event in events.items():
